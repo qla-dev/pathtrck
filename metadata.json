@@ -1,0 +1,5 @@
+{
+  "name": "PathTracker.ai",
+  "description": "A high-performance logistics and package tracking platform for users and drivers with real-time tracking, AI-powered vehicle detection, and advanced fleet analytics.",
+  "requestFramePermissions": ["geolocation"]
+}
