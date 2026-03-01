@@ -209,6 +209,21 @@ const getProfileContent = (lang: Language, role: Role) => {
       desc: tr(lang, 'Low cancellation rate', 'Niska stopa otkazivanja', 'Niedrige Stornoquote'),
       icon: Clock3,
     },
+    {
+      title: tr(lang, 'Trusted by carriers', 'Povjerenje prevoznika', 'Von Fahrern vertraut'),
+      desc: tr(lang, '98% repeat partners', '98% ponovnih partnera', '98% wiederkehrende Partner'),
+      icon: ShieldCheck,
+    },
+    {
+      title: tr(lang, 'Accurate documents', 'Tacna dokumentacija', 'Praezise Dokumente'),
+      desc: tr(lang, '99.2% no corrections', '99.2% bez ispravki', '99.2% ohne Korrekturen'),
+      icon: CheckCircle2,
+    },
+    {
+      title: tr(lang, 'Rapid coordination', 'Brza koordinacija', 'Schnelle Koordination'),
+      desc: tr(lang, 'Avg assign time 7 min', 'Prosjecno dodjela 7 min', 'Durchschnittliche Zuweisung 7 Min'),
+      icon: Truck,
+    },
   ];
 
   const feedback: Feedback[] = [
@@ -283,7 +298,7 @@ const getProfileContent = (lang: Language, role: Role) => {
 
 export const ProfileView = ({ role, lang }: { role: Role; lang: Language }) => {
   const content = getProfileContent(lang, role);
-  const showTopReviewActions = role === 'driver';
+  const showTopReviewActions = true;
 
   return (
     <div className="space-y-6">
@@ -374,7 +389,9 @@ export const ProfileView = ({ role, lang }: { role: Role; lang: Language }) => {
                 <div className="relative flex items-start justify-between gap-3">
                   <div>
                     <p className="text-xs uppercase tracking-[0.2em] font-bold text-primary mb-1.5">
-                      {tr(lang, 'Driver Stats Snapshot', 'Pregled statistike vozaca', 'Fahrer-Statistik-Snapshot')}
+                      {role === 'driver'
+                        ? tr(lang, 'Driver Stats Snapshot', 'Pregled statistike vozaca', 'Fahrer-Statistik-Snapshot')
+                        : tr(lang, 'Customer Stats Snapshot', 'Pregled statistike korisnika', 'Kunden-Statistik-Snapshot')}
                     </p>
                     <h3 className="text-lg font-bold text-slate-900 dark:text-white">
                       {tr(lang, 'Weekly Performance Insights', 'Sedmicni uvidi performansi', 'Woechentliche Performance-Einblicke')}
@@ -396,47 +413,61 @@ export const ProfileView = ({ role, lang }: { role: Role; lang: Language }) => {
                 <div className="mt-4 grid gap-3 sm:grid-cols-4">
                   <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
                     <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      {tr(lang, 'Completed', 'Zavrseno', 'Abgeschlossen')}
+                      {role === 'driver'
+                        ? tr(lang, 'Completed', 'Zavrseno', 'Abgeschlossen')
+                        : tr(lang, 'Posted Loads', 'Objavljeni tereti', 'Veroeffentlichte Ladungen')}
                     </p>
-                    <p className="mt-1 text-xl font-black text-slate-900 dark:text-white">34</p>
+                    <p className="mt-1 text-xl font-black text-slate-900 dark:text-white">{role === 'driver' ? '34' : '51'}</p>
                   </div>
                   <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
                     <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      {tr(lang, 'On-time', 'Na vrijeme', 'Puenktlich')}
+                      {role === 'driver'
+                        ? tr(lang, 'On-time', 'Na vrijeme', 'Puenktlich')
+                        : tr(lang, 'Fill Rate', 'Popunjenost', 'Fuellrate')}
                     </p>
-                    <p className="mt-1 text-xl font-black text-emerald-500">97.8%</p>
+                    <p className="mt-1 text-xl font-black text-emerald-500">{role === 'driver' ? '97.8%' : '94.1%'}</p>
                   </div>
                   <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
                     <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                       {tr(lang, 'Avg Rating', 'Prosjecna ocjena', 'Durchschnittsbewertung')}
                     </p>
-                    <p className="mt-1 text-xl font-black text-slate-900 dark:text-white">4.9</p>
+                    <p className="mt-1 text-xl font-black text-slate-900 dark:text-white">{role === 'driver' ? '4.9' : '4.8'}</p>
                   </div>
                   <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
                     <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      {tr(lang, 'Claims', 'Reklamacije', 'Reklamationen')}
+                      {role === 'driver'
+                        ? tr(lang, 'Claims', 'Reklamacije', 'Reklamationen')
+                        : tr(lang, 'Disputes', 'Sporovi', 'Streitfaelle')}
                     </p>
-                    <p className="mt-1 text-xl font-black text-slate-900 dark:text-white">0</p>
+                    <p className="mt-1 text-xl font-black text-slate-900 dark:text-white">{role === 'driver' ? '0' : '1'}</p>
                   </div>
                 </div>
 
                 <div className="mt-4 space-y-3">
                   <div>
                     <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
-                      <span>{tr(lang, 'Fuel Efficiency', 'Efikasnost goriva', 'Kraftstoffeffizienz')}</span>
-                      <span>91%</span>
+                      <span>
+                        {role === 'driver'
+                          ? tr(lang, 'Fuel Efficiency', 'Efikasnost goriva', 'Kraftstoffeffizienz')
+                          : tr(lang, 'Cost Efficiency', 'Efikasnost troska', 'Kosteneffizienz')}
+                      </span>
+                      <span>{role === 'driver' ? '91%' : '89%'}</span>
                     </div>
                     <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                      <div className="h-full rounded-full bg-primary w-[91%]" />
+                      <div className={`h-full rounded-full bg-primary ${role === 'driver' ? 'w-[91%]' : 'w-[89%]'}`} />
                     </div>
                   </div>
                   <div>
                     <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
-                      <span>{tr(lang, 'Customer Feedback', 'Povratna informacija', 'Kundenfeedback')}</span>
-                      <span>96%</span>
+                      <span>
+                        {role === 'driver'
+                          ? tr(lang, 'Customer Feedback', 'Povratna informacija', 'Kundenfeedback')
+                          : tr(lang, 'Carrier Feedback', 'Feedback prevoznika', 'Fahrerfeedback')}
+                      </span>
+                      <span>{role === 'driver' ? '96%' : '94%'}</span>
                     </div>
                     <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                      <div className="h-full rounded-full bg-emerald-500 w-[96%]" />
+                      <div className={`h-full rounded-full bg-emerald-500 ${role === 'driver' ? 'w-[96%]' : 'w-[94%]'}`} />
                     </div>
                   </div>
                 </div>

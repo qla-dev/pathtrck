@@ -1,4 +1,4 @@
-import { Package, Load, RouteLog } from './types';
+﻿import { Package, Load, RouteLog } from './types';
 
 export const MOCK_PACKAGES: Package[] = [
   {
@@ -39,7 +39,7 @@ export const MOCK_LOADS: Load[] = [
     id: 'L1',
     title: 'Electronics Pallets',
     weight: '1200',
-    price: '€450',
+    price: 'EUR 450',
     pickup: 'Vienna, AT',
     delivery: 'Prague, CZ',
     date: 'March 2, 2026',
@@ -52,7 +52,7 @@ export const MOCK_LOADS: Load[] = [
     id: 'L2',
     title: 'Frozen Goods (Meat)',
     weight: '18000',
-    price: '€2,100',
+    price: 'EUR 2,100',
     pickup: 'Zagreb, HR',
     delivery: 'Berlin, DE',
     date: 'March 4, 2026',
@@ -65,7 +65,7 @@ export const MOCK_LOADS: Load[] = [
     id: 'L3',
     title: 'Furniture Set',
     weight: '800',
-    price: '€320',
+    price: 'EUR 320',
     pickup: 'Sarajevo, BA',
     delivery: 'Banja Luka, BA',
     date: 'March 1, 2026',
@@ -73,6 +73,136 @@ export const MOCK_LOADS: Load[] = [
     status: 'Available',
     cargoType: 'Fragile',
     eta: '1 March, 16:00'
+  },
+  {
+    id: 'L4',
+    title: 'Pharma Temperature Cargo',
+    weight: '6200',
+    price: 'EUR 1,480',
+    pickup: 'Prague, CZ',
+    delivery: 'Vienna, AT',
+    date: 'March 5, 2026',
+    author: 'MediChain',
+    status: 'Assigned',
+    cargoType: 'Perishable',
+    eta: '5 March, 15:20'
+  },
+  {
+    id: 'L5',
+    title: 'Industrial Spare Parts',
+    weight: '14000',
+    price: 'EUR 1,950',
+    pickup: 'Berlin, DE',
+    delivery: 'Zagreb, HR',
+    date: 'March 6, 2026',
+    author: 'NordMach',
+    status: 'Available',
+    cargoType: 'Industrial',
+    eta: '6 March, 20:10'
+  },
+  {
+    id: 'L6',
+    title: 'Retail Mixed Pallets',
+    weight: '4200',
+    price: 'EUR 980',
+    pickup: 'Banja Luka, BA',
+    delivery: 'Sarajevo, BA',
+    date: 'March 3, 2026',
+    author: 'RetailFlow',
+    status: 'Available',
+    cargoType: 'General',
+    eta: '3 March, 18:45'
+  },
+  {
+    id: 'L7',
+    title: 'Fresh Produce Batch',
+    weight: '9700',
+    price: 'EUR 1,260',
+    pickup: 'Zagreb, HR',
+    delivery: 'Vienna, AT',
+    date: 'March 7, 2026',
+    author: 'FreshWay',
+    status: 'Assigned',
+    cargoType: 'Perishable',
+    eta: '7 March, 14:30'
+  },
+  {
+    id: 'L8',
+    title: 'Office Equipment Set',
+    weight: '2800',
+    price: 'EUR 740',
+    pickup: 'Prague, CZ',
+    delivery: 'Berlin, DE',
+    date: 'March 8, 2026',
+    author: 'OfficeTransit',
+    status: 'Available',
+    cargoType: 'Electronics',
+    eta: '8 March, 17:15'
+  },
+  {
+    id: 'L9',
+    title: 'Construction Tools',
+    weight: '5100',
+    price: 'EUR 1,020',
+    pickup: 'Vienna, AT',
+    delivery: 'Sarajevo, BA',
+    date: 'March 9, 2026',
+    author: 'BuildLink',
+    status: 'Available',
+    cargoType: 'Industrial',
+    eta: '9 March, 21:00'
+  },
+  {
+    id: 'L10',
+    title: 'Textile Rolls',
+    weight: '3600',
+    price: 'EUR 690',
+    pickup: 'Berlin, DE',
+    delivery: 'Prague, CZ',
+    date: 'March 10, 2026',
+    author: 'Textura GmbH',
+    status: 'Assigned',
+    cargoType: 'General',
+    eta: '10 March, 13:40'
+  },
+  {
+    id: 'L11',
+    title: 'Auto Components',
+    weight: '11200',
+    price: 'EUR 1,720',
+    pickup: 'Banja Luka, BA',
+    delivery: 'Zagreb, HR',
+    date: 'March 11, 2026',
+    author: 'DriveCore',
+    status: 'Available',
+    cargoType: 'Automotive',
+    eta: '11 March, 12:25'
+  },
+  {
+    id: 'L12',
+    title: 'E-commerce Parcels',
+    weight: '2100',
+    price: 'EUR 560',
+    pickup: 'Sarajevo, BA',
+    delivery: 'Vienna, AT',
+    date: 'March 12, 2026',
+    author: 'QuickBox',
+    status: 'Assigned',
+    cargoType: 'General',
+    eta: '12 March, 19:10'
+  },
+  {
+    id: 'L13',
+    title: 'High-Value Electronics',
+    weight: '1600',
+    price: 'EUR 1,340',
+    pickup: 'Prague, CZ',
+    delivery: 'Sarajevo, BA',
+    date: 'March 13, 2026',
+    author: 'SecureTech Freight',
+    status: 'Available',
+    cargoType: 'Electronics',
+    eta: '13 March, 22:30'
   }
 ];
 

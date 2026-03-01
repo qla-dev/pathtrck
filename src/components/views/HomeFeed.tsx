@@ -64,7 +64,7 @@ const LoadsBounds = ({ points }: { points: [number, number][] }) => {
 };
 
 export const HomeFeed = ({ lang }: { lang: Language }) => {
-  const [layout, setLayout] = useState<FeedLayoutMode>('list');
+  const [layout, setLayout] = useState<FeedLayoutMode>('map');
   const [mapSource, setMapSource] = useState<MapSource>('normal');
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
 
@@ -99,7 +99,7 @@ export const HomeFeed = ({ lang }: { lang: Language }) => {
     <Card key={load.id} className="hover:border-primary/50 transition-all cursor-pointer group">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex gap-4">
-          <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+          <div className="w-12 h-12 shrink-0 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center group-hover:bg-primary/10 transition-colors">
             <Truck className="text-slate-500 group-hover:text-primary transition-colors" />
           </div>
           <div>
@@ -107,11 +107,11 @@ export const HomeFeed = ({ lang }: { lang: Language }) => {
             <p className="text-sm text-slate-500">{load.author} • {load.date}</p>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-bold dark:text-slate-300">
+        <div className="ml-auto flex items-center gap-4 shrink-0 whitespace-nowrap">
+          <div className="px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-bold dark:text-slate-300 whitespace-nowrap">
             {load.weight}
           </div>
-          <div className="text-xl font-black text-primary">
+          <div className="text-xl font-black text-primary whitespace-nowrap text-right">
             {load.price}
           </div>
         </div>
@@ -135,29 +135,29 @@ export const HomeFeed = ({ lang }: { lang: Language }) => {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold dark:text-white">{u('home.availableLoads', 'Available Loads')}</h1>
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1">
-            {layoutButtons.map((button) => (
-              <button
-                key={button.id}
-                onClick={() => setLayout(button.id)}
-                title={button.title}
-                aria-label={button.title}
-                className={cn(
-                  'h-8 w-8 rounded-lg flex items-center justify-center transition-all cursor-pointer',
-                  layout === button.id
-                    ? 'bg-primary text-white'
-                    : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
-                )}
-              >
-                <button.icon className="w-4 h-4" />
-              </button>
-            ))}
-          </div>
+          <h1 className="text-2xl font-bold dark:text-white mr-2">{u('home.availableLoads', 'Available Loads')}</h1>
           <Button variant="outline" size="sm"><Filter className="w-4 h-4 mr-2" /> {u('common.filter', 'Filter')}</Button>
           <Button size="sm"><Plus className="w-4 h-4 mr-2" /> {u('common.postLoad', 'Post Load')}</Button>
+        </div>
+        <div className="inline-flex items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1 self-start md:self-auto">
+          {layoutButtons.map((button) => (
+            <button
+              key={button.id}
+              onClick={() => setLayout(button.id)}
+              title={button.title}
+              aria-label={button.title}
+              className={cn(
+                'h-8 w-8 rounded-lg flex items-center justify-center transition-all cursor-pointer',
+                layout === button.id
+                  ? 'bg-primary text-white'
+                  : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+              )}
+            >
+              <button.icon className="w-4 h-4" />
+            </button>
+          ))}
         </div>
       </div>
 
@@ -175,10 +175,10 @@ export const HomeFeed = ({ lang }: { lang: Language }) => {
 
       {layout === 'map' && (
         <div className="grid lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-4 space-y-4 max-h-[72vh] overflow-y-auto pr-1">
+          <div className="lg:col-span-5 space-y-4 max-h-[72vh] overflow-y-auto pr-1">
             {MOCK_LOADS.map(renderLoadCard)}
           </div>
-          <div className="lg:col-span-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
+          <div className="lg:col-span-7 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
             <div className="h-[72vh] relative">
               <MapContainer key={`loads-map-${layout}`} center={[48.5, 14.8]} zoom={5} className="h-full w-full">
                 <TileLayer

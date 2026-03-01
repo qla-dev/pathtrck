@@ -12,6 +12,7 @@ const UI: Record<Locale, Record<string, string>> = {
     'common.continue': 'Continue',
     'common.back': 'Back',
     'common.settings': 'Settings',
+    'common.automations': 'AI Automations',
     'common.logout': 'Logout',
     'common.myProfile': 'My Profile',
     'common.lightMode': 'Light Mode',
@@ -106,6 +107,7 @@ const UI: Record<Locale, Record<string, string>> = {
     'common.continue': 'Nastavi',
     'common.back': 'Nazad',
     'common.settings': 'Postavke',
+    'common.automations': 'AI Automatizacije',
     'common.logout': 'Odjava',
     'common.myProfile': 'Moj profil',
     'common.lightMode': 'Svijetli režim',
@@ -200,6 +202,7 @@ const UI: Record<Locale, Record<string, string>> = {
     'common.continue': 'Weiter',
     'common.back': 'Zurück',
     'common.settings': 'Einstellungen',
+    'common.automations': 'KI-Automatisierungen',
     'common.logout': 'Abmelden',
     'common.myProfile': 'Mein Profil',
     'common.lightMode': 'Heller Modus',
@@ -287,10 +290,71 @@ const UI: Record<Locale, Record<string, string>> = {
   },
 };
 
+const DATE_PICKER_I18N: Record<
+  Locale,
+  {
+    weekdays: { shorthand: string[]; longhand: string[] };
+    months: { shorthand: string[]; longhand: string[] };
+    firstDayOfWeek: number;
+    rangeSeparator: string;
+    weekAbbreviation: string;
+    scrollTitle: string;
+    toggleTitle: string;
+  }
+> = {
+  en: {
+    weekdays: {
+      shorthand: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+      longhand: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+    },
+    months: {
+      shorthand: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+      longhand: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+    },
+    firstDayOfWeek: 1,
+    rangeSeparator: ' - ',
+    weekAbbreviation: 'Wk',
+    scrollTitle: 'Scroll to change',
+    toggleTitle: 'Click to toggle',
+  },
+  bs: {
+    weekdays: {
+      shorthand: ['Ned', 'Pon', 'Uto', 'Sri', 'Cet', 'Pet', 'Sub'],
+      longhand: ['Nedjelja', 'Ponedjeljak', 'Utorak', 'Srijeda', 'Cetvrtak', 'Petak', 'Subota'],
+    },
+    months: {
+      shorthand: ['Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun', 'Jul', 'Avg', 'Sep', 'Okt', 'Nov', 'Dec'],
+      longhand: ['Januar', 'Februar', 'Mart', 'April', 'Maj', 'Juni', 'Juli', 'Avgust', 'Septembar', 'Oktobar', 'Novembar', 'Decembar'],
+    },
+    firstDayOfWeek: 1,
+    rangeSeparator: ' do ',
+    weekAbbreviation: 'Sed',
+    scrollTitle: 'Skrol za promjenu',
+    toggleTitle: 'Klik za promjenu',
+  },
+  de: {
+    weekdays: {
+      shorthand: ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'],
+      longhand: ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'],
+    },
+    months: {
+      shorthand: ['Jan', 'Feb', 'Mae', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'],
+      longhand: ['Januar', 'Februar', 'Maerz', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'],
+    },
+    firstDayOfWeek: 1,
+    rangeSeparator: ' bis ',
+    weekAbbreviation: 'KW',
+    scrollTitle: 'Scrollen zum Aendern',
+    toggleTitle: 'Klicken zum Umschalten',
+  },
+};
+
 const locale = (lang: Language) => UI[(lang || 'en') as Locale] || UI.en;
 
 export const ui = (lang: Language, key: string, fallback: string) =>
   locale(lang)[key] || UI.en[key] || fallback;
+
+export const flatpickrI18n = (lang: Language) => DATE_PICKER_I18N[(lang || 'en') as Locale] || DATE_PICKER_I18N.en;
 
 export const trLoadStatus = (lang: Language, value: string) => {
   const map: Record<string, string> = {

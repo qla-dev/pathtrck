@@ -65,6 +65,9 @@ import { HistoryView } from './components/views/HistoryView';
 import { FleetView } from './components/views/FleetView';
 import { MessagesView } from './components/views/MessagesView';
 import { ProfileView } from './components/views/ProfileView';
+import { AutomationsView } from './components/views/AutomationsView';
+import { SettingsView } from './components/views/SettingsView';
+import { AiRouteCalculatorCard } from './components/ai_automattions/AiRouteCalculatorCard';
 
 // Fix Leaflet marker icon issue
 // @ts-ignore
@@ -469,12 +472,6 @@ const HERO_MAIN_TITLE_MESSAGES: Record<Exclude<Language, null>, HeroTypedMessage
   ],
 };
 
-const ROUTE_MODELS_BY_VEHICLE: Record<string, string[]> = {
-  "Cargo Van": ["Mercedes Sprinter", "Ford Transit", "Renault Master"],
-  "Box Truck": ["MAN TGL 12.250", "Volvo FL 250", "DAF LF 260"],
-  "Reefer Truck": ["Scania R450", "DAF XF 480", "Volvo FH 500"],
-};
-
 const translations = {
   en: {
     features: "Features",
@@ -617,10 +614,6 @@ const LandingPage = ({
   setLang: (l: Language) => void 
 }) => {
   const [formType, setFormType] = useState<'track' | 'load'>('track');
-  const [routeVehicle, setRouteVehicle] = useState<keyof typeof ROUTE_MODELS_BY_VEHICLE>("Cargo Van");
-  const [routeModel, setRouteModel] = useState("Mercedes Sprinter");
-  const [routeMaxLoad, setRouteMaxLoad] = useState(1800);
-  const [routePriority, setRoutePriority] = useState<'fastest' | 'balanced' | 'eco'>('balanced');
   const [selectedWaypoint, setSelectedWaypoint] = useState<FeatureRouteStop['id']>('zagreb');
   const [messageIndex, setMessageIndex] = useState(0);
   const [typedMessage, setTypedMessage] = useState('');
@@ -665,28 +658,6 @@ const LandingPage = ({
   const typedAfterKeyword = activeKeywordStart >= 0
     ? typedMessage.slice(Math.min(typedMessage.length, activeKeywordStart + activeKeyword.length))
     : '';
-  const routeModelOptions = useMemo(() => ROUTE_MODELS_BY_VEHICLE[routeVehicle], [routeVehicle]);
-  const routeEstimate = useMemo(() => {
-    const baseDistance = 1391;
-    const baseHours = routePriority === 'fastest' ? 20 : routePriority === 'eco' ? 23 : 21;
-    const baseFuel = routePriority === 'fastest' ? 470 : routePriority === 'eco' ? 410 : 440;
-    const baseCost = routePriority === 'fastest' ? 1490 : routePriority === 'eco' ? 1360 : 1425;
-    const loadFactor = routeMaxLoad / 2500;
-    const etaHours = Math.round(baseHours + loadFactor * 2);
-    const fuelLiters = Math.round(baseFuel + loadFactor * 20);
-    const totalCost = Math.round(baseCost + loadFactor * 80);
-    return {
-      distance: baseDistance,
-      eta: `${etaHours}h`,
-      fuel: `${fuelLiters} L`,
-      cost: `€${totalCost}`,
-    };
-  }, [routePriority, routeMaxLoad]);
-  const routePriorityLabel = routePriority === 'fastest'
-    ? u('landing.fast', 'Fast')
-    : routePriority === 'eco'
-      ? u('landing.eco', 'Eco')
-      : u('landing.smart', 'Smart');
   const trackerTimeline = [
     {
       time: '06:40',
@@ -723,12 +694,6 @@ const LandingPage = ({
     setTypedMessage('');
     setIsDeletingMessage(false);
   }, [activeLang]);
-
-  useEffect(() => {
-    if (!routeModelOptions.includes(routeModel)) {
-      setRouteModel(routeModelOptions[0]);
-    }
-  }, [routeModelOptions, routeModel]);
 
   useEffect(() => {
     const safeIndex = messageIndex % titleMessages.length;
@@ -781,7 +746,7 @@ const LandingPage = ({
               <button
                 aria-label="Language switcher"
                 title={currentLang.label}
-                className="h-10 px-3 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:border-primary/50 transition-all cursor-pointer flex items-center gap-2"
+                className="h-10 w-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary hover:scale-105 transition-all cursor-pointer flex items-center justify-center"
               >
                 <img
                   src={getFlagUrl(currentLang.id)}
@@ -790,7 +755,6 @@ const LandingPage = ({
                   className="h-5 w-5 rounded-full object-cover"
                   loading="lazy"
                 />
-                <span className="hidden sm:block text-xs font-bold uppercase">{currentLang.id}</span>
               </button>
               <div className="absolute top-full right-0 mt-2 w-40 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all p-2 z-[110]">
                 {languages.map(l => (
@@ -798,7 +762,7 @@ const LandingPage = ({
                     key={l.id}
                     onClick={() => setLang(l.id)}
                     className={cn(
-                      "w-full flex items-center gap-3 p-2 rounded-xl text-sm font-medium transition-all",
+                      "w-full flex items-center gap-3 p-2 rounded-xl text-sm font-medium transition-all cursor-pointer",
                       (lang || 'en') === l.id ? "bg-primary/10 text-primary" : "text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800"
                     )}
                   >
@@ -844,9 +808,9 @@ const LandingPage = ({
               {u('landing.globalStandard', 'Global Logistics Standard')}
             </div>
             <h1 className="text-5xl sm:text-6xl md:text-8xl font-display text-slate-900 dark:text-white leading-[0.9] mb-8 h-[2.7em] overflow-hidden">
-              <span className="font-normal">{typedBeforeKeyword}</span>
-              <span className="text-primary font-black">{typedKeyword}</span>
-              <span className="font-normal">{typedAfterKeyword}</span>
+              <span>{typedBeforeKeyword}</span>
+              <span className="text-primary">{typedKeyword}</span>
+              <span>{typedAfterKeyword}</span>
               <span className="inline-block ml-2 text-primary animate-pulse">|</span>
             </h1>
             <div className="mb-10 max-w-xl">
@@ -1311,166 +1275,7 @@ const LandingPage = ({
             </div>
 
             {/* Bottom Feature 2 */}
-            <div className="md:col-span-8 bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 md:p-10 border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all">
-              <div className="flex flex-col xl:flex-row gap-6 xl:gap-8">
-                <div className="flex-1 space-y-6">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary inline-flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5" />
-                        {u('landing.aiRouteCalculator', 'AI Route Calculator')}
-                      </p>
-                      <p className="text-2xl font-black dark:text-white">{u('landing.optimizePrefs', 'Optimize for vehicle and load preferences')}</p>
-                    </div>
-                    <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase tracking-wider">{u('landing.aiScore', 'AI Score 97')}</span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase text-slate-500">{u('landing.vehicle', 'Vehicle')}</label>
-                      <select
-                        value={routeVehicle}
-                        onChange={(e) => setRouteVehicle(e.target.value as keyof typeof ROUTE_MODELS_BY_VEHICLE)}
-                        className="w-full h-11 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-primary cursor-pointer"
-                      >
-                        {Object.keys(ROUTE_MODELS_BY_VEHICLE).map((vehicle) => (
-                          <option key={vehicle} value={vehicle}>{vehicle}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase text-slate-500">{u('landing.model', 'Model')}</label>
-                      <select
-                        value={routeModel}
-                        onChange={(e) => setRouteModel(e.target.value)}
-                        className="w-full h-11 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-primary cursor-pointer"
-                      >
-                        {routeModelOptions.map((model) => (
-                          <option key={model} value={model}>{model}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase text-slate-500">{u('landing.maxLoad', 'Max Load')}</label>
-                      <div className="h-11 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex items-center gap-3">
-                        <input
-                          type="range"
-                          min={400}
-                          max={2500}
-                          step={50}
-                          value={routeMaxLoad}
-                          onChange={(e) => setRouteMaxLoad(Number(e.target.value))}
-                          className="w-full accent-primary cursor-pointer"
-                        />
-                        <span className="text-xs font-black text-primary whitespace-nowrap">{routeMaxLoad} kg</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase text-slate-500">{u('landing.priority', 'Priority')}</label>
-                      <div className="h-11 grid grid-cols-3 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-slate-50 dark:bg-slate-900">
-                        {[
-                          { id: 'fastest', label: u('landing.fast', 'Fast') },
-                          { id: 'balanced', label: u('landing.smart', 'Smart') },
-                          { id: 'eco', label: u('landing.eco', 'Eco') },
-                        ].map((option) => (
-                          <button
-                            key={option.id}
-                            onClick={() => setRoutePriority(option.id as 'fastest' | 'balanced' | 'eco')}
-                            className={cn(
-                              "text-[11px] font-black transition-colors cursor-pointer",
-                              routePriority === option.id
-                                ? "bg-primary text-white"
-                                : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-                            )}
-                          >
-                            {option.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="rounded-2xl bg-slate-100 dark:bg-slate-800 p-4 flex flex-col items-center justify-center text-center">
-                      <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-2">
-                        <MapPin className="w-4 h-4" />
-                      </div>
-                      <p className="text-[10px] uppercase text-slate-500">{u('landing.distance', 'Distance')}</p>
-                      <p className="text-2xl leading-none font-black dark:text-white mt-1">{routeEstimate.distance} km</p>
-                    </div>
-                    <div className="rounded-2xl bg-slate-100 dark:bg-slate-800 p-4 flex flex-col items-center justify-center text-center">
-                      <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-2">
-                        <Clock className="w-4 h-4" />
-                      </div>
-                      <p className="text-[10px] uppercase text-slate-500">{u('landing.eta', 'ETA')}</p>
-                      <p className="text-2xl leading-none font-black dark:text-white mt-1">{routeEstimate.eta}</p>
-                    </div>
-                    <div className="rounded-2xl bg-slate-100 dark:bg-slate-800 p-4 flex flex-col items-center justify-center text-center">
-                      <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-2">
-                        <Truck className="w-4 h-4" />
-                      </div>
-                      <p className="text-[10px] uppercase text-slate-500">{u('landing.fuel', 'Fuel')}</p>
-                      <p className="text-2xl leading-none font-black dark:text-white mt-1">{routeEstimate.fuel}</p>
-                    </div>
-                    <div className="rounded-2xl bg-slate-100 dark:bg-slate-800 p-4 flex flex-col items-center justify-center text-center">
-                      <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-2">
-                        <BarChart3 className="w-4 h-4" />
-                      </div>
-                      <p className="text-[10px] uppercase text-slate-500">{u('landing.projectedCost', 'Projected Cost')}</p>
-                      <p className="text-2xl leading-none font-black dark:text-white mt-1">{routeEstimate.cost}</p>
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-5">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-2">{u('landing.aiRecommendation', 'AI Recommendation')}</p>
-                    <p className="text-sm font-bold dark:text-white mb-1">Zagreb → Munich → Frankfurt → Cologne → Amsterdam</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      {(lang === 'bs' ? 'Najbolje za' : lang === 'de' ? 'Beste Wahl für' : 'Best fit for')} {routeModel}, {routeMaxLoad} kg load, {routePriorityLabel} {(lang === 'bs' ? 'prioritet' : lang === 'de' ? 'Priorität' : 'priority')}.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="xl:w-56 rounded-3xl bg-primary text-white p-6 flex flex-col justify-between shadow-xl shadow-primary/25">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-[0.2em] font-black text-white/80 mb-2">{u('landing.aiConfidence', 'AI Confidence')}</p>
-                    <p className="text-4xl font-black mb-4">98%</p>
-                    <div className="space-y-3">
-                      <div>
-                        <div className="flex items-center justify-between text-xs mb-1">
-                          <span>{u('landing.trafficPrediction', 'Traffic Prediction')}</span>
-                          <span>{lang === 'bs' ? 'Visoko' : lang === 'de' ? 'Hoch' : 'High'}</span>
-                        </div>
-                        <div className="h-2 rounded-full bg-white/20 overflow-hidden"><div className="h-full w-[88%] bg-white rounded-full" /></div>
-                      </div>
-                      <div>
-                        <div className="flex items-center justify-between text-xs mb-1">
-                          <span>{u('landing.fuelEfficiency', 'Fuel Efficiency')}</span>
-                          <span>{lang === 'bs' ? 'Optimizovano' : lang === 'de' ? 'Optimiert' : 'Optimized'}</span>
-                        </div>
-                        <div className="h-2 rounded-full bg-white/20 overflow-hidden"><div className="h-full w-[81%] bg-white rounded-full" /></div>
-                      </div>
-                      <div>
-                        <div className="flex items-center justify-between text-xs mb-1">
-                          <span>{u('landing.etaStability', 'ETA Stability')}</span>
-                          <span>{lang === 'bs' ? 'Stabilno' : lang === 'de' ? 'Stark' : 'Strong'}</span>
-                        </div>
-                        <div className="h-2 rounded-full bg-white/20 overflow-hidden"><div className="h-full w-[86%] bg-white rounded-full" /></div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-6 text-xs text-white/80">
-                    {lang === 'bs'
-                      ? 'Preračunava svake 3 min koristeći događaje na putu i ograničenja flote.'
-                      : lang === 'de'
-                        ? 'Neuberechnung alle 3 Min. mit Live-Verkehrsdaten und Flottenrestriktionen.'
-                        : 'Recalculates every 3 min using live road events and fleet constraints.'}
-                  </div>
-                </div>
-              </div>
-            </div>
+            <AiRouteCalculatorCard lang={lang} className="md:col-span-8" />
           </div>
         </div>
       </section>
@@ -2479,23 +2284,29 @@ export default function App() {
   const t = translations[lang || 'en'];
   const currentLang = languages.find(l => l.id === (lang || 'en')) || languages[0];
   const analyticsLabel = 'Analytics';
+  const roleLicenseLabel = role === 'driver'
+    ? (lang === 'bs' ? 'Vozacka licenca' : lang === 'de' ? 'Fahrerlizenz' : 'Driver License')
+    : (lang === 'bs' ? 'Licenca kupca' : lang === 'de' ? 'Kundenlizenz' : 'Customer License');
+  const roleLicenseStatus = role === 'driver'
+    ? (lang === 'bs' ? 'Verifikovana' : lang === 'de' ? 'Verifiziert' : 'Verified')
+    : (lang === 'bs' ? 'Aktivna' : lang === 'de' ? 'Aktiv' : 'Active');
 
   const navItems = [
     ...(role === 'driver' ? [{ id: 'feed', label: t.homeFeed, icon: Boxes }] : []),
     { id: 'tracking', label: t.tracking, icon: PackageIcon },
     ...(role === 'driver' ? [
-      { id: 'fleet', label: t.myFleet, icon: Truck }
+      { id: 'fleet', label: t.myFleet, icon: Truck },
+      { id: 'automations', label: ui(lang, 'common.automations', 'AI Automations'), icon: Sparkles },
+      { id: 'history', label: t.history, icon: History },
     ] : []),
+    ...(role !== 'driver' ? [{ id: 'automations', label: ui(lang, 'common.automations', 'AI Automations'), icon: Sparkles }] : []),
     { id: 'dashboard', label: analyticsLabel, icon: BarChart3 },
     { id: 'network', label: t.network, icon: Globe },
-    ...(role === 'driver' ? [
-      { id: 'history', label: t.history, icon: History }
-    ] : []),
     { id: 'settings', label: t.settings, icon: Settings },
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex">
+    <div className="h-screen bg-slate-50 dark:bg-slate-950 flex overflow-hidden">
       {/* Sidebar (Desktop) */}
       <aside className={cn(
         "hidden md:flex flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-300 z-50 sticky top-0 h-screen",
@@ -2545,7 +2356,7 @@ export default function App() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-h-screen relative">
+      <main className="flex-1 flex flex-col h-screen relative overflow-hidden">
         {/* Header (Mobile & Desktop) */}
         <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 flex items-center justify-between sticky top-0 z-40">
           <div className="md:hidden flex items-center gap-2">
@@ -2554,8 +2365,21 @@ export default function App() {
             </div>
             <span className="text-lg font-bold tracking-tight dark:text-white">PathTracker.ai</span>
           </div>
-          <div className="hidden md:block">
-            <p className="text-sm text-slate-500">{t.welcome}, <span className="font-bold text-slate-900 dark:text-white">John Doe</span></p>
+          <div className="hidden md:flex items-center gap-3">
+            <p className="text-sm text-slate-500">
+              {t.welcome}, <span className="font-bold text-slate-900 dark:text-white">John Doe</span>
+            </p>
+            <span
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border",
+                role === 'driver'
+                  ? "bg-primary/10 text-primary border-primary/20"
+                  : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+              )}
+            >
+              {role === 'driver' ? <Truck className="w-3.5 h-3.5" /> : <User className="w-3.5 h-3.5" />}
+              {roleLicenseLabel} • {roleLicenseStatus}
+            </span>
           </div>
           <div className="flex items-center gap-4">
             {/* Language Switcher */}
@@ -2661,10 +2485,16 @@ export default function App() {
         </header>
 
         {/* View Content */}
-        <div className="p-6 pb-24 md:pb-6 max-w-7xl mx-auto w-full">
+        <div
+          className={cn(
+            "flex-1 min-h-0 p-6 pb-24 md:pb-6 max-w-7xl mx-auto w-full",
+            view === 'messages' ? "overflow-hidden" : "overflow-y-auto"
+          )}
+        >
           <AnimatePresence mode="wait">
             <motion.div
               key={view}
+              className={cn(view === 'messages' && "h-full")}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
@@ -2675,59 +2505,21 @@ export default function App() {
 	              {view === 'feed' && <HomeFeed lang={lang} />}
 	              {view === 'messages' && <MessagesView lang={lang} />}
 	              {view === 'network' && <NetworkView lang={lang} />}
+	              {view === 'automations' && <AutomationsView lang={lang} />}
 	              {view === 'fleet' && <FleetView lang={lang} />}
 	              {view === 'history' && <HistoryView lang={lang} />}
 	              {view === 'profile' && <ProfileView role={role} lang={lang} />}
 	              {view === 'settings' && (
-	                <div className="max-w-2xl mx-auto space-y-6">
-	                  <h1 className="text-2xl font-bold dark:text-white">{ui(lang, 'common.settings', 'Settings')}</h1>
-	                  <Card className="p-0">
-	                    <div className="divide-y divide-slate-100 dark:divide-slate-800">
-	                      {[
-	                        {
-	                          label: lang === 'bs' ? 'Informacije profila' : lang === 'de' ? 'Profilinformationen' : 'Profile Information',
-	                          icon: User,
-	                          desc: lang === 'bs' ? 'Ažuriraj ime, email i avatar' : lang === 'de' ? 'Name, E-Mail und Avatar aktualisieren' : 'Update your name, email and avatar'
-	                        },
-	                        {
-	                          label: lang === 'bs' ? 'Obavještenja' : lang === 'de' ? 'Benachrichtigungen' : 'Notifications',
-	                          icon: Bell,
-	                          desc: lang === 'bs' ? 'Podesi kako primaš upozorenja' : lang === 'de' ? 'Festlegen, wie Sie Benachrichtigungen erhalten' : 'Configure how you receive alerts'
-	                        },
-	                        {
-	                          label: lang === 'bs' ? 'Jezik i regija' : lang === 'de' ? 'Sprache & Region' : 'Language & Region',
-	                          icon: Globe,
-	                          desc: lang === 'bs' ? 'Bosanski, Engleski, vremenska zona' : lang === 'de' ? 'Deutsch, Englisch, Zeitzone' : 'English, Bosnian, Timezone'
-	                        },
-	                        {
-	                          label: lang === 'bs' ? 'Sigurnost' : lang === 'de' ? 'Sicherheit' : 'Security',
-	                          icon: ShieldCheck,
-	                          desc: lang === 'bs' ? 'Lozinka, 2FA, upravljanje sesijama' : lang === 'de' ? 'Passwort, 2FA, Sitzungsverwaltung' : 'Password, 2FA, Session management'
-	                        },
-	                        {
-	                          label: lang === 'bs' ? 'Izgled' : lang === 'de' ? 'Darstellung' : 'Appearance',
-	                          icon: Moon,
-	                          desc: lang === 'bs' ? 'Tamni režim, boje teme' : lang === 'de' ? 'Dunkelmodus, Themenfarben' : 'Dark mode, Theme colors'
-	                        }
-	                      ].map((s, i) => (
-                        <button key={i} className="w-full p-6 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all text-left">
-                          <div className="flex gap-4">
-                            <div className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center">
-                              <s.icon className="w-5 h-5 text-slate-500" />
-                            </div>
-                            <div>
-                              <p className="font-bold dark:text-white">{s.label}</p>
-                              <p className="text-xs text-slate-500">{s.desc}</p>
-                            </div>
-                          </div>
-                          <ChevronRight className="w-5 h-5 text-slate-300" />
-                        </button>
-                      ))}
-                    </div>
-                  </Card>
-	                  <Button variant="outline" className="w-full text-red-500 border-red-100 dark:border-red-900/30 hover:bg-red-50 dark:hover:bg-red-900/10" onClick={() => { setIsLanding(true); setRole(null); setAuthMode('setup'); }}>{ui(lang, 'common.logout', 'Logout')}</Button>
-	                </div>
-	              )}
+                  <SettingsView
+                    role={role}
+                    lang={lang}
+                    onLogout={() => {
+                      setIsLanding(true);
+                      setRole(null);
+                      setAuthMode('setup');
+                    }}
+                  />
+                )}
             </motion.div>
           </AnimatePresence>
         </div>
