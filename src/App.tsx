@@ -20,8 +20,8 @@ import {
   Bell, 
   ShieldCheck, 
   Camera,
-  LayoutDashboard,
   MessageSquare,
+  Boxes,
   ArrowRight,
   CheckCircle2,
   Sparkles,
@@ -49,18 +49,20 @@ import {
   BarChart,
   Bar
 } from 'recharts';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
 
 // Types & Services
-import { Role, Language, Package, Load, RouteLog } from './types';
+import { Role, Language, Load } from './types';
 import { MOCK_PACKAGES, MOCK_LOADS, MOCK_ROUTES } from './mockData';
-import { getSmartStatusUpdate, getRouteInsights } from './services/geminiService';
-
-// Utility for tailwind classes
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+import { ui, trLoadStatus, trPackageStatus, trFuelType } from './i18n';
+import { cn } from './lib/cn';
+import { Button } from './components/ui/Button';
+import { Card } from './components/ui/Card';
+import { Dashboard } from './components/views/Dashboard';
+import { NetworkView } from './components/views/NetworkView';
+import { TrackingView } from './components/views/TrackingView';
+import { HomeFeed } from './components/views/HomeFeed';
+import { HistoryView } from './components/views/HistoryView';
+import { FleetView } from './components/views/FleetView';
 
 // Fix Leaflet marker icon issue
 // @ts-ignore
@@ -72,112 +74,6 @@ L.Icon.Default.mergeOptions({
 });
 
 // --- Components ---
-
-const PostLoadModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
-  if (!isOpen) return null;
-  return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-sm">
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden border border-slate-200 dark:border-slate-800"
-      >
-        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-              <Plus className="text-primary w-6 h-6" />
-            </div>
-            <div>
-              <h3 className="text-xl font-bold dark:text-white">Post New Load</h3>
-              <p className="text-xs text-slate-500">Create a new logistics request for drivers</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
-            <X className="w-5 h-5 text-slate-400" />
-          </button>
-        </div>
-        <div className="p-6 space-y-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold uppercase text-slate-500 ml-1">Pickup Location</label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input type="text" placeholder="City, Country" className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-white outline-none focus:ring-2 focus:ring-primary text-sm" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold uppercase text-slate-500 ml-1">Delivery Destination</label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input type="text" placeholder="City, Country" className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-white outline-none focus:ring-2 focus:ring-primary text-sm" />
-              </div>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold uppercase text-slate-500 ml-1">Cargo Weight (kg)</label>
-              <input type="number" placeholder="0.00" className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-white outline-none focus:ring-2 focus:ring-primary text-sm" />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold uppercase text-slate-500 ml-1">Cargo Type</label>
-              <select className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-white outline-none focus:ring-2 focus:ring-primary text-sm appearance-none">
-                <option>General Cargo</option>
-                <option>Perishable</option>
-                <option>Hazardous</option>
-                <option>Fragile</option>
-              </select>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold uppercase text-slate-500 ml-1">Additional Notes</label>
-            <textarea placeholder="Special handling instructions..." className="w-full h-24 p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-white outline-none focus:ring-2 focus:ring-primary resize-none text-sm" />
-          </div>
-        </div>
-        <div className="p-6 bg-slate-50 dark:bg-slate-800/50 flex gap-3">
-          <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
-          <Button className="flex-1" onClick={onClose}>Post Load</Button>
-        </div>
-      </motion.div>
-    </div>
-  );
-};
-
-const Button = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'ghost' | 'outline', size?: 'sm' | 'md' | 'lg' }>(
-  ({ className, variant = 'primary', size = 'md', ...props }, ref) => {
-    const variants = {
-      primary: 'bg-primary text-white hover:bg-primary-dark shadow-md cursor-pointer',
-      secondary: 'bg-slate-100 text-slate-900 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 cursor-pointer',
-      ghost: 'bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer',
-      outline: 'bg-transparent border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900 cursor-pointer'
-    };
-    const sizes = {
-      sm: 'px-3 py-1.5 text-xs',
-      md: 'px-4 py-2 text-sm',
-      lg: 'px-6 py-3 text-base'
-    };
-    return (
-      <button
-        ref={ref}
-        className={cn('inline-flex items-center justify-center rounded-xl font-medium transition-all active:scale-95 disabled:opacity-50', variants[variant], sizes[size], className)}
-        {...props}
-      />
-    );
-  }
-);
-
-const Card = ({ children, className, title, headerAction, ...props }: { children: React.ReactNode, className?: string, title?: string, headerAction?: React.ReactNode } & React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden", className)} {...props}>
-    {title && (
-      <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-        <h3 className="font-semibold text-slate-800 dark:text-slate-100">{title}</h3>
-        {headerAction}
-      </div>
-    )}
-    <div className="p-6">
-      {children}
-    </div>
-  </div>
-);
 
 type MoleculeNode = {
   id: string;
@@ -605,7 +501,7 @@ const translations = {
     myFleet: "My Fleet",
     history: "History",
     settings: "Settings",
-    homeFeed: "Home Feed",
+    homeFeed: "Loads Feed",
     trailer: "Trailer",
     tailLift: "Tail Lift",
     username: "Username",
@@ -645,7 +541,7 @@ const translations = {
     myFleet: "Moja flota",
     history: "Historija",
     settings: "Postavke",
-    homeFeed: "Novosti",
+    homeFeed: "Feed tereta",
     trailer: "Prikolica",
     tailLift: "Rampa",
     username: "Korisničko ime",
@@ -685,7 +581,7 @@ const translations = {
     myFleet: "Meine Flotte",
     history: "Verlauf",
     settings: "Einstellungen",
-    homeFeed: "Home Feed",
+    homeFeed: "Ladungs-Feed",
     trailer: "Anhänger",
     tailLift: "Hebebühne",
     username: "Benutzername",
@@ -702,12 +598,14 @@ const translations = {
 
 const LandingPage = ({ 
   onStart, 
+  onLogin,
   isDark, 
   setIsDark, 
   lang, 
   setLang 
 }: { 
   onStart: () => void, 
+  onLogin: () => void,
   isDark: boolean, 
   setIsDark: (v: boolean) => void, 
   lang: Language, 
@@ -724,6 +622,7 @@ const LandingPage = ({
   const [isDeletingMessage, setIsDeletingMessage] = useState(false);
   const SECTION_PADDING = "py-32";
   const t = translations[lang || 'en'];
+  const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const partners = [
     "https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg",
     "https://upload.wikimedia.org/wikipedia/commons/b/b3/DHL_Express_logo.svg",
@@ -778,33 +677,37 @@ const LandingPage = ({
       cost: `€${totalCost}`,
     };
   }, [routePriority, routeMaxLoad]);
-  const routePriorityLabel = routePriority === 'fastest' ? 'Fast' : routePriority === 'eco' ? 'Eco' : 'Smart';
+  const routePriorityLabel = routePriority === 'fastest'
+    ? u('landing.fast', 'Fast')
+    : routePriority === 'eco'
+      ? u('landing.eco', 'Eco')
+      : u('landing.smart', 'Smart');
   const trackerTimeline = [
     {
       time: '06:40',
-      title: 'Departed Zagreb Hub',
-      note: 'Driver check-in confirmed',
+      title: lang === 'bs' ? 'Polazak iz Zagreb Huba' : lang === 'de' ? 'Abfahrt aus Zagreb Hub' : 'Departed Zagreb Hub',
+      note: lang === 'bs' ? 'Potvrđena prijava vozača' : lang === 'de' ? 'Fahrer-Check-in bestätigt' : 'Driver check-in confirmed',
       icon: CheckCircle2,
       iconClass: 'text-emerald-500 bg-emerald-500/12'
     },
     {
       time: '11:10',
-      title: 'Stop 1: Munich Relay',
-      note: 'Cargo scan and handoff checkpoint',
+      title: lang === 'bs' ? 'Stajanje 1: Minhen' : lang === 'de' ? 'Stopp 1: München' : 'Stop 1: Munich Relay',
+      note: lang === 'bs' ? 'Sken tereta i kontrola predaje' : lang === 'de' ? 'Fracht-Scan und Übergabekontrolle' : 'Cargo scan and handoff checkpoint',
       icon: MapPin,
       iconClass: 'text-amber-500 bg-amber-500/12'
     },
     {
       time: '15:45',
-      title: 'Stop 2: Cologne Relay',
-      note: 'Driver rest and route recalibration',
+      title: lang === 'bs' ? 'Stajanje 2: Keln' : lang === 'de' ? 'Stopp 2: Köln' : 'Stop 2: Cologne Relay',
+      note: lang === 'bs' ? 'Odmor vozača i recalculacija rute' : lang === 'de' ? 'Fahrerpause und Routen-Neuberechnung' : 'Driver rest and route recalibration',
       icon: Clock,
       iconClass: 'text-sky-500 bg-sky-500/12'
     },
     {
       time: 'Tomorrow 07:20',
-      title: 'Arrival: Amsterdam DC',
-      note: 'Dock and unloading slot confirmed',
+      title: lang === 'bs' ? 'Dolazak: Amsterdam DC' : lang === 'de' ? 'Ankunft: Amsterdam DC' : 'Arrival: Amsterdam DC',
+      note: lang === 'bs' ? 'Potvrđen termin istovara' : lang === 'de' ? 'Andock- und Entladefenster bestätigt' : 'Dock and unloading slot confirmed',
       icon: Truck,
       iconClass: 'text-violet-500 bg-violet-500/12'
     },
@@ -914,7 +817,7 @@ const LandingPage = ({
               {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
 
-            <button className="hidden sm:block text-sm font-bold text-slate-600 dark:text-slate-400 hover:text-primary transition-colors cursor-pointer">{t.logIn}</button>
+            <button onClick={onLogin} className="hidden sm:block text-sm font-bold text-slate-600 dark:text-slate-400 hover:text-primary transition-colors cursor-pointer">{t.logIn}</button>
             <Button onClick={onStart} size="md" className="rounded-full px-6 cursor-pointer">{t.getStarted}</Button>
           </div>
         </div>
@@ -932,7 +835,7 @@ const LandingPage = ({
           >
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-[0.2em] mb-8 w-fit">
               <Globe className="w-3 h-3" />
-              Global Logistics Standard
+              {u('landing.globalStandard', 'Global Logistics Standard')}
             </div>
             <h1 className="text-5xl sm:text-6xl md:text-8xl font-display text-slate-900 dark:text-white leading-[0.9] mb-8 h-[2.7em] overflow-hidden">
               <span className="font-normal">{typedBeforeKeyword}</span>
@@ -942,16 +845,16 @@ const LandingPage = ({
             </h1>
             <div className="mb-10 max-w-xl">
               <p className="text-xl font-bold text-slate-900 dark:text-white mb-4 leading-relaxed">
-                Preuzmi aplikaciju
+                {u('landing.downloadApp', 'Download the app')}
               </p>
               <div className="flex flex-wrap gap-3">
                 <button className="h-12 px-5 rounded-2xl bg-black text-white inline-flex items-center gap-3 font-semibold text-sm shadow-lg shadow-black/25 cursor-pointer hover:bg-slate-900 transition-colors">
                   <span className="text-base leading-none" aria-hidden="true"></span>
-                  <span>Download on Appstore</span>
+                  <span>{u('landing.downloadAppstore', 'Download on App Store')}</span>
                 </button>
                 <button className="h-12 px-5 rounded-2xl bg-black text-white inline-flex items-center gap-3 font-semibold text-sm shadow-lg shadow-black/25 cursor-pointer hover:bg-slate-900 transition-colors">
                   <span className="text-sm leading-none" aria-hidden="true">▶</span>
-                  <span>Download on Playstore</span>
+                  <span>{u('landing.downloadPlaystore', 'Download on Play Store')}</span>
                 </button>
               </div>
             </div>
@@ -998,7 +901,7 @@ const LandingPage = ({
                       className="w-full h-24 p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-white outline-none focus:ring-2 focus:ring-primary resize-none text-sm"
                     />
                     <div className="flex items-center justify-between">
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Numbers usually start with SWP-</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{u('landing.trackHint', 'Numbers usually start with SWP-')}</p>
                       <Button onClick={onStart} size="lg" className="px-8 rounded-full">{t.trackButton} <ArrowRight className="w-4 h-4 ml-2" /></Button>
                     </div>
                   </motion.div>
@@ -1012,32 +915,32 @@ const LandingPage = ({
                   >
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold uppercase text-slate-500 ml-1">Pickup Location</label>
+                        <label className="text-[10px] font-bold uppercase text-slate-500 ml-1">{ui(lang, 'postLoadModal.pickup', 'Pickup Location')}</label>
                         <div className="relative">
                           <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                          <input type="text" placeholder="City, Country" className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-white outline-none focus:ring-2 focus:ring-primary text-sm" />
+                          <input type="text" placeholder={ui(lang, 'postLoadModal.cityCountry', 'City, Country')} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-white outline-none focus:ring-2 focus:ring-primary text-sm" />
                         </div>
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold uppercase text-slate-500 ml-1">Delivery Destination</label>
+                        <label className="text-[10px] font-bold uppercase text-slate-500 ml-1">{ui(lang, 'postLoadModal.delivery', 'Delivery Destination')}</label>
                         <div className="relative">
                           <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                          <input type="text" placeholder="City, Country" className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-white outline-none focus:ring-2 focus:ring-primary text-sm" />
+                          <input type="text" placeholder={ui(lang, 'postLoadModal.cityCountry', 'City, Country')} className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-white outline-none focus:ring-2 focus:ring-primary text-sm" />
                         </div>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold uppercase text-slate-500 ml-1">Cargo Weight (kg)</label>
+                        <label className="text-[10px] font-bold uppercase text-slate-500 ml-1">{ui(lang, 'postLoadModal.weight', 'Cargo Weight (kg)')}</label>
                         <input type="number" placeholder="0.00" className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-white outline-none focus:ring-2 focus:ring-primary text-sm" />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold uppercase text-slate-500 ml-1">Cargo Type</label>
+                        <label className="text-[10px] font-bold uppercase text-slate-500 ml-1">{ui(lang, 'postLoadModal.type', 'Cargo Type')}</label>
                         <select className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-white outline-none focus:ring-2 focus:ring-primary text-sm appearance-none">
-                          <option>General Cargo</option>
-                          <option>Perishable</option>
-                          <option>Hazardous</option>
-                          <option>Fragile</option>
+                          <option>{ui(lang, 'postLoadModal.generalCargo', 'General Cargo')}</option>
+                          <option>{ui(lang, 'postLoadModal.perishable', 'Perishable')}</option>
+                          <option>{ui(lang, 'postLoadModal.hazardous', 'Hazardous')}</option>
+                          <option>{ui(lang, 'postLoadModal.fragile', 'Fragile')}</option>
                         </select>
                       </div>
                     </div>
@@ -1049,8 +952,8 @@ const LandingPage = ({
 
             <div className="mt-2 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800 max-w-xl w-full overflow-hidden">
               <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                <h4 className="text-sm font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">Available Loads</h4>
-                <span className="px-2 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider">{landingLoads.length} Live</span>
+                <h4 className="text-sm font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">{u('landing.availableLoads', 'Available Loads')}</h4>
+                <span className="px-2 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider">{landingLoads.length} {lang === 'bs' ? 'uživo' : lang === 'de' ? 'live' : 'live'}</span>
               </div>
               <div className="h-64 overflow-hidden relative">
                 <div className="p-4 space-y-3 animate-load-scroll">
@@ -1066,7 +969,7 @@ const LandingPage = ({
                           "text-[10px] font-bold uppercase tracking-wider",
                           load.status === 'Available' ? "text-emerald-500" : load.status === 'Assigned' ? "text-amber-500" : "text-slate-400"
                         )}>
-                          {load.status}
+                          {trLoadStatus(lang, load.status)}
                         </span>
                       </div>
                     </div>
@@ -1084,8 +987,8 @@ const LandingPage = ({
                 ))}
               </div>
               <div className="text-sm">
-                <p className="font-bold dark:text-white">12k+ Active Drivers</p>
-                <p className="text-slate-500">Trusting PathTracker.ai daily</p>
+                <p className="font-bold dark:text-white">{u('landing.activeDrivers', '12k+ Active Drivers')}</p>
+                <p className="text-slate-500">{u('landing.trustingDaily', 'Trusting PathTracker.ai daily')}</p>
               </div>
             </div>
           </motion.div>
@@ -1125,10 +1028,10 @@ const LandingPage = ({
                 
                 {/* Map Chips - Screenshot Inspired */}
                 <div className="absolute top-6 right-6 z-[1000] flex flex-col gap-3">
-                  <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur px-4 py-2 rounded-2xl shadow-xl border border-white/20 flex items-center gap-2 animate-bounce">
-                    <Clock className="text-primary w-4 h-4" />
-                    <span className="text-sm font-black text-slate-900 dark:text-white">Hamburg → Sarajevo</span>
-                  </div>
+	                  <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur px-4 py-2 rounded-2xl shadow-xl border border-white/20 flex items-center gap-2 animate-bounce">
+	                    <Clock className="text-primary w-4 h-4" />
+	                    <span className="text-sm font-black text-slate-900 dark:text-white">Hamburg → Sarajevo</span>
+	                  </div>
                 </div>
 
                 <div className="absolute bottom-8 left-8 right-8 z-[1000] flex flex-col gap-4">
@@ -1138,27 +1041,27 @@ const LandingPage = ({
                         <img src="https://picsum.photos/seed/driver/100/100" alt="Driver" referrerPolicy="no-referrer" />
                       </div>
                       <div className="flex items-center gap-2">
-                        <MessageSquare className="w-4 h-4 text-primary group-hover:text-white" />
-                        <span className="text-xs font-bold uppercase tracking-wider">Route Confirmed</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-white/10 backdrop-blur-2xl p-6 rounded-3xl border border-white/20 shadow-2xl">
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="px-3 py-1 rounded-full bg-primary text-[10px] font-black uppercase tracking-widest text-white">Live Route</span>
-                      <span className="text-xs font-bold text-white/70">ETA Mar 3, 14:20</span>
-                    </div>
+	                        <MessageSquare className="w-4 h-4 text-primary group-hover:text-white" />
+	                        <span className="text-xs font-bold uppercase tracking-wider">{lang === 'bs' ? 'Ruta potvrđena' : lang === 'de' ? 'Route bestätigt' : 'Route Confirmed'}</span>
+	                      </div>
+	                    </div>
+	                  </div>
+	                  
+	                  <div className="bg-white/80 dark:bg-white/10 backdrop-blur-2xl p-6 rounded-3xl border border-white/30 dark:border-white/20 shadow-2xl">
+	                    <div className="flex items-center justify-between mb-4">
+	                      <span className="px-3 py-1 rounded-full bg-primary text-[10px] font-black uppercase tracking-widest text-white">{lang === 'bs' ? 'Ruta uživo' : lang === 'de' ? 'Live-Route' : 'Live Route'}</span>
+	                      <span className="text-xs font-bold text-slate-700 dark:text-white/70">{lang === 'bs' ? 'ETA 3. mart, 14:20' : lang === 'de' ? 'ETA 3. März, 14:20' : 'ETA Mar 3, 14:20'}</span>
+	                    </div>
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-lg">
                         <Truck className="text-primary w-6 h-6" />
                       </div>
-                      <div>
-                        <p className="text-lg font-bold text-white">HAM-SJJ-214</p>
-                        <p className="text-sm text-white/60">1,545 km | Hamburg Port → Sarajevo Hub</p>
-                      </div>
-                    </div>
-                  </div>
+	                      <div>
+	                        <p className="text-lg font-bold text-slate-900 dark:text-white">HAM-SJJ-214</p>
+	                        <p className="text-sm text-slate-700 dark:text-white/60">{lang === 'bs' ? '1,545 km | Luka Hamburg -> Sarajevo Hub' : lang === 'de' ? '1,545 km | Hafen Hamburg -> Sarajevo Hub' : '1,545 km | Hamburg Port -> Sarajevo Hub'}</p>
+	                      </div>
+	                    </div>
+	                  </div>
                 </div>
               </div>
             </div>
@@ -1192,10 +1095,10 @@ const LandingPage = ({
         <div className="max-w-7xl mx-auto px-6 relative z-10">
           <div className="grid lg:grid-cols-4 gap-12 text-center">
             {[
-              { label: "Packages Tracked", value: "2.4B+", sub: "Annually", icon: PackageIcon },
-              { label: "Active Drivers", value: "850k+", sub: "Worldwide", icon: User },
-              { label: "Countries Covered", value: "192", sub: "Global reach", icon: Globe },
-              { label: "Uptime SLA", value: "99.99%", sub: "Enterprise grade", icon: ShieldCheck }
+              { label: u('landing.stats.packagesTracked', 'Packages Tracked'), value: "2.4B+", sub: u('landing.stats.annually', 'Annually'), icon: PackageIcon },
+              { label: u('landing.stats.activeDrivers', 'Active Drivers'), value: "850k+", sub: u('landing.stats.worldwide', 'Worldwide'), icon: User },
+              { label: u('landing.stats.countriesCovered', 'Countries Covered'), value: "192", sub: u('landing.stats.globalReach', 'Global reach'), icon: Globe },
+              { label: u('landing.stats.uptimeSla', 'Uptime SLA'), value: "99.99%", sub: u('landing.stats.enterpriseGrade', 'Enterprise grade'), icon: ShieldCheck }
             ].map((stat, i) => (
               <motion.div 
                 key={i}
@@ -1221,8 +1124,16 @@ const LandingPage = ({
       <section id="features" className={cn("scroll-mt-28 bg-slate-50 dark:bg-slate-900/50", SECTION_PADDING)}>
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-20">
-            <h2 className="text-4xl md:text-6xl font-display font-bold mb-6 dark:text-white tracking-tight">Built for the <br /> <span className="text-primary">Modern Fleet.</span></h2>
-            <p className="text-slate-500 dark:text-slate-400 max-w-2xl mx-auto text-lg">Everything you need to manage global logistics at scale, from real-time tracking to AI-powered route optimization.</p>
+            <h2 className="text-4xl md:text-6xl font-display font-bold mb-6 dark:text-white tracking-tight">
+              {lang === 'bs' ? 'Napravljeno za' : lang === 'de' ? 'Gebaut für die' : 'Built for the'} <br /> <span className="text-primary">{lang === 'bs' ? 'modernu flotu.' : lang === 'de' ? 'moderne Flotte.' : 'Modern Fleet.'}</span>
+            </h2>
+            <p className="text-slate-500 dark:text-slate-400 max-w-2xl mx-auto text-lg">
+              {lang === 'bs'
+                ? 'Sve što ti treba za upravljanje globalnom logistikom u velikom obimu, od praćenja u realnom vremenu do AI optimizacije ruta.'
+                : lang === 'de'
+                  ? 'Alles, was Sie zur Steuerung globaler Logistik im großen Maßstab benötigen - von Echtzeit-Tracking bis zu KI-Routenoptimierung.'
+                  : 'Everything you need to manage global logistics at scale, from real-time tracking to AI-powered route optimization.'}
+            </p>
           </div>
           
           <div className="grid md:grid-cols-12 gap-6">
@@ -1232,8 +1143,16 @@ const LandingPage = ({
                 <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mb-10 shadow-lg shadow-primary/30 group-hover:scale-110 transition-transform">
                   <MapIcon className="text-white w-8 h-8" />
                 </div>
-                <h3 className="text-4xl font-bold mb-6 dark:text-white tracking-tight">Real-time Global Visibility</h3>
-                <p className="text-slate-500 dark:text-slate-400 max-w-md text-xl leading-relaxed">Track every package, vehicle, and asset in real-time with sub-meter precision across 180+ countries.</p>
+                <h3 className="text-4xl font-bold mb-6 dark:text-white tracking-tight">
+                  {lang === 'bs' ? 'Globalna vidljivost u realnom vremenu' : lang === 'de' ? 'Globale Echtzeit-Transparenz' : 'Real-time Global Visibility'}
+                </h3>
+                <p className="text-slate-500 dark:text-slate-400 max-w-md text-xl leading-relaxed">
+                  {lang === 'bs'
+                    ? 'Prati svaki paket, vozilo i sredstvo u realnom vremenu sa preciznošću manjom od metra u 180+ država.'
+                    : lang === 'de'
+                      ? 'Verfolgen Sie jedes Paket, Fahrzeug und Asset in Echtzeit mit submeter-genauer Präzision in über 180 Ländern.'
+                      : 'Track every package, vehicle, and asset in real-time with sub-meter precision across 180+ countries.'}
+                </p>
                 <div className="mt-auto pt-8 flex gap-4">
                    <div className="px-4 py-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700 flex items-center gap-2">
                      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -1241,7 +1160,7 @@ const LandingPage = ({
                    </div>
                    <div className="px-4 py-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700 flex items-center gap-2">
                      <Globe className="w-4 h-4 text-primary" />
-                     <span className="text-xs font-bold dark:text-white">Global Coverage</span>
+                     <span className="text-xs font-bold dark:text-white">{lang === 'bs' ? 'Globalna pokrivenost' : lang === 'de' ? 'Globale Abdeckung' : 'Global Coverage'}</span>
                    </div>
                 </div>
               </div>
@@ -1253,24 +1172,24 @@ const LandingPage = ({
                 <div>
                   <p className="text-[10px] uppercase tracking-[0.2em] font-black text-primary inline-flex items-center gap-1.5">
                     <Truck className="w-3.5 h-3.5" />
-                    Live Tracker
+                    {u('landing.liveTracker', 'Live Tracker')}
                   </p>
                   <p className="text-2xl font-black dark:text-white">ZAG-AMS-881</p>
                 </div>
-                <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-black uppercase tracking-wider">In Transit</span>
+                <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-black uppercase tracking-wider">{trPackageStatus(lang, 'In Transit')}</span>
               </div>
 
               <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-3 mb-4">
                 <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
-                  <span>Zagreb Hub</span>
-                  <span>Amsterdam DC</span>
+                  <span>{lang === 'bs' ? 'Zagreb Hub' : lang === 'de' ? 'Zagreb Hub' : 'Zagreb Hub'}</span>
+                  <span>{lang === 'bs' ? 'Amsterdam DC' : lang === 'de' ? 'Amsterdam DC' : 'Amsterdam DC'}</span>
                 </div>
                 <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
                   <div className="h-full w-[44%] bg-primary rounded-full" />
                 </div>
                 <div className="mt-2 flex items-center justify-between text-xs font-bold">
-                  <span className="text-primary">612 km completed</span>
-                  <span className="text-slate-500">779 km left</span>
+                  <span className="text-primary">{lang === 'bs' ? '612 km završeno' : lang === 'de' ? '612 km abgeschlossen' : '612 km completed'}</span>
+                  <span className="text-slate-500">{lang === 'bs' ? '779 km preostalo' : lang === 'de' ? '779 km übrig' : '779 km left'}</span>
                 </div>
               </div>
 
@@ -1302,7 +1221,7 @@ const LandingPage = ({
               </div>
 
               <div className="mt-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-3">
-                <p className="text-[10px] uppercase tracking-[0.2em] font-black text-primary mb-3">Route Timeline</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] font-black text-primary mb-3">{u('landing.routeTimeline', 'Route Timeline')}</p>
                 <div className="space-y-3">
                   {trackerTimeline.map((event, index) => (
                     <div key={`${event.time}-${index}`} className="flex items-start gap-3">
@@ -1328,11 +1247,11 @@ const LandingPage = ({
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary inline-flex items-center gap-1.5">
                     <MapPin className="w-3.5 h-3.5" />
-                    Route Stops
+                    {u('landing.routeStops', 'Route Stops')}
                   </p>
-                  <h3 className="text-2xl font-bold dark:text-white tracking-tight">Waypoint Planner</h3>
+                  <h3 className="text-2xl font-bold dark:text-white tracking-tight">{u('landing.waypointPlanner', 'Waypoint Planner')}</h3>
                 </div>
-                <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase tracking-wider">4 Markers</span>
+                <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase tracking-wider">{lang === 'bs' ? '4 markera' : lang === 'de' ? '4 Marker' : '4 Markers'}</span>
               </div>
 
               <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 relative">
@@ -1393,16 +1312,16 @@ const LandingPage = ({
                     <div>
                       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary inline-flex items-center gap-1.5">
                         <Sparkles className="w-3.5 h-3.5" />
-                        AI Route Calculator
+                        {u('landing.aiRouteCalculator', 'AI Route Calculator')}
                       </p>
-                      <p className="text-2xl font-black dark:text-white">Optimize for vehicle and load preferences</p>
+                      <p className="text-2xl font-black dark:text-white">{u('landing.optimizePrefs', 'Optimize for vehicle and load preferences')}</p>
                     </div>
-                    <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase tracking-wider">AI Score 97</span>
+                    <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase tracking-wider">{u('landing.aiScore', 'AI Score 97')}</span>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase text-slate-500">Vehicle</label>
+                      <label className="text-[10px] font-bold uppercase text-slate-500">{u('landing.vehicle', 'Vehicle')}</label>
                       <select
                         value={routeVehicle}
                         onChange={(e) => setRouteVehicle(e.target.value as keyof typeof ROUTE_MODELS_BY_VEHICLE)}
@@ -1415,7 +1334,7 @@ const LandingPage = ({
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase text-slate-500">Model</label>
+                      <label className="text-[10px] font-bold uppercase text-slate-500">{u('landing.model', 'Model')}</label>
                       <select
                         value={routeModel}
                         onChange={(e) => setRouteModel(e.target.value)}
@@ -1428,7 +1347,7 @@ const LandingPage = ({
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase text-slate-500">Max Load</label>
+                      <label className="text-[10px] font-bold uppercase text-slate-500">{u('landing.maxLoad', 'Max Load')}</label>
                       <div className="h-11 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex items-center gap-3">
                         <input
                           type="range"
@@ -1444,12 +1363,12 @@ const LandingPage = ({
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase text-slate-500">Priority</label>
+                      <label className="text-[10px] font-bold uppercase text-slate-500">{u('landing.priority', 'Priority')}</label>
                       <div className="h-11 grid grid-cols-3 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-slate-50 dark:bg-slate-900">
                         {[
-                          { id: 'fastest', label: 'Fast' },
-                          { id: 'balanced', label: 'Smart' },
-                          { id: 'eco', label: 'Eco' },
+                          { id: 'fastest', label: u('landing.fast', 'Fast') },
+                          { id: 'balanced', label: u('landing.smart', 'Smart') },
+                          { id: 'eco', label: u('landing.eco', 'Eco') },
                         ].map((option) => (
                           <button
                             key={option.id}
@@ -1473,71 +1392,75 @@ const LandingPage = ({
                       <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-2">
                         <MapPin className="w-4 h-4" />
                       </div>
-                      <p className="text-[10px] uppercase text-slate-500">Distance</p>
+                      <p className="text-[10px] uppercase text-slate-500">{u('landing.distance', 'Distance')}</p>
                       <p className="text-2xl leading-none font-black dark:text-white mt-1">{routeEstimate.distance} km</p>
                     </div>
                     <div className="rounded-2xl bg-slate-100 dark:bg-slate-800 p-4 flex flex-col items-center justify-center text-center">
                       <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-2">
                         <Clock className="w-4 h-4" />
                       </div>
-                      <p className="text-[10px] uppercase text-slate-500">ETA</p>
+                      <p className="text-[10px] uppercase text-slate-500">{u('landing.eta', 'ETA')}</p>
                       <p className="text-2xl leading-none font-black dark:text-white mt-1">{routeEstimate.eta}</p>
                     </div>
                     <div className="rounded-2xl bg-slate-100 dark:bg-slate-800 p-4 flex flex-col items-center justify-center text-center">
                       <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-2">
                         <Truck className="w-4 h-4" />
                       </div>
-                      <p className="text-[10px] uppercase text-slate-500">Fuel</p>
+                      <p className="text-[10px] uppercase text-slate-500">{u('landing.fuel', 'Fuel')}</p>
                       <p className="text-2xl leading-none font-black dark:text-white mt-1">{routeEstimate.fuel}</p>
                     </div>
                     <div className="rounded-2xl bg-slate-100 dark:bg-slate-800 p-4 flex flex-col items-center justify-center text-center">
                       <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-2">
                         <BarChart3 className="w-4 h-4" />
                       </div>
-                      <p className="text-[10px] uppercase text-slate-500">Projected Cost</p>
+                      <p className="text-[10px] uppercase text-slate-500">{u('landing.projectedCost', 'Projected Cost')}</p>
                       <p className="text-2xl leading-none font-black dark:text-white mt-1">{routeEstimate.cost}</p>
                     </div>
                   </div>
 
                   <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-5">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-2">AI Recommendation</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-2">{u('landing.aiRecommendation', 'AI Recommendation')}</p>
                     <p className="text-sm font-bold dark:text-white mb-1">Zagreb → Munich → Frankfurt → Cologne → Amsterdam</p>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Best fit for {routeModel}, {routeMaxLoad} kg load, {routePriorityLabel} priority.
+                      {(lang === 'bs' ? 'Najbolje za' : lang === 'de' ? 'Beste Wahl für' : 'Best fit for')} {routeModel}, {routeMaxLoad} kg load, {routePriorityLabel} {(lang === 'bs' ? 'prioritet' : lang === 'de' ? 'Priorität' : 'priority')}.
                     </p>
                   </div>
                 </div>
 
                 <div className="xl:w-56 rounded-3xl bg-primary text-white p-6 flex flex-col justify-between shadow-xl shadow-primary/25">
                   <div>
-                    <p className="text-[10px] uppercase tracking-[0.2em] font-black text-white/80 mb-2">AI Confidence</p>
+                    <p className="text-[10px] uppercase tracking-[0.2em] font-black text-white/80 mb-2">{u('landing.aiConfidence', 'AI Confidence')}</p>
                     <p className="text-4xl font-black mb-4">98%</p>
                     <div className="space-y-3">
                       <div>
                         <div className="flex items-center justify-between text-xs mb-1">
-                          <span>Traffic Prediction</span>
-                          <span>High</span>
+                          <span>{u('landing.trafficPrediction', 'Traffic Prediction')}</span>
+                          <span>{lang === 'bs' ? 'Visoko' : lang === 'de' ? 'Hoch' : 'High'}</span>
                         </div>
                         <div className="h-2 rounded-full bg-white/20 overflow-hidden"><div className="h-full w-[88%] bg-white rounded-full" /></div>
                       </div>
                       <div>
                         <div className="flex items-center justify-between text-xs mb-1">
-                          <span>Fuel Efficiency</span>
-                          <span>Optimized</span>
+                          <span>{u('landing.fuelEfficiency', 'Fuel Efficiency')}</span>
+                          <span>{lang === 'bs' ? 'Optimizovano' : lang === 'de' ? 'Optimiert' : 'Optimized'}</span>
                         </div>
                         <div className="h-2 rounded-full bg-white/20 overflow-hidden"><div className="h-full w-[81%] bg-white rounded-full" /></div>
                       </div>
                       <div>
                         <div className="flex items-center justify-between text-xs mb-1">
-                          <span>ETA Stability</span>
-                          <span>Strong</span>
+                          <span>{u('landing.etaStability', 'ETA Stability')}</span>
+                          <span>{lang === 'bs' ? 'Stabilno' : lang === 'de' ? 'Stark' : 'Strong'}</span>
                         </div>
                         <div className="h-2 rounded-full bg-white/20 overflow-hidden"><div className="h-full w-[86%] bg-white rounded-full" /></div>
                       </div>
                     </div>
                   </div>
                   <div className="mt-6 text-xs text-white/80">
-                    Recalculates every 3 min using live road events and fleet constraints.
+                    {lang === 'bs'
+                      ? 'Preračunava svake 3 min koristeći događaje na putu i ograničenja flote.'
+                      : lang === 'de'
+                        ? 'Neuberechnung alle 3 Min. mit Live-Verkehrsdaten und Flottenrestriktionen.'
+                        : 'Recalculates every 3 min using live road events and fleet constraints.'}
                   </div>
                 </div>
               </div>
@@ -1551,14 +1474,46 @@ const LandingPage = ({
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-20">
             <div>
-              <h2 className="text-4xl md:text-6xl font-display font-bold mb-8 dark:text-white leading-tight">How PathTracker.ai <br /> <span className="text-primary">Works.</span></h2>
-              <p className="text-slate-500 dark:text-slate-400 text-lg mb-12">We've simplified the complex world of global logistics into three simple steps.</p>
+              <h2 className="text-4xl md:text-6xl font-display font-bold mb-8 dark:text-white leading-tight">
+                {lang === 'bs' ? 'Kako PathTracker.ai' : lang === 'de' ? 'So funktioniert' : 'How PathTracker.ai'} <br /> <span className="text-primary">{lang === 'bs' ? 'radi.' : lang === 'de' ? 'PathTracker.ai.' : 'Works.'}</span>
+              </h2>
+              <p className="text-slate-500 dark:text-slate-400 text-lg mb-12">
+                {lang === 'bs'
+                  ? 'Pojednostavili smo složeni svijet globalne logistike u tri jednostavna koraka.'
+                  : lang === 'de'
+                    ? 'Wir haben die komplexe Welt der globalen Logistik auf drei einfache Schritte reduziert.'
+                    : "We've simplified the complex world of global logistics into three simple steps."}
+              </p>
               <div className="space-y-12 relative">
                 <div className="absolute left-6 top-0 bottom-0 w-px bg-slate-200 dark:bg-slate-800" />
                 {[
-                  { step: "01", title: "Connect your Fleet", desc: "Integrate your existing vehicles or use our driver app to start tracking in minutes." },
-                  { step: "02", title: "Optimize Routes", desc: "Our AI engine analyzes traffic, weather, and historical data to find the fastest paths." },
-                  { step: "03", title: "Deliver with Confidence", desc: "Real-time updates and automated reporting keep your customers informed and happy." }
+                  {
+                    step: "01",
+                    title: lang === 'bs' ? 'Poveži svoju flotu' : lang === 'de' ? 'Flotte verbinden' : 'Connect your Fleet',
+                    desc: lang === 'bs'
+                      ? 'Poveži postojeća vozila ili koristi našu aplikaciju vozača i kreni za nekoliko minuta.'
+                      : lang === 'de'
+                        ? 'Integrieren Sie bestehende Fahrzeuge oder starten Sie in Minuten mit unserer Fahrer-App.'
+                        : 'Integrate your existing vehicles or use our driver app to start tracking in minutes.'
+                  },
+                  {
+                    step: "02",
+                    title: lang === 'bs' ? 'Optimizuj rute' : lang === 'de' ? 'Routen optimieren' : 'Optimize Routes',
+                    desc: lang === 'bs'
+                      ? 'Naš AI analizira saobraćaj, vrijeme i historijske podatke kako bi našao najbrže putanje.'
+                      : lang === 'de'
+                        ? 'Unsere KI analysiert Verkehr, Wetter und historische Daten für die schnellsten Routen.'
+                        : 'Our AI engine analyzes traffic, weather, and historical data to find the fastest paths.'
+                  },
+                  {
+                    step: "03",
+                    title: lang === 'bs' ? 'Isporuči sigurno' : lang === 'de' ? 'Sicher liefern' : 'Deliver with Confidence',
+                    desc: lang === 'bs'
+                      ? 'Ažuriranja u realnom vremenu i automatski izvještaji drže korisnike stalno informisanim.'
+                      : lang === 'de'
+                        ? 'Echtzeit-Updates und automatisierte Berichte halten Ihre Kunden jederzeit informiert.'
+                        : 'Real-time updates and automated reporting keep your customers informed and happy.'
+                  }
                 ].map((s, i) => (
                   <motion.div 
                     key={i}
@@ -1586,9 +1541,15 @@ const LandingPage = ({
                     <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center">
                       <CheckCircle2 className="text-emerald-500 w-6 h-6" />
                     </div>
-                    <p className="font-bold dark:text-white">Route Optimized</p>
+                    <p className="font-bold dark:text-white">{lang === 'bs' ? 'Ruta optimizovana' : lang === 'de' ? 'Route optimiert' : 'Route Optimized'}</p>
                   </div>
-                  <p className="text-xs text-slate-500">AI reduced delivery time by 24% for this route.</p>
+                  <p className="text-xs text-slate-500">
+                    {lang === 'bs'
+                      ? 'AI je smanjio vrijeme isporuke za 24% na ovoj ruti.'
+                      : lang === 'de'
+                        ? 'KI hat die Lieferzeit auf dieser Route um 24% reduziert.'
+                        : 'AI reduced delivery time by 24% for this route.'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -1612,12 +1573,35 @@ const LandingPage = ({
                <div className="absolute -top-10 -left-10 w-40 h-40 bg-primary rounded-full blur-[80px] opacity-30" />
             </div>
             <div className="order-1 lg:order-2">
-              <h2 className="text-4xl md:text-6xl font-display font-bold text-white mb-8 leading-tight">Control your entire <br /> <span className="text-primary">Operation.</span></h2>
+              <h2 className="text-4xl md:text-6xl font-display font-bold text-white mb-8 leading-tight">
+                {lang === 'bs' ? 'Upravljaj cijelom' : lang === 'de' ? 'Steuern Sie Ihre gesamte' : 'Control your entire'} <br /> <span className="text-primary">{lang === 'bs' ? 'operacijom.' : lang === 'de' ? 'Operation.' : 'Operation.'}</span>
+              </h2>
               <div className="space-y-8">
                 {[
-                  { title: "Unified Dashboard", desc: "One screen to rule them all. Manage drivers, loads, and tracking in one place." },
-                  { title: "Smart Notifications", desc: "Get alerted before delays happen with our predictive analytics engine." },
-                  { title: "Automated Reporting", desc: "Generate complex logistics reports in seconds, not hours." }
+                  {
+                    title: lang === 'bs' ? 'Jedinstveni dashboard' : lang === 'de' ? 'Einheitliches Dashboard' : 'Unified Dashboard',
+                    desc: lang === 'bs'
+                      ? 'Jedan ekran za sve. Upravljaj vozačima, teretima i praćenjem na jednom mjestu.'
+                      : lang === 'de'
+                        ? 'Ein Bildschirm für alles: Fahrer, Ladungen und Tracking zentral verwalten.'
+                        : 'One screen to rule them all. Manage drivers, loads, and tracking in one place.'
+                  },
+                  {
+                    title: lang === 'bs' ? 'Pametna obavještenja' : lang === 'de' ? 'Intelligente Benachrichtigungen' : 'Smart Notifications',
+                    desc: lang === 'bs'
+                      ? 'Dobij upozorenje prije kašnjenja uz naš prediktivni analitički sistem.'
+                      : lang === 'de'
+                        ? 'Sie werden vor Verzögerungen gewarnt - dank prädiktiver Analysen.'
+                        : 'Get alerted before delays happen with our predictive analytics engine.'
+                  },
+                  {
+                    title: lang === 'bs' ? 'Automatizovano izvještavanje' : lang === 'de' ? 'Automatisiertes Reporting' : 'Automated Reporting',
+                    desc: lang === 'bs'
+                      ? 'Generiši složene logističke izvještaje za sekunde, ne sate.'
+                      : lang === 'de'
+                        ? 'Erstellen Sie komplexe Logistikberichte in Sekunden statt Stunden.'
+                        : 'Generate complex logistics reports in seconds, not hours.'
+                  }
                 ].map((item, i) => (
                   <div key={i} className="flex gap-6">
                     <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
@@ -1639,8 +1623,16 @@ const LandingPage = ({
       <section id="pricing" className={cn("scroll-mt-28 bg-white dark:bg-slate-950", SECTION_PADDING)}>
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-20">
-            <h2 className="text-4xl md:text-6xl font-display font-bold mb-6 dark:text-white tracking-tight">Simple, Transparent <br /> <span className="text-primary">Pricing.</span></h2>
-            <p className="text-slate-500 dark:text-slate-400 max-w-2xl mx-auto text-lg">Choose the plan that fits your business needs. No hidden fees.</p>
+            <h2 className="text-4xl md:text-6xl font-display font-bold mb-6 dark:text-white tracking-tight">
+              {lang === 'bs' ? 'Jednostavne, transparentne' : lang === 'de' ? 'Einfaches, transparentes' : 'Simple, Transparent'} <br /> <span className="text-primary">{lang === 'bs' ? 'cijene.' : lang === 'de' ? 'Pricing.' : 'Pricing.'}</span>
+            </h2>
+            <p className="text-slate-500 dark:text-slate-400 max-w-2xl mx-auto text-lg">
+              {lang === 'bs'
+                ? 'Izaberi plan koji odgovara tvom poslovanju. Bez skrivenih troškova.'
+                : lang === 'de'
+                  ? 'Wählen Sie den Plan, der zu Ihrem Geschäft passt. Keine versteckten Gebühren.'
+                  : 'Choose the plan that fits your business needs. No hidden fees.'}
+            </p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
             {[
@@ -1655,12 +1647,12 @@ const LandingPage = ({
                   : "border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 hover:border-primary/50"
               )}>
                 <div>
-                  {plan.popular && <span className="px-4 py-1 rounded-full bg-white text-primary text-[10px] font-black uppercase tracking-widest mb-6 inline-block">Most Popular</span>}
+                  {plan.popular && <span className="px-4 py-1 rounded-full bg-white text-primary text-[10px] font-black uppercase tracking-widest mb-6 inline-block">{lang === 'bs' ? 'Najpopularniji' : lang === 'de' ? 'Am beliebtesten' : 'Most Popular'}</span>}
                   <h4 className="text-2xl font-bold mb-2">{plan.name}</h4>
                   <p className={cn("text-sm mb-8", plan.popular ? "text-white/70" : "text-slate-500")}>{plan.desc}</p>
                   <div className="flex items-baseline gap-1 mb-8">
                     <span className="text-5xl font-black">{plan.price}</span>
-                    {plan.price !== "Custom" && <span className="text-sm opacity-70">/month</span>}
+                    {plan.price !== "Custom" && <span className="text-sm opacity-70">{lang === 'bs' ? '/mjesec' : lang === 'de' ? '/Monat' : '/month'}</span>}
                   </div>
                   <ul className="space-y-4">
                     {plan.features.map((f, j) => (
@@ -1672,7 +1664,9 @@ const LandingPage = ({
                   </ul>
                 </div>
                 <Button variant={plan.popular ? "secondary" : "primary"} className={cn("w-full mt-10 h-14 rounded-full font-bold", plan.popular ? "bg-white text-primary hover:bg-slate-100" : "")}>
-                  {plan.price === "Custom" ? "Contact Sales" : "Get Started"}
+                  {plan.price === "Custom"
+                    ? (lang === 'bs' ? 'Kontakt prodaja' : lang === 'de' ? 'Vertrieb kontaktieren' : 'Contact Sales')
+                    : (lang === 'bs' ? 'Započni' : lang === 'de' ? 'Loslegen' : 'Get Started')}
                 </Button>
               </div>
             ))}
@@ -1725,11 +1719,19 @@ const LandingPage = ({
       <section className={cn("px-6", SECTION_PADDING)}>
         <div className="max-w-7xl mx-auto bg-primary rounded-[3rem] p-12 md:p-24 text-center text-white relative overflow-hidden shadow-2xl shadow-primary/40">
           <div className="relative z-10">
-            <h2 className="text-4xl md:text-7xl font-display font-black mb-8">READY TO <br /> START MOVING?</h2>
-            <p className="text-xl text-white/70 mb-12 max-w-xl mx-auto">Join thousands of companies optimizing their logistics with PathTracker.ai today.</p>
+            <h2 className="text-4xl md:text-7xl font-display font-black mb-8">
+              {lang === 'bs' ? 'SPREMNI DA' : lang === 'de' ? 'BEREIT ZU' : 'READY TO'} <br /> {lang === 'bs' ? 'KRENETE?' : lang === 'de' ? 'STARTEN?' : 'START MOVING?'}
+            </h2>
+            <p className="text-xl text-white/70 mb-12 max-w-xl mx-auto">
+              {lang === 'bs'
+                ? 'Pridruži se hiljadama kompanija koje optimizuju logistiku uz PathTracker.ai.'
+                : lang === 'de'
+                  ? 'Tausende Unternehmen optimieren bereits ihre Logistik mit PathTracker.ai.'
+                  : 'Join thousands of companies optimizing their logistics with PathTracker.ai today.'}
+            </p>
             <div className="flex flex-wrap justify-center gap-6">
-              <Button onClick={onStart} variant="secondary" size="lg" className="px-12 h-16 rounded-full text-lg font-bold text-primary bg-white hover:bg-slate-100">Get Started Now</Button>
-              <Button variant="outline" size="lg" className="px-12 h-16 rounded-full text-lg font-bold border-white text-white hover:bg-white/10">Contact Sales</Button>
+              <Button onClick={onStart} variant="secondary" size="lg" className="px-12 h-16 rounded-full text-lg font-bold text-primary bg-white hover:bg-slate-100">{u('common.getStartedNow', 'Get Started Now')}</Button>
+              <Button variant="outline" size="lg" className="px-12 h-16 rounded-full text-lg font-bold border-white text-white hover:bg-white/10">{u('common.contactSales', 'Contact Sales')}</Button>
             </div>
           </div>
           {/* Decorative Circles */}
@@ -1749,7 +1751,11 @@ const LandingPage = ({
               <span className="text-2xl font-display font-bold tracking-tight text-slate-900 dark:text-white">PathTracker.ai</span>
             </div>
             <p className="text-slate-500 dark:text-slate-400 max-w-sm mb-8">
-              The next-generation logistics platform for the modern world. Built with precision, powered by AI.
+              {lang === 'bs'
+                ? 'Logistička platforma nove generacije za moderan svijet. Precizna i pokretana AI-jem.'
+                : lang === 'de'
+                  ? 'Die Logistikplattform der nächsten Generation für die moderne Welt. Präzise und KI-gestützt.'
+                  : 'The next-generation logistics platform for the modern world. Built with precision, powered by AI.'}
             </p>
             <div className="flex gap-4">
               {/* Social icons placeholder */}
@@ -1761,29 +1767,29 @@ const LandingPage = ({
             </div>
           </div>
           <div>
-            <h5 className="font-bold mb-6 dark:text-white">Product</h5>
+            <h5 className="font-bold mb-6 dark:text-white">{lang === 'bs' ? 'Proizvod' : lang === 'de' ? 'Produkt' : 'Product'}</h5>
             <ul className="space-y-4 text-slate-500 dark:text-slate-400 text-sm">
-              <li><a href="#" className="hover:text-primary transition-colors">Tracking</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Fleet Management</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">AI Insights</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">API Docs</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">{t.tracking}</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">{lang === 'bs' ? 'Upravljanje flotom' : lang === 'de' ? 'Flottenmanagement' : 'Fleet Management'}</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">{lang === 'bs' ? 'AI uvidi' : lang === 'de' ? 'KI-Einblicke' : 'AI Insights'}</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">{lang === 'bs' ? 'API dokumentacija' : lang === 'de' ? 'API-Dokumentation' : 'API Docs'}</a></li>
             </ul>
           </div>
           <div>
-            <h5 className="font-bold mb-6 dark:text-white">Company</h5>
+            <h5 className="font-bold mb-6 dark:text-white">{lang === 'bs' ? 'Kompanija' : lang === 'de' ? 'Unternehmen' : 'Company'}</h5>
             <ul className="space-y-4 text-slate-500 dark:text-slate-400 text-sm">
-              <li><a href="#" className="hover:text-primary transition-colors">About Us</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Careers</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Press</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Contact</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">{lang === 'bs' ? 'O nama' : lang === 'de' ? 'Über uns' : 'About Us'}</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">{lang === 'bs' ? 'Karijere' : lang === 'de' ? 'Karriere' : 'Careers'}</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">{lang === 'bs' ? 'Mediji' : lang === 'de' ? 'Presse' : 'Press'}</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">{lang === 'bs' ? 'Kontakt' : lang === 'de' ? 'Kontakt' : 'Contact'}</a></li>
             </ul>
           </div>
         </div>
         <div className="max-w-7xl mx-auto px-6 mt-20 pt-8 border-t border-slate-100 dark:border-slate-900 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-400 font-bold uppercase tracking-widest">
-          <p>© 2026 SWIFTPATH LOGISTICS INC. ALL RIGHTS RESERVED.</p>
+          <p>{lang === 'bs' ? '© 2026 SWIFTPATH LOGISTICS INC. SVA PRAVA ZADRŽANA.' : lang === 'de' ? '© 2026 SWIFTPATH LOGISTICS INC. ALLE RECHTE VORBEHALTEN.' : '© 2026 SWIFTPATH LOGISTICS INC. ALL RIGHTS RESERVED.'}</p>
           <div className="flex gap-8">
-            <a href="#" className="hover:text-primary transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-primary transition-colors">Terms of Service</a>
+            <a href="#" className="hover:text-primary transition-colors">{lang === 'bs' ? 'Politika privatnosti' : lang === 'de' ? 'Datenschutz' : 'Privacy Policy'}</a>
+            <a href="#" className="hover:text-primary transition-colors">{lang === 'bs' ? 'Uslovi korištenja' : lang === 'de' ? 'Nutzungsbedingungen' : 'Terms of Service'}</a>
           </div>
         </div>
       </footer>
@@ -1792,17 +1798,24 @@ const LandingPage = ({
 };
 
 const Onboarding = ({ 
+  mode,
   lang: initialLang, 
   setLang: setGlobalLang, 
   onComplete 
 }: { 
+  mode: 'setup' | 'login',
   lang: Language, 
   setLang: (l: Language) => void, 
   onComplete: (role: Role, lang: Language) => void 
 }) => {
-  const [step, setStep] = useState(2);
+  const [step, setStep] = useState(mode === 'login' ? 1 : 2);
   const [role, setRole] = useState<Role>(null);
   const [lang, setLang] = useState<Language>(initialLang || 'en');
+  const [loginData, setLoginData] = useState({
+    username: '',
+    password: '',
+    role: null as Role
+  });
   const [driverData, setDriverData] = useState({ 
     name: '', 
     country: '', 
@@ -1826,6 +1839,16 @@ const Onboarding = ({
   });
 
   const t = translations[lang || 'en'];
+  const u = (key: string, fallback: string) => ui(lang, key, fallback);
+
+  useEffect(() => {
+    setStep(mode === 'login' ? 1 : 2);
+  }, [mode]);
+
+  const handleLogin = () => {
+    if (!loginData.username || !loginData.password || !loginData.role) return;
+    onComplete(loginData.role, lang);
+  };
 
   const handleNext = () => {
     if (step === 1 && lang) setStep(2);
@@ -1848,11 +1871,100 @@ const Onboarding = ({
     }
   };
 
+  const isSetupMode = mode !== 'login';
+  const canProceedSetup =
+    step === 2 ? Boolean(role) :
+    step === 3 ? Boolean(driverData.name && driverData.country && driverData.username && driverData.password && driverData.idPhoto) :
+    step === 5 ? Boolean(driverType) :
+    step === 6 ? Boolean(companyData.name && companyData.taxId) :
+    step === 4 ? Boolean(carData.make && carData.model && carData.plate && carData.fuelType) :
+    false;
+  const canProceedLogin = Boolean(loginData.username && loginData.password && loginData.role);
+  const showSetupBack = step === 5 || step === 6 || step === 4;
+  const setupPrimaryLabel = step === 4 ? t.completeSetup : u('common.continue', 'Continue');
+  const handleSetupBack = () => {
+    if (step === 5) setStep(3);
+    else if (step === 6) setStep(5);
+    else if (step === 4) setStep(driverType === 'company' ? 6 : 5);
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-4 pb-28">
       <Card className="max-w-md w-full p-8">
-        <AnimatePresence mode="wait">
-          {step === 2 && (
+        <div className={cn(isSetupMode && "max-h-[calc(100vh-13rem)] overflow-y-auto pr-1 pb-2")}>
+          <AnimatePresence mode="wait">
+          {mode === 'login' && step === 1 && (
+            <motion.div
+              key="login"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-6"
+            >
+              <div className="text-center">
+                <User className="w-12 h-12 text-primary mx-auto mb-4" />
+                <h2 className="text-2xl font-bold dark:text-white">{t.logIn}</h2>
+                <p className="text-slate-500 text-sm mt-2">
+                  {lang === 'bs'
+                    ? 'Prijavite se i odmah uđite u aplikaciju.'
+                    : lang === 'de'
+                      ? 'Melden Sie sich an und betreten Sie die App sofort.'
+                      : 'Sign in and enter the app immediately.'}
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{t.username}</label>
+                  <input
+                    type="text"
+                    placeholder="johndoe123"
+                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
+                    value={loginData.username}
+                    onChange={(e) => setLoginData((prev) => ({ ...prev, username: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{t.password}</label>
+                  <input
+                    type="password"
+                    placeholder="••••••••"
+                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
+                    value={loginData.password}
+                    onChange={(e) => setLoginData((prev) => ({ ...prev, password: e.target.value }))}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setLoginData((prev) => ({ ...prev, role: 'user' }))}
+                    className={cn(
+                      "h-11 rounded-xl border-2 text-sm font-bold transition-all cursor-pointer",
+                      loginData.role === 'user'
+                        ? "border-primary bg-primary/5 text-primary"
+                        : "border-slate-100 dark:border-slate-800 text-slate-500"
+                    )}
+                  >
+                    {u('onboarding.customerTitle', "I'm a Customer")}
+                  </button>
+                  <button
+                    onClick={() => setLoginData((prev) => ({ ...prev, role: 'driver' }))}
+                    className={cn(
+                      "h-11 rounded-xl border-2 text-sm font-bold transition-all cursor-pointer",
+                      loginData.role === 'driver'
+                        ? "border-primary bg-primary/5 text-primary"
+                        : "border-slate-100 dark:border-slate-800 text-slate-500"
+                    )}
+                  >
+                    {u('onboarding.driverTitle', "I'm a Driver")}
+                  </button>
+                </div>
+              </div>
+
+            </motion.div>
+          )}
+
+          {mode !== 'login' && step === 2 && (
             <motion.div 
               key="step2"
               initial={{ opacity: 0, y: 10 }}
@@ -1862,8 +1974,8 @@ const Onboarding = ({
             >
               <div className="text-center">
                 <User className="w-12 h-12 text-primary mx-auto mb-4" />
-                <h2 className="text-2xl font-bold dark:text-white">Who are you?</h2>
-                <p className="text-slate-500 text-sm mt-2">Select your role to personalize your experience</p>
+                <h2 className="text-2xl font-bold dark:text-white">{u('onboarding.whoAreYou', 'Who are you?')}</h2>
+                <p className="text-slate-500 text-sm mt-2">{u('onboarding.roleSubtitle', 'Select your role to personalize your experience')}</p>
               </div>
               <div className="space-y-3">
                 <button 
@@ -1874,8 +1986,8 @@ const Onboarding = ({
                     <PackageIcon className="text-blue-600" />
                   </div>
                   <div>
-                    <p className="font-bold dark:text-white">I'm a Customer</p>
-                    <p className="text-xs text-slate-500">I want to track packages & post loads</p>
+                    <p className="font-bold dark:text-white">{u('onboarding.customerTitle', "I'm a Customer")}</p>
+                    <p className="text-xs text-slate-500">{u('onboarding.customerDesc', 'I want to track packages and post loads')}</p>
                   </div>
                 </button>
                 <button 
@@ -1886,16 +1998,15 @@ const Onboarding = ({
                     <Truck className="text-emerald-600" />
                   </div>
                   <div>
-                    <p className="font-bold dark:text-white">I'm a Driver</p>
-                    <p className="text-xs text-slate-500">I want to manage deliveries & loads</p>
+                    <p className="font-bold dark:text-white">{u('onboarding.driverTitle', "I'm a Driver")}</p>
+                    <p className="text-xs text-slate-500">{u('onboarding.driverDesc', 'I want to manage deliveries and loads')}</p>
                   </div>
                 </button>
               </div>
-              <Button onClick={handleNext} disabled={!role} className="w-full" size="lg">Continue</Button>
             </motion.div>
           )}
 
-          {step === 3 && (
+          {mode !== 'login' && step === 3 && (
             <motion.div 
               key="step3"
               initial={{ opacity: 0, y: 10 }}
@@ -1905,8 +2016,8 @@ const Onboarding = ({
             >
               <div className="text-center">
                 <ShieldCheck className="w-12 h-12 text-primary mx-auto mb-4" />
-                <h2 className="text-2xl font-bold dark:text-white">Driver Verification</h2>
-                <p className="text-slate-500 text-sm mt-2">We need a few more details to get you on the road</p>
+                <h2 className="text-2xl font-bold dark:text-white">{u('onboarding.driverVerification', 'Driver Verification')}</h2>
+                <p className="text-slate-500 text-sm mt-2">{u('onboarding.driverVerificationDesc', 'We need a few more details to get you on the road')}</p>
               </div>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -1932,7 +2043,7 @@ const Onboarding = ({
                   </div>
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Full Name</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{u('onboarding.fullName', 'Full Name')}</label>
                   <input 
                     type="text" 
                     placeholder="John Doe"
@@ -1942,21 +2053,21 @@ const Onboarding = ({
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Country</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{u('onboarding.country', 'Country')}</label>
                   <select 
                     className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
                     value={driverData.country}
                     onChange={(e) => setDriverData({...driverData, country: e.target.value})}
                   >
-                    <option value="">Select Country</option>
-                    <option value="BA">Bosnia and Herzegovina</option>
-                    <option value="DE">Germany</option>
-                    <option value="US">United States</option>
-                    <option value="UK">United Kingdom</option>
+                    <option value="">{u('onboarding.selectCountry', 'Select Country')}</option>
+                    <option value="BA">{u('onboarding.bosnia', 'Bosnia and Herzegovina')}</option>
+                    <option value="DE">{lang === 'bs' ? 'Njemačka' : lang === 'de' ? 'Deutschland' : 'Germany'}</option>
+                    <option value="US">{lang === 'bs' ? 'Sjedinjene Američke Države' : lang === 'de' ? 'Vereinigte Staaten' : 'United States'}</option>
+                    <option value="UK">{lang === 'bs' ? 'Ujedinjeno Kraljevstvo' : lang === 'de' ? 'Vereinigtes Königreich' : 'United Kingdom'}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">ID Verification</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{u('onboarding.idVerification', 'ID Verification')}</label>
                   <button 
                     onClick={() => setDriverData({...driverData, idPhoto: 'verified'})}
                     className={cn("w-full p-8 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all cursor-pointer", driverData.idPhoto ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/10" : "border-slate-200 dark:border-slate-800 hover:border-primary/50")}
@@ -1964,22 +2075,21 @@ const Onboarding = ({
                     {driverData.idPhoto ? (
                       <>
                         <CheckCircle2 className="text-emerald-500 w-8 h-8" />
-                        <span className="text-sm font-bold text-emerald-600">ID Photo Uploaded</span>
+                        <span className="text-sm font-bold text-emerald-600">{u('onboarding.idUploaded', 'ID Photo Uploaded')}</span>
                       </>
                     ) : (
                       <>
                         <Camera className="text-slate-400 w-8 h-8" />
-                        <span className="text-sm font-bold text-slate-500">Upload Photo of ID</span>
+                        <span className="text-sm font-bold text-slate-500">{u('onboarding.idUpload', 'Upload Photo of ID')}</span>
                       </>
                     )}
                   </button>
                 </div>
               </div>
-              <Button onClick={handleNext} disabled={!driverData.name || !driverData.country || !driverData.idPhoto} className="w-full" size="lg">Continue</Button>
             </motion.div>
           )}
 
-          {step === 5 && (
+          {mode !== 'login' && step === 5 && (
             <motion.div 
               key="step5"
               initial={{ opacity: 0, y: 10 }}
@@ -1989,8 +2099,8 @@ const Onboarding = ({
             >
               <div className="text-center">
                 <Truck className="w-12 h-12 text-primary mx-auto mb-4" />
-                <h2 className="text-2xl font-bold dark:text-white">Driver Type</h2>
-                <p className="text-slate-500 text-sm mt-2">Are you an independent driver or representing a company?</p>
+                <h2 className="text-2xl font-bold dark:text-white">{lang === 'bs' ? 'Tip vozača' : lang === 'de' ? 'Fahrertyp' : 'Driver Type'}</h2>
+                <p className="text-slate-500 text-sm mt-2">{lang === 'bs' ? 'Jeste li samostalni vozač ili predstavljate firmu?' : lang === 'de' ? 'Sind Sie ein selbstständiger Fahrer oder vertreten Sie ein Unternehmen?' : 'Are you an independent driver or representing a company?'}</p>
               </div>
               <div className="space-y-3">
                 <button 
@@ -2006,9 +2116,11 @@ const Onboarding = ({
                     <User className="text-blue-600" />
                   </div>
                   <div>
-                    <p className="font-bold dark:text-white">Private Driver</p>
+                    <p className="font-bold dark:text-white">{lang === 'bs' ? 'Privatni vozač' : lang === 'de' ? 'Privatfahrer' : 'Private Driver'}</p>
                     <p className="text-xs text-slate-500">
-                      {driverData.country === 'BA' ? "Not allowed in Bosnia" : "Independent contractor"}
+                      {driverData.country === 'BA'
+                        ? (lang === 'bs' ? 'Nije dozvoljeno u BiH' : lang === 'de' ? 'In Bosnien nicht erlaubt' : 'Not allowed in Bosnia')
+                        : (lang === 'bs' ? 'Samostalni izvođač' : lang === 'de' ? 'Selbstständiger Auftragnehmer' : 'Independent contractor')}
                     </p>
                   </div>
                 </button>
@@ -2020,19 +2132,15 @@ const Onboarding = ({
                     <Globe className="text-emerald-600" />
                   </div>
                   <div>
-                    <p className="font-bold dark:text-white">Logistics Company</p>
-                    <p className="text-xs text-slate-500">Registered business entity</p>
+                    <p className="font-bold dark:text-white">{lang === 'bs' ? 'Logistička kompanija' : lang === 'de' ? 'Logistikunternehmen' : 'Logistics Company'}</p>
+                    <p className="text-xs text-slate-500">{lang === 'bs' ? 'Registrovano pravno lice' : lang === 'de' ? 'Registrierte Geschäftseinheit' : 'Registered business entity'}</p>
                   </div>
                 </button>
-              </div>
-              <div className="flex gap-3">
-                <Button variant="outline" onClick={() => setStep(3)} className="flex-1">Back</Button>
-                <Button onClick={handleNext} disabled={!driverType} className="flex-1" size="lg">Continue</Button>
               </div>
             </motion.div>
           )}
 
-          {step === 6 && (
+          {mode !== 'login' && step === 6 && (
             <motion.div 
               key="step6"
               initial={{ opacity: 0, y: 10 }}
@@ -2042,12 +2150,12 @@ const Onboarding = ({
             >
               <div className="text-center">
                 <Globe className="w-12 h-12 text-primary mx-auto mb-4" />
-                <h2 className="text-2xl font-bold dark:text-white">Company Information</h2>
-                <p className="text-slate-500 text-sm mt-2">Enter your registered business details</p>
+                <h2 className="text-2xl font-bold dark:text-white">{lang === 'bs' ? 'Podaci o kompaniji' : lang === 'de' ? 'Unternehmensinformationen' : 'Company Information'}</h2>
+                <p className="text-slate-500 text-sm mt-2">{lang === 'bs' ? 'Unesite registrovane poslovne podatke' : lang === 'de' ? 'Geben Sie Ihre registrierten Geschäftsdaten ein' : 'Enter your registered business details'}</p>
               </div>
               <div className="space-y-4">
                 <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Company Name</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{lang === 'bs' ? 'Naziv kompanije' : lang === 'de' ? 'Firmenname' : 'Company Name'}</label>
                   <input 
                     type="text" 
                     placeholder="Swift Logistics Ltd"
@@ -2057,7 +2165,7 @@ const Onboarding = ({
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Tax ID / VAT Number</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{lang === 'bs' ? 'Porezni broj / PDV broj' : lang === 'de' ? 'Steuernummer / USt-IdNr.' : 'Tax ID / VAT Number'}</label>
                   <input 
                     type="text" 
                     placeholder="EU123456789"
@@ -2067,7 +2175,7 @@ const Onboarding = ({
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Business Address</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{lang === 'bs' ? 'Poslovna adresa' : lang === 'de' ? 'Geschäftsadresse' : 'Business Address'}</label>
                   <textarea 
                     placeholder="123 Logistics Way, Berlin, Germany"
                     className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none h-24 resize-none"
@@ -2076,14 +2184,10 @@ const Onboarding = ({
                   />
                 </div>
               </div>
-              <div className="flex gap-3">
-                <Button variant="outline" onClick={() => setStep(5)} className="flex-1">Back</Button>
-                <Button onClick={handleNext} disabled={!companyData.name || !companyData.taxId} className="flex-1" size="lg">Continue</Button>
-              </div>
             </motion.div>
           )}
 
-          {step === 4 && (
+          {mode !== 'login' && step === 4 && (
             <motion.div 
               key="step4"
               initial={{ opacity: 0, y: 10 }}
@@ -2093,12 +2197,12 @@ const Onboarding = ({
             >
               <div className="text-center">
                 <Truck className="w-12 h-12 text-primary mx-auto mb-4" />
-                <h2 className="text-2xl font-bold dark:text-white">Vehicle Details</h2>
-                <p className="text-slate-500 text-sm mt-2">Tell us about the vehicle you'll be driving</p>
+                <h2 className="text-2xl font-bold dark:text-white">{lang === 'bs' ? 'Podaci o vozilu' : lang === 'de' ? 'Fahrzeugdetails' : 'Vehicle Details'}</h2>
+                <p className="text-slate-500 text-sm mt-2">{lang === 'bs' ? 'Recite nam više o vozilu koje ćete voziti' : lang === 'de' ? 'Erzählen Sie uns mehr über das Fahrzeug, das Sie fahren' : "Tell us about the vehicle you'll be driving"}</p>
               </div>
               <div className="space-y-4">
                 <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Vehicle Photo</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{lang === 'bs' ? 'Fotografija vozila' : lang === 'de' ? 'Fahrzeugfoto' : 'Vehicle Photo'}</label>
                   <div className="relative">
                     <button 
                       onClick={() => {
@@ -2152,12 +2256,12 @@ const Onboarding = ({
                       ) : carData.photo ? (
                         <>
                           <CheckCircle2 className="text-emerald-500 w-8 h-8" />
-                          <span className="text-sm font-bold text-emerald-600">Photo Uploaded</span>
+                          <span className="text-sm font-bold text-emerald-600">{lang === 'bs' ? 'Fotografija postavljena' : lang === 'de' ? 'Foto hochgeladen' : 'Photo Uploaded'}</span>
                         </>
                       ) : (
                         <>
                           <Camera className="text-slate-400 w-8 h-8" />
-                          <span className="text-sm font-bold text-slate-500">Take Photo to Detect AI</span>
+                          <span className="text-sm font-bold text-slate-500">{lang === 'bs' ? 'Fotografiši za AI detekciju' : lang === 'de' ? 'Foto für KI-Erkennung aufnehmen' : 'Take Photo to Detect AI'}</span>
                         </>
                       )}
                     </button>
@@ -2165,7 +2269,7 @@ const Onboarding = ({
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Make</label>
+                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{lang === 'bs' ? 'Marka' : lang === 'de' ? 'Marke' : 'Make'}</label>
                     <input 
                       type="text" 
                       placeholder="e.g. Mercedes"
@@ -2175,7 +2279,7 @@ const Onboarding = ({
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Model</label>
+                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{lang === 'bs' ? 'Model' : lang === 'de' ? 'Modell' : 'Model'}</label>
                     <input 
                       type="text" 
                       placeholder="e.g. Sprinter"
@@ -2187,7 +2291,7 @@ const Onboarding = ({
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Year</label>
+                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{lang === 'bs' ? 'Godina' : lang === 'de' ? 'Baujahr' : 'Year'}</label>
                     <input 
                       type="text" 
                       placeholder="2024"
@@ -2204,10 +2308,10 @@ const Onboarding = ({
                       onChange={(e) => setCarData({...carData, fuelType: e.target.value})}
                     >
                       <option value="">{t.selectFuel}</option>
-                      <option value="Diesel">Diesel</option>
-                      <option value="Gasoline">Gasoline</option>
-                      <option value="Electric">Electric</option>
-                      <option value="Hybrid">Hybrid</option>
+                      <option value="Diesel">{trFuelType(lang, 'Diesel')}</option>
+                      <option value="Gasoline">{trFuelType(lang, 'Gasoline')}</option>
+                      <option value="Electric">{trFuelType(lang, 'Electric')}</option>
+                      <option value="Hybrid">{trFuelType(lang, 'Hybrid')}</option>
                       <option value="LPG">LPG</option>
                     </select>
                   </div>
@@ -2231,7 +2335,7 @@ const Onboarding = ({
                       </div>
                       <div>
                         <p className="text-sm font-bold dark:text-white">{t.trailer}</p>
-                        <p className="text-[10px] text-slate-500 uppercase">Does your vehicle have a trailer?</p>
+                        <p className="text-[10px] text-slate-500 uppercase">{lang === 'bs' ? 'Da li vozilo ima prikolicu?' : lang === 'de' ? 'Hat Ihr Fahrzeug einen Anhänger?' : 'Does your vehicle have a trailer?'}</p>
                       </div>
                     </div>
                     <button 
@@ -2247,7 +2351,7 @@ const Onboarding = ({
                       animate={{ opacity: 1, height: 'auto' }}
                       className="pt-2 border-t border-slate-200 dark:border-slate-700"
                     >
-                      <label className="text-[10px] font-bold uppercase text-slate-500 mb-2 block">Number of Trailers</label>
+                      <label className="text-[10px] font-bold uppercase text-slate-500 mb-2 block">{lang === 'bs' ? 'Broj prikolica' : lang === 'de' ? 'Anzahl Anhänger' : 'Number of Trailers'}</label>
                       <div className="flex gap-2">
                         {[1, 2, 3].map(num => (
                           <button
@@ -2273,7 +2377,7 @@ const Onboarding = ({
                       </div>
                       <div>
                         <p className="text-sm font-bold dark:text-white">{t.tailLift}</p>
-                        <p className="text-[10px] text-slate-500 uppercase">Does your vehicle have a tail lift?</p>
+                        <p className="text-[10px] text-slate-500 uppercase">{lang === 'bs' ? 'Da li vozilo ima utovarnu rampu?' : lang === 'de' ? 'Hat Ihr Fahrzeug eine Hebebühne?' : 'Does your vehicle have a tail lift?'}</p>
                       </div>
                     </div>
                     <button 
@@ -2285,737 +2389,45 @@ const Onboarding = ({
                   </div>
                 </div>
               </div>
-              <div className="flex gap-3">
-                <Button variant="outline" onClick={() => setStep(driverType === 'company' ? 6 : 5)} className="flex-1 cursor-pointer">{t.back}</Button>
-                <Button onClick={handleNext} disabled={!carData.make || !carData.model || !carData.plate || !carData.fuelType} className="flex-1 cursor-pointer" size="lg">{t.completeSetup}</Button>
-              </div>
             </motion.div>
           )}
-        </AnimatePresence>
-      </Card>
-    </div>
-  );
-};
-
-const Dashboard = ({ role }: { role: Role }) => {
-  const [isPostLoadOpen, setIsPostLoadOpen] = useState(false);
-  const stats = [
-    { label: 'Active Packages', value: '12', icon: PackageIcon, color: 'text-blue-500' },
-    { label: 'Delivered', value: '142', icon: CheckCircle2, color: 'text-emerald-500' },
-    { label: 'In Transit', value: '8', icon: Truck, color: 'text-amber-500' },
-    { label: 'Avg. Speed', value: '64 km/h', icon: BarChart3, color: 'text-purple-500' },
-  ];
-
-  const chartData = [
-    { name: 'Mon', packages: 40, efficiency: 85 },
-    { name: 'Tue', packages: 30, efficiency: 88 },
-    { name: 'Wed', packages: 65, efficiency: 92 },
-    { name: 'Thu', packages: 45, efficiency: 90 },
-    { name: 'Fri', packages: 90, efficiency: 95 },
-    { name: 'Sat', packages: 20, efficiency: 80 },
-    { name: 'Sun', packages: 15, efficiency: 75 },
-  ];
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold dark:text-white">Dashboard Overview</h1>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm"><Filter className="w-4 h-4 mr-2" /> Filter</Button>
-          {role === 'user' ? (
-            <Button size="sm" onClick={() => setIsPostLoadOpen(true)}><Plus className="w-4 h-4 mr-2" /> Post New Load</Button>
-          ) : (
-            <Button size="sm"><Plus className="w-4 h-4 mr-2" /> New Route</Button>
-          )}
+          </AnimatePresence>
         </div>
-      </div>
+      </Card>
 
-      <PostLoadModal isOpen={isPostLoadOpen} onClose={() => setIsPostLoadOpen(false)} />
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {stats.map((s, i) => (
-          <Card key={i} className="p-4">
-            <div className="flex items-center gap-3">
-              <div className={cn("p-2 rounded-lg bg-slate-50 dark:bg-slate-800", s.color)}>
-                <s.icon className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-xs text-slate-500 font-medium">{s.label}</p>
-                <p className="text-xl font-bold dark:text-white">{s.value}</p>
-              </div>
+      {(isSetupMode || mode === 'login') && (
+        <div className="fixed bottom-0 left-0 right-0 z-[140] px-4 pb-4">
+          <div className="max-w-md mx-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl p-3">
+            <div className="flex gap-3">
+              {isSetupMode && showSetupBack && (
+                <Button variant="outline" onClick={handleSetupBack} className="flex-1 cursor-pointer">
+                  {u('common.back', 'Back')}
+                </Button>
+              )}
+              {isSetupMode ? (
+                <Button
+                  onClick={handleNext}
+                  disabled={!canProceedSetup}
+                  className={cn("cursor-pointer", showSetupBack ? "flex-1" : "w-full")}
+                  size="lg"
+                >
+                  {setupPrimaryLabel}
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleLogin}
+                  disabled={!canProceedLogin}
+                  className="w-full cursor-pointer"
+                  size="lg"
+                >
+                  {t.logIn}
+                </Button>
+              )}
             </div>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2" title="Delivery Performance">
-          <div className="h-[300px] w-full mt-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="colorPkgs" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#00AEEF" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#00AEEF" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12}} />
-                <Tooltip 
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                />
-                <Area type="monotone" dataKey="packages" stroke="#00AEEF" strokeWidth={3} fillOpacity={1} fill="url(#colorPkgs)" />
-              </AreaChart>
-            </ResponsiveContainer>
           </div>
-        </Card>
-
-        <Card title="Recent Activity">
-          <div className="space-y-6 mt-4">
-            {[
-              { title: 'Package Delivered', time: '2 mins ago', desc: 'ER217960271BA marked as delivered in Sarajevo.' },
-              { title: 'New Load Posted', time: '1 hour ago', desc: 'Electronics Pallets (1.2 Tons) available from Vienna.' },
-              { title: 'Route Completed', time: '3 hours ago', desc: 'Driver John Doe completed route R1 (420 km).' },
-              { title: 'System Update', time: '5 hours ago', desc: 'Smart tracking algorithms have been optimized.' }
-            ].map((a, i) => (
-              <div key={i} className="flex gap-4">
-                <div className="relative">
-                  <div className="w-2 h-2 rounded-full bg-primary mt-1.5" />
-                  {i !== 3 && <div className="absolute top-4 left-1 w-px h-full bg-slate-200 dark:bg-slate-800" />}
-                </div>
-                <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-bold dark:text-white">{a.title}</p>
-                    <span className="text-[10px] text-slate-400 whitespace-nowrap">{a.time}</span>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-1">{a.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
-
-      {role === 'user' && (
-        <Card title="My Active Loads" className="mt-6">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-100 dark:border-slate-800">
-                  <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Load ID</th>
-                  <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Route</th>
-                  <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Cargo</th>
-                  <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Status</th>
-                  <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">ETA</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
-                {MOCK_LOADS.slice(0, 3).map((load) => (
-                  <tr key={load.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                    <td className="p-4 text-sm font-bold dark:text-white">{load.id}</td>
-                    <td className="p-4">
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
-                        <span>{load.pickup}</span>
-                        <ArrowRight className="w-3 h-3" />
-                        <span>{load.delivery}</span>
-                      </div>
-                    </td>
-                    <td className="p-4 text-xs text-slate-500">{load.cargoType} ({load.weight}kg)</td>
-                    <td className="p-4">
-                      <span className={cn(
-                        "px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
-                        load.status === 'Available' ? "bg-emerald-100 text-emerald-600" : "bg-blue-100 text-blue-600"
-                      )}>
-                        {load.status}
-                      </span>
-                    </td>
-                    <td className="p-4 text-xs text-slate-500">{load.eta}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+        </div>
       )}
     </div>
-  );
-};
-
-const NetworkView = () => {
-  const stats = [
-    { label: 'Active Hubs', value: '142', icon: Globe, color: 'text-blue-500' },
-    { label: 'Fleet Capacity', value: '4.2M Tons', icon: Truck, color: 'text-emerald-500' },
-    { label: 'Global Reach', icon: MapIcon, value: '192 Countries', color: 'text-amber-500' },
-    { label: 'Avg Delivery', value: '1.8 Days', icon: Clock, color: 'text-primary' }
-  ];
-
-  return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-display font-black dark:text-white">Global Network</h1>
-          <p className="text-slate-500">Real-time overview of our logistics infrastructure</p>
-        </div>
-        <div className="flex gap-4">
-          <Button variant="outline" size="sm">Download Report</Button>
-          <Button size="sm">Manage Hubs</Button>
-        </div>
-      </div>
-
-      <div className="grid md:grid-cols-4 gap-6">
-        {stats.map((s, i) => (
-          <Card key={i} className="p-6">
-            <div className="flex items-center gap-4">
-              <div className={cn("p-3 rounded-2xl bg-slate-50 dark:bg-slate-800", s.color)}>
-                <s.icon className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{s.label}</p>
-                <p className="text-2xl font-black dark:text-white">{s.value}</p>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 overflow-hidden" title="Live Fleet Distribution">
-          <div className="h-[500px] w-full mt-4 relative">
-            <MapContainer center={[20, 0]} zoom={2} className="h-full w-full">
-              <TileLayer 
-                url="https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
-                subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
-                attribution="&copy; Google Maps"
-              />
-              {[
-                { pos: [40.7128, -74.0060], name: 'New York Hub' },
-                { pos: [51.5074, -0.1278], name: 'London Hub' },
-                { pos: [35.6895, 139.6917], name: 'Tokyo Hub' },
-                { pos: [43.8563, 18.4131], name: 'Sarajevo Hub' },
-                { pos: [-33.8688, 151.2093], name: 'Sydney Hub' }
-              ].map((hub, i) => (
-                <Marker key={i} position={hub.pos as [number, number]}>
-                  <Popup>{hub.name}</Popup>
-                </Marker>
-              ))}
-            </MapContainer>
-            <div className="absolute top-4 right-4 z-[1000] bg-white/90 dark:bg-slate-900/90 backdrop-blur p-4 rounded-2xl shadow-xl border border-white/20">
-              <p className="text-xs font-bold uppercase tracking-wider mb-2">Live Status</p>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-sm font-medium">All systems operational</span>
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        <div className="space-y-6">
-          <Card title="Regional Performance">
-            <div className="h-[250px] w-full mt-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={[
-                  { name: 'Europe', val: 94 },
-                  { name: 'N. America', val: 88 },
-                  { name: 'Asia', val: 91 },
-                  { name: 'Africa', val: 76 }
-                ]}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
-                  <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10}} />
-                  <Tooltip />
-                  <Bar dataKey="val" fill="#00AEEF" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
-          <Card title="Fleet Utilization">
-             <div className="h-[200px] w-full mt-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={[
-                        { name: 'Active', value: 75, fill: '#00AEEF' },
-                        { name: 'Maintenance', value: 15, fill: '#f59e0b' },
-                        { name: 'Idle', value: 10, fill: '#ef4444' }
-                      ]}
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={5}
-                      dataKey="value"
-                    />
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-             </div>
-             <div className="flex justify-center gap-4 text-xs font-bold uppercase">
-               <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-primary" /> Active</div>
-               <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-amber-500" /> Maint.</div>
-               <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-red-500" /> Idle</div>
-             </div>
-          </Card>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const TrackingView = () => {
-  const [selectedPackage, setSelectedPackage] = useState<Package>(MOCK_PACKAGES[0]);
-  const [smartStatus, setSmartStatus] = useState<string>("");
-
-  useEffect(() => {
-    getSmartStatusUpdate(selectedPackage.status, selectedPackage.history[0].location).then(setSmartStatus);
-  }, [selectedPackage]);
-
-  return (
-    <div className="grid lg:grid-cols-12 gap-6">
-      {/* Sidebar List */}
-      <div className="lg:col-span-4 space-y-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-          <input 
-            type="text" 
-            placeholder="Search tracking number..."
-            className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-primary"
-          />
-        </div>
-        <div className="space-y-2">
-          {MOCK_PACKAGES.map(pkg => (
-            <button 
-              key={pkg.id}
-              onClick={() => setSelectedPackage(pkg)}
-              className={cn(
-                "w-full p-4 rounded-2xl border text-left transition-all",
-                selectedPackage.id === pkg.id 
-                  ? "border-primary bg-primary/5 shadow-sm" 
-                  : "border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-200"
-              )}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{pkg.carrier}</span>
-                <span className={cn(
-                  "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase",
-                  pkg.status === 'Delivered' ? "bg-emerald-100 text-emerald-600" : "bg-blue-100 text-blue-600"
-                )}>{pkg.status}</span>
-              </div>
-              <p className="font-bold dark:text-white">{pkg.trackingNumber}</p>
-              <div className="flex items-center gap-2 mt-2 text-xs text-slate-500">
-                <MapPin className="w-3 h-3" />
-                <span>{pkg.destination}</span>
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Main Tracking Content (Amazon Inspired) */}
-      <div className="lg:col-span-8 space-y-6">
-        <div className="amazon-card">
-          <div className="amazon-header flex items-center justify-between">
-            <div className="flex gap-8">
-              <div>
-                <p className="text-[10px] uppercase text-slate-500">Ordered on</p>
-                <p className="font-bold">Feb 26, 2026</p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase text-slate-500">Total</p>
-                <p className="font-bold">€12.99</p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase text-slate-500">Ship to</p>
-                <p className="font-bold text-primary flex items-center gap-1 cursor-pointer">
-                  John Doe <ChevronRight className="w-3 h-3" />
-                </p>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-[10px] uppercase text-slate-500">Order # {selectedPackage.trackingNumber}</p>
-              <div className="flex gap-4 mt-1 text-xs font-medium text-primary">
-                <span className="cursor-pointer hover:underline">View order details</span>
-                <span className="cursor-pointer hover:underline">Invoice</span>
-              </div>
-            </div>
-          </div>
-          <div className="amazon-body">
-            <div className="grid md:grid-cols-3 gap-8">
-              <div className="md:col-span-2">
-                <h2 className="text-xl font-bold text-emerald-600 mb-4">
-                  {selectedPackage.status === 'Delivered' ? 'Delivered Today' : 'Arriving by 8 PM'}
-                </h2>
-                <div className="relative h-2 bg-slate-100 dark:bg-slate-800 rounded-full mb-8">
-                  <div className="absolute top-0 left-0 h-full bg-emerald-500 rounded-full" style={{ width: '75%' }} />
-                  <div className="absolute top-1/2 -translate-y-1/2 left-0 w-4 h-4 bg-emerald-500 rounded-full border-4 border-white dark:border-slate-900" />
-                  <div className="absolute top-1/2 -translate-y-1/2 left-[37.5%] w-4 h-4 bg-emerald-500 rounded-full border-4 border-white dark:border-slate-900" />
-                  <div className="absolute top-1/2 -translate-y-1/2 left-[75%] w-4 h-4 bg-emerald-500 rounded-full border-4 border-white dark:border-slate-900" />
-                  <div className="absolute top-1/2 -translate-y-1/2 right-0 w-4 h-4 bg-slate-300 dark:bg-slate-700 rounded-full border-4 border-white dark:border-slate-900" />
-                </div>
-                <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  <span>Ordered</span>
-                  <span>Shipped</span>
-                  <span>Out for delivery</span>
-                  <span>Arriving</span>
-                </div>
-
-                <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800 flex gap-4">
-                  <div className="w-10 h-10 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center shadow-sm">
-                    <MessageSquare className="text-primary w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-primary uppercase">Smart Status (AI)</p>
-                    <p className="text-sm dark:text-slate-200 italic">"{smartStatus}"</p>
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <Button className="w-full">Track Package</Button>
-                <Button variant="outline" className="w-full">Return or replace items</Button>
-                <Button variant="outline" className="w-full">Share tracking</Button>
-                <Button variant="outline" className="w-full">Write a product review</Button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <Card title="Live Location">
-          <div className="h-[400px] rounded-xl overflow-hidden relative">
-             <MapContainer center={selectedPackage.currentLocation} zoom={13} className="h-full w-full">
-                <TileLayer 
-                  url="https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
-                  subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
-                  attribution="&copy; Google Maps"
-                />
-                <Marker position={selectedPackage.currentLocation}>
-                  <Popup>
-                    <div className="p-2">
-                      <p className="font-bold">{selectedPackage.trackingNumber}</p>
-                      <p className="text-xs text-slate-500">{selectedPackage.status}</p>
-                    </div>
-                  </Popup>
-                </Marker>
-             </MapContainer>
-          </div>
-        </Card>
-
-        <Card title="Tracking History">
-          <div className="space-y-6">
-            {selectedPackage.history.map((h, i) => (
-              <div key={i} className="flex gap-6">
-                <div className="w-24 text-right">
-                  <p className="text-xs font-bold dark:text-white">{h.date.split(',')[0]}</p>
-                  <p className="text-[10px] text-slate-400 uppercase">{h.date.split(',')[1]}</p>
-                </div>
-                <div className="relative">
-                  <div className={cn("w-3 h-3 rounded-full mt-1", i === 0 ? "bg-primary" : "bg-slate-300 dark:bg-slate-700")} />
-                  {i !== selectedPackage.history.length - 1 && <div className="absolute top-4 left-1.5 w-px h-full bg-slate-200 dark:bg-slate-800" />}
-                </div>
-                <div>
-                  <p className="text-sm font-bold dark:text-white">{h.status}</p>
-                  <p className="text-xs text-slate-500">{h.location}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
-    </div>
-  );
-};
-
-const HomeFeed = () => {
-  return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold dark:text-white">Available Loads</h1>
-        <div className="flex gap-2">
-           <Button variant="outline" size="sm"><Filter className="w-4 h-4 mr-2" /> Filter</Button>
-           <Button size="sm"><Plus className="w-4 h-4 mr-2" /> Post Load</Button>
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        {MOCK_LOADS.map(load => (
-          <Card key={load.id} className="hover:border-primary/50 transition-all cursor-pointer group">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-              <div className="flex gap-4">
-                <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                  <Truck className="text-slate-500 group-hover:text-primary transition-colors" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-lg dark:text-white">{load.title}</h3>
-                  <p className="text-sm text-slate-500">{load.author} • {load.date}</p>
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-4">
-                <div className="px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-bold dark:text-slate-300">
-                  {load.weight}
-                </div>
-                <div className="text-xl font-black text-primary">
-                  {load.price}
-                </div>
-              </div>
-            </div>
-            <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800 flex items-center gap-8">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span className="text-sm font-medium dark:text-slate-300">{load.pickup}</span>
-              </div>
-              <ArrowRight className="w-4 h-4 text-slate-300" />
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-blue-500" />
-                <span className="text-sm font-medium dark:text-slate-300">{load.delivery}</span>
-              </div>
-              <div className="ml-auto">
-                <Button size="sm" variant="ghost">View Details <ChevronRight className="w-4 h-4 ml-1" /></Button>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-const HistoryView = () => {
-  const [selectedRoute, setSelectedRoute] = useState<RouteLog>(MOCK_ROUTES[0]);
-  const [insights, setInsights] = useState("");
-
-  useEffect(() => {
-    getRouteInsights(['Vienna', 'Prague', 'Berlin']).then(setInsights);
-  }, [selectedRoute]);
-
-  return (
-    <div className="grid lg:grid-cols-12 gap-6">
-      <div className="lg:col-span-4 space-y-4">
-        <h2 className="text-xl font-bold dark:text-white">Route History</h2>
-        <div className="space-y-2">
-          {MOCK_ROUTES.map(route => (
-            <button 
-              key={route.id}
-              onClick={() => setSelectedRoute(route)}
-              className={cn(
-                "w-full p-4 rounded-2xl border text-left transition-all",
-                selectedRoute.id === route.id ? "border-primary bg-primary/5" : "border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900"
-              )}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-slate-400">{route.date}</span>
-                <span className="text-xs font-bold text-primary">{route.distance}</span>
-              </div>
-              <div className="flex items-center gap-4 text-sm font-bold dark:text-white">
-                <div className="flex items-center gap-1">
-                  <Clock className="w-3 h-3 text-slate-400" />
-                  {route.duration}
-                </div>
-                <div className="flex items-center gap-1">
-                  <MapPin className="w-3 h-3 text-slate-400" />
-                  {route.stops} stops
-                </div>
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="lg:col-span-8 space-y-6">
-        <Card title="Route Path">
-          <div className="h-[400px] rounded-xl overflow-hidden relative">
-            <MapContainer center={selectedRoute.path[0]} zoom={8} className="h-full w-full">
-              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-              <Polyline positions={selectedRoute.path} color="#00AEEF" weight={4} />
-              {selectedRoute.path.map((pos, i) => (
-                <Marker key={i} position={pos}>
-                  <Popup>Stop {i + 1}</Popup>
-                </Marker>
-              ))}
-            </MapContainer>
-          </div>
-        </Card>
-        <Card title="AI Route Insights">
-          <div className="flex gap-4 items-start">
-            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
-              <BarChart3 className="text-primary w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-sm dark:text-slate-200 leading-relaxed italic">"{insights}"</p>
-              <p className="text-[10px] text-slate-400 mt-2 uppercase font-bold">Generated by PathTracker.ai AI</p>
-            </div>
-          </div>
-        </Card>
-      </div>
-    </div>
-  );
-};
-
-const FleetView = () => {
-  const fleetData = [
-    { name: 'Mon', fuel: 400, efficiency: 85 },
-    { name: 'Tue', fuel: 300, efficiency: 88 },
-    { name: 'Wed', fuel: 500, efficiency: 82 },
-    { name: 'Thu', fuel: 280, efficiency: 91 },
-    { name: 'Fri', fuel: 390, efficiency: 87 },
-    { name: 'Sat', fuel: 200, efficiency: 94 },
-    { name: 'Sun', fuel: 150, efficiency: 96 },
-  ];
-
-  const vehicles = [
-    { id: 'V1', model: 'Mercedes Sprinter', plate: 'BA-123-XY', status: 'Active', fuel: '75%', fuelType: 'Diesel', trailer: 'No', tailLift: 'Yes', nextService: '12 May', location: [43.8563, 18.4131] },
-    { id: 'V2', model: 'Volkswagen Crafter', plate: 'DE-992-AB', status: 'Maintenance', fuel: '20%', fuelType: 'Diesel', trailer: 'Yes (1)', tailLift: 'No', nextService: 'Tomorrow', location: [43.8463, 18.4031] },
-    { id: 'V3', model: 'Iveco Daily', plate: 'UK-881-ZZ', status: 'Idle', fuel: '95%', fuelType: 'Electric', trailer: 'No', tailLift: 'Yes', nextService: '28 June', location: [43.8663, 18.4231] },
-  ];
-
-  return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="space-y-6"
-    >
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-display font-bold dark:text-white">My Fleet</h1>
-          <p className="text-slate-500">Manage and monitor your vehicle assets</p>
-        </div>
-        <Button className="rounded-full">
-          <Plus className="w-4 h-4 mr-2" /> Add Vehicle
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {[
-          { label: 'Total Vehicles', value: '12', icon: Truck, color: 'text-blue-600', bg: 'bg-blue-100' },
-          { label: 'Active Now', value: '8', icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-100' },
-          { label: 'In Maintenance', value: '2', icon: Settings, color: 'text-amber-600', bg: 'bg-amber-100' },
-          { label: 'Avg Efficiency', value: '89%', icon: BarChart3, color: 'text-purple-600', bg: 'bg-purple-100' },
-        ].map((stat, i) => (
-          <Card key={i} className="p-6">
-            <div className="flex items-center gap-4">
-              <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center", stat.bg)}>
-                <stat.icon className={cn("w-6 h-6", stat.color)} />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{stat.label}</p>
-                <p className="text-2xl font-black dark:text-white">{stat.value}</p>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid lg:grid-cols-3 gap-6">
-        <Card title="Fuel Consumption & Efficiency" className="lg:col-span-2">
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={fleetData}>
-                <defs>
-                  <linearGradient id="colorFuel" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#00AEEF" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#00AEEF" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#94a3b8'}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#94a3b8'}} />
-                <Tooltip 
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                />
-                <Area type="monotone" dataKey="fuel" stroke="#00AEEF" fillOpacity={1} fill="url(#colorFuel)" />
-                <Line type="monotone" dataKey="efficiency" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 4 }} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-
-        <Card title="Maintenance Alerts">
-          <div className="space-y-4">
-            {vehicles.filter(v => v.status === 'Maintenance' || v.nextService === 'Tomorrow').map((v, i) => (
-              <div key={i} className="p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 flex items-start gap-4">
-                <div className="w-10 h-10 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center shrink-0 shadow-sm">
-                  <Settings className="text-amber-600 w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold dark:text-white">{v.model}</p>
-                  <p className="text-xs text-slate-500">Service due: <span className="font-bold text-amber-600">{v.nextService}</span></p>
-                  <Button size="sm" variant="outline" className="mt-2 h-7 text-[10px] rounded-full">Schedule Now</Button>
-                </div>
-              </div>
-            ))}
-            <div className="p-4 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <ShieldCheck className="text-emerald-500 w-5 h-5" />
-                <span className="text-sm font-medium dark:text-white">All other vehicles safe</span>
-              </div>
-              <ChevronRight className="w-4 h-4 text-slate-400" />
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      <Card title="Vehicle Status & Live Tracking">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="text-left border-b border-slate-100 dark:border-slate-800">
-                <th className="p-4 text-[10px] font-bold uppercase text-slate-400 tracking-widest">Vehicle</th>
-                <th className="p-4 text-[10px] font-bold uppercase text-slate-400 tracking-widest">License Plate</th>
-                <th className="p-4 text-[10px] font-bold uppercase text-slate-400 tracking-widest">Fuel Type</th>
-                <th className="p-4 text-[10px] font-bold uppercase text-slate-400 tracking-widest">Trailer</th>
-                <th className="p-4 text-[10px] font-bold uppercase text-slate-400 tracking-widest">Tail Lift</th>
-                <th className="p-4 text-[10px] font-bold uppercase text-slate-400 tracking-widest">Status</th>
-                <th className="p-4 text-[10px] font-bold uppercase text-slate-400 tracking-widest">Fuel Level</th>
-                <th className="p-4 text-[10px] font-bold uppercase text-slate-400 tracking-widest">Next Service</th>
-                <th className="p-4 text-[10px] font-bold uppercase text-slate-400 tracking-widest">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {vehicles.map(v => (
-                <tr key={v.id} className="border-b border-slate-50 dark:border-slate-900 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
-                  <td className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center">
-                        <Truck className="w-4 h-4 text-slate-500" />
-                      </div>
-                      <span className="text-sm font-bold dark:text-white">{v.model}</span>
-                    </div>
-                  </td>
-                  <td className="p-4 text-sm text-slate-500 font-mono">{v.plate}</td>
-                  <td className="p-4 text-sm text-slate-500">{v.fuelType}</td>
-                  <td className="p-4 text-sm text-slate-500">{v.trailer}</td>
-                  <td className="p-4 text-sm text-slate-500">{v.tailLift}</td>
-                  <td className="p-4">
-                    <span className={cn(
-                      "px-2 py-1 rounded-full text-[10px] font-bold uppercase",
-                      v.status === 'Active' ? "bg-emerald-100 text-emerald-600" :
-                      v.status === 'Maintenance' ? "bg-amber-100 text-amber-600" : "bg-slate-100 text-slate-600"
-                    )}>{v.status}</span>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden max-w-[60px]">
-                        <div 
-                          className={cn("h-full rounded-full", parseInt(v.fuel) < 30 ? "bg-red-500" : "bg-primary")} 
-                          style={{ width: v.fuel }} 
-                        />
-                      </div>
-                      <span className="text-xs font-bold dark:text-white">{v.fuel}</span>
-                    </div>
-                  </td>
-                  <td className="p-4 text-sm text-slate-500">{v.nextService}</td>
-                  <td className="p-4">
-                    <div className="flex gap-2">
-                      <button className="p-2 hover:bg-primary/10 hover:text-primary rounded-lg transition-colors">
-                        <MapIcon className="w-4 h-4" />
-                      </button>
-                      <button className="p-2 hover:bg-primary/10 hover:text-primary rounded-lg transition-colors">
-                        <Settings className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-    </motion.div>
   );
 };
 
@@ -3023,9 +2435,10 @@ const FleetView = () => {
 
 export default function App() {
   const [isLanding, setIsLanding] = useState(true);
+  const [authMode, setAuthMode] = useState<'setup' | 'login'>('setup');
   const [role, setRole] = useState<Role>(null);
   const [lang, setLang] = useState<Language>('en');
-  const [view, setView] = useState('dashboard');
+  const [view, setView] = useState('feed');
   const [isDark, setIsDark] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -3041,25 +2454,29 @@ export default function App() {
 
   if (isLanding) return (
     <LandingPage 
-      onStart={() => setIsLanding(false)} 
+      onStart={() => { setAuthMode('setup'); setIsLanding(false); }}
+      onLogin={() => { setAuthMode('login'); setIsLanding(false); }}
       isDark={isDark} 
       setIsDark={setIsDark} 
       lang={lang} 
       setLang={setLang} 
     />
   );
-  if (!role) return <Onboarding lang={lang} setLang={setLang} onComplete={(r, l) => { setRole(r); setLang(l); }} />;
+  if (!role) return <Onboarding mode={authMode} lang={lang} setLang={setLang} onComplete={(r, l) => { setRole(r); setLang(l); setView('feed'); }} />;
 
   const t = translations[lang || 'en'];
   const currentLang = languages.find(l => l.id === (lang || 'en')) || languages[0];
+  const analyticsLabel = 'Analytics';
 
   const navItems = [
-    { id: 'dashboard', label: t.dashboard, icon: LayoutDashboard },
+    { id: 'feed', label: t.homeFeed, icon: Boxes },
     { id: 'tracking', label: t.tracking, icon: PackageIcon },
-    { id: 'network', label: t.network, icon: Globe },
-    { id: 'feed', label: t.homeFeed, icon: MessageSquare },
     ...(role === 'driver' ? [
-      { id: 'fleet', label: t.myFleet, icon: Truck },
+      { id: 'fleet', label: t.myFleet, icon: Truck }
+    ] : []),
+    { id: 'dashboard', label: analyticsLabel, icon: BarChart3 },
+    { id: 'network', label: t.network, icon: Globe },
+    ...(role === 'driver' ? [
       { id: 'history', label: t.history, icon: History }
     ] : []),
     { id: 'settings', label: t.settings, icon: Settings },
@@ -3110,7 +2527,7 @@ export default function App() {
             className="w-full flex items-center gap-3 p-3 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
           >
             {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            {isSidebarOpen && <span className="font-medium">{isDark ? 'Light Mode' : 'Dark Mode'}</span>}
+            {isSidebarOpen && <span className="font-medium">{isDark ? ui(lang, 'common.lightMode', 'Light Mode') : ui(lang, 'common.darkMode', 'Dark Mode')}</span>}
           </button>
         </div>
       </aside>
@@ -3188,7 +2605,7 @@ export default function App() {
               <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all p-2 z-[100]">
                 <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 mb-2">
                   <p className="text-sm font-bold dark:text-white">John Doe</p>
-                  <p className="text-[10px] text-slate-500 uppercase tracking-wider">{role === 'driver' ? 'Verified Driver' : 'Customer'}</p>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wider">{role === 'driver' ? ui(lang, 'common.verifiedDriver', 'Verified Driver') : ui(lang, 'common.customer', 'Customer')}</p>
                 </div>
                 <button className="w-full flex items-center gap-3 p-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
                   <User className="w-4 h-4" />
@@ -3204,7 +2621,7 @@ export default function App() {
                 </button>
                 <div className="h-px bg-slate-100 dark:border-slate-800 my-2" />
                 <button 
-                  onClick={() => { setIsLanding(true); setRole(null); }}
+                  onClick={() => { setIsLanding(true); setRole(null); setAuthMode('setup'); }}
                   className="w-full flex items-center gap-3 p-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-all"
                 >
                   <X className="w-4 h-4" />
@@ -3225,24 +2642,44 @@ export default function App() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
-              {view === 'dashboard' && <Dashboard role={role} />}
-              {view === 'tracking' && <TrackingView />}
-              {view === 'network' && <NetworkView />}
-              {view === 'fleet' && <FleetView />}
-              {view === 'feed' && <HomeFeed />}
-              {view === 'history' && <HistoryView />}
-              {view === 'settings' && (
-                <div className="max-w-2xl mx-auto space-y-6">
-                  <h1 className="text-2xl font-bold dark:text-white">Settings</h1>
-                  <Card className="p-0">
-                    <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {[
-                        { label: 'Profile Information', icon: User, desc: 'Update your name, email and avatar' },
-                        { label: 'Notifications', icon: Bell, desc: 'Configure how you receive alerts' },
-                        { label: 'Language & Region', icon: Globe, desc: 'English, Bosnian, Timezone' },
-                        { label: 'Security', icon: ShieldCheck, desc: 'Password, 2FA, Session management' },
-                        { label: 'Appearance', icon: Moon, desc: 'Dark mode, Theme colors' }
-                      ].map((s, i) => (
+	              {view === 'dashboard' && <Dashboard role={role} lang={lang} />}
+	              {view === 'tracking' && <TrackingView lang={lang} />}
+	              {view === 'network' && <NetworkView lang={lang} />}
+	              {view === 'fleet' && <FleetView lang={lang} />}
+	              {view === 'feed' && <HomeFeed lang={lang} />}
+	              {view === 'history' && <HistoryView lang={lang} />}
+	              {view === 'settings' && (
+	                <div className="max-w-2xl mx-auto space-y-6">
+	                  <h1 className="text-2xl font-bold dark:text-white">{ui(lang, 'common.settings', 'Settings')}</h1>
+	                  <Card className="p-0">
+	                    <div className="divide-y divide-slate-100 dark:divide-slate-800">
+	                      {[
+	                        {
+	                          label: lang === 'bs' ? 'Informacije profila' : lang === 'de' ? 'Profilinformationen' : 'Profile Information',
+	                          icon: User,
+	                          desc: lang === 'bs' ? 'Ažuriraj ime, email i avatar' : lang === 'de' ? 'Name, E-Mail und Avatar aktualisieren' : 'Update your name, email and avatar'
+	                        },
+	                        {
+	                          label: lang === 'bs' ? 'Obavještenja' : lang === 'de' ? 'Benachrichtigungen' : 'Notifications',
+	                          icon: Bell,
+	                          desc: lang === 'bs' ? 'Podesi kako primaš upozorenja' : lang === 'de' ? 'Festlegen, wie Sie Benachrichtigungen erhalten' : 'Configure how you receive alerts'
+	                        },
+	                        {
+	                          label: lang === 'bs' ? 'Jezik i regija' : lang === 'de' ? 'Sprache & Region' : 'Language & Region',
+	                          icon: Globe,
+	                          desc: lang === 'bs' ? 'Bosanski, Engleski, vremenska zona' : lang === 'de' ? 'Deutsch, Englisch, Zeitzone' : 'English, Bosnian, Timezone'
+	                        },
+	                        {
+	                          label: lang === 'bs' ? 'Sigurnost' : lang === 'de' ? 'Sicherheit' : 'Security',
+	                          icon: ShieldCheck,
+	                          desc: lang === 'bs' ? 'Lozinka, 2FA, upravljanje sesijama' : lang === 'de' ? 'Passwort, 2FA, Sitzungsverwaltung' : 'Password, 2FA, Session management'
+	                        },
+	                        {
+	                          label: lang === 'bs' ? 'Izgled' : lang === 'de' ? 'Darstellung' : 'Appearance',
+	                          icon: Moon,
+	                          desc: lang === 'bs' ? 'Tamni režim, boje teme' : lang === 'de' ? 'Dunkelmodus, Themenfarben' : 'Dark mode, Theme colors'
+	                        }
+	                      ].map((s, i) => (
                         <button key={i} className="w-full p-6 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all text-left">
                           <div className="flex gap-4">
                             <div className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center">
@@ -3258,9 +2695,9 @@ export default function App() {
                       ))}
                     </div>
                   </Card>
-                  <Button variant="outline" className="w-full text-red-500 border-red-100 dark:border-red-900/30 hover:bg-red-50 dark:hover:bg-red-900/10" onClick={() => setIsLanding(true)}>Logout</Button>
-                </div>
-              )}
+	                  <Button variant="outline" className="w-full text-red-500 border-red-100 dark:border-red-900/30 hover:bg-red-50 dark:hover:bg-red-900/10" onClick={() => { setIsLanding(true); setRole(null); setAuthMode('setup'); }}>{ui(lang, 'common.logout', 'Logout')}</Button>
+	                </div>
+	              )}
             </motion.div>
           </AnimatePresence>
         </div>
