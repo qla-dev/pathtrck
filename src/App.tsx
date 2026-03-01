@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { 
   Package as PackageIcon, 
@@ -24,6 +24,7 @@ import {
   MessageSquare,
   ArrowRight,
   CheckCircle2,
+  Sparkles,
   Clock,
   MapPin,
   ExternalLink,
@@ -178,6 +179,335 @@ const Card = ({ children, className, title, headerAction, ...props }: { children
   </div>
 );
 
+type MoleculeNode = {
+  id: string;
+  x: number;
+  y: number;
+  radius: number;
+  delay: number;
+};
+
+const HERO_MOLECULE_NODES: MoleculeNode[] = [
+  { id: 'n1', x: 8, y: 26, radius: 0.55, delay: 0.0 },
+  { id: 'n2', x: 18, y: 18, radius: 0.75, delay: 0.4 },
+  { id: 'n3', x: 31, y: 25, radius: 0.85, delay: 0.9 },
+  { id: 'n4', x: 45, y: 17, radius: 0.65, delay: 1.4 },
+  { id: 'n5', x: 59, y: 24, radius: 0.95, delay: 0.7 },
+  { id: 'n6', x: 73, y: 17, radius: 0.6, delay: 1.1 },
+  { id: 'n7', x: 87, y: 27, radius: 0.75, delay: 0.5 },
+  { id: 'n8', x: 19, y: 54, radius: 0.7, delay: 1.8 },
+  { id: 'n9', x: 35, y: 46, radius: 1.1, delay: 1.3 },
+  { id: 'n10', x: 51, y: 56, radius: 0.8, delay: 0.2 },
+  { id: 'n11', x: 67, y: 47, radius: 1.0, delay: 1.6 },
+  { id: 'n12', x: 82, y: 59, radius: 0.65, delay: 0.1 },
+  { id: 'n13', x: 26, y: 79, radius: 0.6, delay: 0.8 },
+  { id: 'n14', x: 43, y: 83, radius: 0.9, delay: 1.9 },
+  { id: 'n15', x: 61, y: 76, radius: 0.7, delay: 1.0 },
+  { id: 'n16', x: 78, y: 85, radius: 0.8, delay: 1.5 },
+];
+
+const HERO_MOLECULE_EDGES: Array<[string, string]> = [
+  ['n1', 'n2'], ['n2', 'n3'], ['n3', 'n4'], ['n4', 'n5'], ['n5', 'n6'], ['n6', 'n7'],
+  ['n2', 'n8'], ['n3', 'n9'], ['n5', 'n10'], ['n6', 'n11'], ['n7', 'n12'],
+  ['n8', 'n9'], ['n9', 'n10'], ['n10', 'n11'], ['n11', 'n12'],
+  ['n8', 'n13'], ['n9', 'n14'], ['n10', 'n14'], ['n10', 'n15'], ['n11', 'n15'], ['n12', 'n16'],
+  ['n13', 'n14'], ['n14', 'n15'], ['n15', 'n16'],
+  ['n3', 'n8'], ['n4', 'n9'], ['n5', 'n11'], ['n9', 'n13'], ['n11', 'n16']
+];
+
+type ConnectionNode = {
+  id: string;
+  x: number;
+  y: number;
+  radius: number;
+  delay: number;
+};
+
+const HERO_CONNECTION_NODES: ConnectionNode[] = [
+  { id: 'sar', x: 27, y: 40, radius: 1.05, delay: 0.0 },
+  { id: 'vie', x: 37, y: 26, radius: 0.8, delay: 0.5 },
+  { id: 'bud', x: 45, y: 30, radius: 0.75, delay: 1.0 },
+  { id: 'zag', x: 19, y: 34, radius: 0.7, delay: 1.3 },
+  { id: 'par', x: 10, y: 22, radius: 0.8, delay: 1.7 },
+  { id: 'ams', x: 17, y: 14, radius: 0.7, delay: 0.2 },
+  { id: 'ber', x: 27, y: 16, radius: 0.75, delay: 0.8 },
+  { id: 'ist', x: 57, y: 44, radius: 0.85, delay: 1.1 },
+  { id: 'ath', x: 58, y: 59, radius: 0.75, delay: 1.6 },
+  { id: 'dub', x: 68, y: 36, radius: 0.8, delay: 0.6 },
+  { id: 'nyc', x: 82, y: 27, radius: 1.0, delay: 0.3 },
+  { id: 'chi', x: 90, y: 24, radius: 0.75, delay: 1.2 },
+  { id: 'mia', x: 93, y: 41, radius: 0.7, delay: 1.9 },
+];
+
+const HERO_CONNECTION_EDGES: Array<[string, string]> = [
+  ['sar', 'vie'], ['sar', 'bud'], ['sar', 'zag'], ['sar', 'ist'], ['sar', 'dub'],
+  ['vie', 'bud'], ['vie', 'ber'], ['ber', 'ams'], ['ams', 'par'], ['zag', 'par'],
+  ['bud', 'ist'], ['ist', 'ath'], ['ist', 'dub'], ['dub', 'nyc'], ['nyc', 'chi'],
+  ['nyc', 'mia'], ['chi', 'mia'], ['ber', 'nyc']
+];
+
+const HERO_ROUTE_START: [number, number] = [53.5511, 9.9937]; // Hamburg
+const HERO_ROUTE_END: [number, number] = [43.8563, 18.4131]; // Sarajevo
+const HERO_ROUTE_POINTS: [number, number][] = [HERO_ROUTE_START, HERO_ROUTE_END];
+
+type FeatureRouteStop = {
+  id: 'zagreb' | 'munich' | 'cologne' | 'amsterdam';
+  label: string;
+  position: [number, number];
+};
+
+const FEATURE_ROUTE_START: [number, number] = [45.815, 15.9819]; // Zagreb
+const FEATURE_ROUTE_END: [number, number] = [52.3676, 4.9041]; // Amsterdam
+const FEATURE_ROUTE_STOP_1: [number, number] = [48.1351, 11.582]; // Munich
+const FEATURE_ROUTE_STOP_2: [number, number] = [50.9375, 6.9603]; // Cologne
+const FEATURE_ROUTE_STOPS: FeatureRouteStop[] = [
+  { id: 'zagreb', label: 'Zagreb Hub', position: FEATURE_ROUTE_START },
+  { id: 'munich', label: 'Munich Stop', position: FEATURE_ROUTE_STOP_1 },
+  { id: 'cologne', label: 'Cologne Stop', position: FEATURE_ROUTE_STOP_2 },
+  { id: 'amsterdam', label: 'Amsterdam DC', position: FEATURE_ROUTE_END },
+];
+const FEATURE_ROUTE_POINTS_WITH_STOPS: [number, number][] = [
+  ...FEATURE_ROUTE_STOPS.map((stop) => stop.position),
+];
+
+const getWaypointMarkerIcon = (selected: boolean) =>
+  L.divIcon({
+    className: '',
+    html: `<div style="width:${selected ? 18 : 14}px;height:${selected ? 18 : 14}px;border-radius:9999px;background:${selected ? '#00AEEF' : '#64748B'};border:2px solid #ffffff;box-shadow:0 0 0 ${selected ? 4 : 0}px ${selected ? 'rgba(0,174,239,0.30)' : 'transparent'};"></div>`,
+    iconSize: [selected ? 18 : 14, selected ? 18 : 14],
+    iconAnchor: [selected ? 9 : 7, selected ? 9 : 7],
+  });
+
+const HeroRouteFitBounds = ({
+  points,
+  paddingTopLeft = [36, 32],
+  paddingBottomRight = [36, 192],
+  maxZoom = 4,
+}: {
+  points: [number, number][];
+  paddingTopLeft?: [number, number];
+  paddingBottomRight?: [number, number];
+  maxZoom?: number;
+}) => {
+  const map = useMap();
+
+  useEffect(() => {
+    const applyBounds = () => {
+      map.invalidateSize(false);
+      map.fitBounds(points, {
+        paddingTopLeft,
+        paddingBottomRight,
+        maxZoom,
+        animate: false,
+      });
+    };
+
+    const t1 = setTimeout(applyBounds, 0);
+    const t2 = setTimeout(applyBounds, 140);
+    window.addEventListener('resize', applyBounds);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      window.removeEventListener('resize', applyBounds);
+    };
+  }, [map, points, paddingTopLeft, paddingBottomRight, maxZoom]);
+
+  return null;
+};
+
+const HeroMoleculeBackground = () => {
+  const nodeMap = useMemo(
+    () => new Map(HERO_MOLECULE_NODES.map((node) => [node.id, node])),
+    []
+  );
+
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_14%_18%,rgba(56,189,248,0.16),transparent_38%),radial-gradient(circle_at_86%_24%,rgba(14,165,233,0.14),transparent_42%),radial-gradient(circle_at_58%_84%,rgba(59,130,246,0.12),transparent_48%)] dark:bg-[radial-gradient(circle_at_15%_20%,rgba(14,165,233,0.22),transparent_40%),radial-gradient(circle_at_86%_24%,rgba(34,211,238,0.16),transparent_44%),radial-gradient(circle_at_58%_84%,rgba(30,64,175,0.28),transparent_52%)]" />
+      <motion.div
+        className="absolute -top-24 -left-16 h-72 w-72 rounded-full bg-cyan-300/20 blur-[100px] dark:bg-cyan-500/20"
+        animate={{ x: [0, 30, -12, 0], y: [0, 18, -10, 0] }}
+        transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <motion.div
+        className="absolute -bottom-24 -right-20 h-80 w-80 rounded-full bg-blue-300/20 blur-[120px] dark:bg-blue-600/25"
+        animate={{ x: [0, -28, 14, 0], y: [0, -18, 12, 0] }}
+        transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut', delay: 0.6 }}
+      />
+      <svg
+        viewBox="0 0 100 100"
+        preserveAspectRatio="xMidYMid meet"
+        className="absolute inset-0 h-full w-full text-sky-500/35 dark:text-cyan-300/40"
+      >
+        <motion.g
+          animate={{ x: [0, 1.5, -1, 0], y: [0, -1.2, 0.8, 0] }}
+          transition={{ duration: 20, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          {HERO_MOLECULE_EDGES.map(([fromId, toId], index) => {
+            const from = nodeMap.get(fromId);
+            const to = nodeMap.get(toId);
+
+            if (!from || !to) return null;
+
+            return (
+              <motion.line
+                key={`${fromId}-${toId}`}
+                x1={from.x}
+                y1={from.y}
+                x2={to.x}
+                y2={to.y}
+                stroke="currentColor"
+                strokeWidth={0.22}
+                strokeLinecap="round"
+                initial={{ pathLength: 0.35, opacity: 0.15 }}
+                animate={{ pathLength: [0.35, 1, 0.35], opacity: [0.15, 0.55, 0.15] }}
+                transition={{
+                  duration: 7 + (index % 5),
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                  delay: index * 0.15,
+                }}
+              />
+            );
+          })}
+
+          {HERO_MOLECULE_NODES.map((node) => (
+            <React.Fragment key={node.id}>
+              <motion.circle
+                cx={node.x}
+                cy={node.y}
+                r={node.radius}
+                fill="currentColor"
+                initial={{ opacity: 0.25 }}
+                animate={{
+                  r: [node.radius * 0.85, node.radius * 1.35, node.radius * 0.85],
+                  opacity: [0.25, 0.95, 0.25],
+                }}
+                transition={{
+                  duration: 3.8 + node.delay,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                  delay: node.delay,
+                }}
+              />
+              <motion.circle
+                cx={node.x}
+                cy={node.y}
+                r={node.radius * 2}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={0.08}
+                animate={{
+                  r: [node.radius * 1.5, node.radius * 3.1, node.radius * 1.5],
+                  opacity: [0.04, 0.3, 0.04],
+                }}
+                transition={{
+                  duration: 4.8 + node.delay,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                  delay: node.delay * 0.5,
+                }}
+              />
+            </React.Fragment>
+          ))}
+        </motion.g>
+      </svg>
+    </div>
+  );
+};
+
+const HeroConnectionVisual = () => {
+  const nodeMap = useMemo(
+    () => new Map(HERO_CONNECTION_NODES.map((node) => [node.id, node])),
+    []
+  );
+
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_14%,rgba(56,189,248,0.18),transparent_34%),radial-gradient(circle_at_84%_18%,rgba(59,130,246,0.16),transparent_36%),linear-gradient(145deg,rgba(241,245,249,0.45),rgba(224,242,254,0.2)_40%,rgba(186,230,253,0.14))] dark:bg-[radial-gradient(circle_at_12%_14%,rgba(34,211,238,0.22),transparent_36%),radial-gradient(circle_at_84%_18%,rgba(56,189,248,0.2),transparent_38%),linear-gradient(145deg,rgba(15,23,42,0.6),rgba(15,23,42,0.45)_45%,rgba(30,41,59,0.38))]" />
+      <div className="absolute inset-0 opacity-28 dark:opacity-18" style={{ backgroundImage: 'radial-gradient(currentColor 1px, transparent 1px)', backgroundSize: '18px 18px' }} />
+      <svg
+        viewBox="0 0 100 75"
+        preserveAspectRatio="xMidYMid meet"
+        className="absolute inset-0 h-full w-full text-sky-500/55 dark:text-cyan-300/65"
+      >
+        <motion.g
+          animate={{ x: [0, 1.2, -0.6, 0], y: [0, -1, 0.7, 0] }}
+          transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          {HERO_CONNECTION_EDGES.map(([fromId, toId], index) => {
+            const from = nodeMap.get(fromId);
+            const to = nodeMap.get(toId);
+
+            if (!from || !to) return null;
+
+            return (
+              <motion.line
+                key={`${fromId}-${toId}`}
+                x1={from.x}
+                y1={from.y}
+                x2={to.x}
+                y2={to.y}
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeWidth={0.26}
+                initial={{ pathLength: 0.2, opacity: 0.18 }}
+                animate={{ pathLength: [0.2, 1, 0.2], opacity: [0.18, 0.6, 0.18] }}
+                transition={{
+                  duration: 6 + (index % 4),
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                  delay: index * 0.2,
+                }}
+              />
+            );
+          })}
+
+          {HERO_CONNECTION_NODES.map((node) => (
+            <React.Fragment key={node.id}>
+              <motion.circle
+                cx={node.x}
+                cy={node.y}
+                r={node.radius}
+                fill="currentColor"
+                animate={{
+                  opacity: [0.4, 1, 0.4],
+                  r: [node.radius * 0.9, node.radius * 1.2, node.radius * 0.9],
+                }}
+                transition={{
+                  duration: 3.2 + node.delay,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                  delay: node.delay,
+                }}
+              />
+              <motion.circle
+                cx={node.x}
+                cy={node.y}
+                r={node.radius * 2.2}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={0.08}
+                animate={{
+                  r: [node.radius * 1.6, node.radius * 3.2, node.radius * 1.6],
+                  opacity: [0.06, 0.35, 0.06],
+                }}
+                transition={{
+                  duration: 4.6 + node.delay,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                  delay: node.delay * 0.4,
+                }}
+              />
+            </React.Fragment>
+          ))}
+        </motion.g>
+      </svg>
+    </div>
+  );
+};
+
 // --- Views ---
 
 const languages: { id: Language, flag: string, label: string }[] = [
@@ -185,6 +515,67 @@ const languages: { id: Language, flag: string, label: string }[] = [
   { id: 'bs', flag: '🇧🇦', label: 'Bosanski' },
   { id: 'de', flag: '🇩🇪', label: 'Deutsch' },
 ];
+
+const flagCodeByLanguage: Record<Exclude<Language, null>, string> = {
+  en: 'us',
+  bs: 'ba',
+  de: 'de',
+};
+
+const getFlagUrl = (language: Language, width = 20) => {
+  const code = flagCodeByLanguage[(language || 'en') as Exclude<Language, null>];
+  return `https://flagcdn.com/w${width}/${code}.png`;
+};
+
+type HeroTypedMessage = {
+  text: string;
+  keyword: string;
+};
+
+const HERO_MAIN_TITLE_MESSAGES: Record<Exclude<Language, null>, HeroTypedMessage[]> = {
+  en: [
+    { text: "Connecting drivers faster.", keyword: "drivers" },
+    { text: "Matching loads quickly.", keyword: "loads" },
+    { text: "Routing fleets better.", keyword: "fleets" },
+    { text: "Tracking every mile.", keyword: "mile" },
+    { text: "Linking cities live.", keyword: "cities" },
+    { text: "Syncing teams daily.", keyword: "teams" },
+    { text: "Moving goods on time.", keyword: "goods" },
+    { text: "Uniting carriers fast.", keyword: "carriers" },
+    { text: "Powering delivery flow.", keyword: "delivery" },
+    { text: "Keeping logistics ready.", keyword: "logistics" }
+  ],
+  bs: [
+    { text: "Povezujemo vozače brže.", keyword: "vozače" },
+    { text: "Spajamo terete odmah.", keyword: "terete" },
+    { text: "Usmjeravamo flote bolje.", keyword: "flote" },
+    { text: "Pratimo svaki kilometar.", keyword: "kilometar" },
+    { text: "Povezujemo gradove uživo.", keyword: "gradove" },
+    { text: "Sinhronizujemo timove dnevno.", keyword: "timove" },
+    { text: "Pomjeramo robu na vrijeme.", keyword: "robu" },
+    { text: "Ujedinjujemo prevoznike brzo.", keyword: "prevoznike" },
+    { text: "Pogonimo isporuke brže.", keyword: "isporuke" },
+    { text: "Održavamo logistiku spremnom.", keyword: "logistiku" }
+  ],
+  de: [
+    { text: "Wir verbinden Fahrer schneller.", keyword: "Fahrer" },
+    { text: "Wir matchen Ladungen sofort.", keyword: "Ladungen" },
+    { text: "Wir steuern Flotten besser.", keyword: "Flotten" },
+    { text: "Wir tracken jeden Kilometer.", keyword: "Kilometer" },
+    { text: "Wir vernetzen Städte live.", keyword: "Städte" },
+    { text: "Wir synchronisieren Teams täglich.", keyword: "Teams" },
+    { text: "Wir bewegen Waren pünktlich.", keyword: "Waren" },
+    { text: "Wir vereinen Speditionen schnell.", keyword: "Speditionen" },
+    { text: "Wir stärken Liefernetze.", keyword: "Liefernetze" },
+    { text: "Wir halten Logistik bereit.", keyword: "Logistik" }
+  ],
+};
+
+const ROUTE_MODELS_BY_VEHICLE: Record<string, string[]> = {
+  "Cargo Van": ["Mercedes Sprinter", "Ford Transit", "Renault Master"],
+  "Box Truck": ["MAN TGL 12.250", "Volvo FL 250", "DAF LF 260"],
+  "Reefer Truck": ["Scania R450", "DAF XF 480", "Volvo FH 500"],
+};
 
 const translations = {
   en: {
@@ -194,8 +585,8 @@ const translations = {
     pricing: "Pricing",
     logIn: "Log In",
     getStarted: "Get Started",
-    heroTitle: "MOVE FASTER THAN EVER.",
-    heroSubtitle: "The world's most advanced platform for package tracking, fleet management, and real-time logistics optimization.",
+    heroTitle: "Connecting drivers faster.",
+    heroSubtitle: "Connecting drivers faster.",
     trackShipment: "Track Shipment",
     postLoad: "Post Load",
     trackingPlaceholder: "Enter tracking number (e.g. PT-123456)",
@@ -234,8 +625,8 @@ const translations = {
     pricing: "Cijene",
     logIn: "Prijava",
     getStarted: "Započni",
-    heroTitle: "KREĆI SE BRŽE NEGO IKAD.",
-    heroSubtitle: "Najnaprednija svjetska platforma za praćenje paketa, upravljanje flotom i optimizaciju logistike u stvarnom vremenu.",
+    heroTitle: "Kreći se brže nego ikad.",
+    heroSubtitle: "Povezujemo vozače brže.",
     trackShipment: "Prati pošiljku",
     postLoad: "Objavi teret",
     trackingPlaceholder: "Unesite broj za praćenje (npr. PT-123456)",
@@ -274,8 +665,8 @@ const translations = {
     pricing: "Preise",
     logIn: "Anmelden",
     getStarted: "Loslegen",
-    heroTitle: "SCHNELLER ALS JE ZUVOR.",
-    heroSubtitle: "Die weltweit fortschrittlichste Plattform für Paketverfolgung, Flottenmanagement und Echtzeit-Logistikoptimierung.",
+    heroTitle: "Schneller als je zuvor.",
+    heroSubtitle: "Fahrer schneller verbinden.",
     trackShipment: "Sendung verfolgen",
     postLoad: "Ladung posten",
     trackingPlaceholder: "Sendungsnummer eingeben (z.B. PT-123456)",
@@ -323,6 +714,14 @@ const LandingPage = ({
   setLang: (l: Language) => void 
 }) => {
   const [formType, setFormType] = useState<'track' | 'load'>('track');
+  const [routeVehicle, setRouteVehicle] = useState<keyof typeof ROUTE_MODELS_BY_VEHICLE>("Cargo Van");
+  const [routeModel, setRouteModel] = useState("Mercedes Sprinter");
+  const [routeMaxLoad, setRouteMaxLoad] = useState(1800);
+  const [routePriority, setRoutePriority] = useState<'fastest' | 'balanced' | 'eco'>('balanced');
+  const [selectedWaypoint, setSelectedWaypoint] = useState<FeatureRouteStop['id']>('zagreb');
+  const [messageIndex, setMessageIndex] = useState(0);
+  const [typedMessage, setTypedMessage] = useState('');
+  const [isDeletingMessage, setIsDeletingMessage] = useState(false);
   const SECTION_PADDING = "py-32";
   const t = translations[lang || 'en'];
   const partners = [
@@ -334,7 +733,122 @@ const LandingPage = ({
     "https://upload.wikimedia.org/wikipedia/commons/d/d5/DPD_logo.svg",
   ];
 
+  const activeLang = (lang || 'en') as Exclude<Language, null>;
   const currentLang = languages.find(l => l.id === (lang || 'en')) || languages[0];
+  const titleMessages = HERO_MAIN_TITLE_MESSAGES[activeLang] || HERO_MAIN_TITLE_MESSAGES.en;
+  const landingLoads = useMemo(() => {
+    const loads = MOCK_LOADS.length > 0 ? MOCK_LOADS : [];
+    return loads;
+  }, []);
+  const loopingLandingLoads = useMemo(
+    () => [...landingLoads, ...landingLoads],
+    [landingLoads]
+  );
+  const activeMessageConfig = titleMessages[messageIndex % titleMessages.length];
+  const activeKeyword = activeMessageConfig?.keyword ?? '';
+  const activeMessageText = activeMessageConfig?.text ?? '';
+  const activeKeywordStart = activeKeyword ? activeMessageText.indexOf(activeKeyword) : -1;
+
+  const typedBeforeKeyword = activeKeywordStart >= 0
+    ? typedMessage.slice(0, Math.min(typedMessage.length, activeKeywordStart))
+    : typedMessage;
+  const typedKeyword = activeKeywordStart >= 0 && typedMessage.length > activeKeywordStart
+    ? typedMessage.slice(
+        activeKeywordStart,
+        Math.min(typedMessage.length, activeKeywordStart + activeKeyword.length)
+      )
+    : '';
+  const typedAfterKeyword = activeKeywordStart >= 0
+    ? typedMessage.slice(Math.min(typedMessage.length, activeKeywordStart + activeKeyword.length))
+    : '';
+  const routeModelOptions = useMemo(() => ROUTE_MODELS_BY_VEHICLE[routeVehicle], [routeVehicle]);
+  const routeEstimate = useMemo(() => {
+    const baseDistance = 1391;
+    const baseHours = routePriority === 'fastest' ? 20 : routePriority === 'eco' ? 23 : 21;
+    const baseFuel = routePriority === 'fastest' ? 470 : routePriority === 'eco' ? 410 : 440;
+    const baseCost = routePriority === 'fastest' ? 1490 : routePriority === 'eco' ? 1360 : 1425;
+    const loadFactor = routeMaxLoad / 2500;
+    const etaHours = Math.round(baseHours + loadFactor * 2);
+    const fuelLiters = Math.round(baseFuel + loadFactor * 20);
+    const totalCost = Math.round(baseCost + loadFactor * 80);
+    return {
+      distance: baseDistance,
+      eta: `${etaHours}h`,
+      fuel: `${fuelLiters} L`,
+      cost: `€${totalCost}`,
+    };
+  }, [routePriority, routeMaxLoad]);
+  const routePriorityLabel = routePriority === 'fastest' ? 'Fast' : routePriority === 'eco' ? 'Eco' : 'Smart';
+  const trackerTimeline = [
+    {
+      time: '06:40',
+      title: 'Departed Zagreb Hub',
+      note: 'Driver check-in confirmed',
+      icon: CheckCircle2,
+      iconClass: 'text-emerald-500 bg-emerald-500/12'
+    },
+    {
+      time: '11:10',
+      title: 'Stop 1: Munich Relay',
+      note: 'Cargo scan and handoff checkpoint',
+      icon: MapPin,
+      iconClass: 'text-amber-500 bg-amber-500/12'
+    },
+    {
+      time: '15:45',
+      title: 'Stop 2: Cologne Relay',
+      note: 'Driver rest and route recalibration',
+      icon: Clock,
+      iconClass: 'text-sky-500 bg-sky-500/12'
+    },
+    {
+      time: 'Tomorrow 07:20',
+      title: 'Arrival: Amsterdam DC',
+      note: 'Dock and unloading slot confirmed',
+      icon: Truck,
+      iconClass: 'text-violet-500 bg-violet-500/12'
+    },
+  ];
+
+  useEffect(() => {
+    setMessageIndex(0);
+    setTypedMessage('');
+    setIsDeletingMessage(false);
+  }, [activeLang]);
+
+  useEffect(() => {
+    if (!routeModelOptions.includes(routeModel)) {
+      setRouteModel(routeModelOptions[0]);
+    }
+  }, [routeModelOptions, routeModel]);
+
+  useEffect(() => {
+    const safeIndex = messageIndex % titleMessages.length;
+    const activeMessage = titleMessages[safeIndex]?.text;
+    if (!activeMessage) return;
+
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    if (!isDeletingMessage && typedMessage === activeMessage) {
+      timeoutId = setTimeout(() => setIsDeletingMessage(true), 1400);
+    } else if (isDeletingMessage && typedMessage.length === 0) {
+      timeoutId = setTimeout(() => {
+        setIsDeletingMessage(false);
+        setMessageIndex((prev) => (prev + 1) % titleMessages.length);
+      }, 260);
+    } else {
+      const speed = isDeletingMessage ? 32 : 56;
+      timeoutId = setTimeout(() => {
+        setTypedMessage((prev) =>
+          isDeletingMessage
+            ? prev.slice(0, Math.max(0, prev.length - 1))
+            : activeMessage.slice(0, prev.length + 1)
+        );
+      }, speed);
+    }
+
+    return () => clearTimeout(timeoutId);
+  }, [typedMessage, isDeletingMessage, messageIndex, titleMessages]);
 
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950 font-sans selection:bg-primary/30">
@@ -356,9 +870,18 @@ const LandingPage = ({
           <div className="flex items-center gap-4">
             {/* Language Switcher */}
             <div className="relative group">
-              <button className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-sm font-bold text-slate-600 dark:text-slate-400 cursor-pointer">
-                <span>{currentLang.flag}</span>
-                <span className="hidden sm:inline">{currentLang.label}</span>
+              <button
+                aria-label="Language switcher"
+                title={currentLang.label}
+                className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-primary transition-all cursor-pointer"
+              >
+                <img
+                  src={getFlagUrl(currentLang.id)}
+                  srcSet={`${getFlagUrl(currentLang.id, 40)} 2x`}
+                  alt={`${currentLang.label} flag`}
+                  className="h-5 w-5 rounded-full object-cover"
+                  loading="lazy"
+                />
               </button>
               <div className="absolute top-full right-0 mt-2 w-40 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all p-2 z-[110]">
                 {languages.map(l => (
@@ -370,7 +893,13 @@ const LandingPage = ({
                       (lang || 'en') === l.id ? "bg-primary/10 text-primary" : "text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800"
                     )}
                   >
-                    <span>{l.flag}</span>
+                    <img
+                      src={getFlagUrl(l.id)}
+                      srcSet={`${getFlagUrl(l.id, 40)} 2x`}
+                      alt={`${l.label} flag`}
+                      className="h-[15px] w-5 rounded-[2px] object-cover"
+                      loading="lazy"
+                    />
                     <span>{l.label}</span>
                   </button>
                 ))}
@@ -393,7 +922,8 @@ const LandingPage = ({
 
       {/* Hero Section - Editorial Style */}
       <section className={cn("relative min-h-[calc(100vh-80px)] flex items-start", SECTION_PADDING)}>
-        <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-16 items-start w-full">
+        <HeroMoleculeBackground />
+        <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-16 items-start w-full relative z-10">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -404,21 +934,30 @@ const LandingPage = ({
               <Globe className="w-3 h-3" />
               Global Logistics Standard
             </div>
-            <h1 className="text-6xl md:text-8xl font-display font-black text-slate-900 dark:text-white leading-[0.9] mb-8">
-              {lang === 'bs' ? (
-                <>KREĆI SE <br /> <span className="text-primary">BRŽE</span> <br /> NEGO IKAD.</>
-              ) : lang === 'de' ? (
-                <>SCHNELLER <br /> <span className="text-primary">ALS JE</span> <br /> ZUVOR.</>
-              ) : (
-                <>MOVE <br /> <span className="text-primary">FASTER</span> <br /> THAN EVER.</>
-              )}
+            <h1 className="text-5xl sm:text-6xl md:text-8xl font-display text-slate-900 dark:text-white leading-[0.9] mb-8 h-[2.7em] overflow-hidden">
+              <span className="font-normal">{typedBeforeKeyword}</span>
+              <span className="text-primary font-black">{typedKeyword}</span>
+              <span className="font-normal">{typedAfterKeyword}</span>
+              <span className="inline-block ml-2 text-primary animate-pulse">|</span>
             </h1>
-            <p className="text-xl text-slate-600 dark:text-slate-400 mb-10 max-w-lg leading-relaxed">
-              {t.heroSubtitle}
-            </p>
+            <div className="mb-10 max-w-xl">
+              <p className="text-xl font-bold text-slate-900 dark:text-white mb-4 leading-relaxed">
+                Preuzmi aplikaciju
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <button className="h-12 px-5 rounded-2xl bg-black text-white inline-flex items-center gap-3 font-semibold text-sm shadow-lg shadow-black/25 cursor-pointer hover:bg-slate-900 transition-colors">
+                  <span className="text-base leading-none" aria-hidden="true"></span>
+                  <span>Download on Appstore</span>
+                </button>
+                <button className="h-12 px-5 rounded-2xl bg-black text-white inline-flex items-center gap-3 font-semibold text-sm shadow-lg shadow-black/25 cursor-pointer hover:bg-slate-900 transition-colors">
+                  <span className="text-sm leading-none" aria-hidden="true">▶</span>
+                  <span>Download on Playstore</span>
+                </button>
+              </div>
+            </div>
             
             {/* Tracking Form - UPS Inspired */}
-            <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800 mb-10 max-w-xl w-full">
+            <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800 mb-6 max-w-xl w-full">
               <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl mb-6 w-fit">
                 <button 
                   onClick={() => setFormType('track')}
@@ -508,7 +1047,35 @@ const LandingPage = ({
               </AnimatePresence>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="mt-2 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800 max-w-xl w-full overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <h4 className="text-sm font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">Available Loads</h4>
+                <span className="px-2 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider">{landingLoads.length} Live</span>
+              </div>
+              <div className="h-64 overflow-hidden relative">
+                <div className="p-4 space-y-3 animate-load-scroll">
+                  {loopingLandingLoads.map((load, index) => (
+                    <div key={`${load.id}-${index}`} className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 p-4 flex items-center justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-900 dark:text-white truncate">{load.title}</p>
+                        <p className="text-xs text-slate-500 mt-1">{load.cargoType} • {load.weight} kg • {load.date}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="font-black text-primary">{load.price}</p>
+                        <span className={cn(
+                          "text-[10px] font-bold uppercase tracking-wider",
+                          load.status === 'Available' ? "text-emerald-500" : load.status === 'Assigned' ? "text-amber-500" : "text-slate-400"
+                        )}>
+                          {load.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 mt-8">
               <div className="flex -space-x-3">
                 {[1,2,3,4].map(i => (
                   <div key={i} className="w-10 h-10 rounded-full border-2 border-white dark:border-slate-950 bg-slate-200 dark:bg-slate-800 overflow-hidden">
@@ -531,21 +1098,36 @@ const LandingPage = ({
           >
             <div className="relative z-10 bg-slate-100 dark:bg-slate-900 rounded-[2.5rem] p-4 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.2)] border border-slate-200 dark:border-slate-800">
               <div className="aspect-[4/3] rounded-[2rem] overflow-hidden relative group">
-                {/* Google Satellite Map */}
-                <MapContainer center={[43.8563, 18.4131]} zoom={15} scrollWheelZoom={false} className="h-full w-full">
-                  <TileLayer 
-                    url="https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
-                    subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
-                    attribution="&copy; Google Maps"
+                {/* Hero Route Map */}
+                <MapContainer
+                  center={[48.8, 14]}
+                  zoom={5}
+                  dragging={false}
+                  scrollWheelZoom={false}
+                  doubleClickZoom={false}
+                  zoomControl={false}
+                  attributionControl={false}
+                  className="h-full w-full grayscale-[0.05] contrast-110 brightness-95 dark:brightness-75"
+                >
+                  <HeroRouteFitBounds points={HERO_ROUTE_POINTS} />
+                  <TileLayer
+                    url="https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png"
+                    subdomains={['a', 'b', 'c', 'd']}
                   />
-                  <Marker position={[43.8563, 18.4131]} />
+                  <Polyline positions={HERO_ROUTE_POINTS} pathOptions={{ color: '#00AEEF', weight: 5, opacity: 0.85 }} />
+                  <Marker position={HERO_ROUTE_START}>
+                    <Popup>Hamburg, DE</Popup>
+                  </Marker>
+                  <Marker position={HERO_ROUTE_END}>
+                    <Popup>Sarajevo, BA</Popup>
+                  </Marker>
                 </MapContainer>
                 
                 {/* Map Chips - Screenshot Inspired */}
                 <div className="absolute top-6 right-6 z-[1000] flex flex-col gap-3">
                   <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur px-4 py-2 rounded-2xl shadow-xl border border-white/20 flex items-center gap-2 animate-bounce">
                     <Clock className="text-primary w-4 h-4" />
-                    <span className="text-sm font-black text-slate-900 dark:text-white">24 min</span>
+                    <span className="text-sm font-black text-slate-900 dark:text-white">Hamburg → Sarajevo</span>
                   </div>
                 </div>
 
@@ -557,7 +1139,7 @@ const LandingPage = ({
                       </div>
                       <div className="flex items-center gap-2">
                         <MessageSquare className="w-4 h-4 text-primary group-hover:text-white" />
-                        <span className="text-xs font-bold uppercase tracking-wider">Chat with Courier</span>
+                        <span className="text-xs font-bold uppercase tracking-wider">Route Confirmed</span>
                       </div>
                     </div>
                   </div>
@@ -565,15 +1147,15 @@ const LandingPage = ({
                   <div className="bg-white/10 backdrop-blur-2xl p-6 rounded-3xl border border-white/20 shadow-2xl">
                     <div className="flex items-center justify-between mb-4">
                       <span className="px-3 py-1 rounded-full bg-primary text-[10px] font-black uppercase tracking-widest text-white">Live Route</span>
-                      <span className="text-xs font-bold text-white/70">ETA 12:45 PM</span>
+                      <span className="text-xs font-bold text-white/70">ETA Mar 3, 14:20</span>
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-lg">
                         <Truck className="text-primary w-6 h-6" />
                       </div>
                       <div>
-                        <p className="text-lg font-bold text-white">SWP-9921-X</p>
-                        <p className="text-sm text-white/60">Approaching Sarajevo Hub</p>
+                        <p className="text-lg font-bold text-white">HAM-SJJ-214</p>
+                        <p className="text-sm text-white/60">1,545 km | Hamburg Port → Sarajevo Hub</p>
                       </div>
                     </div>
                   </div>
@@ -606,7 +1188,7 @@ const LandingPage = ({
       </section>
 
       {/* Stats Row - Relocated */}
-      <section className={cn("bg-white dark:bg-slate-950 relative overflow-hidden", SECTION_PADDING)}>
+      <section id="network" className={cn("scroll-mt-28 bg-white dark:bg-slate-950 relative overflow-hidden", SECTION_PADDING)}>
         <div className="max-w-7xl mx-auto px-6 relative z-10">
           <div className="grid lg:grid-cols-4 gap-12 text-center">
             {[
@@ -636,23 +1218,23 @@ const LandingPage = ({
       </section>
 
       {/* Section 3: Bento Features Grid */}
-      <section id="features" className={cn("bg-slate-50 dark:bg-slate-900/50", SECTION_PADDING)}>
+      <section id="features" className={cn("scroll-mt-28 bg-slate-50 dark:bg-slate-900/50", SECTION_PADDING)}>
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-20">
             <h2 className="text-4xl md:text-6xl font-display font-bold mb-6 dark:text-white tracking-tight">Built for the <br /> <span className="text-primary">Modern Fleet.</span></h2>
             <p className="text-slate-500 dark:text-slate-400 max-w-2xl mx-auto text-lg">Everything you need to manage global logistics at scale, from real-time tracking to AI-powered route optimization.</p>
           </div>
           
-          <div className="grid md:grid-cols-12 gap-6 h-auto md:h-[900px]">
+          <div className="grid md:grid-cols-12 gap-6">
             {/* Main Feature */}
-            <div className="md:col-span-8 bg-slate-50 dark:bg-slate-900 rounded-[2.5rem] p-12 flex flex-col justify-between border border-slate-100 dark:border-slate-800 group overflow-hidden relative shadow-sm hover:shadow-2xl transition-all duration-500">
-              <div className="relative z-10">
+            <div className="md:col-span-8 bg-slate-50 dark:bg-slate-900 rounded-[2.5rem] p-12 flex border border-slate-100 dark:border-slate-800 group overflow-hidden relative shadow-sm hover:shadow-2xl transition-all duration-500">
+              <div className="relative z-10 flex flex-1 flex-col">
                 <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mb-10 shadow-lg shadow-primary/30 group-hover:scale-110 transition-transform">
                   <MapIcon className="text-white w-8 h-8" />
                 </div>
                 <h3 className="text-4xl font-bold mb-6 dark:text-white tracking-tight">Real-time Global Visibility</h3>
                 <p className="text-slate-500 dark:text-slate-400 max-w-md text-xl leading-relaxed">Track every package, vehicle, and asset in real-time with sub-meter precision across 180+ countries.</p>
-                <div className="mt-8 flex gap-4">
+                <div className="mt-auto pt-8 flex gap-4">
                    <div className="px-4 py-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700 flex items-center gap-2">
                      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                      <span className="text-xs font-bold dark:text-white">99.9% Accuracy</span>
@@ -663,50 +1245,300 @@ const LandingPage = ({
                    </div>
                 </div>
               </div>
-              <div className="mt-12 relative h-64 md:h-full -mb-12 -mr-12 translate-x-12 translate-y-12 group-hover:translate-x-4 group-hover:translate-y-4 transition-transform duration-1000">
-                <img src="https://picsum.photos/seed/map/1200/800" alt="Map UI" className="rounded-tl-[3rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.3)] border border-slate-200 dark:border-slate-800" referrerPolicy="no-referrer" />
-              </div>
             </div>
 
             {/* Side Feature 1 */}
-            <div className="md:col-span-4 bg-primary rounded-[2.5rem] p-12 flex flex-col justify-between text-white shadow-2xl shadow-primary/30 relative overflow-hidden group">
-              <div className="relative z-10">
-                <div className="w-16 h-16 bg-white/20 backdrop-blur-xl rounded-2xl flex items-center justify-center mb-10 group-hover:rotate-12 transition-transform">
-                  <MessageSquare className="text-white w-8 h-8" />
+            <div className="md:col-span-4 bg-white dark:bg-slate-900 rounded-[2.5rem] p-6 border border-slate-100 dark:border-slate-800 shadow-xl relative overflow-hidden">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.2em] font-black text-primary inline-flex items-center gap-1.5">
+                    <Truck className="w-3.5 h-3.5" />
+                    Live Tracker
+                  </p>
+                  <p className="text-2xl font-black dark:text-white">ZAG-AMS-881</p>
                 </div>
-                <h3 className="text-4xl font-bold mb-6 tracking-tight">AI-Powered Insights</h3>
-                <p className="text-white/80 text-xl leading-relaxed">Powered by Gemini to provide smart status updates and predictive route optimization.</p>
+                <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-black uppercase tracking-wider">In Transit</span>
               </div>
-              <div className="relative z-10 mt-8 flex items-center gap-3 font-black text-sm uppercase tracking-[0.2em] group-hover:gap-5 transition-all">
-                Learn More <ArrowRight className="w-5 h-5" />
+
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-3 mb-4">
+                <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
+                  <span>Zagreb Hub</span>
+                  <span>Amsterdam DC</span>
+                </div>
+                <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                  <div className="h-full w-[44%] bg-primary rounded-full" />
+                </div>
+                <div className="mt-2 flex items-center justify-between text-xs font-bold">
+                  <span className="text-primary">612 km completed</span>
+                  <span className="text-slate-500">779 km left</span>
+                </div>
               </div>
-              {/* Decorative background element */}
-              <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-1000" />
+
+              <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 relative">
+                <MapContainer
+                  center={[50.2, 10.4]}
+                  zoom={5}
+                  dragging={false}
+                  scrollWheelZoom={false}
+                  doubleClickZoom={false}
+                  zoomControl={false}
+                  attributionControl={false}
+                  className="h-60 w-full grayscale-[0.03] dark:brightness-75"
+                >
+                  <HeroRouteFitBounds points={FEATURE_ROUTE_POINTS_WITH_STOPS} />
+                  <TileLayer
+                    url="https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png"
+                    subdomains={['a', 'b', 'c', 'd']}
+                  />
+                  <Polyline positions={FEATURE_ROUTE_POINTS_WITH_STOPS} pathOptions={{ color: '#00AEEF', weight: 4, opacity: 0.9 }} />
+                  <Marker position={FEATURE_ROUTE_START} />
+                  <Marker position={FEATURE_ROUTE_STOP_1} />
+                  <Marker position={FEATURE_ROUTE_STOP_2} />
+                  <Marker position={FEATURE_ROUTE_END} />
+                </MapContainer>
+                <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-slate-900/80 text-white text-[10px] font-black uppercase tracking-wider z-[1000]">
+                  Zagreb → Amsterdam
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-3">
+                <p className="text-[10px] uppercase tracking-[0.2em] font-black text-primary mb-3">Route Timeline</p>
+                <div className="space-y-3">
+                  {trackerTimeline.map((event, index) => (
+                    <div key={`${event.time}-${index}`} className="flex items-start gap-3">
+                      <div className={cn("mt-0.5 w-6 h-6 rounded-lg shrink-0 flex items-center justify-center", event.iconClass)}>
+                        <event.icon className="w-3.5 h-3.5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-bold dark:text-white truncate">{event.title}</p>
+                          <span className="text-[10px] font-semibold text-slate-500 shrink-0">{event.time}</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">{event.note}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {/* Bottom Feature 1 */}
-            <div className="md:col-span-4 bg-slate-900 rounded-[2.5rem] p-12 flex flex-col justify-between border border-slate-800 group hover:bg-slate-800 transition-colors duration-500">
-              <div>
-                <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center mb-10 group-hover:bg-primary transition-all duration-500">
-                  <ShieldCheck className="text-white w-8 h-8" />
+            <div className="md:col-span-4 bg-slate-50 dark:bg-slate-900 rounded-[2.5rem] p-8 flex flex-col justify-between border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary inline-flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5" />
+                    Route Stops
+                  </p>
+                  <h3 className="text-2xl font-bold dark:text-white tracking-tight">Waypoint Planner</h3>
                 </div>
-                <h3 className="text-4xl font-bold mb-6 text-white tracking-tight">Enterprise Security</h3>
-                <p className="text-slate-400 text-xl leading-relaxed">Military-grade encryption and biometric driver verification for your most sensitive loads.</p>
+                <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase tracking-wider">4 Markers</span>
+              </div>
+
+              <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 relative">
+                <MapContainer
+                  center={[50.2, 10.4]}
+                  zoom={5}
+                  dragging={false}
+                  scrollWheelZoom={false}
+                  doubleClickZoom={false}
+                  zoomControl={false}
+                  attributionControl={false}
+                  className="h-56 min-h-[14rem] w-full grayscale-[0.03] dark:brightness-75"
+                >
+                  <HeroRouteFitBounds
+                    points={FEATURE_ROUTE_POINTS_WITH_STOPS}
+                    paddingTopLeft={[20, 20]}
+                    paddingBottomRight={[20, 20]}
+                    maxZoom={5}
+                  />
+                  <TileLayer
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  />
+                  <Polyline positions={FEATURE_ROUTE_POINTS_WITH_STOPS} pathOptions={{ color: '#00AEEF', weight: 4, opacity: 0.9 }} />
+                  {FEATURE_ROUTE_STOPS.map((stop) => (
+                    <Marker
+                      key={stop.id}
+                      position={stop.position}
+                      icon={getWaypointMarkerIcon(selectedWaypoint === stop.id)}
+                    />
+                  ))}
+                </MapContainer>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                {FEATURE_ROUTE_STOPS.map((stop) => (
+                  <button
+                    key={stop.id}
+                    onClick={() => setSelectedWaypoint(stop.id)}
+                    className={cn(
+                      "h-9 rounded-xl border px-3 flex items-center gap-2 transition-colors cursor-pointer",
+                      selectedWaypoint === stop.id
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-500 dark:text-slate-400 hover:border-primary/50"
+                    )}
+                  >
+                    <MapPin className="w-3.5 h-3.5 shrink-0" />
+                    <span className="text-xs font-bold truncate">{stop.label}</span>
+                  </button>
+                ))}
               </div>
             </div>
 
             {/* Bottom Feature 2 */}
-            <div className="md:col-span-8 bg-slate-50 dark:bg-slate-900 rounded-[2.5rem] p-12 flex items-center gap-12 border border-slate-100 dark:border-slate-800 overflow-hidden group shadow-sm hover:shadow-xl transition-all">
-              <div className="flex-1">
-                <h3 className="text-4xl font-bold mb-6 dark:text-white tracking-tight">Seamless Integration</h3>
-                <p className="text-slate-500 dark:text-slate-400 text-xl leading-relaxed">Connect with Amazon, DHL, FedEx, and 100+ other carriers out of the box.</p>
-              </div>
-              <div className="hidden lg:flex gap-6">
-                <div className="w-24 h-24 bg-white dark:bg-slate-800 rounded-[2rem] shadow-xl flex items-center justify-center p-6 hover:-translate-y-2 transition-transform duration-500">
-                  <img src="https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg" alt="Amazon" className="w-full" referrerPolicy="no-referrer" />
+            <div className="md:col-span-8 bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 md:p-10 border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all">
+              <div className="flex flex-col xl:flex-row gap-6 xl:gap-8">
+                <div className="flex-1 space-y-6">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary inline-flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        AI Route Calculator
+                      </p>
+                      <p className="text-2xl font-black dark:text-white">Optimize for vehicle and load preferences</p>
+                    </div>
+                    <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase tracking-wider">AI Score 97</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold uppercase text-slate-500">Vehicle</label>
+                      <select
+                        value={routeVehicle}
+                        onChange={(e) => setRouteVehicle(e.target.value as keyof typeof ROUTE_MODELS_BY_VEHICLE)}
+                        className="w-full h-11 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+                      >
+                        {Object.keys(ROUTE_MODELS_BY_VEHICLE).map((vehicle) => (
+                          <option key={vehicle} value={vehicle}>{vehicle}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold uppercase text-slate-500">Model</label>
+                      <select
+                        value={routeModel}
+                        onChange={(e) => setRouteModel(e.target.value)}
+                        className="w-full h-11 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+                      >
+                        {routeModelOptions.map((model) => (
+                          <option key={model} value={model}>{model}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold uppercase text-slate-500">Max Load</label>
+                      <div className="h-11 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex items-center gap-3">
+                        <input
+                          type="range"
+                          min={400}
+                          max={2500}
+                          step={50}
+                          value={routeMaxLoad}
+                          onChange={(e) => setRouteMaxLoad(Number(e.target.value))}
+                          className="w-full accent-primary cursor-pointer"
+                        />
+                        <span className="text-xs font-black text-primary whitespace-nowrap">{routeMaxLoad} kg</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold uppercase text-slate-500">Priority</label>
+                      <div className="h-11 grid grid-cols-3 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-slate-50 dark:bg-slate-900">
+                        {[
+                          { id: 'fastest', label: 'Fast' },
+                          { id: 'balanced', label: 'Smart' },
+                          { id: 'eco', label: 'Eco' },
+                        ].map((option) => (
+                          <button
+                            key={option.id}
+                            onClick={() => setRoutePriority(option.id as 'fastest' | 'balanced' | 'eco')}
+                            className={cn(
+                              "text-[11px] font-black transition-colors cursor-pointer",
+                              routePriority === option.id
+                                ? "bg-primary text-white"
+                                : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                            )}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="rounded-2xl bg-slate-100 dark:bg-slate-800 p-4 flex flex-col items-center justify-center text-center">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-2">
+                        <MapPin className="w-4 h-4" />
+                      </div>
+                      <p className="text-[10px] uppercase text-slate-500">Distance</p>
+                      <p className="text-2xl leading-none font-black dark:text-white mt-1">{routeEstimate.distance} km</p>
+                    </div>
+                    <div className="rounded-2xl bg-slate-100 dark:bg-slate-800 p-4 flex flex-col items-center justify-center text-center">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-2">
+                        <Clock className="w-4 h-4" />
+                      </div>
+                      <p className="text-[10px] uppercase text-slate-500">ETA</p>
+                      <p className="text-2xl leading-none font-black dark:text-white mt-1">{routeEstimate.eta}</p>
+                    </div>
+                    <div className="rounded-2xl bg-slate-100 dark:bg-slate-800 p-4 flex flex-col items-center justify-center text-center">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-2">
+                        <Truck className="w-4 h-4" />
+                      </div>
+                      <p className="text-[10px] uppercase text-slate-500">Fuel</p>
+                      <p className="text-2xl leading-none font-black dark:text-white mt-1">{routeEstimate.fuel}</p>
+                    </div>
+                    <div className="rounded-2xl bg-slate-100 dark:bg-slate-800 p-4 flex flex-col items-center justify-center text-center">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-2">
+                        <BarChart3 className="w-4 h-4" />
+                      </div>
+                      <p className="text-[10px] uppercase text-slate-500">Projected Cost</p>
+                      <p className="text-2xl leading-none font-black dark:text-white mt-1">{routeEstimate.cost}</p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-2">AI Recommendation</p>
+                    <p className="text-sm font-bold dark:text-white mb-1">Zagreb → Munich → Frankfurt → Cologne → Amsterdam</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Best fit for {routeModel}, {routeMaxLoad} kg load, {routePriorityLabel} priority.
+                    </p>
+                  </div>
                 </div>
-                <div className="w-24 h-24 bg-white dark:bg-slate-800 rounded-[2rem] shadow-xl flex items-center justify-center p-6 hover:-translate-y-2 transition-transform duration-500 delay-75">
-                  <img src="https://upload.wikimedia.org/wikipedia/commons/b/b3/DHL_Express_logo.svg" alt="DHL" className="w-full" referrerPolicy="no-referrer" />
+
+                <div className="xl:w-56 rounded-3xl bg-primary text-white p-6 flex flex-col justify-between shadow-xl shadow-primary/25">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.2em] font-black text-white/80 mb-2">AI Confidence</p>
+                    <p className="text-4xl font-black mb-4">98%</p>
+                    <div className="space-y-3">
+                      <div>
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span>Traffic Prediction</span>
+                          <span>High</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-white/20 overflow-hidden"><div className="h-full w-[88%] bg-white rounded-full" /></div>
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span>Fuel Efficiency</span>
+                          <span>Optimized</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-white/20 overflow-hidden"><div className="h-full w-[81%] bg-white rounded-full" /></div>
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span>ETA Stability</span>
+                          <span>Strong</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-white/20 overflow-hidden"><div className="h-full w-[86%] bg-white rounded-full" /></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-6 text-xs text-white/80">
+                    Recalculates every 3 min using live road events and fleet constraints.
+                  </div>
                 </div>
               </div>
             </div>
@@ -765,7 +1597,7 @@ const LandingPage = ({
       </section>
 
       {/* Section 5: The Experience / Dashboard Preview */}
-      <section className={cn("bg-slate-900 overflow-hidden relative", SECTION_PADDING)}>
+      <section id="enterprise" className={cn("scroll-mt-28 bg-slate-900 overflow-hidden relative", SECTION_PADDING)}>
         <div className="max-w-7xl mx-auto px-6 relative z-10">
           <div className="grid lg:grid-cols-2 gap-20 items-center">
             <div className="relative order-2 lg:order-1">
@@ -804,7 +1636,7 @@ const LandingPage = ({
       </section>
 
       {/* Section 6: Pricing - Modern Cards */}
-      <section id="pricing" className={cn("bg-white dark:bg-slate-950", SECTION_PADDING)}>
+      <section id="pricing" className={cn("scroll-mt-28 bg-white dark:bg-slate-950", SECTION_PADDING)}>
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-20">
             <h2 className="text-4xl md:text-6xl font-display font-bold mb-6 dark:text-white tracking-tight">Simple, Transparent <br /> <span className="text-primary">Pricing.</span></h2>
@@ -1036,7 +1868,7 @@ const Onboarding = ({
               <div className="space-y-3">
                 <button 
                   onClick={() => setRole('user')}
-                  className={cn("w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 text-left", role === 'user' ? "border-primary bg-primary/5" : "border-slate-100 dark:border-slate-800 hover:border-slate-200")}
+                  className={cn("w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 text-left cursor-pointer", role === 'user' ? "border-primary bg-primary/5" : "border-slate-100 dark:border-slate-800 hover:border-slate-200")}
                 >
                   <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
                     <PackageIcon className="text-blue-600" />
@@ -1048,7 +1880,7 @@ const Onboarding = ({
                 </button>
                 <button 
                   onClick={() => setRole('driver')}
-                  className={cn("w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 text-left", role === 'driver' ? "border-primary bg-primary/5" : "border-slate-100 dark:border-slate-800 hover:border-slate-200")}
+                  className={cn("w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 text-left cursor-pointer", role === 'driver' ? "border-primary bg-primary/5" : "border-slate-100 dark:border-slate-800 hover:border-slate-200")}
                 >
                   <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
                     <Truck className="text-emerald-600" />
@@ -1104,7 +1936,7 @@ const Onboarding = ({
                   <input 
                     type="text" 
                     placeholder="John Doe"
-                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
+                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none cursor-pointer"
                     value={driverData.name}
                     onChange={(e) => setDriverData({...driverData, name: e.target.value})}
                   />
@@ -1127,7 +1959,7 @@ const Onboarding = ({
                   <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">ID Verification</label>
                   <button 
                     onClick={() => setDriverData({...driverData, idPhoto: 'verified'})}
-                    className={cn("w-full p-8 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all", driverData.idPhoto ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/10" : "border-slate-200 dark:border-slate-800 hover:border-primary/50")}
+                    className={cn("w-full p-8 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all cursor-pointer", driverData.idPhoto ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/10" : "border-slate-200 dark:border-slate-800 hover:border-primary/50")}
                   >
                     {driverData.idPhoto ? (
                       <>
@@ -1165,7 +1997,7 @@ const Onboarding = ({
                   disabled={driverData.country === 'BA'}
                   onClick={() => setDriverType('private')}
                   className={cn(
-                    "w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 text-left", 
+                    "w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 text-left cursor-pointer", 
                     driverType === 'private' ? "border-primary bg-primary/5" : "border-slate-100 dark:border-slate-800 hover:border-slate-200",
                     driverData.country === 'BA' && "opacity-50 cursor-not-allowed grayscale"
                   )}
@@ -1182,7 +2014,7 @@ const Onboarding = ({
                 </button>
                 <button 
                   onClick={() => setDriverType('company')}
-                  className={cn("w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 text-left", driverType === 'company' ? "border-primary bg-primary/5" : "border-slate-100 dark:border-slate-800 hover:border-slate-200")}
+                  className={cn("w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 text-left cursor-pointer", driverType === 'company' ? "border-primary bg-primary/5" : "border-slate-100 dark:border-slate-800 hover:border-slate-200")}
                 >
                   <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
                     <Globe className="text-emerald-600" />
@@ -1313,7 +2145,7 @@ const Onboarding = ({
                         };
                         input.click();
                       }}
-                      className={cn("w-full p-8 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all", carData.photo ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/10" : "border-slate-200 dark:border-slate-800 hover:border-primary/50")}
+                      className={cn("w-full p-8 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all cursor-pointer", carData.photo ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/10" : "border-slate-200 dark:border-slate-800 hover:border-primary/50")}
                     >
                       {carData.isDetecting ? (
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -2194,7 +3026,7 @@ export default function App() {
   const [role, setRole] = useState<Role>(null);
   const [lang, setLang] = useState<Language>('en');
   const [view, setView] = useState('dashboard');
-  const [isDark, setIsDark] = useState(false);
+  const [isDark, setIsDark] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   useEffect(() => {
@@ -2219,6 +3051,7 @@ export default function App() {
   if (!role) return <Onboarding lang={lang} setLang={setLang} onComplete={(r, l) => { setRole(r); setLang(l); }} />;
 
   const t = translations[lang || 'en'];
+  const currentLang = languages.find(l => l.id === (lang || 'en')) || languages[0];
 
   const navItems = [
     { id: 'dashboard', label: t.dashboard, icon: LayoutDashboard },
@@ -2248,7 +3081,7 @@ export default function App() {
               <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">PathTracker.ai</span>
             </div>
           )}
-          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer">
             {isSidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
           </button>
         </div>
@@ -2259,7 +3092,7 @@ export default function App() {
               key={item.id}
               onClick={() => setView(item.id)}
               className={cn(
-                "w-full flex items-center gap-3 p-3 rounded-xl transition-all",
+                "w-full flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer",
                 view === item.id 
                   ? "bg-primary text-white shadow-lg shadow-primary/20" 
                   : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
@@ -2274,7 +3107,7 @@ export default function App() {
         <div className="p-6 border-t border-slate-100 dark:border-slate-800">
           <button 
             onClick={() => setIsDark(!isDark)}
-            className="w-full flex items-center gap-3 p-3 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+            className="w-full flex items-center gap-3 p-3 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
           >
             {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             {isSidebarOpen && <span className="font-medium">{isDark ? 'Light Mode' : 'Dark Mode'}</span>}
@@ -2298,8 +3131,18 @@ export default function App() {
           <div className="flex items-center gap-4">
             {/* Language Switcher */}
             <div className="relative group">
-              <button className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-sm font-bold text-slate-600 dark:text-slate-400 cursor-pointer">
-                <span>{languages.find(l => l.id === (lang || 'en'))?.flag}</span>
+              <button
+                aria-label="Language switcher"
+                title={currentLang.label}
+                className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-primary transition-all cursor-pointer"
+              >
+                <img
+                  src={getFlagUrl(currentLang.id)}
+                  srcSet={`${getFlagUrl(currentLang.id, 40)} 2x`}
+                  alt={`${currentLang.label} flag`}
+                  className="h-5 w-5 rounded-full object-cover"
+                  loading="lazy"
+                />
               </button>
               <div className="absolute top-full right-0 mt-2 w-40 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all p-2 z-[110]">
                 {languages.map(l => (
@@ -2311,7 +3154,13 @@ export default function App() {
                       (lang || 'en') === l.id ? "bg-primary/10 text-primary" : "text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800"
                     )}
                   >
-                    <span>{l.flag}</span>
+                    <img
+                      src={getFlagUrl(l.id)}
+                      srcSet={`${getFlagUrl(l.id, 40)} 2x`}
+                      alt={`${l.label} flag`}
+                      className="h-[15px] w-5 rounded-[2px] object-cover"
+                      loading="lazy"
+                    />
                     <span>{l.label}</span>
                   </button>
                 ))}
@@ -2423,7 +3272,7 @@ export default function App() {
               key={item.id}
               onClick={() => setView(item.id)}
               className={cn(
-                "flex flex-col items-center gap-1 transition-all",
+                "flex flex-col items-center gap-1 transition-all cursor-pointer",
                 view === item.id ? "text-primary" : "text-slate-400"
               )}
             >

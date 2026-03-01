@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "leaflet/dist/leaflet.css";
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
   --color-primary: #00AEEF;
@@ -12,10 +13,19 @@
     to { transform: translateX(-50%); }
   }
   --animate-marquee: marquee 40s linear infinite;
+
+  @keyframes load-scroll {
+    from { transform: translateY(0); }
+    to { transform: translateY(-50%); }
+  }
+  --animate-load-scroll: load-scroll 16s linear infinite;
 }
 
 @layer base {
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+  html {
+    scroll-behavior: smooth;
+  }
   body {
     @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-50 transition-colors duration-300;
   }
