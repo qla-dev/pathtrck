@@ -20,7 +20,7 @@ export const MOCK_PACKAGES: Package[] = [
   {
     id: '2',
     trackingNumber: 'SWIFT-9921-X',
-    carrier: 'PathTracker.ai Express',
+    carrier: 'CARGO.AI Express',
     status: 'Out for Delivery',
     origin: 'Berlin, DE',
     destination: 'Munich, DE',
@@ -46,6 +46,8 @@ export const MOCK_LOADS: Load[] = [
     author: 'TechLogistics GmbH',
     status: 'Available',
     cargoType: 'Electronics',
+    goodsType: 'High Value',
+    paymentTerms: 'Negotiable',
     eta: '2 March, 18:00'
   },
   {
@@ -59,6 +61,8 @@ export const MOCK_LOADS: Load[] = [
     author: 'ColdChain Solutions',
     status: 'Assigned',
     cargoType: 'Perishable',
+    goodsType: 'Fragile',
+    paymentTerms: 'In Advance',
     eta: '4 March, 12:00'
   },
   {
@@ -72,6 +76,8 @@ export const MOCK_LOADS: Load[] = [
     author: 'HomeStyle',
     status: 'Available',
     cargoType: 'Fragile',
+    goodsType: 'Fragile',
+    paymentTerms: 'Negotiable',
     eta: '1 March, 16:00'
   },
   {
@@ -85,6 +91,8 @@ export const MOCK_LOADS: Load[] = [
     author: 'MediChain',
     status: 'Assigned',
     cargoType: 'Perishable',
+    goodsType: 'Flammable',
+    paymentTerms: 'In Advance',
     eta: '5 March, 15:20'
   },
   {
@@ -98,6 +106,8 @@ export const MOCK_LOADS: Load[] = [
     author: 'NordMach',
     status: 'Available',
     cargoType: 'Industrial',
+    goodsType: 'Heavy',
+    paymentTerms: 'On Delivery',
     eta: '6 March, 20:10'
   },
   {
@@ -111,6 +121,8 @@ export const MOCK_LOADS: Load[] = [
     author: 'RetailFlow',
     status: 'Available',
     cargoType: 'General',
+    goodsType: 'General',
+    paymentTerms: 'Negotiable',
     eta: '3 March, 18:45'
   },
   {
@@ -124,6 +136,8 @@ export const MOCK_LOADS: Load[] = [
     author: 'FreshWay',
     status: 'Assigned',
     cargoType: 'Perishable',
+    goodsType: 'Perishable',
+    paymentTerms: 'In Advance',
     eta: '7 March, 14:30'
   },
   {
@@ -137,6 +151,8 @@ export const MOCK_LOADS: Load[] = [
     author: 'OfficeTransit',
     status: 'Available',
     cargoType: 'Electronics',
+    goodsType: 'Fragile',
+    paymentTerms: 'Negotiable',
     eta: '8 March, 17:15'
   },
   {
@@ -150,6 +166,8 @@ export const MOCK_LOADS: Load[] = [
     author: 'BuildLink',
     status: 'Available',
     cargoType: 'Industrial',
+    goodsType: 'Flammable',
+    paymentTerms: 'On Delivery',
     eta: '9 March, 21:00'
   },
   {
@@ -163,6 +181,8 @@ export const MOCK_LOADS: Load[] = [
     author: 'Textura GmbH',
     status: 'Assigned',
     cargoType: 'General',
+    goodsType: 'General',
+    paymentTerms: 'Negotiable',
     eta: '10 March, 13:40'
   },
   {
@@ -176,6 +196,8 @@ export const MOCK_LOADS: Load[] = [
     author: 'DriveCore',
     status: 'Available',
     cargoType: 'Automotive',
+    goodsType: 'Heavy',
+    paymentTerms: 'On Delivery',
     eta: '11 March, 12:25'
   },
   {
@@ -189,6 +211,8 @@ export const MOCK_LOADS: Load[] = [
     author: 'QuickBox',
     status: 'Assigned',
     cargoType: 'General',
+    goodsType: 'Fragile',
+    paymentTerms: 'In Advance',
     eta: '12 March, 19:10'
   },
   {
@@ -202,6 +226,8 @@ export const MOCK_LOADS: Load[] = [
     author: 'SecureTech Freight',
     status: 'Available',
     cargoType: 'Electronics',
+    goodsType: 'High Value',
+    paymentTerms: 'Negotiable',
     eta: '13 March, 22:30'
   }
 ];

@@ -511,7 +511,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
                   {lang === 'bs' ? 'Javni link' : lang === 'de' ? 'Oeffentlicher Link' : 'Public Link'}
                 </p>
                 <p className="text-sm font-mono mt-2 break-all text-slate-700 dark:text-slate-200">
-                  https://pathtracker.ai/t/{selectedPackage.trackingNumber}
+                  https://CARGO.AI/t/{selectedPackage.trackingNumber}
                 </p>
               </div>
               <div className="grid grid-cols-3 gap-2">

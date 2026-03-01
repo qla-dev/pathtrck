@@ -25,6 +25,7 @@ import {
   ArrowRight,
   CheckCircle2,
   Sparkles,
+  Coins,
   Clock,
   MapPin,
   ExternalLink,
@@ -57,6 +58,7 @@ import { ui, trLoadStatus, trPackageStatus, trFuelType } from './i18n';
 import { cn } from './lib/cn';
 import { Button } from './components/ui/Button';
 import { Card } from './components/ui/Card';
+import { LoadItem } from './components/load/LoadItem';
 import { Dashboard } from './components/views/Dashboard';
 import { NetworkView } from './components/views/NetworkView';
 import { TrackingView } from './components/views/TrackingView';
@@ -67,6 +69,8 @@ import { MessagesView } from './components/views/MessagesView';
 import { ProfileView } from './components/views/ProfileView';
 import { AutomationsView } from './components/views/AutomationsView';
 import { SettingsView } from './components/views/SettingsView';
+import { SetupProcess } from './components/auth/SetupProcess';
+import { LoginProcess } from './components/auth/LoginProcess';
 import { AiRouteCalculatorCard } from './components/ai_automattions/AiRouteCalculatorCard';
 
 // Fix Leaflet marker icon issue
@@ -637,10 +641,6 @@ const LandingPage = ({
     const loads = MOCK_LOADS.length > 0 ? MOCK_LOADS : [];
     return loads;
   }, []);
-  const loopingLandingLoads = useMemo(
-    () => [...landingLoads, ...landingLoads],
-    [landingLoads]
-  );
   const activeMessageConfig = titleMessages[messageIndex % titleMessages.length];
   const activeKeyword = activeMessageConfig?.keyword ?? '';
   const activeMessageText = activeMessageConfig?.text ?? '';
@@ -730,9 +730,9 @@ const LandingPage = ({
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
-              <Truck className="text-white w-6 h-6" />
+              <PackageIcon className="text-white w-6 h-6" />
             </div>
-            <span className="text-2xl font-display font-bold tracking-tight text-slate-900 dark:text-white">PathTracker.ai</span>
+            <span className="text-2xl font-display font-bold tracking-tight text-slate-900 dark:text-white">CARGO.AI</span>
           </div>
           <div className="hidden lg:flex items-center gap-10 text-sm font-semibold text-slate-500 dark:text-slate-400">
             <a href="#features" className="hover:text-primary transition-colors">{t.features}</a>
@@ -782,7 +782,7 @@ const LandingPage = ({
             {/* Dark Mode Toggle */}
             <button 
               onClick={() => setIsDark(!isDark)}
-              className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-primary transition-all cursor-pointer"
+              className="h-10 w-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-primary transition-all cursor-pointer flex items-center justify-center"
             >
               {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
@@ -926,22 +926,19 @@ const LandingPage = ({
                 <span className="px-2 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider">{landingLoads.length} {lang === 'bs' ? 'uživo' : lang === 'de' ? 'live' : 'live'}</span>
               </div>
               <div className="h-64 overflow-hidden relative">
-                <div className="p-4 space-y-3 animate-load-scroll">
-                  {loopingLandingLoads.map((load, index) => (
-                    <div key={`${load.id}-${index}`} className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 p-4 flex items-center justify-between gap-4">
-                      <div className="min-w-0">
-                        <p className="font-bold text-slate-900 dark:text-white truncate">{load.title}</p>
-                        <p className="text-xs text-slate-500 mt-1">{load.cargoType} • {load.weight} kg • {load.date}</p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="font-black text-primary">{load.price}</p>
-                        <span className={cn(
-                          "text-[10px] font-bold uppercase tracking-wider",
-                          load.status === 'Available' ? "text-emerald-500" : load.status === 'Assigned' ? "text-amber-500" : "text-slate-400"
-                        )}>
-                          {trLoadStatus(lang, load.status)}
-                        </span>
-                      </div>
+                <div className="p-4 animate-load-scroll">
+                  {[0, 1].map((loopIndex) => (
+                    <div key={loopIndex} className="space-y-3">
+                      {landingLoads.map((load, index) => (
+                        <LoadItem
+                          key={`${loopIndex}-${load.id}-${index}`}
+                          layout="list"
+                          load={load}
+                          hideSource
+                          statusLabel={trLoadStatus(lang, load.status)}
+                          viewDetailsLabel={u('common.viewDetails', 'View Details')}
+                        />
+                      ))}
                     </div>
                   ))}
                 </div>
@@ -958,7 +955,7 @@ const LandingPage = ({
               </div>
               <div className="text-sm">
                 <p className="font-bold dark:text-white">{u('landing.activeDrivers', '12k+ Active Drivers')}</p>
-                <p className="text-slate-500">{u('landing.trustingDaily', 'Trusting PathTracker.ai daily')}</p>
+                <p className="text-slate-500">{u('landing.trustingDaily', 'Trusting CARGO.AI daily')}</p>
               </div>
             </div>
           </motion.div>
@@ -1286,7 +1283,7 @@ const LandingPage = ({
           <div className="grid lg:grid-cols-2 gap-20">
             <div>
               <h2 className="text-4xl md:text-6xl font-display font-bold mb-8 dark:text-white leading-tight">
-                {lang === 'bs' ? 'Kako PathTracker.ai' : lang === 'de' ? 'So funktioniert' : 'How PathTracker.ai'} <br /> <span className="text-primary">{lang === 'bs' ? 'radi.' : lang === 'de' ? 'PathTracker.ai.' : 'Works.'}</span>
+                {lang === 'bs' ? 'Kako CARGO.AI' : lang === 'de' ? 'So funktioniert' : 'How CARGO.AI'} <br /> <span className="text-primary">{lang === 'bs' ? 'radi.' : lang === 'de' ? 'CARGO.AI.' : 'Works.'}</span>
               </h2>
               <p className="text-slate-500 dark:text-slate-400 text-lg mb-12">
                 {lang === 'bs'
@@ -1499,11 +1496,11 @@ const LandingPage = ({
           </div>
           <div className="grid md:grid-cols-3 gap-6">
             {[
-              { name: "Sarah Jenkins", role: "Logistics Director, TechCorp", text: "PathTracker.ai has completely transformed how we handle our last-mile deliveries. The AI insights are a game changer." },
+              { name: "Sarah Jenkins", role: "Logistics Director, TechCorp", text: "CARGO.AI has completely transformed how we handle our last-mile deliveries. The AI insights are a game changer." },
               { name: "Marco Rossi", role: "Fleet Manager, EuroTrans", text: "The real-time visibility is the best we've ever seen. Our drivers love the intuitive mobile app." },
-              { name: "Elena Petrova", role: "CEO, GlobalShip", text: "Scaling our operations across Europe was seamless with PathTracker.ai's multi-carrier integration." },
+              { name: "Elena Petrova", role: "CEO, GlobalShip", text: "Scaling our operations across Europe was seamless with CARGO.AI's multi-carrier integration." },
               { name: "David Chen", role: "Operations Lead, FastMove", text: "The automated reporting saves our team at least 15 hours a week. Highly recommended for any serious fleet." },
-              { name: "Amira Al-Fayed", role: "Founder, DesertLogistics", text: "We needed a secure, enterprise-grade solution for our high-value loads. PathTracker.ai delivered exactly that." },
+              { name: "Amira Al-Fayed", role: "Founder, DesertLogistics", text: "We needed a secure, enterprise-grade solution for our high-value loads. CARGO.AI delivered exactly that." },
               { name: "Lukas Weber", role: "Supply Chain Manager, AlpineGoods", text: "The route optimization engine is incredibly accurate. We've seen a 20% reduction in fuel costs." }
             ].map((t, i) => (
               <Card key={i} className="p-8 hover:border-primary/50 transition-all">
@@ -1535,10 +1532,10 @@ const LandingPage = ({
             </h2>
             <p className="text-xl text-white/70 mb-12 max-w-xl mx-auto">
               {lang === 'bs'
-                ? 'Pridruži se hiljadama kompanija koje optimizuju logistiku uz PathTracker.ai.'
+                ? 'Pridruži se hiljadama kompanija koje optimizuju logistiku uz CARGO.AI.'
                 : lang === 'de'
-                  ? 'Tausende Unternehmen optimieren bereits ihre Logistik mit PathTracker.ai.'
-                  : 'Join thousands of companies optimizing their logistics with PathTracker.ai today.'}
+                  ? 'Tausende Unternehmen optimieren bereits ihre Logistik mit CARGO.AI.'
+                  : 'Join thousands of companies optimizing their logistics with CARGO.AI today.'}
             </p>
             <div className="flex flex-wrap justify-center gap-6">
               <Button onClick={onStart} variant="secondary" size="lg" className="px-12 h-16 rounded-full text-lg font-bold text-primary bg-white hover:bg-slate-100">{u('common.getStartedNow', 'Get Started Now')}</Button>
@@ -1559,7 +1556,7 @@ const LandingPage = ({
               <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
                 <Truck className="text-white w-6 h-6" />
               </div>
-              <span className="text-2xl font-display font-bold tracking-tight text-slate-900 dark:text-white">PathTracker.ai</span>
+              <span className="text-2xl font-display font-bold tracking-tight text-slate-900 dark:text-white">CARGO.AI</span>
             </div>
             <p className="text-slate-500 dark:text-slate-400 max-w-sm mb-8">
               {lang === 'bs'
@@ -1612,12 +1609,16 @@ const Onboarding = ({
   mode,
   lang: initialLang, 
   setLang: setGlobalLang, 
-  onComplete 
+  onComplete,
+  onClose,
+  onSwitchToSetup
 }: { 
   mode: 'setup' | 'login',
   lang: Language, 
   setLang: (l: Language) => void, 
-  onComplete: (role: Role, lang: Language) => void 
+  onComplete: (role: Role, lang: Language) => void,
+  onClose?: () => void,
+  onSwitchToSetup?: () => void
 }) => {
   const [step, setStep] = useState(mode === 'login' ? 1 : 2);
   const [role, setRole] = useState<Role>(null);
@@ -1656,6 +1657,15 @@ const Onboarding = ({
     setStep(mode === 'login' ? 1 : 2);
   }, [mode]);
 
+  useEffect(() => {
+    const handleEscClose = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose?.();
+    };
+
+    window.addEventListener('keydown', handleEscClose);
+    return () => window.removeEventListener('keydown', handleEscClose);
+  }, [onClose]);
+
   const handleLogin = () => {
     if (!loginData.username || !loginData.password || !loginData.role) return;
     onComplete(loginData.role, lang);
@@ -1691,18 +1701,60 @@ const Onboarding = ({
     step === 4 ? Boolean(carData.make && carData.model && carData.plate && carData.fuelType) :
     false;
   const canProceedLogin = Boolean(loginData.username && loginData.password && loginData.role);
-  const showSetupBack = step === 5 || step === 6 || step === 4;
   const setupPrimaryLabel = step === 4 ? t.completeSetup : u('common.continue', 'Continue');
   const handleSetupBack = () => {
-    if (step === 5) setStep(3);
+    if (step === 2) onClose?.();
+    else if (step === 3) setStep(2);
+    else if (step === 5) setStep(3);
     else if (step === 6) setStep(5);
     else if (step === 4) setStep(driverType === 'company' ? 6 : 5);
   };
+  const setupLongStepClass = "space-y-6 h-[calc(100vh-16rem)] overflow-y-auto -mr-6 pr-6 pb-2 [scrollbar-gutter:stable]";
+  const setupHeaderClass = "text-center sticky top-0 z-10 bg-white dark:bg-slate-900 pb-4 pt-1";
+
+  if (mode === 'login') {
+    return (
+      <LoginProcess
+        lang={lang}
+        labels={{
+          logIn: t.logIn,
+          getStarted: t.getStarted,
+          username: t.username,
+          password: t.password,
+        }}
+        onComplete={onComplete}
+        onClose={onClose}
+        onGetStarted={onSwitchToSetup}
+      />
+    );
+  }
+
+  if (isSetupMode) {
+    return (
+      <SetupProcess
+        lang={lang}
+        labels={{
+          username: t.username,
+          password: t.password,
+          selectFuel: t.selectFuel,
+          licensePlate: t.licensePlate,
+          completeSetup: t.completeSetup,
+        }}
+        onComplete={onComplete}
+        onClose={onClose}
+      />
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-4 pb-28">
-      <Card className="max-w-md w-full p-8">
-        <div className={cn(isSetupMode && "max-h-[calc(100vh-13rem)] overflow-y-auto pr-1 pb-2")}>
+    <div
+      className={cn(
+        "bg-slate-50 dark:bg-slate-950 flex justify-center p-4 pb-28",
+        isSetupMode ? "h-screen overflow-hidden items-start pt-6" : "min-h-screen items-center"
+      )}
+    >
+      <Card className="max-w-md w-full">
+        <div className="pb-2">
           <AnimatePresence mode="wait">
           {mode === 'login' && step === 1 && (
             <motion.div
@@ -1730,7 +1782,7 @@ const Onboarding = ({
                   <input
                     type="text"
                     placeholder="johndoe123"
-                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
+                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors"
                     value={loginData.username}
                     onChange={(e) => setLoginData((prev) => ({ ...prev, username: e.target.value }))}
                   />
@@ -1740,7 +1792,7 @@ const Onboarding = ({
                   <input
                     type="password"
                     placeholder="••••••••"
-                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
+                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors"
                     value={loginData.password}
                     onChange={(e) => setLoginData((prev) => ({ ...prev, password: e.target.value }))}
                   />
@@ -1791,7 +1843,7 @@ const Onboarding = ({
               <div className="space-y-3">
                 <button 
                   onClick={() => setRole('user')}
-                  className={cn("w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 text-left cursor-pointer", role === 'user' ? "border-primary bg-primary/5" : "border-slate-100 dark:border-slate-800 hover:border-slate-200")}
+                  className={cn("w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 text-left cursor-pointer", role === 'user' ? "border-primary bg-primary/5" : "border-slate-100 dark:border-slate-800 hover:border-primary")}
                 >
                   <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
                     <PackageIcon className="text-blue-600" />
@@ -1803,7 +1855,7 @@ const Onboarding = ({
                 </button>
                 <button 
                   onClick={() => setRole('driver')}
-                  className={cn("w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 text-left cursor-pointer", role === 'driver' ? "border-primary bg-primary/5" : "border-slate-100 dark:border-slate-800 hover:border-slate-200")}
+                  className={cn("w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 text-left cursor-pointer", role === 'driver' ? "border-primary bg-primary/5" : "border-slate-100 dark:border-slate-800 hover:border-primary")}
                 >
                   <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
                     <Truck className="text-emerald-600" />
@@ -1823,9 +1875,9 @@ const Onboarding = ({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="space-y-6"
+              className={setupLongStepClass}
             >
-              <div className="text-center">
+              <div className={setupHeaderClass}>
                 <ShieldCheck className="w-12 h-12 text-primary mx-auto mb-4" />
                 <h2 className="text-2xl font-bold dark:text-white">{u('onboarding.driverVerification', 'Driver Verification')}</h2>
                 <p className="text-slate-500 text-sm mt-2">{u('onboarding.driverVerificationDesc', 'We need a few more details to get you on the road')}</p>
@@ -1837,7 +1889,7 @@ const Onboarding = ({
                     <input 
                       type="text" 
                       placeholder="johndoe123"
-                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
+                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors"
                       value={driverData.username}
                       onChange={(e) => setDriverData({...driverData, username: e.target.value})}
                     />
@@ -1847,7 +1899,7 @@ const Onboarding = ({
                     <input 
                       type="password" 
                       placeholder="••••••••"
-                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
+                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors"
                       value={driverData.password}
                       onChange={(e) => setDriverData({...driverData, password: e.target.value})}
                     />
@@ -1858,7 +1910,7 @@ const Onboarding = ({
                   <input 
                     type="text" 
                     placeholder="John Doe"
-                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none cursor-pointer"
+                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors cursor-pointer"
                     value={driverData.name}
                     onChange={(e) => setDriverData({...driverData, name: e.target.value})}
                   />
@@ -1866,7 +1918,7 @@ const Onboarding = ({
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{u('onboarding.country', 'Country')}</label>
                   <select 
-                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
+                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors"
                     value={driverData.country}
                     onChange={(e) => setDriverData({...driverData, country: e.target.value})}
                   >
@@ -1919,7 +1971,7 @@ const Onboarding = ({
                   onClick={() => setDriverType('private')}
                   className={cn(
                     "w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 text-left cursor-pointer", 
-                    driverType === 'private' ? "border-primary bg-primary/5" : "border-slate-100 dark:border-slate-800 hover:border-slate-200",
+                    driverType === 'private' ? "border-primary bg-primary/5" : "border-slate-100 dark:border-slate-800 hover:border-primary",
                     driverData.country === 'BA' && "opacity-50 cursor-not-allowed grayscale"
                   )}
                 >
@@ -1937,7 +1989,7 @@ const Onboarding = ({
                 </button>
                 <button 
                   onClick={() => setDriverType('company')}
-                  className={cn("w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 text-left cursor-pointer", driverType === 'company' ? "border-primary bg-primary/5" : "border-slate-100 dark:border-slate-800 hover:border-slate-200")}
+                  className={cn("w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 text-left cursor-pointer", driverType === 'company' ? "border-primary bg-primary/5" : "border-slate-100 dark:border-slate-800 hover:border-primary")}
                 >
                   <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
                     <Globe className="text-emerald-600" />
@@ -1957,9 +2009,9 @@ const Onboarding = ({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="space-y-6"
+              className={setupLongStepClass}
             >
-              <div className="text-center">
+              <div className={setupHeaderClass}>
                 <Globe className="w-12 h-12 text-primary mx-auto mb-4" />
                 <h2 className="text-2xl font-bold dark:text-white">{lang === 'bs' ? 'Podaci o kompaniji' : lang === 'de' ? 'Unternehmensinformationen' : 'Company Information'}</h2>
                 <p className="text-slate-500 text-sm mt-2">{lang === 'bs' ? 'Unesite registrovane poslovne podatke' : lang === 'de' ? 'Geben Sie Ihre registrierten Geschäftsdaten ein' : 'Enter your registered business details'}</p>
@@ -1970,7 +2022,7 @@ const Onboarding = ({
                   <input 
                     type="text" 
                     placeholder="Swift Logistics Ltd"
-                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
+                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors"
                     value={companyData.name}
                     onChange={(e) => setCompanyData({...companyData, name: e.target.value})}
                   />
@@ -1980,7 +2032,7 @@ const Onboarding = ({
                   <input 
                     type="text" 
                     placeholder="EU123456789"
-                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
+                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors"
                     value={companyData.taxId}
                     onChange={(e) => setCompanyData({...companyData, taxId: e.target.value})}
                   />
@@ -1989,7 +2041,7 @@ const Onboarding = ({
                   <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{lang === 'bs' ? 'Poslovna adresa' : lang === 'de' ? 'Geschäftsadresse' : 'Business Address'}</label>
                   <textarea 
                     placeholder="123 Logistics Way, Berlin, Germany"
-                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none h-24 resize-none"
+                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors h-24 resize-none"
                     value={companyData.address}
                     onChange={(e) => setCompanyData({...companyData, address: e.target.value})}
                   />
@@ -2004,9 +2056,9 @@ const Onboarding = ({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="space-y-6"
+              className={setupLongStepClass}
             >
-              <div className="text-center">
+              <div className={setupHeaderClass}>
                 <Truck className="w-12 h-12 text-primary mx-auto mb-4" />
                 <h2 className="text-2xl font-bold dark:text-white">{lang === 'bs' ? 'Podaci o vozilu' : lang === 'de' ? 'Fahrzeugdetails' : 'Vehicle Details'}</h2>
                 <p className="text-slate-500 text-sm mt-2">{lang === 'bs' ? 'Recite nam više o vozilu koje ćete voziti' : lang === 'de' ? 'Erzählen Sie uns mehr über das Fahrzeug, das Sie fahren' : "Tell us about the vehicle you'll be driving"}</p>
@@ -2084,7 +2136,7 @@ const Onboarding = ({
                     <input 
                       type="text" 
                       placeholder="e.g. Mercedes"
-                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
+                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors"
                       value={carData.make}
                       onChange={(e) => setCarData({...carData, make: e.target.value})}
                     />
@@ -2094,7 +2146,7 @@ const Onboarding = ({
                     <input 
                       type="text" 
                       placeholder="e.g. Sprinter"
-                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
+                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors"
                       value={carData.model}
                       onChange={(e) => setCarData({...carData, model: e.target.value})}
                     />
@@ -2106,7 +2158,7 @@ const Onboarding = ({
                     <input 
                       type="text" 
                       placeholder="2024"
-                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
+                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors"
                       value={carData.year}
                       onChange={(e) => setCarData({...carData, year: e.target.value})}
                     />
@@ -2114,7 +2166,7 @@ const Onboarding = ({
                   <div>
                     <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{t.selectFuel}</label>
                     <select 
-                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none cursor-pointer"
+                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors cursor-pointer"
                       value={carData.fuelType}
                       onChange={(e) => setCarData({...carData, fuelType: e.target.value})}
                     >
@@ -2132,7 +2184,7 @@ const Onboarding = ({
                   <input 
                     type="text" 
                     placeholder="ABC-1234"
-                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
+                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors"
                     value={carData.plate}
                     onChange={(e) => setCarData({...carData, plate: e.target.value})}
                   />
@@ -2206,24 +2258,34 @@ const Onboarding = ({
         </div>
       </Card>
 
+      {isSetupMode && (
+        <button
+          onClick={() => onClose?.()}
+          aria-label={lang === 'bs' ? 'Zatvori setup' : lang === 'de' ? 'Setup schliessen' : 'Close setup'}
+          className="fixed top-4 right-4 z-[150] h-10 w-10 rounded-full bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-primary shadow-lg flex items-center justify-center cursor-pointer transition-all"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      )}
+
       {(isSetupMode || mode === 'login') && (
         <div className="fixed bottom-0 left-0 right-0 z-[140] px-4 pb-4">
-          <div className="max-w-md mx-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl p-3">
+          <div className="max-w-md w-full mx-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl p-3">
             <div className="flex gap-3">
-              {isSetupMode && showSetupBack && (
-                <Button variant="outline" onClick={handleSetupBack} className="flex-1 cursor-pointer">
-                  {u('common.back', 'Back')}
-                </Button>
-              )}
               {isSetupMode ? (
-                <Button
-                  onClick={handleNext}
-                  disabled={!canProceedSetup}
-                  className={cn("cursor-pointer", showSetupBack ? "flex-1" : "w-full")}
-                  size="lg"
-                >
-                  {setupPrimaryLabel}
-                </Button>
+                <>
+                  <Button variant="outline" onClick={handleSetupBack} className="flex-1 cursor-pointer" size="lg">
+                    {u('common.back', 'Back')}
+                  </Button>
+                  <Button
+                    onClick={handleNext}
+                    disabled={!canProceedSetup}
+                    className="flex-1 cursor-pointer"
+                    size="lg"
+                  >
+                    {setupPrimaryLabel}
+                  </Button>
+                </>
               ) : (
                 <Button
                   onClick={handleLogin}
@@ -2279,11 +2341,26 @@ export default function App() {
       setLang={setLang} 
     />
   );
-  if (!role) return <Onboarding mode={authMode} lang={lang} setLang={setLang} onComplete={(r, l) => { setRole(r); setLang(l); setView('tracking'); }} />;
+  if (!role) return (
+    <Onboarding
+      mode={authMode}
+      lang={lang}
+      setLang={setLang}
+      onComplete={(r, l) => { setRole(r); setLang(l); setView(r === 'driver' ? 'feed' : 'tracking'); }}
+      onSwitchToSetup={() => setAuthMode('setup')}
+      onClose={() => {
+        setIsLanding(true);
+        setRole(null);
+        setAuthMode('setup');
+      }}
+    />
+  );
 
   const t = translations[lang || 'en'];
   const currentLang = languages.find(l => l.id === (lang || 'en')) || languages[0];
   const analyticsLabel = 'Analytics';
+  const tokenBalance = role === 'driver' ? 36 : 24;
+  const tokenLabel = lang === 'bs' ? 'tokena' : lang === 'de' ? 'Tokens' : 'tokens';
   const roleLicenseLabel = role === 'driver'
     ? (lang === 'bs' ? 'Vozacka licenca' : lang === 'de' ? 'Fahrerlizenz' : 'Driver License')
     : (lang === 'bs' ? 'Licenca kupca' : lang === 'de' ? 'Kundenlizenz' : 'Customer License');
@@ -2316,9 +2393,9 @@ export default function App() {
           {isSidebarOpen && (
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <Truck className="text-white w-5 h-5" />
+                <PackageIcon className="text-white w-5 h-5" />
               </div>
-              <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">PathTracker.ai</span>
+              <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">CARGO.AI</span>
             </div>
           )}
           <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer">
@@ -2361,9 +2438,9 @@ export default function App() {
         <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 flex items-center justify-between sticky top-0 z-40">
           <div className="md:hidden flex items-center gap-2">
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <Truck className="text-white w-5 h-5" />
+              <PackageIcon className="text-white w-5 h-5" />
             </div>
-            <span className="text-lg font-bold tracking-tight dark:text-white">PathTracker.ai</span>
+            <span className="text-lg font-bold tracking-tight dark:text-white">CARGO.AI</span>
           </div>
           <div className="hidden md:flex items-center gap-3">
             <p className="text-sm text-slate-500">
@@ -2382,6 +2459,11 @@ export default function App() {
             </span>
           </div>
           <div className="flex items-center gap-4">
+            <div className="h-10 px-3 rounded-full bg-slate-100 dark:bg-slate-800 text-primary inline-flex items-center gap-2 text-xs font-bold">
+              <Coins className="w-4 h-4" />
+              <span>{tokenBalance} {tokenLabel}</span>
+            </div>
+
             {/* Language Switcher */}
             <div className="relative group">
               <button
@@ -2544,3 +2626,4 @@ export default function App() {
     </div>
   );
 }
+

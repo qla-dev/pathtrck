@@ -26,6 +26,8 @@ export interface Load {
   author: string;
   status: 'Available' | 'Assigned' | 'In Transit' | 'Completed';
   cargoType: string;
+  goodsType: string;
+  paymentTerms: 'In Advance' | 'Negotiable' | 'On Delivery';
   eta: string;
 }
 

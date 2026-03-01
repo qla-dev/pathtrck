@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Flatpickr from 'react-flatpickr';
 import { BarChart3, CalendarDays, Clock3, Filter, MapPin, Search, Sparkles, WandSparkles } from 'lucide-react';
 import { MapContainer, Marker, Polyline, Popup, TileLayer } from 'react-leaflet';
@@ -9,8 +9,9 @@ import { flatpickrI18n, ui } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { Card } from '../ui/Card';
 
-type ViewMode = 'day' | 'calendar';
+type ViewMode = 'all' | 'today' | 'calendar';
 type RightTab = 'overview' | 'map' | 'timeline' | 'magic';
+type QuickRangePreset = '1m' | '6m' | '12m' | null;
 
 type HistoryRoute = {
   id: string;
@@ -45,8 +46,6 @@ const endOfDay = (date: Date) => {
   clone.setHours(23, 59, 59, 999);
   return clone;
 };
-
-const toDayKey = (date: Date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 
 const HISTORY_ROUTES: HistoryRoute[] = [
   {
@@ -207,10 +206,9 @@ const HISTORY_ROUTES: HistoryRoute[] = [
 
 export const HistoryView = ({ lang }: { lang: Language }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
-  const [leftMode, setLeftMode] = useState<ViewMode>('day');
+  const [leftMode, setLeftMode] = useState<ViewMode>('all');
   const [rightTab, setRightTab] = useState<RightTab>('overview');
   const [query, setQuery] = useState('');
-  const [selectedDayKey, setSelectedDayKey] = useState(toDayKey(HISTORY_ROUTES[0].dateObj));
   const [selectedRouteId, setSelectedRouteId] = useState(HISTORY_ROUTES[0].id);
   const [rangeStart, setRangeStart] = useState(() => {
     const d = new Date();
@@ -218,7 +216,9 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
     return startOfDay(d);
   });
   const [rangeEnd, setRangeEnd] = useState(() => endOfDay(new Date()));
+  const [quickRangePreset, setQuickRangePreset] = useState<QuickRangePreset>('1m');
   const [insights, setInsights] = useState('');
+  const isProgrammaticRangeChange = useRef(false);
 
   const searchedRoutes = useMemo(
     () =>
@@ -229,23 +229,14 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
     [query]
   );
 
-  const dayBuckets = useMemo(() => {
-    const map = new Map<string, { key: string; date: Date; count: number; totalDistanceKm: number }>();
-    searchedRoutes.forEach((route) => {
-      const key = toDayKey(route.dateObj);
-      const distanceNum = Number(route.distance.replace(/[^\d.]/g, '')) || 0;
-      if (!map.has(key)) map.set(key, { key, date: route.dateObj, count: 0, totalDistanceKm: 0 });
-      const current = map.get(key)!;
-      current.count += 1;
-      current.totalDistanceKm += distanceNum;
+  const todayRoutes = useMemo(() => {
+    const todayStart = startOfDay(new Date()).getTime();
+    const todayEnd = endOfDay(new Date()).getTime();
+    return searchedRoutes.filter((route) => {
+      const ts = route.dateObj.getTime();
+      return ts >= todayStart && ts <= todayEnd;
     });
-    return Array.from(map.values()).sort((a, b) => b.date.getTime() - a.date.getTime());
   }, [searchedRoutes]);
-
-  const dayRoutes = useMemo(
-    () => searchedRoutes.filter((route) => toDayKey(route.dateObj) === selectedDayKey),
-    [searchedRoutes, selectedDayKey]
-  );
 
   const rangeRoutes = useMemo(
     () =>
@@ -256,11 +247,20 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
     [searchedRoutes, rangeStart, rangeEnd]
   );
 
-  const activeRoutes = leftMode === 'day' ? dayRoutes : rangeRoutes;
+  const activeRoutes = leftMode === 'all' ? searchedRoutes : leftMode === 'today' ? todayRoutes : rangeRoutes;
   const activeRoute = activeRoutes.find((route) => route.id === selectedRouteId) || activeRoutes[0] || null;
+  const mapRoutes = leftMode === 'today' ? (activeRoute ? [activeRoute] : []) : activeRoutes;
   const mapCenter = (activeRoute?.path[0] || [47.3769, 8.5417]) as [number, number];
-  const routeDateLabel = activeRoute ? formatDdMmYyyy(activeRoute.dateObj) : '--.--.----';
   const dateRangeLabel = `${formatDdMmYyyy(rangeStart)} - ${formatDdMmYyyy(rangeEnd)}`;
+  const focusLabel = leftMode === 'calendar'
+    ? dateRangeLabel
+    : leftMode === 'today'
+      ? formatDdMmYyyy(new Date())
+      : lang === 'bs'
+        ? 'Sve rute'
+        : lang === 'de'
+          ? 'Alle Routen'
+          : 'All routes';
 
   const totalDistance = activeRoutes.reduce((sum, route) => sum + (Number(route.distance.replace(/[^\d.]/g, '')) || 0), 0);
   const totalEarned = activeRoutes.reduce((sum, route) => {
@@ -270,11 +270,6 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
   const avgConfidence = activeRoutes.length
     ? Math.round(activeRoutes.reduce((sum, route) => sum + route.confidence, 0) / activeRoutes.length)
     : 0;
-
-  useEffect(() => {
-    if (!dayBuckets.length) return;
-    if (!dayBuckets.some((bucket) => bucket.key === selectedDayKey)) setSelectedDayKey(dayBuckets[0].key);
-  }, [dayBuckets, selectedDayKey]);
 
   useEffect(() => {
     if (!activeRoutes.length) return;
@@ -289,12 +284,22 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
     getRouteInsights([activeRoute.origin, activeRoute.destination]).then(setInsights);
   }, [activeRoute]);
 
-  const applyQuickRange = (monthsBack: number) => {
+  const applyQuickRange = (monthsBack: number, preset: Exclude<QuickRangePreset, null>) => {
     const end = endOfDay(new Date());
     const start = new Date(end);
     start.setMonth(start.getMonth() - monthsBack);
+    isProgrammaticRangeChange.current = true;
     setRangeStart(startOfDay(start));
     setRangeEnd(end);
+    setQuickRangePreset(preset);
+    setLeftMode('calendar');
+  };
+
+  const openCalendarMode = () => {
+    if (leftMode !== 'calendar') {
+      applyQuickRange(1, '1m');
+      return;
+    }
     setLeftMode('calendar');
   };
 
@@ -312,26 +317,36 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
           />
         </div>
 
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2 grid grid-cols-2 gap-2">
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2 grid grid-cols-3 gap-2">
           <button
-            onClick={() => setLeftMode('day')}
+            onClick={() => setLeftMode('all')}
             className={cn(
               'h-10 rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center justify-center gap-2',
-              leftMode === 'day' ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+              leftMode === 'all' ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+            )}
+          >
+            <Filter className="w-4 h-4" />
+            {lang === 'bs' ? 'Sve' : lang === 'de' ? 'Alle' : 'All'}
+          </button>
+          <button
+            onClick={() => setLeftMode('today')}
+            className={cn(
+              'h-10 rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center justify-center gap-2',
+              leftMode === 'today' ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
             )}
           >
             <Clock3 className="w-4 h-4" />
-            {lang === 'bs' ? 'Dan' : lang === 'de' ? 'Tag' : 'Day Focus'}
+            {lang === 'bs' ? 'Danas' : lang === 'de' ? 'Heute' : 'Today'}
           </button>
           <button
-            onClick={() => setLeftMode('calendar')}
+            onClick={openCalendarMode}
             className={cn(
               'h-10 rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center justify-center gap-2',
               leftMode === 'calendar' ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
             )}
           >
             <CalendarDays className="w-4 h-4" />
-            {lang === 'bs' ? 'Kalendar' : lang === 'de' ? 'Kalender' : 'Calendar Range'}
+            {lang === 'bs' ? 'Kalendar' : lang === 'de' ? 'Kalender' : 'Calendar'}
           </button>
         </div>
 
@@ -358,8 +373,13 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
                 }}
                 onChange={(dates) => {
                   if (dates.length === 2) {
+                    if (isProgrammaticRangeChange.current) {
+                      isProgrammaticRangeChange.current = false;
+                      return;
+                    }
                     setRangeStart(startOfDay(dates[0]));
                     setRangeEnd(endOfDay(dates[1]));
+                    setQuickRangePreset(null);
                   }
                 }}
                 className="hidden"
@@ -367,13 +387,37 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
             </div>
 
             <div className="grid grid-cols-3 gap-2">
-              <button onClick={() => applyQuickRange(1)} className="h-9 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:border-primary cursor-pointer">
+              <button
+                onClick={() => applyQuickRange(1, '1m')}
+                className={cn(
+                  'h-9 rounded-lg border text-xs font-bold cursor-pointer transition-colors',
+                  quickRangePreset === '1m'
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-primary'
+                )}
+              >
                 {lang === 'bs' ? '1 mjesec' : lang === 'de' ? '1 Monat' : 'Past month'}
               </button>
-              <button onClick={() => applyQuickRange(6)} className="h-9 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:border-primary cursor-pointer">
+              <button
+                onClick={() => applyQuickRange(6, '6m')}
+                className={cn(
+                  'h-9 rounded-lg border text-xs font-bold cursor-pointer transition-colors',
+                  quickRangePreset === '6m'
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-primary'
+                )}
+              >
                 {lang === 'bs' ? '6 mjeseci' : lang === 'de' ? '6 Monate' : 'Past half year'}
               </button>
-              <button onClick={() => applyQuickRange(12)} className="h-9 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:border-primary cursor-pointer">
+              <button
+                onClick={() => applyQuickRange(12, '12m')}
+                className={cn(
+                  'h-9 rounded-lg border text-xs font-bold cursor-pointer transition-colors',
+                  quickRangePreset === '12m'
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-primary'
+                )}
+              >
                 {lang === 'bs' ? '12 mjeseci' : lang === 'de' ? '12 Monate' : 'Past year'}
               </button>
             </div>
@@ -381,28 +425,7 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
         )}
 
         <div className="space-y-2">
-          {leftMode === 'day' && dayBuckets.map((bucket) => (
-            <button
-              key={bucket.key}
-              onClick={() => setSelectedDayKey(bucket.key)}
-              className={cn(
-                'w-full p-4 rounded-2xl border text-left transition-all cursor-pointer',
-                selectedDayKey === bucket.key
-                  ? 'border-primary bg-primary/5'
-                  : 'border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700'
-              )}
-            >
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-sm font-bold dark:text-white">{formatDdMmYyyy(bucket.date)}</p>
-                <span className="text-xs font-bold text-primary">{Math.round(bucket.totalDistanceKm)} km</span>
-              </div>
-              <p className="text-xs text-slate-500">
-                {bucket.count} {lang === 'bs' ? 'ruta tog dana' : lang === 'de' ? 'Routen an dem Tag' : 'routes on this day'}
-              </p>
-            </button>
-          ))}
-
-          {leftMode === 'calendar' && rangeRoutes.map((route) => (
+          {(leftMode === 'calendar' ? rangeRoutes : activeRoutes).map((route) => (
             <button
               key={route.id}
               onClick={() => setSelectedRouteId(route.id)}
@@ -480,7 +503,7 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
               <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 md:col-span-3">
                 <p className="text-xs uppercase tracking-wider text-slate-500">{lang === 'bs' ? 'Rute u fokusu' : lang === 'de' ? 'Routen im Fokus' : 'Routes in focus'}</p>
                 <p className="text-3xl font-black dark:text-white mt-1">{activeRoutes.length}</p>
-                <p className="text-xs text-slate-500 mt-1">{leftMode === 'day' ? routeDateLabel : dateRangeLabel}</p>
+                <p className="text-xs text-slate-500 mt-1">{focusLabel}</p>
               </div>
               <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 md:col-span-3">
                 <p className="text-xs uppercase tracking-wider text-slate-500">{lang === 'bs' ? 'Ukupna kilometraza' : lang === 'de' ? 'Gesamtkilometer' : 'Total distance'}</p>
@@ -536,7 +559,7 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
             <div className="h-[460px] rounded-xl overflow-hidden relative">
               <MapContainer center={mapCenter} zoom={6} className="h-full w-full">
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                {(leftMode === 'calendar' ? activeRoutes : activeRoute ? [activeRoute] : []).map((route, index) => (
+                {mapRoutes.map((route, index) => (
                   <Polyline
                     key={route.id}
                     positions={route.path}
@@ -547,7 +570,7 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
                     }}
                   />
                 ))}
-                {(leftMode === 'calendar' ? activeRoutes : activeRoute ? [activeRoute] : []).map((route) => (
+                {mapRoutes.map((route) => (
                   <Marker key={`${route.id}-start`} position={route.path[0]}>
                     <Popup>{route.routeCode} • {route.origin}</Popup>
                   </Marker>
@@ -618,7 +641,7 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
               </div>
             </Card>
 
-            <Card title={u('history.generatedByAi', 'Generated by PathTracker.ai AI')}>
+            <Card title={u('history.generatedByAi', 'Generated by CARGO.AI AI')}>
               <div className="grid md:grid-cols-3 gap-4">
                 {[
                   { label: lang === 'bs' ? 'Najbolji period' : lang === 'de' ? 'Bestes Zeitfenster' : 'Best window', value: '06:00 - 10:00' },

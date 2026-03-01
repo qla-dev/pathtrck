@@ -18,7 +18,7 @@
     from { transform: translateY(0); }
     to { transform: translateY(-50%); }
   }
-  --animate-load-scroll: load-scroll 16s linear infinite;
+  --animate-load-scroll: load-scroll 28s linear infinite;
 }
 
 @layer base {
