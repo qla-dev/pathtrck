@@ -63,6 +63,8 @@ import { TrackingView } from './components/views/TrackingView';
 import { HomeFeed } from './components/views/HomeFeed';
 import { HistoryView } from './components/views/HistoryView';
 import { FleetView } from './components/views/FleetView';
+import { MessagesView } from './components/views/MessagesView';
+import { ProfileView } from './components/views/ProfileView';
 
 // Fix Leaflet marker icon issue
 // @ts-ignore
@@ -499,6 +501,7 @@ const translations = {
     dashboard: "Dashboard",
     tracking: "Tracking",
     myFleet: "My Fleet",
+    messages: "Messages",
     history: "History",
     settings: "Settings",
     homeFeed: "Loads Feed",
@@ -539,6 +542,7 @@ const translations = {
     dashboard: "Kontrolna tabla",
     tracking: "Praćenje",
     myFleet: "Moja flota",
+    messages: "Poruke",
     history: "Historija",
     settings: "Postavke",
     homeFeed: "Feed tereta",
@@ -579,6 +583,7 @@ const translations = {
     dashboard: "Dashboard",
     tracking: "Sendungsverfolgung",
     myFleet: "Meine Flotte",
+    messages: "Nachrichten",
     history: "Verlauf",
     settings: "Einstellungen",
     homeFeed: "Ladungs-Feed",
@@ -776,7 +781,7 @@ const LandingPage = ({
               <button
                 aria-label="Language switcher"
                 title={currentLang.label}
-                className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-primary transition-all cursor-pointer"
+                className="h-10 px-3 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:border-primary/50 transition-all cursor-pointer flex items-center gap-2"
               >
                 <img
                   src={getFlagUrl(currentLang.id)}
@@ -785,6 +790,7 @@ const LandingPage = ({
                   className="h-5 w-5 rounded-full object-cover"
                   loading="lazy"
                 />
+                <span className="hidden sm:block text-xs font-bold uppercase">{currentLang.id}</span>
               </button>
               <div className="absolute top-full right-0 mt-2 w-40 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all p-2 z-[110]">
                 {languages.map(l => (
@@ -2438,7 +2444,7 @@ export default function App() {
   const [authMode, setAuthMode] = useState<'setup' | 'login'>('setup');
   const [role, setRole] = useState<Role>(null);
   const [lang, setLang] = useState<Language>('en');
-  const [view, setView] = useState('feed');
+  const [view, setView] = useState('tracking');
   const [isDark, setIsDark] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -2452,6 +2458,12 @@ export default function App() {
     }
   }, [isDark]);
 
+  useEffect(() => {
+    if (role === 'user' && view === 'feed') {
+      setView('tracking');
+    }
+  }, [role, view]);
+
   if (isLanding) return (
     <LandingPage 
       onStart={() => { setAuthMode('setup'); setIsLanding(false); }}
@@ -2462,14 +2474,14 @@ export default function App() {
       setLang={setLang} 
     />
   );
-  if (!role) return <Onboarding mode={authMode} lang={lang} setLang={setLang} onComplete={(r, l) => { setRole(r); setLang(l); setView('feed'); }} />;
+  if (!role) return <Onboarding mode={authMode} lang={lang} setLang={setLang} onComplete={(r, l) => { setRole(r); setLang(l); setView('tracking'); }} />;
 
   const t = translations[lang || 'en'];
   const currentLang = languages.find(l => l.id === (lang || 'en')) || languages[0];
   const analyticsLabel = 'Analytics';
 
   const navItems = [
-    { id: 'feed', label: t.homeFeed, icon: Boxes },
+    ...(role === 'driver' ? [{ id: 'feed', label: t.homeFeed, icon: Boxes }] : []),
     { id: 'tracking', label: t.tracking, icon: PackageIcon },
     ...(role === 'driver' ? [
       { id: 'fleet', label: t.myFleet, icon: Truck }
@@ -2523,11 +2535,11 @@ export default function App() {
 
         <div className="p-6 border-t border-slate-100 dark:border-slate-800">
           <button 
-            onClick={() => setIsDark(!isDark)}
-            className="w-full flex items-center gap-3 p-3 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+            onClick={() => setView('profile')}
+            className="w-full flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer bg-primary text-white shadow-lg shadow-primary/20"
           >
-            {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            {isSidebarOpen && <span className="font-medium">{isDark ? ui(lang, 'common.lightMode', 'Light Mode') : ui(lang, 'common.darkMode', 'Dark Mode')}</span>}
+            <User className="w-5 h-5" />
+            {isSidebarOpen && <span className="font-medium">{ui(lang, 'common.myProfile', 'Moj profil')}</span>}
           </button>
         </div>
       </aside>
@@ -2551,7 +2563,7 @@ export default function App() {
               <button
                 aria-label="Language switcher"
                 title={currentLang.label}
-                className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-primary transition-all cursor-pointer"
+                className="h-10 w-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary hover:scale-105 transition-all cursor-pointer flex items-center justify-center"
               >
                 <img
                   src={getFlagUrl(currentLang.id)}
@@ -2587,19 +2599,32 @@ export default function App() {
             {/* Dark Mode Toggle */}
             <button 
               onClick={() => setIsDark(!isDark)}
-              className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-primary transition-all cursor-pointer"
+              className="h-10 w-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary hover:scale-105 transition-all cursor-pointer flex items-center justify-center"
             >
               {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
 
-            <button className="relative p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 cursor-pointer">
+            <button
+              onClick={() => setView('messages')}
+              className={cn(
+                "relative h-10 w-10 rounded-full transition-all cursor-pointer flex items-center justify-center",
+                view === 'messages'
+                  ? "bg-primary text-white shadow-lg shadow-primary/30"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary hover:scale-105"
+              )}
+            >
+              <MessageSquare className="w-5 h-5" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900" />
+            </button>
+
+            <button className="relative h-10 w-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary hover:scale-105 transition-all cursor-pointer flex items-center justify-center">
               <Bell className="w-5 h-5" />
               <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-900" />
             </button>
             
             {/* User Avatar Dropdown */}
             <div className="relative group">
-              <button className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 hover:border-primary transition-all">
+              <button className="h-10 w-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary hover:scale-105 transition-all cursor-pointer flex items-center justify-center">
                 <User className="w-5 h-5 text-primary" />
               </button>
               <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all p-2 z-[100]">
@@ -2607,7 +2632,10 @@ export default function App() {
                   <p className="text-sm font-bold dark:text-white">John Doe</p>
                   <p className="text-[10px] text-slate-500 uppercase tracking-wider">{role === 'driver' ? ui(lang, 'common.verifiedDriver', 'Verified Driver') : ui(lang, 'common.customer', 'Customer')}</p>
                 </div>
-                <button className="w-full flex items-center gap-3 p-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
+                <button
+                  onClick={() => setView('profile')}
+                  className="w-full flex items-center gap-3 p-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+                >
                   <User className="w-4 h-4" />
                   {t.accountSettings}
                 </button>
@@ -2644,10 +2672,12 @@ export default function App() {
             >
 	              {view === 'dashboard' && <Dashboard role={role} lang={lang} />}
 	              {view === 'tracking' && <TrackingView lang={lang} />}
+	              {view === 'feed' && <HomeFeed lang={lang} />}
+	              {view === 'messages' && <MessagesView lang={lang} />}
 	              {view === 'network' && <NetworkView lang={lang} />}
 	              {view === 'fleet' && <FleetView lang={lang} />}
-	              {view === 'feed' && <HomeFeed lang={lang} />}
 	              {view === 'history' && <HistoryView lang={lang} />}
+	              {view === 'profile' && <ProfileView role={role} lang={lang} />}
 	              {view === 'settings' && (
 	                <div className="max-w-2xl mx-auto space-y-6">
 	                  <h1 className="text-2xl font-bold dark:text-white">{ui(lang, 'common.settings', 'Settings')}</h1>
