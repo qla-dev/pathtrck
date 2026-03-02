@@ -935,6 +935,7 @@ const LandingPage = ({
                           layout="list"
                           load={load}
                           hideSource
+                          onOpenSetup={onStart}
                           statusLabel={trLoadStatus(lang, load.status)}
                           viewDetailsLabel={u('common.viewDetails', 'View Details')}
                         />

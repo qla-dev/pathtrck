@@ -14,6 +14,7 @@ type LoadItemProps = {
   hideSource?: boolean;
   statusLabel?: string;
   onOpenDetails?: (load: Load) => void;
+  onOpenSetup?: () => void;
 };
 
 export const LoadItem = ({
@@ -23,6 +24,7 @@ export const LoadItem = ({
   hideSource = false,
   statusLabel,
   onOpenDetails,
+  onOpenSetup,
 }: LoadItemProps) => {
   const isGrid = layout === 'grid';
   const sourceLine = hideSource
@@ -42,15 +44,23 @@ export const LoadItem = ({
       : load.paymentTerms === 'On Delivery'
         ? 'bg-sky-500/10 text-sky-500 border-sky-500/30'
         : 'bg-blue-500/10 text-blue-500 border-blue-500/30';
-  const openDetails = () => {
+  const isInteractive = hideSource ? Boolean(onOpenSetup) : Boolean(onOpenDetails);
+
+  const handleCardClick = () => {
+    if (hideSource) {
+      onOpenSetup?.();
+      return;
+    }
+
     onOpenDetails?.(load);
   };
 
   return (
     <Card
-      onClick={openDetails}
+      onClick={isInteractive ? handleCardClick : undefined}
       className={cn(
-        'hover:border-primary/50 transition-all cursor-pointer group',
+        'hover:border-primary/50 transition-all group',
+        isInteractive ? 'cursor-pointer' : 'cursor-default',
         hideSource && '[&>div:last-child]:p-4'
       )}
     >
@@ -123,7 +133,7 @@ export const LoadItem = ({
               variant="ghost"
               onClick={(event) => {
                 event.stopPropagation();
-                openDetails();
+                handleCardClick();
               }}
             >
               {viewDetailsLabel} <ChevronRight className="w-4 h-4 ml-1" />
