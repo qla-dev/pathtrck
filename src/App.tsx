@@ -65,6 +65,10 @@ import { TrackingView } from './components/views/TrackingView';
 import { HomeFeed } from './components/views/HomeFeed';
 import { HistoryView } from './components/views/HistoryView';
 import { FleetView } from './components/views/FleetView';
+import { FrightsView } from './components/views/FrightsView';
+import { SidebarFilter } from './components/frights/SidebarFilter';
+import { ServiceFilters, ServiceItem } from './components/frights/FrightTypes';
+import { useCitySuggestions } from './components/frights/useCitySuggestions';
 import { MessagesView } from './components/views/MessagesView';
 import { ProfileView } from './components/views/ProfileView';
 import { AutomationsView } from './components/views/AutomationsView';
@@ -2315,6 +2319,35 @@ export default function App() {
   const [view, setView] = useState('tracking');
   const [isDark, setIsDark] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isMainFilterSidebarOpen, setIsMainFilterSidebarOpen] = useState(false);
+  const [feedServiceFilters, setFeedServiceFilters] = useState<ServiceFilters>({
+    place_of_loading: true,
+    port_of_origin: true,
+    ocean_freight: true,
+    port_of_discharge: true,
+    place_of_discharge: false,
+  });
+
+  const feedSeedCities = useMemo(
+    () =>
+      MOCK_LOADS.flatMap((load) => [
+        load.pickup.split(',')[0]?.trim() || '',
+        load.delivery.split(',')[0]?.trim() || '',
+      ]),
+    []
+  );
+
+  const {
+    startLocation: feedStartLocation,
+    setStartLocation: setFeedStartLocation,
+    endLocation: feedEndLocation,
+    setEndLocation: setFeedEndLocation,
+    startSuggestions: feedStartSuggestions,
+    endSuggestions: feedEndSuggestions,
+    isGooglePlacesReady: isFeedPlacesReady,
+    hasGooglePlacesKey: hasFeedPlacesKey,
+    clearLocations: clearFeedLocations,
+  } = useCitySuggestions({ seedCities: feedSeedCities });
 
   useEffect(() => {
     if (isDark) {
@@ -2331,6 +2364,12 @@ export default function App() {
       setView('tracking');
     }
   }, [role, view]);
+
+  useEffect(() => {
+    if (view !== 'feed') {
+      setIsMainFilterSidebarOpen(false);
+    }
+  }, [view]);
 
   if (isLanding) return (
     <LandingPage 
@@ -2368,9 +2407,49 @@ export default function App() {
   const roleLicenseStatus = role === 'driver'
     ? (lang === 'bs' ? 'Verifikovana' : lang === 'de' ? 'Verifiziert' : 'Verified')
     : (lang === 'bs' ? 'Aktivna' : lang === 'de' ? 'Aktiv' : 'Active');
+  const feedServiceItems: ServiceItem[] = [
+    {
+      key: 'place_of_loading',
+      label: lang === 'bs' ? 'Mjesto utovara' : lang === 'de' ? 'Beladestelle' : 'Place of loading',
+      disabled: false,
+    },
+    {
+      key: 'port_of_origin',
+      label: lang === 'bs' ? 'Polazna lokacija' : lang === 'de' ? 'Startort' : 'Start location',
+      disabled: false,
+    },
+    {
+      key: 'ocean_freight',
+      label: lang === 'bs' ? 'Brzi transport' : lang === 'de' ? 'Express transport' : 'Fast transport',
+      disabled: true,
+    },
+    {
+      key: 'port_of_discharge',
+      label: lang === 'bs' ? 'Destinacija' : lang === 'de' ? 'Zielort' : 'Destination',
+      disabled: false,
+    },
+    {
+      key: 'place_of_discharge',
+      label: lang === 'bs' ? 'Dostava' : lang === 'de' ? 'Zustellung' : 'Delivery',
+      disabled: false,
+    },
+  ];
+
+  const clearFeedFilters = () => {
+    setFeedServiceFilters({
+      place_of_loading: true,
+      port_of_origin: true,
+      ocean_freight: true,
+      port_of_discharge: true,
+      place_of_discharge: false,
+    });
+    clearFeedLocations();
+  };
+  const shouldShowFeedFiltersInMainSidebar = view === 'feed' && isMainFilterSidebarOpen;
 
   const navItems = [
     ...(role === 'driver' ? [{ id: 'feed', label: t.homeFeed, icon: Boxes }] : []),
+    ...(role === 'driver' ? [{ id: 'frights', label: 'Frights', icon: MapPin }] : []),
     { id: 'tracking', label: t.tracking, icon: PackageIcon },
     ...(role === 'driver' ? [
       { id: 'fleet', label: t.myFleet, icon: Truck },
@@ -2388,10 +2467,10 @@ export default function App() {
       {/* Sidebar (Desktop) */}
       <aside className={cn(
         "hidden md:flex flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-300 z-50 sticky top-0 h-screen",
-        isSidebarOpen ? "w-64" : "w-20"
+        isSidebarOpen || shouldShowFeedFiltersInMainSidebar ? "w-64" : "w-20"
       )}>
         <div className="p-6 flex items-center justify-between">
-          {isSidebarOpen && (
+          {(isSidebarOpen || shouldShowFeedFiltersInMainSidebar) && (
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                 <PackageIcon className="text-white w-5 h-5" />
@@ -2399,38 +2478,89 @@ export default function App() {
               <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">CARGO.AI</span>
             </div>
           )}
-          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer">
-            {isSidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
-          </button>
-        </div>
-
-        <nav className="flex-1 px-4 space-y-2 mt-4">
-          {navItems.map(item => (
-            <button
-              key={item.id}
-              onClick={() => setView(item.id)}
-              className={cn(
-                "w-full flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer",
-                view === item.id 
-                  ? "bg-primary text-white shadow-lg shadow-primary/20" 
-                  : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
-              )}
-            >
-              <item.icon className="w-5 h-5 shrink-0" />
-              {isSidebarOpen && <span className="font-medium">{item.label}</span>}
-            </button>
-          ))}
-        </nav>
-
-        <div className="p-6 border-t border-slate-100 dark:border-slate-800">
-          <button 
-            onClick={() => setView('profile')}
-            className="w-full flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer bg-primary text-white shadow-lg shadow-primary/20"
+          <button
+            onClick={() => {
+              if (shouldShowFeedFiltersInMainSidebar) {
+                setIsMainFilterSidebarOpen(false);
+                return;
+              }
+              setIsSidebarOpen(!isSidebarOpen);
+            }}
+            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer"
           >
-            <User className="w-5 h-5" />
-            {isSidebarOpen && <span className="font-medium">{ui(lang, 'common.myProfile', 'Moj profil')}</span>}
+            {shouldShowFeedFiltersInMainSidebar ? <X className="w-4 h-4" /> : isSidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
           </button>
         </div>
+
+        <AnimatePresence mode="wait" initial={false}>
+          {shouldShowFeedFiltersInMainSidebar ? (
+            <motion.div
+              key="main-sidebar-filters"
+              className="flex-1 px-4 pb-6 overflow-y-auto"
+              initial={{ opacity: 0, x: -16 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -16 }}
+              transition={{ duration: 0.2 }}
+            >
+              <SidebarFilter
+                lang={lang}
+                serviceItems={feedServiceItems}
+                serviceFilters={feedServiceFilters}
+                startLocation={feedStartLocation}
+                endLocation={feedEndLocation}
+                startSuggestions={feedStartSuggestions}
+                endSuggestions={feedEndSuggestions}
+                isGooglePlacesReady={isFeedPlacesReady}
+                hasGooglePlacesKey={hasFeedPlacesKey}
+                onStartLocationChange={setFeedStartLocation}
+                onEndLocationChange={setFeedEndLocation}
+                onServiceFilterChange={(key, value) => {
+                  setFeedServiceFilters((prev) => ({ ...prev, [key]: value }));
+                }}
+                onClear={clearFeedFilters}
+                onClose={() => setIsMainFilterSidebarOpen(false)}
+                embeddedInSidebar
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="main-sidebar-nav"
+              className="flex-1 flex flex-col"
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -10 }}
+              transition={{ duration: 0.18 }}
+            >
+              <nav className="flex-1 px-4 space-y-2 mt-4">
+                {navItems.map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => setView(item.id)}
+                    className={cn(
+                      "w-full flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer",
+                      view === item.id
+                        ? "bg-primary text-white shadow-lg shadow-primary/20"
+                        : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+                    )}
+                  >
+                    <item.icon className="w-5 h-5 shrink-0" />
+                    {isSidebarOpen && <span className="font-medium">{item.label}</span>}
+                  </button>
+                ))}
+              </nav>
+
+              <div className="p-6 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  onClick={() => setView('profile')}
+                  className="w-full flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer bg-primary text-white shadow-lg shadow-primary/20"
+                >
+                  <User className="w-5 h-5" />
+                  {isSidebarOpen && <span className="font-medium">{ui(lang, 'common.myProfile', 'Moj profil')}</span>}
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </aside>
 
       {/* Main Content */}
@@ -2585,7 +2715,19 @@ export default function App() {
             >
 	              {view === 'dashboard' && <Dashboard role={role} lang={lang} />}
 	              {view === 'tracking' && <TrackingView lang={lang} />}
-	              {view === 'feed' && <HomeFeed lang={lang} />}
+	              {view === 'feed' && (
+                  <HomeFeed
+                    lang={lang}
+                    startLocation={feedStartLocation}
+                    endLocation={feedEndLocation}
+                    isFilterSidebarOpen={shouldShowFeedFiltersInMainSidebar}
+                    onToggleFilterSidebar={() => {
+                      setIsSidebarOpen(true);
+                      setIsMainFilterSidebarOpen((prev) => !prev);
+                    }}
+                  />
+                )}
+	              {view === 'frights' && <FrightsView lang={lang} />}
 	              {view === 'messages' && <MessagesView lang={lang} />}
 	              {view === 'network' && <NetworkView lang={lang} />}
 	              {view === 'automations' && <AutomationsView lang={lang} />}

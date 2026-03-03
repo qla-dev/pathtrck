@@ -66,7 +66,7 @@ export const NetworkView = ({ lang }: { lang: Language }) => {
                 </Marker>
               ))}
             </MapContainer>
-            <div className="absolute top-4 right-4 z-[1000] bg-white/90 dark:bg-slate-900/90 backdrop-blur p-4 rounded-2xl shadow-xl border border-white/20">
+            <div className="absolute top-4 right-4 z-20 bg-white/90 dark:bg-slate-900/90 backdrop-blur p-4 rounded-2xl shadow-xl border border-white/20">
               <p className="text-xs font-bold uppercase tracking-wider mb-2">{u('network.liveStatus', 'Live Status')}</p>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />

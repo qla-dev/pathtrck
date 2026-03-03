@@ -8,6 +8,7 @@ import { Card } from '../ui/Card';
 export type LoadItemLayout = 'list' | 'grid' | 'map';
 
 type LoadItemProps = {
+  key?: string;
   layout: LoadItemLayout;
   load: Load;
   viewDetailsLabel: string;

@@ -65,20 +65,47 @@ const LoadsBounds = ({ points }: { points: [number, number][] }) => {
   return null;
 };
 
-export const HomeFeed = ({ lang }: { lang: Language }) => {
+type HomeFeedProps = {
+  lang: Language;
+  startLocation?: string;
+  endLocation?: string;
+  isFilterSidebarOpen?: boolean;
+  onToggleFilterSidebar?: () => void;
+};
+
+export const HomeFeed = ({
+  lang,
+  startLocation = '',
+  endLocation = '',
+  isFilterSidebarOpen = false,
+  onToggleFilterSidebar,
+}: HomeFeedProps) => {
   const [layout, setLayout] = useState<FeedLayoutMode>('map');
   const [mapSource, setMapSource] = useState<MapSource>('normal');
   const [selectedLoad, setSelectedLoad] = useState<Load | null>(null);
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
 
+  const filteredLoads = useMemo(() => {
+    const startFilter = startLocation.trim().toLowerCase();
+    const endFilter = endLocation.trim().toLowerCase();
+
+    return MOCK_LOADS.filter((load) => {
+      const pickup = load.pickup.toLowerCase();
+      const delivery = load.delivery.toLowerCase();
+      const startMatch = !startFilter || pickup.includes(startFilter);
+      const endMatch = !endFilter || delivery.includes(endFilter);
+      return startMatch && endMatch;
+    });
+  }, [startLocation, endLocation]);
+
   const loadsMapData = useMemo<LoadMapData[]>(
     () =>
-      MOCK_LOADS.map((load) => ({
+      filteredLoads.map((load) => ({
         load,
         pickupCoord: getPlaceCoord(load.pickup),
         deliveryCoord: getPlaceCoord(load.delivery),
       })),
-    []
+    [filteredLoads]
   );
 
   const allPoints = useMemo<[number, number][]>(
@@ -103,7 +130,11 @@ export const HomeFeed = ({ lang }: { lang: Language }) => {
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-bold dark:text-white mr-2">{u('home.availableLoads', 'Available Loads')}</h1>
-          <Button variant="outline" size="sm">
+          <Button
+            variant={isFilterSidebarOpen ? 'primary' : 'outline'}
+            size="sm"
+            onClick={onToggleFilterSidebar}
+          >
             <Filter className="w-4 h-4 mr-2" /> {u('common.filter', 'Filter')}
           </Button>
           <Button size="sm">
@@ -132,7 +163,7 @@ export const HomeFeed = ({ lang }: { lang: Language }) => {
 
       {layout === 'list' && (
         <div className="space-y-4">
-          {MOCK_LOADS.map((load) => (
+          {filteredLoads.map((load) => (
             <LoadItem
               key={load.id}
               layout="list"
@@ -146,7 +177,7 @@ export const HomeFeed = ({ lang }: { lang: Language }) => {
 
       {layout === 'grid' && (
         <div className="grid md:grid-cols-2 gap-4">
-          {MOCK_LOADS.map((load) => (
+          {filteredLoads.map((load) => (
             <LoadItem
               key={load.id}
               layout="grid"
@@ -161,7 +192,7 @@ export const HomeFeed = ({ lang }: { lang: Language }) => {
       {layout === 'map' && (
         <div className="grid lg:grid-cols-12 gap-6">
           <div className="lg:col-span-5 space-y-4 max-h-[72vh] overflow-y-auto pr-1">
-            {MOCK_LOADS.map((load) => (
+            {filteredLoads.map((load) => (
               <LoadItem
                 key={load.id}
                 layout="map"
@@ -219,7 +250,7 @@ export const HomeFeed = ({ lang }: { lang: Language }) => {
                 ))}
               </MapContainer>
 
-              <div className="absolute top-4 right-4 z-[1000] bg-white/95 dark:bg-slate-900/95 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xl p-2">
+              <div className="absolute top-4 right-4 z-20 bg-white/95 dark:bg-slate-900/95 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xl p-2">
                 <div className="flex items-center gap-2 mb-2 px-1">
                   <Layers className="w-4 h-4 text-primary" />
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
