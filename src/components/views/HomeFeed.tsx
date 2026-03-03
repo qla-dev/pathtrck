@@ -53,6 +53,32 @@ const getPlaceCoord = (place: string): [number, number] => {
   return match ? match[1] : [48.1351, 11.582];
 };
 
+const parseLoadPriceValue = (price: string) => {
+  const digits = price.replace(/[^0-9]/g, '');
+  const parsed = Number(digits);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const parseLoadWeightValue = (weight: string) => {
+  const digits = weight.replace(/[^0-9]/g, '');
+  const parsed = Number(digits);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const estimateLoadTransitDays = (pickup: string, delivery: string) => {
+  const [lat1, lon1] = getPlaceCoord(pickup);
+  const [lat2, lon2] = getPlaceCoord(delivery);
+  const toRadians = (value: number) => (value * Math.PI) / 180;
+  const dLat = toRadians(lat2 - lat1);
+  const dLon = toRadians(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distanceKm = 6371 * c;
+  return Math.max(1, Math.ceil(distanceKm / 700));
+};
+
 const LoadsBounds = ({ points }: { points: [number, number][] }) => {
   const map = useMap();
 
@@ -69,6 +95,14 @@ type HomeFeedProps = {
   lang: Language;
   startLocation?: string;
   endLocation?: string;
+  minPriceFilter?: number;
+  maxPriceFilter?: number;
+  minWeightFilter?: number;
+  maxWeightFilter?: number;
+  minTransitDaysFilter?: number;
+  maxTransitDaysFilter?: number;
+  selectedGoodsTypes?: string[];
+  selectedPaymentTerms?: string[];
   isFilterSidebarOpen?: boolean;
   onToggleFilterSidebar?: () => void;
 };
@@ -77,6 +111,14 @@ export const HomeFeed = ({
   lang,
   startLocation = '',
   endLocation = '',
+  minPriceFilter = Number.NEGATIVE_INFINITY,
+  maxPriceFilter = Number.POSITIVE_INFINITY,
+  minWeightFilter = Number.NEGATIVE_INFINITY,
+  maxWeightFilter = Number.POSITIVE_INFINITY,
+  minTransitDaysFilter = Number.NEGATIVE_INFINITY,
+  maxTransitDaysFilter = Number.POSITIVE_INFINITY,
+  selectedGoodsTypes = [],
+  selectedPaymentTerms = [],
   isFilterSidebarOpen = false,
   onToggleFilterSidebar,
 }: HomeFeedProps) => {
@@ -92,11 +134,30 @@ export const HomeFeed = ({
     return MOCK_LOADS.filter((load) => {
       const pickup = load.pickup.toLowerCase();
       const delivery = load.delivery.toLowerCase();
+      const priceValue = parseLoadPriceValue(load.price);
+      const weightValue = parseLoadWeightValue(load.weight);
+      const transitDays = estimateLoadTransitDays(load.pickup, load.delivery);
       const startMatch = !startFilter || pickup.includes(startFilter);
       const endMatch = !endFilter || delivery.includes(endFilter);
-      return startMatch && endMatch;
+      const priceMatch = priceValue >= minPriceFilter && priceValue <= maxPriceFilter;
+      const weightMatch = weightValue >= minWeightFilter && weightValue <= maxWeightFilter;
+      const transitMatch = transitDays >= minTransitDaysFilter && transitDays <= maxTransitDaysFilter;
+      const goodsMatch = !selectedGoodsTypes.length || selectedGoodsTypes.includes(load.goodsType);
+      const paymentMatch = !selectedPaymentTerms.length || selectedPaymentTerms.includes(load.paymentTerms);
+      return startMatch && endMatch && priceMatch && weightMatch && transitMatch && goodsMatch && paymentMatch;
     });
-  }, [startLocation, endLocation]);
+  }, [
+    startLocation,
+    endLocation,
+    minPriceFilter,
+    maxPriceFilter,
+    minWeightFilter,
+    maxWeightFilter,
+    minTransitDaysFilter,
+    maxTransitDaysFilter,
+    selectedGoodsTypes,
+    selectedPaymentTerms,
+  ]);
 
   const loadsMapData = useMemo<LoadMapData[]>(
     () =>

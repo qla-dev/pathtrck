@@ -2311,6 +2311,48 @@ const Onboarding = ({
 
 // --- Main App ---
 
+const FEED_LOAD_CITY_COORDINATES: Record<string, [number, number]> = {
+  'Vienna, AT': [48.2082, 16.3738],
+  'Prague, CZ': [50.0755, 14.4378],
+  'Zagreb, HR': [45.815, 15.9819],
+  'Berlin, DE': [52.52, 13.405],
+  'Sarajevo, BA': [43.8563, 18.4131],
+  'Banja Luka, BA': [44.7722, 17.191],
+};
+
+const getFeedLoadCoord = (place: string): [number, number] => {
+  if (FEED_LOAD_CITY_COORDINATES[place]) return FEED_LOAD_CITY_COORDINATES[place];
+  const city = place.split(',')[0]?.trim() || '';
+  const match = Object.entries(FEED_LOAD_CITY_COORDINATES).find(([label]) => label.startsWith(city));
+  return match ? match[1] : [48.1351, 11.582];
+};
+
+const parseLoadPriceValue = (price: string) => {
+  const digits = price.replace(/[^0-9]/g, '');
+  const parsed = Number(digits);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const parseLoadWeightValue = (weight: string) => {
+  const digits = weight.replace(/[^0-9]/g, '');
+  const parsed = Number(digits);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const estimateLoadTransitDays = (pickup: string, delivery: string) => {
+  const [lat1, lon1] = getFeedLoadCoord(pickup);
+  const [lat2, lon2] = getFeedLoadCoord(delivery);
+  const toRadians = (value: number) => (value * Math.PI) / 180;
+  const dLat = toRadians(lat2 - lat1);
+  const dLon = toRadians(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distanceKm = 6371 * c;
+  return Math.max(1, Math.ceil(distanceKm / 700));
+};
+
 export default function App() {
   const [isLanding, setIsLanding] = useState(true);
   const [authMode, setAuthMode] = useState<'setup' | 'login'>('setup');
@@ -2327,6 +2369,27 @@ export default function App() {
     port_of_discharge: true,
     place_of_discharge: false,
   });
+  const feedRangeBounds = useMemo(() => {
+    const prices = MOCK_LOADS.map((load) => parseLoadPriceValue(load.price));
+    const weights = MOCK_LOADS.map((load) => parseLoadWeightValue(load.weight));
+    const transits = MOCK_LOADS.map((load) => estimateLoadTransitDays(load.pickup, load.delivery));
+    return {
+      priceMin: Math.min(...prices),
+      priceMax: Math.max(...prices),
+      weightMin: Math.min(...weights),
+      weightMax: Math.max(...weights),
+      transitMin: Math.min(...transits),
+      transitMax: Math.max(...transits),
+    };
+  }, []);
+  const [feedSelectedPriceMin, setFeedSelectedPriceMin] = useState(() => feedRangeBounds.priceMin);
+  const [feedSelectedPriceMax, setFeedSelectedPriceMax] = useState(() => feedRangeBounds.priceMax);
+  const [feedSelectedWeightMin, setFeedSelectedWeightMin] = useState(() => feedRangeBounds.weightMin);
+  const [feedSelectedWeightMax, setFeedSelectedWeightMax] = useState(() => feedRangeBounds.weightMax);
+  const [feedSelectedTransitMin, setFeedSelectedTransitMin] = useState(() => feedRangeBounds.transitMin);
+  const [feedSelectedTransitMax, setFeedSelectedTransitMax] = useState(() => feedRangeBounds.transitMax);
+  const [selectedFeedGoodsTypes, setSelectedFeedGoodsTypes] = useState<string[]>([]);
+  const [selectedFeedPaymentTerms, setSelectedFeedPaymentTerms] = useState<string[]>([]);
 
   const feedSeedCities = useMemo(
     () =>
@@ -2407,6 +2470,30 @@ export default function App() {
   const roleLicenseStatus = role === 'driver'
     ? (lang === 'bs' ? 'Verifikovana' : lang === 'de' ? 'Verifiziert' : 'Verified')
     : (lang === 'bs' ? 'Aktivna' : lang === 'de' ? 'Aktiv' : 'Active');
+  const getGoodsChipTone = (value: string) =>
+    value === 'Flammable'
+      ? 'bg-amber-500/10 text-amber-500 border-amber-500/30'
+      : value === 'Fragile'
+        ? 'bg-cyan-500/10 text-cyan-500 border-cyan-500/30'
+        : value === 'High Value'
+          ? 'bg-violet-500/10 text-violet-500 border-violet-500/30'
+          : 'bg-slate-500/10 text-slate-500 border-slate-500/30';
+  const getPaymentChipTone = (value: string) =>
+    value === 'In Advance'
+      ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
+      : value === 'On Delivery'
+        ? 'bg-amber-500/10 text-amber-500 border-amber-500/30'
+        : 'bg-blue-500/10 text-blue-500 border-blue-500/30';
+  const feedGoodsTypeOptions = Array.from(new Set(MOCK_LOADS.map((load) => load.goodsType))).map((value) => ({
+    id: value,
+    label: value,
+    toneClass: getGoodsChipTone(value),
+  }));
+  const feedPaymentTermOptions = Array.from(new Set(MOCK_LOADS.map((load) => load.paymentTerms))).map((value) => ({
+    id: value,
+    label: value,
+    toneClass: getPaymentChipTone(value),
+  }));
   const feedServiceItems: ServiceItem[] = [
     {
       key: 'place_of_loading',
@@ -2444,6 +2531,14 @@ export default function App() {
       place_of_discharge: false,
     });
     clearFeedLocations();
+    setFeedSelectedPriceMin(feedRangeBounds.priceMin);
+    setFeedSelectedPriceMax(feedRangeBounds.priceMax);
+    setFeedSelectedWeightMin(feedRangeBounds.weightMin);
+    setFeedSelectedWeightMax(feedRangeBounds.weightMax);
+    setFeedSelectedTransitMin(feedRangeBounds.transitMin);
+    setFeedSelectedTransitMax(feedRangeBounds.transitMax);
+    setSelectedFeedGoodsTypes([]);
+    setSelectedFeedPaymentTerms([]);
   };
   const shouldShowFeedFiltersInMainSidebar = view === 'feed' && isMainFilterSidebarOpen;
 
@@ -2520,6 +2615,55 @@ export default function App() {
                 onClear={clearFeedFilters}
                 onClose={() => setIsMainFilterSidebarOpen(false)}
                 embeddedInSidebar
+                priceRange={{
+                  min: feedRangeBounds.priceMin,
+                  max: feedRangeBounds.priceMax,
+                  selectedMin: feedSelectedPriceMin,
+                  selectedMax: feedSelectedPriceMax,
+                  onChange: (nextMin, nextMax) => {
+                    setFeedSelectedPriceMin(nextMin);
+                    setFeedSelectedPriceMax(nextMax);
+                  },
+                  prefix: 'EUR ',
+                  allowManualInput: true,
+                }}
+                weightRange={{
+                  min: feedRangeBounds.weightMin,
+                  max: feedRangeBounds.weightMax,
+                  selectedMin: feedSelectedWeightMin,
+                  selectedMax: feedSelectedWeightMax,
+                  onChange: (nextMin, nextMax) => {
+                    setFeedSelectedWeightMin(nextMin);
+                    setFeedSelectedWeightMax(nextMax);
+                  },
+                  suffix: ' kg',
+                  step: 100,
+                }}
+                transitRange={{
+                  min: feedRangeBounds.transitMin,
+                  max: feedRangeBounds.transitMax,
+                  selectedMin: feedSelectedTransitMin,
+                  selectedMax: feedSelectedTransitMax,
+                  onChange: (nextMin, nextMax) => {
+                    setFeedSelectedTransitMin(nextMin);
+                    setFeedSelectedTransitMax(nextMax);
+                  },
+                  suffix: ` ${lang === 'bs' ? 'dana' : lang === 'de' ? 'Tage' : 'days'}`,
+                }}
+                goodsTypeOptions={feedGoodsTypeOptions}
+                paymentTermOptions={feedPaymentTermOptions}
+                selectedGoodsTypeIds={selectedFeedGoodsTypes}
+                selectedPaymentTermIds={selectedFeedPaymentTerms}
+                onToggleGoodsType={(id) => {
+                  setSelectedFeedGoodsTypes((prev) =>
+                    prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+                  );
+                }}
+                onTogglePaymentTerm={(id) => {
+                  setSelectedFeedPaymentTerms((prev) =>
+                    prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+                  );
+                }}
               />
             </motion.div>
           ) : (
@@ -2720,6 +2864,14 @@ export default function App() {
                     lang={lang}
                     startLocation={feedStartLocation}
                     endLocation={feedEndLocation}
+                    minPriceFilter={feedSelectedPriceMin}
+                    maxPriceFilter={feedSelectedPriceMax}
+                    minWeightFilter={feedSelectedWeightMin}
+                    maxWeightFilter={feedSelectedWeightMax}
+                    minTransitDaysFilter={feedSelectedTransitMin}
+                    maxTransitDaysFilter={feedSelectedTransitMax}
+                    selectedGoodsTypes={selectedFeedGoodsTypes}
+                    selectedPaymentTerms={selectedFeedPaymentTerms}
                     isFilterSidebarOpen={shouldShowFeedFiltersInMainSidebar}
                     onToggleFilterSidebar={() => {
                       setIsSidebarOpen(true);
