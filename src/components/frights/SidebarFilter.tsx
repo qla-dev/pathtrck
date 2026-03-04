@@ -247,7 +247,7 @@ const WeightRangeControl = ({ config, lang }: { config: RangeFilterConfig; lang:
                 if (!Number.isFinite(nextValue)) return;
                 setMin(nextValue);
               }}
-              className="w-full rounded-md bg-slate-50 dark:bg-slate-950 px-2 py-1 text-xs text-slate-600 dark:text-slate-300 outline-none focus:ring-1 focus:ring-primary/30 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-2 py-1 text-xs text-slate-600 dark:text-slate-300 outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
             <button
               type="button"
@@ -284,7 +284,7 @@ const WeightRangeControl = ({ config, lang }: { config: RangeFilterConfig; lang:
                 if (!Number.isFinite(nextValue)) return;
                 setMax(nextValue);
               }}
-              className="w-full rounded-md bg-slate-50 dark:bg-slate-950 px-2 py-1 text-xs text-slate-600 dark:text-slate-300 outline-none focus:ring-1 focus:ring-primary/30 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-2 py-1 text-xs text-slate-600 dark:text-slate-300 outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
             <button
               type="button"
@@ -472,28 +472,23 @@ export const SidebarFilter = ({
           ))}
         </datalist>
       </div>
-      <p className="mt-2 text-[11px] text-slate-400">
-        {isGooglePlacesReady
-          ? tr(
-              lang,
-              'Google Places city prefill is active.',
-              'Google Places predfilter gradova je aktivan.',
-              'Google-Places-Stadtvorschlaege sind aktiv.'
-            )
-          : hasGooglePlacesKey
+      {(isGooglePlacesReady || hasGooglePlacesKey) && (
+        <p className="mt-2 text-[11px] text-slate-400">
+          {isGooglePlacesReady
             ? tr(
+                lang,
+                'Google Places city prefill is active.',
+                'Google Places predfilter gradova je aktivan.',
+                'Google-Places-Stadtvorschlaege sind aktiv.'
+              )
+            : tr(
                 lang,
                 'Loading Google Places prefill...',
                 'Ucitam Google Places predfilter...',
                 'Google-Places-Vorschlaege werden geladen...'
-              )
-            : tr(
-                lang,
-                'Set VITE_GOOGLE_PLACES_API_KEY to enable Google city prefill.',
-                'Postavite VITE_GOOGLE_PLACES_API_KEY za Google predfilter gradova.',
-                'Setzen Sie VITE_GOOGLE_PLACES_API_KEY fuer Google-Stadtvorschlaege.'
               )}
-      </p>
+        </p>
+      )}
     </div>
 
     {(goodsTypeOptions.length > 0 || paymentTermOptions.length > 0) && (
@@ -530,7 +525,7 @@ export const SidebarFilter = ({
 
         {paymentTermOptions.length > 0 && (
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 pt-2">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 pt-3">
               {tr(lang, 'Payment terms', 'Uslovi placanja', 'Zahlungsbedingungen')}
             </p>
             <div className="space-y-2">
