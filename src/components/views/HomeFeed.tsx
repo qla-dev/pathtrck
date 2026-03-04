@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import L from 'leaflet';
-import { Filter, Plus, List, LayoutGrid, Map as MapIcon, Layers } from 'lucide-react';
+import { Filter, Plus, List, LayoutGrid, Map as MapIcon, Layers, RotateCcw } from 'lucide-react';
 import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 
 import { ui } from '../../i18n';
@@ -104,7 +104,9 @@ type HomeFeedProps = {
   selectedGoodsTypes?: string[];
   selectedPaymentTerms?: string[];
   isFilterSidebarOpen?: boolean;
+  hasActiveFilters?: boolean;
   onToggleFilterSidebar?: () => void;
+  onResetFilters?: () => void;
 };
 
 export const HomeFeed = ({
@@ -120,12 +122,15 @@ export const HomeFeed = ({
   selectedGoodsTypes = [],
   selectedPaymentTerms = [],
   isFilterSidebarOpen = false,
+  hasActiveFilters = false,
   onToggleFilterSidebar,
+  onResetFilters,
 }: HomeFeedProps) => {
   const [layout, setLayout] = useState<FeedLayoutMode>('map');
   const [mapSource, setMapSource] = useState<MapSource>('normal');
   const [selectedLoad, setSelectedLoad] = useState<Load | null>(null);
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  const bookLoadLabel = u('common.bookLoad', lang === 'bs' ? 'Rezervisi teret' : lang === 'de' ? 'Ladung buchen' : 'Book Load');
 
   const filteredLoads = useMemo(() => {
     const startFilter = startLocation.trim().toLowerCase();
@@ -201,6 +206,11 @@ export const HomeFeed = ({
           <Button size="sm">
             <Plus className="w-4 h-4 mr-2" /> {u('common.postLoad', 'Post Load')}
           </Button>
+          {hasActiveFilters && (
+            <Button variant="outline" size="sm" onClick={onResetFilters}>
+              <RotateCcw className="w-4 h-4 mr-2" /> {u('common.resetFilters', 'Reset Filters')}
+            </Button>
+          )}
         </div>
         <div className="inline-flex items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1 self-start md:self-auto">
           {layoutButtons.map((button) => (
@@ -230,7 +240,7 @@ export const HomeFeed = ({
               layout="list"
               load={load}
               onOpenDetails={setSelectedLoad}
-              viewDetailsLabel={u('common.viewDetails', 'View Details')}
+              viewDetailsLabel={bookLoadLabel}
             />
           ))}
         </div>
@@ -244,7 +254,7 @@ export const HomeFeed = ({
               layout="grid"
               load={load}
               onOpenDetails={setSelectedLoad}
-              viewDetailsLabel={u('common.viewDetails', 'View Details')}
+              viewDetailsLabel={bookLoadLabel}
             />
           ))}
         </div>
@@ -259,7 +269,7 @@ export const HomeFeed = ({
                 layout="map"
                 load={load}
                 onOpenDetails={setSelectedLoad}
-                viewDetailsLabel={u('common.viewDetails', 'View Details')}
+                viewDetailsLabel={bookLoadLabel}
               />
             ))}
           </div>

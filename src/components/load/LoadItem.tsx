@@ -1,4 +1,4 @@
-import { ArrowRight, ChevronRight, Truck } from 'lucide-react';
+import { ArrowRight, ChevronRight, Scale, Truck } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
 import { Load } from '../../types';
@@ -27,7 +27,7 @@ export const LoadItem = ({
   onOpenDetails,
   onOpenSetup,
 }: LoadItemProps) => {
-  const isGrid = layout === 'grid';
+  const isMap = layout === 'map';
   const sourceLine = hideSource
     ? `${load.cargoType} - ${load.weight} kg - ${load.date}`
     : `${load.author} - ${load.date}`;
@@ -65,12 +65,7 @@ export const LoadItem = ({
         hideSource && '[&>div:last-child]:p-4'
       )}
     >
-      <div
-        className={cn(
-          'flex justify-between gap-6',
-          isGrid ? 'flex-col' : 'flex-col md:flex-row md:items-center'
-        )}
-      >
+      <div className="flex items-start justify-between gap-4">
         <div className="flex gap-4 min-w-0">
           <div className="w-12 h-12 shrink-0 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center group-hover:bg-primary/10 transition-colors">
             <Truck className="text-slate-500 group-hover:text-primary transition-colors" />
@@ -80,26 +75,19 @@ export const LoadItem = ({
             <p className="text-sm text-slate-500 truncate">
               {sourceLine}
             </p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <span className={cn('px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider', goodsTone)}>
-                {load.goodsType}
-              </span>
-              <span className={cn('px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider', paymentTone)}>
-                {load.paymentTerms}
-              </span>
-            </div>
           </div>
         </div>
 
-        <div className="ml-auto flex items-center gap-4 shrink-0 whitespace-nowrap">
-          {!hideSource && (
-            <div className="px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-bold dark:text-slate-300 whitespace-nowrap">
-              {load.weight}
-            </div>
-          )}
+        <div className="ml-auto shrink-0 whitespace-nowrap flex flex-col items-end gap-2">
           <div className="text-xl font-black text-primary whitespace-nowrap text-right">
             {load.price}
           </div>
+          {!hideSource && (
+            <div className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/90 px-2.5 py-1 text-[11px] font-bold text-slate-600 dark:text-slate-200 shadow-sm">
+              <Scale className="w-3.5 h-3.5 text-primary" />
+              <span>{load.weight} kg</span>
+            </div>
+          )}
           {hideSource && (
             <span
               className={cn(
@@ -117,30 +105,59 @@ export const LoadItem = ({
         </div>
       </div>
 
+      <div
+        className={cn(
+          'mt-3 flex items-center gap-2',
+          isMap ? 'flex-nowrap overflow-x-auto' : 'flex-wrap'
+        )}
+      >
+        <span
+          className={cn(
+            'shrink-0 px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider',
+            goodsTone
+          )}
+        >
+          {load.goodsType}
+        </span>
+        <span
+          className={cn(
+            'shrink-0 px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider',
+            paymentTone
+          )}
+        >
+          {load.paymentTerms}
+        </span>
+      </div>
+
       {!hideSource && (
-        <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800 flex items-center gap-8">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span className="text-sm font-medium dark:text-slate-300">{load.pickup}</span>
+        <>
+          <div className="mt-6 -mx-6 w-[calc(100%+3rem)] border-t border-slate-100 dark:border-slate-800" />
+          <div className="pt-6 flex items-center gap-8">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="text-sm font-medium dark:text-slate-300">{load.pickup}</span>
+            </div>
+            <ArrowRight className="w-4 h-4 text-slate-300" />
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-blue-500" />
+              <span className="text-sm font-medium dark:text-slate-300">{load.delivery}</span>
+            </div>
+            <div className="ml-auto">
+              <Button
+                size="md"
+                variant="primary"
+                className="h-11 min-w-[128px] px-5 font-semibold whitespace-nowrap flex-nowrap"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleCardClick();
+                }}
+              >
+                {viewDetailsLabel}
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            </div>
           </div>
-          <ArrowRight className="w-4 h-4 text-slate-300" />
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-blue-500" />
-            <span className="text-sm font-medium dark:text-slate-300">{load.delivery}</span>
-          </div>
-          <div className="ml-auto">
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={(event) => {
-                event.stopPropagation();
-                handleCardClick();
-              }}
-            >
-              {viewDetailsLabel} <ChevronRight className="w-4 h-4 ml-1" />
-            </Button>
-          </div>
-        </div>
+        </>
       )}
     </Card>
   );

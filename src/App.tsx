@@ -2320,6 +2320,14 @@ const FEED_LOAD_CITY_COORDINATES: Record<string, [number, number]> = {
   'Banja Luka, BA': [44.7722, 17.191],
 };
 
+const FEED_DEFAULT_SERVICE_FILTERS: ServiceFilters = {
+  place_of_loading: true,
+  port_of_origin: true,
+  ocean_freight: true,
+  port_of_discharge: true,
+  place_of_discharge: false,
+};
+
 const getFeedLoadCoord = (place: string): [number, number] => {
   if (FEED_LOAD_CITY_COORDINATES[place]) return FEED_LOAD_CITY_COORDINATES[place];
   const city = place.split(',')[0]?.trim() || '';
@@ -2362,13 +2370,9 @@ export default function App() {
   const [isDark, setIsDark] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMainFilterSidebarOpen, setIsMainFilterSidebarOpen] = useState(false);
-  const [feedServiceFilters, setFeedServiceFilters] = useState<ServiceFilters>({
-    place_of_loading: true,
-    port_of_origin: true,
-    ocean_freight: true,
-    port_of_discharge: true,
-    place_of_discharge: false,
-  });
+  const [feedServiceFilters, setFeedServiceFilters] = useState<ServiceFilters>(() => ({
+    ...FEED_DEFAULT_SERVICE_FILTERS,
+  }));
   const feedRangeBounds = useMemo(() => {
     const prices = MOCK_LOADS.map((load) => parseLoadPriceValue(load.price));
     const weights = MOCK_LOADS.map((load) => parseLoadWeightValue(load.weight));
@@ -2523,13 +2527,7 @@ export default function App() {
   ];
 
   const clearFeedFilters = () => {
-    setFeedServiceFilters({
-      place_of_loading: true,
-      port_of_origin: true,
-      ocean_freight: true,
-      port_of_discharge: true,
-      place_of_discharge: false,
-    });
+    setFeedServiceFilters({ ...FEED_DEFAULT_SERVICE_FILTERS });
     clearFeedLocations();
     setFeedSelectedPriceMin(feedRangeBounds.priceMin);
     setFeedSelectedPriceMax(feedRangeBounds.priceMax);
@@ -2539,6 +2537,25 @@ export default function App() {
     setFeedSelectedTransitMax(feedRangeBounds.transitMax);
     setSelectedFeedGoodsTypes([]);
     setSelectedFeedPaymentTerms([]);
+  };
+  const hasCustomFeedServiceFilters = (
+    Object.keys(FEED_DEFAULT_SERVICE_FILTERS) as Array<keyof ServiceFilters>
+  ).some((key) => feedServiceFilters[key] !== FEED_DEFAULT_SERVICE_FILTERS[key]);
+  const hasActiveFeedFilters =
+    feedStartLocation.trim().length > 0 ||
+    feedEndLocation.trim().length > 0 ||
+    feedSelectedPriceMin !== feedRangeBounds.priceMin ||
+    feedSelectedPriceMax !== feedRangeBounds.priceMax ||
+    feedSelectedWeightMin !== feedRangeBounds.weightMin ||
+    feedSelectedWeightMax !== feedRangeBounds.weightMax ||
+    feedSelectedTransitMin !== feedRangeBounds.transitMin ||
+    feedSelectedTransitMax !== feedRangeBounds.transitMax ||
+    selectedFeedGoodsTypes.length > 0 ||
+    selectedFeedPaymentTerms.length > 0 ||
+    hasCustomFeedServiceFilters;
+  const handleResetFeedFilters = () => {
+    clearFeedFilters();
+    setIsMainFilterSidebarOpen(false);
   };
   const shouldShowFeedFiltersInMainSidebar = view === 'feed' && isMainFilterSidebarOpen;
 
@@ -2873,10 +2890,12 @@ export default function App() {
                     selectedGoodsTypes={selectedFeedGoodsTypes}
                     selectedPaymentTerms={selectedFeedPaymentTerms}
                     isFilterSidebarOpen={shouldShowFeedFiltersInMainSidebar}
+                    hasActiveFilters={hasActiveFeedFilters}
                     onToggleFilterSidebar={() => {
                       setIsSidebarOpen(true);
                       setIsMainFilterSidebarOpen((prev) => !prev);
                     }}
+                    onResetFilters={handleResetFeedFilters}
                   />
                 )}
 	              {view === 'frights' && <FrightsView lang={lang} />}
