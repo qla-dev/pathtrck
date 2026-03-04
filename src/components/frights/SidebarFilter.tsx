@@ -1,4 +1,4 @@
-import { Check, Filter, MapPin } from 'lucide-react';
+import { Check, Filter, MapPin, RotateCcw } from 'lucide-react';
 
 import { Language } from '../../types';
 import { cn } from '../../lib/cn';
@@ -404,25 +404,14 @@ export const SidebarFilter = ({
       <div className="inline-flex items-center gap-2">
         <button
           onClick={() => {
-            if (onClose) {
-              onClose();
-              return;
-            }
             onClear();
+            onClose?.();
           }}
-          className="text-xs font-semibold text-slate-400 hover:text-primary transition-colors cursor-pointer"
+          className="inline-flex items-center gap-2 h-8 px-3 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-200 hover:text-primary hover:border-primary/40 transition-all cursor-pointer"
         >
-          {tr(lang, 'Close', 'Zatvori', 'Schliessen')}
+          <RotateCcw className="w-3.5 h-3.5" />
+          {tr(lang, 'Reset filters', 'Resetuj filtere', 'Filter zuruecksetzen')}
         </button>
-        {onClose && (
-          <button
-            onClick={onClose}
-            aria-label={tr(lang, 'Close filters', 'Zatvori filtere', 'Filter schliessen')}
-            className="h-7 w-7 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-primary transition-colors flex items-center justify-center cursor-pointer"
-          >
-            X
-          </button>
-        )}
       </div>
     </div>
 

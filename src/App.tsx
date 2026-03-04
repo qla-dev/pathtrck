@@ -2538,25 +2538,6 @@ export default function App() {
     setSelectedFeedGoodsTypes([]);
     setSelectedFeedPaymentTerms([]);
   };
-  const hasCustomFeedServiceFilters = (
-    Object.keys(FEED_DEFAULT_SERVICE_FILTERS) as Array<keyof ServiceFilters>
-  ).some((key) => feedServiceFilters[key] !== FEED_DEFAULT_SERVICE_FILTERS[key]);
-  const hasActiveFeedFilters =
-    feedStartLocation.trim().length > 0 ||
-    feedEndLocation.trim().length > 0 ||
-    feedSelectedPriceMin !== feedRangeBounds.priceMin ||
-    feedSelectedPriceMax !== feedRangeBounds.priceMax ||
-    feedSelectedWeightMin !== feedRangeBounds.weightMin ||
-    feedSelectedWeightMax !== feedRangeBounds.weightMax ||
-    feedSelectedTransitMin !== feedRangeBounds.transitMin ||
-    feedSelectedTransitMax !== feedRangeBounds.transitMax ||
-    selectedFeedGoodsTypes.length > 0 ||
-    selectedFeedPaymentTerms.length > 0 ||
-    hasCustomFeedServiceFilters;
-  const handleResetFeedFilters = () => {
-    clearFeedFilters();
-    setIsMainFilterSidebarOpen(false);
-  };
   const shouldShowFeedFiltersInMainSidebar = view === 'feed' && isMainFilterSidebarOpen;
 
   const navItems = [
@@ -2890,12 +2871,10 @@ export default function App() {
                     selectedGoodsTypes={selectedFeedGoodsTypes}
                     selectedPaymentTerms={selectedFeedPaymentTerms}
                     isFilterSidebarOpen={shouldShowFeedFiltersInMainSidebar}
-                    hasActiveFilters={hasActiveFeedFilters}
                     onToggleFilterSidebar={() => {
                       setIsSidebarOpen(true);
                       setIsMainFilterSidebarOpen((prev) => !prev);
                     }}
-                    onResetFilters={handleResetFeedFilters}
                   />
                 )}
 	              {view === 'frights' && <FrightsView lang={lang} />}

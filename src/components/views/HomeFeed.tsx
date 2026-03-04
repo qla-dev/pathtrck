@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import L from 'leaflet';
-import { Filter, Plus, List, LayoutGrid, Map as MapIcon, Layers, RotateCcw } from 'lucide-react';
+import { Filter, Plus, List, LayoutGrid, Map as MapIcon, Layers } from 'lucide-react';
 import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 
 import { ui } from '../../i18n';
@@ -104,9 +104,7 @@ type HomeFeedProps = {
   selectedGoodsTypes?: string[];
   selectedPaymentTerms?: string[];
   isFilterSidebarOpen?: boolean;
-  hasActiveFilters?: boolean;
   onToggleFilterSidebar?: () => void;
-  onResetFilters?: () => void;
 };
 
 export const HomeFeed = ({
@@ -122,9 +120,7 @@ export const HomeFeed = ({
   selectedGoodsTypes = [],
   selectedPaymentTerms = [],
   isFilterSidebarOpen = false,
-  hasActiveFilters = false,
   onToggleFilterSidebar,
-  onResetFilters,
 }: HomeFeedProps) => {
   const [layout, setLayout] = useState<FeedLayoutMode>('map');
   const [mapSource, setMapSource] = useState<MapSource>('normal');
@@ -206,11 +202,6 @@ export const HomeFeed = ({
           <Button size="sm">
             <Plus className="w-4 h-4 mr-2" /> {u('common.postLoad', 'Post Load')}
           </Button>
-          {hasActiveFilters && (
-            <Button variant="outline" size="sm" onClick={onResetFilters}>
-              <RotateCcw className="w-4 h-4 mr-2" /> {u('common.resetFilters', 'Reset Filters')}
-            </Button>
-          )}
         </div>
         <div className="inline-flex items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1 self-start md:self-auto">
           {layoutButtons.map((button) => (
@@ -262,7 +253,7 @@ export const HomeFeed = ({
 
       {layout === 'map' && (
         <div className="grid lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-5 space-y-4 max-h-[72vh] overflow-y-auto pr-1">
+          <div className="lg:col-span-5 space-y-4 max-h-[78vh] overflow-y-auto pr-1">
             {filteredLoads.map((load) => (
               <LoadItem
                 key={load.id}
@@ -274,7 +265,7 @@ export const HomeFeed = ({
             ))}
           </div>
           <div className="lg:col-span-7 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
-            <div className="h-[72vh] relative">
+            <div className="h-[78vh] relative">
               <MapContainer key={`loads-map-${layout}`} center={[48.5, 14.8]} zoom={5} className="h-full w-full">
                 <TileLayer
                   url={MAP_SOURCE_CONFIG[mapSource].url}
