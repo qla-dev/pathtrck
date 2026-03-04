@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import L from 'leaflet';
-import { Filter, Plus, List, LayoutGrid, Map as MapIcon, Layers } from 'lucide-react';
+import { ArrowDownWideNarrow, Filter, Plus, List, LayoutGrid, Map as MapIcon, Layers } from 'lucide-react';
 import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 
 import { ui } from '../../i18n';
@@ -13,6 +13,7 @@ import { Button } from '../ui/Button';
 
 type FeedLayoutMode = 'list' | 'grid' | 'map';
 type MapSource = 'normal' | 'vector' | 'imagery';
+type FeedSortMode = 'price_desc' | 'price_asc' | 'date_desc' | 'date_asc';
 
 type LoadMapData = {
   load: Load;
@@ -27,6 +28,14 @@ const CITY_COORDINATES: Record<string, [number, number]> = {
   'Berlin, DE': [52.52, 13.405],
   'Sarajevo, BA': [43.8563, 18.4131],
   'Banja Luka, BA': [44.7722, 17.191],
+  'Shanghai, CN': [31.2304, 121.4737],
+  'Odesa, UA': [46.4825, 30.7233],
+  'Ningbo, CN': [29.8683, 121.544],
+  'Hamburg, DE': [53.5511, 9.9937],
+  'Shenzhen, CN': [22.5431, 114.0579],
+  'Rotterdam, NL': [51.9244, 4.4777],
+  'Qingdao, CN': [36.0671, 120.3826],
+  'Gdansk, PL': [54.352, 18.6466],
 };
 
 const MAP_SOURCE_CONFIG: Record<MapSource, { url: string; attribution: string; subdomains?: string[] }> = {
@@ -65,6 +74,11 @@ const parseLoadWeightValue = (weight: string) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const parseLoadDateValue = (date: string) => {
+  const parsed = Date.parse(date);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
 const estimateLoadTransitDays = (pickup: string, delivery: string) => {
   const [lat1, lon1] = getPlaceCoord(pickup);
   const [lat2, lon2] = getPlaceCoord(delivery);
@@ -93,6 +107,9 @@ const LoadsBounds = ({ points }: { points: [number, number][] }) => {
 
 type HomeFeedProps = {
   lang: Language;
+  dataMode?: 'all' | 'organic' | 'global';
+  loads?: Load[];
+  sortMode?: FeedSortMode;
   startLocation?: string;
   endLocation?: string;
   minPriceFilter?: number;
@@ -104,11 +121,16 @@ type HomeFeedProps = {
   selectedGoodsTypes?: string[];
   selectedPaymentTerms?: string[];
   isFilterSidebarOpen?: boolean;
+  isSortSidebarOpen?: boolean;
   onToggleFilterSidebar?: () => void;
+  onToggleSortSidebar?: () => void;
 };
 
 export const HomeFeed = ({
   lang,
+  dataMode = 'all',
+  loads = MOCK_LOADS,
+  sortMode = 'price_asc',
   startLocation = '',
   endLocation = '',
   minPriceFilter = Number.NEGATIVE_INFINITY,
@@ -120,19 +142,27 @@ export const HomeFeed = ({
   selectedGoodsTypes = [],
   selectedPaymentTerms = [],
   isFilterSidebarOpen = false,
+  isSortSidebarOpen = false,
   onToggleFilterSidebar,
+  onToggleSortSidebar,
 }: HomeFeedProps) => {
   const [layout, setLayout] = useState<FeedLayoutMode>('map');
   const [mapSource, setMapSource] = useState<MapSource>('normal');
   const [selectedLoad, setSelectedLoad] = useState<Load | null>(null);
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const bookLoadLabel = u('common.bookLoad', lang === 'bs' ? 'Rezervisi teret' : lang === 'de' ? 'Ladung buchen' : 'Book Load');
+  const loadsTitle =
+    dataMode === 'all'
+      ? u('home.loadsTitle.all', 'All Organic and Global Loads')
+      : dataMode === 'organic'
+        ? u('home.loadsTitle.organic', 'All Organic Available Loads')
+        : u('home.loadsTitle.global', 'All Global Available Loads');
 
   const filteredLoads = useMemo(() => {
     const startFilter = startLocation.trim().toLowerCase();
     const endFilter = endLocation.trim().toLowerCase();
 
-    return MOCK_LOADS.filter((load) => {
+    return loads.filter((load) => {
       const pickup = load.pickup.toLowerCase();
       const delivery = load.delivery.toLowerCase();
       const priceValue = parseLoadPriceValue(load.price);
@@ -148,6 +178,7 @@ export const HomeFeed = ({
       return startMatch && endMatch && priceMatch && weightMatch && transitMatch && goodsMatch && paymentMatch;
     });
   }, [
+    loads,
     startLocation,
     endLocation,
     minPriceFilter,
@@ -160,14 +191,32 @@ export const HomeFeed = ({
     selectedPaymentTerms,
   ]);
 
+  const sortedLoads = useMemo(() => {
+    const items = [...filteredLoads];
+    if (sortMode === 'price_desc') {
+      items.sort((a, b) => parseLoadPriceValue(b.price) - parseLoadPriceValue(a.price));
+      return items;
+    }
+    if (sortMode === 'price_asc') {
+      items.sort((a, b) => parseLoadPriceValue(a.price) - parseLoadPriceValue(b.price));
+      return items;
+    }
+    if (sortMode === 'date_desc') {
+      items.sort((a, b) => parseLoadDateValue(b.date) - parseLoadDateValue(a.date));
+      return items;
+    }
+    items.sort((a, b) => parseLoadDateValue(a.date) - parseLoadDateValue(b.date));
+    return items;
+  }, [filteredLoads, sortMode]);
+
   const loadsMapData = useMemo<LoadMapData[]>(
     () =>
-      filteredLoads.map((load) => ({
+      sortedLoads.map((load) => ({
         load,
         pickupCoord: getPlaceCoord(load.pickup),
         deliveryCoord: getPlaceCoord(load.delivery),
       })),
-    [filteredLoads]
+    [sortedLoads]
   );
 
   const allPoints = useMemo<[number, number][]>(
@@ -191,13 +240,20 @@ export const HomeFeed = ({
     <div className="max-w-7xl mx-auto space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-bold dark:text-white mr-2">{u('home.availableLoads', 'Available Loads')}</h1>
+          <h1 className="text-2xl font-bold dark:text-white mr-2">{loadsTitle}</h1>
           <Button
             variant={isFilterSidebarOpen ? 'primary' : 'outline'}
             size="sm"
             onClick={onToggleFilterSidebar}
           >
             <Filter className="w-4 h-4 mr-2" /> {u('common.filter', 'Filter')}
+          </Button>
+          <Button
+            variant={isSortSidebarOpen ? 'primary' : 'outline'}
+            size="sm"
+            onClick={onToggleSortSidebar}
+          >
+            <ArrowDownWideNarrow className="w-4 h-4 mr-2" /> {u('common.sort', 'Sort')}
           </Button>
           <Button size="sm">
             <Plus className="w-4 h-4 mr-2" /> {u('common.postLoad', 'Post Load')}
@@ -225,11 +281,12 @@ export const HomeFeed = ({
 
       {layout === 'list' && (
         <div className="space-y-4">
-          {filteredLoads.map((load) => (
+          {sortedLoads.map((load) => (
             <LoadItem
               key={load.id}
               layout="list"
               load={load}
+              lang={lang}
               onOpenDetails={setSelectedLoad}
               viewDetailsLabel={bookLoadLabel}
             />
@@ -239,11 +296,12 @@ export const HomeFeed = ({
 
       {layout === 'grid' && (
         <div className="grid md:grid-cols-2 gap-4">
-          {filteredLoads.map((load) => (
+          {sortedLoads.map((load) => (
             <LoadItem
               key={load.id}
               layout="grid"
               load={load}
+              lang={lang}
               onOpenDetails={setSelectedLoad}
               viewDetailsLabel={bookLoadLabel}
             />
@@ -254,11 +312,12 @@ export const HomeFeed = ({
       {layout === 'map' && (
         <div className="grid lg:grid-cols-12 gap-6">
           <div className="lg:col-span-5 space-y-4 max-h-[78vh] overflow-y-auto pr-1">
-            {filteredLoads.map((load) => (
+            {sortedLoads.map((load) => (
               <LoadItem
                 key={load.id}
                 layout="map"
                 load={load}
+                lang={lang}
                 onOpenDetails={setSelectedLoad}
                 viewDetailsLabel={bookLoadLabel}
               />

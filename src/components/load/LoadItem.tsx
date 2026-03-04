@@ -1,7 +1,8 @@
 import { ArrowRight, ChevronRight, Scale, Truck } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
-import { Load } from '../../types';
+import { trGoodsType, trPaymentTerms } from '../../i18n';
+import { Language, Load } from '../../types';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 
@@ -11,6 +12,7 @@ type LoadItemProps = {
   key?: string;
   layout: LoadItemLayout;
   load: Load;
+  lang?: Language;
   viewDetailsLabel: string;
   hideSource?: boolean;
   statusLabel?: string;
@@ -21,6 +23,7 @@ type LoadItemProps = {
 export const LoadItem = ({
   layout,
   load,
+  lang = 'en',
   viewDetailsLabel,
   hideSource = false,
   statusLabel,
@@ -117,7 +120,7 @@ export const LoadItem = ({
             goodsTone
           )}
         >
-          {load.goodsType}
+          {trGoodsType(lang, load.goodsType)}
         </span>
         <span
           className={cn(
@@ -125,7 +128,7 @@ export const LoadItem = ({
             paymentTone
           )}
         >
-          {load.paymentTerms}
+          {trPaymentTerms(lang, load.paymentTerms)}
         </span>
       </div>
 

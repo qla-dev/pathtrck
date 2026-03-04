@@ -1,4 +1,4 @@
-import { Check, Filter, MapPin, RotateCcw } from 'lucide-react';
+import { Boxes, Check, Filter, Globe, Layers, MapPin, RotateCcw } from 'lucide-react';
 
 import { Language } from '../../types';
 import { cn } from '../../lib/cn';
@@ -28,6 +28,11 @@ type ChipFilterOption = {
   toneClass: string;
 };
 
+type ModeTab = {
+  id: string;
+  label: string;
+};
+
 type SidebarFilterProps = {
   lang: Language;
   serviceItems: ServiceItem[];
@@ -36,8 +41,8 @@ type SidebarFilterProps = {
   endLocation: string;
   startSuggestions: string[];
   endSuggestions: string[];
-  isGooglePlacesReady: boolean;
-  hasGooglePlacesKey: boolean;
+  isCityApiReady: boolean;
+  hasCityApiKey: boolean;
   onStartLocationChange: (value: string) => void;
   onEndLocationChange: (value: string) => void;
   onServiceFilterChange: (key: keyof ServiceFilters, value: boolean) => void;
@@ -53,6 +58,9 @@ type SidebarFilterProps = {
   selectedPaymentTermIds?: string[];
   onToggleGoodsType?: (id: string) => void;
   onTogglePaymentTerm?: (id: string) => void;
+  modeTabs?: ModeTab[];
+  activeModeTabId?: string;
+  onModeTabChange?: (id: string) => void;
 };
 
 const formatRangeValue = (value: number, config: RangeFilterConfig) =>
@@ -370,8 +378,8 @@ export const SidebarFilter = ({
   endLocation,
   startSuggestions,
   endSuggestions,
-  isGooglePlacesReady,
-  hasGooglePlacesKey,
+  isCityApiReady,
+  hasCityApiKey,
   onStartLocationChange,
   onEndLocationChange,
   onServiceFilterChange,
@@ -387,6 +395,9 @@ export const SidebarFilter = ({
   selectedPaymentTermIds = [],
   onToggleGoodsType,
   onTogglePaymentTerm,
+  modeTabs = [],
+  activeModeTabId,
+  onModeTabChange,
 }: SidebarFilterProps) => (
   <aside
     className={cn(
@@ -396,7 +407,13 @@ export const SidebarFilter = ({
         : 'rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 h-fit'
     )}
   >
-    <div className="flex items-center justify-between">
+    <div
+      className={cn(
+        'flex items-center justify-between',
+        embeddedInSidebar &&
+          'sticky top-0 z-20 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm py-1'
+      )}
+    >
       <div className="inline-flex items-center gap-2 text-sm font-bold dark:text-white">
         <Filter className="w-4 h-4 text-primary" />
         {tr(lang, 'Filters', 'Filteri', 'Filter')}
@@ -415,13 +432,38 @@ export const SidebarFilter = ({
       </div>
     </div>
 
+    {modeTabs.length > 0 && activeModeTabId && onModeTabChange && (
+      <div
+        className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl overflow-x-auto overflow-y-hidden [scrollbar-width:thin] [scrollbar-color:rgb(148_163_184_/_0.72)_transparent] dark:[scrollbar-color:rgb(71_85_105_/_0.8)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-400/70 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600/80 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:bg-slate-500/90 dark:[&::-webkit-scrollbar-thumb:hover]:bg-slate-500/95"
+      >
+        {modeTabs.map((tab) => {
+          const isActive = activeModeTabId === tab.id;
+          const TabIcon = tab.id === 'all' ? Layers : tab.id === 'global' ? Globe : Boxes;
+
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => onModeTabChange(tab.id)}
+              className={cn(
+                'shrink-0 px-4 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer inline-flex items-center justify-center gap-1.5',
+                isActive
+                  ? 'bg-white dark:bg-slate-700 text-primary shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+              )}
+            >
+              <TabIcon className="w-3.5 h-3.5" />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+    )}
+
     <div>
-      <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
-        {tr(lang, 'Route', 'Ruta', 'Route')}
-      </p>
       <div className="space-y-2">
         <label className="block">
-          <span className="text-[11px] font-semibold text-slate-500 mb-1 block">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1 block">
             {tr(lang, 'Start city', 'Grad polaska', 'Startstadt')}
           </span>
           <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3 py-2 flex items-center gap-2 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/30 transition-colors">
@@ -436,7 +478,7 @@ export const SidebarFilter = ({
           </div>
         </label>
         <label className="block">
-          <span className="text-[11px] font-semibold text-slate-500 mb-1 block">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1 block">
             {tr(lang, 'End city', 'Grad dolaska', 'Zielstadt')}
           </span>
           <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3 py-2 flex items-center gap-2 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/30 transition-colors">
@@ -461,20 +503,20 @@ export const SidebarFilter = ({
           ))}
         </datalist>
       </div>
-      {(isGooglePlacesReady || hasGooglePlacesKey) && (
+      {(isCityApiReady || hasCityApiKey) && (
         <p className="mt-2 text-[11px] text-slate-400">
-          {isGooglePlacesReady
+          {isCityApiReady
             ? tr(
                 lang,
-                'Google Places city prefill is active.',
-                'Google Places predfilter gradova je aktivan.',
-                'Google-Places-Stadtvorschlaege sind aktiv.'
+                'City prefill is active via API Ninjas.',
+                'Predfilter gradova je aktivan putem API Ninjas.',
+                'Stadtvorschlaege sind ueber API Ninjas aktiv.'
               )
             : tr(
                 lang,
-                'Loading Google Places prefill...',
-                'Ucitam Google Places predfilter...',
-                'Google-Places-Vorschlaege werden geladen...'
+                'City prefill API key detected.',
+                'Detektovan je API kljuc za predfilter gradova.',
+                'API-Schluessel fuer Stadtvorschlaege ist erkannt.'
               )}
         </p>
       )}
@@ -622,7 +664,12 @@ export const SidebarFilter = ({
         {tr(lang, 'Rate status', 'Status cijene', 'Tarifstatus')}
       </p>
       <div className="flex flex-wrap gap-2">
-        {['Expired', 'Indicative', 'Spot', 'Space guarantee'].map((status) => (
+        {[
+          tr(lang, 'Expired', 'Isteklo', 'Abgelaufen'),
+          tr(lang, 'Indicative', 'Indikativno', 'Indikativ'),
+          tr(lang, 'Spot', 'Spot', 'Spot'),
+          tr(lang, 'Space guarantee', 'Garancija prostora', 'Platzgarantie'),
+        ].map((status) => (
           <span
             key={status}
             className="rounded-full px-2.5 py-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500"

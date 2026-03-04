@@ -130,7 +130,7 @@ export const SettingsView = ({
             </label>
             <label className="block">
               <span className="text-xs font-semibold text-slate-500">{tr(lang, 'Email', 'Email', 'E-Mail')}</span>
-              <input className="mt-1.5 w-full h-11 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white" defaultValue="john.doe@CARGO.AI" />
+              <input className="mt-1.5 w-full h-11 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white" defaultValue="john.doe@smartfreight.ai" />
             </label>
             <label className="block">
               <span className="text-xs font-semibold text-slate-500">{tr(lang, 'Phone', 'Telefon', 'Telefon')}</span>
@@ -163,7 +163,7 @@ export const SettingsView = ({
               </>
             ) : (
               <>
-                <InfoRow label={tr(lang, 'Company', 'Kompanija', 'Firma')} value="CARGO.AI Logistics" />
+                <InfoRow label={tr(lang, 'Company', 'Kompanija', 'Firma')} value="Smartfreight.ai Logistics" />
                 <InfoRow label={tr(lang, 'VAT ID', 'PDV ID', 'USt-ID')} value="BA4492281000" />
                 <InfoRow label={tr(lang, 'Default Currency', 'Podrazumijevana valuta', 'Standardwaehrung')} value="EUR (€)" />
                 <InfoRow label={tr(lang, 'Payment Term', 'Rok placanja', 'Zahlungsziel')} value={tr(lang, '15 days', '15 dana', '15 Tage')} />

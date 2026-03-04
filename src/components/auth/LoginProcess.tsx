@@ -26,9 +26,9 @@ type LoginProcessProps = {
 export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }: LoginProcessProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [loginData, setLoginData] = useState({
-    username: '',
-    password: '',
-    role: null as Role,
+    username: 'driver_demo',
+    password: 'demo12345',
+    role: 'driver' as Role,
   });
   const [isSwitchingToSetup, setIsSwitchingToSetup] = useState(false);
 

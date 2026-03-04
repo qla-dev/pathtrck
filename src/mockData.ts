@@ -20,7 +20,7 @@ export const MOCK_PACKAGES: Package[] = [
   {
     id: '2',
     trackingNumber: 'SWIFT-9921-X',
-    carrier: 'CARGO.AI Express',
+    carrier: 'Smartfreight.ai Express',
     status: 'Out for Delivery',
     origin: 'Berlin, DE',
     destination: 'Munich, DE',

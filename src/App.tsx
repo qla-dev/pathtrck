@@ -54,7 +54,7 @@ import {
 // Types & Services
 import { Role, Language, Load } from './types';
 import { MOCK_PACKAGES, MOCK_LOADS, MOCK_ROUTES } from './mockData';
-import { ui, trLoadStatus, trPackageStatus, trFuelType } from './i18n';
+import { ui, trLoadStatus, trPackageStatus, trFuelType, trGoodsType, trPaymentTerms } from './i18n';
 import { cn } from './lib/cn';
 import { Button } from './components/ui/Button';
 import { Card } from './components/ui/Card';
@@ -65,9 +65,10 @@ import { TrackingView } from './components/views/TrackingView';
 import { HomeFeed } from './components/views/HomeFeed';
 import { HistoryView } from './components/views/HistoryView';
 import { FleetView } from './components/views/FleetView';
-import { FrightsView } from './components/views/FrightsView';
 import { SidebarFilter } from './components/frights/SidebarFilter';
+import { FeedSortMode, SidebarSort } from './components/frights/SidebarSort';
 import { ServiceFilters, ServiceItem } from './components/frights/FrightTypes';
+import { GLOBAL_OFFERS } from './components/frights/globalOffers';
 import { useCitySuggestions } from './components/frights/useCitySuggestions';
 import { MessagesView } from './components/views/MessagesView';
 import { ProfileView } from './components/views/ProfileView';
@@ -436,6 +437,47 @@ const getFlagUrl = (language: Language, width = 20) => {
   return `https://flagcdn.com/w${width}/${code}.png`;
 };
 
+const GeminiSparkIcon = ({ className }: { className?: string }) => {
+  const uid = React.useId().replace(/:/g, '');
+  const gradientId = `gemini-spark-gradient-${uid}`;
+  const glowId = `gemini-spark-glow-${uid}`;
+
+  return (
+    <svg viewBox="0 0 24 24" className={cn('shrink-0', className)} aria-hidden="true">
+      <defs>
+        <linearGradient id={gradientId} x1="3" y1="20" x2="21" y2="4" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#FACC15" />
+          <stop offset="0.28" stopColor="#22C55E" />
+          <stop offset="0.56" stopColor="#3B82F6" />
+          <stop offset="0.82" stopColor="#EF4444" />
+          <stop offset="1" stopColor="#F97316" />
+        </linearGradient>
+        <radialGradient id={glowId} cx="12" cy="11" r="8.5" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#FFFFFF" stopOpacity="0.45" />
+          <stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+      <path
+        d="M12 1.75C13.35 6.65 17.35 10.65 22.25 12C17.35 13.35 13.35 17.35 12 22.25C10.65 17.35 6.65 13.35 1.75 12C6.65 10.65 10.65 6.65 12 1.75Z"
+        fill={`url(#${gradientId})`}
+      />
+      <path
+        d="M12 1.75C13.35 6.65 17.35 10.65 22.25 12C17.35 13.35 13.35 17.35 12 22.25C10.65 17.35 6.65 13.35 1.75 12C6.65 10.65 10.65 6.65 12 1.75Z"
+        fill={`url(#${glowId})`}
+      />
+    </svg>
+  );
+};
+
+const BrandWordmark = ({ className }: { className?: string }) => (
+  <span className={cn('inline-flex items-center gap-2 font-display font-bold tracking-tight text-slate-900 dark:text-white', className)}>
+    <GeminiSparkIcon className="h-[1.4em] w-[1.4em]" />
+    <span>
+      Smartfreight<span className="text-primary">.ai</span>
+    </span>
+  </span>
+);
+
 type HeroTypedMessage = {
   text: string;
   keyword: string;
@@ -732,11 +774,8 @@ const LandingPage = ({
       {/* Navigation */}
       <nav className="fixed top-0 w-full z-[100] bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-100 dark:border-slate-900">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
-              <PackageIcon className="text-white w-6 h-6" />
-            </div>
-            <span className="text-2xl font-display font-bold tracking-tight text-slate-900 dark:text-white">CARGO.AI</span>
+          <div className="flex items-center">
+            <BrandWordmark className="text-2xl" />
           </div>
           <div className="hidden lg:flex items-center gap-10 text-sm font-semibold text-slate-500 dark:text-slate-400">
             <a href="#features" className="hover:text-primary transition-colors">{t.features}</a>
@@ -823,12 +862,18 @@ const LandingPage = ({
               </p>
               <div className="flex flex-wrap gap-3">
                 <button className="h-12 px-5 rounded-2xl bg-black text-white inline-flex items-center gap-3 font-semibold text-sm shadow-lg shadow-black/25 cursor-pointer hover:bg-slate-900 transition-colors">
-                  <span className="text-base leading-none" aria-hidden="true"></span>
+                  <img
+                    src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Apple_logo_black.svg/500px-Apple_logo_black.svg.png?_=20250629104141"
+                    alt="Apple"
+                    className="h-4 w-4 object-contain invert"
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                  />
                   <span>{u('landing.downloadAppstore', 'Download on App Store')}</span>
                 </button>
                 <button className="h-12 px-5 rounded-2xl bg-black text-white inline-flex items-center gap-3 font-semibold text-sm shadow-lg shadow-black/25 cursor-pointer hover:bg-slate-900 transition-colors">
                   <span className="text-sm leading-none" aria-hidden="true">▶</span>
-                  <span>{u('landing.downloadPlaystore', 'Download on Play Store')}</span>
+                  <span>{u('landing.downloadPlaystore', 'Download on Google Play')}</span>
                 </button>
               </div>
             </div>
@@ -938,6 +983,7 @@ const LandingPage = ({
                           key={`${loopIndex}-${load.id}-${index}`}
                           layout="list"
                           load={load}
+                          lang={lang}
                           hideSource
                           onOpenSetup={onStart}
                           statusLabel={trLoadStatus(lang, load.status)}
@@ -960,7 +1006,7 @@ const LandingPage = ({
               </div>
               <div className="text-sm">
                 <p className="font-bold dark:text-white">{u('landing.activeDrivers', '12k+ Active Drivers')}</p>
-                <p className="text-slate-500">{u('landing.trustingDaily', 'Trusting CARGO.AI daily')}</p>
+                <p className="text-slate-500">{u('landing.trustingDaily', 'Trusting Smartfreight.ai daily')}</p>
               </div>
             </div>
           </motion.div>
@@ -1288,7 +1334,7 @@ const LandingPage = ({
           <div className="grid lg:grid-cols-2 gap-20">
             <div>
               <h2 className="text-4xl md:text-6xl font-display font-bold mb-8 dark:text-white leading-tight">
-                {lang === 'bs' ? 'Kako CARGO.AI' : lang === 'de' ? 'So funktioniert' : 'How CARGO.AI'} <br /> <span className="text-primary">{lang === 'bs' ? 'radi.' : lang === 'de' ? 'CARGO.AI.' : 'Works.'}</span>
+                {lang === 'bs' ? 'Kako Smartfreight.ai' : lang === 'de' ? 'So funktioniert' : 'How Smartfreight.ai'} <br /> <span className="text-primary">{lang === 'bs' ? 'radi.' : lang === 'de' ? 'Smartfreight.ai.' : 'Works.'}</span>
               </h2>
               <p className="text-slate-500 dark:text-slate-400 text-lg mb-12">
                 {lang === 'bs'
@@ -1501,11 +1547,11 @@ const LandingPage = ({
           </div>
           <div className="grid md:grid-cols-3 gap-6">
             {[
-              { name: "Sarah Jenkins", role: "Logistics Director, TechCorp", text: "CARGO.AI has completely transformed how we handle our last-mile deliveries. The AI insights are a game changer." },
+              { name: "Sarah Jenkins", role: "Logistics Director, TechCorp", text: "Smartfreight.ai has completely transformed how we handle our last-mile deliveries. The AI insights are a game changer." },
               { name: "Marco Rossi", role: "Fleet Manager, EuroTrans", text: "The real-time visibility is the best we've ever seen. Our drivers love the intuitive mobile app." },
-              { name: "Elena Petrova", role: "CEO, GlobalShip", text: "Scaling our operations across Europe was seamless with CARGO.AI's multi-carrier integration." },
+              { name: "Elena Petrova", role: "CEO, GlobalShip", text: "Scaling our operations across Europe was seamless with Smartfreight.ai's multi-carrier integration." },
               { name: "David Chen", role: "Operations Lead, FastMove", text: "The automated reporting saves our team at least 15 hours a week. Highly recommended for any serious fleet." },
-              { name: "Amira Al-Fayed", role: "Founder, DesertLogistics", text: "We needed a secure, enterprise-grade solution for our high-value loads. CARGO.AI delivered exactly that." },
+              { name: "Amira Al-Fayed", role: "Founder, DesertLogistics", text: "We needed a secure, enterprise-grade solution for our high-value loads. Smartfreight.ai delivered exactly that." },
               { name: "Lukas Weber", role: "Supply Chain Manager, AlpineGoods", text: "The route optimization engine is incredibly accurate. We've seen a 20% reduction in fuel costs." }
             ].map((t, i) => (
               <Card key={i} className="p-8 hover:border-primary/50 transition-all">
@@ -1537,10 +1583,10 @@ const LandingPage = ({
             </h2>
             <p className="text-xl text-white/70 mb-12 max-w-xl mx-auto">
               {lang === 'bs'
-                ? 'Pridruži se hiljadama kompanija koje optimizuju logistiku uz CARGO.AI.'
+                ? 'Pridruži se hiljadama kompanija koje optimizuju logistiku uz Smartfreight.ai.'
                 : lang === 'de'
-                  ? 'Tausende Unternehmen optimieren bereits ihre Logistik mit CARGO.AI.'
-                  : 'Join thousands of companies optimizing their logistics with CARGO.AI today.'}
+                  ? 'Tausende Unternehmen optimieren bereits ihre Logistik mit Smartfreight.ai.'
+                  : 'Join thousands of companies optimizing their logistics with Smartfreight.ai today.'}
             </p>
             <div className="flex flex-wrap justify-center gap-6">
               <Button onClick={onStart} variant="secondary" size="lg" className="px-12 h-16 rounded-full text-lg font-bold text-primary bg-white hover:bg-slate-100">{u('common.getStartedNow', 'Get Started Now')}</Button>
@@ -1557,11 +1603,8 @@ const LandingPage = ({
       <footer className={cn("bg-white dark:bg-slate-950 border-t border-slate-100 dark:border-slate-900", SECTION_PADDING)}>
         <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-4 gap-12">
           <div className="col-span-2">
-            <div className="flex items-center gap-3 mb-8">
-              <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
-                <Truck className="text-white w-6 h-6" />
-              </div>
-              <span className="text-2xl font-display font-bold tracking-tight text-slate-900 dark:text-white">CARGO.AI</span>
+            <div className="flex items-center mb-8">
+              <BrandWordmark className="text-2xl" />
             </div>
             <p className="text-slate-500 dark:text-slate-400 max-w-sm mb-8">
               {lang === 'bs'
@@ -2318,6 +2361,14 @@ const FEED_LOAD_CITY_COORDINATES: Record<string, [number, number]> = {
   'Berlin, DE': [52.52, 13.405],
   'Sarajevo, BA': [43.8563, 18.4131],
   'Banja Luka, BA': [44.7722, 17.191],
+  'Shanghai, CN': [31.2304, 121.4737],
+  'Odesa, UA': [46.4825, 30.7233],
+  'Ningbo, CN': [29.8683, 121.544],
+  'Hamburg, DE': [53.5511, 9.9937],
+  'Shenzhen, CN': [22.5431, 114.0579],
+  'Rotterdam, NL': [51.9244, 4.4777],
+  'Qingdao, CN': [36.0671, 120.3826],
+  'Gdansk, PL': [54.352, 18.6466],
 };
 
 const FEED_DEFAULT_SERVICE_FILTERS: ServiceFilters = {
@@ -2347,6 +2398,8 @@ const parseLoadWeightValue = (weight: string) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+type FeedDataMode = 'all' | 'organic' | 'global';
+
 const estimateLoadTransitDays = (pickup: string, delivery: string) => {
   const [lat1, lon1] = getFeedLoadCoord(pickup);
   const [lat2, lon2] = getFeedLoadCoord(delivery);
@@ -2361,47 +2414,96 @@ const estimateLoadTransitDays = (pickup: string, delivery: string) => {
   return Math.max(1, Math.ceil(distanceKm / 700));
 };
 
+const buildFeedRangeBounds = (loads: Load[]) => {
+  const sourceLoads = loads.length > 0 ? loads : MOCK_LOADS;
+  const prices = sourceLoads.map((load) => parseLoadPriceValue(load.price));
+  const weights = sourceLoads.map((load) => parseLoadWeightValue(load.weight));
+  const transits = sourceLoads.map((load) => estimateLoadTransitDays(load.pickup, load.delivery));
+
+  return {
+    priceMin: Math.min(...prices),
+    priceMax: Math.max(...prices),
+    weightMin: Math.min(...weights),
+    weightMax: Math.max(...weights),
+    transitMin: Math.min(...transits),
+    transitMax: Math.max(...transits),
+  };
+};
+
+const mapGlobalOfferToLoad = (
+  offer: (typeof GLOBAL_OFFERS)[number],
+  index: number
+): Load => {
+  const goodsTypes = ['High Value', 'Fragile', 'Heavy', 'General', 'Perishable'];
+  const paymentTerms: Array<Load['paymentTerms']> = ['Negotiable', 'In Advance', 'On Delivery'];
+  const goodsType = goodsTypes[index % goodsTypes.length];
+  const paymentTerm = paymentTerms[index % paymentTerms.length];
+  const weight = String(6000 + index * 1700);
+
+  return {
+    id: `G-${offer.id}`,
+    title: `${offer.carrier} Global Freight`,
+    weight,
+    price: `USD ${offer.priceUsd.toLocaleString('en-US')}`,
+    pickup: offer.origin,
+    delivery: offer.destination,
+    date: `March ${2 + index}, 2026`,
+    author: offer.carrier,
+    status: 'Available',
+    cargoType: 'Ocean Freight',
+    goodsType,
+    paymentTerms: paymentTerm,
+    eta: `March ${2 + index}, ${String(10 + (index % 10)).padStart(2, '0')}:00`,
+  };
+};
+
 export default function App() {
   const [isLanding, setIsLanding] = useState(true);
   const [authMode, setAuthMode] = useState<'setup' | 'login'>('setup');
   const [role, setRole] = useState<Role>(null);
   const [lang, setLang] = useState<Language>('en');
   const [view, setView] = useState('tracking');
-  const [isDark, setIsDark] = useState(true);
+  const [isDark, setIsDark] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMainFilterSidebarOpen, setIsMainFilterSidebarOpen] = useState(false);
+  const [isMainSortSidebarOpen, setIsMainSortSidebarOpen] = useState(false);
+  const [feedSortMode, setFeedSortMode] = useState<FeedSortMode>('price_asc');
+  const [feedDataMode, setFeedDataMode] = useState<FeedDataMode>('all');
   const [feedServiceFilters, setFeedServiceFilters] = useState<ServiceFilters>(() => ({
     ...FEED_DEFAULT_SERVICE_FILTERS,
   }));
-  const feedRangeBounds = useMemo(() => {
-    const prices = MOCK_LOADS.map((load) => parseLoadPriceValue(load.price));
-    const weights = MOCK_LOADS.map((load) => parseLoadWeightValue(load.weight));
-    const transits = MOCK_LOADS.map((load) => estimateLoadTransitDays(load.pickup, load.delivery));
-    return {
-      priceMin: Math.min(...prices),
-      priceMax: Math.max(...prices),
-      weightMin: Math.min(...weights),
-      weightMax: Math.max(...weights),
-      transitMin: Math.min(...transits),
-      transitMax: Math.max(...transits),
-    };
-  }, []);
-  const [feedSelectedPriceMin, setFeedSelectedPriceMin] = useState(() => feedRangeBounds.priceMin);
-  const [feedSelectedPriceMax, setFeedSelectedPriceMax] = useState(() => feedRangeBounds.priceMax);
-  const [feedSelectedWeightMin, setFeedSelectedWeightMin] = useState(() => feedRangeBounds.weightMin);
-  const [feedSelectedWeightMax, setFeedSelectedWeightMax] = useState(() => feedRangeBounds.weightMax);
-  const [feedSelectedTransitMin, setFeedSelectedTransitMin] = useState(() => feedRangeBounds.transitMin);
-  const [feedSelectedTransitMax, setFeedSelectedTransitMax] = useState(() => feedRangeBounds.transitMax);
+  const globalFeedLoads = useMemo<Load[]>(
+    () => GLOBAL_OFFERS.map((offer, index) => mapGlobalOfferToLoad(offer, index)),
+    []
+  );
+  const organicFeedLoads = MOCK_LOADS;
+  const allFeedLoads = useMemo<Load[]>(
+    () => [...organicFeedLoads, ...globalFeedLoads],
+    [organicFeedLoads, globalFeedLoads]
+  );
+  const allFeedRangeBounds = useMemo(() => buildFeedRangeBounds(allFeedLoads), [allFeedLoads]);
+  const organicFeedRangeBounds = useMemo(() => buildFeedRangeBounds(organicFeedLoads), [organicFeedLoads]);
+  const globalFeedRangeBounds = useMemo(() => buildFeedRangeBounds(globalFeedLoads), [globalFeedLoads]);
+  const activeFeedLoads =
+    feedDataMode === 'global' ? globalFeedLoads : feedDataMode === 'all' ? allFeedLoads : organicFeedLoads;
+  const feedRangeBounds =
+    feedDataMode === 'global' ? globalFeedRangeBounds : feedDataMode === 'all' ? allFeedRangeBounds : organicFeedRangeBounds;
+  const [feedSelectedPriceMin, setFeedSelectedPriceMin] = useState(() => allFeedRangeBounds.priceMin);
+  const [feedSelectedPriceMax, setFeedSelectedPriceMax] = useState(() => allFeedRangeBounds.priceMax);
+  const [feedSelectedWeightMin, setFeedSelectedWeightMin] = useState(() => allFeedRangeBounds.weightMin);
+  const [feedSelectedWeightMax, setFeedSelectedWeightMax] = useState(() => allFeedRangeBounds.weightMax);
+  const [feedSelectedTransitMin, setFeedSelectedTransitMin] = useState(() => allFeedRangeBounds.transitMin);
+  const [feedSelectedTransitMax, setFeedSelectedTransitMax] = useState(() => allFeedRangeBounds.transitMax);
   const [selectedFeedGoodsTypes, setSelectedFeedGoodsTypes] = useState<string[]>([]);
   const [selectedFeedPaymentTerms, setSelectedFeedPaymentTerms] = useState<string[]>([]);
 
   const feedSeedCities = useMemo(
     () =>
-      MOCK_LOADS.flatMap((load) => [
+      activeFeedLoads.flatMap((load) => [
         load.pickup.split(',')[0]?.trim() || '',
         load.delivery.split(',')[0]?.trim() || '',
       ]),
-    []
+    [activeFeedLoads]
   );
 
   const {
@@ -2411,8 +2513,8 @@ export default function App() {
     setEndLocation: setFeedEndLocation,
     startSuggestions: feedStartSuggestions,
     endSuggestions: feedEndSuggestions,
-    isGooglePlacesReady: isFeedPlacesReady,
-    hasGooglePlacesKey: hasFeedPlacesKey,
+    isCityApiReady: isFeedCityApiReady,
+    hasCityApiKey: hasFeedCityApiKey,
     clearLocations: clearFeedLocations,
   } = useCitySuggestions({ seedCities: feedSeedCities });
 
@@ -2433,8 +2535,15 @@ export default function App() {
   }, [role, view]);
 
   useEffect(() => {
+    if (view === 'frights') {
+      setView('feed');
+    }
+  }, [view]);
+
+  useEffect(() => {
     if (view !== 'feed') {
       setIsMainFilterSidebarOpen(false);
+      setIsMainSortSidebarOpen(false);
     }
   }, [view]);
 
@@ -2488,14 +2597,18 @@ export default function App() {
       : value === 'On Delivery'
         ? 'bg-amber-500/10 text-amber-500 border-amber-500/30'
         : 'bg-blue-500/10 text-blue-500 border-blue-500/30';
-  const feedGoodsTypeOptions = Array.from(new Set(MOCK_LOADS.map((load) => load.goodsType))).map((value) => ({
+  const feedGoodsTypeOptions = Array.from(
+    new Set<string>(activeFeedLoads.map((load) => String(load.goodsType)))
+  ).map((value) => ({
     id: value,
-    label: value,
+    label: trGoodsType(lang, value),
     toneClass: getGoodsChipTone(value),
   }));
-  const feedPaymentTermOptions = Array.from(new Set(MOCK_LOADS.map((load) => load.paymentTerms))).map((value) => ({
+  const feedPaymentTermOptions = Array.from(
+    new Set<string>(activeFeedLoads.map((load) => String(load.paymentTerms)))
+  ).map((value) => ({
     id: value,
-    label: value,
+    label: trPaymentTerms(lang, value),
     toneClass: getPaymentChipTone(value),
   }));
   const feedServiceItems: ServiceItem[] = [
@@ -2538,11 +2651,31 @@ export default function App() {
     setSelectedFeedGoodsTypes([]);
     setSelectedFeedPaymentTerms([]);
   };
+  const handleFeedDataModeChange = (nextModeId: string) => {
+    const nextMode: FeedDataMode =
+      nextModeId === 'global' ? 'global' : nextModeId === 'all' ? 'all' : 'organic';
+    if (nextMode === feedDataMode) return;
+
+    const nextBounds =
+      nextMode === 'global' ? globalFeedRangeBounds : nextMode === 'all' ? allFeedRangeBounds : organicFeedRangeBounds;
+    setFeedDataMode(nextMode);
+    setFeedServiceFilters({ ...FEED_DEFAULT_SERVICE_FILTERS });
+    clearFeedLocations();
+    setFeedSelectedPriceMin(nextBounds.priceMin);
+    setFeedSelectedPriceMax(nextBounds.priceMax);
+    setFeedSelectedWeightMin(nextBounds.weightMin);
+    setFeedSelectedWeightMax(nextBounds.weightMax);
+    setFeedSelectedTransitMin(nextBounds.transitMin);
+    setFeedSelectedTransitMax(nextBounds.transitMax);
+    setSelectedFeedGoodsTypes([]);
+    setSelectedFeedPaymentTerms([]);
+  };
   const shouldShowFeedFiltersInMainSidebar = view === 'feed' && isMainFilterSidebarOpen;
+  const shouldShowFeedSortInMainSidebar = view === 'feed' && isMainSortSidebarOpen;
+  const shouldShowFeedSidebarPanel = shouldShowFeedFiltersInMainSidebar || shouldShowFeedSortInMainSidebar;
 
   const navItems = [
     ...(role === 'driver' ? [{ id: 'feed', label: t.homeFeed, icon: Boxes }] : []),
-    ...(role === 'driver' ? [{ id: 'frights', label: 'Frights', icon: MapPin }] : []),
     { id: 'tracking', label: t.tracking, icon: PackageIcon },
     ...(role === 'driver' ? [
       { id: 'fleet', label: t.myFleet, icon: Truck },
@@ -2560,42 +2693,41 @@ export default function App() {
       {/* Sidebar (Desktop) */}
       <aside className={cn(
         "hidden md:flex flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-300 z-50 sticky top-0 h-screen",
-        isSidebarOpen || shouldShowFeedFiltersInMainSidebar ? "w-64" : "w-20"
+        isSidebarOpen || shouldShowFeedSidebarPanel ? "w-64" : "w-20"
       )}>
         <div className="p-6 flex items-center justify-between">
-          {(isSidebarOpen || shouldShowFeedFiltersInMainSidebar) && (
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <PackageIcon className="text-white w-5 h-5" />
-              </div>
-              <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">CARGO.AI</span>
+          {(isSidebarOpen || shouldShowFeedSidebarPanel) && (
+            <div className="flex items-center">
+              <BrandWordmark className="text-xl" />
             </div>
           )}
           <button
             onClick={() => {
-              if (shouldShowFeedFiltersInMainSidebar) {
+              if (shouldShowFeedSidebarPanel) {
                 setIsMainFilterSidebarOpen(false);
+                setIsMainSortSidebarOpen(false);
                 return;
               }
               setIsSidebarOpen(!isSidebarOpen);
             }}
             className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer"
           >
-            {shouldShowFeedFiltersInMainSidebar ? <X className="w-4 h-4" /> : isSidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            {shouldShowFeedSidebarPanel ? <X className="w-4 h-4" /> : isSidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
           </button>
         </div>
 
         <AnimatePresence mode="wait" initial={false}>
-          {shouldShowFeedFiltersInMainSidebar ? (
+          {shouldShowFeedSidebarPanel ? (
             <motion.div
-              key="main-sidebar-filters"
+              key={shouldShowFeedFiltersInMainSidebar ? 'main-sidebar-filters' : 'main-sidebar-sort'}
               className="flex-1 px-4 pb-6 overflow-y-auto"
               initial={{ opacity: 0, x: -16 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -16 }}
               transition={{ duration: 0.2 }}
             >
-              <SidebarFilter
+              {shouldShowFeedFiltersInMainSidebar ? (
+                <SidebarFilter
                 lang={lang}
                 serviceItems={feedServiceItems}
                 serviceFilters={feedServiceFilters}
@@ -2603,8 +2735,8 @@ export default function App() {
                 endLocation={feedEndLocation}
                 startSuggestions={feedStartSuggestions}
                 endSuggestions={feedEndSuggestions}
-                isGooglePlacesReady={isFeedPlacesReady}
-                hasGooglePlacesKey={hasFeedPlacesKey}
+                isCityApiReady={isFeedCityApiReady}
+                hasCityApiKey={hasFeedCityApiKey}
                 onStartLocationChange={setFeedStartLocation}
                 onEndLocationChange={setFeedEndLocation}
                 onServiceFilterChange={(key, value) => {
@@ -2612,6 +2744,13 @@ export default function App() {
                 }}
                 onClear={clearFeedFilters}
                 onClose={() => setIsMainFilterSidebarOpen(false)}
+                modeTabs={[
+                  { id: 'all', label: ui(lang, 'home.feedMode.all', 'All') },
+                  { id: 'organic', label: ui(lang, 'home.feedMode.organic', 'Organic') },
+                  { id: 'global', label: ui(lang, 'home.feedMode.global', 'Global') },
+                ]}
+                activeModeTabId={feedDataMode}
+                onModeTabChange={handleFeedDataModeChange}
                 embeddedInSidebar
                 priceRange={{
                   min: feedRangeBounds.priceMin,
@@ -2622,7 +2761,7 @@ export default function App() {
                     setFeedSelectedPriceMin(nextMin);
                     setFeedSelectedPriceMax(nextMax);
                   },
-                  prefix: 'EUR ',
+                  prefix: feedDataMode === 'global' ? 'USD ' : feedDataMode === 'organic' ? 'EUR ' : '',
                   allowManualInput: true,
                 }}
                 weightRange={{
@@ -2662,7 +2801,16 @@ export default function App() {
                     prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
                   );
                 }}
-              />
+                />
+              ) : (
+                <SidebarSort
+                  lang={lang}
+                  sortMode={feedSortMode}
+                  onSortModeChange={setFeedSortMode}
+                  onReset={() => setFeedSortMode('price_asc')}
+                  embeddedInSidebar
+                />
+              )}
             </motion.div>
           ) : (
             <motion.div
@@ -2709,29 +2857,26 @@ export default function App() {
       <main className="flex-1 flex flex-col h-screen relative overflow-hidden">
         {/* Header (Mobile & Desktop) */}
         <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 flex items-center justify-between sticky top-0 z-40">
-          <div className="md:hidden flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <PackageIcon className="text-white w-5 h-5" />
-            </div>
-            <span className="text-lg font-bold tracking-tight dark:text-white">CARGO.AI</span>
+          <div className="md:hidden flex items-center">
+            <BrandWordmark className="text-lg" />
           </div>
           <div className="hidden md:flex items-center gap-3">
             <p className="text-sm text-slate-500">
               {t.welcome}, <span className="font-bold text-slate-900 dark:text-white">John Doe</span>
             </p>
-            <span
-              className={cn(
-                "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border",
-                role === 'driver'
-                  ? "bg-primary/10 text-primary border-primary/20"
-                  : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
-              )}
-            >
-              {role === 'driver' ? <Truck className="w-3.5 h-3.5" /> : <User className="w-3.5 h-3.5" />}
-              {roleLicenseLabel} • {roleLicenseStatus}
-            </span>
           </div>
           <div className="flex items-center gap-4">
+            <span
+              className={cn(
+                "hidden md:inline-flex h-10 px-3 rounded-full items-center gap-2 text-xs font-bold whitespace-nowrap",
+                role === 'driver'
+                  ? "bg-primary/10 text-primary"
+                  : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+              )}
+            >
+              {role === 'driver' ? <Truck className="w-4 h-4" /> : <User className="w-4 h-4" />}
+              {roleLicenseLabel} • {roleLicenseStatus}
+            </span>
             <div className="h-10 px-3 rounded-full bg-slate-100 dark:bg-slate-800 text-primary inline-flex items-center gap-2 text-xs font-bold">
               <Coins className="w-4 h-4" />
               <span>{tokenBalance} {tokenLabel}</span>
@@ -2813,23 +2958,23 @@ export default function App() {
                 </div>
                 <button
                   onClick={() => setView('profile')}
-                  className="w-full flex items-center gap-3 p-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+                  className="w-full flex items-center gap-3 p-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
                 >
                   <User className="w-4 h-4" />
                   {t.accountSettings}
                 </button>
-                <button className="w-full flex items-center gap-3 p-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
+                <button className="w-full flex items-center gap-3 p-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer">
                   <Globe className="w-4 h-4" />
                   {t.support}
                 </button>
-                <button className="w-full flex items-center gap-3 p-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
+                <button className="w-full flex items-center gap-3 p-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer">
                   <ShieldCheck className="w-4 h-4" />
                   {t.documentation}
                 </button>
-                <div className="h-px bg-slate-100 dark:border-slate-800 my-2" />
+                <div className="h-px bg-slate-100 dark:bg-slate-800 my-2" />
                 <button 
                   onClick={() => { setIsLanding(true); setRole(null); setAuthMode('setup'); }}
-                  className="w-full flex items-center gap-3 p-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-all"
+                  className="w-full flex items-center gap-3 p-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-all cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                   {t.logOut}
@@ -2860,6 +3005,9 @@ export default function App() {
 	              {view === 'feed' && (
                   <HomeFeed
                     lang={lang}
+                    dataMode={feedDataMode}
+                    loads={activeFeedLoads}
+                    sortMode={feedSortMode}
                     startLocation={feedStartLocation}
                     endLocation={feedEndLocation}
                     minPriceFilter={feedSelectedPriceMin}
@@ -2871,13 +3019,19 @@ export default function App() {
                     selectedGoodsTypes={selectedFeedGoodsTypes}
                     selectedPaymentTerms={selectedFeedPaymentTerms}
                     isFilterSidebarOpen={shouldShowFeedFiltersInMainSidebar}
+                    isSortSidebarOpen={shouldShowFeedSortInMainSidebar}
                     onToggleFilterSidebar={() => {
                       setIsSidebarOpen(true);
+                      setIsMainSortSidebarOpen(false);
                       setIsMainFilterSidebarOpen((prev) => !prev);
+                    }}
+                    onToggleSortSidebar={() => {
+                      setIsSidebarOpen(true);
+                      setIsMainFilterSidebarOpen(false);
+                      setIsMainSortSidebarOpen((prev) => !prev);
                     }}
                   />
                 )}
-	              {view === 'frights' && <FrightsView lang={lang} />}
 	              {view === 'messages' && <MessagesView lang={lang} />}
 	              {view === 'network' && <NetworkView lang={lang} />}
 	              {view === 'automations' && <AutomationsView lang={lang} />}
