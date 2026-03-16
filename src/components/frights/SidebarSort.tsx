@@ -1,6 +1,7 @@
 import { ArrowDownWideNarrow, Check, DollarSign, CalendarDays, RotateCcw } from 'lucide-react';
 
 import { Language } from '../../types';
+import { translateTriplet } from '../../i18n';
 import { cn } from '../../lib/cn';
 
 export type FeedSortMode = 'price_desc' | 'price_asc' | 'date_desc' | 'date_asc';
@@ -20,11 +21,7 @@ type SidebarSortProps = {
   embeddedInSidebar?: boolean;
 };
 
-const tr = (lang: Language, en: string, bs: string, de: string) => {
-  if (lang === 'bs') return bs;
-  if (lang === 'de') return de;
-  return en;
-};
+const tr = translateTriplet;
 
 export const SidebarSort = ({
   lang,

@@ -1,5 +1,20 @@
 export type Role = 'user' | 'driver' | null;
-export type Language = 'en' | 'bs' | 'de' | null;
+export type Language =
+  | 'en'
+  | 'bs'
+  | 'de'
+  | 'pl'
+  | 'ro'
+  | 'nl'
+  | 'fr'
+  | 'it'
+  | 'zh'
+  | 'es'
+  | 'sr'
+  | 'sv'
+  | 'ar'
+  | 'pt'
+  | null;
 
 export interface Package {
   id: string;

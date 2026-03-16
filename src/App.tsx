@@ -78,6 +78,41 @@ import { SetupProcess } from './components/auth/SetupProcess';
 import { LoginProcess } from './components/auth/LoginProcess';
 import { AiRouteCalculatorCard } from './components/ai_automattions/AiRouteCalculatorCard';
 
+const LANGUAGE_STORAGE_KEY = 'pathtrck.language';
+
+const SUPPORTED_LANGUAGES: Exclude<Language, null>[] = [
+  'en',
+  'bs',
+  'de',
+  'pl',
+  'ro',
+  'nl',
+  'fr',
+  'it',
+  'zh',
+  'es',
+  'sr',
+  'sv',
+  'ar',
+  'pt',
+];
+
+const isSupportedLanguage = (value: string | null): value is Exclude<Language, null> =>
+  Boolean(value && SUPPORTED_LANGUAGES.includes(value as Exclude<Language, null>));
+
+const getInitialLanguage = (): Exclude<Language, null> => {
+  if (typeof window === 'undefined') return 'en';
+
+  const params = new URLSearchParams(window.location.search);
+  const urlLang = params.get('lang');
+  if (isSupportedLanguage(urlLang)) return urlLang;
+
+  const storedLang = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+  if (isSupportedLanguage(storedLang)) return storedLang;
+
+  return 'en';
+};
+
 // Fix Leaflet marker icon issue
 // @ts-ignore
 delete L.Icon.Default.prototype._getIconUrl;
@@ -424,12 +459,34 @@ const languages: { id: Language, flag: string, label: string }[] = [
   { id: 'en', flag: '🇺🇸', label: 'English' },
   { id: 'bs', flag: '🇧🇦', label: 'Bosanski' },
   { id: 'de', flag: '🇩🇪', label: 'Deutsch' },
+  { id: 'pl', flag: '🇵🇱', label: 'Polski' },
+  { id: 'ro', flag: '🇷🇴', label: 'Romana' },
+  { id: 'nl', flag: '🇳🇱', label: 'Nederlands' },
+  { id: 'fr', flag: '🇫🇷', label: 'Francais' },
+  { id: 'it', flag: '🇮🇹', label: 'Italiano' },
+  { id: 'zh', flag: '🇨🇳', label: '中文' },
+  { id: 'es', flag: '🇪🇸', label: 'Espanol' },
+  { id: 'sr', flag: '🇷🇸', label: 'Srpski' },
+  { id: 'sv', flag: '🇸🇪', label: 'Svenska' },
+  { id: 'ar', flag: '🇸🇦', label: 'العربية' },
+  { id: 'pt', flag: '🇵🇹', label: 'Portugues' },
 ];
 
 const flagCodeByLanguage: Record<Exclude<Language, null>, string> = {
   en: 'us',
   bs: 'ba',
   de: 'de',
+  pl: 'pl',
+  ro: 'ro',
+  nl: 'nl',
+  fr: 'fr',
+  it: 'it',
+  zh: 'cn',
+  es: 'es',
+  sr: 'rs',
+  sv: 'se',
+  ar: 'sa',
+  pt: 'pt',
 };
 
 const getFlagUrl = (language: Language, width = 20) => {
@@ -520,9 +577,120 @@ const HERO_MAIN_TITLE_MESSAGES: Record<Exclude<Language, null>, HeroTypedMessage
     { text: "Wir stärken Liefernetze.", keyword: "Liefernetze" },
     { text: "Wir halten Logistik bereit.", keyword: "Logistik" }
   ],
+  pl: [
+    { text: "Szybciej laczymy kierowcow.", keyword: "kierowcow" },
+    { text: "Lepiej dopasowujemy ladunki.", keyword: "ladunki" },
+    { text: "Skuteczniej prowadzimy floty.", keyword: "floty" },
+    { text: "Sledzimy kazdy kilometr.", keyword: "kilometr" },
+  ],
+  ro: [
+    { text: "Conectam soferii mai rapid.", keyword: "soferii" },
+    { text: "Potrivim marfurile instant.", keyword: "marfurile" },
+    { text: "Optimizam flotele mai bine.", keyword: "flotele" },
+    { text: "Urmarim fiecare kilometru.", keyword: "kilometru" },
+  ],
+  nl: [
+    { text: "We verbinden chauffeurs sneller.", keyword: "chauffeurs" },
+    { text: "We matchen ladingen direct.", keyword: "ladingen" },
+    { text: "We sturen vloten slimmer.", keyword: "vloten" },
+    { text: "We volgen elke kilometer.", keyword: "kilometer" },
+  ],
+  fr: [
+    { text: "Nous connectons les chauffeurs plus vite.", keyword: "chauffeurs" },
+    { text: "Nous associons les chargements rapidement.", keyword: "chargements" },
+    { text: "Nous pilotons mieux les flottes.", keyword: "flottes" },
+    { text: "Nous suivons chaque kilometre.", keyword: "kilometre" },
+  ],
+  it: [
+    { text: "Colleghiamo gli autisti piu velocemente.", keyword: "autisti" },
+    { text: "Abbiniamo i carichi subito.", keyword: "carichi" },
+    { text: "Gestiamo meglio le flotte.", keyword: "flotte" },
+    { text: "Tracciamo ogni chilometro.", keyword: "chilometro" },
+  ],
+  zh: [
+    { text: "更快连接司机。", keyword: "司机" },
+    { text: "更快匹配货运。", keyword: "货运" },
+    { text: "更好调度车队。", keyword: "车队" },
+    { text: "追踪每一公里。", keyword: "公里" },
+  ],
+  es: [
+    { text: "Conectamos conductores mas rapido.", keyword: "conductores" },
+    { text: "Emparejamos cargas al instante.", keyword: "cargas" },
+    { text: "Optimizamos flotas mejor.", keyword: "flotas" },
+    { text: "Seguimos cada kilometro.", keyword: "kilometro" },
+  ],
+  sr: [
+    { text: "Povezujemo vozace brze.", keyword: "vozace" },
+    { text: "Spajamo terete odmah.", keyword: "terete" },
+    { text: "Usmeravamo flote bolje.", keyword: "flote" },
+    { text: "Pratimo svaki kilometar.", keyword: "kilometar" },
+  ],
+  sv: [
+    { text: "Vi kopplar chaufforer snabbare.", keyword: "chaufforer" },
+    { text: "Vi matchar laster direkt.", keyword: "laster" },
+    { text: "Vi styr flottor battre.", keyword: "flottor" },
+    { text: "Vi foljer varje kilometer.", keyword: "kilometer" },
+  ],
+  ar: [
+    { text: "نربط السائقين بشكل أسرع.", keyword: "السائقين" },
+    { text: "نطابق الشحنات فوراً.", keyword: "الشحنات" },
+    { text: "ندير الأساطيل بشكل أفضل.", keyword: "الأساطيل" },
+    { text: "نتابع كل كيلومتر.", keyword: "كيلومتر" },
+  ],
+  pt: [
+    { text: "Conectamos motoristas mais rapido.", keyword: "motoristas" },
+    { text: "Combinamos cargas na hora.", keyword: "cargas" },
+    { text: "Otimizamos frotas melhor.", keyword: "frotas" },
+    { text: "Rastreamos cada quilometro.", keyword: "quilometro" },
+  ],
 };
 
-const translations = {
+const makeLandingTranslation = (overrides: Record<string, string>) => ({
+  ...{
+    features: "Features",
+    network: "Network",
+    enterprise: "Enterprise",
+    pricing: "Pricing",
+    logIn: "Log In",
+    getStarted: "Get Started",
+    heroTitle: "Connecting drivers faster.",
+    heroSubtitle: "Connecting drivers faster.",
+    trackShipment: "Track Shipment",
+    postLoad: "Post Load",
+    trackingPlaceholder: "Enter tracking number (e.g. PT-123456)",
+    trackButton: "Track Now",
+    loadTitle: "Need to move cargo?",
+    loadSubtitle: "Connect with our network of 50,000+ verified drivers across Europe and the US.",
+    postLoadButton: "Post a Load",
+    trustedBy: "Trusted by Industry Leaders.",
+    accountSettings: "Account Settings",
+    support: "Support",
+    documentation: "Documentation",
+    logOut: "Log Out",
+    welcome: "Welcome back",
+    dashboard: "Dashboard",
+    tracking: "Tracking",
+    myFleet: "My Fleet",
+    messages: "Messages",
+    history: "History",
+    settings: "Settings",
+    homeFeed: "Loads Feed",
+    trailer: "Trailer",
+    tailLift: "Tail Lift",
+    username: "Username",
+    password: "Password",
+    licensePlate: "License Plate",
+    selectFuel: "Select Fuel",
+    yes: "YES",
+    no: "NO",
+    continue: "Continue",
+    back: "Back",
+    completeSetup: "Complete Setup"
+  },
+  ...overrides,
+});
+
+const translations: Record<Exclude<Language, null>, Record<string, string>> = {
   en: {
     features: "Features",
     network: "Network",
@@ -645,7 +813,256 @@ const translations = {
     continue: "Weiter",
     back: "Zurück",
     completeSetup: "Setup abschließen"
-  }
+  },
+  pl: makeLandingTranslation({
+    features: "Funkcje",
+    network: "Siec",
+    enterprise: "Enterprise",
+    pricing: "Cennik",
+    logIn: "Zaloguj",
+    getStarted: "Zacznij",
+    heroTitle: "Szybciej laczymy kierowcow.",
+    heroSubtitle: "Szybciej laczymy kierowcow.",
+    trackShipment: "Sledz przesylke",
+    postLoad: "Dodaj ladunek",
+    trackingPlaceholder: "Wpisz numer sledzenia (np. PT-123456)",
+    trackButton: "Sledz teraz",
+    loadTitle: "Musisz przewiezc ladunek?",
+    loadSubtitle: "Polacz sie z nasza siecia ponad 50 000 zweryfikowanych kierowcow w Europie i USA.",
+    postLoadButton: "Dodaj ladunek",
+    trustedBy: "Zaufanie liderow branzy.",
+    welcome: "Witamy ponownie",
+    myFleet: "Moja flota",
+    homeFeed: "Feed ladunkow",
+  }),
+  ro: makeLandingTranslation({
+    features: "Functionalitati",
+    network: "Retea",
+    pricing: "Preturi",
+    logIn: "Autentificare",
+    getStarted: "Incepe",
+    heroTitle: "Conectam soferii mai rapid.",
+    heroSubtitle: "Conectam soferii mai rapid.",
+    trackShipment: "Urmareste expedierea",
+    postLoad: "Publica marfa",
+    trackingPlaceholder: "Introdu numarul de urmarire (ex. PT-123456)",
+    trackButton: "Urmareste acum",
+    loadTitle: "Trebuie sa muti marfa?",
+    loadSubtitle: "Conecteaza-te cu reteaua noastra de peste 50.000 de soferi verificati din Europa si SUA.",
+    postLoadButton: "Publica marfa",
+    trustedBy: "De incredere pentru liderii din industrie.",
+    welcome: "Bine ai revenit",
+    myFleet: "Flota mea",
+  }),
+  nl: makeLandingTranslation({
+    features: "Functies",
+    network: "Netwerk",
+    pricing: "Prijzen",
+    logIn: "Inloggen",
+    getStarted: "Start nu",
+    heroTitle: "We verbinden chauffeurs sneller.",
+    heroSubtitle: "We verbinden chauffeurs sneller.",
+    trackShipment: "Zending volgen",
+    postLoad: "Lading plaatsen",
+    trackingPlaceholder: "Voer trackingnummer in (bijv. PT-123456)",
+    trackButton: "Nu volgen",
+    loadTitle: "Moet je vracht verplaatsen?",
+    loadSubtitle: "Verbind met ons netwerk van 50.000+ geverifieerde chauffeurs in Europa en de VS.",
+    postLoadButton: "Plaats lading",
+    trustedBy: "Vertrouwd door marktleiders.",
+    welcome: "Welkom terug",
+  }),
+  fr: makeLandingTranslation({
+    features: "Fonctionnalites",
+    network: "Reseau",
+    pricing: "Tarifs",
+    logIn: "Connexion",
+    getStarted: "Commencer",
+    heroTitle: "Nous connectons les chauffeurs plus vite.",
+    heroSubtitle: "Nous connectons les chauffeurs plus vite.",
+    trackShipment: "Suivre l envoi",
+    postLoad: "Publier un chargement",
+    trackingPlaceholder: "Entrez le numero de suivi (ex. PT-123456)",
+    trackButton: "Suivre maintenant",
+    loadTitle: "Besoin de transporter une cargaison ?",
+    loadSubtitle: "Connectez-vous a notre reseau de plus de 50 000 chauffeurs verifies en Europe et aux Etats-Unis.",
+    postLoadButton: "Publier un chargement",
+    trustedBy: "Adopte par les leaders du secteur.",
+    welcome: "Bon retour",
+  }),
+  it: makeLandingTranslation({
+    features: "Funzionalita",
+    network: "Rete",
+    pricing: "Prezzi",
+    logIn: "Accedi",
+    getStarted: "Inizia",
+    heroTitle: "Colleghiamo gli autisti piu velocemente.",
+    heroSubtitle: "Colleghiamo gli autisti piu velocemente.",
+    trackShipment: "Traccia spedizione",
+    postLoad: "Pubblica carico",
+    trackingPlaceholder: "Inserisci numero di tracciamento (es. PT-123456)",
+    trackButton: "Traccia ora",
+    loadTitle: "Devi spostare un carico?",
+    loadSubtitle: "Connettiti alla nostra rete di oltre 50.000 autisti verificati in Europa e negli USA.",
+    postLoadButton: "Pubblica carico",
+    trustedBy: "Scelto dai leader del settore.",
+    welcome: "Bentornato",
+  }),
+  zh: makeLandingTranslation({
+    features: "功能",
+    network: "网络",
+    enterprise: "企业",
+    pricing: "价格",
+    logIn: "登录",
+    getStarted: "开始使用",
+    heroTitle: "更快连接司机。",
+    heroSubtitle: "更快连接司机。",
+    trackShipment: "追踪货运",
+    postLoad: "发布货运",
+    trackingPlaceholder: "输入追踪号（例如 PT-123456）",
+    trackButton: "立即追踪",
+    loadTitle: "需要运输货物？",
+    loadSubtitle: "连接我们遍布欧洲和美国的 50,000+ 名已验证司机网络。",
+    postLoadButton: "发布货运",
+    trustedBy: "受到行业领导者信赖。",
+    accountSettings: "账户设置",
+    support: "支持",
+    documentation: "文档",
+    logOut: "退出",
+    welcome: "欢迎回来",
+    dashboard: "仪表板",
+    tracking: "追踪",
+    myFleet: "我的车队",
+    messages: "消息",
+    history: "历史",
+    settings: "设置",
+    homeFeed: "货运列表",
+    trailer: "拖车",
+    tailLift: "尾板",
+    username: "用户名",
+    password: "密码",
+    licensePlate: "车牌",
+    selectFuel: "选择燃料",
+    yes: "是",
+    no: "否",
+    continue: "继续",
+    back: "返回",
+    completeSetup: "完成设置"
+  }),
+  es: makeLandingTranslation({
+    features: "Funciones",
+    network: "Red",
+    pricing: "Precios",
+    logIn: "Iniciar sesion",
+    getStarted: "Empezar",
+    heroTitle: "Conectamos conductores mas rapido.",
+    heroSubtitle: "Conectamos conductores mas rapido.",
+    trackShipment: "Rastrear envio",
+    postLoad: "Publicar carga",
+    trackingPlaceholder: "Introduce el numero de seguimiento (ej. PT-123456)",
+    trackButton: "Rastrear ahora",
+    loadTitle: "Necesitas mover carga?",
+    loadSubtitle: "Conectate con nuestra red de mas de 50.000 conductores verificados en Europa y EE. UU.",
+    postLoadButton: "Publicar carga",
+    trustedBy: "Con la confianza de lideres del sector.",
+    welcome: "Bienvenido de nuevo",
+  }),
+  sr: makeLandingTranslation({
+    features: "Funkcije",
+    network: "Mreza",
+    enterprise: "Preduzece",
+    pricing: "Cene",
+    logIn: "Prijava",
+    getStarted: "Pocni",
+    heroTitle: "Povezujemo vozace brze.",
+    heroSubtitle: "Povezujemo vozace brze.",
+    trackShipment: "Prati posiljku",
+    postLoad: "Objavi teret",
+    trackingPlaceholder: "Unesite broj za pracenje (npr. PT-123456)",
+    trackButton: "Prati odmah",
+    loadTitle: "Treba da prevezete teret?",
+    loadSubtitle: "Povezite se sa nasom mrezom od 50.000+ verifikovanih vozaca sirom Evrope i SAD.",
+    postLoadButton: "Objavi teret",
+    trustedBy: "Poverenje lidera industrije.",
+    welcome: "Dobrodosli nazad",
+  }),
+  sv: makeLandingTranslation({
+    features: "Funktioner",
+    network: "Natverk",
+    pricing: "Priser",
+    logIn: "Logga in",
+    getStarted: "Kom igang",
+    heroTitle: "Vi kopplar chaufforer snabbare.",
+    heroSubtitle: "Vi kopplar chaufforer snabbare.",
+    trackShipment: "Spar forsandelse",
+    postLoad: "Publicera last",
+    trackingPlaceholder: "Ange sparningsnummer (t.ex. PT-123456)",
+    trackButton: "Spar nu",
+    loadTitle: "Behov av att flytta gods?",
+    loadSubtitle: "Anslut till vart natverk med 50 000+ verifierade chaufforer i Europa och USA.",
+    postLoadButton: "Publicera last",
+    trustedBy: "Betrodd av branschledare.",
+    welcome: "Valkommen tillbaka",
+  }),
+  ar: makeLandingTranslation({
+    features: "الميزات",
+    network: "الشبكة",
+    enterprise: "المؤسسات",
+    pricing: "الاسعار",
+    logIn: "تسجيل الدخول",
+    getStarted: "ابدأ",
+    heroTitle: "نربط السائقين بشكل أسرع.",
+    heroSubtitle: "نربط السائقين بشكل أسرع.",
+    trackShipment: "تتبع الشحنة",
+    postLoad: "نشر حمولة",
+    trackingPlaceholder: "أدخل رقم التتبع (مثال PT-123456)",
+    trackButton: "تتبع الآن",
+    loadTitle: "هل تحتاج إلى نقل حمولة؟",
+    loadSubtitle: "اتصل بشبكتنا التي تضم أكثر من 50,000 سائق موثق في أوروبا والولايات المتحدة.",
+    postLoadButton: "نشر حمولة",
+    trustedBy: "موثوق من قادة القطاع.",
+    accountSettings: "إعدادات الحساب",
+    support: "الدعم",
+    documentation: "الوثائق",
+    logOut: "تسجيل الخروج",
+    welcome: "أهلا بعودتك",
+    dashboard: "لوحة التحكم",
+    tracking: "التتبع",
+    myFleet: "أسطولي",
+    messages: "الرسائل",
+    history: "السجل",
+    settings: "الإعدادات",
+    homeFeed: "قائمة الحمولات",
+    trailer: "مقطورة",
+    tailLift: "رافعة خلفية",
+    username: "اسم المستخدم",
+    password: "كلمة المرور",
+    licensePlate: "رقم اللوحة",
+    selectFuel: "اختر الوقود",
+    yes: "نعم",
+    no: "لا",
+    continue: "متابعة",
+    back: "رجوع",
+    completeSetup: "اكمال الاعداد"
+  }),
+  pt: makeLandingTranslation({
+    features: "Recursos",
+    network: "Rede",
+    pricing: "Precos",
+    logIn: "Entrar",
+    getStarted: "Comecar",
+    heroTitle: "Conectamos motoristas mais rapido.",
+    heroSubtitle: "Conectamos motoristas mais rapido.",
+    trackShipment: "Rastrear envio",
+    postLoad: "Publicar carga",
+    trackingPlaceholder: "Digite o numero de rastreio (ex. PT-123456)",
+    trackButton: "Rastrear agora",
+    loadTitle: "Precisa mover carga?",
+    loadSubtitle: "Conecte-se a nossa rede de mais de 50.000 motoristas verificados na Europa e nos EUA.",
+    postLoadButton: "Publicar carga",
+    trustedBy: "Confiado por lideres do setor.",
+    welcome: "Bem-vindo de volta",
+  })
 };
 
 const LandingPage = ({ 
@@ -1173,7 +1590,7 @@ const LandingPage = ({
                 </p>
                 <div className="mt-auto pt-8 flex gap-4">
                    <div className="px-4 py-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700 flex items-center gap-2">
-                     <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                     <div className="w-2 h-2 min-w-2 min-h-2 rounded-full bg-emerald-500 animate-pulse" />
                      <span className="text-xs font-bold dark:text-white">99.9% Accuracy</span>
                    </div>
                    <div className="px-4 py-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700 flex items-center gap-2">
@@ -1704,6 +2121,10 @@ const Onboarding = ({
   useEffect(() => {
     setStep(mode === 'login' ? 1 : 2);
   }, [mode]);
+
+  useEffect(() => {
+    setLang(initialLang || 'en');
+  }, [initialLang]);
 
   useEffect(() => {
     const handleEscClose = (event: KeyboardEvent) => {
@@ -2461,7 +2882,7 @@ export default function App() {
   const [isLanding, setIsLanding] = useState(true);
   const [authMode, setAuthMode] = useState<'setup' | 'login'>('setup');
   const [role, setRole] = useState<Role>(null);
-  const [lang, setLang] = useState<Language>('en');
+  const [lang, setLang] = useState<Language>(() => getInitialLanguage());
   const [view, setView] = useState('tracking');
   const [isDark, setIsDark] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -2527,6 +2948,11 @@ export default function App() {
       document.body.classList.remove('dark');
     }
   }, [isDark]);
+
+  useEffect(() => {
+    if (!lang || typeof window === 'undefined') return;
+    window.localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
+  }, [lang]);
 
   useEffect(() => {
     if (role === 'user' && view === 'feed') {
@@ -3073,4 +3499,3 @@ export default function App() {
     </div>
   );
 }
-

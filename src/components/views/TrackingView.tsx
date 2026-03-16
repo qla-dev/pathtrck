@@ -4,7 +4,7 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { Language, Package as PackageData } from '../../types';
 import { MOCK_PACKAGES } from '../../mockData';
 import { getSmartStatusUpdate } from '../../services/geminiService';
-import { ui, trPackageStatus } from '../../i18n';
+import { translateTriplet, ui, trPackageStatus } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
@@ -21,6 +21,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
   const [isUnlockingReturnRoutes, setIsUnlockingReturnRoutes] = useState(false);
   const [unlockStep, setUnlockStep] = useState(0);
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  const tr = (en: string, bs: string, de: string) => translateTriplet(lang, en, bs, de);
 
   useEffect(() => {
     getSmartStatusUpdate(selectedPackage.status, selectedPackage.history[0].location).then(setSmartStatus);
@@ -44,7 +45,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
     () => ({
       id: `dispatch-${selectedPackage.id}`,
       name: 'Lena / Route Ops',
-      role: lang === 'bs' ? 'Dispečer' : lang === 'de' ? 'Disponentin' : 'Dispatch Manager',
+      role: tr('Dispatch Manager', 'Dispečer', 'Disponentin'),
       channel: 'inapp',
       online: true,
       unread: 0,
@@ -55,12 +56,8 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
           sender: 'system',
           text:
             smartStatus ||
-            (lang === 'bs'
-              ? 'AI status se ažurira...'
-              : lang === 'de'
-                ? 'KI-Status wird aktualisiert...'
-                : 'AI status is updating...'),
-          time: lang === 'bs' ? 'AI' : lang === 'de' ? 'KI' : 'AI',
+            tr('AI status is updating...', 'AI status se ažurira...', 'KI-Status wird aktualisiert...'),
+          time: tr('AI', 'AI', 'KI'),
         },
         { id: 'd1', sender: 'other', text: 'Truck PT-19 reached Vienna checkpoint.', time: '09:10' },
         { id: 'd2', sender: 'me', text: 'Received. Updating ETA for customer now.', time: '09:12' },
@@ -78,11 +75,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
   const handleAiDispatchCompose = () => {
     const seed =
       smartStatus ||
-      (lang === 'bs'
-        ? 'Azuriraj ETA i posalji status klijentu.'
-        : lang === 'de'
-          ? 'ETA aktualisieren und Status an den Kunden senden.'
-          : 'Update ETA and send status to customer.');
+      tr('Update ETA and send status to customer.', 'Azuriraj ETA i posalji status klijentu.', 'ETA aktualisieren und Status an den Kunden senden.');
     setDispatchDraft(seed);
   };
 
@@ -92,7 +85,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
         id: 's1',
         title: `${selectedPackage.destination} -> Vienna, AT`,
         deadhead: '42 km',
-        cargo: lang === 'bs' ? 'Farmaceutski artikli' : lang === 'de' ? 'Pharma-Ware' : 'Pharma cargo',
+        cargo: tr('Pharma cargo', 'Farmaceutski artikli', 'Pharma-Ware'),
         payout: 'EUR 740',
         eta: '03h 25m',
         confidence: 97,
@@ -101,7 +94,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
         id: 's2',
         title: `${selectedPackage.destination} -> Zagreb, HR`,
         deadhead: '18 km',
-        cargo: lang === 'bs' ? 'Potrosna roba' : lang === 'de' ? 'Verbrauchsgueter' : 'Retail goods',
+        cargo: tr('Retail goods', 'Potrosna roba', 'Verbrauchsgueter'),
         payout: 'EUR 520',
         eta: '02h 40m',
         confidence: 94,
@@ -110,7 +103,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
         id: 's3',
         title: `${selectedPackage.destination} -> Berlin, DE`,
         deadhead: '61 km',
-        cargo: lang === 'bs' ? 'Tehnicka oprema' : lang === 'de' ? 'Technische Ausruestung' : 'Technical equipment',
+        cargo: tr('Technical equipment', 'Tehnicka oprema', 'Technische Ausruestung'),
         payout: 'EUR 1,180',
         eta: '06h 10m',
         confidence: 92,
@@ -120,9 +113,9 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
   );
 
   const unlockSteps = [
-    lang === 'bs' ? 'AI analizira aktivne koridore...' : lang === 'de' ? 'KI analysiert aktive Korridore...' : 'AI is scanning active corridors...',
-    lang === 'bs' ? 'Filtriranje po profitabilnosti i deadhead km...' : lang === 'de' ? 'Filtere nach Profit und Leerfahrt-km...' : 'Filtering by profit and deadhead distance...',
-    lang === 'bs' ? 'Finalizacija najboljih povratnih ruta...' : lang === 'de' ? 'Finalisiere beste Rueckrouten...' : 'Finalizing best return routes...',
+    tr('AI is scanning active corridors...', 'AI analizira aktivne koridore...', 'KI analysiert aktive Korridore...'),
+    tr('Filtering by profit and deadhead distance...', 'Filtriranje po profitabilnosti i deadhead km...', 'Filtere nach Profit und Leerfahrt-km...'),
+    tr('Finalizing best return routes...', 'Finalizacija najboljih povratnih ruta...', 'Finalisiere beste Rueckrouten...'),
   ];
 
   const handleUnlockReturnRoutes = () => {
@@ -188,7 +181,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
             )}
           >
             <PackageIcon className="w-4 h-4" />
-            {lang === 'bs' ? 'Tracker' : lang === 'de' ? 'Tracker' : 'Tracker'}
+            {tr('Tracker', 'Tracker', 'Tracker')}
           </button>
           <button
             onClick={() => setRightTab('dispatch')}
@@ -198,7 +191,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
             )}
           >
             <Bot className="w-4 h-4" />
-            {lang === 'bs' ? 'AI Dispečer' : lang === 'de' ? 'KI-Disponent' : 'AI Dispatch'}
+            {tr('AI Dispatch', 'AI Dispečer', 'KI-Disponent')}
           </button>
           <button
             onClick={() => setRightTab('map')}
@@ -208,7 +201,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
             )}
           >
             <MapPin className="w-4 h-4" />
-            {lang === 'bs' ? 'Mapa' : lang === 'de' ? 'Karte' : 'Map'}
+            {tr('Map', 'Mapa', 'Karte')}
           </button>
           <button
             onClick={() => setRightTab('timeline')}
@@ -218,7 +211,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
             )}
           >
             <Clock3 className="w-4 h-4" />
-            {lang === 'bs' ? 'Timeline' : lang === 'de' ? 'Timeline' : 'Timeline'}
+            {tr('Timeline', 'Timeline', 'Timeline')}
           </button>
           <button
             onClick={() => setRightTab('return')}
@@ -228,7 +221,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
             )}
           >
             <RotateCcw className="w-4 h-4" />
-            {lang === 'bs' ? 'Povrat' : lang === 'de' ? 'Rueckgabe' : 'Return'}
+            {tr('Return', 'Povrat', 'Rueckgabe')}
           </button>
           <button
             onClick={() => setRightTab('returnRoutes')}
@@ -238,7 +231,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
             )}
           >
             <Route className="w-4 h-4" />
-            {lang === 'bs' ? 'Povratne rute' : lang === 'de' ? 'Rueckrouten' : 'Return Routes'}
+            {tr('Return Routes', 'Povratne rute', 'Rueckrouten')}
           </button>
           <button
             onClick={() => setRightTab('share')}
@@ -248,7 +241,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
             )}
           >
             <Share2 className="w-4 h-4" />
-            {lang === 'bs' ? 'Podijeli' : lang === 'de' ? 'Teilen' : 'Share'}
+            {tr('Share', 'Podijeli', 'Teilen')}
           </button>
           <button
             onClick={() => setRightTab('review')}
@@ -258,7 +251,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
             )}
           >
             <Star className="w-4 h-4" />
-            {lang === 'bs' ? 'Recenzija' : lang === 'de' ? 'Bewertung' : 'Review'}
+            {tr('Review', 'Recenzija', 'Bewertung')}
           </button>
         </div>
 
@@ -267,15 +260,15 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
             <div className="amazon-header flex items-center justify-between">
               <div className="flex gap-8">
                 <div>
-                  <p className="text-[10px] uppercase text-slate-500">{lang === 'bs' ? 'Naručeno' : lang === 'de' ? 'Bestellt am' : 'Ordered on'}</p>
+                  <p className="text-[10px] uppercase text-slate-500">{tr('Ordered on', 'Naručeno', 'Bestellt am')}</p>
                   <p className="font-bold">Feb 26, 2026</p>
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase text-slate-500">{lang === 'bs' ? 'Ukupno' : lang === 'de' ? 'Gesamt' : 'Total'}</p>
+                  <p className="text-[10px] uppercase text-slate-500">{tr('Total', 'Ukupno', 'Gesamt')}</p>
                   <p className="font-bold">€12.99</p>
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase text-slate-500">{lang === 'bs' ? 'Šalje se za' : lang === 'de' ? 'Versand an' : 'Ship to'}</p>
+                  <p className="text-[10px] uppercase text-slate-500">{tr('Ship to', 'Šalje se za', 'Versand an')}</p>
                   <p className="font-bold text-primary flex items-center gap-1 cursor-pointer">
                     John Doe <ChevronRight className="w-3 h-3" />
                   </p>
@@ -284,16 +277,16 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
               <div className="text-right">
                 <p className="text-[10px] uppercase text-slate-500">Order # {selectedPackage.trackingNumber}</p>
                 <div className="flex gap-4 mt-1 text-xs font-medium text-primary">
-                  <span className="cursor-pointer hover:underline">{lang === 'bs' ? 'Detalji narudžbe' : lang === 'de' ? 'Bestelldetails anzeigen' : 'View order details'}</span>
-                  <span className="cursor-pointer hover:underline">{lang === 'bs' ? 'Račun' : lang === 'de' ? 'Rechnung' : 'Invoice'}</span>
+                  <span className="cursor-pointer hover:underline">{tr('View order details', 'Detalji narudžbe', 'Bestelldetails anzeigen')}</span>
+                  <span className="cursor-pointer hover:underline">{tr('Invoice', 'Račun', 'Rechnung')}</span>
                 </div>
               </div>
             </div>
             <div className="amazon-body">
               <h2 className="text-xl font-bold text-emerald-600 mb-4">
                 {selectedPackage.status === 'Delivered'
-                  ? (lang === 'bs' ? 'Isporučeno danas' : lang === 'de' ? 'Heute zugestellt' : 'Delivered Today')
-                  : (lang === 'bs' ? 'Dolazi do 20:00' : lang === 'de' ? 'Ankunft bis 20:00' : 'Arriving by 8 PM')}
+                  ? tr('Delivered Today', 'Isporučeno danas', 'Heute zugestellt')
+                  : tr('Arriving by 8 PM', 'Dolazi do 20:00', 'Ankunft bis 20:00')}
               </h2>
               <div className="relative h-2 bg-slate-100 dark:bg-slate-800 rounded-full mb-8">
                 <div className="absolute top-0 left-0 h-full bg-emerald-500 rounded-full" style={{ width: '75%' }} />
@@ -303,10 +296,10 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
                 <div className="absolute top-1/2 -translate-y-1/2 right-0 w-4 h-4 bg-slate-300 dark:bg-slate-700 rounded-full border-4 border-white dark:border-slate-900" />
               </div>
               <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                <span>{lang === 'bs' ? 'Naručeno' : lang === 'de' ? 'Bestellt' : 'Ordered'}</span>
-                <span>{lang === 'bs' ? 'Poslano' : lang === 'de' ? 'Versendet' : 'Shipped'}</span>
-                <span>{lang === 'bs' ? 'Na dostavi' : lang === 'de' ? 'In Zustellung' : 'Out for delivery'}</span>
-                <span>{lang === 'bs' ? 'Stiže' : lang === 'de' ? 'Ankunft' : 'Arriving'}</span>
+                <span>{tr('Ordered', 'Naručeno', 'Bestellt')}</span>
+                <span>{tr('Shipped', 'Poslano', 'Versendet')}</span>
+                <span>{tr('Out for delivery', 'Na dostavi', 'In Zustellung')}</span>
+                <span>{tr('Arriving', 'Stiže', 'Ankunft')}</span>
               </div>
             </div>
           </div>
@@ -319,10 +312,10 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
               draft={dispatchDraft}
               onDraftChange={setDispatchDraft}
               onSend={handleDispatchSend}
-              messagePlaceholder={lang === 'bs' ? 'Piši poruku dispečeru...' : lang === 'de' ? 'Nachricht an Disposition schreiben...' : 'Write a message to dispatch...'}
+              messagePlaceholder={tr('Write a message to dispatch...', 'Piši poruku dispečeru...', 'Nachricht an Disposition schreiben...')}
               className="h-full"
               showAiDispatchButton
-              aiDispatchLabel={lang === 'bs' ? 'Pisi uz AI dispecera' : lang === 'de' ? 'Mit KI-Dispo schreiben' : 'Write with AI Dispatch'}
+              aiDispatchLabel={tr('Write with AI Dispatch', 'Pisi uz AI dispecera', 'Mit KI-Dispo schreiben')}
               onAiDispatchClick={handleAiDispatchCompose}
             />
           </div>
@@ -374,45 +367,37 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
         )}
 
         {rightTab === 'return' && (
-          <Card title={lang === 'bs' ? 'Povrat i zamjena' : lang === 'de' ? 'Rueckgabe und Ersatz' : 'Return and Replace'}>
+          <Card title={tr('Return and Replace', 'Povrat i zamjena', 'Rueckgabe und Ersatz')}>
             <div className="space-y-4">
               <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4">
                 <p className="text-xs font-bold uppercase tracking-wider text-primary">
-                  {lang === 'bs' ? 'Status zahtjeva' : lang === 'de' ? 'Antragsstatus' : 'Request Status'}
+                  {tr('Request Status', 'Status zahtjeva', 'Antragsstatus')}
                 </p>
                 <p className="text-sm mt-2 text-slate-600 dark:text-slate-300">
-                  {lang === 'bs'
-                    ? 'Rok za povrat je 14 dana. Preuzimanje je dostupno sutra u periodu 09:00-13:00.'
-                    : lang === 'de'
-                      ? 'Rueckgabefrist ist 14 Tage. Abholung morgen zwischen 09:00-13:00 verfuegbar.'
-                      : 'Return window is 14 days. Pickup is available tomorrow between 09:00-13:00.'}
+                  {tr('Return window is 14 days. Pickup is available tomorrow between 09:00-13:00.', 'Rok za povrat je 14 dana. Preuzimanje je dostupno sutra u periodu 09:00-13:00.', 'Rueckgabefrist ist 14 Tage. Abholung morgen zwischen 09:00-13:00 verfuegbar.')}
                 </p>
               </div>
-              <Button>{lang === 'bs' ? 'Pokreni zahtjev za povrat' : lang === 'de' ? 'Rueckgabe starten' : 'Start Return Request'}</Button>
+              <Button>{tr('Start Return Request', 'Pokreni zahtjev za povrat', 'Rueckgabe starten')}</Button>
             </div>
           </Card>
         )}
 
         {rightTab === 'returnRoutes' && (
-          <Card title={lang === 'bs' ? 'AI povratne preporuke' : lang === 'de' ? 'KI Rueckrouten-Empfehlungen' : 'AI Return Route Suggestions'}>
+          <Card title={tr('AI Return Route Suggestions', 'AI povratne preporuke', 'KI Rueckrouten-Empfehlungen')}>
             <div className="space-y-4">
               <div className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 bg-slate-50 dark:bg-slate-900/60">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wider text-primary inline-flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5" />
-                    {lang === 'bs' ? 'AI Return Engine' : lang === 'de' ? 'KI Return Engine' : 'AI Return Engine'}
+                    {tr('AI Return Engine', 'AI Return Engine', 'KI Return Engine')}
                   </p>
                   <p className="text-xs text-slate-500 mt-1">
-                    {lang === 'bs'
-                      ? 'Otkljucaj pametne povratne rute da ne vozis nazad prazan.'
-                      : lang === 'de'
-                        ? 'Entsperren Sie Rueckrouten, damit Sie nicht leer zurueckfahren.'
-                        : 'Unlock smart return routes so you do not drive back empty.'}
+                    {tr('Unlock smart return routes so you do not drive back empty.', 'Otkljucaj pametne povratne rute da ne vozis nazad prazan.', 'Entsperren Sie Rueckrouten, damit Sie nicht leer zurueckfahren.')}
                   </p>
                 </div>
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-bold">
                   <Coins className="w-3.5 h-3.5" />
-                  {returnTokens} {lang === 'bs' ? 'tokena' : lang === 'de' ? 'Tokens' : 'tokens'}
+                  {returnTokens} {tr('tokens', 'tokena', 'Tokens')}
                 </div>
               </div>
 
@@ -428,22 +413,22 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
                         <div className="text-right">
                           <p className="text-base font-black text-primary">{item.payout}</p>
                           <p className="text-xs text-slate-500">
-                            {lang === 'bs' ? 'ETA' : lang === 'de' ? 'ETA' : 'ETA'} {item.eta}
+                            {tr('ETA', 'ETA', 'ETA')} {item.eta}
                           </p>
                         </div>
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-3 text-xs">
                         <div className="rounded-lg bg-slate-100 dark:bg-slate-800 px-2 py-1.5">
-                          <span className="text-slate-500">{lang === 'bs' ? 'Deadhead' : lang === 'de' ? 'Leerfahrt' : 'Deadhead'}:</span>{' '}
+                          <span className="text-slate-500">{tr('Deadhead', 'Deadhead', 'Leerfahrt')}:</span>{' '}
                           <span className="font-bold dark:text-white">{item.deadhead}</span>
                         </div>
                         <div className="rounded-lg bg-slate-100 dark:bg-slate-800 px-2 py-1.5">
-                          <span className="text-slate-500">{lang === 'bs' ? 'Pouzdanost' : lang === 'de' ? 'Confidence' : 'Confidence'}:</span>{' '}
+                          <span className="text-slate-500">{tr('Confidence', 'Pouzdanost', 'Confidence')}:</span>{' '}
                           <span className="font-bold dark:text-white">{item.confidence}%</span>
                         </div>
                         <div className="rounded-lg bg-slate-100 dark:bg-slate-800 px-2 py-1.5">
-                          <span className="text-slate-500">{lang === 'bs' ? 'Status' : lang === 'de' ? 'Status' : 'Status'}:</span>{' '}
-                          <span className="font-bold text-emerald-500">{lang === 'bs' ? 'Spremno' : lang === 'de' ? 'Bereit' : 'Ready'}</span>
+                          <span className="text-slate-500">{tr('Status', 'Status', 'Status')}:</span>{' '}
+                          <span className="font-bold text-emerald-500">{tr('Ready', 'Spremno', 'Bereit')}</span>
                         </div>
                       </div>
                     </div>
@@ -459,7 +444,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
                             <Loader2 className="w-6 h-6 animate-spin" />
                           </div>
                           <p className="text-sm font-bold text-white">
-                            {lang === 'bs' ? 'AI trazi najbolje povratne rute' : lang === 'de' ? 'KI sucht die besten Rueckrouten' : 'AI is finding the best return routes'}
+                            {tr('AI is finding the best return routes', 'AI trazi najbolje povratne rute', 'KI sucht die besten Rueckrouten')}
                           </p>
                           <p className="text-xs text-slate-300">{unlockSteps[unlockStep]}</p>
                           <div className="h-2 rounded-full bg-slate-700 overflow-hidden">
@@ -475,22 +460,18 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
                             <Lock className="w-6 h-6" />
                           </div>
                           <p className="text-sm font-bold text-white">
-                            {lang === 'bs' ? 'Otkljucaj AI povratne prijedloge' : lang === 'de' ? 'KI Rueckrouten entsperren' : 'Unlock AI return suggestions'}
+                            {tr('Unlock AI return suggestions', 'Otkljucaj AI povratne prijedloge', 'KI Rueckrouten entsperren')}
                           </p>
                           <p className="text-xs text-slate-300">
-                            {lang === 'bs'
-                              ? 'Potrosi 10 tokena za premium povratne rute i vecu zaradu.'
-                              : lang === 'de'
-                                ? 'Verbrauchen Sie 10 Tokens fuer Premium-Rueckrouten und besseren Ertrag.'
-                                : 'Spend 10 tokens to unlock premium return routes and higher earnings.'}
+                            {tr('Spend 10 tokens to unlock premium return routes and higher earnings.', 'Potrosi 10 tokena za premium povratne rute i vecu zaradu.', 'Verbrauchen Sie 10 Tokens fuer Premium-Rueckrouten und besseren Ertrag.')}
                           </p>
                           <Button onClick={handleUnlockReturnRoutes} className="w-full" disabled={returnTokens < 10}>
                             <Coins className="w-4 h-4 mr-2" />
-                            {lang === 'bs' ? 'Otkljucaj za 10 tokena' : lang === 'de' ? 'Fuer 10 Tokens entsperren' : 'Unlock for 10 tokens'}
+                            {tr('Unlock for 10 tokens', 'Otkljucaj za 10 tokena', 'Fuer 10 Tokens entsperren')}
                           </Button>
                           {returnTokens < 10 && (
                             <p className="text-[11px] text-rose-300">
-                              {lang === 'bs' ? 'Nedovoljno tokena za otkljucavanje.' : lang === 'de' ? 'Nicht genug Tokens zum Entsperren.' : 'Not enough tokens to unlock.'}
+                              {tr('Not enough tokens to unlock.', 'Nedovoljno tokena za otkljucavanje.', 'Nicht genug Tokens zum Entsperren.')}
                             </p>
                           )}
                         </div>
@@ -504,11 +485,11 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
         )}
 
         {rightTab === 'share' && (
-          <Card title={lang === 'bs' ? 'Podijeli pracenje' : lang === 'de' ? 'Tracking teilen' : 'Share Tracking'}>
+          <Card title={tr('Share Tracking', 'Podijeli pracenje', 'Tracking teilen')}>
             <div className="space-y-4">
               <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4">
                 <p className="text-xs font-bold uppercase tracking-wider text-primary">
-                  {lang === 'bs' ? 'Javni link' : lang === 'de' ? 'Oeffentlicher Link' : 'Public Link'}
+                  {tr('Public Link', 'Javni link', 'Oeffentlicher Link')}
                 </p>
                 <p className="text-sm font-mono mt-2 break-all text-slate-700 dark:text-slate-200">
                   https://smartfreight.ai/t/{selectedPackage.trackingNumber}
@@ -524,11 +505,11 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
         )}
 
         {rightTab === 'review' && (
-          <Card title={lang === 'bs' ? 'Recenzija isporuke' : lang === 'de' ? 'Lieferbewertung' : 'Delivery Review'}>
+          <Card title={tr('Delivery Review', 'Recenzija isporuke', 'Lieferbewertung')}>
             <div className="space-y-4">
               <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4">
                 <p className="text-xs font-bold uppercase tracking-wider text-primary">
-                  {lang === 'bs' ? 'Ocjena usluge' : lang === 'de' ? 'Service-Bewertung' : 'Service Rating'}
+                  {tr('Service Rating', 'Ocjena usluge', 'Service-Bewertung')}
                 </p>
                 <div className="flex items-center gap-1 mt-2 text-amber-500">
                   <Star className="w-4 h-4 fill-current" />
@@ -538,14 +519,10 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
                   <Star className="w-4 h-4" />
                 </div>
                 <p className="text-sm mt-2 text-slate-600 dark:text-slate-300">
-                  {lang === 'bs'
-                    ? 'Napišite kratak komentar o brzini i kvaliteti dostave.'
-                    : lang === 'de'
-                      ? 'Schreiben Sie einen kurzen Kommentar zu Tempo und Qualitaet der Lieferung.'
-                      : 'Write a short comment about delivery speed and quality.'}
+                  {tr('Write a short comment about delivery speed and quality.', 'Napišite kratak komentar o brzini i kvaliteti dostave.', 'Schreiben Sie einen kurzen Kommentar zu Tempo und Qualitaet der Lieferung.')}
                 </p>
               </div>
-              <Button variant="outline">{lang === 'bs' ? 'Napiši recenziju' : lang === 'de' ? 'Bewertung schreiben' : 'Write Review'}</Button>
+              <Button variant="outline">{tr('Write Review', 'Napiši recenziju', 'Bewertung schreiben')}</Button>
             </div>
           </Card>
         )}
@@ -553,5 +530,4 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
     </div>
   );
 };
-
 

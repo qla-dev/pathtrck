@@ -1,14 +1,11 @@
 import { Bell } from 'lucide-react';
 
 import { Language } from '../../types';
+import { translateTriplet } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { SortMode } from './FrightTypes';
 
-const tr = (lang: Language, en: string, bs: string, de: string) => {
-  if (lang === 'bs') return bs;
-  if (lang === 'de') return de;
-  return en;
-};
+const tr = translateTriplet;
 
 type FrightHeaderProps = {
   lang: Language;

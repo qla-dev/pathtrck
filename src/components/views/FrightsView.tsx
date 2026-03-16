@@ -7,12 +7,9 @@ import { ServiceFilters, ServiceItem, SortMode } from '../frights/FrightTypes';
 import { GLOBAL_OFFERS } from '../frights/globalOffers';
 import { useCitySuggestions } from '../frights/useCitySuggestions';
 import { Language } from '../../types';
+import { translateTriplet } from '../../i18n';
 
-const tr = (lang: Language, en: string, bs: string, de: string) => {
-  if (lang === 'bs') return bs;
-  if (lang === 'de') return de;
-  return en;
-};
+const tr = translateTriplet;
 
 const DEFAULT_SERVICE_FILTERS: ServiceFilters = {
   place_of_loading: true,

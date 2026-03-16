@@ -137,12 +137,12 @@ export const LoadItem = ({
           <div className="mt-6 -mx-6 w-[calc(100%+3rem)] border-t border-slate-100 dark:border-slate-800" />
           <div className="pt-6 flex items-center gap-8">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-emerald-500" />
+              <div className="w-2 h-2 min-w-2 min-h-2 rounded-full bg-emerald-500" />
               <span className="text-sm font-medium dark:text-slate-300">{load.pickup}</span>
             </div>
             <ArrowRight className="w-4 h-4 text-slate-300" />
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-blue-500" />
+              <div className="w-2 h-2 min-w-2 min-h-2 rounded-full bg-blue-500" />
               <span className="text-sm font-medium dark:text-slate-300">{load.delivery}</span>
             </div>
             <div className="ml-auto">

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Language } from '../../types';
+import { translateTriplet } from '../../i18n';
 import { ChatConversationPanel } from '../chat/ChatConversationPanel';
 import { ChatSidebar } from '../chat/ChatSidebar';
 import { Channel, Conversation } from '../chat/types';
@@ -48,15 +49,16 @@ const CONVERSATIONS: Conversation[] = [
 ];
 
 export const MessagesView = ({ lang }: { lang: Language }) => {
+  const tr = (en: string, bs: string, de: string) => translateTriplet(lang, en, bs, de);
   const [channelFilter, setChannelFilter] = useState<'all' | Channel>('all');
   const [activeId, setActiveId] = useState(CONVERSATIONS[0].id);
   const [draft, setDraft] = useState('');
 
   const channels = [
-    { id: 'all' as const, label: lang === 'bs' ? 'Sve' : lang === 'de' ? 'Alle' : 'All' },
+    { id: 'all' as const, label: tr('All', 'Sve', 'Alle') },
     { id: 'whatsapp' as const, label: 'WhatsApp' },
     { id: 'telegram' as const, label: 'Telegram' },
-    { id: 'inapp' as const, label: lang === 'bs' ? 'In App' : lang === 'de' ? 'In App' : 'In App' },
+    { id: 'inapp' as const, label: tr('In App', 'In App', 'In App') },
   ];
 
   const filteredConversations = useMemo(
@@ -76,11 +78,7 @@ export const MessagesView = ({ lang }: { lang: Language }) => {
 
   const handleAiDispatchCompose = () => {
     const seed =
-      lang === 'bs'
-        ? 'Pripremi ETA update za dispecera i klijente na ovoj ruti.'
-        : lang === 'de'
-          ? 'Bereite ein ETA-Update fuer Disposition und Kunden auf dieser Route vor.'
-          : 'Draft an ETA update for dispatch and clients on this route.';
+      tr('Draft an ETA update for dispatch and clients on this route.', 'Pripremi ETA update za dispecera i klijente na ovoj ruti.', 'Bereite ein ETA-Update fuer Disposition und Kunden auf dieser Route vor.');
     setDraft(seed);
   };
 
@@ -88,7 +86,7 @@ export const MessagesView = ({ lang }: { lang: Language }) => {
     <div className="h-full">
       <div className="h-full grid lg:grid-cols-12 gap-4">
         <ChatSidebar
-          searchPlaceholder={lang === 'bs' ? 'Pretraga poruka...' : lang === 'de' ? 'Nachrichten suchen...' : 'Search messages...'}
+          searchPlaceholder={tr('Search messages...', 'Pretraga poruka...', 'Nachrichten suchen...')}
           channels={channels}
           channelFilter={channelFilter}
           onChannelFilterChange={setChannelFilter}
@@ -102,10 +100,10 @@ export const MessagesView = ({ lang }: { lang: Language }) => {
           draft={draft}
           onDraftChange={setDraft}
           onSend={sendMessage}
-          messagePlaceholder={lang === 'bs' ? 'Napisite poruku...' : lang === 'de' ? 'Nachricht schreiben...' : 'Write a message...'}
+          messagePlaceholder={tr('Write a message...', 'Napisite poruku...', 'Nachricht schreiben...')}
           className="lg:col-span-8"
           showAiDispatchButton
-          aiDispatchLabel={lang === 'bs' ? 'Pisi uz AI dispecera' : lang === 'de' ? 'Mit KI-Dispo schreiben' : 'Write with AI Dispatch'}
+          aiDispatchLabel={tr('Write with AI Dispatch', 'Pisi uz AI dispecera', 'Mit KI-Dispo schreiben')}
           onAiDispatchClick={handleAiDispatchCompose}
         />
       </div>

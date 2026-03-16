@@ -11,6 +11,7 @@ import {
   UserCircle2,
 } from 'lucide-react';
 import { Language, Role } from '../../types';
+import { translateTriplet } from '../../i18n';
 import { Button } from '../ui/Button';
 
 type ProfileStat = {
@@ -34,11 +35,7 @@ type Feedback = {
   score: string;
 };
 
-const tr = (lang: Language, en: string, bs: string, de: string) => {
-  if (lang === 'bs') return bs;
-  if (lang === 'de') return de;
-  return en;
-};
+const tr = translateTriplet;
 
 const getProfileContent = (lang: Language, role: Role) => {
   if (role === 'driver') {

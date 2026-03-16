@@ -13,7 +13,7 @@ import {
 
 import { Language, Role } from '../../types';
 import { cn } from '../../lib/cn';
-import { ui, trFuelType } from '../../i18n';
+import { translateTriplet, ui, trFuelType } from '../../i18n';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 
@@ -37,6 +37,7 @@ type DriverType = 'private' | 'company' | null;
 
 export const SetupProcess = ({ lang, labels, onComplete, onClose }: SetupProcessProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  const tr = (en: string, bs: string, de: string) => translateTriplet(lang, en, bs, de);
   const [step, setStep] = useState(2);
   const [transitionDirection, setTransitionDirection] = useState<1 | -1>(1);
   const [role, setRole] = useState<Role>(null);
@@ -253,12 +254,12 @@ export const SetupProcess = ({ lang, labels, onComplete, onClose }: SetupProcess
               <>
                 <div className={headerClass}>
                   <Truck className="w-12 h-12 text-primary" />
-                  <h2 className="text-2xl font-bold dark:text-white">{lang === 'bs' ? 'Tip vozaca' : lang === 'de' ? 'Fahrertyp' : 'Driver Type'}</h2>
-                  <p className="text-slate-500 text-sm">{lang === 'bs' ? 'Da li ste samostalni vozac ili kompanija?' : lang === 'de' ? 'Sind Sie selbststaendig oder eine Firma?' : 'Are you an independent driver or a company?'}</p>
+                  <h2 className="text-2xl font-bold dark:text-white">{tr('Driver Type', 'Tip vozaca', 'Fahrertyp')}</h2>
+                  <p className="text-slate-500 text-sm">{tr('Are you an independent driver or a company?', 'Da li ste samostalni vozac ili kompanija?', 'Sind Sie selbststaendig oder eine Firma?')}</p>
                 </div>
                 <div className="flex flex-col gap-3">
-                  <button onClick={() => setDriverType('private')} className={cn('w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 text-left cursor-pointer', driverType === 'private' ? 'border-primary bg-primary/5' : 'border-slate-100 dark:border-slate-800 hover:border-primary')}><div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center"><User className="text-blue-600" /></div><div><p className="font-bold dark:text-white">{lang === 'bs' ? 'Privatni vozac' : lang === 'de' ? 'Privatfahrer' : 'Private Driver'}</p></div></button>
-                  <button onClick={() => setDriverType('company')} className={cn('w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 text-left cursor-pointer', driverType === 'company' ? 'border-primary bg-primary/5' : 'border-slate-100 dark:border-slate-800 hover:border-primary')}><div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center"><Globe className="text-emerald-600" /></div><div><p className="font-bold dark:text-white">{lang === 'bs' ? 'Logisticka kompanija' : lang === 'de' ? 'Logistikunternehmen' : 'Logistics Company'}</p></div></button>
+                  <button onClick={() => setDriverType('private')} className={cn('w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 text-left cursor-pointer', driverType === 'private' ? 'border-primary bg-primary/5' : 'border-slate-100 dark:border-slate-800 hover:border-primary')}><div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center"><User className="text-blue-600" /></div><div><p className="font-bold dark:text-white">{tr('Private Driver', 'Privatni vozac', 'Privatfahrer')}</p></div></button>
+                  <button onClick={() => setDriverType('company')} className={cn('w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 text-left cursor-pointer', driverType === 'company' ? 'border-primary bg-primary/5' : 'border-slate-100 dark:border-slate-800 hover:border-primary')}><div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center"><Globe className="text-emerald-600" /></div><div><p className="font-bold dark:text-white">{tr('Logistics Company', 'Logisticka kompanija', 'Logistikunternehmen')}</p></div></button>
                 </div>
               </>
             )}
@@ -267,16 +268,16 @@ export const SetupProcess = ({ lang, labels, onComplete, onClose }: SetupProcess
               <>
                 <div className={headerClass}>
                   <Truck className="w-12 h-12 text-primary" />
-                  <h2 className="text-2xl font-bold dark:text-white">{lang === 'bs' ? 'Podaci o vozilu' : lang === 'de' ? 'Fahrzeugdetails' : 'Vehicle Details'}</h2>
-                  <p className="text-slate-500 text-sm">{lang === 'bs' ? 'Unesite osnovne podatke o vozilu' : lang === 'de' ? 'Geben Sie die Fahrzeugdaten ein' : 'Provide your vehicle details'}</p>
+                  <h2 className="text-2xl font-bold dark:text-white">{tr('Vehicle Details', 'Podaci o vozilu', 'Fahrzeugdetails')}</h2>
+                  <p className="text-slate-500 text-sm">{tr('Provide your vehicle details', 'Unesite osnovne podatke o vozilu', 'Geben Sie die Fahrzeugdaten ein')}</p>
                 </div>
                 <div className="flex flex-col gap-4">
                   <div className="grid grid-cols-2 gap-4">
-                    <div><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{lang === 'bs' ? 'Marka' : lang === 'de' ? 'Marke' : 'Make'}</label><input type="text" className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors" value={carData.make} onChange={(e) => setCarData({ ...carData, make: e.target.value })} /></div>
-                    <div><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{lang === 'bs' ? 'Model' : lang === 'de' ? 'Modell' : 'Model'}</label><input type="text" className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors" value={carData.model} onChange={(e) => setCarData({ ...carData, model: e.target.value })} /></div>
+                    <div><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{tr('Make', 'Marka', 'Marke')}</label><input type="text" className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors" value={carData.make} onChange={(e) => setCarData({ ...carData, make: e.target.value })} /></div>
+                    <div><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{tr('Model', 'Model', 'Modell')}</label><input type="text" className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors" value={carData.model} onChange={(e) => setCarData({ ...carData, model: e.target.value })} /></div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <div><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{lang === 'bs' ? 'Godina' : lang === 'de' ? 'Jahr' : 'Year'}</label><input type="text" className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors" value={carData.year} onChange={(e) => setCarData({ ...carData, year: e.target.value })} /></div>
+                    <div><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{tr('Year', 'Godina', 'Jahr')}</label><input type="text" className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors" value={carData.year} onChange={(e) => setCarData({ ...carData, year: e.target.value })} /></div>
                     <div><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{labels.selectFuel}</label><select className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors" value={carData.fuelType} onChange={(e) => setCarData({ ...carData, fuelType: e.target.value })}><option value="">{labels.selectFuel}</option><option value="Diesel">{trFuelType(lang, 'Diesel')}</option><option value="Gasoline">{trFuelType(lang, 'Gasoline')}</option><option value="Electric">{trFuelType(lang, 'Electric')}</option><option value="Hybrid">{trFuelType(lang, 'Hybrid')}</option></select></div>
                   </div>
                   <div><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{labels.licensePlate}</label><input type="text" className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors" value={carData.plate} onChange={(e) => setCarData({ ...carData, plate: e.target.value })} /></div>
@@ -291,7 +292,7 @@ export const SetupProcess = ({ lang, labels, onComplete, onClose }: SetupProcess
 
       <motion.button
         onClick={() => onClose?.()}
-        aria-label={lang === 'bs' ? 'Zatvori setup' : lang === 'de' ? 'Setup schliessen' : 'Close setup'}
+        aria-label={tr('Close setup', 'Zatvori setup', 'Setup schliessen')}
         className="fixed top-4 right-4 z-[150] h-10 w-10 rounded-full bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-primary shadow-lg flex items-center justify-center cursor-pointer transition-all"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
