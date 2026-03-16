@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { User, X } from 'lucide-react';
 
 import { Language, Role } from '../../types';
-import { ui } from '../../i18n';
+import { translateTriplet, ui } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -25,6 +25,7 @@ type LoginProcessProps = {
 
 export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }: LoginProcessProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  const tr = (en: string, bs: string, de: string) => translateTriplet(lang, en, bs, de);
   const [loginData, setLoginData] = useState({
     username: 'driver_demo',
     password: 'demo12345',
@@ -68,11 +69,7 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
             <User className="w-12 h-12 text-primary mx-auto mb-4" />
             <h2 className="text-2xl font-bold dark:text-white mb-6">{labels.logIn}</h2>
             <p className="text-slate-500 text-sm">
-              {lang === 'bs'
-                ? 'Prijavite se i odmah uđite u aplikaciju.'
-                : lang === 'de'
-                  ? 'Melden Sie sich an und betreten Sie die App sofort.'
-                  : 'Sign in and enter the app immediately.'}
+              {tr('Sign in and enter the app immediately.', 'Prijavite se i odmah uđite u aplikaciju.', 'Melden Sie sich an und betreten Sie die App sofort.')}
             </p>
           </div>
 
@@ -126,7 +123,7 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
 
       <motion.button
         onClick={() => onClose?.()}
-        aria-label={lang === 'bs' ? 'Zatvori prijavu' : lang === 'de' ? 'Login schliessen' : 'Close login'}
+        aria-label={tr('Close login', 'Zatvori prijavu', 'Login schliessen')}
         className="fixed top-4 right-4 z-[150] h-10 w-10 rounded-full bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-primary shadow-lg flex items-center justify-center cursor-pointer transition-all"
         disabled={isSwitchingToSetup}
         initial={{ opacity: 0, y: -10 }}

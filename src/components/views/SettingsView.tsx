@@ -15,14 +15,30 @@ import {
   Wrench,
 } from 'lucide-react';
 import { Language, Role } from '../../types';
+import { translateTriplet } from '../../i18n';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { cn } from '../../lib/cn';
 
-const tr = (lang: Language, en: string, bs: string, de: string) => {
-  if (lang === 'bs') return bs;
-  if (lang === 'de') return de;
-  return en;
+const tr = translateTriplet;
+
+const languageName = (lang: Language) => {
+  switch (lang) {
+    case 'bs': return 'Bosanski';
+    case 'de': return 'Deutsch';
+    case 'pl': return 'Polski';
+    case 'ro': return 'Romana';
+    case 'nl': return 'Nederlands';
+    case 'fr': return 'Francais';
+    case 'it': return 'Italiano';
+    case 'zh': return '中文';
+    case 'es': return 'Espanol';
+    case 'sr': return 'Srpski';
+    case 'sv': return 'Svenska';
+    case 'ar': return 'العربية';
+    case 'pt': return 'Portugues';
+    default: return 'English';
+  }
 };
 
 const Toggle = ({
@@ -256,7 +272,7 @@ export const SettingsView = ({
           </div>
           <div className="space-y-3">
             <InfoRow label={tr(lang, 'Theme', 'Tema', 'Design')} value={tr(lang, 'Dark (Default)', 'Tamna (Podrazumijevano)', 'Dunkel (Standard)')} />
-            <InfoRow label={tr(lang, 'Language', 'Jezik', 'Sprache')} value={lang === 'bs' ? 'Bosanski' : lang === 'de' ? 'Deutsch' : 'English'} />
+            <InfoRow label={tr(lang, 'Language', 'Jezik', 'Sprache')} value={languageName(lang)} />
             <InfoRow label={tr(lang, 'Timezone', 'Vremenska zona', 'Zeitzone')} value="Europe/Sarajevo" />
             <InfoRow label={tr(lang, 'Date format', 'Format datuma', 'Datumsformat')} value="dd.mm.yyyy" />
           </div>

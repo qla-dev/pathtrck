@@ -15,6 +15,7 @@ import {
 
 import { cn } from '../../lib/cn';
 import { Language, Load } from '../../types';
+import { translateTriplet } from '../../i18n';
 import { Button } from '../ui/Button';
 
 type LoadDetailsProps = {
@@ -24,8 +25,7 @@ type LoadDetailsProps = {
   lang: Language;
 };
 
-const tr = (lang: Language, en: string, bs: string, de: string) =>
-  lang === 'bs' ? bs : lang === 'de' ? de : en;
+const tr = translateTriplet;
 
 const getGoodsNote = (lang: Language, goodsType: string) => {
   if (goodsType === 'Flammable') {
@@ -305,4 +305,3 @@ export const LoadDetails = ({ open, load, onClose, lang }: LoadDetailsProps) => 
     </div>
   );
 };
-

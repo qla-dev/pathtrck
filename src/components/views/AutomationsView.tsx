@@ -1,8 +1,10 @@
 import { Bot, CheckCircle2, Cpu, Gauge, Radar, Rocket, ShieldCheck, Sparkles, TimerReset, Zap } from 'lucide-react';
 import { Language } from '../../types';
-import { ui } from '../../i18n';
+import { translateTriplet, ui } from '../../i18n';
 import { ChatInsightsPanel } from '../chat/ChatInsightsPanel';
 import { AiRouteCalculatorCard } from '../ai_automattions/AiRouteCalculatorCard';
+
+const tr = translateTriplet;
 
 export const AutomationsView = ({ lang }: { lang: Language }) => (
   <div className="space-y-6">
@@ -14,19 +16,20 @@ export const AutomationsView = ({ lang }: { lang: Language }) => (
             {ui(lang, 'common.automations', 'AI Automations')}
           </div>
           <h1 className="text-3xl font-black mt-2 dark:text-white">
-            {lang === 'bs' ? 'AI Control Center' : lang === 'de' ? 'KI Control Center' : 'AI Control Center'}
+            {tr(lang, 'AI Control Center', 'AI Control Center', 'KI Control Center')}
           </h1>
           <p className="text-sm text-slate-500 mt-2 max-w-2xl">
-            {lang === 'bs'
-              ? 'Upravljaj triggerima, sigurnosnim pravilima i smart rutama iz jednog mjesta.'
-              : lang === 'de'
-                ? 'Verwalten Sie Trigger, Sicherheitsregeln und smarte Routen an einem Ort.'
-                : 'Manage triggers, security rules, and smart route automations from one place.'}
+            {tr(
+              lang,
+              'Manage triggers, security rules, and smart route automations from one place.',
+              'Upravljaj triggerima, sigurnosnim pravilima i smart rutama iz jednog mjesta.',
+              'Verwalten Sie Trigger, Sicherheitsregeln und smarte Routen an einem Ort.'
+            )}
           </p>
         </div>
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-sm font-bold">
           <CheckCircle2 className="w-4 h-4" />
-          {lang === 'bs' ? 'Sve aktivno' : lang === 'de' ? 'Alles aktiv' : 'All systems active'}
+          {tr(lang, 'All systems active', 'Sve aktivno', 'Alles aktiv')}
         </div>
       </div>
 
@@ -34,30 +37,30 @@ export const AutomationsView = ({ lang }: { lang: Language }) => (
         {[
           {
             icon: Radar,
-            label: lang === 'bs' ? 'Aktivni triggeri' : lang === 'de' ? 'Aktive Trigger' : 'Active Triggers',
+            label: tr(lang, 'Active Triggers', 'Aktivni triggeri', 'Aktive Trigger'),
             value: '24',
-            note: lang === 'bs' ? '+4 danas' : lang === 'de' ? '+4 heute' : '+4 today',
+            note: tr(lang, '+4 today', '+4 danas', '+4 heute'),
             tone: 'text-primary',
           },
           {
             icon: Zap,
-            label: lang === 'bs' ? 'Automatske akcije' : lang === 'de' ? 'Automatische Aktionen' : 'Automated Actions',
+            label: tr(lang, 'Automated Actions', 'Automatske akcije', 'Automatische Aktionen'),
             value: '182',
             note: lang === 'bs' ? 'u 24h' : lang === 'de' ? 'in 24h' : 'in 24h',
             tone: 'text-amber-500',
           },
           {
             icon: ShieldCheck,
-            label: lang === 'bs' ? 'Sigurnosni score' : lang === 'de' ? 'Sicherheits-Score' : 'Security Score',
+            label: tr(lang, 'Security Score', 'Sigurnosni score', 'Sicherheits-Score'),
             value: '99.2%',
-            note: lang === 'bs' ? 'bez incidenata' : lang === 'de' ? 'keine Vorfaelle' : 'no incidents',
+            note: tr(lang, 'no incidents', 'bez incidenata', 'keine Vorfaelle'),
             tone: 'text-emerald-500',
           },
           {
             icon: TimerReset,
-            label: lang === 'bs' ? 'Prosjecno vrijeme' : lang === 'de' ? 'Durchschnittszeit' : 'Average Runtime',
+            label: tr(lang, 'Average Runtime', 'Prosjecno vrijeme', 'Durchschnittszeit'),
             value: '320ms',
-            note: lang === 'bs' ? 'po automatizaciji' : lang === 'de' ? 'pro Automatisierung' : 'per automation',
+            note: tr(lang, 'per automation', 'po automatizaciji', 'pro Automatisierung'),
             tone: 'text-violet-500',
           },
         ].map((item) => (
@@ -86,7 +89,7 @@ export const AutomationsView = ({ lang }: { lang: Language }) => (
       <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
         <div className="flex items-center gap-2 text-primary text-xs font-black uppercase tracking-[0.2em] mb-4">
           <Cpu className="w-4 h-4" />
-          {lang === 'bs' ? 'Workflow Queue' : lang === 'de' ? 'Workflow Queue' : 'Workflow Queue'}
+          {tr(lang, 'Workflow Queue', 'Workflow Queue', 'Workflow Queue')}
         </div>
         <div className="space-y-3">
           {[
@@ -105,7 +108,7 @@ export const AutomationsView = ({ lang }: { lang: Language }) => (
       <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
         <div className="flex items-center gap-2 text-primary text-xs font-black uppercase tracking-[0.2em] mb-4">
           <Gauge className="w-4 h-4" />
-          {lang === 'bs' ? 'Trigger Rules' : lang === 'de' ? 'Trigger Rules' : 'Trigger Rules'}
+          {tr(lang, 'Trigger Rules', 'Trigger Rules', 'Trigger Rules')}
         </div>
         <div className="space-y-3">
           {[
@@ -129,7 +132,7 @@ export const AutomationsView = ({ lang }: { lang: Language }) => (
       <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 flex flex-col">
         <div className="flex items-center gap-2 text-primary text-xs font-black uppercase tracking-[0.2em] mb-4">
           <Rocket className="w-4 h-4" />
-          {lang === 'bs' ? 'Execution Log' : lang === 'de' ? 'Execution Log' : 'Execution Log'}
+          {tr(lang, 'Execution Log', 'Execution Log', 'Execution Log')}
         </div>
         <div className="space-y-4">
           {[
@@ -149,7 +152,7 @@ export const AutomationsView = ({ lang }: { lang: Language }) => (
         </div>
         <div className="mt-auto pt-4 text-xs text-slate-500 flex items-center gap-2">
           <Bot className="w-4 h-4 text-primary" />
-          {lang === 'bs' ? 'Auto-refresh svake 2 sekunde' : lang === 'de' ? 'Auto-Refresh alle 2 Sekunden' : 'Auto-refresh every 2 seconds'}
+          {tr(lang, 'Auto-refresh every 2 seconds', 'Auto-refresh svake 2 sekunde', 'Auto-Refresh alle 2 Sekunden')}
         </div>
       </div>
     </div>

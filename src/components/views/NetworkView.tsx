@@ -2,18 +2,19 @@
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { ResponsiveContainer, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Bar, PieChart, Pie } from 'recharts';
 import { Language } from '../../types';
-import { ui } from '../../i18n';
+import { translateTriplet, ui } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 
 export const NetworkView = ({ lang }: { lang: Language }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  const tr = (en: string, bs: string, de: string) => translateTriplet(lang, en, bs, de);
   const stats = [
-    { label: lang === 'bs' ? 'Aktivna čvorišta' : lang === 'de' ? 'Aktive Hubs' : 'Active Hubs', value: '142', icon: Globe, color: 'text-blue-500' },
-    { label: lang === 'bs' ? 'Kapacitet flote' : lang === 'de' ? 'Flottenkapazität' : 'Fleet Capacity', value: '4.2M Tons', icon: Truck, color: 'text-emerald-500' },
-    { label: lang === 'bs' ? 'Globalni domet' : lang === 'de' ? 'Globale Reichweite' : 'Global Reach', icon: MapIcon, value: '192 Countries', color: 'text-amber-500' },
-    { label: lang === 'bs' ? 'Prosj. isporuka' : lang === 'de' ? 'Ø Lieferzeit' : 'Avg Delivery', value: '1.8 Days', icon: Clock, color: 'text-primary' }
+    { label: tr('Active Hubs', 'Aktivna čvorišta', 'Aktive Hubs'), value: '142', icon: Globe, color: 'text-blue-500' },
+    { label: tr('Fleet Capacity', 'Kapacitet flote', 'Flottenkapazität'), value: '4.2M Tons', icon: Truck, color: 'text-emerald-500' },
+    { label: tr('Global Reach', 'Globalni domet', 'Globale Reichweite'), icon: MapIcon, value: '192 Countries', color: 'text-amber-500' },
+    { label: tr('Avg Delivery', 'Prosj. isporuka', 'Ø Lieferzeit'), value: '1.8 Days', icon: Clock, color: 'text-primary' }
   ];
 
   return (
@@ -69,7 +70,7 @@ export const NetworkView = ({ lang }: { lang: Language }) => {
             <div className="absolute top-4 right-4 z-20 bg-white/90 dark:bg-slate-900/90 backdrop-blur p-4 rounded-2xl shadow-xl border border-white/20">
               <p className="text-xs font-bold uppercase tracking-wider mb-2">{u('network.liveStatus', 'Live Status')}</p>
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <div className="w-2 h-2 min-w-2 min-h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-sm font-medium">{u('network.operational', 'All systems operational')}</span>
               </div>
             </div>
@@ -115,9 +116,9 @@ export const NetworkView = ({ lang }: { lang: Language }) => {
                 </ResponsiveContainer>
              </div>
              <div className="flex justify-center gap-4 text-xs font-bold uppercase">
-               <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-primary" /> {lang === 'bs' ? 'Aktivno' : lang === 'de' ? 'Aktiv' : 'Active'}</div>
-               <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-amber-500" /> {lang === 'bs' ? 'Održ.' : lang === 'de' ? 'Wart.' : 'Maint.'}</div>
-               <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-red-500" /> {lang === 'bs' ? 'Neaktivno' : lang === 'de' ? 'Leerlauf' : 'Idle'}</div>
+               <div className="flex items-center gap-1"><div className="w-2 h-2 min-w-2 min-h-2 rounded-full bg-primary" /> {tr('Active', 'Aktivno', 'Aktiv')}</div>
+               <div className="flex items-center gap-1"><div className="w-2 h-2 min-w-2 min-h-2 rounded-full bg-amber-500" /> {tr('Maint.', 'Održ.', 'Wart.')}</div>
+               <div className="flex items-center gap-1"><div className="w-2 h-2 min-w-2 min-h-2 rounded-full bg-red-500" /> {tr('Idle', 'Neaktivno', 'Leerlauf')}</div>
              </div>
           </Card>
         </div>
@@ -125,5 +126,4 @@ export const NetworkView = ({ lang }: { lang: Language }) => {
     </div>
   );
 };
-
 

@@ -32,7 +32,7 @@ import {
 } from 'recharts';
 import { Language, Role } from '../../types';
 import { MOCK_LOADS } from '../../mockData';
-import { ui, trLoadStatus, trPackageStatus } from '../../i18n';
+import { translateTriplet, ui, trLoadStatus, trPackageStatus } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
@@ -40,11 +40,7 @@ import { PostLoadModal } from '../modals/PostLoadModal';
 
 type RangeOption = '24h' | '7d' | '30d';
 
-const tr = (lang: Language, en: string, bs: string, de: string) => {
-  if (lang === 'bs') return bs;
-  if (lang === 'de') return de;
-  return en;
-};
+const tr = translateTriplet;
 
 export const Dashboard = ({ role, lang }: { role: Role; lang: Language }) => {
   const [isPostLoadOpen, setIsPostLoadOpen] = useState(false);
@@ -650,4 +646,3 @@ export const Dashboard = ({ role, lang }: { role: Role; lang: Language }) => {
     </div>
   );
 };
-
