@@ -237,11 +237,11 @@ export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-start sm:items-center justify-center overflow-y-auto p-2 sm:p-3 md:p-4 bg-slate-950/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[200] flex items-stretch justify-center overflow-hidden bg-slate-950/70 backdrop-blur-sm">
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 12 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="flex flex-col bg-white dark:bg-slate-900 rounded-[1.5rem] sm:rounded-[1.75rem] shadow-2xl w-full max-w-4xl h-[calc(100dvh-1rem)] sm:h-[min(92vh,960px)] overflow-hidden border border-slate-200 dark:border-slate-800 my-2 sm:my-0"
+        className="flex flex-col bg-white dark:bg-slate-900 shadow-2xl w-full h-[100dvh] overflow-hidden border-0 rounded-none"
       >
         <div className="sticky top-0 z-20 p-4 sm:p-5 md:p-6 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-3 sm:gap-4 bg-white/96 dark:bg-slate-900/96 backdrop-blur-sm">
           <div className="flex items-center gap-3 sm:gap-4 min-w-0">

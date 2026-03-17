@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import L from 'leaflet';
-import { ArrowDownWideNarrow, Filter, Plus, List, LayoutGrid, Map as MapIcon, Layers } from 'lucide-react';
+import { ArrowDownWideNarrow, Filter, List, LayoutGrid, Map as MapIcon, Layers } from 'lucide-react';
 import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 
 import { ui } from '../../i18n';
@@ -150,7 +150,7 @@ export const HomeFeed = ({
   const [mapSource, setMapSource] = useState<MapSource>('normal');
   const [selectedLoad, setSelectedLoad] = useState<Load | null>(null);
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
-  const bookLoadLabel = u('common.bookLoad', lang === 'bs' ? 'Rezervisi teret' : lang === 'de' ? 'Ladung buchen' : 'Book Load');
+  const bookLoadLabel = u('common.bookLoad', 'Book Load');
   const loadsTitle =
     dataMode === 'all'
       ? u('home.loadsTitle.all', 'All Organic and Global Loads')
@@ -225,15 +225,15 @@ export const HomeFeed = ({
   );
 
   const mapSourceLabels: Record<MapSource, string> = {
-    normal: lang === 'bs' ? 'Normalna' : lang === 'de' ? 'Normal' : 'Normal',
-    vector: lang === 'bs' ? 'Vektorska' : lang === 'de' ? 'Vektor' : 'Vector',
-    imagery: lang === 'bs' ? 'Satelit' : lang === 'de' ? 'Satellit' : 'Imagery',
+    normal: u('home.mapSource.normal', 'Normal'),
+    vector: u('home.mapSource.vector', 'Vector'),
+    imagery: u('home.mapSource.imagery', 'Imagery'),
   };
 
   const layoutButtons: Array<{ id: FeedLayoutMode; icon: typeof List; title: string }> = [
-    { id: 'list', icon: List, title: lang === 'bs' ? 'Lista' : lang === 'de' ? 'Liste' : 'List' },
-    { id: 'grid', icon: LayoutGrid, title: lang === 'bs' ? 'Mreza' : lang === 'de' ? 'Raster' : 'Grid' },
-    { id: 'map', icon: MapIcon, title: lang === 'bs' ? 'Mapa' : lang === 'de' ? 'Karte' : 'Map' },
+    { id: 'list', icon: List, title: u('home.layout.list', 'List') },
+    { id: 'grid', icon: LayoutGrid, title: u('home.layout.grid', 'Grid') },
+    { id: 'map', icon: MapIcon, title: u('home.layout.map', 'Map') },
   ];
 
   return (
@@ -254,9 +254,6 @@ export const HomeFeed = ({
             onClick={onToggleSortSidebar}
           >
             <ArrowDownWideNarrow className="w-4 h-4 mr-2" /> {u('common.sort', 'Sort')}
-          </Button>
-          <Button size="sm">
-            <Plus className="w-4 h-4 mr-2" /> {u('common.postLoad', 'Post Load')}
           </Button>
         </div>
         <div className="inline-flex items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1 self-start md:self-auto">
@@ -350,7 +347,7 @@ export const HomeFeed = ({
                         <p className="font-bold">{entry.load.title}</p>
                         <p className="text-xs text-slate-500">{entry.load.pickup}</p>
                         <p className="text-xs text-emerald-600 font-semibold mt-1">
-                          {lang === 'bs' ? 'Polazna tacka' : lang === 'de' ? 'Startpunkt' : 'Pickup Point'}
+                          {u('home.pickupPoint', 'Pickup Point')}
                         </p>
                       </Popup>
                     </CircleMarker>
@@ -363,7 +360,7 @@ export const HomeFeed = ({
                         <p className="font-bold">{entry.load.title}</p>
                         <p className="text-xs text-slate-500">{entry.load.delivery}</p>
                         <p className="text-xs text-blue-600 font-semibold mt-1">
-                          {lang === 'bs' ? 'Odredisna tacka' : lang === 'de' ? 'Zielpunkt' : 'Delivery Point'}
+                          {u('home.deliveryPoint', 'Delivery Point')}
                         </p>
                       </Popup>
                     </CircleMarker>
@@ -375,7 +372,7 @@ export const HomeFeed = ({
                 <div className="flex items-center gap-2 mb-2 px-1">
                   <Layers className="w-4 h-4 text-primary" />
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                    {lang === 'bs' ? 'Izvor mape' : lang === 'de' ? 'Kartenstil' : 'Map Source'}
+                    {u('home.mapSource.title', 'Map Source')}
                   </span>
                 </div>
                 <div className="grid grid-cols-3 gap-1">

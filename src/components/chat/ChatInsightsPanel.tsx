@@ -1,11 +1,11 @@
 import { Bot, CheckCircle2, MessageSquare, ShieldCheck } from 'lucide-react';
 import { Language } from '../../types';
-import { translateTriplet } from '../../i18n';
+import { ui } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { Button } from '../ui/Button';
 
 export const ChatInsightsPanel = ({ lang, className }: { lang: Language; className?: string }) => {
-  const tr = (en: string, bs: string, de: string) => translateTriplet(lang, en, bs, de);
+  const u = (key: string, fallback: string) => ui(lang, key, fallback);
 
   return (
   <div className={cn("lg:col-span-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 flex flex-col gap-4 h-full min-h-0", className)}>
@@ -15,7 +15,7 @@ export const ChatInsightsPanel = ({ lang, className }: { lang: Language; classNa
         <p className="text-xs font-bold uppercase tracking-wider text-primary">AI</p>
       </div>
       <p className="text-xs text-slate-600 dark:text-slate-300">
-        {tr('Suggestion: Send automatic ETA updates to all clients on this route.', 'Predlog: Posalji automatski ETA update svim klijentima na ovoj ruti.', 'Vorschlag: Senden Sie automatische ETA-Updates an alle Kunden dieser Route.')}
+        {u('chat.suggestionEtaUpdates', 'Suggestion: Send automatic ETA updates to all clients on this route.')}
       </p>
     </div>
 
@@ -23,11 +23,11 @@ export const ChatInsightsPanel = ({ lang, className }: { lang: Language; classNa
       <div className="flex items-center gap-2 mb-2">
         <ShieldCheck className="w-4 h-4 text-primary" />
         <p className="text-xs font-bold uppercase tracking-wider text-primary">
-          {tr('Security', 'Sigurnost', 'Sicherheit')}
+          {u('common.security', 'Security')}
         </p>
       </div>
       <p className="text-xs text-slate-600 dark:text-slate-300">
-        {tr('End-to-end encryption enabled.', 'End-to-end enkripcija aktivna.', 'Ende-zu-Ende Verschluesselung aktiv.')}
+        {u('chat.encryptionEnabled', 'End-to-end encryption enabled.')}
       </p>
     </div>
 
@@ -35,7 +35,7 @@ export const ChatInsightsPanel = ({ lang, className }: { lang: Language; classNa
       <div className="flex items-center gap-2 mb-2">
         <CheckCircle2 className="w-4 h-4 text-emerald-500" />
         <p className="text-xs font-bold uppercase tracking-wider text-emerald-600">
-          {tr('Channel Status', 'Status kanala', 'Kanalstatus')}
+          {u('chat.channelStatus', 'Channel Status')}
         </p>
       </div>
       <p className="text-xs text-slate-600 dark:text-slate-300">
@@ -49,7 +49,7 @@ export const ChatInsightsPanel = ({ lang, className }: { lang: Language; classNa
 
     <Button className="w-full mt-auto">
       <MessageSquare className="w-4 h-4 mr-2" />
-      {tr('New Message', 'Nova poruka', 'Neue Nachricht')}
+      {u('chat.newMessage', 'New Message')}
     </Button>
   </div>
   );

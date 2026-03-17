@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { 
   Package as PackageIcon, 
@@ -73,6 +73,7 @@ import { useCitySuggestions } from './components/frights/useCitySuggestions';
 import { MessagesView } from './components/views/MessagesView';
 import { ProfileView } from './components/views/ProfileView';
 import { AutomationsView } from './components/views/AutomationsView';
+import { PostLoadModal } from './components/modals/PostLoadModal';
 import { SettingsView } from './components/views/SettingsView';
 import { SetupProcess } from './components/auth/SetupProcess';
 import { LoginProcess } from './components/auth/LoginProcess';
@@ -1124,29 +1125,29 @@ const LandingPage = ({
   const trackerTimeline = [
     {
       time: '06:40',
-      title: lang === 'bs' ? 'Polazak iz Zagreb Huba' : lang === 'de' ? 'Abfahrt aus Zagreb Hub' : 'Departed Zagreb Hub',
-      note: lang === 'bs' ? 'Potvrđena prijava vozača' : lang === 'de' ? 'Fahrer-Check-in bestätigt' : 'Driver check-in confirmed',
+      title: u('landing.timeline.departedTitle', 'Departed Zagreb Hub'),
+      note: u('landing.timeline.departedNote', 'Driver check-in confirmed'),
       icon: CheckCircle2,
       iconClass: 'text-emerald-500 bg-emerald-500/12'
     },
     {
       time: '11:10',
-      title: lang === 'bs' ? 'Stajanje 1: Minhen' : lang === 'de' ? 'Stopp 1: München' : 'Stop 1: Munich Relay',
-      note: lang === 'bs' ? 'Sken tereta i kontrola predaje' : lang === 'de' ? 'Fracht-Scan und Übergabekontrolle' : 'Cargo scan and handoff checkpoint',
+      title: u('landing.timeline.stop1Title', 'Stop 1: Munich Relay'),
+      note: u('landing.timeline.stop1Note', 'Cargo scan and handoff checkpoint'),
       icon: MapPin,
       iconClass: 'text-amber-500 bg-amber-500/12'
     },
     {
       time: '15:45',
-      title: lang === 'bs' ? 'Stajanje 2: Keln' : lang === 'de' ? 'Stopp 2: Köln' : 'Stop 2: Cologne Relay',
-      note: lang === 'bs' ? 'Odmor vozača i recalculacija rute' : lang === 'de' ? 'Fahrerpause und Routen-Neuberechnung' : 'Driver rest and route recalibration',
+      title: u('landing.timeline.stop2Title', 'Stop 2: Cologne Relay'),
+      note: u('landing.timeline.stop2Note', 'Driver rest and route recalibration'),
       icon: Clock,
       iconClass: 'text-sky-500 bg-sky-500/12'
     },
     {
-      time: 'Tomorrow 07:20',
-      title: lang === 'bs' ? 'Dolazak: Amsterdam DC' : lang === 'de' ? 'Ankunft: Amsterdam DC' : 'Arrival: Amsterdam DC',
-      note: lang === 'bs' ? 'Potvrđen termin istovara' : lang === 'de' ? 'Andock- und Entladefenster bestätigt' : 'Dock and unloading slot confirmed',
+      time: u('landing.timeline.arrivalTime', 'Tomorrow 07:20'),
+      title: u('landing.timeline.arrivalTitle', 'Arrival: Amsterdam DC'),
+      note: u('landing.timeline.arrivalNote', 'Dock and unloading slot confirmed'),
       icon: Truck,
       iconClass: 'text-violet-500 bg-violet-500/12'
     },
@@ -1389,7 +1390,7 @@ const LandingPage = ({
             <div className="mt-2 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800 max-w-xl w-full overflow-hidden">
               <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
                 <h4 className="text-sm font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">{u('landing.availableLoads', 'Available Loads')}</h4>
-                <span className="px-2 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider">{landingLoads.length} {lang === 'bs' ? 'uživo' : lang === 'de' ? 'live' : 'live'}</span>
+                <span className="px-2 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider">{landingLoads.length} {u('landing.liveCount', 'live')}</span>
               </div>
               <div className="h-64 overflow-hidden relative">
                 <div className="p-4 animate-load-scroll">
@@ -1477,15 +1478,15 @@ const LandingPage = ({
                       </div>
                       <div className="flex items-center gap-2">
 	                        <MessageSquare className="w-4 h-4 text-primary group-hover:text-white" />
-	                        <span className="text-xs font-bold uppercase tracking-wider">{lang === 'bs' ? 'Ruta potvrđena' : lang === 'de' ? 'Route bestätigt' : 'Route Confirmed'}</span>
+	                        <span className="text-xs font-bold uppercase tracking-wider">{u('landing.routeConfirmed', 'Route Confirmed')}</span>
 	                      </div>
 	                    </div>
 	                  </div>
 	                  
 	                  <div className="bg-white/80 dark:bg-white/10 backdrop-blur-2xl p-6 rounded-3xl border border-white/30 dark:border-white/20 shadow-2xl">
 	                    <div className="flex items-center justify-between mb-4">
-	                      <span className="px-3 py-1 rounded-full bg-primary text-[10px] font-black uppercase tracking-widest text-white">{lang === 'bs' ? 'Ruta uživo' : lang === 'de' ? 'Live-Route' : 'Live Route'}</span>
-	                      <span className="text-xs font-bold text-slate-700 dark:text-white/70">{lang === 'bs' ? 'ETA 3. mart, 14:20' : lang === 'de' ? 'ETA 3. März, 14:20' : 'ETA Mar 3, 14:20'}</span>
+	                      <span className="px-3 py-1 rounded-full bg-primary text-[10px] font-black uppercase tracking-widest text-white">{u('landing.liveRoute', 'Live Route')}</span>
+	                      <span className="text-xs font-bold text-slate-700 dark:text-white/70">{u('landing.etaMarch3', 'ETA Mar 3, 14:20')}</span>
 	                    </div>
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-lg">
@@ -1493,7 +1494,7 @@ const LandingPage = ({
                       </div>
 	                      <div>
 	                        <p className="text-lg font-bold text-slate-900 dark:text-white">HAM-SJJ-214</p>
-	                        <p className="text-sm text-slate-700 dark:text-white/60">{lang === 'bs' ? '1,545 km | Luka Hamburg -> Sarajevo Hub' : lang === 'de' ? '1,545 km | Hafen Hamburg -> Sarajevo Hub' : '1,545 km | Hamburg Port -> Sarajevo Hub'}</p>
+	                        <p className="text-sm text-slate-700 dark:text-white/60">{u('landing.heroRouteMeta', '1,545 km | Hamburg Port -> Sarajevo Hub')}</p>
 	                      </div>
 	                    </div>
 	                  </div>
@@ -1560,14 +1561,10 @@ const LandingPage = ({
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-20">
             <h2 className="text-4xl md:text-6xl font-display font-bold mb-6 dark:text-white tracking-tight">
-              {lang === 'bs' ? 'Napravljeno za' : lang === 'de' ? 'Gebaut für die' : 'Built for the'} <br /> <span className="text-primary">{lang === 'bs' ? 'modernu flotu.' : lang === 'de' ? 'moderne Flotte.' : 'Modern Fleet.'}</span>
+              {u('landing.builtFor', 'Built for the')} <br /> <span className="text-primary">{u('landing.modernFleet', 'Modern Fleet.')}</span>
             </h2>
             <p className="text-slate-500 dark:text-slate-400 max-w-2xl mx-auto text-lg">
-              {lang === 'bs'
-                ? 'Sve što ti treba za upravljanje globalnom logistikom u velikom obimu, od praćenja u realnom vremenu do AI optimizacije ruta.'
-                : lang === 'de'
-                  ? 'Alles, was Sie zur Steuerung globaler Logistik im großen Maßstab benötigen - von Echtzeit-Tracking bis zu KI-Routenoptimierung.'
-                  : 'Everything you need to manage global logistics at scale, from real-time tracking to AI-powered route optimization.'}
+              {u('landing.modernFleetDesc', 'Everything you need to manage global logistics at scale, from real-time tracking to AI-powered route optimization.')}
             </p>
           </div>
           
@@ -1579,14 +1576,10 @@ const LandingPage = ({
                   <MapIcon className="text-white w-8 h-8" />
                 </div>
                 <h3 className="text-4xl font-bold mb-6 dark:text-white tracking-tight">
-                  {lang === 'bs' ? 'Globalna vidljivost u realnom vremenu' : lang === 'de' ? 'Globale Echtzeit-Transparenz' : 'Real-time Global Visibility'}
+                  {u('landing.realTimeGlobalVisibility', 'Real-time Global Visibility')}
                 </h3>
                 <p className="text-slate-500 dark:text-slate-400 max-w-md text-xl leading-relaxed">
-                  {lang === 'bs'
-                    ? 'Prati svaki paket, vozilo i sredstvo u realnom vremenu sa preciznošću manjom od metra u 180+ država.'
-                    : lang === 'de'
-                      ? 'Verfolgen Sie jedes Paket, Fahrzeug und Asset in Echtzeit mit submeter-genauer Präzision in über 180 Ländern.'
-                      : 'Track every package, vehicle, and asset in real-time with sub-meter precision across 180+ countries.'}
+                  {u('landing.realTimeGlobalVisibilityDesc', 'Track every package, vehicle, and asset in real-time with sub-meter precision across 180+ countries.')}
                 </p>
                 <div className="mt-auto pt-8 flex gap-4">
                    <div className="px-4 py-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700 flex items-center gap-2">
@@ -1595,7 +1588,7 @@ const LandingPage = ({
                    </div>
                    <div className="px-4 py-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700 flex items-center gap-2">
                      <Globe className="w-4 h-4 text-primary" />
-                     <span className="text-xs font-bold dark:text-white">{lang === 'bs' ? 'Globalna pokrivenost' : lang === 'de' ? 'Globale Abdeckung' : 'Global Coverage'}</span>
+                     <span className="text-xs font-bold dark:text-white">{u('landing.globalCoverage', 'Global Coverage')}</span>
                    </div>
                 </div>
               </div>
@@ -1616,15 +1609,15 @@ const LandingPage = ({
 
               <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-3 mb-4">
                 <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
-                  <span>{lang === 'bs' ? 'Zagreb Hub' : lang === 'de' ? 'Zagreb Hub' : 'Zagreb Hub'}</span>
-                  <span>{lang === 'bs' ? 'Amsterdam DC' : lang === 'de' ? 'Amsterdam DC' : 'Amsterdam DC'}</span>
+                  <span>{u('landing.routeProgress.startHub', 'Zagreb Hub')}</span>
+                  <span>{u('landing.routeProgress.endHub', 'Amsterdam DC')}</span>
                 </div>
                 <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
                   <div className="h-full w-[44%] bg-primary rounded-full" />
                 </div>
                 <div className="mt-2 flex items-center justify-between text-xs font-bold">
-                  <span className="text-primary">{lang === 'bs' ? '612 km završeno' : lang === 'de' ? '612 km abgeschlossen' : '612 km completed'}</span>
-                  <span className="text-slate-500">{lang === 'bs' ? '779 km preostalo' : lang === 'de' ? '779 km übrig' : '779 km left'}</span>
+                  <span className="text-primary">{u('landing.routeProgress.completed', '612 km completed')}</span>
+                  <span className="text-slate-500">{u('landing.routeProgress.left', '779 km left')}</span>
                 </div>
               </div>
 
@@ -1686,7 +1679,7 @@ const LandingPage = ({
                   </p>
                   <h3 className="text-2xl font-bold dark:text-white tracking-tight">{u('landing.waypointPlanner', 'Waypoint Planner')}</h3>
                 </div>
-                <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase tracking-wider">{lang === 'bs' ? '4 markera' : lang === 'de' ? '4 Marker' : '4 Markers'}</span>
+                <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase tracking-wider">{u('landing.fourMarkers', '4 Markers')}</span>
               </div>
 
               <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 relative">
@@ -1751,44 +1744,28 @@ const LandingPage = ({
           <div className="grid lg:grid-cols-2 gap-20">
             <div>
               <h2 className="text-4xl md:text-6xl font-display font-bold mb-8 dark:text-white leading-tight">
-                {lang === 'bs' ? 'Kako Smartfreight.ai' : lang === 'de' ? 'So funktioniert' : 'How Smartfreight.ai'} <br /> <span className="text-primary">{lang === 'bs' ? 'radi.' : lang === 'de' ? 'Smartfreight.ai.' : 'Works.'}</span>
+                {u('landing.howItWorksTitle1', 'How Smartfreight.ai')} <br /> <span className="text-primary">{u('landing.howItWorksTitle2', 'Works.')}</span>
               </h2>
               <p className="text-slate-500 dark:text-slate-400 text-lg mb-12">
-                {lang === 'bs'
-                  ? 'Pojednostavili smo složeni svijet globalne logistike u tri jednostavna koraka.'
-                  : lang === 'de'
-                    ? 'Wir haben die komplexe Welt der globalen Logistik auf drei einfache Schritte reduziert.'
-                    : "We've simplified the complex world of global logistics into three simple steps."}
+                {u('landing.howItWorksDesc', "We've simplified the complex world of global logistics into three simple steps.")}
               </p>
               <div className="space-y-12 relative">
                 <div className="absolute left-6 top-0 bottom-0 w-px bg-slate-200 dark:bg-slate-800" />
                 {[
                   {
                     step: "01",
-                    title: lang === 'bs' ? 'Poveži svoju flotu' : lang === 'de' ? 'Flotte verbinden' : 'Connect your Fleet',
-                    desc: lang === 'bs'
-                      ? 'Poveži postojeća vozila ili koristi našu aplikaciju vozača i kreni za nekoliko minuta.'
-                      : lang === 'de'
-                        ? 'Integrieren Sie bestehende Fahrzeuge oder starten Sie in Minuten mit unserer Fahrer-App.'
-                        : 'Integrate your existing vehicles or use our driver app to start tracking in minutes.'
+                    title: u('landing.steps.connectFleet.title', 'Connect your Fleet'),
+                    desc: u('landing.steps.connectFleet.desc', 'Integrate your existing vehicles or use our driver app to start tracking in minutes.')
                   },
                   {
                     step: "02",
-                    title: lang === 'bs' ? 'Optimizuj rute' : lang === 'de' ? 'Routen optimieren' : 'Optimize Routes',
-                    desc: lang === 'bs'
-                      ? 'Naš AI analizira saobraćaj, vrijeme i historijske podatke kako bi našao najbrže putanje.'
-                      : lang === 'de'
-                        ? 'Unsere KI analysiert Verkehr, Wetter und historische Daten für die schnellsten Routen.'
-                        : 'Our AI engine analyzes traffic, weather, and historical data to find the fastest paths.'
+                    title: u('landing.steps.optimizeRoutes.title', 'Optimize Routes'),
+                    desc: u('landing.steps.optimizeRoutes.desc', 'Our AI engine analyzes traffic, weather, and historical data to find the fastest paths.')
                   },
                   {
                     step: "03",
-                    title: lang === 'bs' ? 'Isporuči sigurno' : lang === 'de' ? 'Sicher liefern' : 'Deliver with Confidence',
-                    desc: lang === 'bs'
-                      ? 'Ažuriranja u realnom vremenu i automatski izvještaji drže korisnike stalno informisanim.'
-                      : lang === 'de'
-                        ? 'Echtzeit-Updates und automatisierte Berichte halten Ihre Kunden jederzeit informiert.'
-                        : 'Real-time updates and automated reporting keep your customers informed and happy.'
+                    title: u('landing.steps.deliverConfidence.title', 'Deliver with Confidence'),
+                    desc: u('landing.steps.deliverConfidence.desc', 'Real-time updates and automated reporting keep your customers informed and happy.')
                   }
                 ].map((s, i) => (
                   <motion.div 
@@ -1817,14 +1794,10 @@ const LandingPage = ({
                     <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center">
                       <CheckCircle2 className="text-emerald-500 w-6 h-6" />
                     </div>
-                    <p className="font-bold dark:text-white">{lang === 'bs' ? 'Ruta optimizovana' : lang === 'de' ? 'Route optimiert' : 'Route Optimized'}</p>
+                    <p className="font-bold dark:text-white">{u('landing.routeOptimized', 'Route Optimized')}</p>
                   </div>
                   <p className="text-xs text-slate-500">
-                    {lang === 'bs'
-                      ? 'AI je smanjio vrijeme isporuke za 24% na ovoj ruti.'
-                      : lang === 'de'
-                        ? 'KI hat die Lieferzeit auf dieser Route um 24% reduziert.'
-                        : 'AI reduced delivery time by 24% for this route.'}
+                    {u('landing.routeOptimizedDesc', 'AI reduced delivery time by 24% for this route.')}
                   </p>
                 </div>
               </div>
@@ -1850,33 +1823,21 @@ const LandingPage = ({
             </div>
             <div className="order-1 lg:order-2">
               <h2 className="text-4xl md:text-6xl font-display font-bold text-white mb-8 leading-tight">
-                {lang === 'bs' ? 'Upravljaj cijelom' : lang === 'de' ? 'Steuern Sie Ihre gesamte' : 'Control your entire'} <br /> <span className="text-primary">{lang === 'bs' ? 'operacijom.' : lang === 'de' ? 'Operation.' : 'Operation.'}</span>
+                {u('landing.controlOperationTitle1', 'Control your entire')} <br /> <span className="text-primary">{u('landing.controlOperationTitle2', 'Operation.')}</span>
               </h2>
               <div className="space-y-8">
                 {[
                   {
-                    title: lang === 'bs' ? 'Jedinstveni dashboard' : lang === 'de' ? 'Einheitliches Dashboard' : 'Unified Dashboard',
-                    desc: lang === 'bs'
-                      ? 'Jedan ekran za sve. Upravljaj vozačima, teretima i praćenjem na jednom mjestu.'
-                      : lang === 'de'
-                        ? 'Ein Bildschirm für alles: Fahrer, Ladungen und Tracking zentral verwalten.'
-                        : 'One screen to rule them all. Manage drivers, loads, and tracking in one place.'
+                    title: u('landing.enterprise.unifiedDashboard.title', 'Unified Dashboard'),
+                    desc: u('landing.enterprise.unifiedDashboard.desc', 'One screen to rule them all. Manage drivers, loads, and tracking in one place.')
                   },
                   {
-                    title: lang === 'bs' ? 'Pametna obavještenja' : lang === 'de' ? 'Intelligente Benachrichtigungen' : 'Smart Notifications',
-                    desc: lang === 'bs'
-                      ? 'Dobij upozorenje prije kašnjenja uz naš prediktivni analitički sistem.'
-                      : lang === 'de'
-                        ? 'Sie werden vor Verzögerungen gewarnt - dank prädiktiver Analysen.'
-                        : 'Get alerted before delays happen with our predictive analytics engine.'
+                    title: u('landing.enterprise.smartNotifications.title', 'Smart Notifications'),
+                    desc: u('landing.enterprise.smartNotifications.desc', 'Get alerted before delays happen with our predictive analytics engine.')
                   },
                   {
-                    title: lang === 'bs' ? 'Automatizovano izvještavanje' : lang === 'de' ? 'Automatisiertes Reporting' : 'Automated Reporting',
-                    desc: lang === 'bs'
-                      ? 'Generiši složene logističke izvještaje za sekunde, ne sate.'
-                      : lang === 'de'
-                        ? 'Erstellen Sie komplexe Logistikberichte in Sekunden statt Stunden.'
-                        : 'Generate complex logistics reports in seconds, not hours.'
+                    title: u('landing.enterprise.automatedReporting.title', 'Automated Reporting'),
+                    desc: u('landing.enterprise.automatedReporting.desc', 'Generate complex logistics reports in seconds, not hours.')
                   }
                 ].map((item, i) => (
                   <div key={i} className="flex gap-6">
@@ -1900,21 +1861,48 @@ const LandingPage = ({
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-20">
             <h2 className="text-4xl md:text-6xl font-display font-bold mb-6 dark:text-white tracking-tight">
-              {lang === 'bs' ? 'Jednostavne, transparentne' : lang === 'de' ? 'Einfaches, transparentes' : 'Simple, Transparent'} <br /> <span className="text-primary">{lang === 'bs' ? 'cijene.' : lang === 'de' ? 'Pricing.' : 'Pricing.'}</span>
+              {u('landing.pricingTitle1', 'Simple, Transparent')} <br /> <span className="text-primary">{u('landing.pricingTitle2', 'Pricing.')}</span>
             </h2>
             <p className="text-slate-500 dark:text-slate-400 max-w-2xl mx-auto text-lg">
-              {lang === 'bs'
-                ? 'Izaberi plan koji odgovara tvom poslovanju. Bez skrivenih troškova.'
-                : lang === 'de'
-                  ? 'Wählen Sie den Plan, der zu Ihrem Geschäft passt. Keine versteckten Gebühren.'
-                  : 'Choose the plan that fits your business needs. No hidden fees.'}
+              {u('landing.pricingDesc', 'Choose the plan that fits your business needs. No hidden fees.')}
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
             {[
-              { name: "Starter", price: "€0", desc: "Perfect for individuals and small shops.", features: ["Up to 50 tracks/mo", "Basic AI updates", "Mobile App access", "Email support"] },
-              { name: "Professional", price: "€49", desc: "Best for growing logistics companies.", features: ["Unlimited tracking", "Advanced AI Insights", "Route Optimization", "Priority support"], popular: true },
-              { name: "Enterprise", price: "Custom", desc: "For global fleets and large enterprises.", features: ["Custom integrations", "Dedicated account manager", "SLA guarantees", "White-label options"] }
+              {
+                name: u('landing.pricing.starter.name', 'Starter'),
+                price: '€0',
+                desc: u('landing.pricing.starter.desc', 'Perfect for individuals and small shops.'),
+                features: [
+                  u('landing.pricing.starter.feature1', 'Up to 50 tracks/mo'),
+                  u('landing.pricing.starter.feature2', 'Basic AI updates'),
+                  u('landing.pricing.starter.feature3', 'Mobile App access'),
+                  u('landing.pricing.starter.feature4', 'Email support'),
+                ]
+              },
+              {
+                name: u('landing.pricing.pro.name', 'Professional'),
+                price: '€49',
+                desc: u('landing.pricing.pro.desc', 'Best for growing logistics companies.'),
+                features: [
+                  u('landing.pricing.pro.feature1', 'Unlimited tracking'),
+                  u('landing.pricing.pro.feature2', 'Advanced AI Insights'),
+                  u('landing.pricing.pro.feature3', 'Route Optimization'),
+                  u('landing.pricing.pro.feature4', 'Priority support'),
+                ],
+                popular: true
+              },
+              {
+                name: u('landing.pricing.enterprise.name', 'Enterprise'),
+                price: u('landing.pricing.enterprise.price', 'Custom'),
+                desc: u('landing.pricing.enterprise.desc', 'For global fleets and large enterprises.'),
+                features: [
+                  u('landing.pricing.enterprise.feature1', 'Custom integrations'),
+                  u('landing.pricing.enterprise.feature2', 'Dedicated account manager'),
+                  u('landing.pricing.enterprise.feature3', 'SLA guarantees'),
+                  u('landing.pricing.enterprise.feature4', 'White-label options'),
+                ]
+              }
             ].map((plan, i) => (
               <div key={i} className={cn(
                 "p-10 rounded-[2.5rem] border flex flex-col justify-between transition-all",
@@ -1923,12 +1911,12 @@ const LandingPage = ({
                   : "border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 hover:border-primary/50"
               )}>
                 <div>
-                  {plan.popular && <span className="px-4 py-1 rounded-full bg-white text-primary text-[10px] font-black uppercase tracking-widest mb-6 inline-block">{lang === 'bs' ? 'Najpopularniji' : lang === 'de' ? 'Am beliebtesten' : 'Most Popular'}</span>}
+                  {plan.popular && <span className="px-4 py-1 rounded-full bg-white text-primary text-[10px] font-black uppercase tracking-widest mb-6 inline-block">{u('landing.mostPopular', 'Most Popular')}</span>}
                   <h4 className="text-2xl font-bold mb-2">{plan.name}</h4>
                   <p className={cn("text-sm mb-8", plan.popular ? "text-white/70" : "text-slate-500")}>{plan.desc}</p>
                   <div className="flex items-baseline gap-1 mb-8">
                     <span className="text-5xl font-black">{plan.price}</span>
-                    {plan.price !== "Custom" && <span className="text-sm opacity-70">{lang === 'bs' ? '/mjesec' : lang === 'de' ? '/Monat' : '/month'}</span>}
+                    {plan.price !== u('landing.pricing.enterprise.price', 'Custom') && <span className="text-sm opacity-70">{u('landing.perMonth', '/month')}</span>}
                   </div>
                   <ul className="space-y-4">
                     {plan.features.map((f, j) => (
@@ -1941,8 +1929,8 @@ const LandingPage = ({
                 </div>
                 <Button variant={plan.popular ? "secondary" : "primary"} className={cn("w-full mt-10 h-14 rounded-full font-bold", plan.popular ? "bg-white text-primary hover:bg-slate-100" : "")}>
                   {plan.price === "Custom"
-                    ? (lang === 'bs' ? 'Kontakt prodaja' : lang === 'de' ? 'Vertrieb kontaktieren' : 'Contact Sales')
-                    : (lang === 'bs' ? 'Započni' : lang === 'de' ? 'Loslegen' : 'Get Started')}
+                    ? u('common.contactSales', 'Contact Sales')
+                    : u('landing.getStarted', 'Get Started')}
                 </Button>
               </div>
             ))}
@@ -1996,14 +1984,10 @@ const LandingPage = ({
         <div className="max-w-7xl mx-auto bg-primary rounded-[3rem] p-12 md:p-24 text-center text-white relative overflow-hidden shadow-2xl shadow-primary/40">
           <div className="relative z-10">
             <h2 className="text-4xl md:text-7xl font-display font-black mb-8">
-              {lang === 'bs' ? 'SPREMNI DA' : lang === 'de' ? 'BEREIT ZU' : 'READY TO'} <br /> {lang === 'bs' ? 'KRENETE?' : lang === 'de' ? 'STARTEN?' : 'START MOVING?'}
+              {u('landing.readyTo', 'READY TO')} <br /> {u('landing.startMoving', 'START MOVING?')}
             </h2>
             <p className="text-xl text-white/70 mb-12 max-w-xl mx-auto">
-              {lang === 'bs'
-                ? 'Pridruži se hiljadama kompanija koje optimizuju logistiku uz Smartfreight.ai.'
-                : lang === 'de'
-                  ? 'Tausende Unternehmen optimieren bereits ihre Logistik mit Smartfreight.ai.'
-                  : 'Join thousands of companies optimizing their logistics with Smartfreight.ai today.'}
+              {u('landing.ctaDesc', 'Join thousands of companies optimizing their logistics with Smartfreight.ai today.')}
             </p>
             <div className="flex flex-wrap justify-center gap-6">
               <Button onClick={onStart} variant="secondary" size="lg" className="px-12 h-16 rounded-full text-lg font-bold text-primary bg-white hover:bg-slate-100">{u('common.getStartedNow', 'Get Started Now')}</Button>
@@ -2024,11 +2008,7 @@ const LandingPage = ({
               <BrandWordmark className="text-2xl" />
             </div>
             <p className="text-slate-500 dark:text-slate-400 max-w-sm mb-8">
-              {lang === 'bs'
-                ? 'Logistička platforma nove generacije za moderan svijet. Precizna i pokretana AI-jem.'
-                : lang === 'de'
-                  ? 'Die Logistikplattform der nächsten Generation für die moderne Welt. Präzise und KI-gestützt.'
-                  : 'The next-generation logistics platform for the modern world. Built with precision, powered by AI.'}
+              {u('footer.tagline', 'The next-generation logistics platform for the modern world. Built with precision, powered by AI.')}
             </p>
             <div className="flex gap-4">
               {/* Social icons placeholder */}
@@ -2040,29 +2020,29 @@ const LandingPage = ({
             </div>
           </div>
           <div>
-            <h5 className="font-bold mb-6 dark:text-white">{lang === 'bs' ? 'Proizvod' : lang === 'de' ? 'Produkt' : 'Product'}</h5>
+            <h5 className="font-bold mb-6 dark:text-white">{u('footer.product', 'Product')}</h5>
             <ul className="space-y-4 text-slate-500 dark:text-slate-400 text-sm">
               <li><a href="#" className="hover:text-primary transition-colors">{t.tracking}</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">{lang === 'bs' ? 'Upravljanje flotom' : lang === 'de' ? 'Flottenmanagement' : 'Fleet Management'}</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">{lang === 'bs' ? 'AI uvidi' : lang === 'de' ? 'KI-Einblicke' : 'AI Insights'}</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">{lang === 'bs' ? 'API dokumentacija' : lang === 'de' ? 'API-Dokumentation' : 'API Docs'}</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">{u('footer.fleetManagement', 'Fleet Management')}</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">{u('footer.aiInsights', 'AI Insights')}</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">{u('footer.apiDocs', 'API Docs')}</a></li>
             </ul>
           </div>
           <div>
-            <h5 className="font-bold mb-6 dark:text-white">{lang === 'bs' ? 'Kompanija' : lang === 'de' ? 'Unternehmen' : 'Company'}</h5>
+            <h5 className="font-bold mb-6 dark:text-white">{u('footer.company', 'Company')}</h5>
             <ul className="space-y-4 text-slate-500 dark:text-slate-400 text-sm">
-              <li><a href="#" className="hover:text-primary transition-colors">{lang === 'bs' ? 'O nama' : lang === 'de' ? 'Über uns' : 'About Us'}</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">{lang === 'bs' ? 'Karijere' : lang === 'de' ? 'Karriere' : 'Careers'}</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">{lang === 'bs' ? 'Mediji' : lang === 'de' ? 'Presse' : 'Press'}</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">{lang === 'bs' ? 'Kontakt' : lang === 'de' ? 'Kontakt' : 'Contact'}</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">{u('footer.aboutUs', 'About Us')}</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">{u('footer.careers', 'Careers')}</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">{u('footer.press', 'Press')}</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">{u('footer.contact', 'Contact')}</a></li>
             </ul>
           </div>
         </div>
         <div className="max-w-7xl mx-auto px-6 mt-20 pt-8 border-t border-slate-100 dark:border-slate-900 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-400 font-bold uppercase tracking-widest">
-          <p>{lang === 'bs' ? '© 2026 SWIFTPATH LOGISTICS INC. SVA PRAVA ZADRŽANA.' : lang === 'de' ? '© 2026 SWIFTPATH LOGISTICS INC. ALLE RECHTE VORBEHALTEN.' : '© 2026 SWIFTPATH LOGISTICS INC. ALL RIGHTS RESERVED.'}</p>
+          <p>{u('footer.rights', '© 2026 SWIFTPATH LOGISTICS INC. ALL RIGHTS RESERVED.')}</p>
           <div className="flex gap-8">
-            <a href="#" className="hover:text-primary transition-colors">{lang === 'bs' ? 'Politika privatnosti' : lang === 'de' ? 'Datenschutz' : 'Privacy Policy'}</a>
-            <a href="#" className="hover:text-primary transition-colors">{lang === 'bs' ? 'Uslovi korištenja' : lang === 'de' ? 'Nutzungsbedingungen' : 'Terms of Service'}</a>
+            <a href="#" className="hover:text-primary transition-colors">{u('footer.privacyPolicy', 'Privacy Policy')}</a>
+            <a href="#" className="hover:text-primary transition-colors">{u('footer.termsOfService', 'Terms of Service')}</a>
           </div>
         </div>
       </footer>
@@ -2237,11 +2217,7 @@ const Onboarding = ({
                 <User className="w-12 h-12 text-primary mx-auto mb-4" />
                 <h2 className="text-2xl font-bold dark:text-white">{t.logIn}</h2>
                 <p className="text-slate-500 text-sm mt-2">
-                  {lang === 'bs'
-                    ? 'Prijavite se i odmah uđite u aplikaciju.'
-                    : lang === 'de'
-                      ? 'Melden Sie sich an und betreten Sie die App sofort.'
-                      : 'Sign in and enter the app immediately.'}
+                  {u('login.signInDesc', 'Sign in and enter the app immediately.')}
                 </p>
               </div>
 
@@ -2393,9 +2369,9 @@ const Onboarding = ({
                   >
                     <option value="">{u('onboarding.selectCountry', 'Select Country')}</option>
                     <option value="BA">{u('onboarding.bosnia', 'Bosnia and Herzegovina')}</option>
-                    <option value="DE">{lang === 'bs' ? 'Njemačka' : lang === 'de' ? 'Deutschland' : 'Germany'}</option>
-                    <option value="US">{lang === 'bs' ? 'Sjedinjene Američke Države' : lang === 'de' ? 'Vereinigte Staaten' : 'United States'}</option>
-                    <option value="UK">{lang === 'bs' ? 'Ujedinjeno Kraljevstvo' : lang === 'de' ? 'Vereinigtes Königreich' : 'United Kingdom'}</option>
+                    <option value="DE">{u('countries.germany', 'Germany')}</option>
+                    <option value="US">{u('countries.unitedStates', 'United States')}</option>
+                    <option value="UK">{u('countries.unitedKingdom', 'United Kingdom')}</option>
                   </select>
                 </div>
                 <div>
@@ -2427,12 +2403,12 @@ const Onboarding = ({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="space-y-6"
+                className="space-y-6"
             >
               <div className="text-center">
                 <Truck className="w-12 h-12 text-primary mx-auto mb-4" />
-                <h2 className="text-2xl font-bold dark:text-white">{lang === 'bs' ? 'Tip vozača' : lang === 'de' ? 'Fahrertyp' : 'Driver Type'}</h2>
-                <p className="text-slate-500 text-sm mt-2">{lang === 'bs' ? 'Jeste li samostalni vozač ili predstavljate firmu?' : lang === 'de' ? 'Sind Sie ein selbstständiger Fahrer oder vertreten Sie ein Unternehmen?' : 'Are you an independent driver or representing a company?'}</p>
+                <h2 className="text-2xl font-bold dark:text-white">{u('onboarding.driverTypeTitle', 'Driver Type')}</h2>
+                <p className="text-slate-500 text-sm mt-2">{u('onboarding.driverTypeDesc', 'Are you an independent driver or representing a company?')}</p>
               </div>
               <div className="space-y-3">
                 <button 
@@ -2448,11 +2424,11 @@ const Onboarding = ({
                     <User className="text-blue-600" />
                   </div>
                   <div>
-                    <p className="font-bold dark:text-white">{lang === 'bs' ? 'Privatni vozač' : lang === 'de' ? 'Privatfahrer' : 'Private Driver'}</p>
+                    <p className="font-bold dark:text-white">{u('onboarding.privateDriver', 'Private Driver')}</p>
                     <p className="text-xs text-slate-500">
                       {driverData.country === 'BA'
-                        ? (lang === 'bs' ? 'Nije dozvoljeno u BiH' : lang === 'de' ? 'In Bosnien nicht erlaubt' : 'Not allowed in Bosnia')
-                        : (lang === 'bs' ? 'Samostalni izvođač' : lang === 'de' ? 'Selbstständiger Auftragnehmer' : 'Independent contractor')}
+                        ? u('onboarding.notAllowedBosnia', 'Not allowed in Bosnia')
+                        : u('onboarding.independentContractor', 'Independent contractor')}
                     </p>
                   </div>
                 </button>
@@ -2464,8 +2440,8 @@ const Onboarding = ({
                     <Globe className="text-emerald-600" />
                   </div>
                   <div>
-                    <p className="font-bold dark:text-white">{lang === 'bs' ? 'Logistička kompanija' : lang === 'de' ? 'Logistikunternehmen' : 'Logistics Company'}</p>
-                    <p className="text-xs text-slate-500">{lang === 'bs' ? 'Registrovano pravno lice' : lang === 'de' ? 'Registrierte Geschäftseinheit' : 'Registered business entity'}</p>
+                    <p className="font-bold dark:text-white">{u('onboarding.logisticsCompany', 'Logistics Company')}</p>
+                    <p className="text-xs text-slate-500">{u('onboarding.registeredBusinessEntity', 'Registered business entity')}</p>
                   </div>
                 </button>
               </div>
@@ -2482,12 +2458,12 @@ const Onboarding = ({
             >
               <div className={setupHeaderClass}>
                 <Globe className="w-12 h-12 text-primary mx-auto mb-4" />
-                <h2 className="text-2xl font-bold dark:text-white">{lang === 'bs' ? 'Podaci o kompaniji' : lang === 'de' ? 'Unternehmensinformationen' : 'Company Information'}</h2>
-                <p className="text-slate-500 text-sm mt-2">{lang === 'bs' ? 'Unesite registrovane poslovne podatke' : lang === 'de' ? 'Geben Sie Ihre registrierten Geschäftsdaten ein' : 'Enter your registered business details'}</p>
+                <h2 className="text-2xl font-bold dark:text-white">{u('onboarding.companyInfo', 'Company Information')}</h2>
+                <p className="text-slate-500 text-sm mt-2">{u('onboarding.companyInfoDesc', 'Enter your registered business details')}</p>
               </div>
               <div className="space-y-4">
                 <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{lang === 'bs' ? 'Naziv kompanije' : lang === 'de' ? 'Firmenname' : 'Company Name'}</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{u('onboarding.companyName', 'Company Name')}</label>
                   <input 
                     type="text" 
                     placeholder="Swift Logistics Ltd"
@@ -2497,7 +2473,7 @@ const Onboarding = ({
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{lang === 'bs' ? 'Porezni broj / PDV broj' : lang === 'de' ? 'Steuernummer / USt-IdNr.' : 'Tax ID / VAT Number'}</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{u('onboarding.taxId', 'Tax ID / VAT Number')}</label>
                   <input 
                     type="text" 
                     placeholder="EU123456789"
@@ -2507,7 +2483,7 @@ const Onboarding = ({
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{lang === 'bs' ? 'Poslovna adresa' : lang === 'de' ? 'Geschäftsadresse' : 'Business Address'}</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{u('onboarding.businessAddress', 'Business Address')}</label>
                   <textarea 
                     placeholder="123 Logistics Way, Berlin, Germany"
                     className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors h-24 resize-none"
@@ -2529,12 +2505,12 @@ const Onboarding = ({
             >
               <div className={setupHeaderClass}>
                 <Truck className="w-12 h-12 text-primary mx-auto mb-4" />
-                <h2 className="text-2xl font-bold dark:text-white">{lang === 'bs' ? 'Podaci o vozilu' : lang === 'de' ? 'Fahrzeugdetails' : 'Vehicle Details'}</h2>
-                <p className="text-slate-500 text-sm mt-2">{lang === 'bs' ? 'Recite nam više o vozilu koje ćete voziti' : lang === 'de' ? 'Erzählen Sie uns mehr über das Fahrzeug, das Sie fahren' : "Tell us about the vehicle you'll be driving"}</p>
+                <h2 className="text-2xl font-bold dark:text-white">{u('onboarding.vehicleDetails', 'Vehicle Details')}</h2>
+                <p className="text-slate-500 text-sm mt-2">{u('onboarding.vehicleDetailsDesc', "Tell us about the vehicle you'll be driving")}</p>
               </div>
               <div className="space-y-4">
                 <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{lang === 'bs' ? 'Fotografija vozila' : lang === 'de' ? 'Fahrzeugfoto' : 'Vehicle Photo'}</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{u('onboarding.vehiclePhoto', 'Vehicle Photo')}</label>
                   <div className="relative">
                     <button 
                       onClick={() => {
@@ -2588,12 +2564,12 @@ const Onboarding = ({
                       ) : carData.photo ? (
                         <>
                           <CheckCircle2 className="text-emerald-500 w-8 h-8" />
-                          <span className="text-sm font-bold text-emerald-600">{lang === 'bs' ? 'Fotografija postavljena' : lang === 'de' ? 'Foto hochgeladen' : 'Photo Uploaded'}</span>
+                          <span className="text-sm font-bold text-emerald-600">{u('onboarding.photoUploaded', 'Photo Uploaded')}</span>
                         </>
                       ) : (
                         <>
                           <Camera className="text-slate-400 w-8 h-8" />
-                          <span className="text-sm font-bold text-slate-500">{lang === 'bs' ? 'Fotografiši za AI detekciju' : lang === 'de' ? 'Foto für KI-Erkennung aufnehmen' : 'Take Photo to Detect AI'}</span>
+                          <span className="text-sm font-bold text-slate-500">{u('onboarding.takePhotoAi', 'Take Photo to Detect AI')}</span>
                         </>
                       )}
                     </button>
@@ -2601,7 +2577,7 @@ const Onboarding = ({
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{lang === 'bs' ? 'Marka' : lang === 'de' ? 'Marke' : 'Make'}</label>
+                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{u('onboarding.make', 'Make')}</label>
                     <input 
                       type="text" 
                       placeholder="e.g. Mercedes"
@@ -2611,7 +2587,7 @@ const Onboarding = ({
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{lang === 'bs' ? 'Model' : lang === 'de' ? 'Modell' : 'Model'}</label>
+                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{u('onboarding.model', 'Model')}</label>
                     <input 
                       type="text" 
                       placeholder="e.g. Sprinter"
@@ -2623,7 +2599,7 @@ const Onboarding = ({
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{lang === 'bs' ? 'Godina' : lang === 'de' ? 'Baujahr' : 'Year'}</label>
+                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{u('onboarding.year', 'Year')}</label>
                     <input 
                       type="text" 
                       placeholder="2024"
@@ -2667,7 +2643,7 @@ const Onboarding = ({
                       </div>
                       <div>
                         <p className="text-sm font-bold dark:text-white">{t.trailer}</p>
-                        <p className="text-[10px] text-slate-500 uppercase">{lang === 'bs' ? 'Da li vozilo ima prikolicu?' : lang === 'de' ? 'Hat Ihr Fahrzeug einen Anhänger?' : 'Does your vehicle have a trailer?'}</p>
+                        <p className="text-[10px] text-slate-500 uppercase">{u('onboarding.hasTrailerQuestion', 'Does your vehicle have a trailer?')}</p>
                       </div>
                     </div>
                     <button 
@@ -2683,7 +2659,7 @@ const Onboarding = ({
                       animate={{ opacity: 1, height: 'auto' }}
                       className="pt-2 border-t border-slate-200 dark:border-slate-700"
                     >
-                      <label className="text-[10px] font-bold uppercase text-slate-500 mb-2 block">{lang === 'bs' ? 'Broj prikolica' : lang === 'de' ? 'Anzahl Anhänger' : 'Number of Trailers'}</label>
+                      <label className="text-[10px] font-bold uppercase text-slate-500 mb-2 block">{u('onboarding.numberOfTrailers', 'Number of Trailers')}</label>
                       <div className="flex gap-2">
                         {[1, 2, 3].map(num => (
                           <button
@@ -2709,7 +2685,7 @@ const Onboarding = ({
                       </div>
                       <div>
                         <p className="text-sm font-bold dark:text-white">{t.tailLift}</p>
-                        <p className="text-[10px] text-slate-500 uppercase">{lang === 'bs' ? 'Da li vozilo ima utovarnu rampu?' : lang === 'de' ? 'Hat Ihr Fahrzeug eine Hebebühne?' : 'Does your vehicle have a tail lift?'}</p>
+                        <p className="text-[10px] text-slate-500 uppercase">{u('onboarding.hasTailLiftQuestion', 'Does your vehicle have a tail lift?')}</p>
                       </div>
                     </div>
                     <button 
@@ -2730,7 +2706,7 @@ const Onboarding = ({
       {isSetupMode && (
         <button
           onClick={() => onClose?.()}
-          aria-label={lang === 'bs' ? 'Zatvori setup' : lang === 'de' ? 'Setup schliessen' : 'Close setup'}
+          aria-label={u('onboarding.closeSetup', 'Close setup')}
           className="fixed top-4 right-4 z-[150] h-10 w-10 rounded-full bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-primary shadow-lg flex items-center justify-center cursor-pointer transition-all"
         >
           <X className="w-5 h-5" />
@@ -2883,11 +2859,13 @@ export default function App() {
   const [authMode, setAuthMode] = useState<'setup' | 'login'>('setup');
   const [role, setRole] = useState<Role>(null);
   const [lang, setLang] = useState<Language>(() => getInitialLanguage());
+  const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [view, setView] = useState('tracking');
   const [isDark, setIsDark] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMainFilterSidebarOpen, setIsMainFilterSidebarOpen] = useState(false);
   const [isMainSortSidebarOpen, setIsMainSortSidebarOpen] = useState(false);
+  const [isPostLoadOpen, setIsPostLoadOpen] = useState(false);
   const [feedSortMode, setFeedSortMode] = useState<FeedSortMode>('price_asc');
   const [feedDataMode, setFeedDataMode] = useState<FeedDataMode>('all');
   const [feedServiceFilters, setFeedServiceFilters] = useState<ServiceFilters>(() => ({
@@ -3002,13 +2980,13 @@ export default function App() {
   const currentLang = languages.find(l => l.id === (lang || 'en')) || languages[0];
   const analyticsLabel = 'Analytics';
   const tokenBalance = role === 'driver' ? 36 : 24;
-  const tokenLabel = lang === 'bs' ? 'tokena' : lang === 'de' ? 'Tokens' : 'tokens';
+  const tokenLabel = u('common.tokens', 'tokens');
   const roleLicenseLabel = role === 'driver'
-    ? (lang === 'bs' ? 'Vozacka licenca' : lang === 'de' ? 'Fahrerlizenz' : 'Driver License')
-    : (lang === 'bs' ? 'Licenca kupca' : lang === 'de' ? 'Kundenlizenz' : 'Customer License');
+    ? u('common.driverLicense', 'Driver License')
+    : u('common.customerLicense', 'Customer License');
   const roleLicenseStatus = role === 'driver'
-    ? (lang === 'bs' ? 'Verifikovana' : lang === 'de' ? 'Verifiziert' : 'Verified')
-    : (lang === 'bs' ? 'Aktivna' : lang === 'de' ? 'Aktiv' : 'Active');
+    ? u('common.verified', 'Verified')
+    : u('common.active', 'Active');
   const getGoodsChipTone = (value: string) =>
     value === 'Flammable'
       ? 'bg-amber-500/10 text-amber-500 border-amber-500/30'
@@ -3040,27 +3018,27 @@ export default function App() {
   const feedServiceItems: ServiceItem[] = [
     {
       key: 'place_of_loading',
-      label: lang === 'bs' ? 'Mjesto utovara' : lang === 'de' ? 'Beladestelle' : 'Place of loading',
+      label: u('feed.service.placeOfLoading', 'Place of loading'),
       disabled: false,
     },
     {
       key: 'port_of_origin',
-      label: lang === 'bs' ? 'Polazna lokacija' : lang === 'de' ? 'Startort' : 'Start location',
+      label: u('feed.service.startLocation', 'Start location'),
       disabled: false,
     },
     {
       key: 'ocean_freight',
-      label: lang === 'bs' ? 'Brzi transport' : lang === 'de' ? 'Express transport' : 'Fast transport',
+      label: u('feed.service.fastTransport', 'Fast transport'),
       disabled: true,
     },
     {
       key: 'port_of_discharge',
-      label: lang === 'bs' ? 'Destinacija' : lang === 'de' ? 'Zielort' : 'Destination',
+      label: u('feed.service.destination', 'Destination'),
       disabled: false,
     },
     {
       key: 'place_of_discharge',
-      label: lang === 'bs' ? 'Dostava' : lang === 'de' ? 'Zustellung' : 'Delivery',
+      label: u('feed.service.delivery', 'Delivery'),
       disabled: false,
     },
   ];
@@ -3211,7 +3189,7 @@ export default function App() {
                     setFeedSelectedTransitMin(nextMin);
                     setFeedSelectedTransitMax(nextMax);
                   },
-                  suffix: ` ${lang === 'bs' ? 'dana' : lang === 'de' ? 'Tage' : 'days'}`,
+                  suffix: ` ${u('common.days', 'days')}`,
                 }}
                 goodsTypeOptions={feedGoodsTypeOptions}
                 paymentTermOptions={feedPaymentTermOptions}
@@ -3303,10 +3281,6 @@ export default function App() {
               {role === 'driver' ? <Truck className="w-4 h-4" /> : <User className="w-4 h-4" />}
               {roleLicenseLabel} • {roleLicenseStatus}
             </span>
-            <div className="h-10 px-3 rounded-full bg-slate-100 dark:bg-slate-800 text-primary inline-flex items-center gap-2 text-xs font-bold">
-              <Coins className="w-4 h-4" />
-              <span>{tokenBalance} {tokenLabel}</span>
-            </div>
 
             {/* Language Switcher */}
             <div className="relative group">
@@ -3344,6 +3318,21 @@ export default function App() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {role === 'user' ? (
+              <button
+                onClick={() => setIsPostLoadOpen(true)}
+                className="h-10 px-4 rounded-full bg-primary text-white inline-flex items-center gap-2 text-xs font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all cursor-pointer whitespace-nowrap"
+              >
+                <Plus className="w-4 h-4" />
+                <span>{u('common.postLoad', 'Post Load')}</span>
+              </button>
+            ) : null}
+
+            <div className="h-10 px-3 rounded-full bg-slate-100 dark:bg-slate-800 text-primary inline-flex items-center gap-2 text-xs font-bold">
+              <Coins className="w-4 h-4" />
+              <span>{tokenBalance} {tokenLabel}</span>
             </div>
 
             {/* Dark Mode Toggle */}
@@ -3478,6 +3467,7 @@ export default function App() {
             </motion.div>
           </AnimatePresence>
         </div>
+        <PostLoadModal isOpen={isPostLoadOpen} onClose={() => setIsPostLoadOpen(false)} lang={lang} />
 
         {/* Bottom Nav (Mobile) */}
         <nav className="md:hidden fixed bottom-0 w-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-4 h-16 flex items-center justify-around z-50">

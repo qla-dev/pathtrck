@@ -46,7 +46,7 @@ export const AutomationsView = ({ lang }: { lang: Language }) => (
             icon: Zap,
             label: tr(lang, 'Automated Actions', 'Automatske akcije', 'Automatische Aktionen'),
             value: '182',
-            note: lang === 'bs' ? 'u 24h' : lang === 'de' ? 'in 24h' : 'in 24h',
+            note: ui(lang, 'automations.in24h', 'in 24h'),
             tone: 'text-amber-500',
           },
           {
@@ -93,9 +93,9 @@ export const AutomationsView = ({ lang }: { lang: Language }) => (
         </div>
         <div className="space-y-3">
           {[
-            lang === 'bs' ? 'ETA update za HAM-SJJ-214' : lang === 'de' ? 'ETA-Update fuer HAM-SJJ-214' : 'ETA update for HAM-SJJ-214',
-            lang === 'bs' ? 'Auto-assign fallback driver' : lang === 'de' ? 'Fallback-Fahrer automatisch zuweisen' : 'Auto-assign fallback driver',
-            lang === 'bs' ? 'Fraud check za novu rutu' : lang === 'de' ? 'Fraud-Check fuer neue Route' : 'Fraud check for new route',
+            ui(lang, 'automations.workflow.etaUpdate', 'ETA update for HAM-SJJ-214'),
+            ui(lang, 'automations.workflow.autoAssignFallback', 'Auto-assign fallback driver'),
+            ui(lang, 'automations.workflow.fraudCheck', 'Fraud check for new route'),
           ].map((line, idx) => (
             <div key={line} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3 flex items-center justify-between">
               <p className="text-sm dark:text-slate-200">{line}</p>
@@ -112,9 +112,9 @@ export const AutomationsView = ({ lang }: { lang: Language }) => (
         </div>
         <div className="space-y-3">
           {[
-            { name: lang === 'bs' ? 'Kasnjenje > 20 min' : lang === 'de' ? 'Verspaetung > 20 Min' : 'Delay > 20 min', pct: '92%' },
-            { name: lang === 'bs' ? 'Promjena goriva > 8%' : lang === 'de' ? 'Kraftstoffabweichung > 8%' : 'Fuel variance > 8%', pct: '78%' },
-            { name: lang === 'bs' ? 'Novi stop request' : lang === 'de' ? 'Neuer Stop-Request' : 'New stop request', pct: '84%' },
+            { name: ui(lang, 'automations.trigger.delay', 'Delay > 20 min'), pct: '92%' },
+            { name: ui(lang, 'automations.trigger.fuelVariance', 'Fuel variance > 8%'), pct: '78%' },
+            { name: ui(lang, 'automations.trigger.newStopRequest', 'New stop request'), pct: '84%' },
           ].map((rule) => (
             <div key={rule.name} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
               <div className="flex items-center justify-between text-xs mb-2">
@@ -136,10 +136,10 @@ export const AutomationsView = ({ lang }: { lang: Language }) => (
         </div>
         <div className="space-y-4">
           {[
-            { time: '09:18', label: lang === 'bs' ? 'AI predlozio novu ETA poruku' : lang === 'de' ? 'KI schlug neue ETA-Nachricht vor' : 'AI suggested a new ETA message' },
-            { time: '09:22', label: lang === 'bs' ? 'Kanal Telegram sinhronizovan' : lang === 'de' ? 'Telegram-Kanal synchronisiert' : 'Telegram channel synchronized' },
-            { time: '09:29', label: lang === 'bs' ? 'Sigurnosni check prosao' : lang === 'de' ? 'Sicherheitscheck bestanden' : 'Security check passed' },
-            { time: '09:34', label: lang === 'bs' ? 'Route score recalculated' : lang === 'de' ? 'Route-Score neu berechnet' : 'Route score recalculated' },
+            { time: '09:18', label: ui(lang, 'automations.log.aiEtaMessage', 'AI suggested a new ETA message') },
+            { time: '09:22', label: ui(lang, 'automations.log.telegramSync', 'Telegram channel synchronized') },
+            { time: '09:29', label: ui(lang, 'automations.log.securityCheck', 'Security check passed') },
+            { time: '09:34', label: ui(lang, 'automations.log.routeScore', 'Route score recalculated') },
           ].map((entry, idx) => (
             <div key={`${entry.time}-${idx}`} className="flex gap-3">
               <div className="mt-1 w-2.5 h-2.5 rounded-full bg-primary shrink-0" />

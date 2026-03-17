@@ -36,14 +36,12 @@ import { translateTriplet, ui, trLoadStatus, trPackageStatus } from '../../i18n'
 import { cn } from '../../lib/cn';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
-import { PostLoadModal } from '../modals/PostLoadModal';
 
 type RangeOption = '24h' | '7d' | '30d';
 
 const tr = translateTriplet;
 
 export const Dashboard = ({ role, lang }: { role: Role; lang: Language }) => {
-  const [isPostLoadOpen, setIsPostLoadOpen] = useState(false);
   const [range, setRange] = useState<RangeOption>('7d');
   const isDriver = role === 'driver';
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
@@ -282,21 +280,14 @@ export const Dashboard = ({ role, lang }: { role: Role; lang: Language }) => {
             <Filter className="w-4 h-4 mr-2" />
             {u('common.filter', 'Filter')}
           </Button>
-          {role === 'user' ? (
-            <Button size="sm" onClick={() => setIsPostLoadOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              {u('common.postNewLoad', 'Post New Load')}
-            </Button>
-          ) : (
+          {role === 'driver' ? (
             <Button size="sm">
               <Plus className="w-4 h-4 mr-2" />
               {u('common.newRoute', 'New Route')}
             </Button>
-          )}
+          ) : null}
         </div>
       </div>
-
-      <PostLoadModal isOpen={isPostLoadOpen} onClose={() => setIsPostLoadOpen(false)} lang={lang} />
 
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {topMetrics.map((metric) => (
