@@ -18,6 +18,7 @@ import { Language, Role } from '../../types';
 import { ui } from '../../i18n';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
+import { Toggle } from '../ui/Toggle';
 import { cn } from '../../lib/cn';
 
 const languageName = (lang: Language) => {
@@ -38,29 +39,6 @@ const languageName = (lang: Language) => {
     default: return 'English';
   }
 };
-
-const Toggle = ({
-  active,
-  onClick,
-}: {
-  active: boolean;
-  onClick: () => void;
-}) => (
-  <button
-    onClick={onClick}
-    className={cn(
-      'relative w-12 h-7 rounded-full transition-colors',
-      active ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700'
-    )}
-  >
-    <span
-      className={cn(
-        'absolute top-1 w-5 h-5 rounded-full bg-white transition-transform',
-        active ? 'translate-x-6' : 'translate-x-1'
-      )}
-    />
-  </button>
-);
 
 export const SettingsView = ({
   role,
@@ -320,7 +298,7 @@ export const SettingsView = ({
             ).map((item) => (
               <div key={item} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3 flex items-center justify-between gap-3">
                 <p className="text-sm dark:text-slate-200">{item}</p>
-                <Toggle active={autoSync} onClick={() => setAutoSync((v) => !v)} />
+                <Toggle checked={autoSync} onClick={() => setAutoSync((v) => !v)} />
               </div>
             ))}
           </div>
@@ -366,7 +344,7 @@ const ToggleRow = ({
       <p className="text-sm font-semibold dark:text-white">{label}</p>
       <p className="text-xs text-slate-500 mt-1">{desc}</p>
     </div>
-    <Toggle active={active} onClick={onToggle} />
+    <Toggle checked={active} onClick={onToggle} />
   </div>
 );
 
