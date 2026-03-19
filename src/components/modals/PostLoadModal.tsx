@@ -194,26 +194,34 @@ export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => 
   }, [isOpen]);
 
   const stepIndex = STEPS.findIndex((item) => item.id === step);
-  const canProceed = useMemo(() => {
-    if (step === 'route') {
-      return Boolean(
+  const stepCompletion = useMemo<Record<StepId, boolean>>(
+    () => ({
+      route: Boolean(
         draft.pickupCity &&
           draft.pickupDate &&
           draft.deliveryCity &&
           draft.deliveryDate
-      );
+      ),
+      cargo: Boolean(draft.cargoTitle && draft.weightKg && draft.goodsType),
+      terms: Boolean(draft.budget && draft.contactName && draft.contactPhone),
+      review: true,
+    }),
+    [draft]
+  );
+
+  const canProceed = stepCompletion[step];
+
+  const maxReachableStepIndex = useMemo(() => {
+    let reachableIndex = 0;
+
+    for (let index = 0; index < STEPS.length - 1; index += 1) {
+      const currentStepId = STEPS[index].id;
+      if (!stepCompletion[currentStepId]) break;
+      reachableIndex = index + 1;
     }
 
-    if (step === 'cargo') {
-      return Boolean(draft.cargoTitle && draft.weightKg && draft.goodsType);
-    }
-
-    if (step === 'terms') {
-      return Boolean(draft.budget && draft.contactName && draft.contactPhone);
-    }
-
-    return true;
-  }, [draft, step]);
+    return reachableIndex;
+  }, [stepCompletion]);
 
   const setField = <K extends keyof LoadDraft>(key: K, value: LoadDraft[K]) => {
     setDraft((prev) => ({ ...prev, [key]: value }));
@@ -229,6 +237,9 @@ export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => 
     const previous = STEPS[stepIndex - 1];
     if (previous) setStep(previous.id);
   };
+
+  const canNavigateToStep = (targetIndex: number) =>
+    targetIndex <= stepIndex || targetIndex <= maxReachableStepIndex;
 
   const submit = () => {
     onClose();
@@ -277,6 +288,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => 
                 const Icon = item.icon;
                 const isActive = item.id === step;
                 const isDone = index < stepIndex;
+                const isClickable = canNavigateToStep(index);
                 const title =
                   item.id === 'route'
                     ? u('postLoadModal.step.route', 'Route & Timing')
@@ -298,13 +310,20 @@ export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => 
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => setStep(item.id)}
+                    onClick={() => {
+                      if (!isClickable) return;
+                      setStep(item.id);
+                    }}
+                    disabled={!isClickable}
                     className={cn(
                       'w-full rounded-2xl border p-4 text-left transition-all',
                       isActive
                         ? 'border-primary bg-primary/5'
-                        : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-primary/30',
-                      isDone && !isActive && 'border-emerald-500/30 bg-emerald-500/5'
+                        : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900',
+                      isDone && !isActive && 'border-emerald-500/30 bg-emerald-500/5',
+                      isClickable
+                        ? 'cursor-pointer hover:border-primary/30'
+                        : 'cursor-not-allowed opacity-60'
                     )}
                   >
                     <div className="flex items-start gap-3">

@@ -7,9 +7,7 @@ import { ServiceFilters, ServiceItem, SortMode } from '../frights/FrightTypes';
 import { GLOBAL_OFFERS } from '../frights/globalOffers';
 import { useCitySuggestions } from '../frights/useCitySuggestions';
 import { Language } from '../../types';
-import { translateTriplet } from '../../i18n';
-
-const tr = translateTriplet;
+import { ui } from '../../i18n';
 
 const DEFAULT_SERVICE_FILTERS: ServiceFilters = {
   place_of_loading: true,
@@ -20,6 +18,7 @@ const DEFAULT_SERVICE_FILTERS: ServiceFilters = {
 };
 
 export const FrightsView = ({ lang }: { lang: Language }) => {
+  const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [priceAlerts, setPriceAlerts] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>('cheapest');
   const [serviceFilters, setServiceFilters] = useState<ServiceFilters>(DEFAULT_SERVICE_FILTERS);
@@ -76,27 +75,27 @@ export const FrightsView = ({ lang }: { lang: Language }) => {
   const serviceItems: ServiceItem[] = [
     {
       key: 'place_of_loading',
-      label: tr(lang, 'Place of loading', 'Mjesto utovara', 'Beladestelle'),
+      label: u('Place of loading', 'Place of loading'),
       disabled: false,
     },
     {
       key: 'port_of_origin',
-      label: tr(lang, 'Port of origin', 'Luka porijekla', 'Abgangshafen'),
+      label: u('Port of origin', 'Port of origin'),
       disabled: false,
     },
     {
       key: 'ocean_freight',
-      label: tr(lang, 'Ocean freight', 'Pomorski transport', 'Seefracht'),
+      label: u('Ocean freight', 'Ocean freight'),
       disabled: true,
     },
     {
       key: 'port_of_discharge',
-      label: tr(lang, 'Port of discharge', 'Luka istovara', 'Entladehafen'),
+      label: u('Port of discharge', 'Port of discharge'),
       disabled: false,
     },
     {
       key: 'place_of_discharge',
-      label: tr(lang, 'Place of discharge', 'Mjesto istovara', 'Entladestelle'),
+      label: u('Place of discharge', 'Place of discharge'),
       disabled: false,
     },
   ];

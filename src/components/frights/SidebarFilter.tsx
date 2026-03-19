@@ -1,11 +1,9 @@
 import { Boxes, Check, Filter, Globe, Layers, MapPin, RotateCcw } from 'lucide-react';
 
 import { Language } from '../../types';
-import { translateTriplet } from '../../i18n';
+import { ui } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { ServiceFilters, ServiceItem } from './FrightTypes';
-
-const tr = translateTriplet;
 
 type RangeFilterConfig = {
   min: number;
@@ -29,6 +27,8 @@ type ModeTab = {
   id: string;
   label: string;
 };
+
+type UiFn = (key: string, fallback: string) => string;
 
 type SidebarFilterProps = {
   lang: Language;
@@ -162,7 +162,7 @@ const DualRangeControl = ({ config }: { config: RangeFilterConfig }) => {
   );
 };
 
-const WeightRangeControl = ({ config, lang }: { config: RangeFilterConfig; lang: Language }) => {
+const WeightRangeControl = ({ config, u }: { config: RangeFilterConfig; u: UiFn }) => {
   const span = Math.max(config.max - config.min, 1);
   const step = Math.max(1, config.step ?? 100);
   const selectedSpan = Math.max(config.selectedMax - config.selectedMin, 0);
@@ -174,7 +174,7 @@ const WeightRangeControl = ({ config, lang }: { config: RangeFilterConfig; lang:
   const quickRanges = [
     {
       id: 'all',
-      label: tr(lang, 'All', 'Sve', 'Alle'),
+      label: u('legacy.sidebarFilter.all', 'All'),
       min: config.min,
       max: config.max,
     },
@@ -230,14 +230,14 @@ const WeightRangeControl = ({ config, lang }: { config: RangeFilterConfig; lang:
       <div className="grid grid-cols-2 gap-2">
         <div className="rounded-lg bg-white/80 dark:bg-slate-950/60 px-2 py-2">
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-            {tr(lang, 'Min kg', 'Min kg', 'Min kg')}
+            {u('legacy.sidebarFilter.minKg', 'Min kg')}
           </p>
           <div className="mt-1 flex items-center gap-1">
             <button
               type="button"
               onClick={() => setMin(config.selectedMin - step)}
               className="h-7 w-7 rounded-md bg-slate-100 dark:bg-slate-900/70 text-slate-500 hover:text-primary transition-colors cursor-pointer"
-              aria-label={tr(lang, 'Decrease minimum weight', 'Smanji minimalnu tezinu', 'Mindestgewicht verringern')}
+              aria-label={u('legacy.sidebarFilter.decreaseMinimumWeight', 'Decrease minimum weight')}
             >
               -
             </button>
@@ -258,7 +258,7 @@ const WeightRangeControl = ({ config, lang }: { config: RangeFilterConfig; lang:
               type="button"
               onClick={() => setMin(config.selectedMin + step)}
               className="h-7 w-7 rounded-md bg-slate-100 dark:bg-slate-900/70 text-slate-500 hover:text-primary transition-colors cursor-pointer"
-              aria-label={tr(lang, 'Increase minimum weight', 'Povecaj minimalnu tezinu', 'Mindestgewicht erhoehen')}
+              aria-label={u('legacy.sidebarFilter.increaseMinimumWeight', 'Increase minimum weight')}
             >
               +
             </button>
@@ -267,14 +267,14 @@ const WeightRangeControl = ({ config, lang }: { config: RangeFilterConfig; lang:
 
         <div className="rounded-lg bg-white/80 dark:bg-slate-950/60 px-2 py-2">
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-            {tr(lang, 'Max kg', 'Max kg', 'Max kg')}
+            {u('legacy.sidebarFilter.maxKg', 'Max kg')}
           </p>
           <div className="mt-1 flex items-center gap-1">
             <button
               type="button"
               onClick={() => setMax(config.selectedMax - step)}
               className="h-7 w-7 rounded-md bg-slate-100 dark:bg-slate-900/70 text-slate-500 hover:text-primary transition-colors cursor-pointer"
-              aria-label={tr(lang, 'Decrease maximum weight', 'Smanji maksimalnu tezinu', 'Hoechstgewicht verringern')}
+              aria-label={u('legacy.sidebarFilter.decreaseMaximumWeight', 'Decrease maximum weight')}
             >
               -
             </button>
@@ -295,7 +295,7 @@ const WeightRangeControl = ({ config, lang }: { config: RangeFilterConfig; lang:
               type="button"
               onClick={() => setMax(config.selectedMax + step)}
               className="h-7 w-7 rounded-md bg-slate-100 dark:bg-slate-900/70 text-slate-500 hover:text-primary transition-colors cursor-pointer"
-              aria-label={tr(lang, 'Increase maximum weight', 'Povecaj maksimalnu tezinu', 'Hoechstgewicht erhoehen')}
+              aria-label={u('legacy.sidebarFilter.increaseMaximumWeight', 'Increase maximum weight')}
             >
               +
             </button>
@@ -341,14 +341,14 @@ const WeightRangeControl = ({ config, lang }: { config: RangeFilterConfig; lang:
                 className={cn(
                   'flex-1 rounded-sm transition-all cursor-pointer',
                   isActive
-                    ? 'bg-gradient-to-t from-primary to-cyan-300 dark:from-primary dark:to-cyan-400'
+                    ? 'bg-linear-to-t from-primary to-cyan-300 dark:from-primary dark:to-cyan-400'
                     : 'bg-slate-300 dark:bg-slate-800 hover:bg-slate-400 dark:hover:bg-slate-700'
                 )}
                 style={{ height: `${height}%` }}
-                aria-label={`${tr(lang, 'Weight segment', 'Segment tezine', 'Gewichtssegment')} ${index + 1}`}
+                aria-label={`${u('legacy.sidebarFilter.weightSegment', 'Weight segment')} ${index + 1}`}
               >
                 <span className="sr-only">
-                  {tr(lang, 'Weight segment', 'Segment tezine', 'Gewichtssegment')} {index + 1}
+                  {u('legacy.sidebarFilter.weightSegment', 'Weight segment')} {index + 1}
                 </span>
               </button>
             );
@@ -359,7 +359,7 @@ const WeightRangeControl = ({ config, lang }: { config: RangeFilterConfig; lang:
       <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400">
         <span>{formatCompactValue(config.selectedMin)} kg</span>
         <span className="px-2 py-0.5 rounded-full bg-primary/15 text-primary font-bold">
-          {tr(lang, 'Span', 'Raspon', 'Spanne')}: {formatCompactValue(selectedSpan)} kg
+          {u('legacy.sidebarFilter.span', 'Span')}: {formatCompactValue(selectedSpan)} kg
         </span>
         <span>{formatCompactValue(config.selectedMax)} kg</span>
       </div>
@@ -395,15 +395,18 @@ export const SidebarFilter = ({
   modeTabs = [],
   activeModeTabId,
   onModeTabChange,
-}: SidebarFilterProps) => (
-  <aside
-    className={cn(
-      'space-y-6',
-      embeddedInSidebar
-        ? 'h-full'
-        : 'rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 h-fit'
-    )}
-  >
+}: SidebarFilterProps) => {
+  const u = (key: string, fallback: string) => ui(lang, key, fallback);
+
+  return (
+    <aside
+      className={cn(
+        'space-y-6',
+        embeddedInSidebar
+          ? 'h-full'
+          : 'rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 h-fit'
+      )}
+    >
     <div
       className={cn(
         'flex items-center justify-between',
@@ -413,7 +416,7 @@ export const SidebarFilter = ({
     >
       <div className="inline-flex items-center gap-2 text-sm font-bold dark:text-white">
         <Filter className="w-4 h-4 text-primary" />
-        {tr(lang, 'Filters', 'Filteri', 'Filter')}
+          {u('legacy.sidebarFilter.filters', 'Filters')}
       </div>
       <div className="inline-flex items-center gap-2">
         <button
@@ -424,14 +427,14 @@ export const SidebarFilter = ({
           className="inline-flex items-center gap-2 h-8 px-3 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-200 hover:text-primary hover:border-primary/40 transition-all cursor-pointer"
         >
           <RotateCcw className="w-3.5 h-3.5" />
-          {tr(lang, 'Reset filters', 'Resetuj filtere', 'Filter zuruecksetzen')}
+          {u('legacy.sidebarFilter.resetFilters', 'Reset filters')}
         </button>
       </div>
     </div>
 
     {modeTabs.length > 0 && activeModeTabId && onModeTabChange && (
       <div
-        className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl overflow-x-auto overflow-y-hidden [scrollbar-width:thin] [scrollbar-color:rgb(148_163_184_/_0.72)_transparent] dark:[scrollbar-color:rgb(71_85_105_/_0.8)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-400/70 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600/80 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:bg-slate-500/90 dark:[&::-webkit-scrollbar-thumb:hover]:bg-slate-500/95"
+        className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl overflow-x-auto overflow-y-hidden [scrollbar-width:thin] [scrollbar-color:rgb(148_163_184/0.72)_transparent] dark:[scrollbar-color:rgb(71_85_105/0.8)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-400/70 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600/80 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:bg-slate-500/90 dark:[&::-webkit-scrollbar-thumb:hover]:bg-slate-500/95"
       >
         {modeTabs.map((tab) => {
           const isActive = activeModeTabId === tab.id;
@@ -461,7 +464,7 @@ export const SidebarFilter = ({
       <div className="space-y-2">
         <label className="block">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1 block">
-            {tr(lang, 'Start city', 'Grad polaska', 'Startstadt')}
+            {u('legacy.sidebarFilter.startCity', 'Start city')}
           </span>
           <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3 py-2 flex items-center gap-2 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/30 transition-colors">
             <MapPin className="w-4 h-4 text-slate-400" />
@@ -469,14 +472,14 @@ export const SidebarFilter = ({
               value={startLocation}
               onChange={(event) => onStartLocationChange(event.target.value)}
               list="frights-start-cities"
-              placeholder={tr(lang, 'e.g. Shanghai', 'npr. Shanghai', 'z. B. Shanghai')}
+              placeholder={u('legacy.sidebarFilter.exampleShanghai', 'e.g. Shanghai')}
               className="w-full bg-transparent border-0 outline-none text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400"
             />
           </div>
         </label>
         <label className="block">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1 block">
-            {tr(lang, 'End city', 'Grad dolaska', 'Zielstadt')}
+            {u('legacy.sidebarFilter.endCity', 'End city')}
           </span>
           <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3 py-2 flex items-center gap-2 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/30 transition-colors">
             <MapPin className="w-4 h-4 text-slate-400" />
@@ -484,7 +487,7 @@ export const SidebarFilter = ({
               value={endLocation}
               onChange={(event) => onEndLocationChange(event.target.value)}
               list="frights-end-cities"
-              placeholder={tr(lang, 'e.g. Odesa', 'npr. Odesa', 'z. B. Odesa')}
+              placeholder={u('legacy.sidebarFilter.exampleOdesa', 'e.g. Odesa')}
               className="w-full bg-transparent border-0 outline-none text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400"
             />
           </div>
@@ -503,18 +506,8 @@ export const SidebarFilter = ({
       {(isCityApiReady || hasCityApiKey) && (
         <p className="mt-2 text-[11px] text-slate-400">
           {isCityApiReady
-            ? tr(
-                lang,
-                'City prefill is active via API Ninjas.',
-                'Predfilter gradova je aktivan putem API Ninjas.',
-                'Stadtvorschlaege sind ueber API Ninjas aktiv.'
-              )
-            : tr(
-                lang,
-                'City prefill API key detected.',
-                'Detektovan je API kljuc za predfilter gradova.',
-                'API-Schluessel fuer Stadtvorschlaege ist erkannt.'
-              )}
+            ? u('legacy.sidebarFilter.cityPrefillActive', 'City prefill is active via API Ninjas.')
+            : u('legacy.sidebarFilter.cityPrefillApiKeyDetected', 'City prefill API key detected.')}
         </p>
       )}
     </div>
@@ -524,7 +517,7 @@ export const SidebarFilter = ({
         {goodsTypeOptions.length > 0 && (
           <div className="mb-3">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
-              {tr(lang, 'Goods type', 'Tip robe', 'Warenart')}
+              {u('legacy.sidebarFilter.goodsType', 'Goods type')}
             </p>
             <div className="flex flex-wrap gap-2">
               {goodsTypeOptions.map((option) => {
@@ -554,7 +547,7 @@ export const SidebarFilter = ({
         {paymentTermOptions.length > 0 && (
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 pt-3">
-              {tr(lang, 'Payment terms', 'Uslovi placanja', 'Zahlungsbedingungen')}
+              {u('legacy.sidebarFilter.paymentTerms', 'Payment terms')}
             </p>
             <div className="space-y-2">
               {paymentTermOptions.map((option) => {
@@ -598,15 +591,15 @@ export const SidebarFilter = ({
     {weightRange && (
       <div>
         <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
-          {tr(lang, 'Load weight', 'Tezina tereta', 'Ladungsgewicht')}
+          {u('legacy.sidebarFilter.loadWeight', 'Load weight')}
         </p>
-        <WeightRangeControl config={weightRange} lang={lang} />
+        <WeightRangeControl config={weightRange} u={u} />
       </div>
     )}
 
     <div>
       <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
-        {tr(lang, 'Price', 'Cijena', 'Preis')}
+        {u('legacy.sidebarFilter.price', 'Price')}
       </p>
       {priceRange ? (
         <DualRangeControl config={priceRange} />
@@ -632,7 +625,7 @@ export const SidebarFilter = ({
 
     <div>
       <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
-        {tr(lang, 'Transit time', 'Vrijeme transporta', 'Transitzeit')}
+        {u('legacy.sidebarFilter.transitTime', 'Transit time')}
       </p>
       {transitRange ? (
         <DualRangeControl config={transitRange} />
@@ -640,10 +633,10 @@ export const SidebarFilter = ({
         <>
           <div className="grid grid-cols-2 gap-2 mb-3">
             <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3 py-2 text-xs text-slate-500">
-              70 {tr(lang, 'days', 'dana', 'Tage')}
+              70 {u('legacy.sidebarFilter.days', 'days')}
             </div>
             <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3 py-2 text-xs text-slate-500">
-              170 {tr(lang, 'days', 'dana', 'Tage')}
+              170 {u('legacy.sidebarFilter.days', 'days')}
             </div>
           </div>
           <div className="relative h-5">
@@ -658,14 +651,14 @@ export const SidebarFilter = ({
 
     <div>
       <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
-        {tr(lang, 'Rate status', 'Status cijene', 'Tarifstatus')}
+        {u('legacy.sidebarFilter.rateStatus', 'Rate status')}
       </p>
       <div className="flex flex-wrap gap-2">
         {[
-          tr(lang, 'Expired', 'Isteklo', 'Abgelaufen'),
-          tr(lang, 'Indicative', 'Indikativno', 'Indikativ'),
-          tr(lang, 'Spot', 'Spot', 'Spot'),
-          tr(lang, 'Space guarantee', 'Garancija prostora', 'Platzgarantie'),
+          u('legacy.sidebarFilter.expired', 'Expired'),
+          u('legacy.sidebarFilter.indicative', 'Indicative'),
+          u('legacy.sidebarFilter.spot', 'Spot'),
+          u('legacy.sidebarFilter.spaceGuarantee', 'Space guarantee'),
         ].map((status) => (
           <span
             key={status}
@@ -679,7 +672,7 @@ export const SidebarFilter = ({
 
     <div>
       <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
-        {tr(lang, 'Included services', 'Ukljucene usluge', 'Enthaltene Services')}
+        {u('legacy.sidebarFilter.includedServices', 'Included services')}
       </p>
       <div className="space-y-2">
         {serviceItems.map((item) => (
@@ -714,5 +707,6 @@ export const SidebarFilter = ({
         ))}
       </div>
     </div>
-  </aside>
-);
+    </aside>
+  );
+};

@@ -15,12 +15,10 @@ import {
   Wrench,
 } from 'lucide-react';
 import { Language, Role } from '../../types';
-import { translateTriplet } from '../../i18n';
+import { ui } from '../../i18n';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { cn } from '../../lib/cn';
-
-const tr = translateTriplet;
 
 const languageName = (lang: Language) => {
   switch (lang) {
@@ -81,19 +79,16 @@ export const SettingsView = ({
   const [autoSync, setAutoSync] = useState(true);
 
   const isDriver = role === 'driver';
-  const title = tr(lang, 'Settings Control Center', 'Kontrolni centar postavki', 'Einstellungszentrale');
+  const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  const title = u('legacy.settings.title', 'Settings Control Center');
   const subtitle = isDriver
-    ? tr(
-        lang,
+    ? u(
+        'legacy.settings.subtitle.driver',
         'Manage driver profile, compliance, app behavior, and security from one place.',
-        'Upravljajte profilom vozaca, uskladjenosti, ponasanjem aplikacije i sigurnosti na jednom mjestu.',
-        'Verwalten Sie Fahrerprofil, Compliance, App-Verhalten und Sicherheit an einem Ort.'
       )
-    : tr(
-        lang,
+    : u(
+        'legacy.settings.subtitle.customer',
         'Manage customer profile, billing defaults, communication, and account security.',
-        'Upravljajte profilom korisnika, naplatom, komunikacijom i sigurnoscu naloga.',
-        'Verwalten Sie Kundenprofil, Abrechnung, Kommunikation und Kontosicherheit.'
       );
 
   return (
@@ -103,7 +98,7 @@ export const SettingsView = ({
           <div>
             <div className="inline-flex items-center gap-2 text-primary text-xs font-black uppercase tracking-[0.2em]">
               <SlidersHorizontal className="w-4 h-4" />
-              {tr(lang, 'System Preferences', 'Sistemske preference', 'Systemeinstellungen')}
+              {u('legacy.settings.systemPreferences', 'System Preferences')}
             </div>
             <h1 className="text-3xl font-black mt-2 dark:text-white">{title}</h1>
             <p className="text-sm text-slate-500 mt-2 max-w-3xl">{subtitle}</p>
@@ -117,12 +112,12 @@ export const SettingsView = ({
             )}>
               {isDriver ? <Truck className="w-3.5 h-3.5" /> : <Building2 className="w-3.5 h-3.5" />}
               {isDriver
-                ? tr(lang, 'Driver License: Verified', 'Vozacka licenca: Verifikovana', 'Fahrerlizenz: Verifiziert')
-                : tr(lang, 'Customer License: Active', 'Licenca kupca: Aktivna', 'Kundenlizenz: Aktiv')}
+                ? u('legacy.settings.driverLicenseVerified', 'Driver License: Verified')
+                : u('legacy.settings.customerLicenseActive', 'Customer License: Active')}
             </span>
             <Button size="sm">
               <CheckCircle2 className="w-4 h-4 mr-2" />
-              {tr(lang, 'Save Changes', 'Sacuvaj izmjene', 'Aenderungen speichern')}
+              {u('legacy.settings.saveChanges', 'Save Changes')}
             </Button>
           </div>
         </div>
@@ -135,21 +130,21 @@ export const SettingsView = ({
               <User className="w-5 h-5" />
             </div>
             <div>
-              <p className="font-bold dark:text-white">{tr(lang, 'Profile Basics', 'Osnovni profil', 'Profil-Basics')}</p>
-              <p className="text-xs text-slate-500">{tr(lang, 'Identity and contact details', 'Identitet i kontakt detalji', 'Identitaet und Kontaktdaten')}</p>
+              <p className="font-bold dark:text-white">{u('legacy.settings.profileBasics', 'Profile Basics')}</p>
+              <p className="text-xs text-slate-500">{u('legacy.settings.identityAndContactDetails', 'Identity and contact details')}</p>
             </div>
           </div>
           <div className="space-y-3">
             <label className="block">
-              <span className="text-xs font-semibold text-slate-500">{tr(lang, 'Full Name', 'Puno ime', 'Vollstaendiger Name')}</span>
+              <span className="text-xs font-semibold text-slate-500">{u('legacy.settings.fullName', 'Full Name')}</span>
               <input className="mt-1.5 w-full h-11 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white" defaultValue="John Doe" />
             </label>
             <label className="block">
-              <span className="text-xs font-semibold text-slate-500">{tr(lang, 'Email', 'Email', 'E-Mail')}</span>
+              <span className="text-xs font-semibold text-slate-500">{u('legacy.settings.email', 'Email')}</span>
               <input className="mt-1.5 w-full h-11 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white" defaultValue="john.doe@smartfreight.ai" />
             </label>
             <label className="block">
-              <span className="text-xs font-semibold text-slate-500">{tr(lang, 'Phone', 'Telefon', 'Telefon')}</span>
+              <span className="text-xs font-semibold text-slate-500">{u('legacy.settings.phone', 'Phone')}</span>
               <input className="mt-1.5 w-full h-11 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white" defaultValue="+387 61 123 456" />
             </label>
           </div>
@@ -161,28 +156,28 @@ export const SettingsView = ({
               {isDriver ? <Truck className="w-5 h-5" /> : <CreditCard className="w-5 h-5" />}
             </div>
             <div>
-              <p className="font-bold dark:text-white">{isDriver ? tr(lang, 'Driver Compliance', 'Uskladjenost vozaca', 'Fahrer-Compliance') : tr(lang, 'Billing & Company', 'Naplata i kompanija', 'Abrechnung & Firma')}</p>
+              <p className="font-bold dark:text-white">{isDriver ? u('legacy.settings.driverCompliance', 'Driver Compliance') : u('legacy.settings.billingAndCompany', 'Billing & Company')}</p>
               <p className="text-xs text-slate-500">
                 {isDriver
-                  ? tr(lang, 'License and regulation data', 'Podaci licence i regulativa', 'Lizenz- und Regulierungsdaten')
-                  : tr(lang, 'Invoicing and legal profile', 'Profil fakturisanja i pravni podaci', 'Rechnungs- und Rechtsprofil')}
+                  ? u('legacy.settings.licenseAndRegulationData', 'License and regulation data')
+                  : u('legacy.settings.invoicingAndLegalProfile', 'Invoicing and legal profile')}
               </p>
             </div>
           </div>
           <div className="space-y-3">
             {isDriver ? (
               <>
-                <InfoRow label={tr(lang, 'License Number', 'Broj vozacke', 'Fuehrerscheinnummer')} value="BA-DRV-29914" />
-                <InfoRow label={tr(lang, 'License Expiry', 'Istek licence', 'Lizenzablauf')} value="12.10.2028" />
-                <InfoRow label={tr(lang, 'Vehicle Class', 'Klasa vozila', 'Fahrzeugklasse')} value="C+E" />
-                <InfoRow label={tr(lang, 'ADR Certificate', 'ADR certifikat', 'ADR-Zertifikat')} value={tr(lang, 'Valid', 'Validan', 'Gueltig')} />
+                <InfoRow label={u('legacy.settings.licenseNumber', 'License Number')} value="BA-DRV-29914" />
+                <InfoRow label={u('legacy.settings.licenseExpiry', 'License Expiry')} value="12.10.2028" />
+                <InfoRow label={u('legacy.settings.vehicleClass', 'Vehicle Class')} value="C+E" />
+                <InfoRow label={u('legacy.settings.adrCertificate', 'ADR Certificate')} value={u('legacy.settings.valid', 'Valid')} />
               </>
             ) : (
               <>
-                <InfoRow label={tr(lang, 'Company', 'Kompanija', 'Firma')} value="Smartfreight.ai Logistics" />
-                <InfoRow label={tr(lang, 'VAT ID', 'PDV ID', 'USt-ID')} value="BA4492281000" />
-                <InfoRow label={tr(lang, 'Default Currency', 'Podrazumijevana valuta', 'Standardwaehrung')} value="EUR (€)" />
-                <InfoRow label={tr(lang, 'Payment Term', 'Rok placanja', 'Zahlungsziel')} value={tr(lang, '15 days', '15 dana', '15 Tage')} />
+                <InfoRow label={u('legacy.settings.company', 'Company')} value="Smartfreight.ai Logistics" />
+                <InfoRow label={u('legacy.settings.vatId', 'VAT ID')} value="BA4492281000" />
+                <InfoRow label={u('legacy.settings.defaultCurrency', 'Default Currency')} value="EUR (€)" />
+                <InfoRow label={u('legacy.settings.paymentTerm', 'Payment Term')} value={u('legacy.settings.paymentTerm15Days', '15 days')} />
               </>
             )}
           </div>
@@ -194,26 +189,26 @@ export const SettingsView = ({
               <Bell className="w-5 h-5" />
             </div>
             <div>
-              <p className="font-bold dark:text-white">{tr(lang, 'Notification Matrix', 'Matrica obavjestenja', 'Benachrichtigungsmatrix')}</p>
-              <p className="text-xs text-slate-500">{tr(lang, 'Pick what reaches you first', 'Odaberite sta stize prvo', 'Waehlen Sie, was Sie zuerst erreicht')}</p>
+              <p className="font-bold dark:text-white">{u('legacy.settings.notificationMatrix', 'Notification Matrix')}</p>
+              <p className="text-xs text-slate-500">{u('legacy.settings.pickWhatReachesYouFirst', 'Pick what reaches you first')}</p>
             </div>
           </div>
           <div className="space-y-4">
             <ToggleRow
-              label={tr(lang, 'Email Alerts', 'Email obavjestenja', 'E-Mail-Benachrichtigungen')}
-              desc={tr(lang, 'Status updates and escalations', 'Status update-i i eskalacije', 'Status-Updates und Eskalationen')}
+              label={u('legacy.settings.emailAlerts', 'Email Alerts')}
+              desc={u('legacy.settings.statusUpdatesAndEscalations', 'Status updates and escalations')}
               active={emailAlerts}
               onToggle={() => setEmailAlerts((v) => !v)}
             />
             <ToggleRow
-              label={tr(lang, 'Push Alerts', 'Push obavjestenja', 'Push-Benachrichtigungen')}
-              desc={tr(lang, 'Mobile and desktop instant alerts', 'Mobilna i desktop instant obavjestenja', 'Mobile und Desktop-Sofortwarnungen')}
+              label={u('legacy.settings.pushAlerts', 'Push Alerts')}
+              desc={u('legacy.settings.mobileAndDesktopInstantAlerts', 'Mobile and desktop instant alerts')}
               active={pushAlerts}
               onToggle={() => setPushAlerts((v) => !v)}
             />
             <ToggleRow
-              label={tr(lang, 'SMS Alerts', 'SMS obavjestenja', 'SMS-Benachrichtigungen')}
-              desc={tr(lang, 'Critical route exceptions only', 'Samo kriticni izuzeci ruta', 'Nur kritische Routenausnahmen')}
+              label={u('legacy.settings.smsAlerts', 'SMS Alerts')}
+              desc={u('legacy.settings.criticalRouteExceptionsOnly', 'Critical route exceptions only')}
               active={smsAlerts}
               onToggle={() => setSmsAlerts((v) => !v)}
             />
@@ -228,32 +223,32 @@ export const SettingsView = ({
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <p className="font-bold dark:text-white">{tr(lang, 'Security & Access', 'Sigurnost i pristup', 'Sicherheit & Zugriff')}</p>
-              <p className="text-xs text-slate-500">{tr(lang, 'Hardening and session control', 'Zastita i kontrola sesija', 'Haertung und Sitzungskontrolle')}</p>
+              <p className="font-bold dark:text-white">{u('legacy.settings.securityAndAccess', 'Security & Access')}</p>
+              <p className="text-xs text-slate-500">{u('legacy.settings.hardeningAndSessionControl', 'Hardening and session control')}</p>
             </div>
           </div>
 
           <div className="grid md:grid-cols-2 gap-3 mb-4">
             <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
-              <p className="text-xs text-slate-500">{tr(lang, 'Last password update', 'Zadnja promjena lozinke', 'Letzte Passwortaenderung')}</p>
+              <p className="text-xs text-slate-500">{u('legacy.settings.lastPasswordUpdate', 'Last password update')}</p>
               <p className="font-bold dark:text-white mt-1">22.02.2026</p>
             </div>
             <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
-              <p className="text-xs text-slate-500">{tr(lang, 'Active sessions', 'Aktivne sesije', 'Aktive Sitzungen')}</p>
+              <p className="text-xs text-slate-500">{u('legacy.settings.activeSessions', 'Active sessions')}</p>
               <p className="font-bold dark:text-white mt-1">4</p>
             </div>
           </div>
 
           <div className="space-y-4">
             <ToggleRow
-              label={tr(lang, 'Two-Factor Authentication', 'Dvofaktorska autentikacija', 'Zwei-Faktor-Authentifizierung')}
-              desc={tr(lang, 'Require OTP on sign in', 'Trazi OTP pri prijavi', 'OTP bei Anmeldung erforderlich')}
+              label={u('legacy.settings.twoFactorAuthentication', 'Two-Factor Authentication')}
+              desc={u('legacy.settings.requireOtpOnSignIn', 'Require OTP on sign in')}
               active={twoFactor}
               onToggle={() => setTwoFactor((v) => !v)}
             />
             <ToggleRow
-              label={tr(lang, 'Session Lock', 'Zakljucavanje sesije', 'Sitzungssperre')}
-              desc={tr(lang, 'Auto-lock after inactivity', 'Auto-zakljucavanje nakon neaktivnosti', 'Automatische Sperre bei Inaktivitaet')}
+              label={u('legacy.settings.sessionLock', 'Session Lock')}
+              desc={u('legacy.settings.autoLockAfterInactivity', 'Auto-lock after inactivity')}
               active={sessionLock}
               onToggle={() => setSessionLock((v) => !v)}
             />
@@ -266,15 +261,15 @@ export const SettingsView = ({
               <Moon className="w-5 h-5" />
             </div>
             <div>
-              <p className="font-bold dark:text-white">{tr(lang, 'Appearance & Region', 'Izgled i regija', 'Darstellung & Region')}</p>
-              <p className="text-xs text-slate-500">{tr(lang, 'UI defaults', 'UI podrazumijevano', 'UI-Standards')}</p>
+              <p className="font-bold dark:text-white">{u('legacy.settings.appearanceAndRegion', 'Appearance & Region')}</p>
+              <p className="text-xs text-slate-500">{u('legacy.settings.uiDefaults', 'UI defaults')}</p>
             </div>
           </div>
           <div className="space-y-3">
-            <InfoRow label={tr(lang, 'Theme', 'Tema', 'Design')} value={tr(lang, 'Dark (Default)', 'Tamna (Podrazumijevano)', 'Dunkel (Standard)')} />
-            <InfoRow label={tr(lang, 'Language', 'Jezik', 'Sprache')} value={languageName(lang)} />
-            <InfoRow label={tr(lang, 'Timezone', 'Vremenska zona', 'Zeitzone')} value="Europe/Sarajevo" />
-            <InfoRow label={tr(lang, 'Date format', 'Format datuma', 'Datumsformat')} value="dd.mm.yyyy" />
+            <InfoRow label={u('legacy.settings.theme', 'Theme')} value={u('legacy.settings.darkDefault', 'Dark (Default)')} />
+            <InfoRow label={u('legacy.settings.language', 'Language')} value={languageName(lang)} />
+            <InfoRow label={u('legacy.settings.timezone', 'Timezone')} value="Europe/Sarajevo" />
+            <InfoRow label={u('legacy.settings.dateFormat', 'Date format')} value="dd.mm.yyyy" />
           </div>
         </Card>
 
@@ -284,15 +279,15 @@ export const SettingsView = ({
               <Globe className="w-5 h-5" />
             </div>
             <div>
-              <p className="font-bold dark:text-white">{tr(lang, 'Integrations', 'Integracije', 'Integrationen')}</p>
-              <p className="text-xs text-slate-500">{tr(lang, 'Connected channels', 'Povezani kanali', 'Verbundene Kanaele')}</p>
+              <p className="font-bold dark:text-white">{u('legacy.settings.integrations', 'Integrations')}</p>
+              <p className="text-xs text-slate-500">{u('legacy.settings.connectedChannels', 'Connected channels')}</p>
             </div>
           </div>
           <div className="space-y-3">
-            <IntegrationRow icon={Smartphone} name="WhatsApp" state={tr(lang, 'Connected', 'Povezano', 'Verbunden')} />
-            <IntegrationRow icon={Globe} name="Telegram" state={tr(lang, 'Connected', 'Povezano', 'Verbunden')} />
-            <IntegrationRow icon={KeyRound} name="API Webhooks" state={tr(lang, 'Active', 'Aktivno', 'Aktiv')} />
-            <IntegrationRow icon={Wrench} name="Fleet Telematics" state={tr(lang, 'Synced', 'Sinhronizovano', 'Synchronisiert')} />
+            <IntegrationRow icon={Smartphone} name="WhatsApp" state={u('legacy.settings.connected', 'Connected')} />
+            <IntegrationRow icon={Globe} name="Telegram" state={u('legacy.settings.connected', 'Connected')} />
+            <IntegrationRow icon={KeyRound} name="API Webhooks" state={u('legacy.settings.active', 'Active')} />
+            <IntegrationRow icon={Wrench} name="Fleet Telematics" state={u('legacy.settings.synced', 'Synced')} />
           </div>
         </Card>
       </div>
@@ -304,23 +299,23 @@ export const SettingsView = ({
               {isDriver ? <Truck className="w-5 h-5" /> : <Building2 className="w-5 h-5" />}
             </div>
             <div>
-              <p className="font-bold dark:text-white">{isDriver ? tr(lang, 'Driver Defaults', 'Vozacke podrazumijevane postavke', 'Fahrer-Standardeinstellungen') : tr(lang, 'Customer Defaults', 'Korisnicke podrazumijevane postavke', 'Kunden-Standardeinstellungen')}</p>
-              <p className="text-xs text-slate-500">{tr(lang, 'Behavior and automation defaults', 'Podrazumijevano ponasanje i automatizacija', 'Standardverhalten und Automatisierung')}</p>
+              <p className="font-bold dark:text-white">{isDriver ? u('legacy.settings.driverDefaults', 'Driver Defaults') : u('legacy.settings.customerDefaults', 'Customer Defaults')}</p>
+              <p className="text-xs text-slate-500">{u('legacy.settings.behaviorAndAutomationDefaults', 'Behavior and automation defaults')}</p>
             </div>
           </div>
           <div className="grid md:grid-cols-2 gap-3">
             {(isDriver
               ? [
-                  tr(lang, 'Auto accept routes under 120km', 'Auto prihvati rute ispod 120km', 'Routen unter 120km automatisch annehmen'),
-                  tr(lang, 'Prefer fuel-efficient route strategy', 'Preferiraj strategiju ustede goriva', 'Kraftstoffeffiziente Route bevorzugen'),
-                  tr(lang, 'Enable AI dispatch message helper', 'Omoguci AI dispatch pomocnika poruka', 'KI-Dispatch-Nachrichtenhelfer aktivieren'),
-                  tr(lang, 'Share live ETA every 15 min', 'Dijeli live ETA svakih 15 min', 'Live-ETA alle 15 Min teilen'),
+                  u('legacy.settings.driverAutoAcceptRoutesUnder120km', 'Auto accept routes under 120km'),
+                  u('legacy.settings.driverPreferFuelEfficientRouteStrategy', 'Prefer fuel-efficient route strategy'),
+                  u('legacy.settings.driverEnableAiDispatchMessageHelper', 'Enable AI dispatch message helper'),
+                  u('legacy.settings.driverShareLiveEtaEvery15Min', 'Share live ETA every 15 min'),
                 ]
               : [
-                  tr(lang, 'Auto-post recurring routes weekly', 'Auto-objava ponovljenih ruta sedmicno', 'Wiederkehrende Routen woechentlich automatisch posten'),
-                  tr(lang, 'Use preferred carrier list first', 'Prvo koristi listu preferiranih prevoznika', 'Bevorzugte Fahrerliste zuerst nutzen'),
-                  tr(lang, 'Enable instant quote suggestions', 'Omoguci instant prijedloge ponuda', 'Sofortige Angebotsvorschlaege aktivieren'),
-                  tr(lang, 'Auto-share loading instructions', 'Auto dijeljenje instrukcija utovara', 'Ladeanweisungen automatisch teilen'),
+                  u('legacy.settings.customerAutoPostRecurringRoutesWeekly', 'Auto-post recurring routes weekly'),
+                  u('legacy.settings.customerUsePreferredCarrierListFirst', 'Use preferred carrier list first'),
+                  u('legacy.settings.customerEnableInstantQuoteSuggestions', 'Enable instant quote suggestions'),
+                  u('legacy.settings.customerAutoShareLoadingInstructions', 'Auto-share loading instructions'),
                 ]
             ).map((item) => (
               <div key={item} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3 flex items-center justify-between gap-3">
@@ -337,16 +332,16 @@ export const SettingsView = ({
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <p className="font-bold dark:text-white">{tr(lang, 'Danger Zone', 'Opasna zona', 'Gefahrenzone')}</p>
-              <p className="text-xs text-slate-500">{tr(lang, 'High impact account actions', 'Akcije s visokim uticajem', 'Kontoaktionen mit hoher Wirkung')}</p>
+              <p className="font-bold dark:text-white">{u('legacy.settings.dangerZone', 'Danger Zone')}</p>
+              <p className="text-xs text-slate-500">{u('legacy.settings.highImpactAccountActions', 'High impact account actions')}</p>
             </div>
           </div>
           <div className="space-y-3">
             <Button variant="outline" className="w-full">
-              {tr(lang, 'Export all data', 'Izvezi sve podatke', 'Alle Daten exportieren')}
+              {u('legacy.settings.exportAllData', 'Export all data')}
             </Button>
             <Button variant="outline" className="w-full text-red-500 border-red-200 dark:border-red-900/40 hover:bg-red-50 dark:hover:bg-red-900/10" onClick={onLogout}>
-              {tr(lang, 'Logout from all devices', 'Odjava sa svih uredjaja', 'Auf allen Geraeten abmelden')}
+              {u('legacy.settings.logoutFromAllDevices', 'Logout from all devices')}
             </Button>
           </div>
         </Card>

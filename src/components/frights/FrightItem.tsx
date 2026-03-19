@@ -8,10 +8,8 @@ import {
 } from 'lucide-react';
 
 import { Language } from '../../types';
-import { translateTriplet } from '../../i18n';
+import { ui } from '../../i18n';
 import { Offer } from './FrightTypes';
-
-const tr = translateTriplet;
 
 type FrightItemProps = {
   key?: string;
@@ -36,12 +34,12 @@ export const FrightItem = ({ offer, lang }: FrightItemProps) => (
             <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-1">
               <Truck className="w-3.5 h-3.5" />
               {offer.freeDays}
-              {tr(lang, 'd', 'd', 'T')}
+              {ui(lang, 'd', 'd')}
             </span>
             <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-1">
               <Clock3 className="w-3.5 h-3.5" />
               {offer.transitDays}
-              {tr(lang, 'd', 'd', 'T')}
+              {ui(lang, 'd', 'd')}
             </span>
           </div>
         </div>
@@ -75,7 +73,7 @@ export const FrightItem = ({ offer, lang }: FrightItemProps) => (
           {offer.priceUsd}
         </p>
         <button className="w-full rounded-xl bg-primary hover:bg-primary-dark text-white font-bold py-2.5 transition-all">
-          {tr(lang, 'Book now', 'Rezervisi', 'Jetzt buchen')}
+          {ui(lang, 'Book now', 'Book now')}
         </button>
         <div className="inline-flex items-center gap-2">
           <button

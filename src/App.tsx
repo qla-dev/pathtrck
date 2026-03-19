@@ -2978,7 +2978,7 @@ export default function App() {
 
   const t = translations[lang || 'en'];
   const currentLang = languages.find(l => l.id === (lang || 'en')) || languages[0];
-  const analyticsLabel = 'Analytics';
+  const analyticsLabel = u('common.analytics', 'Analytics');
   const tokenBalance = role === 'driver' ? 36 : 24;
   const tokenLabel = u('common.tokens', 'tokens');
   const roleLicenseLabel = role === 'driver'
@@ -3282,6 +3282,21 @@ export default function App() {
               {roleLicenseLabel} • {roleLicenseStatus}
             </span>
 
+            {role === 'user' ? (
+              <button
+                onClick={() => setIsPostLoadOpen(true)}
+                className="h-10 px-4 rounded-full bg-primary text-white inline-flex items-center gap-2 text-xs font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all cursor-pointer whitespace-nowrap"
+              >
+                <Plus className="w-4 h-4" />
+                <span>{u('common.postLoad', 'Post Load')}</span>
+              </button>
+            ) : null}
+
+            <div className="h-10 px-3 rounded-full bg-slate-100 dark:bg-slate-800 text-primary inline-flex items-center gap-2 text-xs font-bold">
+              <Coins className="w-4 h-4" />
+              <span>{tokenBalance} {tokenLabel}</span>
+            </div>
+
             {/* Language Switcher */}
             <div className="relative group">
               <button
@@ -3318,21 +3333,6 @@ export default function App() {
                   </button>
                 ))}
               </div>
-            </div>
-
-            {role === 'user' ? (
-              <button
-                onClick={() => setIsPostLoadOpen(true)}
-                className="h-10 px-4 rounded-full bg-primary text-white inline-flex items-center gap-2 text-xs font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all cursor-pointer whitespace-nowrap"
-              >
-                <Plus className="w-4 h-4" />
-                <span>{u('common.postLoad', 'Post Load')}</span>
-              </button>
-            ) : null}
-
-            <div className="h-10 px-3 rounded-full bg-slate-100 dark:bg-slate-800 text-primary inline-flex items-center gap-2 text-xs font-bold">
-              <Coins className="w-4 h-4" />
-              <span>{tokenBalance} {tokenLabel}</span>
             </div>
 
             {/* Dark Mode Toggle */}

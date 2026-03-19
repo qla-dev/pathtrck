@@ -4,7 +4,7 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { Language, Package as PackageData } from '../../types';
 import { MOCK_PACKAGES } from '../../mockData';
 import { getSmartStatusUpdate } from '../../services/geminiService';
-import { translateTriplet, ui, trPackageStatus } from '../../i18n';
+import { ui, trPackageStatus } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
@@ -21,7 +21,6 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
   const [isUnlockingReturnRoutes, setIsUnlockingReturnRoutes] = useState(false);
   const [unlockStep, setUnlockStep] = useState(0);
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
-  const tr = (en: string, bs: string, de: string) => translateTriplet(lang, en, bs, de);
 
   useEffect(() => {
     getSmartStatusUpdate(selectedPackage.status, selectedPackage.history[0].location).then(setSmartStatus);
@@ -45,7 +44,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
     () => ({
       id: `dispatch-${selectedPackage.id}`,
       name: 'Lena / Route Ops',
-      role: tr('Dispatch Manager', 'Dispečer', 'Disponentin'),
+      role: u('Dispatch Manager', 'Dispatch Manager'),
       channel: 'inapp',
       online: true,
       unread: 0,
@@ -56,8 +55,8 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
           sender: 'system',
           text:
             smartStatus ||
-            tr('AI status is updating...', 'AI status se ažurira...', 'KI-Status wird aktualisiert...'),
-          time: tr('AI', 'AI', 'KI'),
+            u('AI status is updating...', 'AI status is updating...'),
+          time: u('AI', 'AI'),
         },
         { id: 'd1', sender: 'other', text: 'Truck PT-19 reached Vienna checkpoint.', time: '09:10' },
         { id: 'd2', sender: 'me', text: 'Received. Updating ETA for customer now.', time: '09:12' },
@@ -75,7 +74,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
   const handleAiDispatchCompose = () => {
     const seed =
       smartStatus ||
-      tr('Update ETA and send status to customer.', 'Azuriraj ETA i posalji status klijentu.', 'ETA aktualisieren und Status an den Kunden senden.');
+      u('Update ETA and send status to customer.', 'Update ETA and send status to customer.');
     setDispatchDraft(seed);
   };
 
@@ -85,7 +84,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
         id: 's1',
         title: `${selectedPackage.destination} -> Vienna, AT`,
         deadhead: '42 km',
-        cargo: tr('Pharma cargo', 'Farmaceutski artikli', 'Pharma-Ware'),
+        cargo: u('Pharma cargo', 'Pharma cargo'),
         payout: 'EUR 740',
         eta: '03h 25m',
         confidence: 97,
@@ -94,7 +93,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
         id: 's2',
         title: `${selectedPackage.destination} -> Zagreb, HR`,
         deadhead: '18 km',
-        cargo: tr('Retail goods', 'Potrosna roba', 'Verbrauchsgueter'),
+        cargo: u('Retail goods', 'Retail goods'),
         payout: 'EUR 520',
         eta: '02h 40m',
         confidence: 94,
@@ -103,7 +102,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
         id: 's3',
         title: `${selectedPackage.destination} -> Berlin, DE`,
         deadhead: '61 km',
-        cargo: tr('Technical equipment', 'Tehnicka oprema', 'Technische Ausruestung'),
+        cargo: u('Technical equipment', 'Technical equipment'),
         payout: 'EUR 1,180',
         eta: '06h 10m',
         confidence: 92,
@@ -113,9 +112,9 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
   );
 
   const unlockSteps = [
-    tr('AI is scanning active corridors...', 'AI analizira aktivne koridore...', 'KI analysiert aktive Korridore...'),
-    tr('Filtering by profit and deadhead distance...', 'Filtriranje po profitabilnosti i deadhead km...', 'Filtere nach Profit und Leerfahrt-km...'),
-    tr('Finalizing best return routes...', 'Finalizacija najboljih povratnih ruta...', 'Finalisiere beste Rueckrouten...'),
+    u('AI is scanning active corridors...', 'AI is scanning active corridors...'),
+    u('Filtering by profit and deadhead distance...', 'Filtering by profit and deadhead distance...'),
+    u('Finalizing best return routes...', 'Finalizing best return routes...'),
   ];
 
   const handleUnlockReturnRoutes = () => {
@@ -181,7 +180,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
             )}
           >
             <PackageIcon className="w-4 h-4" />
-            {tr('Tracker', 'Tracker', 'Tracker')}
+            {u('Tracker', 'Tracker')}
           </button>
           <button
             onClick={() => setRightTab('dispatch')}
@@ -191,7 +190,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
             )}
           >
             <Bot className="w-4 h-4" />
-            {tr('AI Dispatch', 'AI Dispečer', 'KI-Disponent')}
+            {u('AI Dispatch', 'AI Dispatch')}
           </button>
           <button
             onClick={() => setRightTab('map')}
@@ -201,7 +200,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
             )}
           >
             <MapPin className="w-4 h-4" />
-            {tr('Map', 'Mapa', 'Karte')}
+            {u('Map', 'Map')}
           </button>
           <button
             onClick={() => setRightTab('timeline')}
@@ -211,7 +210,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
             )}
           >
             <Clock3 className="w-4 h-4" />
-            {tr('Timeline', 'Timeline', 'Timeline')}
+            {u('history.tab.timeline', 'Timeline')}
           </button>
           <button
             onClick={() => setRightTab('return')}
@@ -221,7 +220,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
             )}
           >
             <RotateCcw className="w-4 h-4" />
-            {tr('Return', 'Povrat', 'Rueckgabe')}
+            {u('Return', 'Return')}
           </button>
           <button
             onClick={() => setRightTab('returnRoutes')}
@@ -231,7 +230,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
             )}
           >
             <Route className="w-4 h-4" />
-            {tr('Return Routes', 'Povratne rute', 'Rueckrouten')}
+            {u('Return Routes', 'Return Routes')}
           </button>
           <button
             onClick={() => setRightTab('share')}
@@ -241,7 +240,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
             )}
           >
             <Share2 className="w-4 h-4" />
-            {tr('Share', 'Podijeli', 'Teilen')}
+            {u('Share', 'Share')}
           </button>
           <button
             onClick={() => setRightTab('review')}
@@ -251,7 +250,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
             )}
           >
             <Star className="w-4 h-4" />
-            {tr('Review', 'Recenzija', 'Bewertung')}
+            {u('Review', 'Review')}
           </button>
         </div>
 
@@ -260,15 +259,15 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
             <div className="amazon-header flex items-center justify-between">
               <div className="flex gap-8">
                 <div>
-                  <p className="text-[10px] uppercase text-slate-500">{tr('Ordered on', 'Naručeno', 'Bestellt am')}</p>
+                  <p className="text-[10px] uppercase text-slate-500">{u('Ordered on', 'Ordered on')}</p>
                   <p className="font-bold">Feb 26, 2026</p>
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase text-slate-500">{tr('Total', 'Ukupno', 'Gesamt')}</p>
+                  <p className="text-[10px] uppercase text-slate-500">{u('Total', 'Total')}</p>
                   <p className="font-bold">€12.99</p>
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase text-slate-500">{tr('Ship to', 'Šalje se za', 'Versand an')}</p>
+                  <p className="text-[10px] uppercase text-slate-500">{u('Ship to', 'Ship to')}</p>
                   <p className="font-bold text-primary flex items-center gap-1 cursor-pointer">
                     John Doe <ChevronRight className="w-3 h-3" />
                   </p>
@@ -277,16 +276,16 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
               <div className="text-right">
                 <p className="text-[10px] uppercase text-slate-500">Order # {selectedPackage.trackingNumber}</p>
                 <div className="flex gap-4 mt-1 text-xs font-medium text-primary">
-                  <span className="cursor-pointer hover:underline">{tr('View order details', 'Detalji narudžbe', 'Bestelldetails anzeigen')}</span>
-                  <span className="cursor-pointer hover:underline">{tr('Invoice', 'Račun', 'Rechnung')}</span>
+                  <span className="cursor-pointer hover:underline">{u('View order details', 'View order details')}</span>
+                  <span className="cursor-pointer hover:underline">{u('Invoice', 'Invoice')}</span>
                 </div>
               </div>
             </div>
             <div className="amazon-body">
               <h2 className="text-xl font-bold text-emerald-600 mb-4">
                 {selectedPackage.status === 'Delivered'
-                  ? tr('Delivered Today', 'Isporučeno danas', 'Heute zugestellt')
-                  : tr('Arriving by 8 PM', 'Dolazi do 20:00', 'Ankunft bis 20:00')}
+                  ? u('Delivered Today', 'Delivered Today')
+                  : u('Arriving by 8 PM', 'Arriving by 8 PM')}
               </h2>
               <div className="relative h-2 bg-slate-100 dark:bg-slate-800 rounded-full mb-8">
                 <div className="absolute top-0 left-0 h-full bg-emerald-500 rounded-full" style={{ width: '75%' }} />
@@ -296,10 +295,10 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
                 <div className="absolute top-1/2 -translate-y-1/2 right-0 w-4 h-4 bg-slate-300 dark:bg-slate-700 rounded-full border-4 border-white dark:border-slate-900" />
               </div>
               <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                <span>{tr('Ordered', 'Naručeno', 'Bestellt')}</span>
-                <span>{tr('Shipped', 'Poslano', 'Versendet')}</span>
-                <span>{tr('Out for delivery', 'Na dostavi', 'In Zustellung')}</span>
-                <span>{tr('Arriving', 'Stiže', 'Ankunft')}</span>
+                <span>{u('Ordered', 'Ordered')}</span>
+                <span>{u('Shipped', 'Shipped')}</span>
+                <span>{u('Out for delivery', 'Out for delivery')}</span>
+                <span>{u('Arriving', 'Arriving')}</span>
               </div>
             </div>
           </div>
@@ -312,10 +311,10 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
               draft={dispatchDraft}
               onDraftChange={setDispatchDraft}
               onSend={handleDispatchSend}
-              messagePlaceholder={tr('Write a message to dispatch...', 'Piši poruku dispečeru...', 'Nachricht an Disposition schreiben...')}
+              messagePlaceholder={u('Write a message to dispatch...', 'Write a message to dispatch...')}
               className="h-full"
               showAiDispatchButton
-              aiDispatchLabel={tr('Write with AI Dispatch', 'Pisi uz AI dispecera', 'Mit KI-Dispo schreiben')}
+              aiDispatchLabel={u('Write with AI Dispatch', 'Write with AI Dispatch')}
               onAiDispatchClick={handleAiDispatchCompose}
             />
           </div>
@@ -367,37 +366,37 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
         )}
 
         {rightTab === 'return' && (
-          <Card title={tr('Return and Replace', 'Povrat i zamjena', 'Rueckgabe und Ersatz')}>
+          <Card title={u('Return and Replace', 'Return and Replace')}>
             <div className="space-y-4">
               <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4">
                 <p className="text-xs font-bold uppercase tracking-wider text-primary">
-                  {tr('Request Status', 'Status zahtjeva', 'Antragsstatus')}
+                  {u('Request Status', 'Request Status')}
                 </p>
                 <p className="text-sm mt-2 text-slate-600 dark:text-slate-300">
-                  {tr('Return window is 14 days. Pickup is available tomorrow between 09:00-13:00.', 'Rok za povrat je 14 dana. Preuzimanje je dostupno sutra u periodu 09:00-13:00.', 'Rueckgabefrist ist 14 Tage. Abholung morgen zwischen 09:00-13:00 verfuegbar.')}
+                  {u('Return window is 14 days. Pickup is available tomorrow between 09:00-13:00.', 'Return window is 14 days. Pickup is available tomorrow between 09:00-13:00.')}
                 </p>
               </div>
-              <Button>{tr('Start Return Request', 'Pokreni zahtjev za povrat', 'Rueckgabe starten')}</Button>
+              <Button>{u('Start Return Request', 'Start Return Request')}</Button>
             </div>
           </Card>
         )}
 
         {rightTab === 'returnRoutes' && (
-          <Card title={tr('AI Return Route Suggestions', 'AI povratne preporuke', 'KI Rueckrouten-Empfehlungen')}>
+          <Card title={u('AI Return Route Suggestions', 'AI Return Route Suggestions')}>
             <div className="space-y-4">
               <div className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 bg-slate-50 dark:bg-slate-900/60">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wider text-primary inline-flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5" />
-                    {tr('AI Return Engine', 'AI Return Engine', 'KI Return Engine')}
+                    {u('AI Return Engine', 'AI Return Engine')}
                   </p>
                   <p className="text-xs text-slate-500 mt-1">
-                    {tr('Unlock smart return routes so you do not drive back empty.', 'Otkljucaj pametne povratne rute da ne vozis nazad prazan.', 'Entsperren Sie Rueckrouten, damit Sie nicht leer zurueckfahren.')}
+                    {u('Unlock smart return routes so you do not drive back empty.', 'Unlock smart return routes so you do not drive back empty.')}
                   </p>
                 </div>
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-bold">
                   <Coins className="w-3.5 h-3.5" />
-                  {returnTokens} {tr('tokens', 'tokena', 'Tokens')}
+                  {returnTokens} {u('tokens', 'tokens')}
                 </div>
               </div>
 
@@ -413,22 +412,22 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
                         <div className="text-right">
                           <p className="text-base font-black text-primary">{item.payout}</p>
                           <p className="text-xs text-slate-500">
-                            {tr('ETA', 'ETA', 'ETA')} {item.eta}
+                            {u('ETA', 'ETA')} {item.eta}
                           </p>
                         </div>
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-3 text-xs">
                         <div className="rounded-lg bg-slate-100 dark:bg-slate-800 px-2 py-1.5">
-                          <span className="text-slate-500">{tr('Deadhead', 'Deadhead', 'Leerfahrt')}:</span>{' '}
+                          <span className="text-slate-500">{u('Deadhead', 'Deadhead')}:</span>{' '}
                           <span className="font-bold dark:text-white">{item.deadhead}</span>
                         </div>
                         <div className="rounded-lg bg-slate-100 dark:bg-slate-800 px-2 py-1.5">
-                          <span className="text-slate-500">{tr('Confidence', 'Pouzdanost', 'Confidence')}:</span>{' '}
+                          <span className="text-slate-500">{u('Confidence', 'Confidence')}:</span>{' '}
                           <span className="font-bold dark:text-white">{item.confidence}%</span>
                         </div>
                         <div className="rounded-lg bg-slate-100 dark:bg-slate-800 px-2 py-1.5">
-                          <span className="text-slate-500">{tr('Status', 'Status', 'Status')}:</span>{' '}
-                          <span className="font-bold text-emerald-500">{tr('Ready', 'Spremno', 'Bereit')}</span>
+                          <span className="text-slate-500">{u('Status', 'Status')}:</span>{' '}
+                          <span className="font-bold text-emerald-500">{u('Ready', 'Ready')}</span>
                         </div>
                       </div>
                     </div>
@@ -444,7 +443,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
                             <Loader2 className="w-6 h-6 animate-spin" />
                           </div>
                           <p className="text-sm font-bold text-white">
-                            {tr('AI is finding the best return routes', 'AI trazi najbolje povratne rute', 'KI sucht die besten Rueckrouten')}
+                            {u('AI is finding the best return routes', 'AI is finding the best return routes')}
                           </p>
                           <p className="text-xs text-slate-300">{unlockSteps[unlockStep]}</p>
                           <div className="h-2 rounded-full bg-slate-700 overflow-hidden">
@@ -460,18 +459,18 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
                             <Lock className="w-6 h-6" />
                           </div>
                           <p className="text-sm font-bold text-white">
-                            {tr('Unlock AI return suggestions', 'Otkljucaj AI povratne prijedloge', 'KI Rueckrouten entsperren')}
+                            {u('Unlock AI return suggestions', 'Unlock AI return suggestions')}
                           </p>
                           <p className="text-xs text-slate-300">
-                            {tr('Spend 10 tokens to unlock premium return routes and higher earnings.', 'Potrosi 10 tokena za premium povratne rute i vecu zaradu.', 'Verbrauchen Sie 10 Tokens fuer Premium-Rueckrouten und besseren Ertrag.')}
+                            {u('Spend 10 tokens to unlock premium return routes and higher earnings.', 'Spend 10 tokens to unlock premium return routes and higher earnings.')}
                           </p>
                           <Button onClick={handleUnlockReturnRoutes} className="w-full" disabled={returnTokens < 10}>
                             <Coins className="w-4 h-4 mr-2" />
-                            {tr('Unlock for 10 tokens', 'Otkljucaj za 10 tokena', 'Fuer 10 Tokens entsperren')}
+                            {u('Unlock for 10 tokens', 'Unlock for 10 tokens')}
                           </Button>
                           {returnTokens < 10 && (
                             <p className="text-[11px] text-rose-300">
-                              {tr('Not enough tokens to unlock.', 'Nedovoljno tokena za otkljucavanje.', 'Nicht genug Tokens zum Entsperren.')}
+                              {u('Not enough tokens to unlock.', 'Not enough tokens to unlock.')}
                             </p>
                           )}
                         </div>
@@ -485,11 +484,11 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
         )}
 
         {rightTab === 'share' && (
-          <Card title={tr('Share Tracking', 'Podijeli pracenje', 'Tracking teilen')}>
+          <Card title={u('Share Tracking', 'Share Tracking')}>
             <div className="space-y-4">
               <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4">
                 <p className="text-xs font-bold uppercase tracking-wider text-primary">
-                  {tr('Public Link', 'Javni link', 'Oeffentlicher Link')}
+                  {u('Public Link', 'Public Link')}
                 </p>
                 <p className="text-sm font-mono mt-2 break-all text-slate-700 dark:text-slate-200">
                   https://smartfreight.ai/t/{selectedPackage.trackingNumber}
@@ -505,11 +504,11 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
         )}
 
         {rightTab === 'review' && (
-          <Card title={tr('Delivery Review', 'Recenzija isporuke', 'Lieferbewertung')}>
+          <Card title={u('Delivery Review', 'Delivery Review')}>
             <div className="space-y-4">
               <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4">
                 <p className="text-xs font-bold uppercase tracking-wider text-primary">
-                  {tr('Service Rating', 'Ocjena usluge', 'Service-Bewertung')}
+                  {u('Service Rating', 'Service Rating')}
                 </p>
                 <div className="flex items-center gap-1 mt-2 text-amber-500">
                   <Star className="w-4 h-4 fill-current" />
@@ -519,10 +518,10 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
                   <Star className="w-4 h-4" />
                 </div>
                 <p className="text-sm mt-2 text-slate-600 dark:text-slate-300">
-                  {tr('Write a short comment about delivery speed and quality.', 'Napišite kratak komentar o brzini i kvaliteti dostave.', 'Schreiben Sie einen kurzen Kommentar zu Tempo und Qualitaet der Lieferung.')}
+                  {u('Write a short comment about delivery speed and quality.', 'Write a short comment about delivery speed and quality.')}
                 </p>
               </div>
-              <Button variant="outline">{tr('Write Review', 'Napiši recenziju', 'Bewertung schreiben')}</Button>
+              <Button variant="outline">{u('Write Review', 'Write Review')}</Button>
             </div>
           </Card>
         )}
@@ -530,4 +529,3 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
     </div>
   );
 };
-

@@ -1,35 +1,34 @@
 import { Bot, CheckCircle2, Cpu, Gauge, Radar, Rocket, ShieldCheck, Sparkles, TimerReset, Zap } from 'lucide-react';
 import { Language } from '../../types';
-import { translateTriplet, ui } from '../../i18n';
+import { ui } from '../../i18n';
 import { ChatInsightsPanel } from '../chat/ChatInsightsPanel';
 import { AiRouteCalculatorCard } from '../ai_automattions/AiRouteCalculatorCard';
 
-const tr = translateTriplet;
+export const AutomationsView = ({ lang }: { lang: Language }) => {
+  const u = (key: string, fallback: string) => ui(lang, key, fallback);
 
-export const AutomationsView = ({ lang }: { lang: Language }) => (
+  return (
   <div className="space-y-6">
     <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 lg:p-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="inline-flex items-center gap-2 text-primary text-xs font-black uppercase tracking-[0.2em]">
             <Sparkles className="w-4 h-4" />
-            {ui(lang, 'common.automations', 'AI Automations')}
+            {u('legacy.automationsView.aiAutomations', 'AI Automations')}
           </div>
           <h1 className="text-3xl font-black mt-2 dark:text-white">
-            {tr(lang, 'AI Control Center', 'AI Control Center', 'KI Control Center')}
+            {u('legacy.automationsView.aiControlCenter', 'AI Control Center')}
           </h1>
           <p className="text-sm text-slate-500 mt-2 max-w-2xl">
-            {tr(
-              lang,
-              'Manage triggers, security rules, and smart route automations from one place.',
-              'Upravljaj triggerima, sigurnosnim pravilima i smart rutama iz jednog mjesta.',
-              'Verwalten Sie Trigger, Sicherheitsregeln und smarte Routen an einem Ort.'
+            {u(
+              'legacy.automationsView.manageTriggersSecurityRulesAndSmartRouteAutomations',
+              'Manage triggers, security rules, and smart route automations from one place.'
             )}
           </p>
         </div>
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-sm font-bold">
           <CheckCircle2 className="w-4 h-4" />
-          {tr(lang, 'All systems active', 'Sve aktivno', 'Alles aktiv')}
+          {u('legacy.automationsView.allSystemsActive', 'All systems active')}
         </div>
       </div>
 
@@ -37,30 +36,30 @@ export const AutomationsView = ({ lang }: { lang: Language }) => (
         {[
           {
             icon: Radar,
-            label: tr(lang, 'Active Triggers', 'Aktivni triggeri', 'Aktive Trigger'),
+            label: u('legacy.automationsView.activeTriggers', 'Active Triggers'),
             value: '24',
-            note: tr(lang, '+4 today', '+4 danas', '+4 heute'),
+            note: u('legacy.automationsView.plus4Today', '+4 today'),
             tone: 'text-primary',
           },
           {
             icon: Zap,
-            label: tr(lang, 'Automated Actions', 'Automatske akcije', 'Automatische Aktionen'),
+            label: u('legacy.automationsView.automatedActions', 'Automated Actions'),
             value: '182',
-            note: ui(lang, 'automations.in24h', 'in 24h'),
+            note: u('legacy.automationsView.in24h', 'in 24h'),
             tone: 'text-amber-500',
           },
           {
             icon: ShieldCheck,
-            label: tr(lang, 'Security Score', 'Sigurnosni score', 'Sicherheits-Score'),
+            label: u('legacy.automationsView.securityScore', 'Security Score'),
             value: '99.2%',
-            note: tr(lang, 'no incidents', 'bez incidenata', 'keine Vorfaelle'),
+            note: u('legacy.automationsView.noIncidents', 'no incidents'),
             tone: 'text-emerald-500',
           },
           {
             icon: TimerReset,
-            label: tr(lang, 'Average Runtime', 'Prosjecno vrijeme', 'Durchschnittszeit'),
+            label: u('legacy.automationsView.averageRuntime', 'Average Runtime'),
             value: '320ms',
-            note: tr(lang, 'per automation', 'po automatizaciji', 'pro Automatisierung'),
+            note: u('legacy.automationsView.perAutomation', 'per automation'),
             tone: 'text-violet-500',
           },
         ].map((item) => (
@@ -89,13 +88,13 @@ export const AutomationsView = ({ lang }: { lang: Language }) => (
       <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
         <div className="flex items-center gap-2 text-primary text-xs font-black uppercase tracking-[0.2em] mb-4">
           <Cpu className="w-4 h-4" />
-          {tr(lang, 'Workflow Queue', 'Workflow Queue', 'Workflow Queue')}
+          {u('legacy.automationsView.workflowQueue', 'Workflow Queue')}
         </div>
         <div className="space-y-3">
           {[
-            ui(lang, 'automations.workflow.etaUpdate', 'ETA update for HAM-SJJ-214'),
-            ui(lang, 'automations.workflow.autoAssignFallback', 'Auto-assign fallback driver'),
-            ui(lang, 'automations.workflow.fraudCheck', 'Fraud check for new route'),
+            u('legacy.automationsView.workflowEtaUpdate', 'ETA update for HAM-SJJ-214'),
+            u('legacy.automationsView.workflowAutoAssignFallback', 'Auto-assign fallback driver'),
+            u('legacy.automationsView.workflowFraudCheck', 'Fraud check for new route'),
           ].map((line, idx) => (
             <div key={line} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3 flex items-center justify-between">
               <p className="text-sm dark:text-slate-200">{line}</p>
@@ -108,13 +107,13 @@ export const AutomationsView = ({ lang }: { lang: Language }) => (
       <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
         <div className="flex items-center gap-2 text-primary text-xs font-black uppercase tracking-[0.2em] mb-4">
           <Gauge className="w-4 h-4" />
-          {tr(lang, 'Trigger Rules', 'Trigger Rules', 'Trigger Rules')}
+          {u('legacy.automationsView.triggerRules', 'Trigger Rules')}
         </div>
         <div className="space-y-3">
           {[
-            { name: ui(lang, 'automations.trigger.delay', 'Delay > 20 min'), pct: '92%' },
-            { name: ui(lang, 'automations.trigger.fuelVariance', 'Fuel variance > 8%'), pct: '78%' },
-            { name: ui(lang, 'automations.trigger.newStopRequest', 'New stop request'), pct: '84%' },
+            { name: u('legacy.automationsView.triggerDelay', 'Delay > 20 min'), pct: '92%' },
+            { name: u('legacy.automationsView.triggerFuelVariance', 'Fuel variance > 8%'), pct: '78%' },
+            { name: u('legacy.automationsView.triggerNewStopRequest', 'New stop request'), pct: '84%' },
           ].map((rule) => (
             <div key={rule.name} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
               <div className="flex items-center justify-between text-xs mb-2">
@@ -132,14 +131,14 @@ export const AutomationsView = ({ lang }: { lang: Language }) => (
       <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 flex flex-col">
         <div className="flex items-center gap-2 text-primary text-xs font-black uppercase tracking-[0.2em] mb-4">
           <Rocket className="w-4 h-4" />
-          {tr(lang, 'Execution Log', 'Execution Log', 'Execution Log')}
+          {u('legacy.automationsView.executionLog', 'Execution Log')}
         </div>
         <div className="space-y-4">
           {[
-            { time: '09:18', label: ui(lang, 'automations.log.aiEtaMessage', 'AI suggested a new ETA message') },
-            { time: '09:22', label: ui(lang, 'automations.log.telegramSync', 'Telegram channel synchronized') },
-            { time: '09:29', label: ui(lang, 'automations.log.securityCheck', 'Security check passed') },
-            { time: '09:34', label: ui(lang, 'automations.log.routeScore', 'Route score recalculated') },
+            { time: '09:18', label: u('legacy.automationsView.logAiEtaMessage', 'AI suggested a new ETA message') },
+            { time: '09:22', label: u('legacy.automationsView.logTelegramSync', 'Telegram channel synchronized') },
+            { time: '09:29', label: u('legacy.automationsView.logSecurityCheck', 'Security check passed') },
+            { time: '09:34', label: u('legacy.automationsView.logRouteScore', 'Route score recalculated') },
           ].map((entry, idx) => (
             <div key={`${entry.time}-${idx}`} className="flex gap-3">
               <div className="mt-1 w-2.5 h-2.5 rounded-full bg-primary shrink-0" />
@@ -152,9 +151,10 @@ export const AutomationsView = ({ lang }: { lang: Language }) => (
         </div>
         <div className="mt-auto pt-4 text-xs text-slate-500 flex items-center gap-2">
           <Bot className="w-4 h-4 text-primary" />
-          {tr(lang, 'Auto-refresh every 2 seconds', 'Auto-refresh svake 2 sekunde', 'Auto-Refresh alle 2 Sekunden')}
+          {u('legacy.automationsView.autoRefreshEvery2Seconds', 'Auto-refresh every 2 seconds')}
         </div>
       </div>
     </div>
   </div>
-);
+  );
+};

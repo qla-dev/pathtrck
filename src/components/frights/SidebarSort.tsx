@@ -1,7 +1,7 @@
 import { ArrowDownWideNarrow, Check, DollarSign, CalendarDays, RotateCcw } from 'lucide-react';
 
 import { Language } from '../../types';
-import { translateTriplet } from '../../i18n';
+import { ui } from '../../i18n';
 import { cn } from '../../lib/cn';
 
 export type FeedSortMode = 'price_desc' | 'price_asc' | 'date_desc' | 'date_asc';
@@ -21,8 +21,6 @@ type SidebarSortProps = {
   embeddedInSidebar?: boolean;
 };
 
-const tr = translateTriplet;
-
 export const SidebarSort = ({
   lang,
   sortMode,
@@ -30,29 +28,31 @@ export const SidebarSort = ({
   onReset,
   embeddedInSidebar = false,
 }: SidebarSortProps) => {
+  const u = (key: string, fallback: string) => ui(lang, key, fallback);
+
   const options: SortOption[] = [
     {
       id: 'price_desc',
-      title: tr(lang, 'Price descending', 'Cijena opadajuce', 'Preis absteigend'),
-      subtitle: tr(lang, 'Highest price first', 'Prvo najveca cijena', 'Hoechster Preis zuerst'),
+      title: u('legacy.sidebarSort.priceDescending', 'Price descending'),
+      subtitle: u('legacy.sidebarSort.highestPriceFirst', 'Highest price first'),
       Icon: DollarSign,
     },
     {
       id: 'price_asc',
-      title: tr(lang, 'Price ascending', 'Cijena rastuce', 'Preis aufsteigend'),
-      subtitle: tr(lang, 'Lowest price first', 'Prvo najmanja cijena', 'Niedrigster Preis zuerst'),
+      title: u('legacy.sidebarSort.priceAscending', 'Price ascending'),
+      subtitle: u('legacy.sidebarSort.lowestPriceFirst', 'Lowest price first'),
       Icon: DollarSign,
     },
     {
       id: 'date_desc',
-      title: tr(lang, 'Date descending', 'Datum opadajuce', 'Datum absteigend'),
-      subtitle: tr(lang, 'Newest first', 'Prvo najnoviji', 'Neueste zuerst'),
+      title: u('legacy.sidebarSort.dateDescending', 'Date descending'),
+      subtitle: u('legacy.sidebarSort.newestFirst', 'Newest first'),
       Icon: CalendarDays,
     },
     {
       id: 'date_asc',
-      title: tr(lang, 'Date ascending', 'Datum rastuce', 'Datum aufsteigend'),
-      subtitle: tr(lang, 'Oldest first', 'Prvo najstariji', 'Aelteste zuerst'),
+      title: u('legacy.sidebarSort.dateAscending', 'Date ascending'),
+      subtitle: u('legacy.sidebarSort.oldestFirst', 'Oldest first'),
       Icon: CalendarDays,
     },
   ];
@@ -75,7 +75,7 @@ export const SidebarSort = ({
       >
         <div className="inline-flex items-center gap-2 text-sm font-bold dark:text-white">
           <ArrowDownWideNarrow className="w-4 h-4 text-primary" />
-          {tr(lang, 'Sort', 'Sortiranje', 'Sortierung')}
+          {u('legacy.sidebarSort.sort', 'Sort')}
         </div>
         <button
           type="button"
@@ -83,7 +83,7 @@ export const SidebarSort = ({
           className="inline-flex items-center gap-2 h-8 px-3 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-200 hover:text-primary hover:border-primary/40 transition-all cursor-pointer"
         >
           <RotateCcw className="w-3.5 h-3.5" />
-          {tr(lang, 'Default', 'Zadano', 'Standard')}
+          {u('legacy.sidebarSort.default', 'Default')}
         </button>
       </div>
 

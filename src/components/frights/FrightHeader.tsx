@@ -1,11 +1,9 @@
 import { Bell } from 'lucide-react';
 
 import { Language } from '../../types';
-import { translateTriplet } from '../../i18n';
+import { ui } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { SortMode } from './FrightTypes';
-
-const tr = translateTriplet;
 
 type FrightHeaderProps = {
   lang: Language;
@@ -27,12 +25,7 @@ export const FrightHeader = ({
       <div>
         <h1 className="text-2xl font-bold dark:text-white">Frights</h1>
         <p className="text-sm text-slate-500">
-          {tr(
-            lang,
-            'Driver-only freight offers board.',
-            'Tabela ponuda tereta samo za vozace.',
-            'Frachtangebote nur fuer Fahrer.'
-          )}
+          {ui(lang, 'Driver-only freight offers board.', 'Driver-only freight offers board.')}
         </p>
       </div>
     </div>
@@ -40,14 +33,14 @@ export const FrightHeader = ({
     <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 flex flex-wrap items-center justify-between gap-3">
       <div className="inline-flex items-center gap-2 text-sm font-semibold dark:text-white">
         <Bell className={cn('w-4 h-4', priceAlerts ? 'text-primary' : 'text-slate-400')} />
-        {tr(lang, 'Get price alerts', 'Primi obavijesti o cijenama', 'Preisalarme aktivieren')}
+        {ui(lang, 'Get price alerts', 'Get price alerts')}
         <button
           onClick={onTogglePriceAlerts}
           className={cn(
             'w-11 h-6 rounded-full transition-all p-0.5',
             priceAlerts ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700'
           )}
-          aria-label={tr(lang, 'Toggle price alerts', 'Ukljuci obavijesti o cijenama', 'Preisalarme umschalten')}
+          aria-label={ui(lang, 'Toggle price alerts', 'Toggle price alerts')}
         >
           <span
             className={cn(
@@ -68,7 +61,7 @@ export const FrightHeader = ({
               : 'bg-white dark:bg-slate-900 text-slate-500'
           )}
         >
-          {tr(lang, 'Cheapest', 'Najjeftinije', 'Guenstigste')}
+          {ui(lang, 'Cheapest', 'Cheapest')}
         </button>
         <button
           onClick={() => onSortChange('fastest')}
@@ -79,7 +72,7 @@ export const FrightHeader = ({
               : 'bg-white dark:bg-slate-900 text-slate-500'
           )}
         >
-          {tr(lang, 'Fastest', 'Najbrze', 'Schnellste')}
+          {ui(lang, 'Fastest', 'Fastest')}
         </button>
       </div>
     </div>
