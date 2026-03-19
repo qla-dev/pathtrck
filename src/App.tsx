@@ -3270,6 +3270,16 @@ export default function App() {
             </p>
           </div>
           <div className="flex items-center gap-4">
+            {role === 'user' ? (
+              <button
+                onClick={() => setIsPostLoadOpen(true)}
+                className="h-10 px-4 rounded-full bg-primary text-white inline-flex items-center gap-2 text-xs font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all cursor-pointer whitespace-nowrap"
+              >
+                <Plus className="w-4 h-4" />
+                <span>{u('common.postLoad', 'Post Load')}</span>
+              </button>
+            ) : null}
+
             <span
               className={cn(
                 "hidden md:inline-flex h-10 px-3 rounded-full items-center gap-2 text-xs font-bold whitespace-nowrap",
@@ -3281,16 +3291,6 @@ export default function App() {
               {role === 'driver' ? <Truck className="w-4 h-4" /> : <User className="w-4 h-4" />}
               {roleLicenseLabel} • {roleLicenseStatus}
             </span>
-
-            {role === 'user' ? (
-              <button
-                onClick={() => setIsPostLoadOpen(true)}
-                className="h-10 px-4 rounded-full bg-primary text-white inline-flex items-center gap-2 text-xs font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all cursor-pointer whitespace-nowrap"
-              >
-                <Plus className="w-4 h-4" />
-                <span>{u('common.postLoad', 'Post Load')}</span>
-              </button>
-            ) : null}
 
             <div className="h-10 px-3 rounded-full bg-slate-100 dark:bg-slate-800 text-primary inline-flex items-center gap-2 text-xs font-bold">
               <Coins className="w-4 h-4" />

@@ -40,6 +40,75 @@ const languageName = (lang: Language) => {
   }
 };
 
+type AutomationDefault = {
+  id: string;
+  labelKey: string;
+  fallback: string;
+  defaultChecked: boolean;
+};
+
+const DRIVER_AUTOMATION_DEFAULTS: AutomationDefault[] = [
+  {
+    id: 'driver-auto-accept-routes-under-120km',
+    labelKey: 'legacy.settings.driverAutoAcceptRoutesUnder120km',
+    fallback: 'Auto accept routes under 120km',
+    defaultChecked: true,
+  },
+  {
+    id: 'driver-prefer-fuel-efficient-route-strategy',
+    labelKey: 'legacy.settings.driverPreferFuelEfficientRouteStrategy',
+    fallback: 'Prefer fuel-efficient route strategy',
+    defaultChecked: true,
+  },
+  {
+    id: 'driver-enable-ai-dispatch-message-helper',
+    labelKey: 'legacy.settings.driverEnableAiDispatchMessageHelper',
+    fallback: 'Enable AI dispatch message helper',
+    defaultChecked: true,
+  },
+  {
+    id: 'driver-share-live-eta-every-15-min',
+    labelKey: 'legacy.settings.driverShareLiveEtaEvery15Min',
+    fallback: 'Share live ETA every 15 min',
+    defaultChecked: true,
+  },
+];
+
+const CUSTOMER_AUTOMATION_DEFAULTS: AutomationDefault[] = [
+  {
+    id: 'customer-auto-post-recurring-routes-weekly',
+    labelKey: 'legacy.settings.customerAutoPostRecurringRoutesWeekly',
+    fallback: 'Auto-post recurring routes weekly',
+    defaultChecked: true,
+  },
+  {
+    id: 'customer-use-preferred-carrier-list-first',
+    labelKey: 'legacy.settings.customerUsePreferredCarrierListFirst',
+    fallback: 'Use preferred carrier list first',
+    defaultChecked: true,
+  },
+  {
+    id: 'customer-enable-instant-quote-suggestions',
+    labelKey: 'legacy.settings.customerEnableInstantQuoteSuggestions',
+    fallback: 'Enable instant quote suggestions',
+    defaultChecked: true,
+  },
+  {
+    id: 'customer-auto-share-loading-instructions',
+    labelKey: 'legacy.settings.customerAutoShareLoadingInstructions',
+    fallback: 'Auto-share loading instructions',
+    defaultChecked: true,
+  },
+];
+
+const INITIAL_AUTOMATION_DEFAULT_STATE = [
+  ...DRIVER_AUTOMATION_DEFAULTS,
+  ...CUSTOMER_AUTOMATION_DEFAULTS,
+].reduce<Record<string, boolean>>((state, item) => {
+  state[item.id] = item.defaultChecked;
+  return state;
+}, {});
+
 export const SettingsView = ({
   role,
   lang,
@@ -54,10 +123,11 @@ export const SettingsView = ({
   const [smsAlerts, setSmsAlerts] = useState(false);
   const [twoFactor, setTwoFactor] = useState(true);
   const [sessionLock, setSessionLock] = useState(true);
-  const [autoSync, setAutoSync] = useState(true);
+  const [automationDefaultState, setAutomationDefaultState] = useState(INITIAL_AUTOMATION_DEFAULT_STATE);
 
   const isDriver = role === 'driver';
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  const roleAutomationDefaults = isDriver ? DRIVER_AUTOMATION_DEFAULTS : CUSTOMER_AUTOMATION_DEFAULTS;
   const title = u('legacy.settings.title', 'Settings Control Center');
   const subtitle = isDriver
     ? u(
@@ -282,23 +352,16 @@ export const SettingsView = ({
             </div>
           </div>
           <div className="grid md:grid-cols-2 gap-3">
-            {(isDriver
-              ? [
-                  u('legacy.settings.driverAutoAcceptRoutesUnder120km', 'Auto accept routes under 120km'),
-                  u('legacy.settings.driverPreferFuelEfficientRouteStrategy', 'Prefer fuel-efficient route strategy'),
-                  u('legacy.settings.driverEnableAiDispatchMessageHelper', 'Enable AI dispatch message helper'),
-                  u('legacy.settings.driverShareLiveEtaEvery15Min', 'Share live ETA every 15 min'),
-                ]
-              : [
-                  u('legacy.settings.customerAutoPostRecurringRoutesWeekly', 'Auto-post recurring routes weekly'),
-                  u('legacy.settings.customerUsePreferredCarrierListFirst', 'Use preferred carrier list first'),
-                  u('legacy.settings.customerEnableInstantQuoteSuggestions', 'Enable instant quote suggestions'),
-                  u('legacy.settings.customerAutoShareLoadingInstructions', 'Auto-share loading instructions'),
-                ]
-            ).map((item) => (
-              <div key={item} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3 flex items-center justify-between gap-3">
-                <p className="text-sm dark:text-slate-200">{item}</p>
-                <Toggle checked={autoSync} onClick={() => setAutoSync((v) => !v)} />
+            {roleAutomationDefaults.map((item) => (
+              <div key={item.id} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3 flex items-center justify-between gap-3">
+                <p className="text-sm dark:text-slate-200">{u(item.labelKey, item.fallback)}</p>
+                <Toggle
+                  checked={automationDefaultState[item.id]}
+                  onClick={() => setAutomationDefaultState((current) => ({
+                    ...current,
+                    [item.id]: !current[item.id],
+                  }))}
+                />
               </div>
             ))}
           </div>
