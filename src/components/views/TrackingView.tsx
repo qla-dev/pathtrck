@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Search, MapPin, ChevronRight, Package as PackageIcon, Clock3, RotateCcw, Share2, Star, Bot, Route, Lock, Coins, Loader2, Sparkles } from 'lucide-react';
+import { Search, MapPin, ChevronRight, Package as PackageIcon, Clock3, RotateCcw, Share2, Star, Bot, Route, Lock, Coins, Loader2, Sparkles, Truck } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { Language, Package as PackageData } from '../../types';
-import { MOCK_PACKAGES } from '../../mockData';
+import { MOCK_LOADS, MOCK_PACKAGES } from '../../mockData';
 import { getSmartStatusUpdate } from '../../services/geminiService';
 import { ui, trPackageStatus } from '../../i18n';
 import { cn } from '../../lib/cn';
@@ -12,6 +12,7 @@ import { ChatConversationPanel } from '../chat/ChatConversationPanel';
 import { Conversation } from '../chat/types';
 
 export const TrackingView = ({ lang }: { lang: Language }) => {
+  const TRUCK_CAPACITY_KG = 48000;
   const [selectedPackage, setSelectedPackage] = useState<PackageData>(MOCK_PACKAGES[0]);
   const [smartStatus, setSmartStatus] = useState<string>("");
   const [rightTab, setRightTab] = useState<'tracker' | 'dispatch' | 'map' | 'timeline' | 'return' | 'returnRoutes' | 'share' | 'review'>('tracker');
@@ -128,10 +129,24 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
     }, 2600);
   };
 
+  const loadCapacity = useMemo(() => {
+    const activeLoads = MOCK_LOADS.filter((load) => load.status === 'Assigned' || load.status === 'In Transit');
+    const totalWeightKg = activeLoads.reduce((sum, load) => sum + (Number(load.weight.replace(/[^\d.]/g, '')) || 0), 0);
+    const usedPercentage = Math.min(100, Math.round((totalWeightKg / TRUCK_CAPACITY_KG) * 100));
+
+    return {
+      activeLoads,
+      totalWeightKg,
+      usedPercentage,
+      remainingPercentage: Math.max(0, 100 - usedPercentage),
+      remainingKg: Math.max(0, TRUCK_CAPACITY_KG - totalWeightKg),
+    };
+  }, []);
+
   return (
     <div className="grid lg:grid-cols-12 gap-6">
       {/* Sidebar List */}
-      <div className="lg:col-span-4 space-y-6">
+      <div className="lg:col-span-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
           <input 
@@ -140,7 +155,53 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
             className="w-full h-12 pl-10 pr-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
-        <div className="space-y-4">
+
+        <div className="mt-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-4 shadow-sm">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                {u('tracking.loadCapacity', 'Load on truck')}
+              </p>
+              <p className="mt-2 text-2xl font-black text-slate-900 dark:text-white">
+                {loadCapacity.totalWeightKg.toLocaleString()} kg
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                {loadCapacity.activeLoads.length} {u('tracking.activeLoads', 'active loads')}
+              </p>
+            </div>
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <Truck className="h-5 w-5" />
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <div className="h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+              <div
+                className="h-full rounded-full bg-primary transition-all"
+                style={{ width: `${loadCapacity.usedPercentage}%` }}
+              />
+            </div>
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-lg font-black text-primary">{loadCapacity.usedPercentage}%</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  {u('tracking.cargoUsed', 'Cargo')}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-lg font-black text-slate-900 dark:text-white">{loadCapacity.remainingPercentage}%</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  {u('tracking.freeSpace', 'Free space')}
+                </p>
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-slate-500">
+              {u('tracking.remainingCapacity', 'Remaining capacity')}: {loadCapacity.remainingKg.toLocaleString()} kg
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-6 space-y-4">
           {MOCK_PACKAGES.map(pkg => (
             <button 
               key={pkg.id}

@@ -282,7 +282,9 @@ export const Dashboard = ({ role, lang }: { role: Role; lang: Language }) => {
           <Card key={metric.label} className="p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">{metric.label}</p>
+                <p className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold leading-snug break-words max-w-[11ch]">
+                  {metric.label}
+                </p>
                 <p className="text-2xl font-black mt-1 dark:text-white">{metric.value}</p>
                 <p className="text-[11px] text-slate-500 mt-1">{metric.delta}</p>
               </div>

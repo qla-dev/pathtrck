@@ -4989,6 +4989,96 @@ const TRIPLET_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
   'rules active': { bs: 'aktivna pravila', de: 'aktive Regeln', pl: 'aktywne reguly', ro: 'reguli active', nl: 'regels actief', fr: 'regles actives', it: 'regole attive', zh: '规则已激活', es: 'reglas activas', sr: 'aktivna pravila', sv: 'aktiva regler', ar: 'القواعد مفعلة', pt: 'regras ativas' },
 };
 
+const UI_TRACKING_CAPACITY_OVERRIDES: Record<string, Partial<Record<Locale, string>>> = {
+  'tracking.loadCapacity': {
+    en: 'Load on truck',
+    bs: 'Teret na kamionu',
+    de: 'Ladung auf dem Lkw',
+    pl: 'Ladunek na ciezarowce',
+    ro: 'Incarcatura pe camion',
+    nl: 'Lading op vrachtwagen',
+    fr: 'Chargement sur le camion',
+    it: 'Carico sul camion',
+    zh: '车上载货',
+    es: 'Carga en el camion',
+    sr: 'Teret na kamionu',
+    sv: 'Last pa lastbil',
+    ar: 'الحمولة على الشاحنة',
+    pt: 'Carga no camiao',
+  },
+  'tracking.activeLoads': {
+    en: 'active loads',
+    bs: 'aktivnih tereta',
+    de: 'aktive Ladungen',
+    pl: 'aktywnych ladunkow',
+    ro: 'incarcaturi active',
+    nl: 'actieve ladingen',
+    fr: 'chargements actifs',
+    it: 'carichi attivi',
+    zh: '个活跃货运',
+    es: 'cargas activas',
+    sr: 'aktivnih tereta',
+    sv: 'aktiva laster',
+    ar: 'شحنات نشطة',
+    pt: 'cargas ativas',
+  },
+  'tracking.cargoUsed': {
+    en: 'Cargo',
+    bs: 'Teret',
+    de: 'Ladung',
+    pl: 'Ladunek',
+    ro: 'Marfa',
+    nl: 'Lading',
+    fr: 'Chargement',
+    it: 'Carico',
+    zh: '货物',
+    es: 'Carga',
+    sr: 'Teret',
+    sv: 'Last',
+    ar: 'الحمولة',
+    pt: 'Carga',
+  },
+  'tracking.freeSpace': {
+    en: 'Free space',
+    bs: 'Slobodan prostor',
+    de: 'Freier Platz',
+    pl: 'Wolna przestrzen',
+    ro: 'Spatiu liber',
+    nl: 'Vrije ruimte',
+    fr: 'Espace libre',
+    it: 'Spazio libero',
+    zh: '剩余空间',
+    es: 'Espacio libre',
+    sr: 'Slobodan prostor',
+    sv: 'Ledigt utrymme',
+    ar: 'المساحة المتبقية',
+    pt: 'Espaco livre',
+  },
+  'tracking.remainingCapacity': {
+    en: 'Remaining capacity',
+    bs: 'Preostali kapacitet',
+    de: 'Verbleibende Kapazitaet',
+    pl: 'Pozostala pojemnosc',
+    ro: 'Capacitate ramasa',
+    nl: 'Resterende capaciteit',
+    fr: 'Capacite restante',
+    it: 'Capacita residua',
+    zh: '剩余载重',
+    es: 'Capacidad restante',
+    sr: 'Preostali kapacitet',
+    sv: 'Aterstaende kapacitet',
+    ar: 'السعة المتبقية',
+    pt: 'Capacidade restante',
+  },
+};
+
+for (const [key, translations] of Object.entries(UI_TRACKING_CAPACITY_OVERRIDES)) {
+  for (const localeKey of Object.keys(UI) as Locale[]) {
+    const translated = translations[localeKey];
+    if (translated) UI[localeKey][key] = translated;
+  }
+}
+
 const TRIPLET_ZH_OVERRIDES: Record<string, string> = {
   'Safety Score': '安全评分',
   '0 incidents': '0 起事故',
