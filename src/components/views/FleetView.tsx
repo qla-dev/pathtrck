@@ -537,7 +537,7 @@ export const FleetView = ({ lang }: { lang: Language }) => {
               <button
                 type="button"
                 onClick={closeAddVehicle}
-                className="h-11 w-11 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 flex items-center justify-center"
+                className="h-11 w-11 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 flex items-center justify-center cursor-pointer transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
               >
                 <X className="w-5 h-5 text-slate-500" />
               </button>
@@ -582,7 +582,7 @@ export const FleetView = ({ lang }: { lang: Language }) => {
                             type="button"
                             onClick={() => handleTransportTypeChange(type)}
                             className={cn(
-                              'rounded-2xl border p-4 text-left transition-all',
+                              'rounded-2xl border p-4 text-left transition-all cursor-pointer hover:border-primary/40 hover:bg-slate-50 dark:hover:bg-slate-800/60',
                               draft.transportType === type
                                 ? 'border-primary bg-primary/5'
                                 : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'
@@ -606,7 +606,7 @@ export const FleetView = ({ lang }: { lang: Language }) => {
                         <select
                           value={draft.category}
                           onChange={(e) => setDraftField('category', e.target.value)}
-                          className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white"
+                          className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white cursor-pointer appearance-none transition-colors hover:border-primary/40 hover:bg-slate-50 dark:hover:bg-slate-900"
                         >
                           {registry.categories.map((option) => (
                             <option key={option} value={option}>
@@ -622,7 +622,7 @@ export const FleetView = ({ lang }: { lang: Language }) => {
                         <select
                           value={draft.bodyType}
                           onChange={(e) => setDraftField('bodyType', e.target.value)}
-                          className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white"
+                          className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white cursor-pointer appearance-none transition-colors hover:border-primary/40 hover:bg-slate-50 dark:hover:bg-slate-900"
                         >
                           {registry.bodyTypes.map((option) => (
                             <option key={option} value={option}>
@@ -654,7 +654,7 @@ export const FleetView = ({ lang }: { lang: Language }) => {
                               customModel: '',
                             }));
                           }}
-                          className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white"
+                          className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white cursor-pointer appearance-none transition-colors hover:border-primary/40 hover:bg-slate-50 dark:hover:bg-slate-900"
                         >
                           {makeOptions.map((option) => (
                             <option key={option} value={option}>
@@ -670,7 +670,7 @@ export const FleetView = ({ lang }: { lang: Language }) => {
                         <select
                           value={draft.model}
                           onChange={(e) => setDraftField('model', e.target.value)}
-                          className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white"
+                          className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white cursor-pointer appearance-none transition-colors hover:border-primary/40 hover:bg-slate-50 dark:hover:bg-slate-900"
                         >
                           {modelOptions.map((option) => (
                             <option key={option} value={option}>
@@ -691,7 +691,7 @@ export const FleetView = ({ lang }: { lang: Language }) => {
                           value={draft.customModel}
                           onChange={(e) => setDraftField('customModel', e.target.value)}
                           placeholder={u('fleet.customModelPlaceholder', 'Enter custom model')}
-                          className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white"
+                          className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white cursor-pointer appearance-none transition-colors hover:border-primary/40 hover:bg-slate-50 dark:hover:bg-slate-900"
                         />
                       </div>
                     )}
@@ -704,7 +704,7 @@ export const FleetView = ({ lang }: { lang: Language }) => {
                         <input
                           value={draft.capacity}
                           onChange={(e) => setDraftField('capacity', e.target.value)}
-                          className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white"
+                          className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white cursor-pointer appearance-none transition-colors hover:border-primary/40 hover:bg-slate-50 dark:hover:bg-slate-900"
                         />
                       </div>
                       <div>
@@ -714,7 +714,7 @@ export const FleetView = ({ lang }: { lang: Language }) => {
                         <input
                           value={draft.volume}
                           onChange={(e) => setDraftField('volume', e.target.value)}
-                          className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white"
+                          className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white cursor-pointer appearance-none"
                         />
                       </div>
                     </div>
@@ -727,7 +727,7 @@ export const FleetView = ({ lang }: { lang: Language }) => {
                         <select
                           value={draft.configuration}
                           onChange={(e) => setDraftField('configuration', e.target.value)}
-                          className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white"
+                          className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white cursor-pointer appearance-none transition-colors hover:border-primary/40 hover:bg-slate-50 dark:hover:bg-slate-900"
                         >
                           {registry.specs.configurations.map((option) => (
                             <option key={option} value={option}>
@@ -743,7 +743,7 @@ export const FleetView = ({ lang }: { lang: Language }) => {
                         <select
                           value={draft.fuelType}
                           onChange={(e) => setDraftField('fuelType', e.target.value)}
-                          className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white"
+                          className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white cursor-pointer appearance-none transition-colors hover:border-primary/40 hover:bg-slate-50 dark:hover:bg-slate-900"
                         >
                           {registry.specs.fuelTypes.map((option) => (
                             <option key={option} value={option}>
@@ -767,7 +767,7 @@ export const FleetView = ({ lang }: { lang: Language }) => {
                           value={draft.systemName}
                           onChange={(e) => setDraftField('systemName', e.target.value)}
                           placeholder={u('fleet.systemNamePlaceholder', 'Example: Frozen Line 01')}
-                          className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white"
+                          className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white transition-colors hover:border-primary/40 hover:bg-slate-50 dark:hover:bg-slate-900"
                         />
                       </div>
                       <div>
@@ -778,7 +778,7 @@ export const FleetView = ({ lang }: { lang: Language }) => {
                           value={draft.plate}
                           onChange={(e) => setDraftField('plate', e.target.value)}
                           placeholder={u('fleet.platePlaceholder', 'BA-123-XY / IMO-001 / AIR-77F')}
-                          className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white"
+                          className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white transition-colors hover:border-primary/40 hover:bg-slate-50 dark:hover:bg-slate-900"
                         />
                       </div>
                     </div>
@@ -791,7 +791,7 @@ export const FleetView = ({ lang }: { lang: Language }) => {
                         <select
                           value={draft.status}
                           onChange={(e) => setDraftField('status', e.target.value as AddVehicleDraft['status'])}
-                          className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white"
+                          className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white cursor-pointer appearance-none transition-colors hover:border-primary/40 hover:bg-slate-50 dark:hover:bg-slate-900"
                         >
                           <option value="Active">Active</option>
                           <option value="Maintenance">Maintenance</option>
@@ -806,7 +806,7 @@ export const FleetView = ({ lang }: { lang: Language }) => {
                           value={draft.nextService}
                           onChange={(e) => setDraftField('nextService', e.target.value)}
                           placeholder={u('fleet.nextServicePlaceholder', '12 May / Tomorrow / Dock inspection')}
-                          className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white"
+                          className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white transition-colors hover:border-primary/40 hover:bg-slate-50 dark:hover:bg-slate-900"
                         />
                       </div>
                     </div>
@@ -820,7 +820,7 @@ export const FleetView = ({ lang }: { lang: Language }) => {
                           <select
                             value={draft.trailer}
                             onChange={(e) => setDraftField('trailer', e.target.value)}
-                            className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white"
+                            className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white cursor-pointer appearance-none transition-colors hover:border-primary/40 hover:bg-slate-50 dark:hover:bg-slate-900"
                           >
                             <option value="No">No</option>
                             <option value="Yes (1)">Yes (1)</option>
@@ -834,7 +834,7 @@ export const FleetView = ({ lang }: { lang: Language }) => {
                           <select
                             value={draft.tailLift}
                             onChange={(e) => setDraftField('tailLift', e.target.value)}
-                            className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white"
+                            className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white cursor-pointer appearance-none transition-colors hover:border-primary/40 hover:bg-slate-50 dark:hover:bg-slate-900"
                           >
                             <option value="No">No</option>
                             <option value="Yes">Yes</option>

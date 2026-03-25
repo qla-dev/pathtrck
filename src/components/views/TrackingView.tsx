@@ -157,31 +157,33 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
         </div>
 
         <div className="mt-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-4 shadow-sm">
-          <div className="flex items-start justify-between gap-3">
-            <div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
               <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
                 {u('tracking.loadCapacity', 'Load on truck')}
-              </p>
-              <p className="mt-2 text-2xl font-black text-slate-900 dark:text-white">
-                {loadCapacity.totalWeightKg.toLocaleString()} kg
               </p>
               <p className="mt-1 text-xs text-slate-500">
                 {loadCapacity.activeLoads.length} {u('tracking.activeLoads', 'active loads')}
               </p>
             </div>
+            <p className="text-2xl font-black text-slate-900 dark:text-white whitespace-nowrap">
+              {loadCapacity.totalWeightKg.toLocaleString()} kg
+            </p>
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <Truck className="h-5 w-5" />
             </div>
           </div>
 
-          <div className="mt-4">
-            <div className="h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-              <div
-                className="h-full rounded-full bg-primary transition-all"
-                style={{ width: `${loadCapacity.usedPercentage}%` }}
-              />
+          <div className="mt-3 flex items-center gap-4">
+            <div className="flex-1 min-w-0">
+              <div className="h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                <div
+                  className="h-full rounded-full bg-primary transition-all"
+                  style={{ width: `${loadCapacity.usedPercentage}%` }}
+                />
+              </div>
             </div>
-            <div className="mt-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-4 shrink-0">
               <div>
                 <p className="text-lg font-black text-primary">{loadCapacity.usedPercentage}%</p>
                 <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
@@ -195,9 +197,6 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
                 </p>
               </div>
             </div>
-            <p className="mt-3 text-xs text-slate-500">
-              {u('tracking.remainingCapacity', 'Remaining capacity')}: {loadCapacity.remainingKg.toLocaleString()} kg
-            </p>
           </div>
         </div>
 

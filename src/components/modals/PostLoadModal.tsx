@@ -448,31 +448,59 @@ export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => 
         animate={{ opacity: 1, scale: 1, y: 0 }}
         className="flex flex-col bg-white dark:bg-slate-900 shadow-2xl w-full h-[100dvh] overflow-hidden border-0 rounded-none"
       >
-        <div className="sticky top-0 z-20 p-4 sm:p-5 md:p-6 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-3 sm:gap-4 bg-white/96 dark:bg-slate-900/96 backdrop-blur-sm">
-          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-            <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0">
-              <Plus className="text-primary w-6 h-6" />
+        <div className="sticky top-0 z-20 border-b border-slate-100 dark:border-slate-800 bg-white/96 dark:bg-slate-900/96 backdrop-blur-sm">
+          <div className="p-4 sm:p-5 md:p-6 flex items-start justify-between gap-3 sm:gap-4">
+            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+              <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0">
+                <Plus className="text-primary w-6 h-6" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight dark:text-white">
+                  {u('postLoadModal.title', 'Post New Load')}
+                </h3>
+                <p className="text-xs md:text-sm text-slate-500 mt-1 max-w-2xl pr-2">
+                  {u(
+                    'postLoadModal.subtitle',
+                    'Create a structured freight request drivers can evaluate and accept quickly'
+                  )}
+                </p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <h3 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight dark:text-white">
-                {u('postLoadModal.title', 'Post New Load')}
-              </h3>
-              <p className="text-xs md:text-sm text-slate-500 mt-1 max-w-2xl pr-2">
-                {u(
-                  'postLoadModal.subtitle',
-                  'Create a structured freight request drivers can evaluate and accept quickly'
-                )}
-              </p>
+            <button
+              onClick={onClose}
+              className="shrink-0 h-11 w-11 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors"
+              aria-label={u('common.cancel', 'Cancel')}
+              title={u('common.cancel', 'Cancel')}
+            >
+              <X className="w-6 h-6 text-slate-500" />
+            </button>
+          </div>
+
+          <div className="px-4 sm:px-5 md:px-6 pb-4 sm:pb-5 md:pb-6">
+            <div className="flex flex-wrap items-center gap-3 text-slate-500">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs font-bold">
+                {step === 'route' && <MapPin className="w-4 h-4 text-primary" />}
+                {step === 'cargo' && <Package className="w-4 h-4 text-primary" />}
+                {step === 'terms' && <UserRound className="w-4 h-4 text-primary" />}
+                {step === 'review' && <FileText className="w-4 h-4 text-primary" />}
+                <span>
+                  {u('postLoadModal.stepLabel', 'Step')} {stepIndex + 1} / {STEPS.length}
+                </span>
+              </div>
+              <div className="hidden md:flex items-center gap-2 text-xs">
+                <CalendarDays className="w-4 h-4" />
+                <span>{draft.pickupDate || u('postLoadModal.noPickupDate', 'Pickup date pending')}</span>
+              </div>
+              <div className="hidden md:flex items-center gap-2 text-xs">
+                <Clock3 className="w-4 h-4" />
+                <span>{draft.deliveryDate || u('postLoadModal.noDeliveryDate', 'Delivery date pending')}</span>
+              </div>
+              <div className="hidden md:flex items-center gap-2 text-xs">
+                <ThermometerSnowflake className="w-4 h-4" />
+                <span>{draft.temperature || u('postLoadModal.ambient', 'Ambient')}</span>
+              </div>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="shrink-0 h-11 w-11 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors"
-            aria-label={u('common.cancel', 'Cancel')}
-            title={u('common.cancel', 'Cancel')}
-          >
-            <X className="w-6 h-6 text-slate-500" />
-          </button>
         </div>
 
         <div className="grid flex-1 min-h-0 xl:grid-cols-[250px_minmax(0,1fr)]">
@@ -1255,31 +1283,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => 
               )}
             </div>
 
-            <div className="p-4 sm:p-5 md:p-6 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800 flex flex-col justify-between gap-4 sm:gap-5">
-              <div className="flex flex-wrap items-center gap-3 text-slate-500">
-                <div className="inline-flex items-center gap-2 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs font-bold">
-                  {step === 'route' && <MapPin className="w-4 h-4 text-primary" />}
-                  {step === 'cargo' && <Package className="w-4 h-4 text-primary" />}
-                  {step === 'terms' && <UserRound className="w-4 h-4 text-primary" />}
-                  {step === 'review' && <FileText className="w-4 h-4 text-primary" />}
-                  <span>
-                    {u('postLoadModal.stepLabel', 'Step')} {stepIndex + 1} / {STEPS.length}
-                  </span>
-                </div>
-                <div className="hidden md:flex items-center gap-2 text-xs">
-                  <CalendarDays className="w-4 h-4" />
-                  <span>{draft.pickupDate || u('postLoadModal.noPickupDate', 'Pickup date pending')}</span>
-                </div>
-                <div className="hidden md:flex items-center gap-2 text-xs">
-                  <Clock3 className="w-4 h-4" />
-                  <span>{draft.deliveryDate || u('postLoadModal.noDeliveryDate', 'Delivery date pending')}</span>
-                </div>
-                <div className="hidden md:flex items-center gap-2 text-xs">
-                  <ThermometerSnowflake className="w-4 h-4" />
-                  <span>{draft.temperature || u('postLoadModal.ambient', 'Ambient')}</span>
-                </div>
-              </div>
-
+            <div className="p-4 sm:p-5 md:p-6 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800">
               <div className="grid w-full gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
                 <Button variant="outline" className="w-full min-h-[56px] sm:min-h-[60px]">
                   {u('postLoadModal.saveTemplate', 'Save as template')}
