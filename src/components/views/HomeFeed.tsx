@@ -116,10 +116,24 @@ type HomeFeedProps = {
   maxPriceFilter?: number;
   minWeightFilter?: number;
   maxWeightFilter?: number;
+  minLengthFilter?: number;
+  maxLengthFilter?: number;
+  minWidthFilter?: number;
+  maxWidthFilter?: number;
+  minHeightFilter?: number;
+  maxHeightFilter?: number;
+  minTemperatureFilter?: number;
+  maxTemperatureFilter?: number;
+  minCargoValueFilter?: number;
+  maxCargoValueFilter?: number;
   minTransitDaysFilter?: number;
   maxTransitDaysFilter?: number;
   selectedGoodsTypes?: string[];
   selectedPaymentTerms?: string[];
+  selectedAdrClasses?: string[];
+  selectedSensitivity?: string[];
+  selectedUrgency?: string[];
+  selectedLoadingMethods?: string[];
   isFilterSidebarOpen?: boolean;
   isSortSidebarOpen?: boolean;
   onToggleFilterSidebar?: () => void;
@@ -137,10 +151,24 @@ export const HomeFeed = ({
   maxPriceFilter = Number.POSITIVE_INFINITY,
   minWeightFilter = Number.NEGATIVE_INFINITY,
   maxWeightFilter = Number.POSITIVE_INFINITY,
+  minLengthFilter = Number.NEGATIVE_INFINITY,
+  maxLengthFilter = Number.POSITIVE_INFINITY,
+  minWidthFilter = Number.NEGATIVE_INFINITY,
+  maxWidthFilter = Number.POSITIVE_INFINITY,
+  minHeightFilter = Number.NEGATIVE_INFINITY,
+  maxHeightFilter = Number.POSITIVE_INFINITY,
+  minTemperatureFilter = Number.NEGATIVE_INFINITY,
+  maxTemperatureFilter = Number.POSITIVE_INFINITY,
+  minCargoValueFilter = Number.NEGATIVE_INFINITY,
+  maxCargoValueFilter = Number.POSITIVE_INFINITY,
   minTransitDaysFilter = Number.NEGATIVE_INFINITY,
   maxTransitDaysFilter = Number.POSITIVE_INFINITY,
   selectedGoodsTypes = [],
   selectedPaymentTerms = [],
+  selectedAdrClasses = [],
+  selectedSensitivity = [],
+  selectedUrgency = [],
+  selectedLoadingMethods = [],
   isFilterSidebarOpen = false,
   isSortSidebarOpen = false,
   onToggleFilterSidebar,
@@ -167,15 +195,50 @@ export const HomeFeed = ({
       const delivery = load.delivery.toLowerCase();
       const priceValue = parseLoadPriceValue(load.price);
       const weightValue = parseLoadWeightValue(load.weight);
+      const lengthValue = load.length ?? 0;
+      const widthValue = load.width ?? 0;
+      const heightValue = load.height ?? 0;
+      const temperatureMinValue = load.temperatureMin ?? 15;
+      const temperatureMaxValue = load.temperatureMax ?? 25;
+      const cargoValue = load.cargoValue ?? 0;
       const transitDays = estimateLoadTransitDays(load.pickup, load.delivery);
       const startMatch = !startFilter || pickup.includes(startFilter);
       const endMatch = !endFilter || delivery.includes(endFilter);
       const priceMatch = priceValue >= minPriceFilter && priceValue <= maxPriceFilter;
       const weightMatch = weightValue >= minWeightFilter && weightValue <= maxWeightFilter;
+      const lengthMatch = lengthValue >= minLengthFilter && lengthValue <= maxLengthFilter;
+      const widthMatch = widthValue >= minWidthFilter && widthValue <= maxWidthFilter;
+      const heightMatch = heightValue >= minHeightFilter && heightValue <= maxHeightFilter;
+      const temperatureMatch = temperatureMaxValue >= minTemperatureFilter && temperatureMinValue <= maxTemperatureFilter;
+      const cargoValueMatch = cargoValue >= minCargoValueFilter && cargoValue <= maxCargoValueFilter;
       const transitMatch = transitDays >= minTransitDaysFilter && transitDays <= maxTransitDaysFilter;
       const goodsMatch = !selectedGoodsTypes.length || selectedGoodsTypes.includes(load.goodsType);
       const paymentMatch = !selectedPaymentTerms.length || selectedPaymentTerms.includes(load.paymentTerms);
-      return startMatch && endMatch && priceMatch && weightMatch && transitMatch && goodsMatch && paymentMatch;
+      const adrMatch = !selectedAdrClasses.length || selectedAdrClasses.includes(load.adrClass || 'None');
+      const sensitivityMatch =
+        !selectedSensitivity.length || (selectedSensitivity.includes('fragile') ? Boolean(load.isFragile) : true);
+      const urgencyMatch = !selectedUrgency.length || selectedUrgency.includes(load.urgency || 'Standard');
+      const loadingMethodMatch =
+        !selectedLoadingMethods.length ||
+        selectedLoadingMethods.some((method) => (load.loadingMethods || []).includes(method as 'Forklift' | 'Crane' | 'Manual'));
+      return (
+        startMatch &&
+        endMatch &&
+        priceMatch &&
+        weightMatch &&
+        lengthMatch &&
+        widthMatch &&
+        heightMatch &&
+        temperatureMatch &&
+        cargoValueMatch &&
+        transitMatch &&
+        goodsMatch &&
+        paymentMatch &&
+        adrMatch &&
+        sensitivityMatch &&
+        urgencyMatch &&
+        loadingMethodMatch
+      );
     });
   }, [
     loads,
@@ -185,10 +248,24 @@ export const HomeFeed = ({
     maxPriceFilter,
     minWeightFilter,
     maxWeightFilter,
+    minLengthFilter,
+    maxLengthFilter,
+    minWidthFilter,
+    maxWidthFilter,
+    minHeightFilter,
+    maxHeightFilter,
+    minTemperatureFilter,
+    maxTemperatureFilter,
+    minCargoValueFilter,
+    maxCargoValueFilter,
     minTransitDaysFilter,
     maxTransitDaysFilter,
     selectedGoodsTypes,
     selectedPaymentTerms,
+    selectedAdrClasses,
+    selectedSensitivity,
+    selectedUrgency,
+    selectedLoadingMethods,
   ]);
 
   const sortedLoads = useMemo(() => {

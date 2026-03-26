@@ -28,6 +28,12 @@ type ModeTab = {
   label: string;
 };
 
+type DimensionRangeConfig = {
+  length: RangeFilterConfig;
+  width: RangeFilterConfig;
+  height: RangeFilterConfig;
+};
+
 type UiFn = (key: string, fallback: string) => string;
 
 type SidebarFilterProps = {
@@ -48,13 +54,28 @@ type SidebarFilterProps = {
   embeddedInSidebar?: boolean;
   priceRange?: RangeFilterConfig;
   weightRange?: RangeFilterConfig;
+  dimensionRanges?: DimensionRangeConfig;
+  temperatureRange?: RangeFilterConfig;
+  cargoValueRange?: RangeFilterConfig;
   transitRange?: RangeFilterConfig;
   goodsTypeOptions?: ChipFilterOption[];
   paymentTermOptions?: ChipFilterOption[];
+  adrClassOptions?: ChipFilterOption[];
+  sensitivityOptions?: ChipFilterOption[];
+  urgencyOptions?: ChipFilterOption[];
+  loadingMethodOptions?: ChipFilterOption[];
   selectedGoodsTypeIds?: string[];
   selectedPaymentTermIds?: string[];
+  selectedAdrClassIds?: string[];
+  selectedSensitivityIds?: string[];
+  selectedUrgencyIds?: string[];
+  selectedLoadingMethodIds?: string[];
   onToggleGoodsType?: (id: string) => void;
   onTogglePaymentTerm?: (id: string) => void;
+  onToggleAdrClass?: (id: string) => void;
+  onToggleSensitivity?: (id: string) => void;
+  onToggleUrgency?: (id: string) => void;
+  onToggleLoadingMethod?: (id: string) => void;
   modeTabs?: ModeTab[];
   activeModeTabId?: string;
   onModeTabChange?: (id: string) => void;
@@ -72,7 +93,7 @@ const DualRangeControl = ({ config }: { config: RangeFilterConfig }) => {
   const rightPct = hasSpan ? ((config.selectedMax - config.min) / span) * 100 : 100;
   const prefix = config.prefix?.trim();
   const suffix = config.suffix?.trim();
-  const step = Math.max(1, config.step ?? 1);
+  const step = config.step && config.step > 0 ? config.step : 1;
 
   return (
     <>
@@ -385,13 +406,28 @@ export const SidebarFilter = ({
   embeddedInSidebar = false,
   priceRange,
   weightRange,
+  dimensionRanges,
+  temperatureRange,
+  cargoValueRange,
   transitRange,
   goodsTypeOptions = [],
   paymentTermOptions = [],
+  adrClassOptions = [],
+  sensitivityOptions = [],
+  urgencyOptions = [],
+  loadingMethodOptions = [],
   selectedGoodsTypeIds = [],
   selectedPaymentTermIds = [],
+  selectedAdrClassIds = [],
+  selectedSensitivityIds = [],
+  selectedUrgencyIds = [],
+  selectedLoadingMethodIds = [],
   onToggleGoodsType,
   onTogglePaymentTerm,
+  onToggleAdrClass,
+  onToggleSensitivity,
+  onToggleUrgency,
+  onToggleLoadingMethod,
   modeTabs = [],
   activeModeTabId,
   onModeTabChange,
@@ -594,6 +630,170 @@ export const SidebarFilter = ({
           {u('legacy.sidebarFilter.loadWeight', 'Load weight')}
         </p>
         <WeightRangeControl config={weightRange} u={u} />
+      </div>
+    )}
+
+    {dimensionRanges && (
+      <div className="space-y-3">
+        <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+          {u('feed.filters.dimensions', 'Dimensions')}
+        </p>
+        <div>
+          <p className="text-[11px] font-semibold text-slate-500 mb-2">
+            {u('feed.filters.length', 'Length')}
+          </p>
+          <DualRangeControl config={dimensionRanges.length} />
+        </div>
+        <div>
+          <p className="text-[11px] font-semibold text-slate-500 mb-2">
+            {u('feed.filters.width', 'Width')}
+          </p>
+          <DualRangeControl config={dimensionRanges.width} />
+        </div>
+        <div>
+          <p className="text-[11px] font-semibold text-slate-500 mb-2">
+            {u('feed.filters.height', 'Height')}
+          </p>
+          <DualRangeControl config={dimensionRanges.height} />
+        </div>
+      </div>
+    )}
+
+    {temperatureRange && (
+      <div>
+        <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
+          {u('feed.filters.temperature', 'Temperature regime')}
+        </p>
+        <DualRangeControl config={temperatureRange} />
+      </div>
+    )}
+
+    {cargoValueRange && (
+      <div>
+        <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
+          {u('feed.filters.cargoValue', 'Cargo value')}
+        </p>
+        <DualRangeControl config={cargoValueRange} />
+      </div>
+    )}
+
+    {adrClassOptions.length > 0 && (
+      <div>
+        <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
+          {u('feed.filters.adrClass', 'ADR class')}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {adrClassOptions.map((option) => {
+            const isSelected = selectedAdrClassIds.includes(option.id);
+
+            return (
+              <button
+                key={`adr-${option.id}`}
+                type="button"
+                aria-pressed={isSelected}
+                onClick={() => onToggleAdrClass?.(option.id)}
+                className={cn(
+                  'px-2.5 py-1 rounded-full border text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer',
+                  isSelected
+                    ? option.toneClass
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-transparent hover:border-slate-300 dark:hover:border-slate-600'
+                )}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    )}
+
+    {sensitivityOptions.length > 0 && (
+      <div>
+        <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
+          {u('feed.filters.sensitivity', 'Sensitivity')}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {sensitivityOptions.map((option) => {
+            const isSelected = selectedSensitivityIds.includes(option.id);
+
+            return (
+              <button
+                key={`sensitivity-${option.id}`}
+                type="button"
+                aria-pressed={isSelected}
+                onClick={() => onToggleSensitivity?.(option.id)}
+                className={cn(
+                  'px-2.5 py-1 rounded-full border text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer',
+                  isSelected
+                    ? option.toneClass
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-transparent hover:border-slate-300 dark:hover:border-slate-600'
+                )}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    )}
+
+    {urgencyOptions.length > 0 && (
+      <div>
+        <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
+          {u('feed.filters.urgency', 'Urgency')}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {urgencyOptions.map((option) => {
+            const isSelected = selectedUrgencyIds.includes(option.id);
+
+            return (
+              <button
+                key={`urgency-${option.id}`}
+                type="button"
+                aria-pressed={isSelected}
+                onClick={() => onToggleUrgency?.(option.id)}
+                className={cn(
+                  'px-2.5 py-1 rounded-full border text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer',
+                  isSelected
+                    ? option.toneClass
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-transparent hover:border-slate-300 dark:hover:border-slate-600'
+                )}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    )}
+
+    {loadingMethodOptions.length > 0 && (
+      <div>
+        <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
+          {u('feed.filters.loadingMethod', 'Loading method')}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {loadingMethodOptions.map((option) => {
+            const isSelected = selectedLoadingMethodIds.includes(option.id);
+
+            return (
+              <button
+                key={`loading-method-${option.id}`}
+                type="button"
+                aria-pressed={isSelected}
+                onClick={() => onToggleLoadingMethod?.(option.id)}
+                className={cn(
+                  'px-2.5 py-1 rounded-full border text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer',
+                  isSelected
+                    ? option.toneClass
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-transparent hover:border-slate-300 dark:hover:border-slate-600'
+                )}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
     )}
 

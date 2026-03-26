@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Search, MapPin, ChevronRight, Package as PackageIcon, Clock3, RotateCcw, Share2, Star, Bot, Route, Lock, Coins, Loader2, Sparkles, Truck } from 'lucide-react';
+import { Search, MapPin, ChevronRight, Package as PackageIcon, Clock3, RotateCcw, Share2, Star, Bot, Route, Lock, Coins, Loader2, Sparkles, Truck, FileBarChart2, Upload, FileSpreadsheet } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { Language, Package as PackageData } from '../../types';
 import { MOCK_LOADS, MOCK_PACKAGES } from '../../mockData';
@@ -15,12 +15,13 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
   const TRUCK_CAPACITY_KG = 48000;
   const [selectedPackage, setSelectedPackage] = useState<PackageData>(MOCK_PACKAGES[0]);
   const [smartStatus, setSmartStatus] = useState<string>("");
-  const [rightTab, setRightTab] = useState<'tracker' | 'dispatch' | 'map' | 'timeline' | 'return' | 'returnRoutes' | 'share' | 'review'>('tracker');
+  const [rightTab, setRightTab] = useState<'tracker' | 'dispatch' | 'map' | 'timeline' | 'return' | 'returnRoutes' | 'reports' | 'share' | 'review'>('tracker');
   const [dispatchDraft, setDispatchDraft] = useState('');
   const [returnTokens, setReturnTokens] = useState(36);
   const [returnRoutesUnlocked, setReturnRoutesUnlocked] = useState(false);
   const [isUnlockingReturnRoutes, setIsUnlockingReturnRoutes] = useState(false);
   const [unlockStep, setUnlockStep] = useState(0);
+  const [tachographFile, setTachographFile] = useState<File | null>(null);
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
 
   useEffect(() => {
@@ -143,6 +144,36 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
     };
   }, []);
 
+  const reportRows = useMemo(
+    () => [
+      [u('tracking.report.field', 'Field'), u('tracking.report.value', 'Value')],
+      [u('tracking.report.trackingNumber', 'Tracking number'), selectedPackage.trackingNumber],
+      [u('tracking.report.carrier', 'Carrier'), selectedPackage.carrier],
+      [u('tracking.report.vehicle', 'Vehicle'), 'Truck PT-19'],
+      [u('tracking.report.route', 'Route'), `${selectedPackage.origin} -> ${selectedPackage.destination}`],
+      [u('tracking.report.distance', 'Mileage'), `${selectedPackage.transitDays * 265} km`],
+      [u('tracking.report.stops', 'Number of stops'), String(selectedPackage.history.length)],
+      [u('tracking.report.breaks', 'Driver breaks'), `${Math.max(1, selectedPackage.transitDays)} x 45 min`],
+      [u('tracking.report.arrival', 'Arrival time'), selectedPackage.history[0]?.date || selectedPackage.addedDate],
+      [u('tracking.report.delay', 'Delay'), selectedPackage.status === 'Delivered' ? u('tracking.report.none', 'No delay') : '18 min'],
+      [u('tracking.report.status', 'Status'), trPackageStatus(lang, selectedPackage.status)],
+    ],
+    [lang, selectedPackage, u]
+  );
+
+  const exportRouteReport = () => {
+    const csv = reportRows
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${selectedPackage.trackingNumber}-route-report.csv`;
+    link.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="grid lg:grid-cols-12 gap-6">
       {/* Sidebar List */}
@@ -231,7 +262,8 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
 
       {/* Main Tracking Content (Amazon Inspired) */}
       <div className="lg:col-span-8 space-y-6">
-        <div className="inline-flex h-12 items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1">
+        <div className="overflow-x-auto px-1 [scrollbar-width:thin] [scrollbar-color:rgb(148_163_184/0.72)_transparent] dark:[scrollbar-color:rgb(71_85_105/0.8)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-400/70 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600/80 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:bg-slate-500/90 dark:[&::-webkit-scrollbar-thumb:hover]:bg-slate-500/95">
+          <div className="inline-flex h-12 min-w-full w-max items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1">
           <button
             onClick={() => setRightTab('tracker')}
             className={cn(
@@ -293,6 +325,16 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
             {u('Return Routes', 'Return Routes')}
           </button>
           <button
+            onClick={() => setRightTab('reports')}
+            className={cn(
+              'h-full px-3 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5',
+              rightTab === 'reports' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+            )}
+          >
+            <FileBarChart2 className="w-4 h-4" />
+            {u('Reports', 'Reports')}
+          </button>
+          <button
             onClick={() => setRightTab('share')}
             className={cn(
               'h-full px-3 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5',
@@ -312,6 +354,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
             <Star className="w-4 h-4" />
             {u('Review', 'Review')}
           </button>
+          </div>
         </div>
 
         {rightTab === 'tracker' && (
@@ -558,6 +601,71 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
                 <Button variant="outline" size="sm">Email</Button>
                 <Button variant="outline" size="sm">SMS</Button>
                 <Button variant="outline" size="sm">WhatsApp</Button>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {rightTab === 'reports' && (
+          <Card title={u('tracking.reportsTitle', 'Reports and Tachograph')}>
+            <div className="space-y-5">
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-700 p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                    <Upload className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold uppercase tracking-wider text-primary">
+                      {u('tracking.tachographUpload', 'Upload tachograph file (.DDD)')}
+                    </p>
+                    <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                      {u('tracking.tachographHelp', 'Attach the original tachograph export file for compliance and trip auditing.')}
+                    </p>
+                    <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 transition-colors hover:border-primary/40 hover:bg-slate-50 dark:hover:bg-slate-800">
+                      <Upload className="h-4 w-4" />
+                      {u('tracking.chooseDddFile', 'Choose .DDD file')}
+                      <input
+                        type="file"
+                        accept=".ddd,.DDD"
+                        className="sr-only"
+                        onChange={(event) => setTachographFile(event.target.files?.[0] ?? null)}
+                      />
+                    </label>
+                    <p className="mt-3 text-xs text-slate-500">
+                      {tachographFile
+                        ? `${u('tracking.selectedFile', 'Selected file')}: ${tachographFile.name}`
+                        : u('tracking.noTachographFile', 'No tachograph file uploaded yet.')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-700 p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600">
+                    <FileSpreadsheet className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold uppercase tracking-wider text-emerald-600">
+                      {u('tracking.driverReports', 'Driver reports')}
+                    </p>
+                    <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                      {u('tracking.driverReportsHelp', 'Export route reports in Excel-compatible format with vehicle, trip, mileage, stops, driver breaks, arrival time and delays.')}
+                    </p>
+                    <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                      {reportRows.slice(2).map(([label, value]) => (
+                        <div key={label} className="rounded-xl bg-slate-50 dark:bg-slate-900/60 px-3 py-2">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
+                          <p className="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-100">{value}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <Button onClick={exportRouteReport} className="mt-4">
+                      <FileSpreadsheet className="mr-2 h-4 w-4" />
+                      {u('tracking.exportExcelReport', 'Export route report')}
+                    </Button>
+                  </div>
+                </div>
               </div>
             </div>
           </Card>

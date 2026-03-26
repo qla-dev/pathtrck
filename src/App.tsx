@@ -29,7 +29,8 @@ import {
   Clock,
   MapPin,
   ExternalLink,
-  Filter
+  Filter,
+  NotebookPen
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
@@ -75,6 +76,7 @@ import { ProfileView } from './components/views/ProfileView';
 import { AutomationsView } from './components/views/AutomationsView';
 import { PostLoadModal } from './components/modals/PostLoadModal';
 import { SettingsView } from './components/views/SettingsView';
+import { LoadNotesView } from './components/views/LoadNotesView';
 import { SetupProcess } from './components/auth/SetupProcess';
 import { LoginProcess } from './components/auth/LoginProcess';
 import { AiRouteCalculatorCard } from './components/ai_automattions/AiRouteCalculatorCard';
@@ -2891,6 +2893,13 @@ const parseLoadWeightValue = (weight: string) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const getLoadLengthValue = (load: Load) => load.length ?? 0;
+const getLoadWidthValue = (load: Load) => load.width ?? 0;
+const getLoadHeightValue = (load: Load) => load.height ?? 0;
+const getLoadTemperatureMinValue = (load: Load) => load.temperatureMin ?? 15;
+const getLoadTemperatureMaxValue = (load: Load) => load.temperatureMax ?? 25;
+const getLoadCargoValue = (load: Load) => load.cargoValue ?? 0;
+
 type FeedDataMode = 'all' | 'organic' | 'global';
 
 const estimateLoadTransitDays = (pickup: string, delivery: string) => {
@@ -2911,6 +2920,12 @@ const buildFeedRangeBounds = (loads: Load[]) => {
   const sourceLoads = loads.length > 0 ? loads : MOCK_LOADS;
   const prices = sourceLoads.map((load) => parseLoadPriceValue(load.price));
   const weights = sourceLoads.map((load) => parseLoadWeightValue(load.weight));
+  const lengths = sourceLoads.map(getLoadLengthValue);
+  const widths = sourceLoads.map(getLoadWidthValue);
+  const heights = sourceLoads.map(getLoadHeightValue);
+  const temperatureMins = sourceLoads.map(getLoadTemperatureMinValue);
+  const temperatureMaxs = sourceLoads.map(getLoadTemperatureMaxValue);
+  const cargoValues = sourceLoads.map(getLoadCargoValue);
   const transits = sourceLoads.map((load) => estimateLoadTransitDays(load.pickup, load.delivery));
 
   return {
@@ -2918,6 +2933,16 @@ const buildFeedRangeBounds = (loads: Load[]) => {
     priceMax: Math.max(...prices),
     weightMin: Math.min(...weights),
     weightMax: Math.max(...weights),
+    lengthMin: Math.min(...lengths),
+    lengthMax: Math.max(...lengths),
+    widthMin: Math.min(...widths),
+    widthMax: Math.max(...widths),
+    heightMin: Math.min(...heights),
+    heightMax: Math.max(...heights),
+    temperatureMin: Math.min(...temperatureMins),
+    temperatureMax: Math.max(...temperatureMaxs),
+    cargoValueMin: Math.min(...cargoValues),
+    cargoValueMax: Math.max(...cargoValues),
     transitMin: Math.min(...transits),
     transitMax: Math.max(...transits),
   };
@@ -2938,6 +2963,16 @@ const mapGlobalOfferToLoad = (
     title: `${offer.carrier} Global Freight`,
     weight,
     price: `USD ${offer.priceUsd.toLocaleString('en-US')}`,
+    length: 12.4 + (index % 3) * 0.6,
+    width: 2.45,
+    height: 2.6,
+    temperatureMin: index % 4 === 0 ? -18 : 5,
+    temperatureMax: index % 4 === 0 ? -12 : 25,
+    adrClass: index % 5 === 0 ? '3' : 'None',
+    cargoValue: 45000 + index * 8500,
+    isFragile: index % 3 === 0,
+    urgency: index % 2 === 0 ? 'Express' : 'Standard',
+    loadingMethods: index % 3 === 0 ? ['Forklift', 'Manual'] : index % 3 === 1 ? ['Crane'] : ['Forklift'],
     pickup: offer.origin,
     delivery: offer.destination,
     date: `March ${2 + index}, 2026`,
@@ -2987,10 +3022,24 @@ export default function App() {
   const [feedSelectedPriceMax, setFeedSelectedPriceMax] = useState(() => allFeedRangeBounds.priceMax);
   const [feedSelectedWeightMin, setFeedSelectedWeightMin] = useState(() => allFeedRangeBounds.weightMin);
   const [feedSelectedWeightMax, setFeedSelectedWeightMax] = useState(() => allFeedRangeBounds.weightMax);
+  const [feedSelectedLengthMin, setFeedSelectedLengthMin] = useState(() => allFeedRangeBounds.lengthMin);
+  const [feedSelectedLengthMax, setFeedSelectedLengthMax] = useState(() => allFeedRangeBounds.lengthMax);
+  const [feedSelectedWidthMin, setFeedSelectedWidthMin] = useState(() => allFeedRangeBounds.widthMin);
+  const [feedSelectedWidthMax, setFeedSelectedWidthMax] = useState(() => allFeedRangeBounds.widthMax);
+  const [feedSelectedHeightMin, setFeedSelectedHeightMin] = useState(() => allFeedRangeBounds.heightMin);
+  const [feedSelectedHeightMax, setFeedSelectedHeightMax] = useState(() => allFeedRangeBounds.heightMax);
+  const [feedSelectedTemperatureMin, setFeedSelectedTemperatureMin] = useState(() => allFeedRangeBounds.temperatureMin);
+  const [feedSelectedTemperatureMax, setFeedSelectedTemperatureMax] = useState(() => allFeedRangeBounds.temperatureMax);
+  const [feedSelectedCargoValueMin, setFeedSelectedCargoValueMin] = useState(() => allFeedRangeBounds.cargoValueMin);
+  const [feedSelectedCargoValueMax, setFeedSelectedCargoValueMax] = useState(() => allFeedRangeBounds.cargoValueMax);
   const [feedSelectedTransitMin, setFeedSelectedTransitMin] = useState(() => allFeedRangeBounds.transitMin);
   const [feedSelectedTransitMax, setFeedSelectedTransitMax] = useState(() => allFeedRangeBounds.transitMax);
   const [selectedFeedGoodsTypes, setSelectedFeedGoodsTypes] = useState<string[]>([]);
   const [selectedFeedPaymentTerms, setSelectedFeedPaymentTerms] = useState<string[]>([]);
+  const [selectedFeedAdrClasses, setSelectedFeedAdrClasses] = useState<string[]>([]);
+  const [selectedFeedSensitivity, setSelectedFeedSensitivity] = useState<string[]>([]);
+  const [selectedFeedUrgency, setSelectedFeedUrgency] = useState<string[]>([]);
+  const [selectedFeedLoadingMethods, setSelectedFeedLoadingMethods] = useState<string[]>([]);
 
   const feedSeedCities = useMemo(
     () =>
@@ -3111,6 +3160,46 @@ export default function App() {
     label: trPaymentTerms(lang, value),
     toneClass: getPaymentChipTone(value),
   }));
+  const feedAdrClassOptions = Array.from(
+    new Set<string>(activeFeedLoads.map((load) => load.adrClass || 'None'))
+  ).map((value) => ({
+    id: value,
+    label: value === 'None' ? u('feed.adr.none', 'No ADR') : `${u('feed.adr.class', 'ADR class')} ${value}`,
+    toneClass:
+      value === 'None'
+        ? 'bg-slate-500/10 text-slate-500 border-slate-500/30'
+        : 'bg-rose-500/10 text-rose-500 border-rose-500/30',
+  }));
+  const feedSensitivityOptions = [
+    {
+      id: 'fragile',
+      label: u('feed.sensitivity.fragile', 'Fragile'),
+      toneClass: 'bg-cyan-500/10 text-cyan-500 border-cyan-500/30',
+    },
+  ];
+  const feedUrgencyOptions = ['Standard', 'Express'].map((value) => ({
+    id: value,
+    label: value === 'Express' ? u('feed.urgency.express', 'Express') : u('feed.urgency.standard', 'Standard'),
+    toneClass:
+      value === 'Express'
+        ? 'bg-amber-500/10 text-amber-500 border-amber-500/30'
+        : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30',
+  }));
+  const feedLoadingMethodOptions = ['Forklift', 'Crane', 'Manual'].map((value) => ({
+    id: value,
+    label:
+      value === 'Forklift'
+        ? u('feed.loadingMethod.forklift', 'Forklift')
+        : value === 'Crane'
+          ? u('feed.loadingMethod.crane', 'Crane')
+          : u('feed.loadingMethod.manual', 'Manual'),
+    toneClass:
+      value === 'Crane'
+        ? 'bg-violet-500/10 text-violet-500 border-violet-500/30'
+        : value === 'Manual'
+          ? 'bg-sky-500/10 text-sky-500 border-sky-500/30'
+          : 'bg-primary/10 text-primary border-primary/30',
+  }));
   const feedServiceItems: ServiceItem[] = [
     {
       key: 'place_of_loading',
@@ -3146,10 +3235,24 @@ export default function App() {
     setFeedSelectedPriceMax(feedRangeBounds.priceMax);
     setFeedSelectedWeightMin(feedRangeBounds.weightMin);
     setFeedSelectedWeightMax(feedRangeBounds.weightMax);
+    setFeedSelectedLengthMin(feedRangeBounds.lengthMin);
+    setFeedSelectedLengthMax(feedRangeBounds.lengthMax);
+    setFeedSelectedWidthMin(feedRangeBounds.widthMin);
+    setFeedSelectedWidthMax(feedRangeBounds.widthMax);
+    setFeedSelectedHeightMin(feedRangeBounds.heightMin);
+    setFeedSelectedHeightMax(feedRangeBounds.heightMax);
+    setFeedSelectedTemperatureMin(feedRangeBounds.temperatureMin);
+    setFeedSelectedTemperatureMax(feedRangeBounds.temperatureMax);
+    setFeedSelectedCargoValueMin(feedRangeBounds.cargoValueMin);
+    setFeedSelectedCargoValueMax(feedRangeBounds.cargoValueMax);
     setFeedSelectedTransitMin(feedRangeBounds.transitMin);
     setFeedSelectedTransitMax(feedRangeBounds.transitMax);
     setSelectedFeedGoodsTypes([]);
     setSelectedFeedPaymentTerms([]);
+    setSelectedFeedAdrClasses([]);
+    setSelectedFeedSensitivity([]);
+    setSelectedFeedUrgency([]);
+    setSelectedFeedLoadingMethods([]);
   };
   const handleFeedDataModeChange = (nextModeId: string) => {
     const nextMode: FeedDataMode =
@@ -3165,10 +3268,24 @@ export default function App() {
     setFeedSelectedPriceMax(nextBounds.priceMax);
     setFeedSelectedWeightMin(nextBounds.weightMin);
     setFeedSelectedWeightMax(nextBounds.weightMax);
+    setFeedSelectedLengthMin(nextBounds.lengthMin);
+    setFeedSelectedLengthMax(nextBounds.lengthMax);
+    setFeedSelectedWidthMin(nextBounds.widthMin);
+    setFeedSelectedWidthMax(nextBounds.widthMax);
+    setFeedSelectedHeightMin(nextBounds.heightMin);
+    setFeedSelectedHeightMax(nextBounds.heightMax);
+    setFeedSelectedTemperatureMin(nextBounds.temperatureMin);
+    setFeedSelectedTemperatureMax(nextBounds.temperatureMax);
+    setFeedSelectedCargoValueMin(nextBounds.cargoValueMin);
+    setFeedSelectedCargoValueMax(nextBounds.cargoValueMax);
     setFeedSelectedTransitMin(nextBounds.transitMin);
     setFeedSelectedTransitMax(nextBounds.transitMax);
     setSelectedFeedGoodsTypes([]);
     setSelectedFeedPaymentTerms([]);
+    setSelectedFeedAdrClasses([]);
+    setSelectedFeedSensitivity([]);
+    setSelectedFeedUrgency([]);
+    setSelectedFeedLoadingMethods([]);
   };
   const shouldShowFeedFiltersInMainSidebar = view === 'feed' && isMainFilterSidebarOpen;
   const shouldShowFeedSortInMainSidebar = view === 'feed' && isMainSortSidebarOpen;
@@ -3176,6 +3293,7 @@ export default function App() {
 
   const navItems = [
     ...(role === 'driver' ? [{ id: 'feed', label: t.homeFeed, icon: Boxes }] : []),
+    ...(role === 'driver' ? [{ id: 'notes', label: ui(lang, 'notes.navLabel', 'Notes'), icon: NotebookPen }] : []),
     { id: 'tracking', label: t.tracking, icon: PackageIcon },
     ...(role === 'driver' ? [
       { id: 'fleet', label: t.myFleet, icon: Truck },
@@ -3276,6 +3394,72 @@ export default function App() {
                   suffix: ' kg',
                   step: 100,
                 }}
+                dimensionRanges={{
+                  length: {
+                    min: feedRangeBounds.lengthMin,
+                    max: feedRangeBounds.lengthMax,
+                    selectedMin: feedSelectedLengthMin,
+                    selectedMax: feedSelectedLengthMax,
+                    onChange: (nextMin, nextMax) => {
+                      setFeedSelectedLengthMin(nextMin);
+                      setFeedSelectedLengthMax(nextMax);
+                    },
+                    suffix: ' m',
+                    allowManualInput: true,
+                    step: 0.1,
+                  },
+                  width: {
+                    min: feedRangeBounds.widthMin,
+                    max: feedRangeBounds.widthMax,
+                    selectedMin: feedSelectedWidthMin,
+                    selectedMax: feedSelectedWidthMax,
+                    onChange: (nextMin, nextMax) => {
+                      setFeedSelectedWidthMin(nextMin);
+                      setFeedSelectedWidthMax(nextMax);
+                    },
+                    suffix: ' m',
+                    allowManualInput: true,
+                    step: 0.05,
+                  },
+                  height: {
+                    min: feedRangeBounds.heightMin,
+                    max: feedRangeBounds.heightMax,
+                    selectedMin: feedSelectedHeightMin,
+                    selectedMax: feedSelectedHeightMax,
+                    onChange: (nextMin, nextMax) => {
+                      setFeedSelectedHeightMin(nextMin);
+                      setFeedSelectedHeightMax(nextMax);
+                    },
+                    suffix: ' m',
+                    allowManualInput: true,
+                    step: 0.05,
+                  },
+                }}
+                temperatureRange={{
+                  min: feedRangeBounds.temperatureMin,
+                  max: feedRangeBounds.temperatureMax,
+                  selectedMin: feedSelectedTemperatureMin,
+                  selectedMax: feedSelectedTemperatureMax,
+                  onChange: (nextMin, nextMax) => {
+                    setFeedSelectedTemperatureMin(nextMin);
+                    setFeedSelectedTemperatureMax(nextMax);
+                  },
+                  suffix: ' °C',
+                  allowManualInput: true,
+                }}
+                cargoValueRange={{
+                  min: feedRangeBounds.cargoValueMin,
+                  max: feedRangeBounds.cargoValueMax,
+                  selectedMin: feedSelectedCargoValueMin,
+                  selectedMax: feedSelectedCargoValueMax,
+                  onChange: (nextMin, nextMax) => {
+                    setFeedSelectedCargoValueMin(nextMin);
+                    setFeedSelectedCargoValueMax(nextMax);
+                  },
+                  prefix: 'EUR ',
+                  allowManualInput: true,
+                  step: 1000,
+                }}
                 transitRange={{
                   min: feedRangeBounds.transitMin,
                   max: feedRangeBounds.transitMax,
@@ -3289,8 +3473,16 @@ export default function App() {
                 }}
                 goodsTypeOptions={feedGoodsTypeOptions}
                 paymentTermOptions={feedPaymentTermOptions}
+                adrClassOptions={feedAdrClassOptions}
+                sensitivityOptions={feedSensitivityOptions}
+                urgencyOptions={feedUrgencyOptions}
+                loadingMethodOptions={feedLoadingMethodOptions}
                 selectedGoodsTypeIds={selectedFeedGoodsTypes}
                 selectedPaymentTermIds={selectedFeedPaymentTerms}
+                selectedAdrClassIds={selectedFeedAdrClasses}
+                selectedSensitivityIds={selectedFeedSensitivity}
+                selectedUrgencyIds={selectedFeedUrgency}
+                selectedLoadingMethodIds={selectedFeedLoadingMethods}
                 onToggleGoodsType={(id) => {
                   setSelectedFeedGoodsTypes((prev) =>
                     prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
@@ -3298,6 +3490,26 @@ export default function App() {
                 }}
                 onTogglePaymentTerm={(id) => {
                   setSelectedFeedPaymentTerms((prev) =>
+                    prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+                  );
+                }}
+                onToggleAdrClass={(id) => {
+                  setSelectedFeedAdrClasses((prev) =>
+                    prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+                  );
+                }}
+                onToggleSensitivity={(id) => {
+                  setSelectedFeedSensitivity((prev) =>
+                    prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+                  );
+                }}
+                onToggleUrgency={(id) => {
+                  setSelectedFeedUrgency((prev) =>
+                    prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+                  );
+                }}
+                onToggleLoadingMethod={(id) => {
+                  setSelectedFeedLoadingMethods((prev) =>
                     prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
                   );
                 }}
@@ -3525,10 +3737,24 @@ export default function App() {
                     maxPriceFilter={feedSelectedPriceMax}
                     minWeightFilter={feedSelectedWeightMin}
                     maxWeightFilter={feedSelectedWeightMax}
+                    minLengthFilter={feedSelectedLengthMin}
+                    maxLengthFilter={feedSelectedLengthMax}
+                    minWidthFilter={feedSelectedWidthMin}
+                    maxWidthFilter={feedSelectedWidthMax}
+                    minHeightFilter={feedSelectedHeightMin}
+                    maxHeightFilter={feedSelectedHeightMax}
+                    minTemperatureFilter={feedSelectedTemperatureMin}
+                    maxTemperatureFilter={feedSelectedTemperatureMax}
+                    minCargoValueFilter={feedSelectedCargoValueMin}
+                    maxCargoValueFilter={feedSelectedCargoValueMax}
                     minTransitDaysFilter={feedSelectedTransitMin}
                     maxTransitDaysFilter={feedSelectedTransitMax}
                     selectedGoodsTypes={selectedFeedGoodsTypes}
                     selectedPaymentTerms={selectedFeedPaymentTerms}
+                    selectedAdrClasses={selectedFeedAdrClasses}
+                    selectedSensitivity={selectedFeedSensitivity}
+                    selectedUrgency={selectedFeedUrgency}
+                    selectedLoadingMethods={selectedFeedLoadingMethods}
                     isFilterSidebarOpen={shouldShowFeedFiltersInMainSidebar}
                     isSortSidebarOpen={shouldShowFeedSortInMainSidebar}
                     onToggleFilterSidebar={() => {
@@ -3543,6 +3769,7 @@ export default function App() {
                     }}
                   />
                 )}
+	              {view === 'notes' && <LoadNotesView lang={lang} />}
 	              {view === 'messages' && <MessagesView lang={lang} />}
 	              {view === 'network' && <NetworkView lang={lang} />}
 	              {view === 'automations' && <AutomationsView lang={lang} />}

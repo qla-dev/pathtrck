@@ -57,6 +57,9 @@ type AddVehicleDraft = {
   plate: string;
   status: 'Active' | 'Maintenance' | 'Idle';
   trailer: string;
+  trailerSystemName: string;
+  trailerPlate: string;
+  trailerBodyType: string;
   tailLift: string;
   nextService: string;
 };
@@ -194,6 +197,9 @@ const INITIAL_DRAFT: AddVehicleDraft = {
   plate: '',
   status: 'Active',
   trailer: 'No',
+  trailerSystemName: '',
+  trailerPlate: '',
+  trailerBodyType: 'Box trailer',
   tailLift: 'No',
   nextService: '',
 };
@@ -204,6 +210,7 @@ export const FleetView = ({ lang }: { lang: Language }) => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState<AddVehicleDraft>(INITIAL_DRAFT);
+  const [trailerStep, setTrailerStep] = useState(0);
 
   const fleetData = [
     { name: 'Mon', fuel: 400, efficiency: 85 },
@@ -277,10 +284,14 @@ export const FleetView = ({ lang }: { lang: Language }) => {
       plate: '',
       status: 'Active',
       trailer: transportType === 'truck' ? 'No' : 'N/A',
+      trailerSystemName: '',
+      trailerPlate: '',
+      trailerBodyType: 'Box trailer',
       tailLift: transportType === 'truck' ? 'No' : 'N/A',
       nextService: '',
     });
     setStep(0);
+    setTrailerStep(0);
   };
 
   const openAddVehicle = () => {
@@ -316,18 +327,32 @@ export const FleetView = ({ lang }: { lang: Language }) => {
       plate: '',
       status: 'Active',
       trailer: transportType === 'truck' ? 'No' : 'N/A',
+      trailerSystemName: '',
+      trailerPlate: '',
+      trailerBodyType: 'Box trailer',
       tailLift: transportType === 'truck' ? 'No' : 'N/A',
       nextService: '',
     });
+    setTrailerStep(0);
   };
 
   const canContinue =
     (step === 0 && Boolean(draft.transportType && draft.category && draft.bodyType)) ||
     (step === 1 && Boolean(draft.make && (draft.model || draft.customModel) && draft.capacity && draft.fuelType)) ||
-    (step === 2 && Boolean(draft.systemName && draft.plate));
+    (step === 2 &&
+      Boolean(draft.systemName && draft.plate) &&
+      (draft.transportType !== 'truck' ||
+        draft.trailer === 'No' ||
+        (trailerStep === 1 && draft.trailerSystemName && draft.trailerPlate && draft.trailerBodyType)));
 
   const submitVehicle = () => {
     const displayModel = draft.model === 'Other' ? draft.customModel : `${draft.make} ${draft.model}`.trim();
+    const trailerLabel =
+      draft.transportType !== 'truck' || draft.trailer === 'No'
+        ? draft.transportType === 'truck'
+          ? 'No'
+          : 'N/A'
+        : `${draft.trailer} • ${draft.trailerBodyType} • ${draft.trailerPlate}`;
     const nextVehicle: FleetVehicle = {
       id: `V${vehicles.length + 1}`,
       transportType: draft.transportType,
@@ -337,7 +362,7 @@ export const FleetView = ({ lang }: { lang: Language }) => {
       status: draft.status,
       fuel: draft.status === 'Maintenance' ? '20%' : draft.status === 'Idle' ? '88%' : '76%',
       fuelType: draft.fuelType,
-      trailer: draft.transportType === 'truck' ? draft.trailer : 'N/A',
+      trailer: trailerLabel,
       tailLift: draft.transportType === 'truck' ? draft.tailLift : 'N/A',
       nextService: draft.nextService || u('fleet.noDateSet', 'Not scheduled'),
       location: [43.8563, 18.4131],
@@ -351,6 +376,8 @@ export const FleetView = ({ lang }: { lang: Language }) => {
     setVehicles((prev) => [nextVehicle, ...prev]);
     closeAddVehicle();
   };
+
+  const hasTrailer = draft.transportType === 'truck' && draft.trailer !== 'No';
 
   return (
     <motion.div
@@ -812,21 +839,7 @@ export const FleetView = ({ lang }: { lang: Language }) => {
                     </div>
 
                     {draft.transportType === 'truck' && (
-                      <div className="grid sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">
-                            {u('fleet.trailer', 'Trailer')}
-                          </label>
-                          <select
-                            value={draft.trailer}
-                            onChange={(e) => setDraftField('trailer', e.target.value)}
-                            className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white cursor-pointer appearance-none transition-colors hover:border-primary/40 hover:bg-slate-50 dark:hover:bg-slate-900"
-                          >
-                            <option value="No">No</option>
-                            <option value="Yes (1)">Yes (1)</option>
-                            <option value="Yes (2)">Yes (2)</option>
-                          </select>
-                        </div>
+                      <div className="space-y-4">
                         <div>
                           <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">
                             {u('fleet.tailLift', 'Tail lift')}
@@ -839,6 +852,142 @@ export const FleetView = ({ lang }: { lang: Language }) => {
                             <option value="No">No</option>
                             <option value="Yes">Yes</option>
                           </select>
+                        </div>
+
+                        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40 p-4 space-y-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">
+                                {u('fleet.trailerWizardLabel', 'Trailer registration')}
+                              </p>
+                              <p className="text-sm text-slate-500 mt-1">
+                                {u('fleet.trailerWizardHelp', 'Use a separate mini stepper to register the trailer together with the truck.')}
+                              </p>
+                            </div>
+                            <div className="inline-flex rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-1">
+                              {[u('fleet.step', 'Step') + ' 1', u('fleet.step', 'Step') + ' 2'].map((item, index) => (
+                                <button
+                                  key={item}
+                                  type="button"
+                                  onClick={() => {
+                                    if (index === 0 || hasTrailer) setTrailerStep(index);
+                                  }}
+                                  className={cn(
+                                    'px-3 py-1.5 rounded-full text-[11px] font-bold transition-all cursor-pointer',
+                                    trailerStep === index
+                                      ? 'bg-primary text-white'
+                                      : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                  )}
+                                >
+                                  {item}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {trailerStep === 0 && (
+                            <div className="space-y-4">
+                              <div className="grid sm:grid-cols-3 gap-3">
+                                {[
+                                  { value: 'No', label: u('fleet.noTrailer', 'No trailer') },
+                                  { value: 'Yes (1)', label: u('fleet.oneTrailer', '1 trailer') },
+                                  { value: 'Yes (2)', label: u('fleet.twoTrailers', '2 trailers') },
+                                ].map((option) => (
+                                  <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={() => {
+                                      setDraft((prev) => ({
+                                        ...prev,
+                                        trailer: option.value,
+                                        trailerSystemName: option.value === 'No' ? '' : prev.trailerSystemName,
+                                        trailerPlate: option.value === 'No' ? '' : prev.trailerPlate,
+                                      }));
+                                      setTrailerStep(option.value === 'No' ? 0 : 1);
+                                    }}
+                                    className={cn(
+                                      'rounded-2xl border bg-white dark:bg-slate-900 p-4 text-left transition-all cursor-pointer hover:border-primary/40 hover:bg-slate-50 dark:hover:bg-slate-800/60',
+                                      draft.trailer === option.value
+                                        ? 'border-primary bg-primary/5'
+                                        : 'border-slate-200 dark:border-slate-800'
+                                    )}
+                                  >
+                                    <p className="text-sm font-bold dark:text-white">{option.label}</p>
+                                    <p className="mt-1 text-xs text-slate-500">
+                                      {option.value === 'No'
+                                        ? u('fleet.noTrailerHelp', 'Register only the powered vehicle.')
+                                        : u('fleet.trailerNextHelp', 'Continue to trailer details in the next mini step.')}
+                                    </p>
+                                  </button>
+                                ))}
+                              </div>
+
+                              {hasTrailer && (
+                                <div className="flex justify-end">
+                                  <Button type="button" variant="outline" onClick={() => setTrailerStep(1)}>
+                                    {u('fleet.continueTrailer', 'Continue trailer setup')}
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {trailerStep === 1 && hasTrailer && (
+                            <div className="space-y-4">
+                              <div className="grid sm:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">
+                                    {u('fleet.trailerSystemName', 'Trailer name in system')}
+                                  </label>
+                                  <input
+                                    value={draft.trailerSystemName}
+                                    onChange={(e) => setDraftField('trailerSystemName', e.target.value)}
+                                    placeholder={u('fleet.trailerSystemNamePlaceholder', 'Example: Reefer Trailer 01')}
+                                    className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white transition-colors hover:border-primary/40 hover:bg-slate-50 dark:hover:bg-slate-900"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">
+                                    {u('fleet.trailerPlate', 'Trailer registration')}
+                                  </label>
+                                  <input
+                                    value={draft.trailerPlate}
+                                    onChange={(e) => setDraftField('trailerPlate', e.target.value)}
+                                    placeholder={u('fleet.trailerPlatePlaceholder', 'TR-908-KL')}
+                                    className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white transition-colors hover:border-primary/40 hover:bg-slate-50 dark:hover:bg-slate-900"
+                                  />
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">
+                                  {u('fleet.trailerBodyType', 'Trailer body type')}
+                                </label>
+                                <select
+                                  value={draft.trailerBodyType}
+                                  onChange={(e) => setDraftField('trailerBodyType', e.target.value)}
+                                  className="w-full h-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-sm dark:text-white cursor-pointer appearance-none transition-colors hover:border-primary/40 hover:bg-slate-50 dark:hover:bg-slate-900"
+                                >
+                                  {['Box trailer', 'Curtain trailer', 'Reefer trailer', 'Flatbed trailer', 'Container chassis'].map((option) => (
+                                    <option key={option} value={option}>
+                                      {option}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              <div className="flex items-center justify-between gap-3">
+                                <Button type="button" variant="outline" onClick={() => setTrailerStep(0)}>
+                                  {u('common.back', 'Back')}
+                                </Button>
+                                <div className="text-xs text-slate-500">
+                                  {draft.trailerSystemName && draft.trailerPlate
+                                    ? u('fleet.trailerReady', 'Trailer mini registration is ready.')
+                                    : u('fleet.trailerPending', 'Complete trailer details to finish this mini step.')}
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
