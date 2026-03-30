@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Search, MapPin, ChevronRight, Package as PackageIcon, Clock3, RotateCcw, Share2, Star, Bot, Route, Lock, Coins, Loader2, Sparkles, Truck, FileBarChart2, Upload, FileSpreadsheet } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { Search, MapPin, ChevronRight, Package as PackageIcon, Clock3, RotateCcw, Share2, Star, Bot, Route, Lock, Coins, Loader2, Sparkles, Truck, FileBarChart2, Upload, FileSpreadsheet, Fuel, BedDouble, ParkingCircle, Landmark } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, Popup, CircleMarker, Tooltip } from 'react-leaflet';
 import { Language, Package as PackageData } from '../../types';
 import { MOCK_LOADS, MOCK_PACKAGES } from '../../mockData';
 import { getSmartStatusUpdate } from '../../services/geminiService';
@@ -8,8 +8,37 @@ import { ui, trPackageStatus } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
+import { Toggle } from '../ui/Toggle';
 import { ChatConversationPanel } from '../chat/ChatConversationPanel';
 import { Conversation } from '../chat/types';
+
+type AmenityCategory = 'toll' | 'fuel' | 'rest' | 'parking';
+
+type RouteAmenity = {
+  id: string;
+  category: AmenityCategory;
+  labelKey: string;
+  position: [number, number];
+  costEur: number;
+  valueKey: string;
+};
+
+const PACKAGE_ROUTE_AMENITIES: Record<string, RouteAmenity[]> = {
+  '1': [
+    { id: 't1', category: 'toll', labelKey: 'tracking.amenity.point.a1SarajevoNorth', position: [43.9004, 18.3312], costEur: 14, valueKey: 'tracking.amenity.value.fastCorridor' },
+    { id: 't2', category: 'toll', labelKey: 'tracking.amenity.point.vlakovoPlaza', position: [43.8242, 18.295], costEur: 9, valueKey: 'tracking.amenity.value.truckLaneOpen' },
+    { id: 'f1', category: 'fuel', labelKey: 'tracking.amenity.point.petrolSarajevoRing', position: [43.8671, 18.3608], costEur: 0, valueKey: 'tracking.amenity.value.dieselAdblue' },
+    { id: 'r1', category: 'rest', labelKey: 'tracking.amenity.point.ilidzaDriverRest', position: [43.8288, 18.3056], costEur: 0, valueKey: 'tracking.amenity.value.secureRestArea' },
+    { id: 'p1', category: 'parking', labelKey: 'tracking.amenity.point.stupSecureParking', position: [43.8488, 18.3341], costEur: 6, valueKey: 'tracking.amenity.value.monitored247' },
+  ],
+  '2': [
+    { id: 't3', category: 'toll', labelKey: 'tracking.amenity.point.a9MunichEast', position: [48.1714, 11.7032], costEur: 18, valueKey: 'tracking.amenity.value.expressTruckLane' },
+    { id: 't4', category: 'toll', labelKey: 'tracking.amenity.point.a8SouthConnector', position: [48.0904, 11.6723], costEur: 11, valueKey: 'tracking.amenity.value.crossCityBypass' },
+    { id: 'f2', category: 'fuel', labelKey: 'tracking.amenity.point.munichCargoFuelHub', position: [48.1188, 11.6105], costEur: 0, valueKey: 'tracking.amenity.value.lngDiesel' },
+    { id: 'r2', category: 'rest', labelKey: 'tracking.amenity.point.bavariaDriverLounge', position: [48.1264, 11.5441], costEur: 0, valueKey: 'tracking.amenity.value.showersMeals' },
+    { id: 'p2', category: 'parking', labelKey: 'tracking.amenity.point.munichSecureYard', position: [48.1452, 11.6417], costEur: 8, valueKey: 'tracking.amenity.value.cctvGateAccess' },
+  ],
+};
 
 export const TrackingView = ({ lang }: { lang: Language }) => {
   const TRUCK_CAPACITY_KG = 48000;
@@ -22,6 +51,12 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
   const [isUnlockingReturnRoutes, setIsUnlockingReturnRoutes] = useState(false);
   const [unlockStep, setUnlockStep] = useState(0);
   const [tachographFile, setTachographFile] = useState<File | null>(null);
+  const [mapFilters, setMapFilters] = useState<Record<AmenityCategory, boolean>>({
+    toll: true,
+    fuel: false,
+    rest: false,
+    parking: false,
+  });
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
 
   useEffect(() => {
@@ -160,6 +195,36 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
     ],
     [lang, selectedPackage, u]
   );
+
+  const trackingFinancials = useMemo(
+    () => ({
+      '1': { totalAmount: 'EUR 1,460' },
+      '2': { totalAmount: 'EUR 2,840' },
+    }),
+    []
+  );
+
+  const routeAmenities = useMemo<RouteAmenity[]>(
+    () => PACKAGE_ROUTE_AMENITIES[selectedPackage.id] || [],
+    [selectedPackage.id]
+  );
+
+  const visibleAmenities = useMemo(
+    () => routeAmenities.filter((item) => mapFilters[item.category]),
+    [mapFilters, routeAmenities]
+  );
+
+  const tollTotal = useMemo(
+    () => routeAmenities.filter((item) => item.category === 'toll').reduce((sum, item) => sum + item.costEur, 0),
+    [routeAmenities]
+  );
+
+  const mapFilterButtons: Array<{ key: AmenityCategory; label: string; icon: typeof Landmark }> = [
+    { key: 'toll', label: u('tracking.amenity.toll', 'Tolls'), icon: Landmark },
+    { key: 'fuel', label: u('tracking.amenity.fuel', 'Fuel'), icon: Fuel },
+    { key: 'rest', label: u('tracking.amenity.rest', 'Rest'), icon: BedDouble },
+    { key: 'parking', label: u('tracking.amenity.parking', 'Parking'), icon: ParkingCircle },
+  ];
 
   const exportRouteReport = () => {
     const csv = reportRows
@@ -370,6 +435,12 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
                   <p className="font-bold">€12.99</p>
                 </div>
                 <div>
+                  <p className="text-[10px] uppercase text-slate-500">{u('tracking.totalAmount', 'Total amount')}</p>
+                  <p className="font-bold text-emerald-700">
+                    {trackingFinancials[selectedPackage.id as keyof typeof trackingFinancials]?.totalAmount || 'EUR 0'}
+                  </p>
+                </div>
+                <div>
                   <p className="text-[10px] uppercase text-slate-500">{u('Ship to', 'Ship to')}</p>
                   <p className="font-bold text-primary flex items-center gap-1 cursor-pointer">
                     John Doe <ChevronRight className="w-3 h-3" />
@@ -424,7 +495,49 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
         )}
 
         {rightTab === 'map' && (
-          <Card title={u('tracking.liveLocation', 'Live Location')}>
+          <Card
+            title={u('tracking.liveLocation', 'Live Location')}
+            headerAction={
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {mapFilters.toll && (
+                  <div className="inline-flex items-center rounded-full bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-600">
+                    {u('tracking.tollTotal', 'Toll total')}: EUR {tollTotal}
+                  </div>
+                )}
+
+                <label className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                  <span>{u('tracking.amenity.toll', 'Tolls')}</span>
+                  <Toggle
+                    checked={mapFilters.toll}
+                    onClick={() => setMapFilters((prev) => ({ ...prev, toll: !prev.toll }))}
+                  />
+                </label>
+
+                {mapFilterButtons
+                  .filter((item) => item.key !== 'toll')
+                  .map((item) => {
+                    const Icon = item.icon;
+                    const isActive = mapFilters[item.key];
+                    return (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => setMapFilters((prev) => ({ ...prev, [item.key]: !prev[item.key] }))}
+                        className={cn(
+                          'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-all cursor-pointer',
+                          isActive
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'border-slate-200 bg-white text-slate-500 hover:border-primary/40 hover:text-primary dark:border-slate-700 dark:bg-slate-900'
+                        )}
+                      >
+                        <Icon className="h-3.5 w-3.5" />
+                        {item.label}
+                      </button>
+                    );
+                  })}
+              </div>
+            }
+          >
             <div className="h-[520px] rounded-xl overflow-hidden relative">
                <MapContainer center={selectedPackage.currentLocation} zoom={13} className="h-full w-full">
                   <TileLayer 
@@ -440,6 +553,37 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
                       </div>
                     </Popup>
                   </Marker>
+
+                  {visibleAmenities.map((amenity) => (
+                    <CircleMarker
+                      key={amenity.id}
+                      center={amenity.position}
+                      radius={8}
+                      pathOptions={{
+                        color:
+                          amenity.category === 'toll'
+                            ? '#f59e0b'
+                            : amenity.category === 'fuel'
+                              ? '#06b6d4'
+                              : amenity.category === 'rest'
+                                ? '#8b5cf6'
+                                : '#10b981',
+                        fillOpacity: 0.95,
+                      }}
+                    >
+                      <Tooltip direction="top" offset={[0, -6]} opacity={1}>
+                        <div className="space-y-1">
+                          <p className="text-xs font-bold">{u(amenity.labelKey, amenity.labelKey)}</p>
+                          <p className="text-[11px] text-slate-500">
+                            {u('tracking.amenity.cost', 'Cost')}: EUR {amenity.costEur}
+                          </p>
+                          <p className="text-[11px] text-slate-500">
+                            {u('tracking.amenity.value', 'Value')}: {u(amenity.valueKey, amenity.valueKey)}
+                          </p>
+                        </div>
+                      </Tooltip>
+                    </CircleMarker>
+                  ))}
                </MapContainer>
             </div>
           </Card>

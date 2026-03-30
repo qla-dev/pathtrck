@@ -3,6 +3,7 @@ import { Bell } from 'lucide-react';
 import { Language } from '../../types';
 import { ui } from '../../i18n';
 import { cn } from '../../lib/cn';
+import { Toggle } from '../ui/Toggle';
 import { SortMode } from './FrightTypes';
 
 type FrightHeaderProps = {
@@ -34,21 +35,11 @@ export const FrightHeader = ({
       <div className="inline-flex items-center gap-2 text-sm font-semibold dark:text-white">
         <Bell className={cn('w-4 h-4', priceAlerts ? 'text-primary' : 'text-slate-400')} />
         {ui(lang, 'Get price alerts', 'Get price alerts')}
-        <button
+        <Toggle
+          checked={priceAlerts}
           onClick={onTogglePriceAlerts}
-          className={cn(
-            'w-11 h-6 rounded-full transition-all p-0.5',
-            priceAlerts ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700'
-          )}
           aria-label={ui(lang, 'Toggle price alerts', 'Toggle price alerts')}
-        >
-          <span
-            className={cn(
-              'block h-5 w-5 rounded-full bg-white transition-transform',
-              priceAlerts ? 'translate-x-5' : 'translate-x-0'
-            )}
-          />
-        </button>
+        />
       </div>
 
       <div className="inline-flex items-center rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
