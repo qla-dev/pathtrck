@@ -32,128 +32,114 @@ import {
 } from 'recharts';
 import { Language, Role } from '../../types';
 import { MOCK_LOADS } from '../../mockData';
-import { translateTriplet, ui, trLoadStatus, trPackageStatus } from '../../i18n';
+import { ui, trLoadStatus, trPackageStatus } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
-import { PostLoadModal } from '../modals/PostLoadModal';
 
 type RangeOption = '24h' | '7d' | '30d';
 
-const tr = translateTriplet;
-
 export const Dashboard = ({ role, lang }: { role: Role; lang: Language }) => {
-  const [isPostLoadOpen, setIsPostLoadOpen] = useState(false);
   const [range, setRange] = useState<RangeOption>('7d');
   const isDriver = role === 'driver';
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
 
-  const analyticsTitle = tr(lang, 'Analytics Command Center', 'Analiticki komandni centar', 'Analytics-Kommandozentrale');
+  const analyticsTitle = u('legacy.dashboard.analyticsCommandCenter', 'Analytics Command Center');
   const analyticsSubtitle = isDriver
-    ? tr(
-        lang,
-        'Live route quality, stop performance, and delivery precision for your fleet.',
-        'Kvalitet ruta uzivo, ucinak stajanja i preciznost isporuka za vasu flotu.',
-        'Live-Routenqualitaet, Stopp-Performance und Lieferpraezision fuer Ihre Flotte.'
-      )
-    : tr(
-        lang,
-        'Shipment visibility, carrier performance, and cost control in one analytics hub.',
-        'Vidljivost posiljki, ucinak prevoznika i kontrola troskova na jednom mjestu.',
-        'Sendungstransparenz, Fahrerleistung und Kostenkontrolle in einem Analytics-Hub.'
-      );
+    ? u('legacy.dashboard.driverAnalyticsSubtitle', 'Live route quality, stop performance, and delivery precision for your fleet.')
+    : u('legacy.dashboard.userAnalyticsSubtitle', 'Shipment visibility, carrier performance, and cost control in one analytics hub.');
 
   const rangeOptions: Array<{ id: RangeOption; label: string }> = [
-    { id: '24h', label: tr(lang, '24h', '24h', '24h') },
-    { id: '7d', label: tr(lang, '7d', '7d', '7d') },
-    { id: '30d', label: tr(lang, '30d', '30d', '30d') },
+    { id: '24h', label: u('legacy.dashboard.range24h', '24h') },
+    { id: '7d', label: u('legacy.dashboard.range7d', '7d') },
+    { id: '30d', label: u('legacy.dashboard.range30d', '30d') },
   ];
 
   const topMetrics = isDriver
     ? [
         {
-          label: tr(lang, 'Active Trips', 'Aktivne rute', 'Aktive Fahrten'),
+          label: u('legacy.dashboard.activeTrips', 'Active Trips'),
           value: '8',
-          delta: tr(lang, '+2 vs yesterday', '+2 u odnosu na jucer', '+2 vs gestern'),
+          delta: u('legacy.dashboard.plus2VsYesterday', '+2 vs yesterday'),
           icon: Truck,
           tone: 'text-sky-500',
         },
         {
-          label: tr(lang, 'Delivered Today', 'Isporuceno danas', 'Heute zugestellt'),
+          label: u('legacy.dashboard.deliveredToday', 'Delivered Today'),
           value: '21',
-          delta: tr(lang, '98.1% on-time', '98.1% na vrijeme', '98.1% puenktlich'),
+          delta: u('legacy.dashboard.onTime981', '98.1% on-time'),
           icon: CheckCircle2,
           tone: 'text-emerald-500',
         },
         {
           label: trPackageStatus(lang, 'In Transit'),
           value: '6',
-          delta: tr(lang, '2 priority routes', '2 prioritetne rute', '2 Prioritaetsrouten'),
+          delta: u('legacy.dashboard.priorityRoutes2', '2 priority routes'),
           icon: PackageIcon,
           tone: 'text-indigo-500',
         },
         {
-          label: tr(lang, 'Avg Stop Delay', 'Prosjecno kasnjenje stajanja', 'Durchschn. Stopp-Verzoegerung'),
+          label: u('legacy.dashboard.avgStopDelay', 'Avg Stop Delay'),
           value: '6m',
-          delta: tr(lang, '-18% this week', '-18% ove sedmice', '-18% diese Woche'),
+          delta: u('legacy.dashboard.minus18ThisWeek', '-18% this week'),
           icon: Clock3,
           tone: 'text-amber-500',
         },
         {
-          label: tr(lang, 'Fuel Efficiency', 'Efikasnost goriva', 'Kraftstoffeffizienz'),
+          label: u('legacy.dashboard.fuelEfficiency', 'Fuel Efficiency'),
           value: '7.8 L',
-          delta: tr(lang, 'per 100 km', 'na 100 km', 'pro 100 km'),
+          delta: u('legacy.dashboard.per100Km', 'per 100 km'),
           icon: Gauge,
           tone: 'text-cyan-500',
         },
         {
-          label: tr(lang, 'Safety Score', 'Sigurnosni score', 'Sicherheits-Score'),
+          label: u('legacy.dashboard.safetyScore', 'Safety Score'),
           value: '99%',
-          delta: tr(lang, '0 incidents', '0 incidenata', '0 Vorfaelle'),
+          delta: u('legacy.dashboard.incidents0', '0 incidents'),
           icon: Activity,
           tone: 'text-violet-500',
         },
       ]
     : [
         {
-          label: tr(lang, 'Active Shipments', 'Aktivne posiljke', 'Aktive Sendungen'),
+          label: u('legacy.dashboard.activeShipments', 'Active Shipments'),
           value: '12',
-          delta: tr(lang, '+4 today', '+4 danas', '+4 heute'),
+          delta: u('legacy.dashboard.plus4Today', '+4 today'),
           icon: PackageIcon,
           tone: 'text-sky-500',
         },
         {
-          label: tr(lang, 'Delivered Today', 'Isporuceno danas', 'Heute zugestellt'),
+          label: u('legacy.dashboard.deliveredToday', 'Delivered Today'),
           value: '38',
-          delta: tr(lang, '97.4% on-time', '97.4% na vrijeme', '97.4% puenktlich'),
+          delta: u('legacy.dashboard.onTime974', '97.4% on-time'),
           icon: CheckCircle2,
           tone: 'text-emerald-500',
         },
         {
-          label: tr(lang, 'Carrier Response', 'Odgovor prevoznika', 'Fahrer-Reaktion'),
+          label: u('legacy.dashboard.carrierResponse', 'Carrier Response'),
           value: '18m',
-          delta: tr(lang, '-5m this week', '-5m ove sedmice', '-5 Min diese Woche'),
+          delta: u('legacy.dashboard.minus5mThisWeek', '-5m this week'),
           icon: Clock3,
           tone: 'text-indigo-500',
         },
         {
-          label: tr(lang, 'Cost Efficiency', 'Efikasnost troska', 'Kosteneffizienz'),
+          label: u('legacy.dashboard.costEfficiency', 'Cost Efficiency'),
           value: '+9.2%',
-          delta: tr(lang, 'vs last month', 'u odnosu na prosli mjesec', 'vs letztem Monat'),
+          delta: u('legacy.dashboard.vsLastMonth', 'vs last month'),
           icon: BarChart3,
           tone: 'text-amber-500',
         },
         {
-          label: tr(lang, 'Route Coverage', 'Pokrivenost ruta', 'Routenabdeckung'),
+          label: u('legacy.dashboard.routeCoverage', 'Route Coverage'),
           value: '192',
-          delta: tr(lang, 'cities online', 'gradova online', 'Staedte online'),
+          delta: u('legacy.dashboard.citiesOnline', 'cities online'),
           icon: Route,
           tone: 'text-cyan-500',
         },
         {
-          label: tr(lang, 'Risk Alerts', 'Rizicna upozorenja', 'Risikoalarme'),
+          label: u('legacy.dashboard.riskAlerts', 'Risk Alerts'),
           value: '2',
-          delta: tr(lang, 'all handled', 'sve obradjeno', 'alle bearbeitet'),
+          delta: u('legacy.dashboard.allHandled', 'all handled'),
           icon: AlertTriangle,
           tone: 'text-violet-500',
         },
@@ -208,29 +194,29 @@ export const Dashboard = ({ role, lang }: { role: Role; lang: Language }) => {
   ];
 
   const serviceMix = [
-    { name: tr(lang, 'On Time', 'Na vrijeme', 'Puenktlich'), value: 78, color: '#00AEEF' },
-    { name: tr(lang, 'Minor Delay', 'Manje kasnjenje', 'Kleine Verzoegerung'), value: 16, color: '#F59E0B' },
-    { name: tr(lang, 'Critical Delay', 'Kriticno kasnjenje', 'Kritische Verzoegerung'), value: 6, color: '#EF4444' },
+    { name: u('legacy.dashboard.onTime', 'On Time'), value: 78, color: '#00AEEF' },
+    { name: u('legacy.dashboard.minorDelay', 'Minor Delay'), value: 16, color: '#F59E0B' },
+    { name: u('legacy.dashboard.criticalDelay', 'Critical Delay'), value: 6, color: '#EF4444' },
   ];
 
   const alertFeed = [
     {
-      title: tr(lang, 'AI rerouted HAM-SJJ-214', 'AI preusmjerio HAM-SJJ-214', 'KI hat HAM-SJJ-214 umgeleitet'),
+      title: u('legacy.dashboard.aiReroutedHamSjj214', 'AI rerouted HAM-SJJ-214'),
       time: '09:14',
       tone: 'text-primary',
     },
     {
-      title: tr(lang, 'Munich checkpoint cleared', 'Minhenski checkpoint odobren', 'Muenchner Checkpoint freigegeben'),
+      title: u('legacy.dashboard.munichCheckpointCleared', 'Munich checkpoint cleared'),
       time: '09:22',
       tone: 'text-emerald-500',
     },
     {
-      title: tr(lang, 'ETA drift detected on ZAG-BER', 'Detektovan ETA drift na ZAG-BER', 'ETA-Abweichung auf ZAG-BER erkannt'),
+      title: u('legacy.dashboard.etaDriftDetectedOnZagBer', 'ETA drift detected on ZAG-BER'),
       time: '09:31',
       tone: 'text-amber-500',
     },
     {
-      title: tr(lang, 'Proof-of-delivery synced', 'Dokaz isporuke sinhronizovan', 'Zustellnachweis synchronisiert'),
+      title: u('legacy.dashboard.proofOfDeliverySynced', 'Proof-of-delivery synced'),
       time: '09:36',
       tone: 'text-violet-500',
     },
@@ -238,19 +224,19 @@ export const Dashboard = ({ role, lang }: { role: Role; lang: Language }) => {
 
   const recentActivity = [
     {
-      title: tr(lang, 'Route completed', 'Ruta zavrsena', 'Route abgeschlossen'),
-      desc: tr(lang, 'R1 reached final checkpoint in Sarajevo.', 'R1 stigla na zavrsni checkpoint u Sarajevu.', 'R1 hat den finalen Checkpoint in Sarajevo erreicht.'),
-      time: tr(lang, '2 mins ago', 'prije 2 min', 'vor 2 Min'),
+      title: u('legacy.dashboard.routeCompleted', 'Route completed'),
+      desc: u('legacy.dashboard.r1ReachedFinalCheckpointInSarajevo', 'R1 reached final checkpoint in Sarajevo.'),
+      time: u('legacy.dashboard.time2MinsAgo', '2 mins ago'),
     },
     {
-      title: tr(lang, 'New load posted', 'Objavljen novi teret', 'Neue Ladung erstellt'),
-      desc: tr(lang, 'Electronics Pallets now visible to matching drivers.', 'Electronics Pallets sada vidljiv odgovarajucim vozacima.', 'Electronics Pallets sind jetzt fuer passende Fahrer sichtbar.'),
-      time: tr(lang, '19 mins ago', 'prije 19 min', 'vor 19 Min'),
+      title: u('legacy.dashboard.newLoadPosted', 'New load posted'),
+      desc: u('legacy.dashboard.electronicsPalletsNowVisibleToMatchingDrivers', 'Electronics Pallets now visible to matching drivers.'),
+      time: u('legacy.dashboard.time19MinsAgo', '19 mins ago'),
     },
     {
-      title: tr(lang, 'AI forecast refreshed', 'AI prognoza osvjezena', 'KI-Prognose aktualisiert'),
-      desc: tr(lang, 'Risk model recalculated with latest weather and traffic.', 'Rizicni model preracunat sa zadnjim vremenom i saobracajem.', 'Risikomodell mit aktuellen Wetter- und Verkehrsdaten neu berechnet.'),
-      time: tr(lang, '1 hour ago', 'prije 1h', 'vor 1 Std'),
+      title: u('legacy.dashboard.aiForecastRefreshed', 'AI forecast refreshed'),
+      desc: u('legacy.dashboard.riskModelRecalculatedWithLatestWeatherAndTraffic', 'Risk model recalculated with latest weather and traffic.'),
+      time: u('legacy.dashboard.time1HourAgo', '1 hour ago'),
     },
   ];
 
@@ -282,28 +268,23 @@ export const Dashboard = ({ role, lang }: { role: Role; lang: Language }) => {
             <Filter className="w-4 h-4 mr-2" />
             {u('common.filter', 'Filter')}
           </Button>
-          {role === 'user' ? (
-            <Button size="sm" onClick={() => setIsPostLoadOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              {u('common.postNewLoad', 'Post New Load')}
-            </Button>
-          ) : (
+          {role === 'driver' ? (
             <Button size="sm">
               <Plus className="w-4 h-4 mr-2" />
               {u('common.newRoute', 'New Route')}
             </Button>
-          )}
+          ) : null}
         </div>
       </div>
-
-      <PostLoadModal isOpen={isPostLoadOpen} onClose={() => setIsPostLoadOpen(false)} lang={lang} />
 
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {topMetrics.map((metric) => (
           <Card key={metric.label} className="p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">{metric.label}</p>
+                <p className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold leading-snug break-words max-w-[11ch]">
+                  {metric.label}
+                </p>
                 <p className="text-2xl font-black mt-1 dark:text-white">{metric.value}</p>
                 <p className="text-[11px] text-slate-500 mt-1">{metric.delta}</p>
               </div>
@@ -320,17 +301,17 @@ export const Dashboard = ({ role, lang }: { role: Role; lang: Language }) => {
           <div className="flex items-center justify-between mb-4">
             <div>
               <p className="text-sm font-bold dark:text-white">
-                {tr(lang, 'Delivery Throughput', 'Protok isporuka', 'Lieferdurchsatz')}
+                {u('legacy.dashboard.deliveryThroughput', 'Delivery Throughput')}
               </p>
               <p className="text-xs text-slate-500">
-                {tr(lang, 'Completed vs planned volume', 'Zavrseni naspram planiranog volumena', 'Abgeschlossenes vs geplantes Volumen')}
+                {u('legacy.dashboard.completedVsPlannedVolume', 'Completed vs planned volume')}
               </p>
             </div>
             <div className="inline-flex items-center gap-2 text-xs text-slate-500">
               <span className="inline-block w-2.5 h-2.5 rounded-full bg-primary" />
-              {tr(lang, 'Completed', 'Zavrseno', 'Abgeschlossen')}
+              {u('legacy.dashboard.completed', 'Completed')}
               <span className="inline-block w-2.5 h-2.5 rounded-full bg-slate-400" />
-              {tr(lang, 'Planned', 'Planirano', 'Geplant')}
+              {u('legacy.dashboard.planned', 'Planned')}
             </div>
           </div>
           <div className="h-[300px]">
@@ -368,13 +349,13 @@ export const Dashboard = ({ role, lang }: { role: Role; lang: Language }) => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-bold dark:text-white">
-                {tr(lang, 'Service Health', 'Zdravlje servisa', 'Service-Status')}
+                {u('legacy.dashboard.serviceHealth', 'Service Health')}
               </p>
-              <p className="text-xs text-slate-500">{tr(lang, 'Current SLA distribution', 'Trenutna SLA raspodjela', 'Aktuelle SLA-Verteilung')}</p>
+              <p className="text-xs text-slate-500">{u('legacy.dashboard.currentSlaDistribution', 'Current SLA distribution')}</p>
             </div>
             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-xs font-bold">
               <CheckCircle2 className="w-3.5 h-3.5" />
-              {tr(lang, 'Stable', 'Stabilno', 'Stabil')}
+              {u('legacy.dashboard.stable', 'Stable')}
             </div>
           </div>
           <div className="h-[210px] mt-2">
@@ -414,10 +395,10 @@ export const Dashboard = ({ role, lang }: { role: Role; lang: Language }) => {
         <Card className="xl:col-span-5">
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm font-bold dark:text-white">
-              {tr(lang, 'Corridor Performance', 'Ucinak koridora', 'Korridor-Performance')}
+              {u('legacy.dashboard.corridorPerformance', 'Corridor Performance')}
             </p>
             <span className="text-xs text-slate-500">
-              {tr(lang, 'On-time %', '% na vrijeme', '% puenktlich')}
+              {u('legacy.dashboard.onTimePercent', 'On-time %')}
             </span>
           </div>
           <div className="h-[260px]">
@@ -443,7 +424,7 @@ export const Dashboard = ({ role, lang }: { role: Role; lang: Language }) => {
         <Card className="xl:col-span-4">
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm font-bold dark:text-white">
-              {tr(lang, 'ETA Variance Trend', 'Trend ETA odstupanja', 'ETA-Abweichungstrend')}
+              {u('legacy.dashboard.etaVarianceTrend', 'ETA Variance Trend')}
             </p>
             <span className="text-xs text-emerald-500 font-semibold">-12%</span>
           </div>
@@ -469,7 +450,7 @@ export const Dashboard = ({ role, lang }: { role: Role; lang: Language }) => {
 
         <Card className="xl:col-span-3">
           <p className="text-sm font-bold dark:text-white mb-4">
-            {tr(lang, 'Live Alerts', 'Upozorenja uzivo', 'Live-Alarme')}
+            {u('legacy.dashboard.liveAlerts', 'Live Alerts')}
           </p>
           <div className="space-y-4">
             {alertFeed.map((item) => (
@@ -485,15 +466,10 @@ export const Dashboard = ({ role, lang }: { role: Role; lang: Language }) => {
           <div className="mt-5 p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
             <div className="inline-flex items-center gap-2 text-xs font-bold text-primary uppercase tracking-wide">
               <Sparkles className="w-3.5 h-3.5" />
-              {tr(lang, 'AI Forecast', 'AI prognoza', 'KI-Prognose')}
+              {u('legacy.dashboard.aiForecast', 'AI Forecast')}
             </div>
             <p className="text-sm text-slate-500 mt-2">
-              {tr(
-                lang,
-                'Expected risk down 14% if reroute policy stays enabled.',
-                'Ocekivani rizik manji za 14% ako reroute politika ostane aktivna.',
-                'Erwartetes Risiko sinkt um 14%, wenn die Umleitungsregel aktiv bleibt.'
-              )}
+              {u('legacy.dashboard.expectedRiskDown14IfReroutePolicyStaysEnabled', 'Expected risk down 14% if reroute policy stays enabled.')}
             </p>
           </div>
         </Card>
@@ -502,7 +478,7 @@ export const Dashboard = ({ role, lang }: { role: Role; lang: Language }) => {
       <div className="grid xl:grid-cols-12 gap-6">
         <Card className="xl:col-span-7">
           <p className="text-sm font-bold dark:text-white mb-4">
-            {tr(lang, 'Recent Activity', 'Nedavna aktivnost', 'Letzte Aktivitaet')}
+            {u('legacy.dashboard.recentActivity', 'Recent Activity')}
           </p>
           <div className="space-y-4">
             {recentActivity.map((item, idx) => (
@@ -525,29 +501,29 @@ export const Dashboard = ({ role, lang }: { role: Role; lang: Language }) => {
 
         <Card className="xl:col-span-5">
           <p className="text-sm font-bold dark:text-white mb-4">
-            {tr(lang, 'Automation Snapshot', 'Snapshot automatizacije', 'Automations-Snapshot')}
+            {u('legacy.dashboard.automationSnapshot', 'Automation Snapshot')}
           </p>
           <div className="grid grid-cols-2 gap-3">
             {[
               {
-                label: tr(lang, 'AI Dispatch', 'AI dispecer', 'KI-Dispatch'),
+                label: u('legacy.dashboard.aiDispatch', 'AI Dispatch'),
                 value: '24',
-                meta: tr(lang, 'rules active', 'aktivna pravila', 'aktive Regeln'),
+                meta: u('legacy.dashboard.rulesActive', 'rules active'),
               },
               {
-                label: tr(lang, 'Fallback Routes', 'Fallback rute', 'Fallback-Routen'),
+                label: u('legacy.dashboard.fallbackRoutes', 'Fallback Routes'),
                 value: '7',
-                meta: tr(lang, 'prepared', 'spremno', 'vorbereitet'),
+                meta: u('legacy.dashboard.prepared', 'prepared'),
               },
               {
-                label: tr(lang, 'Security Checks', 'Sigurnosne provjere', 'Sicherheitspruefungen'),
+                label: u('legacy.dashboard.securityChecks', 'Security Checks'),
                 value: '112',
-                meta: tr(lang, 'last 24h', 'zadnja 24h', 'letzte 24h'),
+                meta: u('legacy.dashboard.last24h', 'last 24h'),
               },
               {
-                label: tr(lang, 'Smart ETA Pings', 'Smart ETA pingovi', 'Smart-ETA-Pings'),
+                label: u('legacy.dashboard.smartEtaPings', 'Smart ETA Pings'),
                 value: '318',
-                meta: tr(lang, 'auto-sent', 'auto poslano', 'auto gesendet'),
+                meta: u('legacy.dashboard.autoSent', 'auto-sent'),
               },
             ].map((tile) => (
               <div key={tile.label} className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-3">
@@ -567,11 +543,11 @@ export const Dashboard = ({ role, lang }: { role: Role; lang: Language }) => {
               <thead>
                 <tr className="border-b border-slate-100 dark:border-slate-800">
                   <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                    {tr(lang, 'Load ID', 'ID tereta', 'Ladungs-ID')}
+                    {u('legacy.dashboard.loadId', 'Load ID')}
                   </th>
-                  <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">{tr(lang, 'Route', 'Ruta', 'Route')}</th>
-                  <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">{tr(lang, 'Cargo', 'Teret', 'Fracht')}</th>
-                  <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">{tr(lang, 'Status', 'Status', 'Status')}</th>
+                  <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">{u('legacy.dashboard.route', 'Route')}</th>
+                  <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">{u('legacy.dashboard.cargo', 'Cargo')}</th>
+                  <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">{u('legacy.dashboard.status', 'Status')}</th>
                   <th className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">ETA</th>
                 </tr>
               </thead>
@@ -605,7 +581,7 @@ export const Dashboard = ({ role, lang }: { role: Role; lang: Language }) => {
           </div>
         </Card>
       ) : (
-        <Card title={tr(lang, 'Active Route Board', 'Aktivna ruta tabla', 'Aktive Routenliste')}>
+        <Card title={u('legacy.dashboard.activeRouteBoard', 'Active Route Board')}>
           <div className="space-y-3">
             {[
               { id: 'HAM-SJJ-214', route: 'Hamburg -> Sarajevo', status: 'In Transit', eta: '14:20', progress: 78 },

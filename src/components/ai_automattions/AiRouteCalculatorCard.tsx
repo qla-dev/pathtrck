@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BarChart3, Clock, MapPin, Sparkles, Truck } from 'lucide-react';
 import { Language } from '../../types';
-import { translateTriplet, ui } from '../../i18n';
+import { ui } from '../../i18n';
 import { cn } from '../../lib/cn';
 
 const ROUTE_MODELS_BY_VEHICLE: Record<string, string[]> = {
@@ -23,7 +23,6 @@ export const AiRouteCalculatorCard = ({
   const [routePriority, setRoutePriority] = useState<'fastest' | 'balanced' | 'eco'>('balanced');
 
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
-  const tr = (en: string, bs: string, de: string) => translateTriplet(lang, en, bs, de);
 
   const routeModelOptions = useMemo(() => ROUTE_MODELS_BY_VEHICLE[routeVehicle], [routeVehicle]);
 
@@ -175,7 +174,7 @@ export const AiRouteCalculatorCard = ({
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-2">{u('landing.aiRecommendation', 'AI Recommendation')}</p>
             <p className="text-sm font-bold dark:text-white mb-1">Zagreb → Munich → Frankfurt → Cologne → Amsterdam</p>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              {tr('Best fit for', 'Najbolje za', 'Beste Wahl fuer')} {routeModel}, {routeMaxLoad} kg load, {routePriorityLabel} {tr('priority', 'prioritet', 'Prioritaet')}.
+              {u('routeCalc.bestFitFor', 'Best fit for')} {routeModel}, {routeMaxLoad} kg load, {routePriorityLabel} {u('routeCalc.priority', 'priority')}.
             </p>
           </div>
         </div>
@@ -188,32 +187,28 @@ export const AiRouteCalculatorCard = ({
               <div>
                 <div className="flex items-center justify-between text-xs mb-1">
                   <span>{u('landing.trafficPrediction', 'Traffic Prediction')}</span>
-                  <span>{tr('High', 'Visoko', 'Hoch')}</span>
+                  <span>{u('routeCalc.high', 'High')}</span>
                 </div>
                 <div className="h-2 rounded-full bg-white/20 overflow-hidden"><div className="h-full w-[88%] bg-white rounded-full" /></div>
               </div>
               <div>
                 <div className="flex items-center justify-between text-xs mb-1">
                   <span>{u('landing.fuelEfficiency', 'Fuel Efficiency')}</span>
-                  <span>{tr('Optimized', 'Optimizovano', 'Optimiert')}</span>
+                  <span>{u('routeCalc.optimized', 'Optimized')}</span>
                 </div>
                 <div className="h-2 rounded-full bg-white/20 overflow-hidden"><div className="h-full w-[81%] bg-white rounded-full" /></div>
               </div>
               <div>
                 <div className="flex items-center justify-between text-xs mb-1">
                   <span>{u('landing.etaStability', 'ETA Stability')}</span>
-                  <span>{tr('Strong', 'Stabilno', 'Stark')}</span>
+                  <span>{u('routeCalc.strong', 'Strong')}</span>
                 </div>
                 <div className="h-2 rounded-full bg-white/20 overflow-hidden"><div className="h-full w-[86%] bg-white rounded-full" /></div>
               </div>
             </div>
           </div>
           <div className="mt-6 text-xs text-white/80">
-            {tr(
-              'Recalculates every 3 min using live road events and fleet constraints.',
-              'Preracunava svake 3 min koristeci dogadjaje na putu i ogranicenja flote.',
-              'Neuberechnung alle 3 Min. mit Live-Verkehrsdaten und Flottenrestriktionen.'
-            )}
+            {u('routeCalc.recalculatesNote', 'Recalculates every 3 min using live road events and fleet constraints.')}
           </div>
         </div>
       </div>

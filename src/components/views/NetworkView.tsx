@@ -1,20 +1,19 @@
-﻿import { Globe, Truck, Map as MapIcon, Clock } from 'lucide-react';
+import { Globe, Truck, Map as MapIcon, Clock } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { ResponsiveContainer, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Bar, PieChart, Pie } from 'recharts';
 import { Language } from '../../types';
-import { translateTriplet, ui } from '../../i18n';
+import { ui } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 
 export const NetworkView = ({ lang }: { lang: Language }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
-  const tr = (en: string, bs: string, de: string) => translateTriplet(lang, en, bs, de);
   const stats = [
-    { label: tr('Active Hubs', 'Aktivna čvorišta', 'Aktive Hubs'), value: '142', icon: Globe, color: 'text-blue-500' },
-    { label: tr('Fleet Capacity', 'Kapacitet flote', 'Flottenkapazität'), value: '4.2M Tons', icon: Truck, color: 'text-emerald-500' },
-    { label: tr('Global Reach', 'Globalni domet', 'Globale Reichweite'), icon: MapIcon, value: '192 Countries', color: 'text-amber-500' },
-    { label: tr('Avg Delivery', 'Prosj. isporuka', 'Ø Lieferzeit'), value: '1.8 Days', icon: Clock, color: 'text-primary' }
+    { label: u('Active Hubs', 'Active Hubs'), value: '142', icon: Globe, color: 'text-blue-500' },
+    { label: u('Fleet Capacity', 'Fleet Capacity'), value: u('4.2M Tons', '4.2M Tons'), icon: Truck, color: 'text-emerald-500' },
+    { label: u('Global Reach', 'Global Reach'), icon: MapIcon, value: u('192 Countries', '192 Countries'), color: 'text-amber-500' },
+    { label: u('Avg Delivery', 'Avg Delivery'), value: u('1.8 Days', '1.8 Days'), icon: Clock, color: 'text-primary' }
   ];
 
   return (
@@ -78,14 +77,14 @@ export const NetworkView = ({ lang }: { lang: Language }) => {
         </Card>
 
         <div className="space-y-6">
-          <Card title="Regional Performance">
+          <Card title={u('Regional Performance', 'Regional Performance')}>
             <div className="h-[250px] w-full mt-4">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={[
-                  { name: 'Europe', val: 94 },
-                  { name: 'N. America', val: 88 },
-                  { name: 'Asia', val: 91 },
-                  { name: 'Africa', val: 76 }
+                  { name: u('Europe', 'Europe'), val: 94 },
+                  { name: u('N. America', 'N. America'), val: 88 },
+                  { name: u('Asia', 'Asia'), val: 91 },
+                  { name: u('Africa', 'Africa'), val: 76 }
                 ]}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
@@ -96,15 +95,15 @@ export const NetworkView = ({ lang }: { lang: Language }) => {
               </ResponsiveContainer>
             </div>
           </Card>
-          <Card title="Fleet Utilization">
+          <Card title={u('Fleet Utilization', 'Fleet Utilization')}>
              <div className="h-[200px] w-full mt-4">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={[
-                        { name: 'Active', value: 75, fill: '#00AEEF' },
-                        { name: 'Maintenance', value: 15, fill: '#f59e0b' },
-                        { name: 'Idle', value: 10, fill: '#ef4444' }
+                        { name: u('Active', 'Active'), value: 75, fill: '#00AEEF' },
+                        { name: u('Maintenance', 'Maintenance'), value: 15, fill: '#f59e0b' },
+                        { name: u('Idle', 'Idle'), value: 10, fill: '#ef4444' }
                       ]}
                       innerRadius={60}
                       outerRadius={80}
@@ -116,9 +115,9 @@ export const NetworkView = ({ lang }: { lang: Language }) => {
                 </ResponsiveContainer>
              </div>
              <div className="flex justify-center gap-4 text-xs font-bold uppercase">
-               <div className="flex items-center gap-1"><div className="w-2 h-2 min-w-2 min-h-2 rounded-full bg-primary" /> {tr('Active', 'Aktivno', 'Aktiv')}</div>
-               <div className="flex items-center gap-1"><div className="w-2 h-2 min-w-2 min-h-2 rounded-full bg-amber-500" /> {tr('Maint.', 'Održ.', 'Wart.')}</div>
-               <div className="flex items-center gap-1"><div className="w-2 h-2 min-w-2 min-h-2 rounded-full bg-red-500" /> {tr('Idle', 'Neaktivno', 'Leerlauf')}</div>
+               <div className="flex items-center gap-1"><div className="w-2 h-2 min-w-2 min-h-2 rounded-full bg-primary" /> {u('Active', 'Active')}</div>
+               <div className="flex items-center gap-1"><div className="w-2 h-2 min-w-2 min-h-2 rounded-full bg-amber-500" /> {u('Maint.', 'Maint.')}</div>
+               <div className="flex items-center gap-1"><div className="w-2 h-2 min-w-2 min-h-2 rounded-full bg-red-500" /> {u('Idle', 'Idle')}</div>
              </div>
           </Card>
         </div>
@@ -126,4 +125,3 @@ export const NetworkView = ({ lang }: { lang: Language }) => {
     </div>
   );
 };
-

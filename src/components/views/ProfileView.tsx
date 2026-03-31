@@ -11,7 +11,7 @@ import {
   UserCircle2,
 } from 'lucide-react';
 import { Language, Role } from '../../types';
-import { translateTriplet } from '../../i18n';
+import { ui } from '../../i18n';
 import { Button } from '../ui/Button';
 
 type ProfileStat = {
@@ -35,29 +35,29 @@ type Feedback = {
   score: string;
 };
 
-const tr = translateTriplet;
-
 const getProfileContent = (lang: Language, role: Role) => {
+  const u = (key: string, fallback: string) => ui(lang, key, fallback);
+
   if (role === 'driver') {
     const stats: ProfileStat[] = [
       {
-        label: tr(lang, 'Finished Routes', 'Zavrsene rute', 'Abgeschlossene Routen'),
+        label: u('legacy.profile.driver.stats.finished-routes.label', 'Finished Routes'),
         value: '428',
-        meta: tr(lang, '+21 this month', '+21 ovaj mjesec', '+21 diesen Monat'),
+        meta: u('legacy.profile.driver.stats.finished-routes.meta', '+21 this month'),
         icon: Truck,
         tone: 'from-sky-500/15 to-sky-600/5 text-sky-500',
       },
       {
-        label: tr(lang, 'Satisfaction', 'Zadovoljstvo', 'Zufriedenheit'),
+        label: u('legacy.profile.driver.stats.satisfaction.label', 'Satisfaction'),
         value: '4.9 / 5',
-        meta: tr(lang, '312 verified reviews', '312 potvrdenih recenzija', '312 verifizierte Bewertungen'),
+        meta: u('legacy.profile.driver.stats.satisfaction.meta', '312 verified reviews'),
         icon: Star,
         tone: 'from-emerald-500/15 to-emerald-600/5 text-emerald-500',
       },
       {
-        label: tr(lang, 'Povjerljivost Lvl', 'Povjerljivost Lvl', 'Vertrauensebene'),
+        label: u('legacy.profile.driver.stats.trust-level.label', 'Povjerljivost Lvl'),
         value: 'Level 5',
-        meta: tr(lang, 'Premium trusted driver', 'Premium pouzdan vozac', 'Premium vertrauenswuerdiger Fahrer'),
+        meta: u('legacy.profile.driver.stats.trust-level.meta', 'Premium trusted driver'),
         icon: ShieldCheck,
         tone: 'from-violet-500/15 to-violet-600/5 text-violet-500',
       },
@@ -65,126 +65,101 @@ const getProfileContent = (lang: Language, role: Role) => {
 
     const achievements: Achievement[] = [
       {
-        title: tr(lang, 'Zero claim streak', 'Niz bez reklamacija', 'Serie ohne Reklamation'),
-        desc: tr(lang, '120 days', '120 dana', '120 Tage'),
+        title: u('legacy.profile.driver.achievements.zero-claim-streak.title', 'Zero claim streak'),
+        desc: u('legacy.profile.driver.achievements.zero-claim-streak.desc', '120 days'),
         icon: BadgeCheck,
       },
       {
-        title: tr(lang, 'On-time champion', 'Sampion tacnosti', 'Puenktlichkeits-Champion'),
-        desc: tr(lang, '97.8% on-time delivery', '97.8% dostava na vrijeme', '97.8% puenktliche Zustellungen'),
+        title: u('legacy.profile.driver.achievements.on-time-champion.title', 'On-time champion'),
+        desc: u('legacy.profile.driver.achievements.on-time-champion.desc', '97.8% on-time delivery'),
         icon: Clock3,
       },
       {
-        title: tr(lang, 'Top rated partner', 'Najbolje ocijenjen partner', 'Top bewerteter Partner'),
-        desc: tr(lang, '4.9 average score', 'Prosjek 4.9', 'Durchschnitt 4.9'),
+        title: u('legacy.profile.driver.achievements.top-rated-partner.title', 'Top rated partner'),
+        desc: u('legacy.profile.driver.achievements.top-rated-partner.desc', '4.9 average score'),
         icon: Award,
       },
       {
-        title: tr(lang, 'Safe route master', 'Majstor sigurnih ruta', 'Sicherheits-Routenmeister'),
-        desc: tr(lang, '0 critical incidents', '0 kriticnih incidenata', '0 kritische Vorfaelle'),
+        title: u('legacy.profile.driver.achievements.safe-route-master.title', 'Safe route master'),
+        desc: u('legacy.profile.driver.achievements.safe-route-master.desc', '0 critical incidents'),
         icon: ShieldCheck,
       },
       {
-        title: tr(lang, 'Fuel saver elite', 'Elita ustede goriva', 'Kraftstoff-Sparelite'),
-        desc: tr(lang, 'Top 10% efficiency', 'Top 10% efikasnosti', 'Top 10% Effizienz'),
+        title: u('legacy.profile.driver.achievements.fuel-saver-elite.title', 'Fuel saver elite'),
+        desc: u('legacy.profile.driver.achievements.fuel-saver-elite.desc', 'Top 10% efficiency'),
         icon: Truck,
       },
       {
-        title: tr(lang, 'Instant responder', 'Brzi odgovor', 'Sofort-Reagierer'),
-        desc: tr(lang, 'Under 3 min avg reply', 'Ispod 3 min prosjek', 'Unter 3 Min Antwortzeit'),
+        title: u('legacy.profile.driver.achievements.instant-responder.title', 'Instant responder'),
+        desc: u('legacy.profile.driver.achievements.instant-responder.desc', 'Under 3 min avg reply'),
         icon: CheckCircle2,
       },
     ];
 
     const feedback: Feedback[] = [
       {
-        by: tr(lang, 'BlueLine Logistics', 'BlueLine Logistics', 'BlueLine Logistics'),
+        by: u('legacy.profile.driver.feedback.blue-line-logistics.by', 'BlueLine Logistics'),
         route: 'Hamburg -> Sarajevo',
-        text: tr(
-          lang,
-          'Very proactive communication and precise ETA updates.',
-          'Odlicna komunikacija i precizni ETA update-i.',
-          'Sehr proaktive Kommunikation und praezise ETA-Updates.'
-        ),
+        text: u('legacy.profile.driver.feedback.blue-line-logistics.text', 'Very proactive communication and precise ETA updates.'),
         score: '5.0',
       },
       {
-        by: tr(lang, 'Nord Cargo', 'Nord Cargo', 'Nord Cargo'),
+        by: u('legacy.profile.driver.feedback.nord-cargo.by', 'Nord Cargo'),
         route: 'Vienna -> Zagreb',
-        text: tr(
-          lang,
-          'Route handled without delays and with full proof of delivery.',
-          'Ruta bez kasnjenja i sa kompletnim dokazom isporuke.',
-          'Route ohne Verzoegerung und mit vollem Zustellnachweis.'
-        ),
+        text: u('legacy.profile.driver.feedback.nord-cargo.text', 'Route handled without delays and with full proof of delivery.'),
         score: '4.8',
       },
       {
-        by: tr(lang, 'Alpine Freight', 'Alpine Freight', 'Alpine Freight'),
+        by: u('legacy.profile.driver.feedback.alpine-freight.by', 'Alpine Freight'),
         route: 'Munich -> Cologne',
-        text: tr(
-          lang,
-          'Fast loading and perfect handoff notes for every checkpoint.',
-          'Brz utovar i savrsene biljeske za svaku kontrolnu tacku.',
-          'Schnelle Beladung und perfekte Uebergabe-Notizen je Checkpoint.'
-        ),
+        text: u('legacy.profile.driver.feedback.alpine-freight.text', 'Fast loading and perfect handoff notes for every checkpoint.'),
         score: '4.9',
       },
       {
-        by: tr(lang, 'Delta Supply', 'Delta Supply', 'Delta Supply'),
+        by: u('legacy.profile.driver.feedback.delta-supply.by', 'Delta Supply'),
         route: 'Berlin -> Vienna',
-        text: tr(
-          lang,
-          'Driver kept all SLAs and delivered with full transparency.',
-          'Vozac ispunio sve SLA i isporucio uz punu transparentnost.',
-          'Fahrer hat alle SLAs eingehalten und mit voller Transparenz geliefert.'
-        ),
+        text: u('legacy.profile.driver.feedback.delta-supply.text', 'Driver kept all SLAs and delivered with full transparency.'),
         score: '4.7',
       },
     ];
 
     return {
-      title: tr(lang, 'Driver Profile', 'Profil vozaca', 'Fahrerprofil'),
-      subtitle: tr(
-        lang,
-        'Your trust, reviews, and route performance in one place.',
-        'Vase povjerenje, recenzije i rezultat ruta na jednom mjestu.',
-        'Vertrauen, Bewertungen und Routenleistung an einem Ort.'
-      ),
-      rolePill: tr(lang, 'Verified Driver', 'Verifikovani vozac', 'Verifizierter Fahrer'),
+      title: u('legacy.profile.driver.title', 'Driver Profile'),
+      subtitle: u('legacy.profile.driver.subtitle', 'Your trust, reviews, and route performance in one place.'),
+      rolePill: u('legacy.profile.driver.role-pill', 'Verified Driver'),
       stats,
       achievements,
       feedback,
       metrics: [
-        { label: tr(lang, 'Acceptance rate', 'Stopa prihvatanja', 'Annahmequote'), value: 96 },
-        { label: tr(lang, 'ETA precision', 'Preciznost ETA', 'ETA-Genauigkeit'), value: 93 },
-        { label: tr(lang, 'Customer response', 'Odgovor kupcima', 'Kundenreaktion'), value: 89 },
-        { label: tr(lang, 'Route safety', 'Sigurnost rute', 'Routensicherheit'), value: 98 },
+        { label: u('legacy.profile.driver.metrics.acceptance-rate', 'Acceptance rate'), value: 96 },
+        { label: u('legacy.profile.driver.metrics.eta-precision', 'ETA precision'), value: 93 },
+        { label: u('legacy.profile.driver.metrics.customer-response', 'Customer response'), value: 89 },
+        { label: u('legacy.profile.driver.metrics.route-safety', 'Route safety'), value: 98 },
       ],
-      primaryAction: tr(lang, 'Ask for Review', 'Zatrazi recenziju', 'Bewertung anfordern'),
-      secondaryAction: tr(lang, 'View All Reviews', 'Sve recenzije', 'Alle Bewertungen'),
+      primaryAction: u('legacy.profile.driver.primary-action', 'Ask for Review'),
+      secondaryAction: u('legacy.profile.driver.secondary-action', 'View All Reviews'),
     };
   }
 
   const stats: ProfileStat[] = [
     {
-      label: tr(lang, 'Finished Loads', 'Zavrseni tereti', 'Abgeschlossene Ladungen'),
+      label: u('legacy.profile.customer.stats.finished-loads.label', 'Finished Loads'),
       value: '186',
-      meta: tr(lang, '+12 this month', '+12 ovaj mjesec', '+12 diesen Monat'),
+      meta: u('legacy.profile.customer.stats.finished-loads.meta', '+12 this month'),
       icon: CheckCircle2,
       tone: 'from-sky-500/15 to-sky-600/5 text-sky-500',
     },
     {
-      label: tr(lang, 'Carrier Satisfaction', 'Zadovoljstvo prevoznika', 'Fahrerzufriedenheit'),
+      label: u('legacy.profile.customer.stats.carrier-satisfaction.label', 'Carrier Satisfaction'),
       value: '4.8 / 5',
-      meta: tr(lang, '247 driver reviews', '247 recenzija vozaca', '247 Fahrerbewertungen'),
+      meta: u('legacy.profile.customer.stats.carrier-satisfaction.meta', '247 driver reviews'),
       icon: Star,
       tone: 'from-emerald-500/15 to-emerald-600/5 text-emerald-500',
     },
     {
-      label: tr(lang, 'Partner Trust', 'Povjerenje partnera', 'Partnervertrauen'),
+      label: u('legacy.profile.customer.stats.partner-trust.label', 'Partner Trust'),
       value: 'Level 4',
-      meta: tr(lang, 'Top shipper tier', 'Top nivo klijenta', 'Top-Versenderstufe'),
+      meta: u('legacy.profile.customer.stats.partner-trust.meta', 'Top shipper tier'),
       icon: ShieldCheck,
       tone: 'from-violet-500/15 to-violet-600/5 text-violet-500',
     },
@@ -192,118 +167,94 @@ const getProfileContent = (lang: Language, role: Role) => {
 
   const achievements: Achievement[] = [
     {
-      title: tr(lang, 'Fast payout profile', 'Profil brze isplate', 'Schnelle Auszahlungsprofil'),
-      desc: tr(lang, 'Average payment in 24h', 'Prosjecna uplata za 24h', 'Durchschnittliche Zahlung in 24h'),
+      title: u('legacy.profile.customer.achievements.fast-payout-profile.title', 'Fast payout profile'),
+      desc: u('legacy.profile.customer.achievements.fast-payout-profile.desc', 'Average payment in 24h'),
       icon: BadgeCheck,
     },
     {
-      title: tr(lang, 'Priority shipper', 'Prioritetni posiljalac', 'Prioritaetsversender'),
-      desc: tr(lang, 'Preferred by top drivers', 'Preferiraju vrhunski vozaci', 'Von Top-Fahrern bevorzugt'),
+      title: u('legacy.profile.customer.achievements.priority-shipper.title', 'Priority shipper'),
+      desc: u('legacy.profile.customer.achievements.priority-shipper.desc', 'Preferred by top drivers'),
       icon: Award,
     },
     {
-      title: tr(lang, 'Reliable planner', 'Pouzdan planer', 'Zuverlaessiger Planer'),
-      desc: tr(lang, 'Low cancellation rate', 'Niska stopa otkazivanja', 'Niedrige Stornoquote'),
+      title: u('legacy.profile.customer.achievements.reliable-planner.title', 'Reliable planner'),
+      desc: u('legacy.profile.customer.achievements.reliable-planner.desc', 'Low cancellation rate'),
       icon: Clock3,
     },
     {
-      title: tr(lang, 'Trusted by carriers', 'Povjerenje prevoznika', 'Von Fahrern vertraut'),
-      desc: tr(lang, '98% repeat partners', '98% ponovnih partnera', '98% wiederkehrende Partner'),
+      title: u('legacy.profile.customer.achievements.trusted-by-carriers.title', 'Trusted by carriers'),
+      desc: u('legacy.profile.customer.achievements.trusted-by-carriers.desc', '98% repeat partners'),
       icon: ShieldCheck,
     },
     {
-      title: tr(lang, 'Accurate documents', 'Tacna dokumentacija', 'Praezise Dokumente'),
-      desc: tr(lang, '99.2% no corrections', '99.2% bez ispravki', '99.2% ohne Korrekturen'),
+      title: u('legacy.profile.customer.achievements.accurate-documents.title', 'Accurate documents'),
+      desc: u('legacy.profile.customer.achievements.accurate-documents.desc', '99.2% no corrections'),
       icon: CheckCircle2,
     },
     {
-      title: tr(lang, 'Rapid coordination', 'Brza koordinacija', 'Schnelle Koordination'),
-      desc: tr(lang, 'Avg assign time 7 min', 'Prosjecno dodjela 7 min', 'Durchschnittliche Zuweisung 7 Min'),
+      title: u('legacy.profile.customer.achievements.rapid-coordination.title', 'Rapid coordination'),
+      desc: u('legacy.profile.customer.achievements.rapid-coordination.desc', 'Avg assign time 7 min'),
       icon: Truck,
     },
   ];
 
   const feedback: Feedback[] = [
     {
-      by: tr(lang, 'M. Kovac (Driver)', 'M. Kovac (Vozac)', 'M. Kovac (Fahrer)'),
+      by: u('legacy.profile.customer.feedback.m-kovac.by', 'M. Kovac (Driver)'),
       route: 'Zagreb -> Berlin',
-      text: tr(
-        lang,
-        'Pickup process was clear and documents were ready on time.',
-        'Preuzimanje jasno, dokumenti spremni na vrijeme.',
-        'Abholung war klar, Dokumente waren rechtzeitig bereit.'
-      ),
+      text: u('legacy.profile.customer.feedback.m-kovac.text', 'Pickup process was clear and documents were ready on time.'),
       score: '5.0',
     },
     {
-      by: tr(lang, 'TransitPro Team', 'TransitPro tim', 'TransitPro Team'),
+      by: u('legacy.profile.customer.feedback.transitpro-team.by', 'TransitPro Team'),
       route: 'Munich -> Amsterdam',
-      text: tr(
-        lang,
-        'Communication was smooth and unloading instructions were precise.',
-        'Komunikacija glatka i upute za istovar precizne.',
-        'Kommunikation war reibungslos und Entladeanweisungen praezise.'
-      ),
+      text: u('legacy.profile.customer.feedback.transitpro-team.text', 'Communication was smooth and unloading instructions were precise.'),
       score: '4.7',
     },
     {
-      by: tr(lang, 'L. Schmidt (Driver)', 'L. Schmidt (Vozac)', 'L. Schmidt (Fahrer)'),
+      by: u('legacy.profile.customer.feedback.l-schmidt.by', 'L. Schmidt (Driver)'),
       route: 'Vienna -> Prague',
-      text: tr(
-        lang,
-        'Pickup slot was respected and docs were signed instantly.',
-        'Termin preuzimanja ispostovan, dokumenti potpisani odmah.',
-        'Abholzeit wurde eingehalten und Dokumente sofort unterschrieben.'
-      ),
+      text: u('legacy.profile.customer.feedback.l-schmidt.text', 'Pickup slot was respected and docs were signed instantly.'),
       score: '4.9',
     },
     {
-      by: tr(lang, 'CargoJet Fleet', 'CargoJet flota', 'CargoJet Flotte'),
+      by: u('legacy.profile.customer.feedback.cargojet-fleet.by', 'CargoJet Fleet'),
       route: 'Sarajevo -> Budapest',
-      text: tr(
-        lang,
-        'Clear communication and zero waiting time at unload point.',
-        'Jasna komunikacija i nula cekanja na istovaru.',
-        'Klare Kommunikation und keine Wartezeit am Entladepunkt.'
-      ),
+      text: u('legacy.profile.customer.feedback.cargojet-fleet.text', 'Clear communication and zero waiting time at unload point.'),
       score: '4.8',
     },
   ];
 
   return {
-    title: tr(lang, 'Customer Profile', 'Profil korisnika', 'Kundenprofil'),
-    subtitle: tr(
-      lang,
-      'See your load success, carrier feedback, and trust reputation.',
-      'Pratite uspjeh tereta, feedback vozaca i reputaciju povjerenja.',
-      'Sehen Sie Ladungserfolg, Fahrerfeedback und Vertrauensreputation.'
-    ),
-    rolePill: tr(lang, 'Enterprise Customer', 'Enterprise korisnik', 'Enterprise-Kunde'),
+    title: u('legacy.profile.customer.title', 'Customer Profile'),
+    subtitle: u('legacy.profile.customer.subtitle', 'See your load success, carrier feedback, and trust reputation.'),
+    rolePill: u('legacy.profile.customer.role-pill', 'Enterprise Customer'),
     stats,
     achievements,
     feedback,
     metrics: [
-      { label: tr(lang, 'Route fill rate', 'Popunjenost ruta', 'Routenfuellrate'), value: 95 },
-      { label: tr(lang, 'Driver retention', 'Zadrzavanje vozaca', 'Fahrerbindung'), value: 91 },
-      { label: tr(lang, 'Review response', 'Odgovor na recenzije', 'Bewertungsantworten'), value: 87 },
-      { label: tr(lang, 'Issue-free deliveries', 'Isporuke bez problema', 'Problemfreie Lieferungen'), value: 94 },
+      { label: u('legacy.profile.customer.metrics.route-fill-rate', 'Route fill rate'), value: 95 },
+      { label: u('legacy.profile.customer.metrics.driver-retention', 'Driver retention'), value: 91 },
+      { label: u('legacy.profile.customer.metrics.review-response', 'Review response'), value: 87 },
+      { label: u('legacy.profile.customer.metrics.issue-free-deliveries', 'Issue-free deliveries'), value: 94 },
     ],
-    primaryAction: tr(lang, 'Give Review', 'Ostavi recenziju', 'Bewertung abgeben'),
-    secondaryAction: tr(lang, 'Manage Partners', 'Upravljaj partnerima', 'Partner verwalten'),
+    primaryAction: u('legacy.profile.customer.primary-action', 'Give Review'),
+    secondaryAction: u('legacy.profile.customer.secondary-action', 'Manage Partners'),
   };
 };
 
 export const ProfileView = ({ role, lang }: { role: Role; lang: Language }) => {
+  const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const content = getProfileContent(lang, role);
   const showTopReviewActions = true;
 
   return (
     <div className="space-y-6">
-      <section className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-white to-sky-50 dark:from-slate-900 dark:to-slate-900/60 p-6 shadow-sm">
+      <section className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-linear-to-br from-white to-sky-50 dark:from-slate-900 dark:to-slate-900/60 p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-[0.2em] font-bold text-primary mb-2">
-              {tr(lang, 'My Profile', 'Moj profil', 'Mein Profil')}
+              {u('legacy.profile.header.my-profile', 'My Profile')}
             </p>
             <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">{content.title}</h1>
             <p className="mt-2 text-sm text-slate-600 dark:text-slate-300 max-w-2xl">{content.subtitle}</p>
@@ -326,7 +277,7 @@ export const ProfileView = ({ role, lang }: { role: Role; lang: Language }) => {
               <div className="absolute -top-10 -right-10 h-24 w-24 rounded-full bg-primary/10 blur-2xl" />
               <div className="relative flex items-center justify-between">
                 <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{stat.label}</p>
-                <div className={`h-9 w-9 rounded-xl bg-gradient-to-br flex items-center justify-center ${stat.tone}`}>
+                <div className={`h-9 w-9 rounded-xl bg-linear-to-br flex items-center justify-center ${stat.tone}`}>
                   <stat.icon className="w-4.5 h-4.5" />
                 </div>
               </div>
@@ -339,7 +290,7 @@ export const ProfileView = ({ role, lang }: { role: Role; lang: Language }) => {
           {showTopReviewActions && (
             <article className="rounded-2xl border border-slate-800 bg-slate-950 dark:bg-slate-900 p-5 shadow-[0_16px_50px_rgba(2,6,23,0.55)]">
               <p className="text-xs uppercase tracking-[0.2em] font-bold text-primary mb-3">
-                {tr(lang, 'Review Actions', 'Akcije recenzija', 'Bewertungsaktionen')}
+                {u('legacy.profile.review-actions.title', 'Review Actions')}
               </p>
               <div className="space-y-3">
                 <Button className="w-full h-11 gap-2 text-base font-bold">
@@ -363,7 +314,7 @@ export const ProfileView = ({ role, lang }: { role: Role; lang: Language }) => {
           <div className={showTopReviewActions ? 'lg:col-span-8 space-y-6' : 'lg:col-span-9'}>
             <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                {tr(lang, 'Performance Board', 'Tabla performansi', 'Leistungsboard')}
+                {u('legacy.profile.performance-board.title', 'Performance Board')}
               </h2>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 {content.metrics.map((metric) => (
@@ -387,23 +338,18 @@ export const ProfileView = ({ role, lang }: { role: Role; lang: Language }) => {
                   <div>
                     <p className="text-xs uppercase tracking-[0.2em] font-bold text-primary mb-1.5">
                       {role === 'driver'
-                        ? tr(lang, 'Driver Stats Snapshot', 'Pregled statistike vozaca', 'Fahrer-Statistik-Snapshot')
-                        : tr(lang, 'Customer Stats Snapshot', 'Pregled statistike korisnika', 'Kunden-Statistik-Snapshot')}
+                        ? u('legacy.profile.snapshot.driver-stats', 'Driver Stats Snapshot')
+                        : u('legacy.profile.snapshot.customer-stats', 'Customer Stats Snapshot')}
                     </p>
                     <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                      {tr(lang, 'Weekly Performance Insights', 'Sedmicni uvidi performansi', 'Woechentliche Performance-Einblicke')}
+                      {u('legacy.profile.snapshot.weekly-performance-insights', 'Weekly Performance Insights')}
                     </h3>
                     <p className="text-sm text-slate-500 dark:text-slate-400">
-                      {tr(
-                        lang,
-                        'Live KPI summary from the last 7 days.',
-                        'Uzivo KPI pregled iz zadnjih 7 dana.',
-                        'Live-KPI-Uebersicht aus den letzten 7 Tagen.'
-                      )}
+                      {u('legacy.profile.snapshot.live-kpi-summary', 'Live KPI summary from the last 7 days.')}
                     </p>
                   </div>
                   <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-xs font-bold">
-                    {tr(lang, 'Top 8%', 'Top 8%', 'Top 8%')}
+                    {u('legacy.profile.snapshot.top-percentile', 'Top 8%')}
                   </span>
                 </div>
 
@@ -411,30 +357,30 @@ export const ProfileView = ({ role, lang }: { role: Role; lang: Language }) => {
                   <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
                     <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                       {role === 'driver'
-                        ? tr(lang, 'Completed', 'Zavrseno', 'Abgeschlossen')
-                        : tr(lang, 'Posted Loads', 'Objavljeni tereti', 'Veroeffentlichte Ladungen')}
+                        ? u('legacy.profile.snapshot.completed', 'Completed')
+                        : u('legacy.profile.snapshot.posted-loads', 'Posted Loads')}
                     </p>
                     <p className="mt-1 text-xl font-black text-slate-900 dark:text-white">{role === 'driver' ? '34' : '51'}</p>
                   </div>
                   <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
                     <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                       {role === 'driver'
-                        ? tr(lang, 'On-time', 'Na vrijeme', 'Puenktlich')
-                        : tr(lang, 'Fill Rate', 'Popunjenost', 'Fuellrate')}
+                        ? u('legacy.profile.snapshot.on-time', 'On-time')
+                        : u('legacy.profile.snapshot.fill-rate', 'Fill Rate')}
                     </p>
                     <p className="mt-1 text-xl font-black text-emerald-500">{role === 'driver' ? '97.8%' : '94.1%'}</p>
                   </div>
                   <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
                     <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      {tr(lang, 'Avg Rating', 'Prosjecna ocjena', 'Durchschnittsbewertung')}
+                      {u('legacy.profile.snapshot.avg-rating', 'Avg Rating')}
                     </p>
                     <p className="mt-1 text-xl font-black text-slate-900 dark:text-white">{role === 'driver' ? '4.9' : '4.8'}</p>
                   </div>
                   <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
                     <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                       {role === 'driver'
-                        ? tr(lang, 'Claims', 'Reklamacije', 'Reklamationen')
-                        : tr(lang, 'Disputes', 'Sporovi', 'Streitfaelle')}
+                        ? u('legacy.profile.snapshot.claims', 'Claims')
+                        : u('legacy.profile.snapshot.disputes', 'Disputes')}
                     </p>
                     <p className="mt-1 text-xl font-black text-slate-900 dark:text-white">{role === 'driver' ? '0' : '1'}</p>
                   </div>
@@ -445,8 +391,8 @@ export const ProfileView = ({ role, lang }: { role: Role; lang: Language }) => {
                     <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
                       <span>
                         {role === 'driver'
-                          ? tr(lang, 'Fuel Efficiency', 'Efikasnost goriva', 'Kraftstoffeffizienz')
-                          : tr(lang, 'Cost Efficiency', 'Efikasnost troska', 'Kosteneffizienz')}
+                          ? u('legacy.profile.snapshot.fuel-efficiency', 'Fuel Efficiency')
+                          : u('legacy.profile.snapshot.cost-efficiency', 'Cost Efficiency')}
                       </span>
                       <span>{role === 'driver' ? '91%' : '89%'}</span>
                     </div>
@@ -458,8 +404,8 @@ export const ProfileView = ({ role, lang }: { role: Role; lang: Language }) => {
                     <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
                       <span>
                         {role === 'driver'
-                          ? tr(lang, 'Customer Feedback', 'Povratna informacija', 'Kundenfeedback')
-                          : tr(lang, 'Carrier Feedback', 'Feedback prevoznika', 'Fahrerfeedback')}
+                          ? u('legacy.profile.snapshot.customer-feedback', 'Customer Feedback')
+                          : u('legacy.profile.snapshot.carrier-feedback', 'Carrier Feedback')}
                       </span>
                       <span>{role === 'driver' ? '96%' : '94%'}</span>
                     </div>
@@ -477,7 +423,7 @@ export const ProfileView = ({ role, lang }: { role: Role; lang: Language }) => {
               <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 h-full flex flex-col">
                 <div className="flex-1">
                   <p className="text-xs uppercase tracking-[0.2em] font-bold text-primary mb-3">
-                    {tr(lang, 'Achievements', 'Postignuca', 'Erfolge')}
+                    {u('legacy.profile.achievements.title', 'Achievements')}
                   </p>
                   <div className="grid grid-cols-2 gap-2">
                     {content.achievements.map((item) => (
@@ -498,13 +444,13 @@ export const ProfileView = ({ role, lang }: { role: Role; lang: Language }) => {
                   <div className="rounded-xl bg-slate-100 dark:bg-slate-800 p-3">
                     <p className="text-xl font-black text-slate-900 dark:text-white">97%</p>
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      {tr(lang, 'Reliability', 'Pouzdanost', 'Zuverlaessigkeit')}
+                      {u('legacy.profile.stats.reliability', 'Reliability')}
                     </p>
                   </div>
                   <div className="rounded-xl bg-slate-100 dark:bg-slate-800 p-3">
                     <p className="text-xl font-black text-slate-900 dark:text-white">24h</p>
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      {tr(lang, 'Avg response', 'Prosj. odgovor', 'Durchschnittsantwort')}
+                      {u('legacy.profile.stats.avg-response', 'Avg response')}
                     </p>
                   </div>
                 </div>
@@ -514,7 +460,7 @@ export const ProfileView = ({ role, lang }: { role: Role; lang: Language }) => {
             <div className="lg:col-span-3">
               <div className="rounded-2xl border border-slate-800 bg-slate-950 dark:bg-slate-900 p-5 shadow-[0_16px_50px_rgba(2,6,23,0.55)]">
                 <p className="text-xs uppercase tracking-[0.2em] font-bold text-primary mb-3">
-                  {tr(lang, 'Review Actions', 'Akcije recenzija', 'Bewertungsaktionen')}
+                  {u('legacy.profile.review-actions.title', 'Review Actions')}
                 </p>
                 <div className="space-y-3">
                   <Button className="w-full h-11 gap-2 text-base font-bold">
@@ -536,7 +482,7 @@ export const ProfileView = ({ role, lang }: { role: Role; lang: Language }) => {
         {showTopReviewActions ? (
           <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
             <p className="text-xs uppercase tracking-[0.2em] font-bold text-primary mb-3">
-              {tr(lang, 'Recent Reviews', 'Nedavne recenzije', 'Aktuelle Bewertungen')}
+              {u('legacy.profile.recent-reviews.title', 'Recent Reviews')}
             </p>
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               {content.feedback.map((item) => (
@@ -572,7 +518,7 @@ export const ProfileView = ({ role, lang }: { role: Role; lang: Language }) => {
 
                 <div>
                   <p className="text-xs uppercase tracking-[0.2em] font-bold text-primary mb-3">
-                    {tr(lang, 'Achievements', 'Postignuca', 'Erfolge')}
+                    {u('legacy.profile.achievements.title', 'Achievements')}
                   </p>
                   <div className="space-y-3">
                     {content.achievements.map((item) => (
@@ -595,13 +541,13 @@ export const ProfileView = ({ role, lang }: { role: Role; lang: Language }) => {
                   <div className="rounded-xl bg-slate-100 dark:bg-slate-800 p-3">
                     <p className="text-xl font-black text-slate-900 dark:text-white">97%</p>
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      {tr(lang, 'Reliability', 'Pouzdanost', 'Zuverlaessigkeit')}
+                      {u('legacy.profile.stats.reliability', 'Reliability')}
                     </p>
                   </div>
                   <div className="rounded-xl bg-slate-100 dark:bg-slate-800 p-3">
                     <p className="text-xl font-black text-slate-900 dark:text-white">24h</p>
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      {tr(lang, 'Avg response', 'Prosj. odgovor', 'Durchschnittsantwort')}
+                      {u('legacy.profile.stats.avg-response', 'Avg response')}
                     </p>
                   </div>
                 </div>
@@ -609,7 +555,7 @@ export const ProfileView = ({ role, lang }: { role: Role; lang: Language }) => {
 
               <div className="lg:col-span-8">
                 <p className="text-xs uppercase tracking-[0.2em] font-bold text-primary mb-3">
-                  {tr(lang, 'Recent Reviews', 'Nedavne recenzije', 'Aktuelle Bewertungen')}
+                  {u('legacy.profile.recent-reviews.title', 'Recent Reviews')}
                 </p>
                 <div className="grid gap-3 md:grid-cols-2">
                   {content.feedback.map((item) => (

@@ -35,6 +35,16 @@ export interface Load {
   title: string;
   weight: string;
   price: string;
+  length?: number;
+  width?: number;
+  height?: number;
+  temperatureMin?: number;
+  temperatureMax?: number;
+  adrClass?: string;
+  cargoValue?: number;
+  isFragile?: boolean;
+  urgency?: 'Standard' | 'Express';
+  loadingMethods?: Array<'Forklift' | 'Crane' | 'Manual'>;
   pickup: string;
   delivery: string;
   date: string;

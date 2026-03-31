@@ -206,6 +206,7 @@ const HISTORY_ROUTES: HistoryRoute[] = [
 
 export const HistoryView = ({ lang }: { lang: Language }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  const numberFormatLocale = lang === 'de' ? 'de-DE' : lang === 'bs' ? 'bs-BA' : 'en-US';
   const [leftMode, setLeftMode] = useState<ViewMode>('all');
   const [rightTab, setRightTab] = useState<RightTab>('overview');
   const [query, setQuery] = useState('');
@@ -256,11 +257,7 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
     ? dateRangeLabel
     : leftMode === 'today'
       ? formatDdMmYyyy(new Date())
-      : lang === 'bs'
-        ? 'Sve rute'
-        : lang === 'de'
-          ? 'Alle Routen'
-          : 'All routes';
+      : u('history.allRoutes', 'All routes');
 
   const totalDistance = activeRoutes.reduce((sum, route) => sum + (Number(route.distance.replace(/[^\d.]/g, '')) || 0), 0);
   const totalEarned = activeRoutes.reduce((sum, route) => {
@@ -312,7 +309,7 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             type="text"
-            placeholder={lang === 'bs' ? 'Pretrazi rute...' : lang === 'de' ? 'Routen suchen...' : 'Search routes...'}
+            placeholder={u('history.searchRoutes', 'Search routes...')}
             className="w-full h-12 pl-10 pr-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
@@ -326,7 +323,7 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
             )}
           >
             <Filter className="w-4 h-4" />
-            {lang === 'bs' ? 'Sve' : lang === 'de' ? 'Alle' : 'All'}
+            {u('history.filter.all', 'All')}
           </button>
           <button
             onClick={() => setLeftMode('today')}
@@ -336,7 +333,7 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
             )}
           >
             <Clock3 className="w-4 h-4" />
-            {lang === 'bs' ? 'Danas' : lang === 'de' ? 'Heute' : 'Today'}
+            {u('history.filter.today', 'Today')}
           </button>
           <button
             onClick={openCalendarMode}
@@ -346,7 +343,7 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
             )}
           >
             <CalendarDays className="w-4 h-4" />
-            {lang === 'bs' ? 'Kalendar' : lang === 'de' ? 'Kalender' : 'Calendar'}
+            {u('history.filter.calendar', 'Calendar')}
           </button>
         </div>
 
@@ -354,7 +351,7 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
           <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-xs font-black uppercase tracking-wider text-primary">
-                {lang === 'bs' ? 'Raspon datuma' : lang === 'de' ? 'Datumsbereich' : 'Date Range'}
+                {u('history.dateRange', 'Date Range')}
               </p>
               <span className="text-[11px] font-semibold text-slate-500">{dateRangeLabel}</span>
             </div>
@@ -396,7 +393,7 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
                     : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-primary'
                 )}
               >
-                {lang === 'bs' ? '1 mjesec' : lang === 'de' ? '1 Monat' : 'Past month'}
+                {u('history.quickRange.1m', 'Past month')}
               </button>
               <button
                 onClick={() => applyQuickRange(6, '6m')}
@@ -407,7 +404,7 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
                     : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-primary'
                 )}
               >
-                {lang === 'bs' ? '6 mjeseci' : lang === 'de' ? '6 Monate' : 'Past half year'}
+                {u('history.quickRange.6m', 'Past half year')}
               </button>
               <button
                 onClick={() => applyQuickRange(12, '12m')}
@@ -418,7 +415,7 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
                     : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-primary'
                 )}
               >
-                {lang === 'bs' ? '12 mjeseci' : lang === 'de' ? '12 Monate' : 'Past year'}
+                {u('history.quickRange.12m', 'Past year')}
               </button>
             </div>
           </div>
@@ -447,7 +444,7 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
 
           {!activeRoutes.length && (
             <div className="p-4 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 text-center text-sm text-slate-500">
-              {lang === 'bs' ? 'Nema ruta za odabrani filter.' : lang === 'de' ? 'Keine Routen fuer den ausgewaehlten Filter.' : 'No routes match this filter.'}
+              {u('history.noRoutes', 'No routes match this filter.')}
             </div>
           )}
         </div>
@@ -463,7 +460,7 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
             )}
           >
             <BarChart3 className="w-4 h-4" />
-            {lang === 'bs' ? 'Pregled' : lang === 'de' ? 'Uebersicht' : 'Overview'}
+            {u('history.tab.overview', 'Overview')}
           </button>
           <button
             onClick={() => setRightTab('map')}
@@ -473,7 +470,7 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
             )}
           >
             <MapPin className="w-4 h-4" />
-            {lang === 'bs' ? 'Mapa' : lang === 'de' ? 'Karte' : 'Map'}
+            {u('history.tab.map', 'Map')}
           </button>
           <button
             onClick={() => setRightTab('timeline')}
@@ -483,7 +480,7 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
             )}
           >
             <Clock3 className="w-4 h-4" />
-            Timeline
+            {u('history.tab.timeline', 'Timeline')}
           </button>
           <button
             onClick={() => setRightTab('magic')}
@@ -493,7 +490,7 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
             )}
           >
             <WandSparkles className="w-4 h-4" />
-            Magic
+            {u('history.tab.magic', 'Magic')}
           </button>
         </div>
 
@@ -501,26 +498,26 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
           <div className="space-y-6">
             <div className="grid md:grid-cols-12 gap-4">
               <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 md:col-span-3">
-                <p className="text-xs uppercase tracking-wider text-slate-500">{lang === 'bs' ? 'Rute u fokusu' : lang === 'de' ? 'Routen im Fokus' : 'Routes in focus'}</p>
+                <p className="text-xs uppercase tracking-wider text-slate-500">{u('history.stats.routesInFocus', 'Routes in focus')}</p>
                 <p className="text-3xl font-black dark:text-white mt-1">{activeRoutes.length}</p>
                 <p className="text-xs text-slate-500 mt-1">{focusLabel}</p>
               </div>
               <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 md:col-span-3">
-                <p className="text-xs uppercase tracking-wider text-slate-500">{lang === 'bs' ? 'Ukupna kilometraza' : lang === 'de' ? 'Gesamtkilometer' : 'Total distance'}</p>
+                <p className="text-xs uppercase tracking-wider text-slate-500">{u('history.stats.totalDistance', 'Total distance')}</p>
                 <p className="text-3xl font-black dark:text-white mt-1">{Math.round(totalDistance)} km</p>
-                <p className="text-xs text-slate-500 mt-1">{lang === 'bs' ? 'u odabranom periodu' : lang === 'de' ? 'im gewaehlten Zeitraum' : 'in selected window'}</p>
+                <p className="text-xs text-slate-500 mt-1">{u('history.stats.selectedWindow', 'in selected window')}</p>
               </div>
               <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 md:col-span-3">
-                <p className="text-xs uppercase tracking-wider text-slate-500">{lang === 'bs' ? 'Ukupna zarada' : lang === 'de' ? 'Gesamtverdienst' : 'Total earned'}</p>
+                <p className="text-xs uppercase tracking-wider text-slate-500">{u('history.stats.totalEarned', 'Total earned')}</p>
                 <p className="text-3xl font-black dark:text-white mt-1">
-                  {new Intl.NumberFormat(lang === 'de' ? 'de-DE' : lang === 'bs' ? 'bs-BA' : 'en-US').format(Math.round(totalEarned))} €
+                  {new Intl.NumberFormat(numberFormatLocale).format(Math.round(totalEarned))} €
                 </p>
-                <p className="text-xs text-slate-500 mt-1">{lang === 'bs' ? 'iz odabranih ruta' : lang === 'de' ? 'aus ausgewaehlten Routen' : 'from selected routes'}</p>
+                <p className="text-xs text-slate-500 mt-1">{u('history.stats.fromSelectedRoutes', 'from selected routes')}</p>
               </div>
               <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 md:col-span-3">
-                <p className="text-xs uppercase tracking-wider text-slate-500">{lang === 'bs' ? 'AI pouzdanost' : lang === 'de' ? 'KI-Vertrauen' : 'AI confidence'}</p>
+                <p className="text-xs uppercase tracking-wider text-slate-500">{u('history.stats.aiConfidence', 'AI confidence')}</p>
                 <p className="text-3xl font-black text-primary mt-1">{avgConfidence}%</p>
-                <p className="text-xs text-slate-500 mt-1">{lang === 'bs' ? 'prosjek aktivnih ruta' : lang === 'de' ? 'Durchschnitt aktiver Routen' : 'average across active routes'}</p>
+                <p className="text-xs text-slate-500 mt-1">{u('history.stats.avgActiveRoutes', 'average across active routes')}</p>
               </div>
             </div>
 
@@ -581,7 +578,7 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
         )}
 
         {rightTab === 'timeline' && (
-          <Card title={lang === 'bs' ? 'Route Timeline' : lang === 'de' ? 'Routen-Timeline' : 'Route Timeline'}>
+          <Card title={u('history.routeTimeline', 'Route Timeline')}>
             <div className="space-y-6">
               {(activeRoute?.events || []).map((event, index) => (
                 <div key={`${event.time}-${index}`} className="flex gap-4">
@@ -602,13 +599,13 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
 
         {rightTab === 'magic' && (
           <div className="space-y-6">
-            <Card title={lang === 'bs' ? 'Magic Route Twin' : lang === 'de' ? 'Magic Route Twin' : 'Magic Route Twin'}>
+            <Card title={u('history.magicTwin', 'Magic Route Twin')}>
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-4 bg-slate-50 dark:bg-slate-950">
                   <div className="flex items-center gap-2 text-primary mb-3">
                     <Sparkles className="w-4 h-4" />
                     <p className="text-xs font-black uppercase tracking-wider">
-                      {lang === 'bs' ? 'AI uvid' : lang === 'de' ? 'KI-Einblick' : 'AI Insight'}
+                      {u('history.aiInsight', 'AI Insight')}
                     </p>
                   </div>
                   <p className="text-sm dark:text-slate-200 italic">"{insights}"</p>
@@ -617,14 +614,14 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
                   <div className="flex items-center gap-2 text-primary mb-3">
                     <Filter className="w-4 h-4" />
                     <p className="text-xs font-black uppercase tracking-wider">
-                      {lang === 'bs' ? 'Predikcije' : lang === 'de' ? 'Vorhersagen' : 'Predictions'}
+                      {u('history.predictions', 'Predictions')}
                     </p>
                   </div>
                   <div className="space-y-3">
                     {[
-                      { label: lang === 'bs' ? 'Rizik kasnjenja' : lang === 'de' ? 'Verspaetungsrisiko' : 'Delay risk', value: leftMode === 'calendar' ? 'Low' : 'Very Low', width: '22%' },
-                      { label: lang === 'bs' ? 'Efikasnost goriva' : lang === 'de' ? 'Kraftstoffeffizienz' : 'Fuel efficiency', value: `${avgConfidence}%`, width: `${Math.max(40, avgConfidence)}%` },
-                      { label: lang === 'bs' ? 'Kvalitet rute' : lang === 'de' ? 'Routenqualitaet' : 'Route quality', value: activeRoute ? `${activeRoute.confidence}%` : '--', width: `${Math.max(30, activeRoute?.confidence || 0)}%` },
+                      { label: u('history.metrics.delayRisk', 'Delay risk'), value: leftMode === 'calendar' ? u('history.low', 'Low') : u('history.veryLow', 'Very Low'), width: '22%' },
+                      { label: u('history.metrics.fuelEfficiency', 'Fuel efficiency'), value: `${avgConfidence}%`, width: `${Math.max(40, avgConfidence)}%` },
+                      { label: u('history.metrics.routeQuality', 'Route quality'), value: activeRoute ? `${activeRoute.confidence}%` : '--', width: `${Math.max(30, activeRoute?.confidence || 0)}%` },
                     ].map((metric) => (
                       <div key={metric.label}>
                         <div className="flex items-center justify-between text-xs mb-1">
@@ -644,9 +641,9 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
             <Card title={u('history.generatedByAi', 'Generated by Smartfreight.ai AI')}>
               <div className="grid md:grid-cols-3 gap-4">
                 {[
-                  { label: lang === 'bs' ? 'Najbolji period' : lang === 'de' ? 'Bestes Zeitfenster' : 'Best window', value: '06:00 - 10:00' },
-                  { label: lang === 'bs' ? 'Top vozilo' : lang === 'de' ? 'Top Fahrzeug' : 'Top vehicle', value: activeRoute?.vehicle || '---' },
-                  { label: lang === 'bs' ? 'CO2 usteda' : lang === 'de' ? 'CO2 Einsparung' : 'CO2 savings', value: `${activeRoutes.length * 7}%` },
+                  { label: u('history.bestWindow', 'Best window'), value: '06:00 - 10:00' },
+                  { label: u('history.topVehicle', 'Top vehicle'), value: activeRoute?.vehicle || '---' },
+                  { label: u('history.co2Savings', 'CO2 savings'), value: `${activeRoutes.length * 7}%` },
                 ].map((item) => (
                   <div key={item.label} className="rounded-xl border border-slate-200 dark:border-slate-800 p-4 text-center">
                     <p className="text-xs uppercase tracking-wider text-slate-500">{item.label}</p>
