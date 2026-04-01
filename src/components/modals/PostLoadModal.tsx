@@ -301,7 +301,7 @@ const ToggleCard = ({
     type="button"
     onClick={onClick}
     className={cn(
-      'rounded-2xl border px-4 py-3 text-left transition-all',
+      'rounded-2xl border px-4 py-3 text-left transition-all cursor-pointer',
       active
         ? 'border-primary bg-primary/5 shadow-sm'
         : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-primary/40'
@@ -466,39 +466,38 @@ export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => 
                 </p>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="shrink-0 h-11 w-11 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors"
-              aria-label={u('common.cancel', 'Cancel')}
-              title={u('common.cancel', 'Cancel')}
-            >
-              <X className="w-6 h-6 text-slate-500" />
-            </button>
-          </div>
-
-          <div className="px-4 sm:px-5 md:px-6 pb-4 sm:pb-5 md:pb-6">
-            <div className="flex flex-wrap items-center gap-3 text-slate-500">
-              <div className="inline-flex items-center gap-2 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs font-bold">
-                {step === 'route' && <MapPin className="w-4 h-4 text-primary" />}
-                {step === 'cargo' && <Package className="w-4 h-4 text-primary" />}
-                {step === 'terms' && <UserRound className="w-4 h-4 text-primary" />}
-                {step === 'review' && <FileText className="w-4 h-4 text-primary" />}
-                <span>
-                  {u('postLoadModal.stepLabel', 'Step')} {stepIndex + 1} / {STEPS.length}
-                </span>
+            <div className="flex shrink-0 items-start gap-3 sm:gap-4">
+              <div className="hidden lg:flex flex-wrap items-center justify-end gap-3 text-slate-500">
+                <div className="inline-flex items-center gap-2 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs font-bold">
+                  {step === 'route' && <MapPin className="w-4 h-4 text-primary" />}
+                  {step === 'cargo' && <Package className="w-4 h-4 text-primary" />}
+                  {step === 'terms' && <UserRound className="w-4 h-4 text-primary" />}
+                  {step === 'review' && <FileText className="w-4 h-4 text-primary" />}
+                  <span>
+                    {u('postLoadModal.stepLabel', 'Step')} {stepIndex + 1} / {STEPS.length}
+                  </span>
+                </div>
+                <div className="hidden xl:flex items-center gap-2 text-xs">
+                  <CalendarDays className="w-4 h-4" />
+                  <span>{draft.pickupDate || u('postLoadModal.noPickupDate', 'Pickup date pending')}</span>
+                </div>
+                <div className="hidden xl:flex items-center gap-2 text-xs">
+                  <Clock3 className="w-4 h-4" />
+                  <span>{draft.deliveryDate || u('postLoadModal.noDeliveryDate', 'Delivery date pending')}</span>
+                </div>
+                <div className="hidden xl:flex items-center gap-2 text-xs">
+                  <ThermometerSnowflake className="w-4 h-4" />
+                  <span>{draft.temperature || u('postLoadModal.ambient', 'Ambient')}</span>
+                </div>
               </div>
-              <div className="hidden md:flex items-center gap-2 text-xs">
-                <CalendarDays className="w-4 h-4" />
-                <span>{draft.pickupDate || u('postLoadModal.noPickupDate', 'Pickup date pending')}</span>
-              </div>
-              <div className="hidden md:flex items-center gap-2 text-xs">
-                <Clock3 className="w-4 h-4" />
-                <span>{draft.deliveryDate || u('postLoadModal.noDeliveryDate', 'Delivery date pending')}</span>
-              </div>
-              <div className="hidden md:flex items-center gap-2 text-xs">
-                <ThermometerSnowflake className="w-4 h-4" />
-                <span>{draft.temperature || u('postLoadModal.ambient', 'Ambient')}</span>
-              </div>
+              <button
+                onClick={onClose}
+                className="shrink-0 h-11 w-11 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors cursor-pointer"
+                aria-label={u('common.cancel', 'Cancel')}
+                title={u('common.cancel', 'Cancel')}
+              >
+                <X className="w-6 h-6 text-slate-500" />
+              </button>
             </div>
           </div>
         </div>
@@ -992,7 +991,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => 
                                   type="button"
                                   onClick={() => toggleBodyType(option)}
                                   className={cn(
-                                    'rounded-full border px-3 py-1.5 text-xs font-bold transition-colors',
+                                    'rounded-full border px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer',
                                     draft.bodyTypes.includes(option)
                                       ? 'border-primary bg-primary text-white'
                                       : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'

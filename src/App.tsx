@@ -3293,7 +3293,6 @@ export default function App() {
 
   const navItems = [
     ...(role === 'driver' ? [{ id: 'feed', label: t.homeFeed, icon: Boxes }] : []),
-    ...(role === 'driver' ? [{ id: 'notes', label: ui(lang, 'notes.navLabel', 'Notes'), icon: NotebookPen }] : []),
     { id: 'tracking', label: t.tracking, icon: PackageIcon },
     ...(role === 'driver' ? [
       { id: 'fleet', label: t.myFleet, icon: Truck },
@@ -3302,6 +3301,7 @@ export default function App() {
     ] : []),
     ...(role !== 'driver' ? [{ id: 'automations', label: ui(lang, 'common.automations', 'AI Automations'), icon: Sparkles }] : []),
     { id: 'dashboard', label: analyticsLabel, icon: BarChart3 },
+    ...(role === 'driver' ? [{ id: 'notes', label: ui(lang, 'notes.navLabel', 'Notes'), icon: NotebookPen }] : []),
     { id: 'network', label: t.network, icon: Globe },
     { id: 'settings', label: t.settings, icon: Settings },
   ];

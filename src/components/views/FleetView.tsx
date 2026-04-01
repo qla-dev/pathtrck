@@ -548,7 +548,7 @@ export const FleetView = ({ lang }: { lang: Language }) => {
 
       {isAddModalOpen && (
         <div className="fixed inset-0 z-[220] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-4xl rounded-[28px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl overflow-hidden">
+          <div className="flex max-h-[calc(100dvh-80px)] w-full max-w-4xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 px-6 py-5">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.2em] text-primary">
@@ -570,8 +570,8 @@ export const FleetView = ({ lang }: { lang: Language }) => {
               </button>
             </div>
 
-            <div className="grid lg:grid-cols-[250px_minmax(0,1fr)]">
-              <aside className="border-r border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 p-5 space-y-3">
+            <div className="grid min-h-0 flex-1 lg:grid-cols-[250px_minmax(0,1fr)]">
+              <aside className="overflow-y-auto border-r border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 p-5 space-y-3">
                 {[
                   u('fleet.stepRegistry', 'Base transport list'),
                   u('fleet.stepSpecs', 'Brand, model and specifications'),
@@ -596,7 +596,7 @@ export const FleetView = ({ lang }: { lang: Language }) => {
                 ))}
               </aside>
 
-              <div className="p-6 space-y-6">
+              <div className="min-h-0 overflow-y-auto p-6 space-y-6">
                 {step === 0 && (
                   <div className="space-y-6">
                     <div className="grid sm:grid-cols-3 gap-3">

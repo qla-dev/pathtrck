@@ -340,6 +340,16 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
             {u('Tracker', 'Tracker')}
           </button>
           <button
+            onClick={() => setRightTab('returnRoutes')}
+            className={cn(
+              'h-full px-3 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5',
+              rightTab === 'returnRoutes' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+            )}
+          >
+            <Route className="w-4 h-4" />
+            {u('Return Routes', 'Return Routes')}
+          </button>
+          <button
             onClick={() => setRightTab('dispatch')}
             className={cn(
               'h-full px-3 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5',
@@ -378,16 +388,6 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
           >
             <RotateCcw className="w-4 h-4" />
             {u('Return', 'Return')}
-          </button>
-          <button
-            onClick={() => setRightTab('returnRoutes')}
-            className={cn(
-              'h-full px-3 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5',
-              rightTab === 'returnRoutes' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-            )}
-          >
-            <Route className="w-4 h-4" />
-            {u('Return Routes', 'Return Routes')}
           </button>
           <button
             onClick={() => setRightTab('reports')}
