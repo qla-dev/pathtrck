@@ -25,6 +25,7 @@ import { cn } from '../../lib/cn';
 import { MOCK_LOADS } from '../../mockData';
 import { Button } from '../ui/Button';
 import { useCitySuggestions } from '../frights/useCitySuggestions';
+import { api, ApiError } from '../../services/api';
 
 type PostLoadModalProps = {
   isOpen: boolean;
@@ -159,6 +160,11 @@ const INITIAL_DRAFT: LoadDraft = {
   closedFreightComments: '',
   publishToAllAfterMinutes: false,
   publishDelayMinutes: '5',
+};
+
+const toApiDateTime = (date: string, time = '00:00') => {
+  const match = date.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  return match ? `${match[3]}-${match[2]}-${match[1]}T${time || '00:00'}:00` : null;
 };
 
 const STEPS: Array<{ id: StepId; icon: typeof MapPin }> = [
@@ -361,6 +367,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => 
   ];
   const [step, setStep] = useState<StepId>('route');
   const [draft, setDraft] = useState<LoadDraft>(INITIAL_DRAFT);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
   const citySeed = useMemo(
     () =>
       Array.from(
@@ -395,6 +403,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => 
     if (!isOpen) {
       setStep('route');
       setDraft(INITIAL_DRAFT);
+      setSubmitError('');
     }
   }, [isOpen]);
 
@@ -467,8 +476,47 @@ export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => 
   const canNavigateToStep = (targetIndex: number) =>
     targetIndex <= stepIndex || targetIndex <= maxReachableStepIndex;
 
-  const submit = () => {
-    onClose();
+  const submit = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setSubmitError('');
+    try {
+      await api.loads.create({
+        title: draft.cargoTitle,
+        status: 'available',
+        transport_type: draft.transportType,
+        cargo_type: draft.cargoType,
+        goods_type: draft.goodsType,
+        weight_kg: Number(draft.weightKg),
+        length_m: draft.lengthM ? Number(draft.lengthM) : null,
+        volume_m3: draft.volumeM3 ? Number(draft.volumeM3) : null,
+        pallets: draft.pallets ? Number(draft.pallets) : null,
+        declared_value: draft.declaredValue ? Number(draft.declaredValue) : null,
+        budget: draft.budget ? Number(draft.budget) : null,
+        currency: draft.freightCurrency,
+        payment_terms: draft.paymentTerms.toLowerCase().replaceAll(' ', '_'),
+        payment_due_days: draft.paymentDueDays ? Number(draft.paymentDueDays) : null,
+        requires_adr: draft.requiresAdr,
+        requires_tail_lift: draft.requiresTailLift,
+        must_be_trackable: draft.mustBeTrackable,
+        is_urgent: draft.urgent,
+        body_types: draft.bodyTypes,
+        contact: { name: draft.contactName, phone: draft.contactPhone, mobile: draft.contactMobile, email: draft.contactEmail, fax: draft.contactFax },
+        notes: draft.notes || draft.additionalInfo || null,
+        internal_comments: draft.internalComments || null,
+        external_comments: draft.externalComments || null,
+        published_at: new Date().toISOString(),
+        stops: [
+          { type: 'pickup', position: 1, place_type: draft.pickupPlaceType, city: draft.pickupCity, country_code: draft.pickupCountry, address: draft.pickupAddress || null, window_starts_at: toApiDateTime(draft.pickupDate, draft.pickupTimeFrom), window_ends_at: toApiDateTime(draft.pickupDateTo || draft.pickupDate, draft.pickupTimeTo || draft.pickupTimeFrom) },
+          { type: 'delivery', position: 2, place_type: draft.deliveryPlaceType, city: draft.deliveryCity, country_code: draft.deliveryCountry, address: draft.deliveryAddress || null, window_starts_at: toApiDateTime(draft.deliveryDate, draft.deliveryTimeFrom), window_ends_at: toApiDateTime(draft.deliveryDateTo || draft.deliveryDate, draft.deliveryTimeTo || draft.deliveryTimeFrom) },
+        ],
+      });
+      onClose();
+    } catch (error) {
+      setSubmitError(error instanceof ApiError ? error.message : u('postLoadModal.apiError', 'The load could not be published.'));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -1381,6 +1429,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => 
             </div>
 
             <div className="p-4 sm:p-5 md:p-6 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800">
+              {submitError && <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400">{submitError}</div>}
               <div className="grid w-full gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
                 <Button variant="outline" className="w-full min-h-[56px] sm:min-h-[60px]">
                   {u('postLoadModal.saveTemplate', 'Save as template')}
@@ -1389,8 +1438,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => 
                   {step === 'route' ? u('common.cancel', 'Cancel') : u('common.back', 'Back')}
                 </Button>
                 {step === 'review' ? (
-                  <Button className="w-full min-h-[56px] sm:min-h-[60px]" onClick={submit}>
-                    {u('common.postLoad', 'Publish')}
+                  <Button className="w-full min-h-[56px] sm:min-h-[60px]" onClick={submit} disabled={isSubmitting}>
+                    {isSubmitting ? u('postLoadModal.publishing', 'Publishing...') : u('common.postLoad', 'Publish')}
                   </Button>
                 ) : (
                   <Button className="w-full min-h-[56px] sm:min-h-[60px]" onClick={goNext} disabled={!canProceed}>

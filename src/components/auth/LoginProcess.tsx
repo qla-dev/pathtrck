@@ -7,6 +7,7 @@ import { ui } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
+import { api, ApiError } from '../../services/api';
 
 type LoginLabels = {
   logIn: string;
@@ -38,12 +39,28 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
     role: 'driver' as Role,
   });
   const [isSwitchingToSetup, setIsSwitchingToSetup] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loginError, setLoginError] = useState('');
 
   const canProceed = Boolean(loginData.username && loginData.password && loginData.role);
   const handleGetStarted = () => {
     if (!onGetStarted || isSwitchingToSetup) return;
     setIsSwitchingToSetup(true);
     setTimeout(() => onGetStarted(), 260);
+  };
+  const handleLogin = async () => {
+    if (!canProceed || isSubmitting) return;
+    setIsSubmitting(true);
+    setLoginError('');
+    try {
+      const result = await api.auth.login(loginData.username, loginData.password);
+      const authenticatedRole = result.user.role?.name as Role;
+      onComplete(authenticatedRole || loginData.role, lang);
+    } catch (error) {
+      setLoginError(error instanceof ApiError ? error.message : u('login.connectionError', 'Could not connect to the API.'));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -80,6 +97,7 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
           </div>
 
           <div className="space-y-4">
+            {loginError && <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400">{loginError}</div>}
             <div>
               <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{labels.username}</label>
               <input
@@ -162,12 +180,12 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
               {labels.getStarted}
             </Button>
             <Button
-              onClick={() => loginData.role && onComplete(loginData.role, lang)}
-              disabled={!canProceed || isSwitchingToSetup}
+              onClick={handleLogin}
+              disabled={!canProceed || isSwitchingToSetup || isSubmitting}
               className="flex-1 cursor-pointer"
               size="lg"
             >
-              {labels.logIn}
+              {isSubmitting ? u('login.signingIn', 'Signing in...') : labels.logIn}
             </Button>
           </div>
         </div>
