@@ -26,7 +26,7 @@ Open `/redeploy.php` to trigger deployment. The frontend rewrite explicitly leav
 
 ## API backend switching
 
-This follows Bowido's explicit environment switch. Local development uses `VITE_API_BACKEND=local` and Vite proxies `/api` to `127.0.0.1:8000`. On the production server, keep an ignored `.env` file in the frontend repository containing:
+Local development and production both call the deployed Laravel API directly. Keep an ignored `.env` file containing:
 
 ```env
 VITE_API_BACKEND=production

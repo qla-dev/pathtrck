@@ -23,11 +23,11 @@ export type ApiLoginResult = { token: string; token_type: 'Bearer'; user: ApiUse
 export type ListParams = Record<string, string | number | boolean | undefined>;
 
 const API_BACKENDS = {
-  local: '/api',
+  local: 'https://cargo.qla.dev/endpoints/api',
   production: 'https://cargo.qla.dev/endpoints/api',
 } as const;
 
-const configuredBackend = String(import.meta.env.VITE_API_BACKEND || 'local').toLowerCase();
+const configuredBackend = String(import.meta.env.VITE_API_BACKEND || 'production').toLowerCase();
 const API_BASE_URL = (API_BACKENDS[configuredBackend as keyof typeof API_BACKENDS] || API_BACKENDS.local)
   .replace(/\/+$/, '');
 const TOKEN_STORAGE_KEY = 'smartfreight_api_token';
@@ -53,7 +53,7 @@ const request = async <T>(path: string, options: RequestInit = {}): Promise<ApiE
   if (token) headers.set('Authorization', `Bearer ${token}`);
 
   const response = await fetch(`${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`, {
-    credentials: 'include', ...options, headers,
+    credentials: 'omit', ...options, headers,
   });
   const payload = await response.json().catch(() => null) as ApiEnvelope<T> | null;
   if (!response.ok || !payload) {
@@ -95,6 +95,7 @@ export const api = {
   users: {
     ...resourceApi<Record<string, unknown>>('users'),
     createCustomer: (data: Record<string, unknown>) => request<Record<string, unknown>>('/users/customer', { method: 'POST', body: JSON.stringify(data) }),
+    createDriver: (data: Record<string, unknown>) => request<Record<string, unknown>>('/users/driver', { method: 'POST', body: JSON.stringify(data) }),
   },
   companies: {
     ...resourceApi<Record<string, unknown>>('companies'),
