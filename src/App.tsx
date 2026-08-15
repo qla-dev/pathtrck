@@ -3117,6 +3117,8 @@ export default function App() {
   const [isMainFilterSidebarOpen, setIsMainFilterSidebarOpen] = useState(false);
   const [isMainSortSidebarOpen, setIsMainSortSidebarOpen] = useState(false);
   const [isPostLoadOpen, setIsPostLoadOpen] = useState(false);
+  const [editLoadId, setEditLoadId] = useState<string | null>(null);
+  const [loadRefreshKey, setLoadRefreshKey] = useState(0);
   const [feedSortMode, setFeedSortMode] = useState<FeedSortMode>('price_asc');
   const [feedDataMode, setFeedDataMode] = useState<FeedDataMode>('all');
   const [feedServiceFilters, setFeedServiceFilters] = useState<ServiceFilters>(() => ({
@@ -3194,7 +3196,7 @@ export default function App() {
       const terms = String(record.payment_terms || 'negotiable').toLowerCase();
       return { id: String(record.id), title: String(record.title || `Load ${record.public_id || record.id}`), weight: `${Number(record.weight_kg || 0).toLocaleString()} kg`, price: `${String(record.currency || 'EUR')} ${Number(record.budget || 0).toLocaleString()}`, pickup: [pickup?.city, pickup?.country_code].filter(Boolean).join(', '), delivery: [delivery?.city, delivery?.country_code].filter(Boolean).join(', '), date: String(record.published_at || record.created_at || ''), author: String((record.customer as { name?: string } | undefined)?.name || ''), status, cargoType: String(record.cargo_type || ''), goodsType: String(record.goods_type || ''), paymentTerms: terms === 'in_advance' ? 'In Advance' : terms === 'on_delivery' ? 'On Delivery' : 'Negotiable', eta: String(record.completed_at || '') };
     }))).catch(() => setDatabaseLoads([]));
-  }, [role]);
+  }, [role, loadRefreshKey]);
 
   useEffect(() => {
     if (isDark) {
@@ -3750,7 +3752,7 @@ export default function App() {
           <div className="flex items-center gap-4">
             {role === 'user' || role === 'company' || role === 'superadmin' ? (
               <button
-                onClick={() => setIsPostLoadOpen(true)}
+                onClick={() => { setEditLoadId(null); setIsPostLoadOpen(true); }}
                 className="h-10 px-4 rounded-full bg-primary text-white inline-flex items-center gap-2 text-xs font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all cursor-pointer whitespace-nowrap"
               >
                 <Plus className="w-4 h-4" />
@@ -3891,6 +3893,7 @@ export default function App() {
 	              {view === 'feed' && (
                   <HomeFeed
                     lang={lang}
+                    role={role}
                     dataMode={feedDataMode}
                     loads={activeFeedLoads}
                     sortMode={feedSortMode}
@@ -3930,6 +3933,8 @@ export default function App() {
                       setIsMainFilterSidebarOpen(false);
                       setIsMainSortSidebarOpen((prev) => !prev);
                     }}
+                    onEditLoad={(load) => { setEditLoadId(load.id); setIsPostLoadOpen(true); }}
+                    onLoadChanged={() => setLoadRefreshKey((current) => current + 1)}
                   />
                 )}
 	              {view === 'notes' && <LoadNotesView lang={lang} />}
@@ -3960,7 +3965,7 @@ export default function App() {
             </motion.div>
           </AnimatePresence>
         </div>
-        <PostLoadModal isOpen={isPostLoadOpen} onClose={() => setIsPostLoadOpen(false)} lang={lang} />
+        <PostLoadModal isOpen={isPostLoadOpen} editLoadId={editLoadId} onClose={() => { setIsPostLoadOpen(false); setEditLoadId(null); }} onSaved={() => setLoadRefreshKey((current) => current + 1)} lang={lang} />
 
         {/* Bottom Nav (Mobile) */}
         <nav className="md:hidden fixed bottom-0 w-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-4 h-16 flex items-center justify-start gap-6 overflow-x-auto z-50">

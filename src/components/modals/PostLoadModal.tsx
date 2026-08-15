@@ -31,6 +31,8 @@ type PostLoadModalProps = {
   isOpen: boolean;
   onClose: () => void;
   lang: Language;
+  editLoadId?: number | string | null;
+  onSaved?: () => void;
 };
 
 type StepId = 'route' | 'cargo' | 'terms' | 'review';
@@ -165,6 +167,13 @@ const INITIAL_DRAFT: LoadDraft = {
 const toApiDateTime = (date: string, time = '00:00') => {
   const match = date.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
   return match ? `${match[3]}-${match[2]}-${match[1]}T${time || '00:00'}:00` : null;
+};
+
+const fromApiDateTime = (value: unknown) => {
+  if (!value) return { date: '', time: '' };
+  const parsed = new Date(String(value));
+  if (Number.isNaN(parsed.getTime())) return { date: '', time: '' };
+  return { date: `${String(parsed.getDate()).padStart(2, '0')}.${String(parsed.getMonth() + 1).padStart(2, '0')}.${parsed.getFullYear()}`, time: `${String(parsed.getHours()).padStart(2, '0')}:${String(parsed.getMinutes()).padStart(2, '0')}` };
 };
 
 const STEPS: Array<{ id: StepId; icon: typeof MapPin }> = [
@@ -337,7 +346,7 @@ const SummaryRow = ({
   </div>
 );
 
-export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => {
+export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSaved }: PostLoadModalProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const transportOptions = [
     {
@@ -368,6 +377,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => 
   const [step, setStep] = useState<StepId>('route');
   const [draft, setDraft] = useState<LoadDraft>(INITIAL_DRAFT);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingExisting, setIsLoadingExisting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const citySeed = useMemo(
     () =>
@@ -406,6 +416,31 @@ export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => 
       setSubmitError('');
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !editLoadId) return;
+    setIsLoadingExisting(true);
+    setSubmitError('');
+    api.loads.get(editLoadId).then((response) => {
+      const record = response.data;
+      const stops = Array.isArray(record.stops) ? record.stops as Array<Record<string, unknown>> : [];
+      const pickup = stops.find((item) => item.type === 'pickup') || {};
+      const delivery = [...stops].reverse().find((item) => item.type === 'delivery') || {};
+      const pickupStart = fromApiDateTime(pickup.window_starts_at);
+      const pickupEnd = fromApiDateTime(pickup.window_ends_at);
+      const deliveryStart = fromApiDateTime(delivery.window_starts_at);
+      const deliveryEnd = fromApiDateTime(delivery.window_ends_at);
+      const contact = (record.contact || {}) as Record<string, unknown>;
+      const terms = String(record.payment_terms || 'negotiable');
+      setDraft({ ...INITIAL_DRAFT,
+        transportType: (record.transport_type as TransportType) || 'road',
+        pickupPlaceType: String(pickup.place_type || INITIAL_DRAFT.pickupPlaceType), pickupCity: String(pickup.city || ''), pickupCountry: String(pickup.country_code || 'BA'), pickupAddress: String(pickup.address || ''), pickupDate: pickupStart.date, pickupDateTo: pickupEnd.date, pickupTimeFrom: pickupStart.time, pickupTimeTo: pickupEnd.time,
+        deliveryPlaceType: String(delivery.place_type || INITIAL_DRAFT.deliveryPlaceType), deliveryCity: String(delivery.city || ''), deliveryCountry: String(delivery.country_code || 'BA'), deliveryAddress: String(delivery.address || ''), deliveryDate: deliveryStart.date, deliveryDateTo: deliveryEnd.date, deliveryTimeFrom: deliveryStart.time, deliveryTimeTo: deliveryEnd.time,
+        cargoTitle: String(record.title || ''), cargoType: String(record.cargo_type || 'FTL'), goodsType: String(record.goods_type || 'General'), weightKg: String(record.weight_kg || ''), pallets: String(record.pallets || ''), lengthM: String(record.length_m || ''), volumeM3: String(record.volume_m3 || ''), declaredValue: String(record.declared_value || ''), budget: String(record.budget || ''), freightCurrency: String(record.currency || 'EUR'), paymentDueDays: String(record.payment_due_days || ''), paymentTerms: terms === 'in_advance' ? 'In Advance' : terms === 'on_delivery' ? 'On Delivery' : 'Negotiable',
+        requiresAdr: Boolean(record.requires_adr), requiresTailLift: Boolean(record.requires_tail_lift), mustBeTrackable: Boolean(record.must_be_trackable), urgent: Boolean(record.is_urgent), bodyTypes: Array.isArray(record.body_types) ? record.body_types.map(String) : [], notes: String(record.notes || ''), internalComments: String(record.internal_comments || ''), externalComments: String(record.external_comments || ''), contactName: String(contact.name || ''), contactPhone: String(contact.phone || ''), contactMobile: String(contact.mobile || ''), contactEmail: String(contact.email || ''), contactFax: String(contact.fax || ''),
+      });
+    }).catch((error) => setSubmitError(error instanceof Error ? error.message : 'The load could not be loaded.')).finally(() => setIsLoadingExisting(false));
+  }, [editLoadId, isOpen]);
 
   useEffect(() => {
     setStartLocation(draft.pickupCity);
@@ -481,9 +516,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => 
     setIsSubmitting(true);
     setSubmitError('');
     try {
-      await api.loads.create({
+      const payload = {
         title: draft.cargoTitle,
-        status: 'available',
         transport_type: draft.transportType,
         cargo_type: draft.cargoType,
         goods_type: draft.goodsType,
@@ -505,12 +539,14 @@ export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => 
         notes: draft.notes || draft.additionalInfo || null,
         internal_comments: draft.internalComments || null,
         external_comments: draft.externalComments || null,
-        published_at: new Date().toISOString(),
         stops: [
           { type: 'pickup', position: 1, place_type: draft.pickupPlaceType, city: draft.pickupCity, country_code: draft.pickupCountry, address: draft.pickupAddress || null, window_starts_at: toApiDateTime(draft.pickupDate, draft.pickupTimeFrom), window_ends_at: toApiDateTime(draft.pickupDateTo || draft.pickupDate, draft.pickupTimeTo || draft.pickupTimeFrom) },
           { type: 'delivery', position: 2, place_type: draft.deliveryPlaceType, city: draft.deliveryCity, country_code: draft.deliveryCountry, address: draft.deliveryAddress || null, window_starts_at: toApiDateTime(draft.deliveryDate, draft.deliveryTimeFrom), window_ends_at: toApiDateTime(draft.deliveryDateTo || draft.deliveryDate, draft.deliveryTimeTo || draft.deliveryTimeFrom) },
         ],
-      });
+      };
+      if (editLoadId) await api.loads.update(editLoadId, payload);
+      else await api.loads.create({ ...payload, status: 'available', published_at: new Date().toISOString() });
+      onSaved?.();
       onClose();
     } catch (error) {
       setSubmitError(error instanceof ApiError ? error.message : u('postLoadModal.apiError', 'The load could not be published.'));
@@ -520,6 +556,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => 
   };
 
   if (!isOpen) return null;
+  if (isLoadingExisting) return <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/70"><div className="rounded-2xl bg-white px-6 py-5 font-bold text-slate-700 shadow-2xl dark:bg-slate-900 dark:text-white">Loading load...</div></div>;
 
   return (
     <div className="fixed inset-0 z-[200] flex items-stretch justify-center overflow-hidden bg-slate-950/70 backdrop-blur-sm">
@@ -536,7 +573,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => 
               </div>
               <div className="min-w-0">
                 <h3 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight dark:text-white">
-                  {u('postLoadModal.title', 'Post New Load')}
+                  {editLoadId ? u('postLoadModal.editTitle', 'Edit Load') : u('postLoadModal.title', 'Post New Load')}
                 </h3>
                 <p className="text-xs md:text-sm text-slate-500 mt-1 max-w-2xl pr-2">
                   {u(
@@ -1439,7 +1476,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => 
                 </Button>
                 {step === 'review' ? (
                   <Button className="w-full min-h-[56px] sm:min-h-[60px]" onClick={submit} disabled={isSubmitting}>
-                    {isSubmitting ? u('postLoadModal.publishing', 'Publishing...') : u('common.postLoad', 'Publish')}
+                    {isSubmitting ? u('postLoadModal.publishing', 'Saving...') : editLoadId ? u('common.save', 'Save changes') : u('common.postLoad', 'Publish')}
                   </Button>
                 ) : (
                   <Button className="w-full min-h-[56px] sm:min-h-[60px]" onClick={goNext} disabled={!canProceed}>

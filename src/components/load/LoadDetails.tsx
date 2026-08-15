@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   AlertTriangle,
   ArrowRight,
@@ -10,11 +10,15 @@ import {
   MapPin,
   ShieldCheck,
   Truck,
+  Pencil,
+  UserCheck,
   X,
 } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
 import { Language, Load } from '../../types';
+import { Role } from '../../types';
+import { api } from '../../services/api';
 import { ui } from '../../i18n';
 import { Button } from '../ui/Button';
 
@@ -23,6 +27,9 @@ type LoadDetailsProps = {
   load: Load | null;
   onClose: () => void;
   lang: Language;
+  role?: Role;
+  onEdit?: (load: Load) => void;
+  onChanged?: () => void;
 };
 
 type UiFn = (key: string, fallback: string) => string;
@@ -77,8 +84,13 @@ const getPaymentTone = (terms: Load['paymentTerms']) =>
       ? 'text-sky-500 bg-sky-500/10 border-sky-500/30'
       : 'text-blue-500 bg-blue-500/10 border-blue-500/30';
 
-export const LoadDetails = ({ open, load, onClose, lang }: LoadDetailsProps) => {
+export const LoadDetails = ({ open, load, onClose, lang, role, onEdit, onChanged }: LoadDetailsProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  const [offers, setOffers] = useState<Array<Record<string, unknown>>>([]);
+  const [drivers, setDrivers] = useState<Array<Record<string, unknown>>>([]);
+  const [selectedDrivers, setSelectedDrivers] = useState<Record<string, number>>({});
+  const [offersLoading, setOffersLoading] = useState(false);
+  const [actionMessage, setActionMessage] = useState('');
   useEffect(() => {
     if (!open) return undefined;
     const handleEsc = (event: KeyboardEvent) => {
@@ -87,6 +99,33 @@ export const LoadDetails = ({ open, load, onClose, lang }: LoadDetailsProps) => 
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
   }, [open, onClose]);
+
+  useEffect(() => {
+    if (!open || !load || role !== 'superadmin') return;
+    setOffersLoading(true);
+    setActionMessage('');
+    Promise.all([api.offers.list({ per_page: 100 }), api.drivers.list({ per_page: 100 })])
+      .then(([offerResponse, driverResponse]) => {
+        const loadOffers = offerResponse.data.filter((offer) => String(offer.load_id) === String(load.id));
+        setOffers(loadOffers);
+        setDrivers(driverResponse.data);
+        setSelectedDrivers(Object.fromEntries(loadOffers.flatMap((offer) => offer.driver_user_id ? [[String(offer.id), Number(offer.driver_user_id)]] : [])));
+      })
+      .catch((error) => setActionMessage(error instanceof Error ? error.message : 'Offers could not be loaded.'))
+      .finally(() => setOffersLoading(false));
+  }, [open, load, role]);
+
+  const approveOffer = async (offer: Record<string, unknown>) => {
+    const driverId = selectedDrivers[String(offer.id)] || Number(offer.driver_user_id || 0);
+    if (!driverId) { setActionMessage('Select a driver before approving the offer.'); return; }
+    setActionMessage('Approving offer...');
+    try {
+      await api.offers.approve(String(offer.id), driverId);
+      setOffers((current) => current.map((item) => ({ ...item, status: item.id === offer.id ? 'accepted' : item.status === 'pending' ? 'rejected' : item.status })));
+      setActionMessage('Offer approved and driver assigned.');
+      onChanged?.();
+    } catch (error) { setActionMessage(error instanceof Error ? error.message : 'Offer could not be approved.'); }
+  };
 
   if (!open || !load) return null;
 
@@ -192,14 +231,23 @@ export const LoadDetails = ({ open, load, onClose, lang }: LoadDetailsProps) => 
                       {u('legacy.loadDetails.readyActions', 'Ready Actions')}
                     </p>
                   </div>
-                  <Button className="w-full">
-                    {u('legacy.loadDetails.requestAssignment', 'Request Assignment')}
-                  </Button>
-                  <Button variant="outline" className="w-full">
-                    {u('legacy.loadDetails.negotiateTerms', 'Negotiate Terms')}
-                  </Button>
+                  {role === 'superadmin' ? <Button className="w-full" onClick={() => onEdit?.(load)}><Pencil className="mr-2 h-4 w-4" />Edit load</Button> : <>
+                    <Button className="w-full">{u('legacy.loadDetails.requestAssignment', 'Request Assignment')}</Button>
+                    <Button variant="outline" className="w-full">{u('legacy.loadDetails.negotiateTerms', 'Negotiate Terms')}</Button>
+                  </>}
                 </div>
               </div>
+
+              {role === 'superadmin' && <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+                <div className="mb-4 flex items-center gap-2 text-primary"><UserCheck className="h-5 w-5" /><p className="text-xs font-black uppercase tracking-wider">Offers & driver assignment</p></div>
+                {actionMessage && <p className="mb-3 text-sm font-semibold text-slate-500">{actionMessage}</p>}
+                {offersLoading ? <p className="py-6 text-center text-sm text-slate-500">Loading offers...</p> : offers.length === 0 ? <p className="py-6 text-center text-sm text-slate-500">No offers for this load yet.</p> : <div className="space-y-3">{offers.map((offer) => {
+                  const company = offer.company as { name?: string } | undefined;
+                  const creator = offer.creator as { name?: string; email?: string } | undefined;
+                  const driver = offer.driver as { id?: number; name?: string } | undefined;
+                  return <div key={String(offer.id)} className="grid gap-3 rounded-xl border border-slate-200 p-4 dark:border-slate-800 lg:grid-cols-[1fr_auto] lg:items-center"><div><p className="font-black text-slate-900 dark:text-white">{company?.name || creator?.name || 'Independent offer'}</p><p className="text-xs text-slate-500">Offered by {creator?.name || creator?.email || '—'} · {String(offer.currency || 'EUR')} {Number(offer.amount || 0).toLocaleString()}</p>{offer.message && <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{String(offer.message)}</p>}<span className="mt-2 inline-flex rounded-full bg-slate-100 px-2 py-1 text-xs font-bold uppercase text-slate-500 dark:bg-slate-800">{String(offer.status || 'pending')}</span></div><div className="flex min-w-64 flex-col gap-2"><select value={selectedDrivers[String(offer.id)] || driver?.id || ''} onChange={(event) => setSelectedDrivers((current) => ({ ...current, [String(offer.id)]: Number(event.target.value) }))} disabled={offer.status === 'accepted'} className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"><option value="">Select driver</option>{drivers.map((profile) => { const user = profile.user as { id?: number; name?: string } | undefined; return user?.id ? <option key={user.id} value={user.id}>{user.name || `Driver ${user.id}`}</option> : null; })}</select><Button disabled={offer.status !== 'pending'} onClick={() => void approveOffer(offer)}>{offer.status === 'accepted' ? 'Approved' : 'Approve & assign'}</Button></div></div>;
+                })}</div>}
+              </div>}
 
               <div className="grid xl:grid-cols-12 gap-6">
                 <div className="xl:col-span-8 space-y-6">

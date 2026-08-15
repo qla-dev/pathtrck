@@ -6,7 +6,7 @@ import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from '
 import { ui } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { MOCK_LOADS } from '../../mockData';
-import { Language, Load } from '../../types';
+import { Language, Load, Role } from '../../types';
 import { LoadDetails } from '../load/LoadDetails';
 import { LoadItem } from '../load/LoadItem';
 import { Button } from '../ui/Button';
@@ -107,6 +107,7 @@ const LoadsBounds = ({ points }: { points: [number, number][] }) => {
 
 type HomeFeedProps = {
   lang: Language;
+  role?: Role;
   dataMode?: 'all' | 'organic' | 'global';
   loads?: Load[];
   sortMode?: FeedSortMode;
@@ -138,10 +139,13 @@ type HomeFeedProps = {
   isSortSidebarOpen?: boolean;
   onToggleFilterSidebar?: () => void;
   onToggleSortSidebar?: () => void;
+  onEditLoad?: (load: Load) => void;
+  onLoadChanged?: () => void;
 };
 
 export const HomeFeed = ({
   lang,
+  role,
   dataMode = 'all',
   loads = MOCK_LOADS,
   sortMode = 'price_asc',
@@ -173,6 +177,8 @@ export const HomeFeed = ({
   isSortSidebarOpen = false,
   onToggleFilterSidebar,
   onToggleSortSidebar,
+  onEditLoad,
+  onLoadChanged,
 }: HomeFeedProps) => {
   const [layout, setLayout] = useState<FeedLayoutMode>('map');
   const [mapSource, setMapSource] = useState<MapSource>('normal');
@@ -478,6 +484,9 @@ export const HomeFeed = ({
         open={Boolean(selectedLoad)}
         load={selectedLoad}
         lang={lang}
+        role={role}
+        onEdit={onEditLoad}
+        onChanged={onLoadChanged}
         onClose={() => setSelectedLoad(null)}
       />
     </div>

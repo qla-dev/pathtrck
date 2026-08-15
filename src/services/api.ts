@@ -100,7 +100,13 @@ export const api = {
   vehicles: resourceApi<Record<string, unknown>>('vehicles'),
   fleetAccess: resourceApi<Record<string, unknown>>('fleet-access'),
   loads: resourceApi<Record<string, unknown>>('loads'),
-  offers: resourceApi<Record<string, unknown>>('offers'),
+  offers: {
+    ...resourceApi<Record<string, unknown>>('offers'),
+    approve: (id: number | string, driverUserId?: number) => request<Record<string, unknown>>(`/offers/${id}/approve`, {
+      method: 'POST',
+      body: JSON.stringify(driverUserId ? { driver_user_id: driverUserId } : {}),
+    }),
+  },
   shipments: resourceApi<Record<string, unknown>>('shipments'),
   routes: resourceApi<Record<string, unknown>>('routes'),
   trackingEvents: resourceApi<Record<string, unknown>>('tracking-events'),
