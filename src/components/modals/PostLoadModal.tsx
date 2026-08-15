@@ -178,7 +178,7 @@ const COUNTRY_OPTIONS = ['BA', 'HR', 'RS', 'SI', 'DE', 'AT', 'IT', 'GB'];
 const VEHICLE_OPTIONS = ['Cargo Van', 'Box Truck', 'Curtainsider', 'Reefer', 'Trailer', 'Rigid Truck'];
 const BODY_TYPE_OPTIONS = ['Curtain', 'Box', 'Reefer', 'Mega', 'Tautliner', 'Flatbed'];
 const CHARACTERISTIC_OPTIONS = ['ADR', 'CMR', 'GDP', 'TIR', 'Lift', 'Express'];
-const CONTACT_OPTIONS = ['John Doe', 'Operations Desk', 'Dispatch Team'];
+const CONTACT_OPTIONS = ['Current user', 'Operations desk', 'Dispatch team'];
 const CLOSED_EXCHANGE_OPTIONS = ['', 'TIMOCOM', 'Private board'];
 
 const SectionTitle = ({

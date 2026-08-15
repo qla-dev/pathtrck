@@ -65,6 +65,7 @@ import {
 
 // Types & Services
 import { Role, Language, Load } from './types';
+import { ApiUser, api } from './services/api';
 import { MOCK_PACKAGES, MOCK_LOADS, MOCK_ROUTES } from './mockData';
 import { ui, trLoadStatus, trPackageStatus, trFuelType, trGoodsType, trPaymentTerms } from './i18n';
 import { cn } from './lib/cn';
@@ -1547,19 +1548,6 @@ const LandingPage = ({
               </div>
             </div>
 
-            <div className="flex min-w-0 items-center gap-3 sm:gap-4 mt-8">
-              <div className="flex -space-x-3">
-                {[1,2,3,4].map(i => (
-                  <div key={i} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-white dark:border-slate-950 bg-slate-200 dark:bg-slate-800 overflow-hidden">
-                    <img src={`https://picsum.photos/seed/user${i}/100/100`} alt="User" referrerPolicy="no-referrer" />
-                  </div>
-                ))}
-              </div>
-              <div className="min-w-0 text-xs sm:text-sm">
-                <p className="font-bold dark:text-white">{u('landing.activeDrivers', '12k+ Active Drivers')}</p>
-                <p className="truncate text-slate-500">{u('landing.trustingDaily', 'Trusting Smartfreight.ai daily')}</p>
-              </div>
-            </div>
           </motion.div>
 
           <motion.div 
@@ -1723,7 +1711,7 @@ const LandingPage = ({
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-950">
                   <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-violet-500"><Database className="h-4 w-4" />{u('landing.aiDispatcher.database', 'Operations database')}</div>
-                  <p className="mt-3 text-sm font-black text-slate-900 dark:text-white">{u('landing.aiDispatcher.signalCount', '18.7M operational signals')}</p>
+                  <p className="mt-3 text-sm font-black text-slate-900 dark:text-white">{u('landing.aiDispatcher.signalCount', 'Live operational records')}</p>
                   <div className="mt-3 grid grid-cols-3 gap-1.5">{[72, 94, 61].map((height, index) => <div key={height} className="flex h-8 items-end overflow-hidden rounded-md bg-slate-100 dark:bg-slate-800"><motion.div initial={{ height: 0 }} whileInView={{ height: `${height}%` }} transition={{ delay: 0.45 + index * 0.12 }} className="w-full rounded-md bg-linear-to-t from-primary to-violet-400" /></div>)}</div>
                 </div>
               </div>
@@ -2581,7 +2569,7 @@ const Onboarding = ({
                   <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{u('onboarding.fullName', 'Full Name')}</label>
                   <input 
                     type="text" 
-                    placeholder="John Doe"
+                    placeholder="Full name"
                     className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors cursor-pointer"
                     value={driverData.name}
                     onChange={(e) => setDriverData({...driverData, name: e.target.value})}
@@ -3046,7 +3034,8 @@ const estimateLoadTransitDays = (pickup: string, delivery: string) => {
 };
 
 const buildFeedRangeBounds = (loads: Load[]) => {
-  const sourceLoads = loads.length > 0 ? loads : MOCK_LOADS;
+  const sourceLoads = loads;
+  if (sourceLoads.length === 0) return { priceMin: 0, priceMax: 0, weightMin: 0, weightMax: 0, lengthMin: 0, lengthMax: 0, widthMin: 0, widthMax: 0, heightMin: 0, heightMax: 0, temperatureMin: 0, temperatureMax: 0, cargoValueMin: 0, cargoValueMax: 0, transitMin: 0, transitMax: 0 };
   const prices = sourceLoads.map((load) => parseLoadPriceValue(load.price));
   const weights = sourceLoads.map((load) => parseLoadWeightValue(load.weight));
   const lengths = sourceLoads.map(getLoadLengthValue);
@@ -3118,6 +3107,8 @@ export default function App() {
   const [isLanding, setIsLanding] = useState(true);
   const [authMode, setAuthMode] = useState<'setup' | 'login'>('setup');
   const [role, setRole] = useState<Role>(null);
+  const [currentUser, setCurrentUser] = useState<ApiUser | null>(null);
+  const [databaseLoads, setDatabaseLoads] = useState<Load[]>([]);
   const [lang, setLang] = useState<Language>(() => getInitialLanguage());
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [view, setView] = useState('tracking');
@@ -3135,7 +3126,7 @@ export default function App() {
     () => GLOBAL_OFFERS.map((offer, index) => mapGlobalOfferToLoad(offer, index)),
     []
   );
-  const organicFeedLoads = MOCK_LOADS;
+  const organicFeedLoads = databaseLoads;
   const allFeedLoads = useMemo<Load[]>(
     () => [...organicFeedLoads, ...globalFeedLoads],
     [organicFeedLoads, globalFeedLoads]
@@ -3190,6 +3181,20 @@ export default function App() {
     hasCityApiKey: hasFeedCityApiKey,
     clearLocations: clearFeedLocations,
   } = useCitySuggestions({ seedCities: feedSeedCities });
+
+  useEffect(() => {
+    if (!role) { setCurrentUser(null); setDatabaseLoads([]); return; }
+    void api.auth.me().then(setCurrentUser).catch(() => setCurrentUser(null));
+    void api.loads.list({ per_page: 100 }).then((response) => setDatabaseLoads(response.data.map((record) => {
+      const stops = Array.isArray(record.stops) ? record.stops as Array<Record<string, unknown>> : [];
+      const pickup = stops.find((stop) => stop.type === 'pickup');
+      const delivery = [...stops].reverse().find((stop) => stop.type === 'delivery');
+      const rawStatus = String(record.status || 'available').toLowerCase();
+      const status: Load['status'] = rawStatus === 'completed' ? 'Completed' : rawStatus === 'in_transit' ? 'In Transit' : rawStatus === 'assigned' ? 'Assigned' : 'Available';
+      const terms = String(record.payment_terms || 'negotiable').toLowerCase();
+      return { id: String(record.id), title: String(record.title || `Load ${record.public_id || record.id}`), weight: `${Number(record.weight_kg || 0).toLocaleString()} kg`, price: `${String(record.currency || 'EUR')} ${Number(record.budget || 0).toLocaleString()}`, pickup: [pickup?.city, pickup?.country_code].filter(Boolean).join(', '), delivery: [delivery?.city, delivery?.country_code].filter(Boolean).join(', '), date: String(record.published_at || record.created_at || ''), author: String((record.customer as { name?: string } | undefined)?.name || ''), status, cargoType: String(record.cargo_type || ''), goodsType: String(record.goods_type || ''), paymentTerms: terms === 'in_advance' ? 'In Advance' : terms === 'on_delivery' ? 'On Delivery' : 'Negotiable', eta: String(record.completed_at || '') };
+    }))).catch(() => setDatabaseLoads([]));
+  }, [role]);
 
   useEffect(() => {
     if (isDark) {
@@ -3257,8 +3262,6 @@ export default function App() {
   const t = translations[lang || 'en'];
   const currentLang = languages.find(l => l.id === (lang || 'en')) || languages[0];
   const analyticsLabel = u('common.analytics', 'Analytics');
-  const tokenBalance = role === 'driver' ? 36 : role === 'company' ? 120 : role === 'superadmin' ? 9999 : 24;
-  const tokenLabel = u('common.tokens', 'tokens');
   const roleMeta = role === 'driver'
     ? { label: u('common.driverLicense', 'Driver License'), status: u('common.verified', 'Verified'), icon: Truck, tone: 'bg-primary/10 text-primary' }
     : role === 'company'
@@ -3741,7 +3744,7 @@ export default function App() {
           </div>
           <div className="hidden md:flex items-center gap-3">
             <p className="text-sm text-slate-500">
-              {t.welcome}, <span className="font-bold text-slate-900 dark:text-white">John Doe</span>
+              {t.welcome}, <span className="font-bold text-slate-900 dark:text-white">{currentUser?.name || currentUser?.username || '—'}</span>
             </p>
           </div>
           <div className="flex items-center gap-4">
@@ -3764,13 +3767,6 @@ export default function App() {
               <RoleStatusIcon className="w-4 h-4" />
               {roleMeta.label} • {roleMeta.status}
             </span>
-
-            {role !== 'finance' && (
-              <div className="h-10 px-3 rounded-full bg-slate-100 dark:bg-slate-800 text-primary inline-flex items-center gap-2 text-xs font-bold">
-                <Coins className="w-4 h-4" />
-                <span>{tokenBalance} {tokenLabel}</span>
-              </div>
-            )}
 
             {/* Language Switcher */}
             <div className="relative group">
@@ -3843,7 +3839,7 @@ export default function App() {
               </button>
               <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all p-2 z-[100]">
                 <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 mb-2">
-                  <p className="text-sm font-bold dark:text-white">John Doe</p>
+                  <p className="text-sm font-bold dark:text-white">{currentUser?.name || currentUser?.username || '—'}</p>
                   <p className="text-[10px] text-slate-500 uppercase tracking-wider">{roleMeta.label}</p>
                 </div>
                 <button

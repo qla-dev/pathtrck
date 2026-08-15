@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 
 import { Language } from '../../types';
+import { api } from '../../services/api';
+import { useApiList } from '../../hooks/useApiList';
 import { cn } from '../../lib/cn';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
@@ -25,24 +27,17 @@ import { Card } from '../ui/Card';
 type Alignment = 'left' | 'center';
 type PreviewMode = 'desktop' | 'mobile';
 
-const AUDIENCES = [
-  { id: 'all', label: 'All companies', count: 148 },
-  { id: 'enterprise', label: 'Enterprise companies', count: 42 },
-  { id: 'trial', label: 'Trial accounts', count: 19 },
-  { id: 'inactive', label: 'Inactive companies', count: 11 },
-  { id: 'verified', label: 'Verified companies', count: 131 },
-];
-
 export const EmailStudioView = ({ lang: _lang }: { lang: Language }) => {
-  const [campaignName, setCampaignName] = useState('August Platform Update');
-  const [senderName, setSenderName] = useState('Smartfreight Team');
-  const [subject, setSubject] = useState('Move freight smarter this month');
-  const [preheader, setPreheader] = useState('New company tools, better visibility, and faster dispatch.');
-  const [heading, setHeading] = useState('Your logistics operation just got smarter.');
-  const [body, setBody] = useState('We have launched new fleet collaboration, live company analytics, and faster load coordination tools to help your team move with confidence.');
-  const [buttonText, setButtonText] = useState('Open Smartfreight');
-  const [buttonUrl, setButtonUrl] = useState('https://smartfreight.ai');
-  const [heroImage, setHeroImage] = useState('https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80');
+  const companies = useApiList(api.companies.list, { per_page: 100 });
+  const [campaignName, setCampaignName] = useState('');
+  const [senderName, setSenderName] = useState('');
+  const [subject, setSubject] = useState('');
+  const [preheader, setPreheader] = useState('');
+  const [heading, setHeading] = useState('');
+  const [body, setBody] = useState('');
+  const [buttonText, setButtonText] = useState('');
+  const [buttonUrl, setButtonUrl] = useState('');
+  const [heroImage, setHeroImage] = useState('');
   const [primaryColor, setPrimaryColor] = useState('#00AEEF');
   const [backgroundColor, setBackgroundColor] = useState('#F1F5F9');
   const [contentColor, setContentColor] = useState('#FFFFFF');
@@ -53,22 +48,41 @@ export const EmailStudioView = ({ lang: _lang }: { lang: Language }) => {
   const [alignment, setAlignment] = useState<Alignment>('left');
   const [audience, setAudience] = useState('all');
   const [previewMode, setPreviewMode] = useState<PreviewMode>('desktop');
-  const [testEmail, setTestEmail] = useState('admin@smartfreight.ai');
-  const [status, setStatus] = useState('Draft autosaved');
+  const [testEmail, setTestEmail] = useState('');
+  const [status, setStatus] = useState('Not saved');
+  const [templateId, setTemplateId] = useState<number | null>(null);
 
-  const audienceData = useMemo(() => AUDIENCES.find((item) => item.id === audience) || AUDIENCES[0], [audience]);
+  const audiences = useMemo(() => [
+    { id: 'all', label: 'All companies', count: companies.items.length },
+    { id: 'enterprise', label: 'Enterprise companies', count: companies.items.filter((item) => item.plan === 'enterprise').length },
+    { id: 'trial', label: 'Trial accounts', count: companies.items.filter((item) => item.plan === 'trial').length },
+    { id: 'inactive', label: 'Inactive companies', count: companies.items.filter((item) => item.status === 'inactive').length },
+    { id: 'verified', label: 'Verified companies', count: companies.items.filter((item) => item.status === 'verified').length },
+  ], [companies.items]);
+  const audienceData = useMemo(() => audiences.find((item) => item.id === audience) || audiences[0], [audience, audiences]);
   const fieldClass = 'h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white';
   const labelClass = 'mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-500';
 
-  const saveTemplate = () => {
-    setStatus('Template saved');
-    window.setTimeout(() => setStatus('Draft autosaved'), 1800);
+  const saveTemplate = async () => {
+    if (!campaignName.trim() || !subject.trim() || !body.trim()) { setStatus('Name, subject and body are required'); return; }
+    setStatus('Saving...');
+    try {
+      const user = await api.auth.me();
+      const data = { created_by_user_id: user.id, name: campaignName, subject, html_body: `<h1>${heading}</h1><p>${body}</p>`, design: { senderName, preheader, buttonText, buttonUrl, heroImage, alignment, primaryColor, backgroundColor }, is_active: true };
+      const response = templateId ? await api.emailTemplates.update(templateId, data) : await api.emailTemplates.create(data);
+      setTemplateId(Number(response.data.id));
+      setStatus('Template saved to database');
+    } catch (caught) { setStatus(caught instanceof Error ? caught.message : 'Template could not be saved'); }
   };
   const sendTest = () => {
     if (!/^\S+@\S+\.\S+$/.test(testEmail)) { setStatus('Enter a valid test email'); return; }
-    setStatus(`Test sent to ${testEmail}`);
+    setStatus('Test email delivery is not configured on the backend');
   };
-  const prepareCampaign = () => setStatus(`Campaign ready for ${audienceData.count} companies`);
+  const prepareCampaign = async () => {
+    if (!templateId) { setStatus('Save the template first'); return; }
+    try { const user = await api.auth.me(); await api.emailCampaigns.create({ email_template_id: templateId, created_by_user_id: user.id, name: campaignName, status: 'draft' }); setStatus(`Campaign draft saved for ${audienceData.count} companies`); }
+    catch (caught) { setStatus(caught instanceof Error ? caught.message : 'Campaign could not be saved'); }
+  };
 
   return (
     <div className="space-y-6">
@@ -89,7 +103,7 @@ export const EmailStudioView = ({ lang: _lang }: { lang: Language }) => {
               <label><span className={labelClass}>Sender name</span><input className={fieldClass} value={senderName} onChange={(event) => setSenderName(event.target.value)} /></label>
               <label><span className={labelClass}>Subject line</span><input className={fieldClass} value={subject} onChange={(event) => setSubject(event.target.value)} /></label>
               <label><span className={labelClass}>Preview text</span><input className={fieldClass} value={preheader} onChange={(event) => setPreheader(event.target.value)} /></label>
-              <label><span className={labelClass}>Audience</span><select className={fieldClass} value={audience} onChange={(event) => setAudience(event.target.value)}>{AUDIENCES.map((item) => <option key={item.id} value={item.id}>{item.label} ({item.count})</option>)}</select></label>
+              <label><span className={labelClass}>Audience</span><select className={fieldClass} value={audience} onChange={(event) => setAudience(event.target.value)}>{audiences.map((item) => <option key={item.id} value={item.id}>{item.label} ({item.count})</option>)}</select></label>
             </div>
           </Card>
 
