@@ -27,16 +27,16 @@ type LoginProcessProps = {
 export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }: LoginProcessProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const roleOptions = [
+    { id: 'superadmin' as const, label: u('login.superadmin', 'Superadmin'), icon: Crown },
     { id: 'user' as const, label: u('onboarding.customerTitle', "I'm a Customer"), icon: User },
     { id: 'driver' as const, label: u('onboarding.driverTitle', "I'm a Driver"), icon: Truck },
     { id: 'company' as const, label: u('login.logisticsCompany', 'Logistics Company'), icon: Building2 },
     { id: 'finance' as const, label: u('login.financeAdministration', 'Finance & Administration'), icon: Banknote },
-    { id: 'superadmin' as const, label: u('login.superadmin', 'Superadmin'), icon: Crown },
   ];
   const [loginData, setLoginData] = useState({
-    username: 'driver_demo',
+    username: 'superadmin_demo',
     password: 'demo12345',
-    role: 'driver' as Role,
+    role: 'superadmin' as Role,
   });
   const [isSwitchingToSetup, setIsSwitchingToSetup] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
