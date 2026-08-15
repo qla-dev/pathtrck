@@ -221,10 +221,10 @@ export const SettingsView = ({
           <div className="space-y-3">
             {isDriver ? (
               <>
-                <InfoRow label={u('legacy.settings.licenseNumber', 'License Number')} value={String(((user as ApiUser & { driver_profile?: Record<string, unknown> } | null)?.driver_profile || {}).license_number || '—')} />
-                <InfoRow label={u('legacy.settings.licenseExpiry', 'License Expiry')} value={String(((user as ApiUser & { driver_profile?: Record<string, unknown> } | null)?.driver_profile || {}).license_expires_at || '—')} />
-                <InfoRow label={u('legacy.settings.vehicleClass', 'Availability')} value={String(((user as ApiUser & { driver_profile?: Record<string, unknown> } | null)?.driver_profile || {}).availability_status || '—')} />
-                <InfoRow label={u('legacy.settings.adrCertificate', 'Rating')} value={String(((user as ApiUser & { driver_profile?: Record<string, unknown> } | null)?.driver_profile || {}).rating || '—')} />
+                <InfoRow label={u('legacy.settings.licenseNumber', 'License Number')} value={String(((user as ApiUser & { driver?: Record<string, unknown> } | null)?.driver || {}).license_number || '—')} />
+                <InfoRow label={u('legacy.settings.licenseExpiry', 'License Expiry')} value={String(((user as ApiUser & { driver?: Record<string, unknown> } | null)?.driver || {}).license_expires_at || '—')} />
+                <InfoRow label={u('legacy.settings.vehicleClass', 'Availability')} value={String(((user as ApiUser & { driver?: Record<string, unknown> } | null)?.driver || {}).availability_status || '—')} />
+                <InfoRow label={u('legacy.settings.adrCertificate', 'Rating')} value={String(((user as ApiUser & { driver?: Record<string, unknown> } | null)?.driver || {}).rating || '—')} />
               </>
             ) : (
               <>

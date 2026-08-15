@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { 
   Package as PackageIcon, 
@@ -12,7 +12,6 @@ import {
   User, 
   ChevronDown,
   ChevronRight, 
-  Menu, 
   X, 
   Moon, 
   Sun, 
@@ -35,6 +34,7 @@ import {
   Crown,
   Mail,
   UserRound,
+  PanelLeftClose,
   BrainCircuit,
   Database,
   RadioTower,
@@ -101,6 +101,7 @@ import { LoginProcess } from './components/auth/LoginProcess';
 import { AiRouteCalculatorCard } from './components/ai_automattions/AiRouteCalculatorCard';
 
 const LANGUAGE_STORAGE_KEY = 'pathtrck.language';
+const SIDEBAR_STORAGE_KEY = 'smartfreight.sidebar';
 
 const SUPPORTED_LANGUAGES: Exclude<Language, null>[] = [
   'en',
@@ -696,7 +697,7 @@ const makeLandingTranslation = (overrides: Record<string, string>) => ({
     messages: "Messages",
     history: "History",
     settings: "Settings",
-    homeFeed: "Loads Feed",
+    homeFeed: "Freight Exchange",
     trailer: "Trailer",
     tailLift: "Tail Lift",
     username: "Username",
@@ -741,7 +742,7 @@ const translations: Record<Exclude<Language, null>, Record<string, string>> = {
     messages: "Messages",
     history: "History",
     settings: "Settings",
-    homeFeed: "Loads Feed",
+    homeFeed: "Freight Exchange",
     trailer: "Trailer",
     tailLift: "Tail Lift",
     username: "Username",
@@ -782,7 +783,7 @@ const translations: Record<Exclude<Language, null>, Record<string, string>> = {
     messages: "Poruke",
     history: "Historija",
     settings: "Postavke",
-    homeFeed: "Feed tereta",
+    homeFeed: "Berza tereta",
     trailer: "Prikolica",
     tailLift: "Rampa",
     username: "Korisničko ime",
@@ -823,7 +824,7 @@ const translations: Record<Exclude<Language, null>, Record<string, string>> = {
     messages: "Nachrichten",
     history: "Verlauf",
     settings: "Einstellungen",
-    homeFeed: "Ladungs-Feed",
+    homeFeed: "Frachtbörse",
     trailer: "Anhänger",
     tailLift: "Hebebühne",
     username: "Benutzername",
@@ -860,7 +861,7 @@ const translations: Record<Exclude<Language, null>, Record<string, string>> = {
     messages: "Wiadomosci",
     history: "Historia",
     settings: "Ustawienia",
-    homeFeed: "Feed ladunkow",
+    homeFeed: "Giełda transportowa",
     accountSettings: "Ustawienia konta",
     support: "Wsparcie",
     documentation: "Dokumentacja",
@@ -889,7 +890,7 @@ const translations: Record<Exclude<Language, null>, Record<string, string>> = {
     messages: "Mesaje",
     history: "Istoric",
     settings: "Setari",
-    homeFeed: "Flux marfuri",
+    homeFeed: "Bursa de mărfuri",
     accountSettings: "Setari cont",
     support: "Suport",
     documentation: "Documentatie",
@@ -918,7 +919,7 @@ const translations: Record<Exclude<Language, null>, Record<string, string>> = {
     messages: "Berichten",
     history: "Geschiedenis",
     settings: "Instellingen",
-    homeFeed: "Ladingen feed",
+    homeFeed: "Vrachtbeurs",
     accountSettings: "Accountinstellingen",
     support: "Ondersteuning",
     documentation: "Documentatie",
@@ -947,7 +948,7 @@ const translations: Record<Exclude<Language, null>, Record<string, string>> = {
     messages: "Messages",
     history: "Historique",
     settings: "Parametres",
-    homeFeed: "Flux de chargements",
+    homeFeed: "Bourse de fret",
     accountSettings: "Parametres du compte",
     support: "Support",
     documentation: "Documentation",
@@ -976,7 +977,7 @@ const translations: Record<Exclude<Language, null>, Record<string, string>> = {
     messages: "Messaggi",
     history: "Cronologia",
     settings: "Impostazioni",
-    homeFeed: "Feed carichi",
+    homeFeed: "Borsa carichi",
     accountSettings: "Impostazioni account",
     support: "Supporto",
     documentation: "Documentazione",
@@ -1010,7 +1011,7 @@ const translations: Record<Exclude<Language, null>, Record<string, string>> = {
     messages: "消息",
     history: "历史",
     settings: "设置",
-    homeFeed: "货运列表",
+    homeFeed: "货运交易所",
     trailer: "拖车",
     tailLift: "尾板",
     username: "用户名",
@@ -1046,7 +1047,7 @@ const translations: Record<Exclude<Language, null>, Record<string, string>> = {
     messages: "Mensajes",
     history: "Historial",
     settings: "Configuracion",
-    homeFeed: "Feed de cargas",
+    homeFeed: "Bolsa de cargas",
     accountSettings: "Configuracion de la cuenta",
     support: "Soporte",
     documentation: "Documentacion",
@@ -1076,7 +1077,7 @@ const translations: Record<Exclude<Language, null>, Record<string, string>> = {
     messages: "Poruke",
     history: "Istorija",
     settings: "Podesavanja",
-    homeFeed: "Feed tereta",
+    homeFeed: "Berza tereta",
     accountSettings: "Podesavanja naloga",
     support: "Podrska",
     documentation: "Dokumentacija",
@@ -1105,7 +1106,7 @@ const translations: Record<Exclude<Language, null>, Record<string, string>> = {
     messages: "Meddelanden",
     history: "Historik",
     settings: "Installningar",
-    homeFeed: "Lastflode",
+    homeFeed: "Fraktbörs",
     accountSettings: "Kontoinstallningar",
     support: "Support",
     documentation: "Dokumentation",
@@ -1139,7 +1140,7 @@ const translations: Record<Exclude<Language, null>, Record<string, string>> = {
     messages: "الرسائل",
     history: "السجل",
     settings: "الإعدادات",
-    homeFeed: "قائمة الحمولات",
+    homeFeed: "بورصة الشحن",
     trailer: "مقطورة",
     tailLift: "رافعة خلفية",
     username: "اسم المستخدم",
@@ -1175,7 +1176,7 @@ const translations: Record<Exclude<Language, null>, Record<string, string>> = {
     messages: "Mensagens",
     history: "Historico",
     settings: "Configuracoes",
-    homeFeed: "Feed de cargas",
+    homeFeed: "Bolsa de cargas",
     accountSettings: "Configuracoes da conta",
     support: "Suporte",
     documentation: "Documentacao",
@@ -3010,12 +3011,12 @@ const parseLoadWeightValue = (weight: string) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-const getLoadLengthValue = (load: Load) => load.length ?? 0;
-const getLoadWidthValue = (load: Load) => load.width ?? 0;
-const getLoadHeightValue = (load: Load) => load.height ?? 0;
+const getLoadLengthValue = (load: Load) => load.length;
+const getLoadWidthValue = (load: Load) => load.width;
+const getLoadHeightValue = (load: Load) => load.height;
 const getLoadTemperatureMinValue = (load: Load) => load.temperatureMin ?? 15;
 const getLoadTemperatureMaxValue = (load: Load) => load.temperatureMax ?? 25;
-const getLoadCargoValue = (load: Load) => load.cargoValue ?? 0;
+const getLoadCargoValue = (load: Load) => load.cargoValue;
 
 type FeedDataMode = 'all' | 'organic' | 'global';
 
@@ -3033,36 +3034,50 @@ const estimateLoadTransitDays = (pickup: string, delivery: string) => {
   return Math.max(1, Math.ceil(distanceKm / 700));
 };
 
+const getInitialSidebarState = (): boolean => {
+  if (typeof window === 'undefined') return true;
+
+  return window.localStorage.getItem(SIDEBAR_STORAGE_KEY) !== 'collapsed';
+};
+
+const numericBounds = (values: Array<number | undefined>, fallback: [number, number]) => {
+  const present = values.filter((value): value is number => value !== undefined && Number.isFinite(value));
+  if (present.length === 0) return fallback;
+  const min = Math.min(...present);
+  const max = Math.max(...present);
+  return min === max ? [Math.min(0, min), Math.max(fallback[1], max)] as const : [min, max] as const;
+};
+
 const buildFeedRangeBounds = (loads: Load[]) => {
   const sourceLoads = loads;
   if (sourceLoads.length === 0) return { priceMin: 0, priceMax: 0, weightMin: 0, weightMax: 0, lengthMin: 0, lengthMax: 0, widthMin: 0, widthMax: 0, heightMin: 0, heightMax: 0, temperatureMin: 0, temperatureMax: 0, cargoValueMin: 0, cargoValueMax: 0, transitMin: 0, transitMax: 0 };
   const prices = sourceLoads.map((load) => parseLoadPriceValue(load.price));
   const weights = sourceLoads.map((load) => parseLoadWeightValue(load.weight));
-  const lengths = sourceLoads.map(getLoadLengthValue);
-  const widths = sourceLoads.map(getLoadWidthValue);
-  const heights = sourceLoads.map(getLoadHeightValue);
+  const [lengthMin, lengthMax] = numericBounds(sourceLoads.map(getLoadLengthValue), [0, 32]);
+  const [widthMin, widthMax] = numericBounds(sourceLoads.map(getLoadWidthValue), [0, 3]);
+  const [heightMin, heightMax] = numericBounds(sourceLoads.map(getLoadHeightValue), [0, 4]);
   const temperatureMins = sourceLoads.map(getLoadTemperatureMinValue);
   const temperatureMaxs = sourceLoads.map(getLoadTemperatureMaxValue);
-  const cargoValues = sourceLoads.map(getLoadCargoValue);
-  const transits = sourceLoads.map((load) => estimateLoadTransitDays(load.pickup, load.delivery));
+  const [cargoValueMin, cargoValueMax] = numericBounds(sourceLoads.map(getLoadCargoValue), [0, 250000]);
+  const [transitMin, transitMax] = numericBounds(sourceLoads.map((load) => load.transitDays), [1, 30]);
 
   return {
     priceMin: Math.min(...prices),
     priceMax: Math.max(...prices),
     weightMin: Math.min(...weights),
     weightMax: Math.max(...weights),
-    lengthMin: Math.min(...lengths),
-    lengthMax: Math.max(...lengths),
-    widthMin: Math.min(...widths),
-    widthMax: Math.max(...widths),
-    heightMin: Math.min(...heights),
-    heightMax: Math.max(...heights),
+    lengthMin,
+    lengthMax,
+    widthMin,
+    widthMax,
+    heightMin,
+    heightMax,
     temperatureMin: Math.min(...temperatureMins),
     temperatureMax: Math.max(...temperatureMaxs),
-    cargoValueMin: Math.min(...cargoValues),
-    cargoValueMax: Math.max(...cargoValues),
-    transitMin: Math.min(...transits),
-    transitMax: Math.max(...transits),
+    cargoValueMin,
+    cargoValueMax,
+    transitMin,
+    transitMax,
   };
 };
 
@@ -3091,6 +3106,7 @@ const mapGlobalOfferToLoad = (
     isFragile: index % 3 === 0,
     urgency: index % 2 === 0 ? 'Express' : 'Standard',
     loadingMethods: index % 3 === 0 ? ['Forklift', 'Manual'] : index % 3 === 1 ? ['Crane'] : ['Forklift'],
+    transitDays: estimateLoadTransitDays(offer.origin, offer.destination),
     pickup: offer.origin,
     delivery: offer.destination,
     date: `March ${2 + index}, 2026`,
@@ -3103,24 +3119,93 @@ const mapGlobalOfferToLoad = (
   };
 };
 
+const mapDatabaseRecordToLoad = (record: Record<string, unknown>): Load => {
+  const stops = Array.isArray(record.stops) ? record.stops as Array<Record<string, unknown>> : [];
+  const pickup = stops.find((stop) => stop.type === 'pickup');
+  const delivery = [...stops].reverse().find((stop) => stop.type === 'delivery');
+  const rawStatus = String(record.status || 'available').toLowerCase();
+  const status: Load['status'] = rawStatus === 'available'
+    ? 'Available'
+    : rawStatus === 'completed'
+      ? 'Completed'
+      : rawStatus === 'in_transit'
+        ? 'In Transit'
+        : 'Assigned';
+  const terms = String(record.payment_terms || 'negotiable').toLowerCase();
+  const loadingMethods = Array.isArray(record.loading_methods)
+    ? record.loading_methods.filter((method): method is 'Forklift' | 'Crane' | 'Manual' =>
+        ['Forklift', 'Crane', 'Manual'].includes(String(method))
+      )
+    : [];
+  const pickupDate = Date.parse(String(pickup?.window_starts_at || ''));
+  const deliveryDate = Date.parse(String(delivery?.window_ends_at || delivery?.window_starts_at || ''));
+  const transitDays = Number.isFinite(pickupDate) && Number.isFinite(deliveryDate)
+    ? Math.max(1, Math.ceil((deliveryDate - pickupDate) / 86400000))
+    : undefined;
+
+  return {
+    id: String(record.id),
+    title: String(record.title || `Load ${record.public_id || record.id}`),
+    weight: Number(record.weight_kg || 0).toLocaleString(),
+    price: `${String(record.currency || 'EUR')} ${Number(record.budget || 0).toLocaleString()}`,
+    length: record.length_m == null ? undefined : Number(record.length_m),
+    width: record.width_m == null ? undefined : Number(record.width_m),
+    height: record.height_m == null ? undefined : Number(record.height_m),
+    temperatureMin: record.temperature_min == null ? 15 : Number(record.temperature_min),
+    temperatureMax: record.temperature_max == null ? 25 : Number(record.temperature_max),
+    cargoValue: record.declared_value == null ? undefined : Number(record.declared_value),
+    isFragile: Boolean(record.is_fragile),
+    urgency: record.is_urgent ? 'Express' : 'Standard',
+    loadingMethods,
+    transitDays,
+    pickup: [pickup?.city, pickup?.country_code].filter(Boolean).join(', '),
+    delivery: [delivery?.city, delivery?.country_code].filter(Boolean).join(', '),
+    date: String(record.published_at || record.created_at || ''),
+    author: String((record.customer as { name?: string } | undefined)?.name || ''),
+    status,
+    cargoType: String(record.cargo_type || ''),
+    goodsType: String(record.goods_type || ''),
+    paymentTerms: terms === 'in_advance' ? 'In Advance' : terms === 'on_delivery' ? 'On Delivery' : 'Negotiable',
+    eta: String(record.completed_at || ''),
+  };
+};
+
+const getDefaultViewForRole = (role: Exclude<Role, null>) =>
+  role === 'driver'
+    ? 'feed'
+    : role === 'company'
+      ? 'company'
+      : role === 'finance'
+        ? 'finance'
+        : role === 'superadmin'
+          ? 'admin'
+          : 'tracking';
+
 export default function App() {
   const [isLanding, setIsLanding] = useState(true);
+  const [isAuthRestoring, setIsAuthRestoring] = useState(true);
   const [authMode, setAuthMode] = useState<'setup' | 'login'>('setup');
   const [role, setRole] = useState<Role>(null);
   const [currentUser, setCurrentUser] = useState<ApiUser | null>(null);
   const [databaseLoads, setDatabaseLoads] = useState<Load[]>([]);
+  const [databaseLoadsLoaded, setDatabaseLoadsLoaded] = useState(false);
   const [lang, setLang] = useState<Language>(() => getInitialLanguage());
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [view, setView] = useState('tracking');
   const [isDark, setIsDark] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => getInitialSidebarState());
   const [isMainFilterSidebarOpen, setIsMainFilterSidebarOpen] = useState(false);
   const [isMainSortSidebarOpen, setIsMainSortSidebarOpen] = useState(false);
   const [isPostLoadOpen, setIsPostLoadOpen] = useState(false);
   const [editLoadId, setEditLoadId] = useState<string | null>(null);
   const [loadRefreshKey, setLoadRefreshKey] = useState(0);
+  const trackingCompanyIds = useMemo(
+    () => (currentUser?.companies || []).map((company) => Number(company.id)).filter(Number.isFinite),
+    [currentUser]
+  );
   const [feedSortMode, setFeedSortMode] = useState<FeedSortMode>('price_asc');
   const [feedDataMode, setFeedDataMode] = useState<FeedDataMode>('all');
+  const initializedFeedRangeModes = useRef<Set<FeedDataMode>>(new Set(['global']));
   const [feedServiceFilters, setFeedServiceFilters] = useState<ServiceFilters>(() => ({
     ...FEED_DEFAULT_SERVICE_FILTERS,
   }));
@@ -3163,6 +3248,36 @@ export default function App() {
   const [selectedFeedUrgency, setSelectedFeedUrgency] = useState<string[]>([]);
   const [selectedFeedLoadingMethods, setSelectedFeedLoadingMethods] = useState<string[]>([]);
 
+  useEffect(() => {
+    let active = true;
+
+    if (!api.auth.hasSession()) {
+      setIsAuthRestoring(false);
+      return () => { active = false; };
+    }
+
+    void api.auth.me()
+      .then((user) => {
+        if (!active || !user.role?.name) return;
+        const restoredRole = user.role.name;
+        setCurrentUser(user);
+        setRole(restoredRole);
+        setView(getDefaultViewForRole(restoredRole));
+        if (isSupportedLanguage(user.language)) setLang(user.language);
+        setIsLanding(false);
+      })
+      .catch(() => {
+        if (!active) return;
+        setCurrentUser(null);
+        setRole(null);
+      })
+      .finally(() => {
+        if (active) setIsAuthRestoring(false);
+      });
+
+    return () => { active = false; };
+  }, []);
+
   const feedSeedCities = useMemo(
     () =>
       activeFeedLoads.flatMap((load) => [
@@ -3185,18 +3300,81 @@ export default function App() {
   } = useCitySuggestions({ seedCities: feedSeedCities });
 
   useEffect(() => {
-    if (!role) { setCurrentUser(null); setDatabaseLoads([]); return; }
+    if (!role) {
+      setCurrentUser(null);
+      setDatabaseLoads([]);
+      setDatabaseLoadsLoaded(false);
+      initializedFeedRangeModes.current = new Set(['global']);
+      return;
+    }
+    setDatabaseLoadsLoaded(false);
     void api.auth.me().then(setCurrentUser).catch(() => setCurrentUser(null));
-    void api.loads.list({ per_page: 100 }).then((response) => setDatabaseLoads(response.data.map((record) => {
-      const stops = Array.isArray(record.stops) ? record.stops as Array<Record<string, unknown>> : [];
-      const pickup = stops.find((stop) => stop.type === 'pickup');
-      const delivery = [...stops].reverse().find((stop) => stop.type === 'delivery');
-      const rawStatus = String(record.status || 'available').toLowerCase();
-      const status: Load['status'] = rawStatus === 'completed' ? 'Completed' : rawStatus === 'in_transit' ? 'In Transit' : rawStatus === 'assigned' ? 'Assigned' : 'Available';
-      const terms = String(record.payment_terms || 'negotiable').toLowerCase();
-      return { id: String(record.id), title: String(record.title || `Load ${record.public_id || record.id}`), weight: `${Number(record.weight_kg || 0).toLocaleString()} kg`, price: `${String(record.currency || 'EUR')} ${Number(record.budget || 0).toLocaleString()}`, pickup: [pickup?.city, pickup?.country_code].filter(Boolean).join(', '), delivery: [delivery?.city, delivery?.country_code].filter(Boolean).join(', '), date: String(record.published_at || record.created_at || ''), author: String((record.customer as { name?: string } | undefined)?.name || ''), status, cargoType: String(record.cargo_type || ''), goodsType: String(record.goods_type || ''), paymentTerms: terms === 'in_advance' ? 'In Advance' : terms === 'on_delivery' ? 'On Delivery' : 'Negotiable', eta: String(record.completed_at || '') };
-    }))).catch(() => setDatabaseLoads([]));
+    void api.loads.list({ per_page: 100, status: 'available' })
+      .then((response) => setDatabaseLoads(response.data.map(mapDatabaseRecordToLoad)))
+      .catch(() => setDatabaseLoads([]))
+      .finally(() => setDatabaseLoadsLoaded(true));
   }, [role, loadRefreshKey]);
+
+  useEffect(() => {
+    if (initializedFeedRangeModes.current.has(feedDataMode)) {
+      if (!databaseLoadsLoaded || activeFeedLoads.length === 0) return;
+      if (feedSelectedLengthMin === 0 && feedSelectedLengthMax === 0 && feedRangeBounds.lengthMax > feedRangeBounds.lengthMin) {
+        setFeedSelectedLengthMin(feedRangeBounds.lengthMin);
+        setFeedSelectedLengthMax(feedRangeBounds.lengthMax);
+      }
+      if (feedSelectedWidthMin === 0 && feedSelectedWidthMax === 0 && feedRangeBounds.widthMax > feedRangeBounds.widthMin) {
+        setFeedSelectedWidthMin(feedRangeBounds.widthMin);
+        setFeedSelectedWidthMax(feedRangeBounds.widthMax);
+      }
+      if (feedSelectedHeightMin === 0 && feedSelectedHeightMax === 0 && feedRangeBounds.heightMax > feedRangeBounds.heightMin) {
+        setFeedSelectedHeightMin(feedRangeBounds.heightMin);
+        setFeedSelectedHeightMax(feedRangeBounds.heightMax);
+      }
+      if (feedSelectedCargoValueMin === 0 && feedSelectedCargoValueMax === 0 && feedRangeBounds.cargoValueMax > feedRangeBounds.cargoValueMin) {
+        setFeedSelectedCargoValueMin(feedRangeBounds.cargoValueMin);
+        setFeedSelectedCargoValueMax(feedRangeBounds.cargoValueMax);
+      }
+      if (feedSelectedTransitMin === 0 && feedSelectedTransitMax === 0 && feedRangeBounds.transitMax > feedRangeBounds.transitMin) {
+        setFeedSelectedTransitMin(feedRangeBounds.transitMin);
+        setFeedSelectedTransitMax(feedRangeBounds.transitMax);
+      }
+      return;
+    }
+    if (feedDataMode !== 'global' && !databaseLoadsLoaded) return;
+
+    setFeedSelectedPriceMin(feedRangeBounds.priceMin);
+    setFeedSelectedPriceMax(feedRangeBounds.priceMax);
+    setFeedSelectedWeightMin(feedRangeBounds.weightMin);
+    setFeedSelectedWeightMax(feedRangeBounds.weightMax);
+    setFeedSelectedLengthMin(feedRangeBounds.lengthMin);
+    setFeedSelectedLengthMax(feedRangeBounds.lengthMax);
+    setFeedSelectedWidthMin(feedRangeBounds.widthMin);
+    setFeedSelectedWidthMax(feedRangeBounds.widthMax);
+    setFeedSelectedHeightMin(feedRangeBounds.heightMin);
+    setFeedSelectedHeightMax(feedRangeBounds.heightMax);
+    setFeedSelectedTemperatureMin(feedRangeBounds.temperatureMin);
+    setFeedSelectedTemperatureMax(feedRangeBounds.temperatureMax);
+    setFeedSelectedCargoValueMin(feedRangeBounds.cargoValueMin);
+    setFeedSelectedCargoValueMax(feedRangeBounds.cargoValueMax);
+    setFeedSelectedTransitMin(feedRangeBounds.transitMin);
+    setFeedSelectedTransitMax(feedRangeBounds.transitMax);
+    initializedFeedRangeModes.current.add(feedDataMode);
+  }, [
+    activeFeedLoads.length,
+    databaseLoadsLoaded,
+    feedDataMode,
+    feedRangeBounds,
+    feedSelectedCargoValueMax,
+    feedSelectedCargoValueMin,
+    feedSelectedHeightMax,
+    feedSelectedHeightMin,
+    feedSelectedLengthMax,
+    feedSelectedLengthMin,
+    feedSelectedTransitMax,
+    feedSelectedTransitMin,
+    feedSelectedWidthMax,
+    feedSelectedWidthMin,
+  ]);
 
   useEffect(() => {
     if (isDark) {
@@ -3212,6 +3390,11 @@ export default function App() {
     if (!lang || typeof window === 'undefined') return;
     window.localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
   }, [lang]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(SIDEBAR_STORAGE_KEY, isSidebarOpen ? 'expanded' : 'collapsed');
+  }, [isSidebarOpen]);
 
   useEffect(() => {
     if (role === 'user' && view === 'feed') {
@@ -3232,6 +3415,26 @@ export default function App() {
     }
   }, [view]);
 
+  const handleLogout = async () => {
+    try {
+      await api.auth.logout();
+    } finally {
+      setCurrentUser(null);
+      setIsLanding(true);
+      setRole(null);
+      setAuthMode('setup');
+    }
+  };
+
+  if (isAuthRestoring) return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
+      <div className="flex flex-col items-center gap-4 text-slate-500">
+        <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+        <span className="text-sm font-bold">Loading</span>
+      </div>
+    </div>
+  );
+
   if (isLanding) return (
     <LandingPage 
       onStart={() => { setAuthMode('setup'); setIsLanding(false); }}
@@ -3250,7 +3453,7 @@ export default function App() {
       onComplete={(r, l) => {
         setRole(r);
         setLang(l);
-        setView(r === 'driver' ? 'feed' : r === 'company' ? 'company' : r === 'finance' ? 'finance' : r === 'superadmin' ? 'admin' : 'tracking');
+        if (r) setView(getDefaultViewForRole(r));
       }}
       onSwitchToSetup={() => setAuthMode('setup')}
       onClose={() => {
@@ -3429,6 +3632,40 @@ export default function App() {
     setSelectedFeedUrgency([]);
     setSelectedFeedLoadingMethods([]);
   };
+  const handleLoadSaved = (record: Record<string, unknown>) => {
+    const savedLoad = mapDatabaseRecordToLoad(record);
+    const nextLoads = [savedLoad, ...databaseLoads.filter((load) => load.id !== savedLoad.id)];
+    const nextBounds = buildFeedRangeBounds(nextLoads);
+
+    setDatabaseLoads(nextLoads);
+    setFeedDataMode('organic');
+    setView('feed');
+    setFeedServiceFilters({ ...FEED_DEFAULT_SERVICE_FILTERS });
+    clearFeedLocations();
+    setFeedSelectedPriceMin(nextBounds.priceMin);
+    setFeedSelectedPriceMax(nextBounds.priceMax);
+    setFeedSelectedWeightMin(nextBounds.weightMin);
+    setFeedSelectedWeightMax(nextBounds.weightMax);
+    setFeedSelectedLengthMin(nextBounds.lengthMin);
+    setFeedSelectedLengthMax(nextBounds.lengthMax);
+    setFeedSelectedWidthMin(nextBounds.widthMin);
+    setFeedSelectedWidthMax(nextBounds.widthMax);
+    setFeedSelectedHeightMin(nextBounds.heightMin);
+    setFeedSelectedHeightMax(nextBounds.heightMax);
+    setFeedSelectedTemperatureMin(nextBounds.temperatureMin);
+    setFeedSelectedTemperatureMax(nextBounds.temperatureMax);
+    setFeedSelectedCargoValueMin(nextBounds.cargoValueMin);
+    setFeedSelectedCargoValueMax(nextBounds.cargoValueMax);
+    setFeedSelectedTransitMin(nextBounds.transitMin);
+    setFeedSelectedTransitMax(nextBounds.transitMax);
+    setSelectedFeedGoodsTypes([]);
+    setSelectedFeedPaymentTerms([]);
+    setSelectedFeedAdrClasses([]);
+    setSelectedFeedSensitivity([]);
+    setSelectedFeedUrgency([]);
+    setSelectedFeedLoadingMethods([]);
+    setLoadRefreshKey((current) => current + 1);
+  };
   const shouldShowFeedFiltersInMainSidebar = view === 'feed' && isMainFilterSidebarOpen;
   const shouldShowFeedSortInMainSidebar = view === 'feed' && isMainSortSidebarOpen;
   const shouldShowFeedSidebarPanel = shouldShowFeedFiltersInMainSidebar || shouldShowFeedSortInMainSidebar;
@@ -3436,10 +3673,10 @@ export default function App() {
   const navItems = role === 'superadmin'
     ? [
         { id: 'admin', label: u('nav.commandCenter', 'Command Center'), icon: Crown },
-        { id: 'admin-customers', label: u('nav.allCustomers', 'All Customers'), icon: UserRound },
-        { id: 'admin-companies', label: u('nav.logisticsCompanies', 'Logistics Companies'), icon: Building2 },
-        { id: 'admin-drivers', label: u('nav.allDrivers', 'All Drivers'), icon: Users },
-        { id: 'feed', label: u('nav.allLoads', 'All Loads'), icon: Boxes },
+        { id: 'admin-customers', label: u('nav.allCustomers', 'Customers'), icon: UserRound },
+        { id: 'admin-companies', label: u('nav.allCompanies', 'Logistics Companies'), icon: Building2 },
+        { id: 'admin-drivers', label: u('nav.allDrivers', 'Drivers'), icon: Users },
+        { id: 'feed', label: t.homeFeed, icon: Boxes },
         { id: 'tracking', label: u('nav.globalTracking', 'Global Tracking'), icon: PackageIcon },
         { id: 'fleet', label: u('nav.globalFleet', 'Global Fleet'), icon: Truck },
         { id: 'finance', label: u('nav.finance', 'Finance'), icon: Banknote },
@@ -3458,6 +3695,7 @@ export default function App() {
     : role === 'company'
       ? [
           { id: 'company', label: u('nav.companyOverview', 'Company Overview'), icon: Building2 },
+          { id: 'feed', label: t.homeFeed, icon: Boxes },
           { id: 'tracking', label: myCargoLabels[lang || 'en'], icon: PackageIcon },
           { id: 'fleet', label: t.myFleet, icon: Truck },
           { id: 'company-team', label: u('nav.teamPermissions', 'Team & Permissions'), icon: Users },
@@ -3485,13 +3723,18 @@ export default function App() {
         "hidden md:flex flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-300 z-50 sticky top-0 h-screen",
         isSidebarOpen || shouldShowFeedSidebarPanel ? "w-64" : "w-20"
       )}>
-        <div className="p-6 flex items-center justify-between">
+        <div className={cn(
+          "flex items-center",
+          isSidebarOpen || shouldShowFeedSidebarPanel ? "justify-between py-4 pl-6 pr-3" : "justify-center p-4"
+        )}>
           {(isSidebarOpen || shouldShowFeedSidebarPanel) && (
             <div className="flex items-center">
               <BrandWordmark className="text-xl" />
             </div>
           )}
           <button
+            aria-label={shouldShowFeedSidebarPanel ? 'Close panel' : isSidebarOpen ? 'Collapse sidebar' : 'Open sidebar'}
+            title={shouldShowFeedSidebarPanel ? 'Close panel' : isSidebarOpen ? 'Collapse sidebar' : 'Open sidebar'}
             onClick={() => {
               if (shouldShowFeedSidebarPanel) {
                 setIsMainFilterSidebarOpen(false);
@@ -3502,7 +3745,11 @@ export default function App() {
             }}
             className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer"
           >
-            {shouldShowFeedSidebarPanel ? <X className="w-4 h-4" /> : isSidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            {shouldShowFeedSidebarPanel
+              ? <X className="h-4 w-4" />
+              : isSidebarOpen
+                ? <PanelLeftClose className="h-5 w-5 text-slate-400 transition-colors hover:text-primary dark:text-slate-500" />
+                : <GeminiSparkIcon className="h-6 w-6" />}
           </button>
         </div>
 
@@ -3705,31 +3952,46 @@ export default function App() {
               exit={{ opacity: 0, x: -10 }}
               transition={{ duration: 0.18 }}
             >
-              <nav className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 space-y-2 mt-4">
+              <nav className={cn(
+                "mt-1 min-h-0 flex-1 space-y-2 px-4 pb-4",
+                isSidebarOpen ? "overflow-y-auto" : "overflow-visible"
+              )}>
                 {navItems.map(item => (
                   <button
                     key={item.id}
+                    aria-label={!isSidebarOpen ? item.label : undefined}
                     onClick={() => setView(item.id)}
                     className={cn(
-                      "w-full flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer",
+                      "group relative w-full flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer",
                       view === item.id
                         ? "bg-primary text-white shadow-lg shadow-primary/20"
                         : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
                     )}
                   >
                     <item.icon className="w-5 h-5 shrink-0" />
-                    {isSidebarOpen && <span className="font-medium">{item.label}</span>}
+                    {isSidebarOpen && <span title={item.label} className="min-w-0 flex-1 truncate whitespace-nowrap text-left font-medium">{item.label}</span>}
+                    {!isSidebarOpen && (
+                      <span role="tooltip" className="pointer-events-none absolute left-full top-1/2 z-[120] ml-3 -translate-y-1/2 whitespace-nowrap rounded-lg bg-primary px-3 py-2 text-xs font-bold text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
+                        {item.label}
+                      </span>
+                    )}
                   </button>
                 ))}
               </nav>
 
               <div className="p-6 border-t border-slate-100 dark:border-slate-800">
                 <button
+                  aria-label={!isSidebarOpen ? ui(lang, 'common.myProfile', 'Moj profil') : undefined}
                   onClick={() => setView(role === 'company' || role === 'finance' || role === 'superadmin' ? 'settings' : 'profile')}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer bg-primary text-white shadow-lg shadow-primary/20"
+                  className="group relative w-full flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer bg-primary text-white shadow-lg shadow-primary/20"
                 >
                   <User className="w-5 h-5" />
                   {isSidebarOpen && <span className="font-medium">{ui(lang, 'common.myProfile', 'Moj profil')}</span>}
+                  {!isSidebarOpen && (
+                    <span role="tooltip" className="pointer-events-none absolute left-full top-1/2 z-[120] ml-3 -translate-y-1/2 whitespace-nowrap rounded-lg bg-primary px-3 py-2 text-xs font-bold text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
+                      {ui(lang, 'common.myProfile', 'Moj profil')}
+                    </span>
+                  )}
                 </button>
               </div>
             </motion.div>
@@ -3861,7 +4123,7 @@ export default function App() {
                 </button>
                 <div className="h-px bg-slate-100 dark:bg-slate-800 my-2" />
                 <button 
-                  onClick={() => { setIsLanding(true); setRole(null); setAuthMode('setup'); }}
+                  onClick={() => void handleLogout()}
                   className="w-full flex items-center gap-3 p-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-all cursor-pointer"
                 >
                   <X className="w-4 h-4" />
@@ -3875,7 +4137,8 @@ export default function App() {
         {/* View Content */}
         <div
           className={cn(
-            "flex-1 min-h-0 p-6 pb-24 md:pb-6 max-w-7xl mx-auto w-full",
+            "flex-1 min-h-0 p-6 pb-24 md:pb-6 mx-auto w-full",
+            isSidebarOpen || shouldShowFeedSidebarPanel ? "max-w-7xl" : "max-w-none",
             view === 'messages' ? "overflow-hidden" : "overflow-y-auto"
           )}
         >
@@ -3889,7 +4152,14 @@ export default function App() {
               transition={{ duration: 0.2 }}
             >
 	              {view === 'dashboard' && <Dashboard role={role} lang={lang} />}
-	              {(view === 'tracking' || view === 'history') && <TrackingView lang={lang} />}
+	              {(view === 'tracking' || view === 'history') && (
+                  <TrackingView
+                    lang={lang}
+                    role={role}
+                    userId={currentUser?.id}
+                    companyIds={trackingCompanyIds}
+                  />
+                )}
 	              {view === 'feed' && (
                   <HomeFeed
                     lang={lang}
@@ -3905,14 +4175,18 @@ export default function App() {
                     maxWeightFilter={feedSelectedWeightMax}
                     minLengthFilter={feedSelectedLengthMin}
                     maxLengthFilter={feedSelectedLengthMax}
+                    isLengthFilterActive={feedSelectedLengthMin > feedRangeBounds.lengthMin || feedSelectedLengthMax < feedRangeBounds.lengthMax}
                     minWidthFilter={feedSelectedWidthMin}
                     maxWidthFilter={feedSelectedWidthMax}
+                    isWidthFilterActive={feedSelectedWidthMin > feedRangeBounds.widthMin || feedSelectedWidthMax < feedRangeBounds.widthMax}
                     minHeightFilter={feedSelectedHeightMin}
                     maxHeightFilter={feedSelectedHeightMax}
+                    isHeightFilterActive={feedSelectedHeightMin > feedRangeBounds.heightMin || feedSelectedHeightMax < feedRangeBounds.heightMax}
                     minTemperatureFilter={feedSelectedTemperatureMin}
                     maxTemperatureFilter={feedSelectedTemperatureMax}
                     minCargoValueFilter={feedSelectedCargoValueMin}
                     maxCargoValueFilter={feedSelectedCargoValueMax}
+                    isCargoValueFilterActive={feedSelectedCargoValueMin > feedRangeBounds.cargoValueMin || feedSelectedCargoValueMax < feedRangeBounds.cargoValueMax}
                     minTransitDaysFilter={feedSelectedTransitMin}
                     maxTransitDaysFilter={feedSelectedTransitMax}
                     selectedGoodsTypes={selectedFeedGoodsTypes}
@@ -3955,17 +4229,13 @@ export default function App() {
                   <SettingsView
                     role={role}
                     lang={lang}
-                    onLogout={() => {
-                      setIsLanding(true);
-                      setRole(null);
-                      setAuthMode('setup');
-                    }}
+                    onLogout={() => void handleLogout()}
                   />
                 )}
             </motion.div>
           </AnimatePresence>
         </div>
-        <PostLoadModal isOpen={isPostLoadOpen} editLoadId={editLoadId} onClose={() => { setIsPostLoadOpen(false); setEditLoadId(null); }} onSaved={() => setLoadRefreshKey((current) => current + 1)} lang={lang} />
+        <PostLoadModal isOpen={isPostLoadOpen} editLoadId={editLoadId} onClose={() => { setIsPostLoadOpen(false); setEditLoadId(null); }} onSaved={handleLoadSaved} lang={lang} />
 
         {/* Bottom Nav (Mobile) */}
         <nav className="md:hidden fixed bottom-0 w-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-4 h-16 flex items-center justify-start gap-6 overflow-x-auto z-50">

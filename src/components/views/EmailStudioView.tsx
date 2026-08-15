@@ -53,7 +53,7 @@ export const EmailStudioView = ({ lang: _lang }: { lang: Language }) => {
   const [templateId, setTemplateId] = useState<number | null>(null);
 
   const audiences = useMemo(() => [
-    { id: 'all', label: 'All companies', count: companies.items.length },
+    { id: 'all', label: 'Logistics companies', count: companies.items.length },
     { id: 'enterprise', label: 'Enterprise companies', count: companies.items.filter((item) => item.plan === 'enterprise').length },
     { id: 'trial', label: 'Trial accounts', count: companies.items.filter((item) => item.plan === 'trial').length },
     { id: 'inactive', label: 'Inactive companies', count: companies.items.filter((item) => item.status === 'inactive').length },

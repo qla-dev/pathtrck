@@ -7,6 +7,7 @@ import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { ApiUser, api } from '../../services/api';
 import { useApiList } from '../../hooks/useApiList';
+import { confirmAction, showSuccess } from '../../lib/swal';
 
 type CompanyRole = 'Company Admin' | 'Dispatcher' | 'Driver' | 'Finance';
 type Member = { id: string; databaseId: number; name: string; email: string; role: CompanyRole; status: 'Active' | 'Invited'; source: 'membership' | 'invitation' };
@@ -42,12 +43,15 @@ export const CompanyTeamView = ({ lang: _lang }: { lang: Language }) => {
     const globalRoleName = role === 'Finance' ? 'finance' : role === 'Driver' ? 'driver' : 'company';
     const selectedRole = roles.items.find((item) => item.name === globalRoleName);
     if (!selectedRole) { setMessage('Selected role is unavailable.'); return; }
+    const confirmed = await confirmAction({ title: 'Invite this team member?', text: `${trimmed} will be invited as ${role}.`, confirmText: 'Send invite' });
+    if (!confirmed) return;
     const bytes = crypto.getRandomValues(new Uint8Array(32));
     const token = Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('');
     await api.companyInvitations.create({ company_id: companyId, role_id: Number(selectedRole.id), invited_by_user_id: user.id, email: trimmed, token, status: 'pending', expires_at: new Date(Date.now() + 7 * 86400000).toISOString() });
     await invitations.refresh();
     setEmail('');
     setMessage('Invitation saved successfully.');
+    void showSuccess('Invitation created', `${trimmed} was invited as ${role}.`);
   };
 
   return (
@@ -100,4 +104,3 @@ export const CompanyTeamView = ({ lang: _lang }: { lang: Language }) => {
     </div>
   );
 };
-

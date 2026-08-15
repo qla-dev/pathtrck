@@ -3,7 +3,7 @@ import { Role } from '../types';
 export type ApiEnvelope<T> = {
   message: string;
   data: T;
-  meta?: { current_page?: number; last_page?: number; per_page?: number; total?: number };
+  meta?: { current_page?: number; page_no?: number; last_page?: number; per_page?: number; limit?: number; total?: number };
   errors?: Record<string, string[]>;
 };
 
@@ -83,6 +83,7 @@ export const resourceApi = <T extends Record<string, unknown>>(resource: string)
 export const api = {
   health: () => request<{ status: string; timestamp: string }>('/health'),
   auth: {
+    hasSession: () => Boolean(getToken()),
     login: async (login: string, password: string) => {
       const response = await request<ApiLoginResult>('/auth/login', { method: 'POST', body: JSON.stringify({ login, password }) });
       setToken(response.data.token);
@@ -95,16 +96,15 @@ export const api = {
   roles: resourceApi<Record<string, unknown>>('roles'),
   users: {
     ...resourceApi<Record<string, unknown>>('users'),
-    createCustomer: (data: Record<string, unknown>) => request<Record<string, unknown>>('/users/customer', { method: 'POST', body: JSON.stringify(data) }),
-    createDriver: (data: Record<string, unknown>) => request<Record<string, unknown>>('/users/driver', { method: 'POST', body: JSON.stringify(data) }),
   },
+  customers: resourceApi<Record<string, unknown>>('customers'),
   companies: {
     ...resourceApi<Record<string, unknown>>('companies'),
     onboard: (data: Record<string, unknown>) => request<Record<string, unknown>>('/companies/onboard', { method: 'POST', body: JSON.stringify(data) }),
   },
   companyMemberships: resourceApi<Record<string, unknown>>('company-memberships'),
   companyInvitations: resourceApi<Record<string, unknown>>('company-invitations'),
-  drivers: resourceApi<Record<string, unknown>>('driver-profiles'),
+  drivers: resourceApi<Record<string, unknown>>('drivers'),
   vehicles: resourceApi<Record<string, unknown>>('vehicles'),
   fleetAccess: resourceApi<Record<string, unknown>>('fleet-access'),
   loads: resourceApi<Record<string, unknown>>('loads'),

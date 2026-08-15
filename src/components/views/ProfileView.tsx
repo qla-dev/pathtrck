@@ -252,8 +252,8 @@ export const ProfileView = ({ role, lang }: { role: Role; lang: Language }) => {
   const routes = useApiList(api.routes.list, { per_page: 100 });
   const [user, setUser] = useState<ApiUser | null>(null);
   useEffect(() => { void api.auth.me().then(setUser); }, []);
-  const userRecord = (user || {}) as ApiUser & { driver_profile?: Record<string, unknown> };
-  const profile = userRecord.driver_profile || {};
+  const userRecord = (user || {}) as ApiUser & { driver?: Record<string, unknown> };
+  const profile = userRecord.driver || {};
   const ownLoads = loads.items.filter((row) => role === 'driver' ? Number(row.assigned_driver_user_id) === user?.id : Number(row.customer_user_id) === user?.id);
   const completed = ownLoads.filter((row) => String(row.status).toLowerCase() === 'completed').length;
   const active = ownLoads.filter((row) => ['assigned', 'in_transit'].includes(String(row.status).toLowerCase())).length;

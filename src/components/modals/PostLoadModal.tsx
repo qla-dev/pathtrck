@@ -22,6 +22,7 @@ import {
 import { Language } from '../../types';
 import { flatpickrI18n, ui } from '../../i18n';
 import { cn } from '../../lib/cn';
+import { confirmAction, showSuccess } from '../../lib/swal';
 import { MOCK_LOADS } from '../../mockData';
 import { Button } from '../ui/Button';
 import { useCitySuggestions } from '../frights/useCitySuggestions';
@@ -32,7 +33,7 @@ type PostLoadModalProps = {
   onClose: () => void;
   lang: Language;
   editLoadId?: number | string | null;
-  onSaved?: () => void;
+  onSaved?: (load: Record<string, unknown>) => void;
 };
 
 type StepId = 'route' | 'cargo' | 'terms' | 'review';
@@ -66,6 +67,8 @@ type LoadDraft = {
   weightKg: string;
   pallets: string;
   lengthM: string;
+  widthM: string;
+  heightM: string;
   volumeM3: string;
   declaredValue: string;
   additionalInfo: string;
@@ -129,6 +132,8 @@ const INITIAL_DRAFT: LoadDraft = {
   weightKg: '',
   pallets: '',
   lengthM: '',
+  widthM: '',
+  heightM: '',
   volumeM3: '',
   declaredValue: '',
   additionalInfo: '',
@@ -175,6 +180,14 @@ const fromApiDateTime = (value: unknown) => {
   if (Number.isNaN(parsed.getTime())) return { date: '', time: '' };
   return { date: `${String(parsed.getDate()).padStart(2, '0')}.${String(parsed.getMonth() + 1).padStart(2, '0')}.${parsed.getFullYear()}`, time: `${String(parsed.getHours()).padStart(2, '0')}:${String(parsed.getMinutes()).padStart(2, '0')}` };
 };
+
+const fromApiWeightKg = (value: unknown) => {
+  const weightKg = Number(value);
+  if (!Number.isFinite(weightKg) || weightKg <= 0) return '';
+  return String(weightKg / 1000);
+};
+
+const toApiWeightKg = (weightTonnes: string) => Number(weightTonnes) * 1000;
 
 const STEPS: Array<{ id: StepId; icon: typeof MapPin }> = [
   { id: 'route', icon: MapPin },
@@ -436,7 +449,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         transportType: (record.transport_type as TransportType) || 'road',
         pickupPlaceType: String(pickup.place_type || INITIAL_DRAFT.pickupPlaceType), pickupCity: String(pickup.city || ''), pickupCountry: String(pickup.country_code || 'BA'), pickupAddress: String(pickup.address || ''), pickupDate: pickupStart.date, pickupDateTo: pickupEnd.date, pickupTimeFrom: pickupStart.time, pickupTimeTo: pickupEnd.time,
         deliveryPlaceType: String(delivery.place_type || INITIAL_DRAFT.deliveryPlaceType), deliveryCity: String(delivery.city || ''), deliveryCountry: String(delivery.country_code || 'BA'), deliveryAddress: String(delivery.address || ''), deliveryDate: deliveryStart.date, deliveryDateTo: deliveryEnd.date, deliveryTimeFrom: deliveryStart.time, deliveryTimeTo: deliveryEnd.time,
-        cargoTitle: String(record.title || ''), cargoType: String(record.cargo_type || 'FTL'), goodsType: String(record.goods_type || 'General'), weightKg: String(record.weight_kg || ''), pallets: String(record.pallets || ''), lengthM: String(record.length_m || ''), volumeM3: String(record.volume_m3 || ''), declaredValue: String(record.declared_value || ''), budget: String(record.budget || ''), freightCurrency: String(record.currency || 'EUR'), paymentDueDays: String(record.payment_due_days || ''), paymentTerms: terms === 'in_advance' ? 'In Advance' : terms === 'on_delivery' ? 'On Delivery' : 'Negotiable',
+        cargoTitle: String(record.title || ''), cargoType: String(record.cargo_type || 'FTL'), goodsType: String(record.goods_type || 'General'), weightKg: fromApiWeightKg(record.weight_kg), pallets: String(record.pallets || ''), lengthM: String(record.length_m || ''), widthM: String(record.width_m || ''), heightM: String(record.height_m || ''), volumeM3: String(record.volume_m3 || ''), declaredValue: String(record.declared_value || ''), budget: String(record.budget || ''), freightCurrency: String(record.currency || 'EUR'), paymentDueDays: String(record.payment_due_days || ''), paymentTerms: terms === 'in_advance' ? 'In Advance' : terms === 'on_delivery' ? 'On Delivery' : 'Negotiable',
         requiresAdr: Boolean(record.requires_adr), requiresTailLift: Boolean(record.requires_tail_lift), mustBeTrackable: Boolean(record.must_be_trackable), urgent: Boolean(record.is_urgent), bodyTypes: Array.isArray(record.body_types) ? record.body_types.map(String) : [], notes: String(record.notes || ''), internalComments: String(record.internal_comments || ''), externalComments: String(record.external_comments || ''), contactName: String(contact.name || ''), contactPhone: String(contact.phone || ''), contactMobile: String(contact.mobile || ''), contactEmail: String(contact.email || ''), contactFax: String(contact.fax || ''),
       });
     }).catch((error) => setSubmitError(error instanceof Error ? error.message : 'The load could not be loaded.')).finally(() => setIsLoadingExisting(false));
@@ -459,7 +472,11 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
           draft.deliveryCity &&
           draft.deliveryDate
       ),
-      cargo: Boolean(draft.cargoTitle && draft.weightKg && draft.lengthM),
+      cargo: Boolean(
+        draft.cargoTitle.trim() &&
+          Number(draft.weightKg) > 0 &&
+          Number(draft.lengthM) > 0
+      ),
       terms: Boolean(
         draft.vehicleType &&
           draft.contactName &&
@@ -513,6 +530,15 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
 
   const submit = async () => {
     if (isSubmitting) return;
+    const confirmed = await confirmAction({
+      title: editLoadId ? 'Save load changes?' : 'Publish this load?',
+      text: editLoadId
+        ? 'The updated load details will be visible in the freight exchange.'
+        : 'This load will be published and visible in the freight exchange.',
+      confirmText: editLoadId ? 'Save changes' : 'Publish load',
+    });
+    if (!confirmed) return;
+
     setIsSubmitting(true);
     setSubmitError('');
     try {
@@ -521,8 +547,10 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         transport_type: draft.transportType,
         cargo_type: draft.cargoType,
         goods_type: draft.goodsType,
-        weight_kg: Number(draft.weightKg),
+        weight_kg: toApiWeightKg(draft.weightKg),
         length_m: draft.lengthM ? Number(draft.lengthM) : null,
+        width_m: draft.widthM ? Number(draft.widthM) : null,
+        height_m: draft.heightM ? Number(draft.heightM) : null,
         volume_m3: draft.volumeM3 ? Number(draft.volumeM3) : null,
         pallets: draft.pallets ? Number(draft.pallets) : null,
         declared_value: draft.declaredValue ? Number(draft.declaredValue) : null,
@@ -544,12 +572,22 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
           { type: 'delivery', position: 2, place_type: draft.deliveryPlaceType, city: draft.deliveryCity, country_code: draft.deliveryCountry, address: draft.deliveryAddress || null, window_starts_at: toApiDateTime(draft.deliveryDate, draft.deliveryTimeFrom), window_ends_at: toApiDateTime(draft.deliveryDateTo || draft.deliveryDate, draft.deliveryTimeTo || draft.deliveryTimeFrom) },
         ],
       };
-      if (editLoadId) await api.loads.update(editLoadId, payload);
-      else await api.loads.create({ ...payload, status: 'available', published_at: new Date().toISOString() });
-      onSaved?.();
+      const response = editLoadId
+        ? await api.loads.update(editLoadId, payload)
+        : await api.loads.create({ ...payload, status: 'available', published_at: new Date().toISOString() });
+      onSaved?.(response.data);
       onClose();
+      void showSuccess(
+        editLoadId ? 'Load updated' : 'Load published',
+        editLoadId ? 'Your changes are now live.' : 'The load is now available in the freight exchange.',
+      );
     } catch (error) {
-      setSubmitError(error instanceof ApiError ? error.message : u('postLoadModal.apiError', 'The load could not be published.'));
+      if (error instanceof ApiError) {
+        const validationMessage = Object.values(error.errors).flat().find(Boolean);
+        setSubmitError(validationMessage || error.message);
+      } else {
+        setSubmitError(u('postLoadModal.apiError', 'The load could not be published.'));
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -608,7 +646,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
             </div>
             <button
               onClick={onClose}
-              className="shrink-0 h-11 w-11 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors"
+              className="shrink-0 h-11 w-11 cursor-pointer rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors"
               aria-label={u('common.cancel', 'Cancel')}
               title={u('common.cancel', 'Cancel')}
             >
@@ -759,8 +797,14 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                               value={option.id}
                               checked={draft.transportType === option.id}
                               onChange={() => setField('transportType', option.id)}
-                              className="absolute right-4 top-4 h-4 w-4 accent-primary"
+                              className="peer sr-only"
                             />
+                            <span
+                              aria-hidden="true"
+                              className="absolute right-4 top-4 flex h-4 w-4 items-center justify-center rounded-full border-2 border-slate-300 bg-white peer-checked:border-primary dark:border-slate-600 dark:bg-slate-900"
+                            >
+                              <span className={cn('h-2 w-2 rounded-full bg-primary transition-opacity', draft.transportType === option.id ? 'opacity-100' : 'opacity-0')} />
+                            </span>
                             <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', option.iconSurface)}>
                               <Icon className={cn('h-5 w-5', option.iconTone)} />
                             </div>
@@ -1010,6 +1054,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           <Input
                             type="number"
                             step="0.1"
+                            min="0.1"
                             value={draft.lengthM}
                             onChange={(e) => setField('lengthM', e.target.value)}
                             placeholder="13.6"
@@ -1020,6 +1065,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           <Input
                             type="number"
                             step="0.1"
+                            min="0.1"
                             value={draft.weightKg}
                             onChange={(e) => setField('weightKg', e.target.value)}
                             placeholder="24.0"
@@ -1036,6 +1082,41 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             <option value="Express">{u('postLoadModal.express', 'Express')}</option>
                             <option value="Dedicated">{u('postLoadModal.dedicated', 'Dedicated')}</option>
                           </Select>
+                        </div>
+                      </div>
+                      <div className="grid sm:grid-cols-3 gap-4">
+                        <div className="space-y-1.5">
+                          <FieldLabel>{u('postLoadModal.width', 'Width (m)')}</FieldLabel>
+                          <Input
+                            type="number"
+                            step="0.05"
+                            min="0"
+                            value={draft.widthM}
+                            onChange={(e) => setField('widthM', e.target.value)}
+                            placeholder="2.45"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <FieldLabel>{u('postLoadModal.height', 'Height (m)')}</FieldLabel>
+                          <Input
+                            type="number"
+                            step="0.05"
+                            min="0"
+                            value={draft.heightM}
+                            onChange={(e) => setField('heightM', e.target.value)}
+                            placeholder="2.70"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <FieldLabel>{u('postLoadModal.declaredValue', 'Cargo value')}</FieldLabel>
+                          <Input
+                            type="number"
+                            step="100"
+                            min="0"
+                            value={draft.declaredValue}
+                            onChange={(e) => setField('declaredValue', e.target.value)}
+                            placeholder="50000"
+                          />
                         </div>
                       </div>
                       <div className="grid sm:grid-cols-2 gap-4">
@@ -1400,7 +1481,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         value={`${draft.deliveryCountry} · ${draft.deliveryDate || '—'}${draft.deliveryDateTo ? ` - ${draft.deliveryDateTo}` : ''}${draft.deliveryTimeFrom ? ` · ${draft.deliveryTimeFrom}` : ''}${draft.deliveryTimeTo ? ` - ${draft.deliveryTimeTo}` : ''}`}
                       />
                       <SummaryRow label={u('postLoadModal.cargoSummary', 'Cargo')} value={draft.cargoTitle} />
-                      <SummaryRow label={u('postLoadModal.specsSummary', 'Specs')} value={`${draft.lengthM || '—'} m · ${draft.weightKg || '—'} t · ${draft.additionalInfo || u('postLoadModal.none', 'None')}`} />
+                      <SummaryRow label={u('postLoadModal.specsSummary', 'Specs')} value={`${draft.lengthM || '—'} × ${draft.widthM || '—'} × ${draft.heightM || '—'} m · ${draft.weightKg || '—'} t · ${draft.additionalInfo || u('postLoadModal.none', 'None')}`} />
                       <SummaryRow label={u('postLoadModal.vehicleSummary', 'Vehicle')} value={`${draft.vehicleType} · ${draft.bodyTypes.join(', ') || u('postLoadModal.none', 'None')}`} />
                       <SummaryRow label={u('postLoadModal.paymentSummary', 'Payout')} value={`${draft.budget || '—'} ${draft.freightCurrency} · ${draft.paymentDueDays || '—'} ${u('postLoadModal.days', 'days')}`} />
                       <SummaryRow label={u('postLoadModal.contactSummary', 'Contact')} value={`${draft.contactName} · ${draft.contactPhone || draft.contactMobile || draft.contactEmail || '—'}`} />

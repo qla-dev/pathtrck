@@ -10,6 +10,7 @@ import { Language, Load, Role } from '../../types';
 import { LoadDetails } from '../load/LoadDetails';
 import { LoadItem } from '../load/LoadItem';
 import { Button } from '../ui/Button';
+import { EmptyState } from '../ui/EmptyState';
 
 type FeedLayoutMode = 'list' | 'grid' | 'map';
 type MapSource = 'normal' | 'vector' | 'imagery';
@@ -119,14 +120,18 @@ type HomeFeedProps = {
   maxWeightFilter?: number;
   minLengthFilter?: number;
   maxLengthFilter?: number;
+  isLengthFilterActive?: boolean;
   minWidthFilter?: number;
   maxWidthFilter?: number;
+  isWidthFilterActive?: boolean;
   minHeightFilter?: number;
   maxHeightFilter?: number;
+  isHeightFilterActive?: boolean;
   minTemperatureFilter?: number;
   maxTemperatureFilter?: number;
   minCargoValueFilter?: number;
   maxCargoValueFilter?: number;
+  isCargoValueFilterActive?: boolean;
   minTransitDaysFilter?: number;
   maxTransitDaysFilter?: number;
   selectedGoodsTypes?: string[];
@@ -157,14 +162,18 @@ export const HomeFeed = ({
   maxWeightFilter = Number.POSITIVE_INFINITY,
   minLengthFilter = Number.NEGATIVE_INFINITY,
   maxLengthFilter = Number.POSITIVE_INFINITY,
+  isLengthFilterActive = false,
   minWidthFilter = Number.NEGATIVE_INFINITY,
   maxWidthFilter = Number.POSITIVE_INFINITY,
+  isWidthFilterActive = false,
   minHeightFilter = Number.NEGATIVE_INFINITY,
   maxHeightFilter = Number.POSITIVE_INFINITY,
+  isHeightFilterActive = false,
   minTemperatureFilter = Number.NEGATIVE_INFINITY,
   maxTemperatureFilter = Number.POSITIVE_INFINITY,
   minCargoValueFilter = Number.NEGATIVE_INFINITY,
   maxCargoValueFilter = Number.POSITIVE_INFINITY,
+  isCargoValueFilterActive = false,
   minTransitDaysFilter = Number.NEGATIVE_INFINITY,
   maxTransitDaysFilter = Number.POSITIVE_INFINITY,
   selectedGoodsTypes = [],
@@ -180,7 +189,7 @@ export const HomeFeed = ({
   onEditLoad,
   onLoadChanged,
 }: HomeFeedProps) => {
-  const [layout, setLayout] = useState<FeedLayoutMode>('map');
+  const [layout, setLayout] = useState<FeedLayoutMode>('grid');
   const [mapSource, setMapSource] = useState<MapSource>('normal');
   const [selectedLoad, setSelectedLoad] = useState<Load | null>(null);
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
@@ -197,26 +206,36 @@ export const HomeFeed = ({
     const endFilter = endLocation.trim().toLowerCase();
 
     return loads.filter((load) => {
+      if (load.status !== 'Available') return false;
+
       const pickup = load.pickup.toLowerCase();
       const delivery = load.delivery.toLowerCase();
       const priceValue = parseLoadPriceValue(load.price);
       const weightValue = parseLoadWeightValue(load.weight);
-      const lengthValue = load.length ?? 0;
-      const widthValue = load.width ?? 0;
-      const heightValue = load.height ?? 0;
+      const lengthValue = load.length;
+      const widthValue = load.width;
+      const heightValue = load.height;
       const temperatureMinValue = load.temperatureMin ?? 15;
       const temperatureMaxValue = load.temperatureMax ?? 25;
-      const cargoValue = load.cargoValue ?? 0;
-      const transitDays = estimateLoadTransitDays(load.pickup, load.delivery);
+      const cargoValue = load.cargoValue;
+      const transitDays = load.transitDays ?? estimateLoadTransitDays(load.pickup, load.delivery);
       const startMatch = !startFilter || pickup.includes(startFilter);
       const endMatch = !endFilter || delivery.includes(endFilter);
       const priceMatch = priceValue >= minPriceFilter && priceValue <= maxPriceFilter;
       const weightMatch = weightValue >= minWeightFilter && weightValue <= maxWeightFilter;
-      const lengthMatch = lengthValue >= minLengthFilter && lengthValue <= maxLengthFilter;
-      const widthMatch = widthValue >= minWidthFilter && widthValue <= maxWidthFilter;
-      const heightMatch = heightValue >= minHeightFilter && heightValue <= maxHeightFilter;
+      const lengthMatch = lengthValue === undefined
+        ? !isLengthFilterActive
+        : lengthValue >= minLengthFilter && lengthValue <= maxLengthFilter;
+      const widthMatch = widthValue === undefined
+        ? !isWidthFilterActive
+        : widthValue >= minWidthFilter && widthValue <= maxWidthFilter;
+      const heightMatch = heightValue === undefined
+        ? !isHeightFilterActive
+        : heightValue >= minHeightFilter && heightValue <= maxHeightFilter;
       const temperatureMatch = temperatureMaxValue >= minTemperatureFilter && temperatureMinValue <= maxTemperatureFilter;
-      const cargoValueMatch = cargoValue >= minCargoValueFilter && cargoValue <= maxCargoValueFilter;
+      const cargoValueMatch = cargoValue === undefined
+        ? !isCargoValueFilterActive
+        : cargoValue >= minCargoValueFilter && cargoValue <= maxCargoValueFilter;
       const transitMatch = transitDays >= minTransitDaysFilter && transitDays <= maxTransitDaysFilter;
       const goodsMatch = !selectedGoodsTypes.length || selectedGoodsTypes.includes(load.goodsType);
       const paymentMatch = !selectedPaymentTerms.length || selectedPaymentTerms.includes(load.paymentTerms);
@@ -256,14 +275,18 @@ export const HomeFeed = ({
     maxWeightFilter,
     minLengthFilter,
     maxLengthFilter,
+    isLengthFilterActive,
     minWidthFilter,
     maxWidthFilter,
+    isWidthFilterActive,
     minHeightFilter,
     maxHeightFilter,
+    isHeightFilterActive,
     minTemperatureFilter,
     maxTemperatureFilter,
     minCargoValueFilter,
     maxCargoValueFilter,
+    isCargoValueFilterActive,
     minTransitDaysFilter,
     maxTransitDaysFilter,
     selectedGoodsTypes,
@@ -359,7 +382,16 @@ export const HomeFeed = ({
         </div>
       </div>
 
-      {layout === 'list' && (
+      {sortedLoads.length === 0 ? (
+        <EmptyState
+          title={u('home.empty.title', 'No loads found')}
+          description={
+            loads.length === 0
+              ? u('home.empty.noLoads', 'There are no available loads in the freight exchange yet.')
+              : u('home.empty.noMatches', 'No loads match your current filters. Try adjusting your search criteria.')
+          }
+        />
+      ) : layout === 'list' && (
         <div className="space-y-4">
           {sortedLoads.map((load) => (
             <LoadItem
@@ -374,8 +406,8 @@ export const HomeFeed = ({
         </div>
       )}
 
-      {layout === 'grid' && (
-        <div className="grid md:grid-cols-2 gap-4">
+      {sortedLoads.length > 0 && layout === 'grid' && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {sortedLoads.map((load) => (
             <LoadItem
               key={load.id}
@@ -389,7 +421,7 @@ export const HomeFeed = ({
         </div>
       )}
 
-      {layout === 'map' && (
+      {sortedLoads.length > 0 && layout === 'map' && (
         <div className="grid lg:grid-cols-12 gap-6">
           <div className="lg:col-span-5 space-y-4 max-h-[78vh] overflow-y-auto pr-1">
             {sortedLoads.map((load) => (

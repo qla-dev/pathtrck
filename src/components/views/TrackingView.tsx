@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Flatpickr from 'react-flatpickr';
 import { Search, MapPin, ChevronRight, Package as PackageIcon, Clock3, RotateCcw, Share2, Star, Bot, Route, Lock, Coins, Loader2, Sparkles, Truck, FileBarChart2, Upload, FileSpreadsheet, Fuel, BedDouble, ParkingCircle, Landmark, Filter, CalendarDays, History } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, CircleMarker, Tooltip } from 'react-leaflet';
-import { Language, Package as PackageData } from '../../types';
+import { Language, Package as PackageData, Role } from '../../types';
 import { api } from '../../services/api';
 import { useApiList } from '../../hooks/useApiList';
 import { getSmartStatusUpdate } from '../../services/geminiService';
@@ -52,7 +52,14 @@ type RouteAmenity = {
 
 const PACKAGE_ROUTE_AMENITIES: Record<string, RouteAmenity[]> = {};
 
-export const TrackingView = ({ lang }: { lang: Language }) => {
+type TrackingViewProps = {
+  lang: Language;
+  role: Role;
+  userId?: number;
+  companyIds?: number[];
+};
+
+export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingViewProps) => {
   const TRUCK_CAPACITY_KG = 48000;
   const shipmentsResult = useApiList(api.shipments.list, { per_page: 100 });
   const loadsResult = useApiList(api.loads.list, { per_page: 100 });
@@ -202,7 +209,19 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
   };
 
   const loadCapacity = useMemo(() => {
-    const activeLoads = loadsResult.items.filter((load) => ['assigned', 'in_transit'].includes(String(load.status).toLowerCase()));
+    const roleLoads = loadsResult.items.filter((load) => {
+      if (role === 'driver') return Boolean(userId) && Number(load.assigned_driver_user_id) === userId;
+      if (role === 'company') {
+        return (
+          (Boolean(userId) && Number(load.customer_user_id) === userId) ||
+          companyIds.includes(Number(load.company_id))
+        );
+      }
+      return false;
+    });
+    const activeLoads = roleLoads.filter((load) =>
+      ['assigned', 'in_transit'].includes(String(load.status).toLowerCase())
+    );
     const totalWeightKg = activeLoads.reduce((sum, load) => sum + Number(load.weight_kg || 0), 0);
     const usedPercentage = Math.min(100, Math.round((totalWeightKg / TRUCK_CAPACITY_KG) * 100));
 
@@ -213,7 +232,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
       remainingPercentage: Math.max(0, 100 - usedPercentage),
       remainingKg: Math.max(0, TRUCK_CAPACITY_KG - totalWeightKg),
     };
-  }, [loadsResult.items]);
+  }, [companyIds, loadsResult.items, role, userId]);
 
   const reportRows = useMemo(
     () => [
@@ -373,6 +392,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
           </div>
         )}
 
+        {(role === 'company' || role === 'driver') && (
         <div className="mt-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-4 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
@@ -416,6 +436,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
             </div>
           </div>
         </div>
+        )}
 
         <div className="mt-6 space-y-4">
           {filteredPackages.map(pkg => (

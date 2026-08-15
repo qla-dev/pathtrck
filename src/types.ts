@@ -45,6 +45,7 @@ export interface Load {
   isFragile?: boolean;
   urgency?: 'Standard' | 'Express';
   loadingMethods?: Array<'Forklift' | 'Crane' | 'Manual'>;
+  transitDays?: number;
   pickup: string;
   delivery: string;
   date: string;

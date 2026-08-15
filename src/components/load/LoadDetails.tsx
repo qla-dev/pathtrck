@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
+import { confirmAction, showSuccess } from '../../lib/swal';
 import { Language, Load } from '../../types';
 import { Role } from '../../types';
 import { api } from '../../services/api';
@@ -118,11 +119,19 @@ export const LoadDetails = ({ open, load, onClose, lang, role, onEdit, onChanged
   const approveOffer = async (offer: Record<string, unknown>) => {
     const driverId = selectedDrivers[String(offer.id)] || Number(offer.driver_user_id || 0);
     if (!driverId) { setActionMessage('Select a driver before approving the offer.'); return; }
+    const confirmed = await confirmAction({
+      title: 'Approve this offer?',
+      text: 'The offer will be accepted, the selected driver assigned, and other pending offers rejected.',
+      confirmText: 'Approve & assign',
+      icon: 'warning',
+    });
+    if (!confirmed) return;
     setActionMessage('Approving offer...');
     try {
       await api.offers.approve(String(offer.id), driverId);
       setOffers((current) => current.map((item) => ({ ...item, status: item.id === offer.id ? 'accepted' : item.status === 'pending' ? 'rejected' : item.status })));
       setActionMessage('Offer approved and driver assigned.');
+      void showSuccess('Offer approved', 'The driver has been assigned to this load.');
       onChanged?.();
     } catch (error) { setActionMessage(error instanceof Error ? error.message : 'Offer could not be approved.'); }
   };
@@ -132,16 +141,9 @@ export const LoadDetails = ({ open, load, onClose, lang, role, onEdit, onChanged
   const goodsNote = getGoodsNote(load.goodsType, u);
 
   return (
-    <div className="fixed inset-0 z-140">
-      <button
-        type="button"
-        aria-label="Close load details"
-        onClick={onClose}
-        className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
-      />
-
-      <div className="absolute inset-0 p-3 md:p-6">
-        <div className="h-full w-full rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-2xl overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-140 bg-white dark:bg-slate-950">
+      <div className="absolute inset-0">
+        <div className="flex h-[100dvh] w-full min-h-0 flex-col overflow-hidden bg-white dark:bg-slate-950">
           <div className="px-5 md:px-7 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
             <div className="min-w-0">
               <p className="text-xs font-black uppercase tracking-wider text-primary">

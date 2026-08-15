@@ -19,6 +19,7 @@ import { ResponsiveContainer, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, A
 import { Language, Role } from '../../types';
 import { ui, trFuelType, trVehicleStatus } from '../../i18n';
 import { cn } from '../../lib/cn';
+import { confirmAction, showSuccess } from '../../lib/swal';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { api } from '../../services/api';
@@ -366,6 +367,12 @@ export const FleetView = ({ lang, role }: { lang: Language; role?: Role }) => {
 
   const submitVehicle = async () => {
     const displayModel = draft.model === 'Other' ? draft.customModel : `${draft.make} ${draft.model}`.trim();
+    const confirmed = await confirmAction({
+      title: 'Add this vehicle?',
+      text: `${displayModel || draft.category} (${draft.plate}) will be added to your fleet.`,
+      confirmText: 'Add vehicle',
+    });
+    if (!confirmed) return;
     const trailerLabel =
       draft.transportType !== 'truck' || draft.trailer === 'No'
         ? draft.transportType === 'truck'
@@ -381,6 +388,7 @@ export const FleetView = ({ lang, role }: { lang: Language; role?: Role }) => {
     });
     await loadVehicles();
     closeAddVehicle();
+    void showSuccess('Vehicle added', 'The vehicle is now available in your fleet.');
   };
 
   const hasTrailer = draft.transportType === 'truck' && draft.trailer !== 'No';
