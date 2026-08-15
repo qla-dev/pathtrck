@@ -89,6 +89,7 @@ export const api = {
       return response.data;
     },
     me: async () => (await request<ApiUser>('/auth/me')).data,
+    updateProfile: async (data: Record<string, unknown>) => (await request<ApiUser>('/auth/profile', { method: 'PUT', body: JSON.stringify(data) })).data,
     logout: async () => { try { await request<null>('/auth/logout', { method: 'POST' }); } finally { setToken(null); } },
   },
   roles: resourceApi<Record<string, unknown>>('roles'),

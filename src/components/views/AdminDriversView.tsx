@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
-import { UserRoundSearch } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { MapPin, Search, Star, Truck, UserRoundSearch } from 'lucide-react';
 import { ApiError, api } from '../../services/api';
 import { Language } from '../../types';
 import { AdminField, AdminFormModal, adminFieldClass } from './AdminFormModal';
-import { ApiRegistryView } from './ApiRegistryView';
+import { useApiList } from '../../hooks/useApiList';
+import { Button } from '../ui/Button';
+import { Card } from '../ui/Card';
 
 const initial = { name: '', email: '', username: '', password: '', phone: '', country_code: 'BA', language: 'bs', primary_company_id: '', license_number: '', license_country_code: 'BA', license_expires_at: '', availability_status: 'available' };
 
@@ -13,7 +15,9 @@ export const AdminDriversView = ({ lang: _lang }: { lang: Language }) => {
   const [companies, setCompanies] = useState<Record<string, unknown>[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [refreshToken, setRefreshToken] = useState(0);
+  const [query, setQuery] = useState('');
+  const drivers = useApiList(api.drivers.list, { per_page: 100 });
+  const visible = useMemo(() => drivers.items.filter((row) => JSON.stringify(row).toLowerCase().includes(query.toLowerCase())), [drivers.items, query]);
   const field = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
 
   useEffect(() => {
@@ -27,7 +31,7 @@ export const AdminDriversView = ({ lang: _lang }: { lang: Language }) => {
       await api.users.createDriver(form);
       setOpen(false);
       setForm(initial);
-      setRefreshToken((value) => value + 1);
+      await drivers.refresh();
     } catch (caught) {
       const validation = caught instanceof ApiError ? Object.values(caught.errors).flat()[0] : null;
       setError(validation || (caught instanceof Error ? caught.message : 'Driver could not be created.'));
@@ -37,7 +41,10 @@ export const AdminDriversView = ({ lang: _lang }: { lang: Language }) => {
   };
 
   return <>
-    <ApiRegistryView eyebrow="Global workforce" title="All Drivers" description="Driver profiles and company relations loaded from Laravel." icon={UserRoundSearch} request={api.drivers.list} empty="No driver profiles in the database." actionLabel="Add driver" onAction={() => setOpen(true)} refreshToken={refreshToken} columns={[{ label: 'Driver', value: (row) => (row.user as { name?: string } | undefined)?.name }, { label: 'Company', value: (row) => (row.primary_company as { name?: string } | undefined)?.name }, { label: 'License', value: (row) => row.license_number }, { label: 'Country', value: (row) => row.license_country_code }, { label: 'Availability', value: (row) => row.availability_status }, { label: 'Trips', value: (row) => row.completed_trips }]} />
+    <div className="space-y-6"><section className="rounded-3xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900"><div className="flex flex-wrap items-start justify-between gap-4"><div className="flex items-center gap-3"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-500"><UserRoundSearch className="h-6 w-6" /></div><div><p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Global workforce</p><h1 className="text-2xl font-black dark:text-white">All Drivers</h1></div></div><Button onClick={() => setOpen(true)}>Add driver</Button></div><p className="mt-4 text-sm text-slate-500">Track drivers, companies, licenses, availability and completed trips.</p></section>
+      <div className="grid gap-4 sm:grid-cols-3"><Card className="p-4"><p className="text-xs uppercase text-slate-500">Verified drivers</p><p className="mt-1 text-3xl font-black dark:text-white">{drivers.total}</p></Card><Card className="p-4"><p className="text-xs uppercase text-slate-500">Available</p><p className="mt-1 text-3xl font-black text-emerald-500">{drivers.items.filter((row) => row.availability_status === 'available').length}</p></Card><Card className="p-4"><p className="text-xs uppercase text-slate-500">On load</p><p className="mt-1 text-3xl font-black text-sky-500">{drivers.items.filter((row) => row.availability_status === 'on_load').length}</p></Card></div>
+      <Card><div className="relative max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search driver, company or license..." className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 dark:border-slate-700 dark:bg-slate-950 dark:text-white" /></div><div className="mt-5 overflow-x-auto"><table className="w-full min-w-[900px] text-left"><thead><tr className="border-b border-slate-200 text-xs uppercase text-slate-500 dark:border-slate-800"><th className="p-3">Driver</th><th className="p-3">Company</th><th className="p-3">License</th><th className="p-3">Location</th><th className="p-3">Rating</th><th className="p-3">Trips</th><th className="p-3">State</th></tr></thead><tbody>{visible.map((row) => { const user = (row.user || {}) as Record<string, unknown>; const company = (row.primary_company || {}) as Record<string, unknown>; const vehicles = Array.isArray((user as Record<string, unknown>).assigned_vehicles) ? (user as Record<string, unknown>).assigned_vehicles as Array<Record<string, unknown>> : []; return <tr key={String(row.id)} className="border-b border-slate-100 dark:border-slate-800"><td className="p-3"><p className="font-bold dark:text-white">{String(user.name || '—')}</p><p className="text-xs text-slate-500">{String(user.email || '')}</p></td><td className="p-3">{String(company.name || 'Independent')}</td><td className="p-3">{String(row.license_number || '—')} · {String(row.license_country_code || '')}</td><td className="p-3"><span className="flex items-center gap-1 text-sm text-slate-500"><MapPin className="h-4 w-4" />{String(((vehicles[0]?.locations as Array<Record<string, unknown>> | undefined)?.[0]?.location_name) || '—')}</span></td><td className="p-3"><span className="flex items-center gap-1 font-bold"><Star className="h-4 w-4 fill-amber-400 text-amber-400" />{String(row.rating || 0)}</span></td><td className="p-3"><span className="flex items-center gap-1"><Truck className="h-4 w-4 text-primary" />{String(row.completed_trips || 0)}</span></td><td className="p-3"><span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-bold text-primary">{String(row.availability_status || '—')}</span></td></tr>; })}</tbody></table></div></Card>
+    </div>
     <AdminFormModal open={open} title="Add driver" description="Create the driver login, professional profile and optional company membership together." submitting={submitting} error={error} onClose={() => { setOpen(false); setError(''); }} onSubmit={() => void save()}>
       <div className="sm:col-span-2"><p className="font-black text-slate-900 dark:text-white">Driver login</p></div>
       <AdminField label="Full name"><input required value={form.name} onChange={(event) => field('name', event.target.value)} className={adminFieldClass} /></AdminField>
