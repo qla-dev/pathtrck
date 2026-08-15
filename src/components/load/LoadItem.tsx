@@ -31,6 +31,7 @@ export const LoadItem = ({
   onOpenSetup,
 }: LoadItemProps) => {
   const isMap = layout === 'map';
+  const isGrid = layout === 'grid';
   const sourceLine = hideSource
     ? `${load.cargoType} - ${load.weight} kg - ${load.date}`
     : `${load.author} - ${load.date}`;
@@ -135,21 +136,29 @@ export const LoadItem = ({
       {!hideSource && (
         <>
           <div className="mt-6 -mx-6 w-[calc(100%+3rem)] border-t border-slate-100 dark:border-slate-800" />
-          <div className="pt-6 flex items-center gap-8">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 min-w-2 min-h-2 rounded-full bg-emerald-500" />
-              <span className="text-sm font-medium dark:text-slate-300">{load.pickup}</span>
+          <div className={cn('pt-6', isGrid ? 'space-y-4' : 'flex items-center gap-8')}>
+            <div className={cn('flex min-w-0 items-center', isGrid ? 'w-full gap-2' : 'gap-8')}>
+              <div className={cn('flex min-w-0 items-center gap-2', isGrid && 'flex-1')}>
+                <div className="w-2 h-2 min-w-2 min-h-2 rounded-full bg-emerald-500" />
+                <span className="truncate text-sm font-medium dark:text-slate-300">{load.pickup}</span>
+              </div>
+              <ArrowRight className="w-4 h-4 shrink-0 text-slate-300" />
+              <div className={cn('flex min-w-0 items-center gap-2', isGrid && 'flex-1 justify-end text-right')}>
+                <div className="w-2 h-2 min-w-2 min-h-2 rounded-full bg-blue-500" />
+                <span className="truncate text-sm font-medium dark:text-slate-300">{load.delivery}</span>
+              </div>
             </div>
-            <ArrowRight className="w-4 h-4 text-slate-300" />
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 min-w-2 min-h-2 rounded-full bg-blue-500" />
-              <span className="text-sm font-medium dark:text-slate-300">{load.delivery}</span>
-            </div>
-            <div className="ml-auto">
+            {isGrid && (
+              <div className="-mx-6 w-[calc(100%+3rem)] border-t border-slate-100 dark:border-slate-800" />
+            )}
+            <div className={cn(isGrid ? 'w-full' : 'ml-auto')}>
               <Button
                 size="md"
                 variant="primary"
-                className="h-11 min-w-[128px] px-5 font-semibold whitespace-nowrap flex-nowrap"
+                className={cn(
+                  'h-11 min-w-[128px] px-5 font-semibold whitespace-nowrap flex-nowrap',
+                  isGrid && 'w-full'
+                )}
                 onClick={(event) => {
                   event.stopPropagation();
                   handleCardClick();

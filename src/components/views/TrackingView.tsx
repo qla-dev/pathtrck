@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import Flatpickr from 'react-flatpickr';
-import { Search, MapPin, ChevronRight, Package as PackageIcon, Clock3, RotateCcw, Share2, Star, Bot, Route, Lock, Coins, Loader2, Sparkles, Truck, FileBarChart2, Upload, FileSpreadsheet, Fuel, BedDouble, ParkingCircle, Landmark, Filter, CalendarDays, History } from 'lucide-react';
+import { Search, MapPin, ChevronRight, Package as PackageIcon, Clock3, RotateCcw, Share2, Star, Bot, Route, Lock, Coins, Loader2, Sparkles, Truck, FileBarChart2, Upload, FileSpreadsheet, Fuel, BedDouble, ParkingCircle, Landmark, Filter, CalendarDays, ReceiptText, FileText, Printer } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, CircleMarker, Tooltip } from 'react-leaflet';
 import { Language, Package as PackageData, Role } from '../../types';
 import { api } from '../../services/api';
@@ -13,7 +13,6 @@ import { Card } from '../ui/Card';
 import { Toggle } from '../ui/Toggle';
 import { ChatConversationPanel } from '../chat/ChatConversationPanel';
 import { Conversation } from '../chat/types';
-import { HistoryView } from './HistoryView';
 
 type AmenityCategory = 'toll' | 'fuel' | 'rest' | 'parking';
 type TrackingFilterMode = 'all' | 'today' | 'calendar';
@@ -78,7 +77,6 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
     };
   }), [shipmentsResult.items]);
   const emptyPackage: PackageData = { id: '', trackingNumber: '', carrier: '', status: 'Pending', origin: '', destination: '', addedDate: '', transitDays: 0, currentLocation: [43.8563, 18.4131], history: [] };
-  const [workspaceTab, setWorkspaceTab] = useState<'live' | 'history'>('live');
   const [selectedPackage, setSelectedPackage] = useState<PackageData>(emptyPackage);
   const [query, setQuery] = useState('');
   const [filterMode, setFilterMode] = useState<TrackingFilterMode>('all');
@@ -89,13 +87,15 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
   });
   const [rangeEnd, setRangeEnd] = useState(() => endOfDay(new Date()));
   const [smartStatus, setSmartStatus] = useState<string>("");
-  const [rightTab, setRightTab] = useState<'tracker' | 'dispatch' | 'map' | 'timeline' | 'return' | 'returnRoutes' | 'reports' | 'share' | 'review'>('tracker');
+  const [rightTab, setRightTab] = useState<'tracker' | 'dispatch' | 'map' | 'timeline' | 'return' | 'returnRoutes' | 'reports' | 'share' | 'invoice' | 'review'>('tracker');
   const [dispatchDraft, setDispatchDraft] = useState('');
   const [returnTokens, setReturnTokens] = useState(0);
   const [returnRoutesUnlocked, setReturnRoutesUnlocked] = useState(false);
   const [isUnlockingReturnRoutes, setIsUnlockingReturnRoutes] = useState(false);
   const [unlockStep, setUnlockStep] = useState(0);
   const [tachographFile, setTachographFile] = useState<File | null>(null);
+  const [invoiceLoading, setInvoiceLoading] = useState<'predracun' | 'a4-faktura' | null>(null);
+  const [invoiceError, setInvoiceError] = useState('');
   const [mapFilters, setMapFilters] = useState<Record<AmenityCategory, boolean>>({
     toll: true,
     fuel: false,
@@ -291,49 +291,25 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
     window.URL.revokeObjectURL(url);
   };
 
+  const openInvoice = async (document: 'predracun' | 'a4-faktura') => {
+    if (!selectedPackage.id || invoiceLoading) return;
+    setInvoiceError('');
+    setInvoiceLoading(document);
+    try {
+      await api.shipmentInvoice(selectedPackage.id, document);
+    } catch (error) {
+      setInvoiceError(error instanceof Error ? error.message : u('tracking.invoiceError', 'The invoice could not be generated.'));
+    } finally {
+      setInvoiceLoading(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div className="inline-grid w-full grid-cols-2 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:w-auto">
-        <button
-          onClick={() => setWorkspaceTab('live')}
-          className={cn(
-            'flex h-11 items-center justify-center gap-2 rounded-xl px-5 text-sm font-bold transition-all',
-            workspaceTab === 'live' ? 'bg-primary text-white shadow-md shadow-primary/20' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
-          )}
-        >
-          <PackageIcon className="h-4 w-4" />
-          {u('tracking.liveTracking', 'Live Tracking')}
-        </button>
-        <button
-          onClick={() => setWorkspaceTab('history')}
-          className={cn(
-            'flex h-11 items-center justify-center gap-2 rounded-xl px-5 text-sm font-bold transition-all',
-            workspaceTab === 'history' ? 'bg-primary text-white shadow-md shadow-primary/20' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
-          )}
-        >
-          <History className="h-4 w-4" />
-          {u('tracking.routeHistory', 'Route History')}
-        </button>
-      </div>
-
-      {workspaceTab === 'history' ? (
-        <HistoryView lang={lang} />
-      ) : (
       <div className="grid lg:grid-cols-12 gap-6">
       {/* Sidebar List */}
       <div className="lg:col-span-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-          <input 
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            type="text" 
-            placeholder={u('common.searchTracking', 'Search tracking number...')}
-            className="w-full h-12 pl-10 pr-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-primary"
-          />
-        </div>
-
-        <div className="mt-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2 grid grid-cols-3 gap-2">
+        <div className="mb-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2 grid grid-cols-3 gap-2">
           <button
             onClick={() => setFilterMode('all')}
             className={cn(
@@ -364,6 +340,17 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
             <CalendarDays className="w-4 h-4" />
             {u('history.filter.calendar', 'Calendar')}
           </button>
+        </div>
+
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            type="text"
+            placeholder={u('common.searchTracking', 'Search tracking number...')}
+            className="w-full h-12 pl-10 pr-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-primary"
+          />
         </div>
 
         {filterMode === 'calendar' && (
@@ -473,8 +460,8 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
       </div>
 
       {/* Main Tracking Content (Amazon Inspired) */}
-      <div className="lg:col-span-8 space-y-6">
-        <div className="overflow-x-auto px-1 [scrollbar-width:thin] [scrollbar-color:rgb(148_163_184/0.72)_transparent] dark:[scrollbar-color:rgb(71_85_105/0.8)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-400/70 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600/80 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:bg-slate-500/90 dark:[&::-webkit-scrollbar-thumb:hover]:bg-slate-500/95">
+      <div className="lg:col-span-8">
+        <div className="mb-6 overflow-x-auto px-1 [scrollbar-width:thin] [scrollbar-color:rgb(148_163_184/0.72)_transparent] dark:[scrollbar-color:rgb(71_85_105/0.8)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-400/70 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600/80 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:bg-slate-500/90 dark:[&::-webkit-scrollbar-thumb:hover]:bg-slate-500/95">
           <div className="inline-flex h-12 min-w-full w-max items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1">
           <button
             onClick={() => setRightTab('tracker')}
@@ -557,6 +544,16 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
             {u('Share', 'Share')}
           </button>
           <button
+            onClick={() => setRightTab('invoice')}
+            className={cn(
+              'h-full px-3 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5',
+              rightTab === 'invoice' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+            )}
+          >
+            <ReceiptText className="w-4 h-4" />
+            {u('Invoice', 'Invoice')}
+          </button>
+          <button
             onClick={() => setRightTab('review')}
             className={cn(
               'h-full px-3 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5',
@@ -596,10 +593,6 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
               </div>
               <div className="text-right">
                 <p className="text-[10px] uppercase text-slate-500">Order # {selectedPackage.trackingNumber}</p>
-                <div className="flex gap-4 mt-1 text-xs font-medium text-primary">
-                  <span className="cursor-pointer hover:underline">{u('View order details', 'View order details')}</span>
-                  <span className="cursor-pointer hover:underline">{u('Invoice', 'Invoice')}</span>
-                </div>
               </div>
             </div>
             <div className="amazon-body">
@@ -897,6 +890,41 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
           </Card>
         )}
 
+        {rightTab === 'invoice' && (
+          <Card title={u('tracking.invoiceDocuments', 'Invoice documents')}>
+            <div className="space-y-4">
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                {u('tracking.invoiceHelp', 'Generate a printable payment document for the selected shipment.')}
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-700 p-4">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                    <FileText className="h-5 w-5" />
+                  </div>
+                  <p className="mt-4 font-bold text-slate-900 dark:text-white">{u('tracking.proformaInvoice', 'Pro forma invoice')}</p>
+                  <p className="mt-1 text-xs text-slate-500">{u('tracking.proformaHelp', 'Open a pro forma invoice ready for PDF printing.')}</p>
+                  <Button className="mt-4 w-full gap-2" disabled={!selectedPackage.id || invoiceLoading !== null} onClick={() => openInvoice('predracun')}>
+                    {invoiceLoading === 'predracun' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                    {u('tracking.openProforma', 'Open pro forma invoice')}
+                  </Button>
+                </div>
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-700 p-4">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600">
+                    <Printer className="h-5 w-5" />
+                  </div>
+                  <p className="mt-4 font-bold text-slate-900 dark:text-white">{u('tracking.a4Invoice', 'A4 invoice')}</p>
+                  <p className="mt-1 text-xs text-slate-500">{u('tracking.a4InvoiceHelp', 'Open the final A4 invoice with a PDF button in the header.')}</p>
+                  <Button variant="outline" className="mt-4 w-full gap-2" disabled={!selectedPackage.id || invoiceLoading !== null} onClick={() => openInvoice('a4-faktura')}>
+                    {invoiceLoading === 'a4-faktura' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+                    {u('tracking.openA4Invoice', 'Open A4 invoice')}
+                  </Button>
+                </div>
+              </div>
+              {invoiceError && <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 dark:bg-rose-950/30 dark:text-rose-300">{invoiceError}</p>}
+            </div>
+          </Card>
+        )}
+
         {rightTab === 'reports' && (
           <Card title={u('tracking.reportsTitle', 'Reports and Tachograph')}>
             <div className="space-y-5">
@@ -986,7 +1014,6 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
         )}
       </div>
       </div>
-      )}
     </div>
   );
 };

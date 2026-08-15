@@ -1,21 +1,27 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   BadgeCheck,
   Building2,
   CircleUserRound,
   KeyRound,
+  LoaderCircle,
   Mail,
   MapPin,
   Phone,
   ReceiptText,
   ShieldOff,
+  UserCheck,
   X,
 } from "lucide-react";
+import { ApiError, api } from "../../services/api";
+import { confirmAction, showSuccess } from "../../lib/swal";
+import { Button } from "../ui/Button";
 
 type CustomerDetailsProps = {
   open: boolean;
   customer: Record<string, unknown> | null;
   onClose: () => void;
+  onAuthorized?: (customer: Record<string, unknown>) => void;
 };
 
 const display = (value: unknown): string => {
@@ -64,7 +70,12 @@ export const CustomerDetails = ({
   open,
   customer,
   onClose,
+  onAuthorized,
 }: CustomerDetailsProps) => {
+  const [authorizationEmail, setAuthorizationEmail] = useState("");
+  const [authorizing, setAuthorizing] = useState(false);
+  const [authorizationError, setAuthorizationError] = useState("");
+
   useEffect(() => {
     if (!open) return undefined;
     const handleEscape = (event: KeyboardEvent) => {
@@ -74,6 +85,15 @@ export const CustomerDetails = ({
     return () => window.removeEventListener("keydown", handleEscape);
   }, [open, onClose]);
 
+  useEffect(() => {
+    if (!open || !customer) return;
+    const linkedUser = (customer.user || {}) as Record<string, unknown>;
+    setAuthorizationEmail(
+      String(customer.email || customer.billing_email || linkedUser.email || ""),
+    );
+    setAuthorizationError("");
+  }, [open, customer]);
+
   if (!open || !customer) return null;
 
   const user = (customer.user || {}) as Record<string, unknown>;
@@ -82,6 +102,46 @@ export const CustomerDetails = ({
   const isAuthorized = Boolean(
     customer.profile_authorized_at && customer.user_id,
   );
+
+  const authorize = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const targetEmail = authorizationEmail.trim();
+    const confirmed = await confirmAction({
+      title: "Authorize this customer?",
+      text: `A login account and temporary password will be created for ${targetEmail}.`,
+      confirmText: "Authorize customer",
+    });
+    if (!confirmed) return;
+
+    setAuthorizing(true);
+    setAuthorizationError("");
+    try {
+      const response = await api.customers.authorize(
+        Number(customer.id),
+        targetEmail,
+      );
+      onAuthorized?.(response.data);
+      void showSuccess(
+        "Customer authorized",
+        response.meta?.email_sent === false
+          ? "The account is active, but the credentials email could not be sent. Check the SMTP configuration."
+          : "The first login credentials were sent by email.",
+      );
+    } catch (caught) {
+      const validation =
+        caught instanceof ApiError
+          ? Object.values(caught.errors).flat()[0]
+          : null;
+      setAuthorizationError(
+        validation ||
+          (caught instanceof Error
+            ? caught.message
+            : "Customer could not be authorized."),
+      );
+    } finally {
+      setAuthorizing(false);
+    }
+  };
 
   return (
     <div
@@ -114,7 +174,7 @@ export const CustomerDetails = ({
         </header>
 
         <div className="flex-1 overflow-y-auto p-5 md:p-7">
-          <div className="mx-auto max-w-7xl space-y-6">
+          <div className="w-full space-y-6">
             <section className="overflow-hidden rounded-3xl border border-sky-100 bg-gradient-to-br from-white via-sky-50 to-cyan-100 p-6 dark:border-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-cyan-950">
               <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
                 <div className="flex min-w-0 items-center gap-4">
@@ -139,7 +199,7 @@ export const CustomerDetails = ({
                     ) : (
                       <ShieldOff className="h-4 w-4" />
                     )}
-                    {customer.is_active ? "Active" : "Inactive"}
+                    {customer.is_active ? "Active" : "Not authorized"}
                   </span>
                   <span
                     className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-black ${isAuthorized ? "bg-sky-500/10 text-sky-600" : "bg-slate-500/10 text-slate-500"}`}
@@ -150,6 +210,84 @@ export const CustomerDetails = ({
                 </div>
               </div>
             </section>
+
+            <section className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900 sm:grid-cols-3">
+              <div className="flex items-center gap-3">
+                <Mail className="h-5 w-5 text-primary" />
+                <div>
+                  <p className="text-xs text-slate-500">Primary email</p>
+                  <p className="break-all text-sm font-bold dark:text-white">
+                    {display(email)}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Phone className="h-5 w-5 text-primary" />
+                <div>
+                  <p className="text-xs text-slate-500">Phone</p>
+                  <p className="text-sm font-bold dark:text-white">
+                    {display(customer.phone || user.phone)}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <MapPin className="h-5 w-5 text-primary" />
+                <div>
+                  <p className="text-xs text-slate-500">Location</p>
+                  <p className="text-sm font-bold dark:text-white">
+                    {display(
+                      [customer.city, customer.country_code]
+                        .filter(Boolean)
+                        .join(", "),
+                    )}
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            {!customer.is_active && (
+              <section className="rounded-2xl border border-sky-200 bg-sky-50 p-5 dark:border-sky-900/60 dark:bg-sky-950/30">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                  <div className="max-w-xl">
+                    <div className="flex items-center gap-2 text-primary">
+                      <UserCheck className="h-5 w-5" />
+                      <h3 className="text-sm font-black">Authorize customer access</h3>
+                    </div>
+                    <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                      This creates an active login immediately and emails the customer a generated username and temporary password.
+                    </p>
+                  </div>
+                  <form onSubmit={authorize} className="w-full max-w-xl">
+                    <label className="mb-1.5 block text-xs font-bold text-slate-600 dark:text-slate-300" htmlFor="customer-authorization-email">
+                      Login email
+                    </label>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <input
+                        id="customer-authorization-email"
+                        type="email"
+                        required
+                        maxLength={255}
+                        value={authorizationEmail}
+                        onChange={(event) => setAuthorizationEmail(event.target.value)}
+                        placeholder="customer@example.com"
+                        className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm outline-none transition focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                      />
+                      <Button type="submit" disabled={authorizing} className="whitespace-nowrap">
+                        {authorizing ? (
+                          <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <UserCheck className="mr-2 h-4 w-4" />
+                        )}
+                        {authorizing ? "Authorizing..." : "Authorize customer"}
+                      </Button>
+                    </div>
+                    {authorizationError && (
+                      <p className="mt-2 text-sm font-semibold text-rose-600">{authorizationError}</p>
+                    )}
+                  </form>
+                </div>
+              </section>
+            )}
 
             <div className="grid gap-6 xl:grid-cols-2">
               <Section icon={Building2} title="Business identity">
@@ -228,39 +366,6 @@ export const CustomerDetails = ({
               </Section>
             </div>
 
-            <section className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900 sm:grid-cols-3">
-              <div className="flex items-center gap-3">
-                <Mail className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="text-xs text-slate-500">Primary email</p>
-                  <p className="break-all text-sm font-bold dark:text-white">
-                    {display(email)}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Phone className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="text-xs text-slate-500">Phone</p>
-                  <p className="text-sm font-bold dark:text-white">
-                    {display(customer.phone || user.phone)}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <MapPin className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="text-xs text-slate-500">Location</p>
-                  <p className="text-sm font-bold dark:text-white">
-                    {display(
-                      [customer.city, customer.country_code]
-                        .filter(Boolean)
-                        .join(", "),
-                    )}
-                  </p>
-                </div>
-              </div>
-            </section>
           </div>
         </div>
       </div>

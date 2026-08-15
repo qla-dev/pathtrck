@@ -3,7 +3,7 @@ import { Role } from '../types';
 export type ApiEnvelope<T> = {
   message: string;
   data: T;
-  meta?: { current_page?: number; page_no?: number; last_page?: number; per_page?: number; limit?: number; total?: number };
+  meta?: { current_page?: number; page_no?: number; last_page?: number; per_page?: number; limit?: number; total?: number; email_sent?: boolean; has_more?: boolean };
   errors?: Record<string, string[]>;
 };
 
@@ -63,6 +63,30 @@ const request = async <T>(path: string, options: RequestInit = {}): Promise<ApiE
   return payload;
 };
 
+const openDocument = async (path: string): Promise<void> => {
+  const popup = window.open('', '_blank');
+  if (!popup) throw new ApiError('Allow pop-ups to open this document.', 0);
+
+  popup.document.write('<!doctype html><title>Loading…</title><p style="font-family:sans-serif;padding:24px">Loading document…</p>');
+  const headers = new Headers({ Accept: 'text/html' });
+  const token = getToken();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+
+  try {
+    const response = await fetch(`${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`, {
+      credentials: 'omit', headers,
+    });
+    if (!response.ok) throw new ApiError(`Document could not be generated (${response.status}).`, response.status);
+    const html = await response.text();
+    popup.document.open();
+    popup.document.write(html);
+    popup.document.close();
+  } catch (error) {
+    popup.close();
+    throw error;
+  }
+};
+
 const queryString = (params: ListParams = {}) => {
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => { if (value !== undefined) query.set(key, String(value)); });
@@ -97,7 +121,17 @@ export const api = {
   users: {
     ...resourceApi<Record<string, unknown>>('users'),
   },
-  customers: resourceApi<Record<string, unknown>>('customers'),
+  customers: {
+    ...resourceApi<Record<string, unknown>>('customers'),
+    authorize: (id: number | string, email: string) => request<Record<string, unknown>>(`/customers/${id}/authorize`, {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+  },
+  customerOptions: (params: ListParams = {}) => {
+    const query = queryString(params);
+    return request<Record<string, unknown>[]>(query ? `/customer-options?${query}` : '/customer-options');
+  },
   companies: {
     ...resourceApi<Record<string, unknown>>('companies'),
     onboard: (data: Record<string, unknown>) => request<Record<string, unknown>>('/companies/onboard', { method: 'POST', body: JSON.stringify(data) }),
@@ -116,6 +150,8 @@ export const api = {
     }),
   },
   shipments: resourceApi<Record<string, unknown>>('shipments'),
+  shipmentInvoice: (shipmentId: number | string, document: 'predracun' | 'a4-faktura') =>
+    openDocument(`/shipments/${shipmentId}/invoice/${document}`),
   routes: resourceApi<Record<string, unknown>>('routes'),
   trackingEvents: resourceApi<Record<string, unknown>>('tracking-events'),
   conversations: resourceApi<Record<string, unknown>>('conversations'),

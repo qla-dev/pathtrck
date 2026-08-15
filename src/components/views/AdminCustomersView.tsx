@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Eye, Mail, UserRound } from "lucide-react";
+import { CircleCheckBig, Eye, Globe2, Mail, UserRound, UsersRound } from "lucide-react";
 import { ApiError, api } from "../../services/api";
 import { Language } from "../../types";
 import { AdminField, AdminFormModal, adminFieldClass } from "./AdminFormModal";
@@ -87,12 +87,12 @@ export const AdminCustomersView = ({
         header: "Status",
         render: (row) => (
           <span
-            className={`rounded-full px-2 py-1 text-xs font-bold ${row.is_active ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600"}`}
+            className={`inline-flex whitespace-nowrap rounded-full px-2 py-1 text-xs font-bold ${row.is_active ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600"}`}
           >
-            {row.is_active ? "Active" : "Inactive"}
+            {row.is_active ? "Active" : "Not authorized"}
           </span>
         ),
-        exportValue: (row) => (row.is_active ? "Active" : "Inactive"),
+        exportValue: (row) => (row.is_active ? "Active" : "Not authorized"),
       },
       {
         key: "actions",
@@ -155,18 +155,19 @@ export const AdminCustomersView = ({
     <>
       <div className="space-y-6">
         <section className="rounded-3xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-500">
                 <UserRound className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">
-                  Superadmin registry
-                </p>
                 <h1 className="text-2xl font-black dark:text-white">
                   Customers
                 </h1>
+                <p className="mt-1 text-sm text-slate-500">
+                  Manage customer accounts, access, load activity and contact
+                  information.
+                </p>
               </div>
             </div>
             <div className="flex gap-2">
@@ -177,27 +178,18 @@ export const AdminCustomersView = ({
               <Button onClick={() => setOpen(true)}>Add customer</Button>
             </div>
           </div>
-          <p className="mt-4 text-sm text-slate-500">
-            Manage customer accounts, access, load activity and contact
-            information.
-          </p>
         </section>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Card className="p-4">
-            <p className="text-xs uppercase text-slate-500">Total customers</p>
-            <p className="mt-1 text-3xl font-black dark:text-white">
-              {customers.total}
-            </p>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Card className="shadow-none" contentClassName="flex items-center justify-between gap-3 px-5 py-3">
+            <div><p className="text-xs uppercase text-slate-500">Total customers</p><p className="mt-1 text-2xl font-black dark:text-white">{customers.total}</p></div>
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-500"><UsersRound className="h-6 w-6" /></div>
           </Card>
-          <Card className="p-4">
-            <p className="text-xs uppercase text-slate-500">Active accounts</p>
-            <p className="mt-1 text-3xl font-black text-emerald-500">
-              {customers.items.filter((row) => row.is_active).length}
-            </p>
+          <Card className="shadow-none" contentClassName="flex items-center justify-between gap-3 px-5 py-3">
+            <div><p className="text-xs uppercase text-slate-500">Authorized</p><p className="mt-1 text-2xl font-black text-emerald-500">{customers.items.filter((row) => row.is_active).length}</p></div>
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500"><CircleCheckBig className="h-6 w-6" /></div>
           </Card>
-          <Card className="p-4">
-            <p className="text-xs uppercase text-slate-500">Countries</p>
-            <p className="mt-1 text-3xl font-black text-violet-500">
+          <Card className="shadow-none" contentClassName="flex items-center justify-between gap-3 px-5 py-3">
+            <div><p className="text-xs uppercase text-slate-500">Countries</p><p className="mt-1 text-2xl font-black text-violet-500">
               {
                 new Set(
                   customers.items
@@ -205,10 +197,11 @@ export const AdminCustomersView = ({
                     .filter(Boolean),
                 ).size
               }
-            </p>
+            </p></div>
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-violet-500/10 text-violet-500"><Globe2 className="h-6 w-6" /></div>
           </Card>
         </div>
-        <Card>
+        <Card className="shadow-none">
           <ServerDataTable
             title="Customers"
             request={api.customers.list}
@@ -223,6 +216,11 @@ export const AdminCustomersView = ({
         open={selected !== null}
         customer={selected}
         onClose={() => setSelected(null)}
+        onAuthorized={(customer) => {
+          setSelected(customer);
+          void customers.refresh();
+          setTableRefreshKey((current) => current + 1);
+        }}
       />
       <AdminFormModal
         open={open}

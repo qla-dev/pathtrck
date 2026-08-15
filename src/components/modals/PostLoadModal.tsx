@@ -27,6 +27,7 @@ import { MOCK_LOADS } from '../../mockData';
 import { Button } from '../ui/Button';
 import { useCitySuggestions } from '../frights/useCitySuggestions';
 import { api, ApiError } from '../../services/api';
+import { CustomerSelect, customerOptionFromRecord, type CustomerOption } from '../customer/CustomerSelect';
 
 type PostLoadModalProps = {
   isOpen: boolean;
@@ -40,6 +41,7 @@ type StepId = 'route' | 'cargo' | 'terms' | 'review';
 type TransportType = 'road' | 'air' | 'sea';
 
 type LoadDraft = {
+  consignee: CustomerOption | null;
   transportType: TransportType;
   pickupPlaces: string;
   pickupPlaceType: string;
@@ -105,6 +107,7 @@ type LoadDraft = {
 };
 
 const INITIAL_DRAFT: LoadDraft = {
+  consignee: null,
   transportType: 'road',
   pickupPlaces: '1',
   pickupPlaceType: 'Loading place',
@@ -444,8 +447,12 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       const deliveryStart = fromApiDateTime(delivery.window_starts_at);
       const deliveryEnd = fromApiDateTime(delivery.window_ends_at);
       const contact = (record.contact || {}) as Record<string, unknown>;
+      const consignee = record.consignee && typeof record.consignee === 'object'
+        ? customerOptionFromRecord(record.consignee as Record<string, unknown>)
+        : null;
       const terms = String(record.payment_terms || 'negotiable');
       setDraft({ ...INITIAL_DRAFT,
+        consignee,
         transportType: (record.transport_type as TransportType) || 'road',
         pickupPlaceType: String(pickup.place_type || INITIAL_DRAFT.pickupPlaceType), pickupCity: String(pickup.city || ''), pickupCountry: String(pickup.country_code || 'BA'), pickupAddress: String(pickup.address || ''), pickupDate: pickupStart.date, pickupDateTo: pickupEnd.date, pickupTimeFrom: pickupStart.time, pickupTimeTo: pickupEnd.time,
         deliveryPlaceType: String(delivery.place_type || INITIAL_DRAFT.deliveryPlaceType), deliveryCity: String(delivery.city || ''), deliveryCountry: String(delivery.country_code || 'BA'), deliveryAddress: String(delivery.address || ''), deliveryDate: deliveryStart.date, deliveryDateTo: deliveryEnd.date, deliveryTimeFrom: deliveryStart.time, deliveryTimeTo: deliveryEnd.time,
@@ -467,7 +474,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   const stepCompletion = useMemo<Record<StepId, boolean>>(
     () => ({
       route: Boolean(
-        draft.pickupCity &&
+        draft.consignee &&
+          draft.pickupCity &&
           draft.pickupDate &&
           draft.deliveryCity &&
           draft.deliveryDate
@@ -543,6 +551,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     setSubmitError('');
     try {
       const payload = {
+        consignee_customer_id: draft.consignee?.id || null,
         title: draft.cargoTitle,
         transport_type: draft.transportType,
         cargo_type: draft.cargoType,
@@ -773,6 +782,19 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       'Define exact pickup and delivery details so drivers can evaluate whether the route fits their lane.'
                     )}
                   />
+
+                  <div className="space-y-1.5 rounded-3xl border border-sky-200 bg-sky-50/60 p-4 dark:border-sky-900/60 dark:bg-sky-950/20 md:p-5">
+                    <FieldLabel>{u('postLoadModal.consignee', 'Consignee (customer)')}</FieldLabel>
+                    <CustomerSelect
+                      required
+                      value={draft.consignee}
+                      onChange={(option) => setField('consignee', option)}
+                      placeholder={u('postLoadModal.consigneePlaceholder', 'Select a consignee from the global customer database')}
+                    />
+                    <p className="text-xs text-slate-500">
+                      {u('postLoadModal.consigneeHelp', 'Search by company name, tax number, city or country. More results load as you scroll.')}
+                    </p>
+                  </div>
 
                   <fieldset>
                     <legend className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
@@ -1467,6 +1489,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
 
                   <div className="grid xl:grid-cols-[minmax(0,1fr)_300px] gap-5">
                     <div className="rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
+                      <SummaryRow label={u('postLoadModal.consignee', 'Consignee (customer)')} value={draft.consignee?.text || '—'} />
                       <SummaryRow label={u('postLoadModal.routeSummary', 'Route')} value={`${draft.pickupCity} → ${draft.deliveryCity}`} />
                       <SummaryRow
                         label={u('postLoadModal.transportType', 'Transport type')}

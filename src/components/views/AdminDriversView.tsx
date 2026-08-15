@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { MapPin, Search, Star, Truck, UserRoundSearch } from "lucide-react";
+import { CircleCheckBig, MapPin, Search, Star, Truck, UserRoundSearch, UsersRound } from "lucide-react";
 import { ApiError, api } from "../../services/api";
 import { Language } from "../../types";
 import { AdminField, AdminFormModal, adminFieldClass } from "./AdminFormModal";
@@ -91,56 +91,49 @@ export const AdminDriversView = ({ lang: _lang }: { lang: Language }) => {
     <>
       <div className="space-y-6">
         <section className="rounded-3xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-500">
                 <UserRoundSearch className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">
-                  Global workforce
+                <h1 className="text-2xl font-black dark:text-white">Drivers</h1>
+                <p className="mt-1 text-sm text-slate-500">
+                  Track drivers, companies, licenses, availability and completed
+                  trips.
                 </p>
-                <h1 className="text-2xl font-black dark:text-white">
-                  Drivers
-                </h1>
               </div>
             </div>
             <Button onClick={() => setOpen(true)}>Add driver</Button>
           </div>
-          <p className="mt-4 text-sm text-slate-500">
-            Track drivers, companies, licenses, availability and completed
-            trips.
-          </p>
         </section>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Card className="p-4">
-            <p className="text-xs uppercase text-slate-500">Verified drivers</p>
-            <p className="mt-1 text-3xl font-black dark:text-white">
-              {drivers.total}
-            </p>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Card className="shadow-none" contentClassName="flex items-center justify-between gap-3 px-5 py-3">
+            <div><p className="text-xs uppercase text-slate-500">Verified drivers</p><p className="mt-1 text-2xl font-black dark:text-white">{drivers.total}</p></div>
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-500"><UsersRound className="h-6 w-6" /></div>
           </Card>
-          <Card className="p-4">
-            <p className="text-xs uppercase text-slate-500">Available</p>
-            <p className="mt-1 text-3xl font-black text-emerald-500">
+          <Card className="shadow-none" contentClassName="flex items-center justify-between gap-3 px-5 py-3">
+            <div><p className="text-xs uppercase text-slate-500">Available</p><p className="mt-1 text-2xl font-black text-emerald-500">
               {
                 drivers.items.filter(
                   (row) => row.availability_status === "available",
                 ).length
               }
-            </p>
+            </p></div>
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500"><CircleCheckBig className="h-6 w-6" /></div>
           </Card>
-          <Card className="p-4">
-            <p className="text-xs uppercase text-slate-500">On load</p>
-            <p className="mt-1 text-3xl font-black text-sky-500">
+          <Card className="shadow-none" contentClassName="flex items-center justify-between gap-3 px-5 py-3">
+            <div><p className="text-xs uppercase text-slate-500">On load</p><p className="mt-1 text-2xl font-black text-sky-500">
               {
                 drivers.items.filter(
                   (row) => row.availability_status === "on_load",
                 ).length
               }
-            </p>
+            </p></div>
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-500"><Truck className="h-6 w-6" /></div>
           </Card>
         </div>
-        <Card>
+        <Card className="shadow-none">
           <div className="relative max-w-md">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input

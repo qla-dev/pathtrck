@@ -193,7 +193,7 @@ export const HomeFeed = ({
   const [mapSource, setMapSource] = useState<MapSource>('normal');
   const [selectedLoad, setSelectedLoad] = useState<Load | null>(null);
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
-  const bookLoadLabel = u('common.bookLoad', 'Book Load');
+  const bookLoadLabel = u('common.bookLoad', 'Reserve');
   const loadsTitle =
     dataMode === 'all'
       ? u('home.loadsTitle.all', 'All Organic and Global Loads')
@@ -343,7 +343,7 @@ export const HomeFeed = ({
   ];
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="w-full min-w-0 space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-bold dark:text-white mr-2">{loadsTitle}</h1>
@@ -407,7 +407,7 @@ export const HomeFeed = ({
       )}
 
       {sortedLoads.length > 0 && layout === 'grid' && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid w-full grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           {sortedLoads.map((load) => (
             <LoadItem
               key={load.id}
