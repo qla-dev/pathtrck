@@ -92,8 +92,14 @@ export const api = {
     logout: async () => { try { await request<null>('/auth/logout', { method: 'POST' }); } finally { setToken(null); } },
   },
   roles: resourceApi<Record<string, unknown>>('roles'),
-  users: resourceApi<Record<string, unknown>>('users'),
-  companies: resourceApi<Record<string, unknown>>('companies'),
+  users: {
+    ...resourceApi<Record<string, unknown>>('users'),
+    createCustomer: (data: Record<string, unknown>) => request<Record<string, unknown>>('/users/customer', { method: 'POST', body: JSON.stringify(data) }),
+  },
+  companies: {
+    ...resourceApi<Record<string, unknown>>('companies'),
+    onboard: (data: Record<string, unknown>) => request<Record<string, unknown>>('/companies/onboard', { method: 'POST', body: JSON.stringify(data) }),
+  },
   companyMemberships: resourceApi<Record<string, unknown>>('company-memberships'),
   companyInvitations: resourceApi<Record<string, unknown>>('company-invitations'),
   drivers: resourceApi<Record<string, unknown>>('driver-profiles'),
