@@ -1,0 +1,28 @@
+Options -Indexes
+DirectoryIndex dist/index.html
+
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Keep the deployment endpoint outside the generated Vite build.
+    RewriteRule ^redeploy\.php$ - [L]
+
+    # Let the Laravel application's own .htaccess handle API requests.
+    RewriteRule ^backend(?:/|$) - [L]
+
+    # Prevent repeated rewriting after a request has entered dist.
+    RewriteRule ^dist(?:/|$) - [L]
+
+    # Serve generated files and directories from dist.
+    RewriteCond %{DOCUMENT_ROOT}/dist/$1 -f [OR]
+    RewriteCond %{DOCUMENT_ROOT}/dist/$1 -d
+    RewriteRule ^(.+)$ dist/$1 [L]
+
+    # Vite/React client-side routes fall back to the generated index.
+    RewriteRule ^$ dist/index.html [L]
+    RewriteRule . dist/index.html [L]
+</IfModule>

@@ -18,3 +18,8 @@ View your app in AI Studio: https://ai.studio/apps/987a1401-a969-4d35-89d6-7634f
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
+# Server redeploy
+
+The repository includes `redeploy.php` and `.htaccess`, following the Putni nalozi cPanel deployment layout. The endpoint pulls `main`, installs locked dependencies, and rebuilds `dist`.
+
+Open `/redeploy.php` and authenticate with any Basic Auth username and password `1234`. The frontend rewrite explicitly leaves `/backend` to the Laravel API.
