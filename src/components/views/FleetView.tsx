@@ -11,10 +11,12 @@ import {
   ShieldCheck,
   ChevronRight,
   Map as MapIcon,
+  Share2,
+  Users,
   X,
 } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, Area, Line } from 'recharts';
-import { Language } from '../../types';
+import { Language, Role } from '../../types';
 import { ui, trFuelType, trVehicleStatus } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { Button } from '../ui/Button';
@@ -204,13 +206,14 @@ const INITIAL_DRAFT: AddVehicleDraft = {
   nextService: '',
 };
 
-export const FleetView = ({ lang }: { lang: Language }) => {
+export const FleetView = ({ lang, role }: { lang: Language; role?: Role }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [vehicles, setVehicles] = useState<FleetVehicle[]>(INITIAL_VEHICLES);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState<AddVehicleDraft>(INITIAL_DRAFT);
   const [trailerStep, setTrailerStep] = useState(0);
+  const [sharedAccess, setSharedAccess] = useState<Record<string, boolean>>({ V1: true, V2: false, V3: true });
 
   const fleetData = [
     { name: 'Mon', fuel: 400, efficiency: 85 },
@@ -410,6 +413,42 @@ export const FleetView = ({ lang }: { lang: Language }) => {
           </Card>
         ))}
       </div>
+
+      {(role === 'company' || role === 'driver' || role === 'superadmin') && (
+        <Card>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-violet-500/10 text-violet-500">
+                <Share2 className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-lg font-black text-slate-900 dark:text-white">Company fleet access</p>
+                <p className="text-sm text-slate-500">Control which vehicles are visible to dispatchers and drivers.</p>
+              </div>
+            </div>
+            <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-2 text-xs font-bold text-primary">
+              <Users className="h-4 w-4" /> {Object.values(sharedAccess).filter(Boolean).length} shared
+            </span>
+          </div>
+          <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {vehicles.map((vehicle) => {
+              const shared = Boolean(sharedAccess[vehicle.id]);
+              const VehicleIcon = vehicleTypeIcon[vehicle.transportType];
+              return (
+                <div key={vehicle.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 dark:bg-slate-800"><VehicleIcon className="h-5 w-5" /></div>
+                    <div className="min-w-0"><p className="truncate text-sm font-bold text-slate-900 dark:text-white">{vehicle.systemName}</p><p className="truncate text-xs text-slate-500">{vehicle.plate} · {shared ? 'Team access' : 'Admins only'}</p></div>
+                  </div>
+                  <button type="button" onClick={() => setSharedAccess((current) => ({ ...current, [vehicle.id]: !shared }))} className={cn('shrink-0 rounded-xl px-3 py-2 text-xs font-bold transition-colors', shared ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300')}>
+                    {shared ? 'Shared' : 'Share'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       <div className="grid lg:grid-cols-3 gap-6">
         <Card title={u('fleet.fuelEfficiencyTitle', 'Fuel Consumption & Efficiency')} className="lg:col-span-2">

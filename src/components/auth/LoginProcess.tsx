@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { User, X } from 'lucide-react';
+import { Banknote, Building2, Crown, Truck, User, X } from 'lucide-react';
 
 import { Language, Role } from '../../types';
 import { ui } from '../../i18n';
@@ -25,6 +25,13 @@ type LoginProcessProps = {
 
 export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }: LoginProcessProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  const roleOptions = [
+    { id: 'user' as const, label: u('onboarding.customerTitle', "I'm a Customer"), icon: User },
+    { id: 'driver' as const, label: u('onboarding.driverTitle', "I'm a Driver"), icon: Truck },
+    { id: 'company' as const, label: u('login.logisticsCompany', 'Logistics Company'), icon: Building2 },
+    { id: 'finance' as const, label: u('login.financeAdministration', 'Finance & Administration'), icon: Banknote },
+    { id: 'superadmin' as const, label: u('login.superadmin', 'Superadmin'), icon: Crown },
+  ];
   const [loginData, setLoginData] = useState({
     username: 'driver_demo',
     password: 'demo12345',
@@ -96,24 +103,29 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => setLoginData((prev) => ({ ...prev, role: 'user' }))}
-                className={cn(
-                  'h-11 rounded-xl border-2 text-sm font-bold transition-all cursor-pointer',
-                  loginData.role === 'user' ? 'border-primary bg-primary/5 text-primary' : 'border-slate-100 dark:border-slate-800 text-slate-500'
-                )}
-              >
-                {u('onboarding.customerTitle', "I'm a Customer")}
-              </button>
-              <button
-                onClick={() => setLoginData((prev) => ({ ...prev, role: 'driver' }))}
-                className={cn(
-                  'h-11 rounded-xl border-2 text-sm font-bold transition-all cursor-pointer',
-                  loginData.role === 'driver' ? 'border-primary bg-primary/5 text-primary' : 'border-slate-100 dark:border-slate-800 text-slate-500'
-                )}
-              >
-                {u('onboarding.driverTitle', "I'm a Driver")}
-              </button>
+              {roleOptions.map((option) => {
+                const Icon = option.icon;
+                const selected = loginData.role === option.id;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => setLoginData((prev) => ({
+                      ...prev,
+                      role: option.id,
+                      username: option.id === 'user' ? 'customer_demo' : `${option.id}_demo`,
+                    }))}
+                    className={cn(
+                      'min-h-16 rounded-xl border-2 px-3 py-2.5 text-sm font-bold transition-all cursor-pointer flex items-center gap-2 text-left',
+                      option.id === 'superadmin' && 'col-span-2',
+                      selected ? 'border-primary bg-primary/5 text-primary' : 'border-slate-100 dark:border-slate-800 text-slate-500 hover:border-primary/40'
+                    )}
+                  >
+                    <Icon className="h-5 w-5 shrink-0" />
+                    <span className="leading-tight">{option.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
           </div>

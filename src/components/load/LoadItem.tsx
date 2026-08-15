@@ -63,26 +63,26 @@ export const LoadItem = ({
     <Card
       onClick={isInteractive ? handleCardClick : undefined}
       className={cn(
-        'hover:border-primary/50 transition-all group',
+        'min-w-0 max-w-full overflow-hidden hover:border-primary/50 transition-all group',
         isInteractive ? 'cursor-pointer' : 'cursor-default',
         hideSource && '[&>div:last-child]:p-4'
       )}
     >
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex gap-4 min-w-0">
-          <div className="w-12 h-12 shrink-0 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+      <div className="flex min-w-0 items-start justify-between gap-2 sm:gap-4">
+        <div className="flex min-w-0 gap-2 sm:gap-4">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center group-hover:bg-primary/10 transition-colors">
             <Truck className="text-slate-500 group-hover:text-primary transition-colors" />
           </div>
           <div className="min-w-0">
-            <h3 className="font-bold text-lg dark:text-white">{load.title}</h3>
+            <h3 className="truncate font-bold text-sm min-[400px]:text-base sm:text-lg dark:text-white">{load.title}</h3>
             <p className="text-sm text-slate-500 truncate">
               {sourceLine}
             </p>
           </div>
         </div>
 
-        <div className="ml-auto shrink-0 whitespace-nowrap flex flex-col items-end gap-2">
-          <div className="text-xl font-black text-primary whitespace-nowrap text-right">
+        <div className="ml-auto max-w-[34%] shrink-0 whitespace-nowrap flex flex-col items-end gap-2">
+          <div className="max-w-full truncate text-sm min-[400px]:text-base sm:text-xl font-black text-primary text-right">
             {load.price}
           </div>
           {!hideSource && (

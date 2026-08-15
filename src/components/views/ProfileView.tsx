@@ -288,7 +288,7 @@ export const ProfileView = ({ role, lang }: { role: Role; lang: Language }) => {
             </article>
           ))}
           {showTopReviewActions && (
-            <article className="rounded-2xl border border-slate-800 bg-slate-950 dark:bg-slate-900 p-5 shadow-[0_16px_50px_rgba(2,6,23,0.55)]">
+            <article className="rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 p-5 shadow-lg shadow-slate-200/60 dark:shadow-[0_16px_50px_rgba(2,6,23,0.55)]">
               <p className="text-xs uppercase tracking-[0.2em] font-bold text-primary mb-3">
                 {u('legacy.profile.review-actions.title', 'Review Actions')}
               </p>
@@ -299,7 +299,7 @@ export const ProfileView = ({ role, lang }: { role: Role; lang: Language }) => {
                 </Button>
                 <Button
                   variant="outline"
-                  className="w-full h-11 border-slate-700 text-slate-100 hover:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800"
+                  className="w-full h-11 border-slate-300 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800"
                 >
                   {content.secondaryAction}
                 </Button>
@@ -458,7 +458,7 @@ export const ProfileView = ({ role, lang }: { role: Role; lang: Language }) => {
             </div>
           ) : (
             <div className="lg:col-span-3">
-              <div className="rounded-2xl border border-slate-800 bg-slate-950 dark:bg-slate-900 p-5 shadow-[0_16px_50px_rgba(2,6,23,0.55)]">
+              <div className="rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 p-5 shadow-lg shadow-slate-200/60 dark:shadow-[0_16px_50px_rgba(2,6,23,0.55)]">
                 <p className="text-xs uppercase tracking-[0.2em] font-bold text-primary mb-3">
                   {u('legacy.profile.review-actions.title', 'Review Actions')}
                 </p>
@@ -469,7 +469,7 @@ export const ProfileView = ({ role, lang }: { role: Role; lang: Language }) => {
                   </Button>
                   <Button
                     variant="outline"
-                    className="w-full h-11 border-slate-700 text-slate-100 hover:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800"
+                    className="w-full h-11 border-slate-300 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800"
                   >
                     {content.secondaryAction}
                   </Button>

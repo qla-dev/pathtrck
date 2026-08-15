@@ -5,7 +5,6 @@ import {
   Settings, 
   Plus, 
   Search, 
-  History, 
   Truck, 
   Map as MapIcon, 
   BarChart3, 
@@ -24,13 +23,25 @@ import {
   Boxes,
   ArrowRight,
   CheckCircle2,
-  Sparkles,
   Coins,
   Clock,
   MapPin,
   ExternalLink,
   Filter,
-  NotebookPen
+  NotebookPen,
+  Building2,
+  Banknote,
+  Users,
+  Crown,
+  Mail,
+  UserRound,
+  BrainCircuit,
+  Database,
+  RadioTower,
+  Sparkles,
+  RefreshCw,
+  ScanSearch,
+  Zap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
@@ -64,7 +75,6 @@ import { Dashboard } from './components/views/Dashboard';
 import { NetworkView } from './components/views/NetworkView';
 import { TrackingView } from './components/views/TrackingView';
 import { HomeFeed } from './components/views/HomeFeed';
-import { HistoryView } from './components/views/HistoryView';
 import { FleetView } from './components/views/FleetView';
 import { SidebarFilter } from './components/frights/SidebarFilter';
 import { FeedSortMode, SidebarSort } from './components/frights/SidebarSort';
@@ -77,6 +87,14 @@ import { AutomationsView } from './components/views/AutomationsView';
 import { PostLoadModal } from './components/modals/PostLoadModal';
 import { SettingsView } from './components/views/SettingsView';
 import { LoadNotesView } from './components/views/LoadNotesView';
+import { CompanyWorkspaceView } from './components/views/CompanyWorkspaceView';
+import { CompanyTeamView } from './components/views/CompanyTeamView';
+import { FinanceView } from './components/views/FinanceView';
+import { AdminOverviewView } from './components/views/AdminOverviewView';
+import { AdminCompaniesView } from './components/views/AdminCompaniesView';
+import { AdminCustomersView } from './components/views/AdminCustomersView';
+import { AdminDriversView } from './components/views/AdminDriversView';
+import { EmailStudioView } from './components/views/EmailStudioView';
 import { SetupProcess } from './components/auth/SetupProcess';
 import { LoginProcess } from './components/auth/LoginProcess';
 import { AiRouteCalculatorCard } from './components/ai_automattions/AiRouteCalculatorCard';
@@ -1164,6 +1182,23 @@ const translations: Record<Exclude<Language, null>, Record<string, string>> = {
   })
 };
 
+const myCargoLabels: Record<Exclude<Language, null>, string> = {
+  en: 'My Cargo',
+  bs: 'Moj teret',
+  de: 'Meine Fracht',
+  pl: 'Mój ładunek',
+  ro: 'Marfa mea',
+  nl: 'Mijn vracht',
+  fr: 'Mon fret',
+  it: 'Il mio carico',
+  zh: '我的货物',
+  es: 'Mi carga',
+  sr: 'Moj teret',
+  sv: 'Min frakt',
+  ar: 'شحنتي',
+  pt: 'Minha carga',
+};
+
 const LandingPage = ({ 
   onStart, 
   onLogin,
@@ -1184,7 +1219,7 @@ const LandingPage = ({
   const [messageIndex, setMessageIndex] = useState(0);
   const [typedMessage, setTypedMessage] = useState('');
   const [isDeletingMessage, setIsDeletingMessage] = useState(false);
-  const SECTION_PADDING = "py-32";
+  const SECTION_PADDING = "py-20 sm:py-24 lg:py-32";
   const t = translations[lang || 'en'];
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const partners = [
@@ -1286,12 +1321,12 @@ const LandingPage = ({
   }, [typedMessage, isDeletingMessage, messageIndex, titleMessages]);
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950 font-sans selection:bg-primary/30">
+    <div className="min-h-screen overflow-x-clip bg-white dark:bg-slate-950 font-sans selection:bg-primary/30">
       {/* Navigation */}
       <nav className="fixed top-0 w-full z-[100] bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-100 dark:border-slate-900">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
           <div className="flex items-center">
-            <BrandWordmark className="text-2xl" />
+            <BrandWordmark className="text-base sm:text-2xl" />
           </div>
           <div className="hidden lg:flex items-center gap-10 text-sm font-semibold text-slate-500 dark:text-slate-400">
             <a href="#features" className="hover:text-primary transition-colors">{t.features}</a>
@@ -1299,19 +1334,19 @@ const LandingPage = ({
             <a href="#enterprise" className="hover:text-primary transition-colors">{t.enterprise}</a>
             <a href="#pricing" className="hover:text-primary transition-colors">{t.pricing}</a>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             {/* Language Switcher */}
             <div className="relative group">
               <button
                 aria-label="Language switcher"
                 title={currentLang.label}
-                className="h-10 w-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary hover:scale-105 transition-all cursor-pointer flex items-center justify-center"
+                className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary hover:scale-105 transition-all cursor-pointer flex items-center justify-center"
               >
                 <img
                   src={getFlagUrl(currentLang.id)}
                   srcSet={`${getFlagUrl(currentLang.id, 40)} 2x`}
                   alt={`${currentLang.label} flag`}
-                  className="h-5 w-5 rounded-full object-cover"
+                  className="h-4 w-4 sm:h-5 sm:w-5 rounded-full object-cover"
                   loading="lazy"
                 />
               </button>
@@ -1341,43 +1376,43 @@ const LandingPage = ({
             {/* Dark Mode Toggle */}
             <button 
               onClick={() => setIsDark(!isDark)}
-              className="h-10 w-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-primary transition-all cursor-pointer flex items-center justify-center"
+              className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-primary transition-all cursor-pointer flex items-center justify-center"
             >
               {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
 
             <button onClick={onLogin} className="hidden sm:block text-sm font-bold text-slate-600 dark:text-slate-400 hover:text-primary transition-colors cursor-pointer">{t.logIn}</button>
-            <Button onClick={onStart} size="md" className="rounded-full px-6 cursor-pointer">{t.getStarted}</Button>
+            <Button onClick={onStart} size="md" className="h-9 rounded-full px-3 text-xs sm:h-auto sm:px-6 sm:text-sm cursor-pointer">{t.getStarted}</Button>
           </div>
         </div>
       </nav>
 
       {/* Hero Section - Editorial Style */}
-      <section className={cn("relative min-h-[calc(100vh-80px)] flex items-start", SECTION_PADDING)}>
+      <section className="relative min-h-[calc(100vh-64px)] sm:min-h-[calc(100vh-80px)] flex items-start pt-24 pb-16 sm:py-24 lg:py-32">
         <HeroMoleculeBackground />
-        <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-16 items-start w-full relative z-10">
+        <div className="max-w-7xl min-w-0 mx-auto px-4 sm:px-6 grid lg:grid-cols-2 gap-8 lg:gap-16 items-start w-full relative z-10">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="flex flex-col justify-center pt-10"
+            className="flex min-w-0 flex-col justify-center pt-1 sm:pt-6 lg:pt-10"
           >
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-[0.2em] mb-8 w-fit">
+            <div className="inline-flex max-w-full items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-primary sm:px-4 sm:text-xs sm:tracking-[0.2em] mb-5 sm:mb-8 w-fit">
               <Globe className="w-3 h-3" />
               {u('landing.globalStandard', 'Global Logistics Standard')}
             </div>
-            <h1 className="text-5xl sm:text-6xl md:text-8xl font-display text-slate-900 dark:text-white leading-[0.9] mb-8 h-[2.7em] overflow-hidden">
+            <h1 className="text-[clamp(2.25rem,10vw,3.5rem)] sm:text-6xl md:text-8xl font-display text-slate-900 dark:text-white leading-[1.02] sm:leading-[0.9] mb-6 sm:mb-8 h-[3.1em] sm:h-[2.7em] overflow-hidden [overflow-wrap:anywhere]">
               <span>{typedBeforeKeyword}</span>
               <span className="text-primary">{typedKeyword}</span>
               <span>{typedAfterKeyword}</span>
               <span className="inline-block ml-2 text-primary animate-pulse">|</span>
             </h1>
-            <div className="mb-10 max-w-xl">
-              <p className="text-xl font-bold text-slate-900 dark:text-white mb-4 leading-relaxed">
+            <div className="mb-8 sm:mb-10 max-w-xl">
+              <p className="text-base sm:text-xl font-bold text-slate-900 dark:text-white mb-3 sm:mb-4 leading-relaxed">
                 {u('landing.downloadApp', 'Download the app')}
               </p>
-              <div className="flex flex-wrap gap-3">
-                <button className="h-12 px-5 rounded-2xl bg-black text-white inline-flex items-center gap-3 font-semibold text-sm shadow-lg shadow-black/25 cursor-pointer hover:bg-slate-900 transition-colors">
+              <div className="grid min-w-0 grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3">
+                <button className="h-11 min-w-0 w-full px-1.5 sm:h-12 sm:w-auto sm:px-5 rounded-2xl bg-black text-white inline-flex items-center justify-center gap-1.5 sm:gap-3 font-semibold text-[9px] min-[400px]:text-[10px] sm:text-sm whitespace-nowrap shadow-lg shadow-black/25 cursor-pointer hover:bg-slate-900 transition-colors">
                   <img
                     src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Apple_logo_black.svg/500px-Apple_logo_black.svg.png?_=20250629104141"
                     alt="Apple"
@@ -1387,7 +1422,7 @@ const LandingPage = ({
                   />
                   <span>{u('landing.downloadAppstore', 'Download on App Store')}</span>
                 </button>
-                <button className="h-12 px-5 rounded-2xl bg-black text-white inline-flex items-center gap-3 font-semibold text-sm shadow-lg shadow-black/25 cursor-pointer hover:bg-slate-900 transition-colors">
+                <button className="h-11 min-w-0 w-full px-1.5 sm:h-12 sm:w-auto sm:px-5 rounded-2xl bg-black text-white inline-flex items-center justify-center gap-1.5 sm:gap-3 font-semibold text-[9px] min-[400px]:text-[10px] sm:text-sm whitespace-nowrap shadow-lg shadow-black/25 cursor-pointer hover:bg-slate-900 transition-colors">
                   <span className="text-sm leading-none" aria-hidden="true">▶</span>
                   <span>{u('landing.downloadPlaystore', 'Download on Google Play')}</span>
                 </button>
@@ -1395,12 +1430,12 @@ const LandingPage = ({
             </div>
             
             {/* Tracking Form - UPS Inspired */}
-            <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800 mb-6 max-w-xl w-full">
-              <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl mb-6 w-fit">
+            <div className="min-w-0 max-w-xl w-full overflow-hidden bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800 mb-6">
+              <div className="grid grid-cols-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl mb-5 sm:mb-6 w-full sm:w-fit">
                 <button 
                   onClick={() => setFormType('track')}
                   className={cn(
-                    "px-6 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer",
+                    "px-2 sm:px-6 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer",
                     formType === 'track' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
                   )}
                 >
@@ -1409,7 +1444,7 @@ const LandingPage = ({
                 <button 
                   onClick={() => setFormType('load')}
                   className={cn(
-                    "px-6 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer",
+                    "px-2 sm:px-6 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer",
                     formType === 'load' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
                   )}
                 >
@@ -1435,9 +1470,9 @@ const LandingPage = ({
                       placeholder={t.trackingPlaceholder}
                       className="w-full h-24 p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-white outline-none focus:ring-2 focus:ring-primary resize-none text-sm"
                     />
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col gap-3 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
                       <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{u('landing.trackHint', 'Numbers usually start with SWP-')}</p>
-                      <Button onClick={onStart} size="lg" className="px-8 rounded-full">{t.trackButton} <ArrowRight className="w-4 h-4 ml-2" /></Button>
+                      <Button onClick={onStart} size="lg" className="w-full min-[420px]:w-auto px-5 sm:px-8 rounded-full">{t.trackButton} <ArrowRight className="w-4 h-4 ml-2" /></Button>
                     </div>
                   </motion.div>
                 ) : (
@@ -1448,7 +1483,7 @@ const LandingPage = ({
                     exit={{ opacity: 0, x: 10 }}
                     className="space-y-4"
                   >
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold uppercase text-slate-500 ml-1">{ui(lang, 'postLoadModal.pickup', 'Pickup Location')}</label>
                         <div className="relative">
@@ -1464,7 +1499,7 @@ const LandingPage = ({
                         </div>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold uppercase text-slate-500 ml-1">{ui(lang, 'postLoadModal.weight', 'Cargo Weight (kg)')}</label>
                         <input type="number" placeholder="0.00" className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-white outline-none focus:ring-2 focus:ring-primary text-sm" />
@@ -1485,7 +1520,7 @@ const LandingPage = ({
               </AnimatePresence>
             </div>
 
-            <div className="mt-2 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800 max-w-xl w-full overflow-hidden">
+            <div className="mt-2 min-w-0 max-w-xl w-full overflow-hidden bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800">
               <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
                 <h4 className="text-sm font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">{u('landing.availableLoads', 'Available Loads')}</h4>
                 <span className="px-2 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider">{landingLoads.length} {u('landing.liveCount', 'live')}</span>
@@ -1512,17 +1547,17 @@ const LandingPage = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-4 mt-8">
+            <div className="flex min-w-0 items-center gap-3 sm:gap-4 mt-8">
               <div className="flex -space-x-3">
                 {[1,2,3,4].map(i => (
-                  <div key={i} className="w-10 h-10 rounded-full border-2 border-white dark:border-slate-950 bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                  <div key={i} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-white dark:border-slate-950 bg-slate-200 dark:bg-slate-800 overflow-hidden">
                     <img src={`https://picsum.photos/seed/user${i}/100/100`} alt="User" referrerPolicy="no-referrer" />
                   </div>
                 ))}
               </div>
-              <div className="text-sm">
+              <div className="min-w-0 text-xs sm:text-sm">
                 <p className="font-bold dark:text-white">{u('landing.activeDrivers', '12k+ Active Drivers')}</p>
-                <p className="text-slate-500">{u('landing.trustingDaily', 'Trusting Smartfreight.ai daily')}</p>
+                <p className="truncate text-slate-500">{u('landing.trustingDaily', 'Trusting Smartfreight.ai daily')}</p>
               </div>
             </div>
           </motion.div>
@@ -1531,10 +1566,10 @@ const LandingPage = ({
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 1, delay: 0.2 }}
-            className="relative lg:sticky lg:top-32"
+            className="relative min-w-0 max-w-full lg:sticky lg:top-32"
           >
-            <div className="relative z-10 bg-slate-100 dark:bg-slate-900 rounded-[2.5rem] p-4 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.2)] border border-slate-200 dark:border-slate-800">
-              <div className="aspect-[4/3] rounded-[2rem] overflow-hidden relative group">
+            <div className="relative z-10 max-w-full bg-slate-100 dark:bg-slate-900 rounded-[1.75rem] sm:rounded-[2.5rem] p-3 sm:p-4 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.2)] border border-slate-200 dark:border-slate-800">
+              <div className="aspect-[4/3] min-w-0 rounded-[1.4rem] sm:rounded-[2rem] overflow-hidden relative group">
                 {/* Hero Route Map */}
                 <MapContainer
                   center={[48.8, 14]}
@@ -1561,38 +1596,38 @@ const LandingPage = ({
                 </MapContainer>
                 
                 {/* Map Chips - Screenshot Inspired */}
-                <div className="absolute top-6 right-6 z-[1000] flex flex-col gap-3">
-	                  <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur px-4 py-2 rounded-2xl shadow-xl border border-white/20 flex items-center gap-2 animate-bounce">
+                <div className="absolute top-3 right-3 sm:top-6 sm:right-6 z-[1000] flex max-w-[calc(100%-1.5rem)] flex-col gap-3">
+	                  <div className="min-w-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur px-2.5 sm:px-4 py-2 rounded-2xl shadow-xl border border-white/20 flex items-center gap-2 animate-bounce">
 	                    <Clock className="text-primary w-4 h-4" />
-	                    <span className="text-sm font-black text-slate-900 dark:text-white">Hamburg → Sarajevo</span>
+	                    <span className="truncate text-xs sm:text-sm font-black text-slate-900 dark:text-white">Hamburg → Sarajevo</span>
 	                  </div>
                 </div>
 
-                <div className="absolute bottom-8 left-8 right-8 z-[1000] flex flex-col gap-4">
+                <div className="absolute bottom-3 left-3 right-3 sm:bottom-8 sm:left-8 sm:right-8 z-[1000] flex min-w-0 flex-col gap-2 sm:gap-4">
                   <div className="flex gap-3">
-                    <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur px-4 py-2 rounded-2xl shadow-xl border border-white/20 flex items-center gap-3 cursor-pointer hover:bg-primary hover:text-white transition-all group">
-                      <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-primary">
+                    <div className="min-w-0 max-w-full bg-white/90 dark:bg-slate-900/90 backdrop-blur px-2.5 sm:px-4 py-2 rounded-2xl shadow-xl border border-white/20 flex items-center gap-2 sm:gap-3 cursor-pointer hover:bg-primary hover:text-white transition-all group">
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 rounded-full overflow-hidden border-2 border-primary">
                         <img src="https://picsum.photos/seed/driver/100/100" alt="Driver" referrerPolicy="no-referrer" />
                       </div>
                       <div className="flex items-center gap-2">
 	                        <MessageSquare className="w-4 h-4 text-primary group-hover:text-white" />
-	                        <span className="text-xs font-bold uppercase tracking-wider">{u('landing.routeConfirmed', 'Route Confirmed')}</span>
+	                        <span className="truncate text-[10px] sm:text-xs font-bold uppercase tracking-wider">{u('landing.routeConfirmed', 'Route Confirmed')}</span>
 	                      </div>
 	                    </div>
 	                  </div>
 	                  
-	                  <div className="bg-white/80 dark:bg-white/10 backdrop-blur-2xl p-6 rounded-3xl border border-white/30 dark:border-white/20 shadow-2xl">
-	                    <div className="flex items-center justify-between mb-4">
+	                  <div className="min-w-0 bg-white/80 dark:bg-white/10 backdrop-blur-2xl p-3 sm:p-6 rounded-2xl sm:rounded-3xl border border-white/30 dark:border-white/20 shadow-2xl">
+	                    <div className="flex items-center justify-between gap-2 mb-2 sm:mb-4">
 	                      <span className="px-3 py-1 rounded-full bg-primary text-[10px] font-black uppercase tracking-widest text-white">{u('landing.liveRoute', 'Live Route')}</span>
 	                      <span className="text-xs font-bold text-slate-700 dark:text-white/70">{u('landing.etaMarch3', 'ETA Mar 3, 14:20')}</span>
 	                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-lg">
-                        <Truck className="text-primary w-6 h-6" />
+                    <div className="flex min-w-0 items-center gap-2 sm:gap-4">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 bg-white rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg">
+                        <Truck className="text-primary w-5 h-5 sm:w-6 sm:h-6" />
                       </div>
-	                      <div>
-	                        <p className="text-lg font-bold text-slate-900 dark:text-white">HAM-SJJ-214</p>
-	                        <p className="text-sm text-slate-700 dark:text-white/60">{u('landing.heroRouteMeta', '1,545 km | Hamburg Port -> Sarajevo Hub')}</p>
+	                      <div className="min-w-0">
+	                        <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">HAM-SJJ-214</p>
+	                        <p className="truncate text-xs sm:text-sm text-slate-700 dark:text-white/60">{u('landing.heroRouteMeta', '1,545 km | Hamburg Port -> Sarajevo Hub')}</p>
 	                      </div>
 	                    </div>
 	                  </div>
@@ -1621,6 +1656,100 @@ const LandingPage = ({
               <img src={logo} alt="Partner" className="h-8 md:h-10 w-auto" referrerPolicy="no-referrer" />
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* AI Dispatcher */}
+      <section className="relative overflow-hidden bg-white py-20 dark:bg-slate-950 sm:py-24 lg:py-32">
+        <div className="absolute left-1/2 top-1/2 h-[34rem] w-[34rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-[120px] dark:bg-primary/15" />
+        <div className="relative z-10 mx-auto grid max-w-7xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-[0.82fr_1.18fr] lg:gap-16">
+          <motion.div
+            initial={{ opacity: 0, x: -24 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true, amount: 0.25 }}
+            transition={{ duration: 0.65 }}
+            className="min-w-0"
+          >
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-primary sm:text-xs">
+              <Sparkles className="h-4 w-4" />
+              {u('landing.aiDispatcher.eyebrow', 'Your AI operations partner')}
+            </div>
+            <h2 className="max-w-xl text-4xl font-black leading-[1.02] tracking-tight text-slate-900 dark:text-white sm:text-5xl lg:text-6xl">
+              {u('landing.aiDispatcher.title', 'An AI dispatcher that already knows every load.')}
+            </h2>
+            <p className="mt-6 max-w-xl text-base leading-7 text-slate-600 dark:text-slate-300 sm:text-lg">
+              {u('landing.aiDispatcher.description', 'Connected securely to your authorized operational database, it understands cargo details, routes, drivers, vehicles, deadlines, and live status changes—at any moment.')}
+            </p>
+
+            <div className="mt-8 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-sky-100 bg-sky-50/80 p-4 dark:border-sky-500/15 dark:bg-sky-500/5">
+                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-sky-500/10 text-sky-500"><Database className="h-5 w-5" /></div>
+                <h3 className="font-black text-slate-900 dark:text-white">{u('landing.aiDispatcher.databaseTitle', 'Always connected to your data')}</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{u('landing.aiDispatcher.databaseDesc', 'Every authorized update becomes useful context, without copying information between tools.')}</p>
+              </div>
+              <div className="rounded-2xl border border-violet-100 bg-violet-50/80 p-4 dark:border-violet-500/15 dark:bg-violet-500/5">
+                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/10 text-violet-500"><RadioTower className="h-5 w-5" /></div>
+                <h3 className="font-black text-slate-900 dark:text-white">{u('landing.aiDispatcher.decisionTitle', 'Decisions in real time')}</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{u('landing.aiDispatcher.decisionDesc', 'It detects risk, recommends the next action, and prepares clear updates for your team and customers.')}</p>
+              </div>
+            </div>
+
+            <button onClick={onStart} className="mt-8 inline-flex h-12 items-center gap-2 rounded-full bg-primary px-6 text-sm font-black text-white shadow-lg shadow-primary/25 transition-transform hover:scale-[1.02]">
+              {u('landing.aiDispatcher.cta', 'Meet your AI dispatcher')}
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 28 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.75 }}
+            className="relative min-w-0 rounded-[2rem] border border-slate-200 bg-slate-50/90 p-4 shadow-2xl shadow-slate-900/10 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/80 dark:shadow-black/30 sm:p-6"
+          >
+            <div className="pointer-events-none absolute inset-0 opacity-40 [background-image:radial-gradient(rgb(14_165_233/0.28)_1px,transparent_1px)] [background-size:22px_22px] dark:opacity-20" />
+            <div className="relative mb-5 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-sm font-black text-slate-900 dark:text-white"><BrainCircuit className="h-5 w-5 text-primary" /> Smartfreight Intelligence</div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400"><span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />{u('landing.aiDispatcher.liveSync', 'Secure live sync')}</div>
+            </div>
+
+            <div className="relative grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-stretch">
+              <div className="min-w-0 space-y-3">
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-950">
+                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-sky-500"><ScanSearch className="h-4 w-4" />{u('landing.aiDispatcher.app', 'Smartfreight app')}</div>
+                  <p className="mt-3 truncate font-black text-slate-900 dark:text-white">{u('landing.aiDispatcher.loadLabel', 'Load SF-2048')}</p>
+                  <p className="mt-1 truncate text-xs text-slate-500">{u('landing.aiDispatcher.loadMeta', 'Pharma · 11,200 kg · Ambient')}</p>
+                  <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300"><MapPin className="h-4 w-4 text-emerald-500" /> Sarajevo <ArrowRight className="h-3.5 w-3.5" /> Vienna</div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-950">
+                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-violet-500"><Database className="h-4 w-4" />{u('landing.aiDispatcher.database', 'Operations database')}</div>
+                  <p className="mt-3 text-sm font-black text-slate-900 dark:text-white">{u('landing.aiDispatcher.signalCount', '18.7M operational signals')}</p>
+                  <div className="mt-3 grid grid-cols-3 gap-1.5">{[72, 94, 61].map((height, index) => <div key={height} className="flex h-8 items-end overflow-hidden rounded-md bg-slate-100 dark:bg-slate-800"><motion.div initial={{ height: 0 }} whileInView={{ height: `${height}%` }} transition={{ delay: 0.45 + index * 0.12 }} className="w-full rounded-md bg-linear-to-t from-primary to-violet-400" /></div>)}</div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-center py-1 md:px-1 md:py-0">
+                <div className="hidden h-px w-5 bg-linear-to-r from-primary/20 to-primary md:block" />
+                <div className="relative flex h-24 w-24 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-white shadow-[0_0_45px_rgba(14,165,233,0.22)] dark:bg-slate-950">
+                  <div className="absolute inset-2 animate-pulse rounded-full bg-primary/10" />
+                  <BrainCircuit className="relative h-10 w-10 text-primary" />
+                </div>
+                <div className="hidden h-px w-5 bg-linear-to-r from-primary to-violet-400/20 md:block" />
+              </div>
+
+              <div className="flex min-w-0 flex-col justify-center rounded-2xl border border-primary/20 bg-white p-4 shadow-lg shadow-primary/10 dark:border-primary/20 dark:bg-slate-950">
+                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-primary"><RefreshCw className="h-4 w-4 animate-spin [animation-duration:4s]" />{u('landing.aiDispatcher.aiCore', 'AI Dispatcher')}</div>
+                <p className="mt-3 text-xs text-slate-500">{u('landing.aiDispatcher.thinking', 'Analyzing live operations')}</p>
+                <div className="mt-4 space-y-2">{[88, 64, 76].map((width, index) => <div key={width} className="h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"><motion.div initial={{ width: 0 }} whileInView={{ width: `${width}%` }} transition={{ duration: 0.8, delay: 0.35 + index * 0.14 }} className="h-full rounded-full bg-linear-to-r from-primary to-violet-500" /></div>)}</div>
+                <div className="mt-5 flex items-center gap-2 rounded-xl bg-emerald-500/10 p-2.5 text-xs font-bold text-emerald-600 dark:text-emerald-400"><CheckCircle2 className="h-4 w-4 shrink-0" />{u('landing.aiDispatcher.loadContext', 'Complete load context')}</div>
+              </div>
+            </div>
+
+            <motion.div initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: 0.75 }} className="relative mt-4 rounded-2xl border border-violet-200 bg-linear-to-r from-violet-50 via-white to-sky-50 p-4 dark:border-violet-500/20 dark:from-violet-500/10 dark:via-slate-950 dark:to-sky-500/10">
+              <div className="flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-violet-600 dark:text-violet-400"><Zap className="h-4 w-4" />{u('landing.aiDispatcher.outputLabel', 'Recommended action')}</div><span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-black text-emerald-600 dark:text-emerald-400">{u('landing.aiDispatcher.confidence', '97% confidence')}</span></div>
+              <p className="mt-3 text-sm font-bold leading-6 text-slate-800 dark:text-slate-100">{u('landing.aiDispatcher.output', 'Notify the customer and move delivery to the 14:20 dock slot.')}</p>
+            </motion.div>
+          </motion.div>
         </div>
       </section>
 
@@ -3111,7 +3240,11 @@ export default function App() {
       mode={authMode}
       lang={lang}
       setLang={setLang}
-      onComplete={(r, l) => { setRole(r); setLang(l); setView(r === 'driver' ? 'feed' : 'tracking'); }}
+      onComplete={(r, l) => {
+        setRole(r);
+        setLang(l);
+        setView(r === 'driver' ? 'feed' : r === 'company' ? 'company' : r === 'finance' ? 'finance' : r === 'superadmin' ? 'admin' : 'tracking');
+      }}
       onSwitchToSetup={() => setAuthMode('setup')}
       onClose={() => {
         setIsLanding(true);
@@ -3124,14 +3257,18 @@ export default function App() {
   const t = translations[lang || 'en'];
   const currentLang = languages.find(l => l.id === (lang || 'en')) || languages[0];
   const analyticsLabel = u('common.analytics', 'Analytics');
-  const tokenBalance = role === 'driver' ? 36 : 24;
+  const tokenBalance = role === 'driver' ? 36 : role === 'company' ? 120 : role === 'superadmin' ? 9999 : 24;
   const tokenLabel = u('common.tokens', 'tokens');
-  const roleLicenseLabel = role === 'driver'
-    ? u('common.driverLicense', 'Driver License')
-    : u('common.customerLicense', 'Customer License');
-  const roleLicenseStatus = role === 'driver'
-    ? u('common.verified', 'Verified')
-    : u('common.active', 'Active');
+  const roleMeta = role === 'driver'
+    ? { label: u('common.driverLicense', 'Driver License'), status: u('common.verified', 'Verified'), icon: Truck, tone: 'bg-primary/10 text-primary' }
+    : role === 'company'
+      ? { label: u('common.logisticsCompany', 'Logistics Company'), status: u('common.admin', 'Admin'), icon: Building2, tone: 'bg-violet-500/10 text-violet-600 dark:text-violet-400' }
+      : role === 'finance'
+        ? { label: u('common.financeAdministration', 'Finance & Administration'), status: u('common.restrictedAccess', 'Controlled Access'), icon: Banknote, tone: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' }
+        : role === 'superadmin'
+          ? { label: u('common.superadmin', 'Superadmin'), status: u('common.godMode', 'God Mode'), icon: Crown, tone: 'bg-rose-500/10 text-rose-600 dark:text-rose-400' }
+          : { label: u('common.customerLicense', 'Customer License'), status: u('common.active', 'Active'), icon: User, tone: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' };
+  const RoleStatusIcon = roleMeta.icon;
   const getGoodsChipTone = (value: string) =>
     value === 'Flammable'
       ? 'bg-amber-500/10 text-amber-500 border-amber-500/30'
@@ -3291,20 +3428,50 @@ export default function App() {
   const shouldShowFeedSortInMainSidebar = view === 'feed' && isMainSortSidebarOpen;
   const shouldShowFeedSidebarPanel = shouldShowFeedFiltersInMainSidebar || shouldShowFeedSortInMainSidebar;
 
-  const navItems = [
-    ...(role === 'driver' ? [{ id: 'feed', label: t.homeFeed, icon: Boxes }] : []),
-    ...(role === 'driver' ? [{ id: 'notes', label: ui(lang, 'notes.navLabel', 'Notes'), icon: NotebookPen }] : []),
-    { id: 'tracking', label: t.tracking, icon: PackageIcon },
-    ...(role === 'driver' ? [
-      { id: 'fleet', label: t.myFleet, icon: Truck },
-      { id: 'automations', label: ui(lang, 'common.automations', 'AI Automations'), icon: Sparkles },
-      { id: 'history', label: t.history, icon: History },
-    ] : []),
-    ...(role !== 'driver' ? [{ id: 'automations', label: ui(lang, 'common.automations', 'AI Automations'), icon: Sparkles }] : []),
-    { id: 'dashboard', label: analyticsLabel, icon: BarChart3 },
-    { id: 'network', label: t.network, icon: Globe },
-    { id: 'settings', label: t.settings, icon: Settings },
-  ];
+  const navItems = role === 'superadmin'
+    ? [
+        { id: 'admin', label: u('nav.commandCenter', 'Command Center'), icon: Crown },
+        { id: 'admin-customers', label: u('nav.allCustomers', 'All Customers'), icon: UserRound },
+        { id: 'admin-companies', label: u('nav.logisticsCompanies', 'Logistics Companies'), icon: Building2 },
+        { id: 'admin-drivers', label: u('nav.allDrivers', 'All Drivers'), icon: Users },
+        { id: 'feed', label: u('nav.allLoads', 'All Loads'), icon: Boxes },
+        { id: 'tracking', label: u('nav.globalTracking', 'Global Tracking'), icon: PackageIcon },
+        { id: 'fleet', label: u('nav.globalFleet', 'Global Fleet'), icon: Truck },
+        { id: 'finance', label: u('nav.finance', 'Finance'), icon: Banknote },
+        { id: 'email-studio', label: u('nav.emailStudio', 'Email Studio'), icon: Mail },
+        { id: 'messages', label: t.messages, icon: MessageSquare },
+        { id: 'notes', label: ui(lang, 'notes.navLabel', 'Notes'), icon: NotebookPen },
+        { id: 'dashboard', label: analyticsLabel, icon: BarChart3 },
+        { id: 'network', label: t.network, icon: Globe },
+        { id: 'settings', label: t.settings, icon: Settings },
+      ]
+    : role === 'finance'
+    ? [
+        { id: 'finance', label: u('nav.finance', 'Finance'), icon: Banknote },
+        { id: 'settings', label: t.settings, icon: Settings },
+      ]
+    : role === 'company'
+      ? [
+          { id: 'company', label: u('nav.companyOverview', 'Company Overview'), icon: Building2 },
+          { id: 'tracking', label: myCargoLabels[lang || 'en'], icon: PackageIcon },
+          { id: 'fleet', label: t.myFleet, icon: Truck },
+          { id: 'company-team', label: u('nav.teamPermissions', 'Team & Permissions'), icon: Users },
+          { id: 'messages', label: u('nav.teamCommunication', 'Team Communication'), icon: Users },
+          { id: 'dashboard', label: analyticsLabel, icon: BarChart3 },
+          { id: 'network', label: t.network, icon: Globe },
+          { id: 'settings', label: t.settings, icon: Settings },
+        ]
+      : [
+          ...(role === 'driver' ? [{ id: 'feed', label: t.homeFeed, icon: Boxes }] : []),
+          { id: 'tracking', label: myCargoLabels[lang || 'en'], icon: PackageIcon },
+          ...(role === 'driver' ? [
+            { id: 'fleet', label: t.myFleet, icon: Truck },
+          ] : []),
+          { id: 'dashboard', label: analyticsLabel, icon: BarChart3 },
+          { id: 'network', label: t.network, icon: Globe },
+          ...(role === 'driver' ? [{ id: 'notes', label: ui(lang, 'notes.navLabel', 'Notes'), icon: NotebookPen }] : []),
+          { id: 'settings', label: t.settings, icon: Settings },
+        ];
 
   return (
     <div className="h-screen bg-slate-50 dark:bg-slate-950 flex overflow-hidden">
@@ -3533,7 +3700,7 @@ export default function App() {
               exit={{ opacity: 0, x: -10 }}
               transition={{ duration: 0.18 }}
             >
-              <nav className="flex-1 px-4 space-y-2 mt-4">
+              <nav className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 space-y-2 mt-4">
                 {navItems.map(item => (
                   <button
                     key={item.id}
@@ -3553,7 +3720,7 @@ export default function App() {
 
               <div className="p-6 border-t border-slate-100 dark:border-slate-800">
                 <button
-                  onClick={() => setView('profile')}
+                  onClick={() => setView(role === 'company' || role === 'finance' || role === 'superadmin' ? 'settings' : 'profile')}
                   className="w-full flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer bg-primary text-white shadow-lg shadow-primary/20"
                 >
                   <User className="w-5 h-5" />
@@ -3578,7 +3745,7 @@ export default function App() {
             </p>
           </div>
           <div className="flex items-center gap-4">
-            {role === 'user' ? (
+            {role === 'user' || role === 'company' || role === 'superadmin' ? (
               <button
                 onClick={() => setIsPostLoadOpen(true)}
                 className="h-10 px-4 rounded-full bg-primary text-white inline-flex items-center gap-2 text-xs font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all cursor-pointer whitespace-nowrap"
@@ -3591,19 +3758,19 @@ export default function App() {
             <span
               className={cn(
                 "hidden md:inline-flex h-10 px-3 rounded-full items-center gap-2 text-xs font-bold whitespace-nowrap",
-                role === 'driver'
-                  ? "bg-primary/10 text-primary"
-                  : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                roleMeta.tone
               )}
             >
-              {role === 'driver' ? <Truck className="w-4 h-4" /> : <User className="w-4 h-4" />}
-              {roleLicenseLabel} • {roleLicenseStatus}
+              <RoleStatusIcon className="w-4 h-4" />
+              {roleMeta.label} • {roleMeta.status}
             </span>
 
-            <div className="h-10 px-3 rounded-full bg-slate-100 dark:bg-slate-800 text-primary inline-flex items-center gap-2 text-xs font-bold">
-              <Coins className="w-4 h-4" />
-              <span>{tokenBalance} {tokenLabel}</span>
-            </div>
+            {role !== 'finance' && (
+              <div className="h-10 px-3 rounded-full bg-slate-100 dark:bg-slate-800 text-primary inline-flex items-center gap-2 text-xs font-bold">
+                <Coins className="w-4 h-4" />
+                <span>{tokenBalance} {tokenLabel}</span>
+              </div>
+            )}
 
             {/* Language Switcher */}
             <div className="relative group">
@@ -3677,10 +3844,10 @@ export default function App() {
               <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all p-2 z-[100]">
                 <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 mb-2">
                   <p className="text-sm font-bold dark:text-white">John Doe</p>
-                  <p className="text-[10px] text-slate-500 uppercase tracking-wider">{role === 'driver' ? ui(lang, 'common.verifiedDriver', 'Verified Driver') : ui(lang, 'common.customer', 'Customer')}</p>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wider">{roleMeta.label}</p>
                 </div>
                 <button
-                  onClick={() => setView('profile')}
+                  onClick={() => setView(role === 'company' || role === 'finance' || role === 'superadmin' ? 'settings' : 'profile')}
                   className="w-full flex items-center gap-3 p-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
                 >
                   <User className="w-4 h-4" />
@@ -3724,7 +3891,7 @@ export default function App() {
               transition={{ duration: 0.2 }}
             >
 	              {view === 'dashboard' && <Dashboard role={role} lang={lang} />}
-	              {view === 'tracking' && <TrackingView lang={lang} />}
+	              {(view === 'tracking' || view === 'history') && <TrackingView lang={lang} />}
 	              {view === 'feed' && (
                   <HomeFeed
                     lang={lang}
@@ -3771,10 +3938,17 @@ export default function App() {
                 )}
 	              {view === 'notes' && <LoadNotesView lang={lang} />}
 	              {view === 'messages' && <MessagesView lang={lang} />}
+	              {view === 'admin' && <AdminOverviewView lang={lang} />}
+	              {view === 'admin-customers' && <AdminCustomersView lang={lang} onOpenEmailStudio={() => setView('email-studio')} />}
+	              {view === 'admin-companies' && <AdminCompaniesView lang={lang} onOpenEmailStudio={() => setView('email-studio')} />}
+	              {view === 'admin-drivers' && <AdminDriversView lang={lang} />}
+	              {view === 'email-studio' && <EmailStudioView lang={lang} />}
+	              {view === 'company' && <CompanyWorkspaceView lang={lang} />}
+	              {view === 'company-team' && <CompanyTeamView lang={lang} />}
+	              {view === 'finance' && <FinanceView lang={lang} />}
 	              {view === 'network' && <NetworkView lang={lang} />}
 	              {view === 'automations' && <AutomationsView lang={lang} />}
-	              {view === 'fleet' && <FleetView lang={lang} />}
-	              {view === 'history' && <HistoryView lang={lang} />}
+	              {view === 'fleet' && <FleetView lang={lang} role={role} />}
 	              {view === 'profile' && <ProfileView role={role} lang={lang} />}
 	              {view === 'settings' && (
                   <SettingsView
@@ -3793,13 +3967,13 @@ export default function App() {
         <PostLoadModal isOpen={isPostLoadOpen} onClose={() => setIsPostLoadOpen(false)} lang={lang} />
 
         {/* Bottom Nav (Mobile) */}
-        <nav className="md:hidden fixed bottom-0 w-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-4 h-16 flex items-center justify-around z-50">
+        <nav className="md:hidden fixed bottom-0 w-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-4 h-16 flex items-center justify-start gap-6 overflow-x-auto z-50">
           {navItems.map(item => (
             <button
               key={item.id}
               onClick={() => setView(item.id)}
               className={cn(
-                "flex flex-col items-center gap-1 transition-all cursor-pointer",
+                "flex shrink-0 flex-col items-center gap-1 transition-all cursor-pointer",
                 view === item.id ? "text-primary" : "text-slate-400"
               )}
             >

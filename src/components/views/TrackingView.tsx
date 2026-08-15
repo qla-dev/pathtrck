@@ -1,18 +1,42 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Search, MapPin, ChevronRight, Package as PackageIcon, Clock3, RotateCcw, Share2, Star, Bot, Route, Lock, Coins, Loader2, Sparkles, Truck, FileBarChart2, Upload, FileSpreadsheet, Fuel, BedDouble, ParkingCircle, Landmark } from 'lucide-react';
+import Flatpickr from 'react-flatpickr';
+import { Search, MapPin, ChevronRight, Package as PackageIcon, Clock3, RotateCcw, Share2, Star, Bot, Route, Lock, Coins, Loader2, Sparkles, Truck, FileBarChart2, Upload, FileSpreadsheet, Fuel, BedDouble, ParkingCircle, Landmark, Filter, CalendarDays, History } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, CircleMarker, Tooltip } from 'react-leaflet';
 import { Language, Package as PackageData } from '../../types';
 import { MOCK_LOADS, MOCK_PACKAGES } from '../../mockData';
 import { getSmartStatusUpdate } from '../../services/geminiService';
-import { ui, trPackageStatus } from '../../i18n';
+import { flatpickrI18n, ui, trPackageStatus } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Toggle } from '../ui/Toggle';
 import { ChatConversationPanel } from '../chat/ChatConversationPanel';
 import { Conversation } from '../chat/types';
+import { HistoryView } from './HistoryView';
 
 type AmenityCategory = 'toll' | 'fuel' | 'rest' | 'parking';
+type TrackingFilterMode = 'all' | 'today' | 'calendar';
+
+const startOfDay = (date: Date) => {
+  const clone = new Date(date);
+  clone.setHours(0, 0, 0, 0);
+  return clone;
+};
+
+const endOfDay = (date: Date) => {
+  const clone = new Date(date);
+  clone.setHours(23, 59, 59, 999);
+  return clone;
+};
+
+const packageActivityDate = (pkg: PackageData) => {
+  const source = pkg.history[0]?.date || pkg.addedDate;
+  const parts = source.match(/^(\d{1,2})\s+([A-Za-z]+)(?:,\s*(\d{1,2}):(\d{2}))?/);
+  if (!parts) return null;
+  const [, day, month, hours = '00', minutes = '00'] = parts;
+  const timestamp = Date.parse(`${month} ${day}, ${new Date().getFullYear()} ${hours}:${minutes}`);
+  return Number.isNaN(timestamp) ? null : new Date(timestamp);
+};
 
 type RouteAmenity = {
   id: string;
@@ -42,7 +66,16 @@ const PACKAGE_ROUTE_AMENITIES: Record<string, RouteAmenity[]> = {
 
 export const TrackingView = ({ lang }: { lang: Language }) => {
   const TRUCK_CAPACITY_KG = 48000;
+  const [workspaceTab, setWorkspaceTab] = useState<'live' | 'history'>('live');
   const [selectedPackage, setSelectedPackage] = useState<PackageData>(MOCK_PACKAGES[0]);
+  const [query, setQuery] = useState('');
+  const [filterMode, setFilterMode] = useState<TrackingFilterMode>('all');
+  const [rangeStart, setRangeStart] = useState(() => {
+    const date = new Date();
+    date.setMonth(date.getMonth() - 1);
+    return startOfDay(date);
+  });
+  const [rangeEnd, setRangeEnd] = useState(() => endOfDay(new Date()));
   const [smartStatus, setSmartStatus] = useState<string>("");
   const [rightTab, setRightTab] = useState<'tracker' | 'dispatch' | 'map' | 'timeline' | 'return' | 'returnRoutes' | 'reports' | 'share' | 'review'>('tracker');
   const [dispatchDraft, setDispatchDraft] = useState('');
@@ -58,6 +91,27 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
     parking: false,
   });
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
+
+  const filteredPackages = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    const todayStart = startOfDay(new Date()).getTime();
+    const todayEnd = endOfDay(new Date()).getTime();
+
+    return MOCK_PACKAGES.filter((pkg) => {
+      const matchesQuery = `${pkg.trackingNumber} ${pkg.carrier} ${pkg.origin} ${pkg.destination}`
+        .toLowerCase()
+        .includes(normalizedQuery);
+      if (!matchesQuery || filterMode === 'all') return matchesQuery;
+
+      const activityDate = packageActivityDate(pkg);
+      if (!activityDate) return false;
+      const timestamp = activityDate.getTime();
+
+      return filterMode === 'today'
+        ? timestamp >= todayStart && timestamp <= todayEnd
+        : timestamp >= rangeStart.getTime() && timestamp <= rangeEnd.getTime();
+    });
+  }, [filterMode, query, rangeEnd, rangeStart]);
 
   useEffect(() => {
     getSmartStatusUpdate(selectedPackage.status, selectedPackage.history[0].location).then(setSmartStatus);
@@ -240,17 +294,105 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
   };
 
   return (
-    <div className="grid lg:grid-cols-12 gap-6">
+    <div className="space-y-6">
+      <div className="inline-grid w-full grid-cols-2 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:w-auto">
+        <button
+          onClick={() => setWorkspaceTab('live')}
+          className={cn(
+            'flex h-11 items-center justify-center gap-2 rounded-xl px-5 text-sm font-bold transition-all',
+            workspaceTab === 'live' ? 'bg-primary text-white shadow-md shadow-primary/20' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+          )}
+        >
+          <PackageIcon className="h-4 w-4" />
+          {u('tracking.liveTracking', 'Live Tracking')}
+        </button>
+        <button
+          onClick={() => setWorkspaceTab('history')}
+          className={cn(
+            'flex h-11 items-center justify-center gap-2 rounded-xl px-5 text-sm font-bold transition-all',
+            workspaceTab === 'history' ? 'bg-primary text-white shadow-md shadow-primary/20' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+          )}
+        >
+          <History className="h-4 w-4" />
+          {u('tracking.routeHistory', 'Route History')}
+        </button>
+      </div>
+
+      {workspaceTab === 'history' ? (
+        <HistoryView lang={lang} />
+      ) : (
+      <div className="grid lg:grid-cols-12 gap-6">
       {/* Sidebar List */}
       <div className="lg:col-span-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
           <input 
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
             type="text" 
             placeholder={u('common.searchTracking', 'Search tracking number...')}
             className="w-full h-12 pl-10 pr-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
+
+        <div className="mt-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2 grid grid-cols-3 gap-2">
+          <button
+            onClick={() => setFilterMode('all')}
+            className={cn(
+              'h-10 rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center justify-center gap-2',
+              filterMode === 'all' ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+            )}
+          >
+            <Filter className="w-4 h-4" />
+            {u('history.filter.all', 'All')}
+          </button>
+          <button
+            onClick={() => setFilterMode('today')}
+            className={cn(
+              'h-10 rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center justify-center gap-2',
+              filterMode === 'today' ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+            )}
+          >
+            <Clock3 className="w-4 h-4" />
+            {u('history.filter.today', 'Today')}
+          </button>
+          <button
+            onClick={() => setFilterMode('calendar')}
+            className={cn(
+              'h-10 rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center justify-center gap-2',
+              filterMode === 'calendar' ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+            )}
+          >
+            <CalendarDays className="w-4 h-4" />
+            {u('history.filter.calendar', 'Calendar')}
+          </button>
+        </div>
+
+        {filterMode === 'calendar' && (
+          <div className="mt-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+            <div className="history-flatpickr">
+              <Flatpickr
+                value={[rangeStart, rangeEnd]}
+                options={{
+                  inline: true,
+                  mode: 'range',
+                  dateFormat: 'd.m.Y',
+                  locale: flatpickrI18n(lang),
+                  defaultDate: [rangeStart, rangeEnd],
+                  prevArrow: '<span aria-hidden="true">‹</span>',
+                  nextArrow: '<span aria-hidden="true">›</span>',
+                }}
+                onChange={(dates) => {
+                  if (dates.length === 2) {
+                    setRangeStart(startOfDay(dates[0]));
+                    setRangeEnd(endOfDay(dates[1]));
+                  }
+                }}
+                className="hidden"
+              />
+            </div>
+          </div>
+        )}
 
         <div className="mt-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-4 shadow-sm">
           <div className="flex items-center justify-between gap-3">
@@ -297,7 +439,7 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
         </div>
 
         <div className="mt-6 space-y-4">
-          {MOCK_PACKAGES.map(pkg => (
+          {filteredPackages.map(pkg => (
             <button 
               key={pkg.id}
               onClick={() => setSelectedPackage(pkg)}
@@ -322,6 +464,11 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
               </div>
             </button>
           ))}
+          {filteredPackages.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-6 text-center text-sm text-slate-500">
+              {u('tracking.noPackagesFound', 'No tracking items found for this filter.')}
+            </div>
+          )}
         </div>
       </div>
 
@@ -838,6 +985,8 @@ export const TrackingView = ({ lang }: { lang: Language }) => {
           </Card>
         )}
       </div>
+      </div>
+      )}
     </div>
   );
 };

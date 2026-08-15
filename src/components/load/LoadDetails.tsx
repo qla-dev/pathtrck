@@ -121,6 +121,33 @@ export const LoadDetails = ({ open, load, onClose, lang }: LoadDetailsProps) => 
 
           <div className="flex-1 overflow-y-auto p-5 md:p-7">
             <div className="space-y-6">
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
+                <p className="text-xs font-black uppercase tracking-wider text-primary mb-4">
+                  {u('legacy.loadDetails.routePlan', 'Route Plan')}
+                </p>
+                <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-10 w-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                      <MapPin className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold uppercase text-slate-500">{u('legacy.loadDetails.pickup', 'Pickup')}</p>
+                      <p className="font-bold dark:text-white truncate">{load.pickup}</p>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-slate-400 hidden md:block" />
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-10 w-10 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
+                      <MapPin className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold uppercase text-slate-500">{u('legacy.loadDetails.delivery', 'Delivery')}</p>
+                      <p className="font-bold dark:text-white truncate">{load.delivery}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="grid xl:grid-cols-12 gap-6">
                 <div className="xl:col-span-8 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 p-5 space-y-4">
                   <p className="text-xs font-black uppercase tracking-wider text-primary">
@@ -207,33 +234,6 @@ export const LoadDetails = ({ open, load, onClose, lang }: LoadDetailsProps) => 
                           {u('legacy.loadDetails.eta', 'ETA')}
                         </p>
                         <p className="mt-2 text-2xl font-black dark:text-white">{load.eta}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
-                    <p className="text-xs font-black uppercase tracking-wider text-primary mb-4">
-                      {u('legacy.loadDetails.routePlan', 'Route Plan')}
-                    </p>
-                    <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="h-10 w-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
-                          <MapPin className="w-5 h-5" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold uppercase text-slate-500">{u('legacy.loadDetails.pickup', 'Pickup')}</p>
-                          <p className="font-bold dark:text-white truncate">{load.pickup}</p>
-                        </div>
-                      </div>
-                      <ArrowRight className="w-5 h-5 text-slate-400 hidden md:block" />
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="h-10 w-10 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
-                          <MapPin className="w-5 h-5" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold uppercase text-slate-500">{u('legacy.loadDetails.delivery', 'Delivery')}</p>
-                          <p className="font-bold dark:text-white truncate">{load.delivery}</p>
-                        </div>
                       </div>
                     </div>
                   </div>

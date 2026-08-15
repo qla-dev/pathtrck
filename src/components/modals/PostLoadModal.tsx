@@ -9,8 +9,11 @@ import {
   FileText,
   MapPin,
   Package,
+  Plane,
   Plus,
+  Route,
   ShieldCheck,
+  Ship,
   ThermometerSnowflake,
   Truck,
   UserRound,
@@ -30,8 +33,10 @@ type PostLoadModalProps = {
 };
 
 type StepId = 'route' | 'cargo' | 'terms' | 'review';
+type TransportType = 'road' | 'air' | 'sea';
 
 type LoadDraft = {
+  transportType: TransportType;
   pickupPlaces: string;
   pickupPlaceType: string;
   pickupCity: string;
@@ -94,6 +99,7 @@ type LoadDraft = {
 };
 
 const INITIAL_DRAFT: LoadDraft = {
+  transportType: 'road',
   pickupPlaces: '1',
   pickupPlaceType: 'Loading place',
   pickupCity: '',
@@ -268,7 +274,7 @@ const DateInput = ({
     <Flatpickr
       value={value}
       options={{
-        dateFormat: 'Y-m-d',
+        dateFormat: 'd.m.Y',
         locale: flatpickrI18n(lang),
         allowInput: true,
       }}
@@ -327,6 +333,32 @@ const SummaryRow = ({
 
 export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  const transportOptions = [
+    {
+      id: 'road' as const,
+      label: u('postLoadModal.transport.road', 'Road'),
+      description: u('postLoadModal.transport.roadDesc', 'Truck and ground freight'),
+      icon: Truck,
+      iconTone: 'text-emerald-500',
+      iconSurface: 'bg-emerald-500/10',
+    },
+    {
+      id: 'air' as const,
+      label: u('postLoadModal.transport.air', 'Air'),
+      description: u('postLoadModal.transport.airDesc', 'Fast airport-to-airport cargo'),
+      icon: Plane,
+      iconTone: 'text-sky-500',
+      iconSurface: 'bg-sky-500/10',
+    },
+    {
+      id: 'sea' as const,
+      label: u('postLoadModal.transport.sea', 'Sea'),
+      description: u('postLoadModal.transport.seaDesc', 'Port and container shipping'),
+      icon: Ship,
+      iconTone: 'text-blue-500',
+      iconSurface: 'bg-blue-500/10',
+    },
+  ];
   const [step, setStep] = useState<StepId>('route');
   const [draft, setDraft] = useState<LoadDraft>(INITIAL_DRAFT);
   const citySeed = useMemo(
@@ -449,8 +481,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => 
         className="flex flex-col bg-white dark:bg-slate-900 shadow-2xl w-full h-[100dvh] overflow-hidden border-0 rounded-none"
       >
         <div className="sticky top-0 z-20 border-b border-slate-100 dark:border-slate-800 bg-white/96 dark:bg-slate-900/96 backdrop-blur-sm">
-          <div className="p-4 sm:p-5 md:p-6 flex items-start justify-between gap-3 sm:gap-4">
-            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+          <div className="p-4 sm:p-5 md:p-6 flex items-center justify-between gap-3 sm:gap-4">
+            <div className="flex flex-1 items-center gap-3 sm:gap-4 min-w-0">
               <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0">
                 <Plus className="text-primary w-6 h-6" />
               </div>
@@ -466,6 +498,29 @@ export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => 
                 </p>
               </div>
             </div>
+            <div className="hidden xl:flex shrink-0 items-center gap-4 text-slate-500">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs font-bold">
+                {step === 'route' && <MapPin className="w-4 h-4 text-primary" />}
+                {step === 'cargo' && <Package className="w-4 h-4 text-primary" />}
+                {step === 'terms' && <UserRound className="w-4 h-4 text-primary" />}
+                {step === 'review' && <FileText className="w-4 h-4 text-primary" />}
+                <span>
+                  {u('postLoadModal.stepLabel', 'Step')} {stepIndex + 1} / {STEPS.length}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-xs whitespace-nowrap">
+                <CalendarDays className="w-4 h-4" />
+                <span>{draft.pickupDate || u('postLoadModal.noPickupDate', 'Pickup date pending')}</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs whitespace-nowrap">
+                <Clock3 className="w-4 h-4" />
+                <span>{draft.deliveryDate || u('postLoadModal.noDeliveryDate', 'Delivery date pending')}</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs whitespace-nowrap">
+                <ThermometerSnowflake className="w-4 h-4" />
+                <span>{draft.temperature || u('postLoadModal.ambient', 'Ambient')}</span>
+              </div>
+            </div>
             <button
               onClick={onClose}
               className="shrink-0 h-11 w-11 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors"
@@ -476,7 +531,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => 
             </button>
           </div>
 
-          <div className="px-4 sm:px-5 md:px-6 pb-4 sm:pb-5 md:pb-6">
+          <div className="px-4 sm:px-5 md:px-6 pb-4 sm:pb-5 md:pb-6 xl:hidden">
             <div className="flex flex-wrap items-center gap-3 text-slate-500">
               <div className="inline-flex items-center gap-2 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs font-bold">
                 {step === 'route' && <MapPin className="w-4 h-4 text-primary" />}
@@ -596,6 +651,44 @@ export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => 
                     )}
                   />
 
+                  <fieldset>
+                    <legend className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
+                      <Route className="h-4 w-4" />
+                      {u('postLoadModal.transportType', 'Transport type')}
+                    </legend>
+                    <p className="mt-1 text-sm text-slate-500">
+                        {u('postLoadModal.transportTypeDesc', 'Choose how this load will move between pickup and delivery.')}
+                    </p>
+                    <div className="mt-4 grid sm:grid-cols-3 gap-3">
+                      {transportOptions.map((option) => {
+                        const Icon = option.icon;
+
+                        return (
+                          <label
+                            key={option.id}
+                            className="relative flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 pr-11 transition-all hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800/60"
+                          >
+                            <input
+                              type="radio"
+                              name="transportType"
+                              value={option.id}
+                              checked={draft.transportType === option.id}
+                              onChange={() => setField('transportType', option.id)}
+                              className="absolute right-4 top-4 h-4 w-4 accent-primary"
+                            />
+                            <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', option.iconSurface)}>
+                              <Icon className={cn('h-5 w-5', option.iconTone)} />
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-slate-900 dark:text-white">{option.label}</p>
+                              <p className="mt-0.5 text-xs text-slate-500">{option.description}</p>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+
                   <div className="grid lg:grid-cols-2 gap-4 sm:gap-5">
                     <div className="space-y-4 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
                       <div className="flex items-center gap-2 text-primary">
@@ -663,7 +756,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => 
                             <DateInput
                               value={draft.pickupDate}
                               onChange={(value) => setField('pickupDate', value)}
-                              placeholder="yyyy-mm-dd"
+                              placeholder="dd.mm.yyyy"
                               lang={lang}
                             />
                           </div>
@@ -672,7 +765,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => 
                             <DateInput
                               value={draft.pickupDateTo}
                               onChange={(value) => setField('pickupDateTo', value)}
-                              placeholder="yyyy-mm-dd"
+                              placeholder="dd.mm.yyyy"
                               lang={lang}
                             />
                           </div>
@@ -766,7 +859,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => 
                             <DateInput
                               value={draft.deliveryDate}
                               onChange={(value) => setField('deliveryDate', value)}
-                              placeholder="yyyy-mm-dd"
+                              placeholder="dd.mm.yyyy"
                               lang={lang}
                             />
                           </div>
@@ -775,7 +868,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => 
                             <DateInput
                               value={draft.deliveryDateTo}
                               onChange={(value) => setField('deliveryDateTo', value)}
-                              placeholder="yyyy-mm-dd"
+                              placeholder="dd.mm.yyyy"
                               lang={lang}
                             />
                           </div>
@@ -1209,6 +1302,10 @@ export const PostLoadModal = ({ isOpen, onClose, lang }: PostLoadModalProps) => 
                   <div className="grid xl:grid-cols-[minmax(0,1fr)_300px] gap-5">
                     <div className="rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
                       <SummaryRow label={u('postLoadModal.routeSummary', 'Route')} value={`${draft.pickupCity} → ${draft.deliveryCity}`} />
+                      <SummaryRow
+                        label={u('postLoadModal.transportType', 'Transport type')}
+                        value={transportOptions.find((option) => option.id === draft.transportType)?.label || draft.transportType}
+                      />
                       <SummaryRow
                         label={u('postLoadModal.pickupSummary', 'Pickup')}
                         value={`${draft.pickupCountry} · ${draft.pickupDate || '—'}${draft.pickupDateTo ? ` - ${draft.pickupDateTo}` : ''}${draft.pickupTimeFrom ? ` · ${draft.pickupTimeFrom}` : ''}${draft.pickupTimeTo ? ` - ${draft.pickupTimeTo}` : ''}`}
