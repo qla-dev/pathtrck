@@ -24,13 +24,12 @@ export type ListParams = Record<string, string | number | boolean | undefined>;
 
 const API_BACKENDS = {
   local: '/api',
-  production: '/backend/api',
+  production: 'https://cargo.qla.dev/endpoints/api',
 } as const;
 
 const configuredBackend = String(import.meta.env.VITE_API_BACKEND || 'local').toLowerCase();
-const API_BASE_URL = String(
-  import.meta.env.VITE_API_URL || API_BACKENDS[configuredBackend as keyof typeof API_BACKENDS] || API_BACKENDS.local,
-).replace(/\/+$/, '');
+const API_BASE_URL = (API_BACKENDS[configuredBackend as keyof typeof API_BACKENDS] || API_BACKENDS.local)
+  .replace(/\/+$/, '');
 const TOKEN_STORAGE_KEY = 'smartfreight_api_token';
 
 export class ApiError extends Error {

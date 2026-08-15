@@ -14,15 +14,6 @@ if (PHP_SAPI !== 'cli') {
     header('Cache-Control: no-store, no-cache, must-revalidate');
     header('X-Content-Type-Options: nosniff');
     header('X-Accel-Buffering: no');
-
-    $providedPassword = (string) ($_SERVER['PHP_AUTH_PW'] ?? '');
-
-    if (! hash_equals('1234', $providedPassword)) {
-        header('WWW-Authenticate: Basic realm="Smartfreight frontend redeploy"');
-        http_response_code(401);
-        echo "Authentication required.\n";
-        exit;
-    }
 }
 
 while (ob_get_level() > 0) {

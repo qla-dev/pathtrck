@@ -22,4 +22,14 @@ View your app in AI Studio: https://ai.studio/apps/987a1401-a969-4d35-89d6-7634f
 
 The repository includes `redeploy.php` and `.htaccess`, following the Putni nalozi cPanel deployment layout. The endpoint pulls `main`, installs locked dependencies, and rebuilds `dist`.
 
-Open `/redeploy.php` and authenticate with any Basic Auth username and password `1234`. The frontend rewrite explicitly leaves `/backend` to the Laravel API.
+Open `/redeploy.php` to trigger deployment. The frontend rewrite explicitly leaves `/endpoints` to the Laravel API.
+
+## API backend switching
+
+This follows Bowido's explicit environment switch. Local development uses `VITE_API_BACKEND=local` and Vite proxies `/api` to `127.0.0.1:8000`. On the production server, keep an ignored `.env` file in the frontend repository containing:
+
+```env
+VITE_API_BACKEND=production
+```
+
+Production builds then call `https://cargo.qla.dev/endpoints/api` directly.

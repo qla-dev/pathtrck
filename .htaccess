@@ -12,7 +12,7 @@ DirectoryIndex dist/index.html
     RewriteRule ^redeploy\.php$ - [L]
 
     # Let the Laravel application's own .htaccess handle API requests.
-    RewriteRule ^backend(?:/|$) - [L]
+    RewriteRule ^endpoints(?:/|$) - [L]
 
     # Prevent repeated rewriting after a request has entered dist.
     RewriteRule ^dist(?:/|$) - [L]
