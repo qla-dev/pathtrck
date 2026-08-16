@@ -23,11 +23,11 @@ import { Language } from '../../types';
 import { flatpickrI18n, ui } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { confirmAction, showSuccess } from '../../lib/swal';
-import { MOCK_LOADS } from '../../mockData';
 import { Button } from '../ui/Button';
-import { useCitySuggestions } from '../frights/useCitySuggestions';
 import { api, ApiError } from '../../services/api';
 import { CustomerSelect, customerOptionFromRecord, type CustomerOption } from '../customer/CustomerSelect';
+import { AddressMapModal } from '../maps/AddressMapModal';
+import { CountrySelect } from '../location/CountrySelect';
 
 type PostLoadModalProps = {
   isOpen: boolean;
@@ -48,6 +48,8 @@ type LoadDraft = {
   pickupCity: string;
   pickupCountry: string;
   pickupAddress: string;
+  pickupLatitude: string;
+  pickupLongitude: string;
   pickupDate: string;
   pickupDateTo: string;
   pickupTimeFrom: string;
@@ -58,6 +60,8 @@ type LoadDraft = {
   deliveryCity: string;
   deliveryCountry: string;
   deliveryAddress: string;
+  deliveryLatitude: string;
+  deliveryLongitude: string;
   deliveryDate: string;
   deliveryDateTo: string;
   deliveryTimeFrom: string;
@@ -80,6 +84,7 @@ type LoadDraft = {
   characteristics: string;
   mustBeTrackable: boolean;
   paymentTerms: 'Negotiable' | 'In Advance' | 'On Delivery';
+  incoterm: string;
   budget: string;
   freightCurrency: string;
   paymentDueDays: string;
@@ -114,6 +119,8 @@ const INITIAL_DRAFT: LoadDraft = {
   pickupCity: '',
   pickupCountry: 'BA',
   pickupAddress: '',
+  pickupLatitude: '',
+  pickupLongitude: '',
   pickupDate: '',
   pickupDateTo: '',
   pickupTimeFrom: '',
@@ -124,6 +131,8 @@ const INITIAL_DRAFT: LoadDraft = {
   deliveryCity: '',
   deliveryCountry: 'BA',
   deliveryAddress: '',
+  deliveryLatitude: '',
+  deliveryLongitude: '',
   deliveryDate: '',
   deliveryDateTo: '',
   deliveryTimeFrom: '',
@@ -146,6 +155,7 @@ const INITIAL_DRAFT: LoadDraft = {
   characteristics: '',
   mustBeTrackable: false,
   paymentTerms: 'Negotiable',
+  incoterm: '',
   budget: '',
   freightCurrency: 'EUR',
   paymentDueDays: '',
@@ -201,7 +211,7 @@ const STEPS: Array<{ id: StepId; icon: typeof MapPin }> = [
   { id: 'review', icon: CheckCircle2 },
 ];
 
-const COUNTRY_OPTIONS = ['BA', 'HR', 'RS', 'SI', 'DE', 'AT', 'IT', 'GB'];
+const INCOTERM_OPTIONS = ['EXW', 'FCA', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP', 'FAS', 'FOB', 'CFR', 'CIF'];
 const VEHICLE_OPTIONS = ['Cargo Van', 'Box Truck', 'Curtainsider', 'Reefer', 'Trailer', 'Rigid Truck'];
 const BODY_TYPE_OPTIONS = ['Curtain', 'Box', 'Reefer', 'Mega', 'Tautliner', 'Flatbed'];
 const CHARACTERISTIC_OPTIONS = ['ADR', 'CMR', 'GDP', 'TIR', 'Lift', 'Express'];
@@ -276,17 +286,23 @@ const TimeInput = ({
         noCalendar: true,
         dateFormat: 'H:i',
         time_24hr: true,
+        minuteIncrement: 5,
         locale: flatpickrI18n(lang),
+        onReady: (_dates, _dateStr, instance) => instance.calendarContainer.classList.add('smart-time-flatpickr'),
+        onOpen: (_dates, _dateStr, instance) => instance.calendarContainer.classList.add('smart-time-flatpickr'),
       }}
       onChange={(_, dateStr) => onChange(dateStr)}
       render={(_, ref) => (
-        <input
-          ref={ref}
-          value={value}
-          onChange={() => undefined}
-          placeholder={placeholder}
-          className="w-full h-[54px] px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-white outline-none focus:ring-2 focus:ring-primary text-sm"
-        />
+        <div className="relative">
+          <input
+            ref={ref}
+            value={value}
+            onChange={() => undefined}
+            placeholder={placeholder}
+            className="h-[54px] w-full rounded-xl border border-slate-200 bg-slate-50 px-4 pr-11 text-sm outline-none focus:ring-2 focus:ring-primary dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+          />
+          <Clock3 className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" />
+        </div>
       )}
     />
   </div>
@@ -313,13 +329,16 @@ const DateInput = ({
       }}
       onChange={(_, dateStr) => onChange(dateStr)}
       render={(_, ref) => (
-        <input
-          ref={ref}
-          value={value}
-          onChange={() => undefined}
-          placeholder={placeholder}
-          className="w-full h-[54px] px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-white outline-none focus:ring-2 focus:ring-primary text-sm"
-        />
+        <div className="relative">
+          <input
+            ref={ref}
+            value={value}
+            onChange={() => undefined}
+            placeholder={placeholder}
+            className="h-[54px] w-full rounded-xl border border-slate-200 bg-slate-50 px-4 pr-11 text-sm outline-none focus:ring-2 focus:ring-primary dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+          />
+          <CalendarDays className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" />
+        </div>
       )}
     />
   </div>
@@ -397,36 +416,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingExisting, setIsLoadingExisting] = useState(false);
   const [submitError, setSubmitError] = useState('');
-  const citySeed = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          MOCK_LOADS.flatMap((load) => [load.pickup, load.delivery]).concat([
-            'Sarajevo, BA',
-            'Banja Luka, BA',
-            'Belgrade, RS',
-            'Zagreb, HR',
-            'Ljubljana, SI',
-            'Vienna, AT',
-            'Munich, DE',
-            'Berlin, DE',
-            'Milan, IT',
-            'Paris, FR',
-            'Amsterdam, NL',
-            'London, GB',
-            'Madrid, ES',
-          ])
-        )
-      ),
-    []
-  );
-  const {
-    startSuggestions,
-    endSuggestions,
-    setStartLocation,
-    setEndLocation,
-  } = useCitySuggestions({ seedCities: citySeed });
-
+  const [addressMap, setAddressMap] = useState<'pickup' | 'delivery' | null>(null);
   useEffect(() => {
     if (!isOpen) {
       setStep('customer');
@@ -456,21 +446,13 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       setDraft({ ...INITIAL_DRAFT,
         consignee,
         transportType: (record.transport_type as TransportType) || 'road',
-        pickupPlaceType: String(pickup.place_type || INITIAL_DRAFT.pickupPlaceType), pickupCity: String(pickup.city || ''), pickupCountry: String(pickup.country_code || 'BA'), pickupAddress: String(pickup.address || ''), pickupDate: pickupStart.date, pickupDateTo: pickupEnd.date, pickupTimeFrom: pickupStart.time, pickupTimeTo: pickupEnd.time,
-        deliveryPlaceType: String(delivery.place_type || INITIAL_DRAFT.deliveryPlaceType), deliveryCity: String(delivery.city || ''), deliveryCountry: String(delivery.country_code || 'BA'), deliveryAddress: String(delivery.address || ''), deliveryDate: deliveryStart.date, deliveryDateTo: deliveryEnd.date, deliveryTimeFrom: deliveryStart.time, deliveryTimeTo: deliveryEnd.time,
-        cargoTitle: String(record.title || ''), cargoType: String(record.cargo_type || 'FTL'), goodsType: String(record.goods_type || 'General'), weightKg: fromApiWeightKg(record.weight_kg), pallets: String(record.pallets || ''), lengthM: String(record.length_m || ''), widthM: String(record.width_m || ''), heightM: String(record.height_m || ''), volumeM3: String(record.volume_m3 || ''), declaredValue: String(record.declared_value || ''), budget: String(record.budget || ''), freightCurrency: String(record.currency || 'EUR'), paymentDueDays: String(record.payment_due_days || ''), paymentTerms: terms === 'in_advance' ? 'In Advance' : terms === 'on_delivery' ? 'On Delivery' : 'Negotiable',
+        pickupPlaceType: String(pickup.place_type || INITIAL_DRAFT.pickupPlaceType), pickupCity: String(pickup.city || ''), pickupCountry: String(pickup.country_code || 'BA'), pickupAddress: String(pickup.address || ''), pickupLatitude: String(pickup.latitude || ''), pickupLongitude: String(pickup.longitude || ''), pickupDate: pickupStart.date, pickupDateTo: pickupEnd.date, pickupTimeFrom: pickupStart.time, pickupTimeTo: pickupEnd.time,
+        deliveryPlaceType: String(delivery.place_type || INITIAL_DRAFT.deliveryPlaceType), deliveryCity: String(delivery.city || ''), deliveryCountry: String(delivery.country_code || 'BA'), deliveryAddress: String(delivery.address || ''), deliveryLatitude: String(delivery.latitude || ''), deliveryLongitude: String(delivery.longitude || ''), deliveryDate: deliveryStart.date, deliveryDateTo: deliveryEnd.date, deliveryTimeFrom: deliveryStart.time, deliveryTimeTo: deliveryEnd.time,
+        cargoTitle: String(record.title || ''), cargoType: String(record.cargo_type || 'FTL'), goodsType: String(record.goods_type || 'General'), weightKg: fromApiWeightKg(record.weight_kg), pallets: String(record.pallets || ''), lengthM: String(record.length_m || ''), widthM: String(record.width_m || ''), heightM: String(record.height_m || ''), volumeM3: String(record.volume_m3 || ''), declaredValue: String(record.declared_value || ''), budget: String(record.budget || ''), freightCurrency: String(record.currency || 'EUR'), paymentDueDays: String(record.payment_due_days || ''), paymentTerms: terms === 'in_advance' ? 'In Advance' : terms === 'on_delivery' ? 'On Delivery' : 'Negotiable', incoterm: String(record.incoterms || ''),
         requiresAdr: Boolean(record.requires_adr), requiresTailLift: Boolean(record.requires_tail_lift), mustBeTrackable: Boolean(record.must_be_trackable), urgent: Boolean(record.is_urgent), bodyTypes: Array.isArray(record.body_types) ? record.body_types.map(String) : [], notes: String(record.notes || ''), internalComments: String(record.internal_comments || ''), externalComments: String(record.external_comments || ''), contactName: String(contact.name || ''), contactPhone: String(contact.phone || ''), contactMobile: String(contact.mobile || ''), contactEmail: String(contact.email || ''), contactFax: String(contact.fax || ''),
       });
     }).catch((error) => setSubmitError(error instanceof Error ? error.message : 'The load could not be loaded.')).finally(() => setIsLoadingExisting(false));
   }, [editLoadId, isOpen]);
-
-  useEffect(() => {
-    setStartLocation(draft.pickupCity);
-  }, [draft.pickupCity, setStartLocation]);
-
-  useEffect(() => {
-    setEndLocation(draft.deliveryCity);
-  }, [draft.deliveryCity, setEndLocation]);
 
   const stepIndex = STEPS.findIndex((item) => item.id === step);
   const stepCompletion = useMemo<Record<StepId, boolean>>(
@@ -569,6 +551,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         budget: draft.budget ? Number(draft.budget) : null,
         currency: draft.freightCurrency,
         payment_terms: draft.paymentTerms.toLowerCase().replaceAll(' ', '_'),
+        incoterms: draft.incoterm || null,
         payment_due_days: draft.paymentDueDays ? Number(draft.paymentDueDays) : null,
         requires_adr: draft.requiresAdr,
         requires_tail_lift: draft.requiresTailLift,
@@ -580,8 +563,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         internal_comments: draft.internalComments || null,
         external_comments: draft.externalComments || null,
         stops: [
-          { type: 'pickup', position: 1, place_type: draft.pickupPlaceType, city: draft.pickupCity, country_code: draft.pickupCountry, address: draft.pickupAddress || null, window_starts_at: toApiDateTime(draft.pickupDate, draft.pickupTimeFrom), window_ends_at: toApiDateTime(draft.pickupDateTo || draft.pickupDate, draft.pickupTimeTo || draft.pickupTimeFrom) },
-          { type: 'delivery', position: 2, place_type: draft.deliveryPlaceType, city: draft.deliveryCity, country_code: draft.deliveryCountry, address: draft.deliveryAddress || null, window_starts_at: toApiDateTime(draft.deliveryDate, draft.deliveryTimeFrom), window_ends_at: toApiDateTime(draft.deliveryDateTo || draft.deliveryDate, draft.deliveryTimeTo || draft.deliveryTimeFrom) },
+          { type: 'pickup', position: 1, place_type: draft.pickupPlaceType, city: draft.pickupCity, country_code: draft.pickupCountry, address: draft.pickupAddress || null, latitude: draft.pickupLatitude ? Number(draft.pickupLatitude) : null, longitude: draft.pickupLongitude ? Number(draft.pickupLongitude) : null, window_starts_at: toApiDateTime(draft.pickupDate, draft.pickupTimeFrom), window_ends_at: toApiDateTime(draft.pickupDateTo || draft.pickupDate, draft.pickupTimeTo || draft.pickupTimeFrom) },
+          { type: 'delivery', position: 2, place_type: draft.deliveryPlaceType, city: draft.deliveryCity, country_code: draft.deliveryCountry, address: draft.deliveryAddress || null, latitude: draft.deliveryLatitude ? Number(draft.deliveryLatitude) : null, longitude: draft.deliveryLongitude ? Number(draft.deliveryLongitude) : null, window_starts_at: toApiDateTime(draft.deliveryDate, draft.deliveryTimeFrom), window_ends_at: toApiDateTime(draft.deliveryDateTo || draft.deliveryDate, draft.deliveryTimeTo || draft.deliveryTimeFrom) },
         ],
       };
       const response = editLoadId
@@ -615,6 +598,44 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       animate={{ opacity: 1 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
     >
+      <AddressMapModal
+        open={addressMap !== null}
+        lang={lang}
+        title={addressMap === 'delivery'
+          ? u('postLoadModal.deliveryAddress', 'Delivery address')
+          : u('postLoadModal.pickupAddress', 'Pickup address')}
+        initialQuery={addressMap === 'delivery'
+          ? draft.deliveryAddress || draft.deliveryCity
+          : draft.pickupAddress || draft.pickupCity}
+        initialPosition={addressMap === 'delivery'
+          ? draft.deliveryLatitude && draft.deliveryLongitude
+            ? [Number(draft.deliveryLatitude), Number(draft.deliveryLongitude)]
+            : null
+          : draft.pickupLatitude && draft.pickupLongitude
+            ? [Number(draft.pickupLatitude), Number(draft.pickupLongitude)]
+            : null}
+        onClose={() => setAddressMap(null)}
+        onSelect={(location) => {
+          setDraft((current) => addressMap === 'delivery'
+            ? {
+                ...current,
+                deliveryAddress: location.label,
+                deliveryCity: location.city || current.deliveryCity,
+                deliveryCountry: location.countryCode || current.deliveryCountry,
+                deliveryLatitude: String(location.latitude),
+                deliveryLongitude: String(location.longitude),
+              }
+            : {
+                ...current,
+                pickupAddress: location.label,
+                pickupCity: location.city || current.pickupCity,
+                pickupCountry: location.countryCode || current.pickupCountry,
+                pickupLatitude: String(location.latitude),
+                pickupLongitude: String(location.longitude),
+              });
+          setAddressMap(null);
+        }}
+      />
       <motion.div
         initial={{ opacity: 0, y: 24, scale: 0.992 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -888,39 +909,29 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           </Select>
                         </div>
                       </div>
-                      <div className="grid sm:grid-cols-[120px_minmax(0,1fr)] gap-4">
+                      <div className="space-y-1.5">
+                        <FieldLabel>{u('postLoadModal.pickupAddress', 'Pickup address')}</FieldLabel>
+                        <div className="relative">
+                          <Input
+                            value={draft.pickupAddress}
+                            onChange={(event) => setField('pickupAddress', event.target.value)}
+                            className="pr-12"
+                            placeholder={u('postLoadModal.pickupAddressPlaceholder', 'Warehouse, street, reference point')}
+                          />
+                          <button type="button" onClick={() => setAddressMap('pickup')} aria-label={u('map.choosePickup', 'Choose pickup address on map')} className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg text-primary hover:bg-primary/10">
+                            <MapPin className="h-5 w-5" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="grid sm:grid-cols-[240px_minmax(0,1fr)] gap-4">
                         <div className="space-y-1.5">
                           <FieldLabel>{u('postLoadModal.pickupCountryShort', 'Country')}</FieldLabel>
-                          <Select value={draft.pickupCountry} onChange={(e) => setField('pickupCountry', e.target.value)}>
-                            {COUNTRY_OPTIONS.map((country) => (
-                              <option key={country} value={country}>
-                                {country}
-                              </option>
-                            ))}
-                          </Select>
+                          <CountrySelect value={draft.pickupCountry} onChange={(value) => setField('pickupCountry', value)} placeholder={u('postLoadModal.selectCountry', 'Select country')} />
                         </div>
                         <div className="space-y-1.5">
                           <FieldLabel>{u('postLoadModal.pickupCity', 'Post code, place')}</FieldLabel>
-                          <Input
-                            list="post-load-pickup-cities"
-                            value={draft.pickupCity}
-                            onChange={(e) => setField('pickupCity', e.target.value)}
-                            placeholder={u('postLoadModal.cityCountry', 'Start typing city or postcode')}
-                          />
-                          <datalist id="post-load-pickup-cities">
-                            {startSuggestions.map((city) => (
-                              <option key={city} value={city} />
-                            ))}
-                          </datalist>
+                          <Input value={draft.pickupCity} onChange={(event) => setField('pickupCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', 'City or postcode')} />
                         </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        <FieldLabel>{u('postLoadModal.pickupAddress', 'Pickup address')}</FieldLabel>
-                        <Input
-                          value={draft.pickupAddress}
-                          onChange={(e) => setField('pickupAddress', e.target.value)}
-                          placeholder={u('postLoadModal.pickupAddressPlaceholder', 'Warehouse, street, reference point')}
-                        />
                       </div>
                       <div className="grid sm:grid-cols-2 gap-4">
                         <div className="grid grid-cols-2 gap-3">
@@ -991,39 +1002,29 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           </Select>
                         </div>
                       </div>
-                      <div className="grid sm:grid-cols-[120px_minmax(0,1fr)] gap-4">
+                      <div className="space-y-1.5">
+                        <FieldLabel>{u('postLoadModal.deliveryAddress', 'Delivery address')}</FieldLabel>
+                        <div className="relative">
+                          <Input
+                            value={draft.deliveryAddress}
+                            onChange={(event) => setField('deliveryAddress', event.target.value)}
+                            className="pr-12"
+                            placeholder={u('postLoadModal.deliveryAddressPlaceholder', 'Receiver location, dock or terminal')}
+                          />
+                          <button type="button" onClick={() => setAddressMap('delivery')} aria-label={u('map.chooseDelivery', 'Choose delivery address on map')} className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg text-primary hover:bg-primary/10">
+                            <MapPin className="h-5 w-5" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="grid sm:grid-cols-[240px_minmax(0,1fr)] gap-4">
                         <div className="space-y-1.5">
                           <FieldLabel>{u('postLoadModal.deliveryCountryShort', 'Country')}</FieldLabel>
-                          <Select value={draft.deliveryCountry} onChange={(e) => setField('deliveryCountry', e.target.value)}>
-                            {COUNTRY_OPTIONS.map((country) => (
-                              <option key={country} value={country}>
-                                {country}
-                              </option>
-                            ))}
-                          </Select>
+                          <CountrySelect value={draft.deliveryCountry} onChange={(value) => setField('deliveryCountry', value)} placeholder={u('postLoadModal.selectCountry', 'Select country')} />
                         </div>
                         <div className="space-y-1.5">
                           <FieldLabel>{u('postLoadModal.deliveryCity', 'Post code, place')}</FieldLabel>
-                          <Input
-                            list="post-load-delivery-cities"
-                            value={draft.deliveryCity}
-                            onChange={(e) => setField('deliveryCity', e.target.value)}
-                            placeholder={u('postLoadModal.cityCountry', 'Start typing city or postcode')}
-                          />
-                          <datalist id="post-load-delivery-cities">
-                            {endSuggestions.map((city) => (
-                              <option key={city} value={city} />
-                            ))}
-                          </datalist>
+                          <Input value={draft.deliveryCity} onChange={(event) => setField('deliveryCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', 'City or postcode')} />
                         </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        <FieldLabel>{u('postLoadModal.deliveryAddress', 'Delivery address')}</FieldLabel>
-                        <Input
-                          value={draft.deliveryAddress}
-                          onChange={(e) => setField('deliveryAddress', e.target.value)}
-                          placeholder={u('postLoadModal.deliveryAddressPlaceholder', 'Receiver location, dock or terminal')}
-                        />
                       </div>
                       <div className="grid sm:grid-cols-2 gap-4">
                         <div className="grid grid-cols-2 gap-3">
@@ -1219,6 +1220,15 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             placeholder="30"
                           />
                         </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <FieldLabel>{u('postLoadModal.incoterm', 'Incoterm')}</FieldLabel>
+                        <Select value={draft.incoterm} onChange={(event) => setField('incoterm', event.target.value)}>
+                          <option value="">{u('postLoadModal.pleaseSelect', 'Please select')}</option>
+                          {INCOTERM_OPTIONS.map((incoterm) => (
+                            <option key={incoterm} value={incoterm}>{incoterm}</option>
+                          ))}
+                        </Select>
                       </div>
                       <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 dark:border-slate-800 dark:bg-slate-950">
                         <div>
@@ -1529,6 +1539,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       <SummaryRow label={u('postLoadModal.specsSummary', 'Specs')} value={`${draft.lengthM || '—'} × ${draft.widthM || '—'} × ${draft.heightM || '—'} m · ${draft.weightKg || '—'} t · ${draft.additionalInfo || u('postLoadModal.none', 'None')}`} />
                       <SummaryRow label={u('postLoadModal.vehicleSummary', 'Vehicle')} value={`${draft.vehicleType} · ${draft.bodyTypes.join(', ') || u('postLoadModal.none', 'None')}`} />
                       <SummaryRow label={u('postLoadModal.paymentSummary', 'Payout')} value={`${draft.budget || '—'} ${draft.freightCurrency} · ${draft.paymentDueDays || '—'} ${u('postLoadModal.days', 'days')}`} />
+                      <SummaryRow label={u('postLoadModal.incoterm', 'Incoterm')} value={draft.incoterm || '—'} />
                       <SummaryRow label={u('postLoadModal.contactSummary', 'Contact')} value={`${draft.contactName} · ${draft.contactPhone || draft.contactMobile || draft.contactEmail || '—'}`} />
                       <SummaryRow
                         label={u('postLoadModal.flagsSummary', 'Special requirements')}
@@ -1593,10 +1604,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
 
             <div className="p-4 sm:p-5 md:p-6 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800">
               {submitError && <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400">{submitError}</div>}
-              <div className="grid w-full gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
-                <Button variant="outline" className="w-full min-h-[56px] sm:min-h-[60px]">
-                  {u('postLoadModal.saveTemplate', 'Save as template')}
-                </Button>
+              <div className="grid w-full gap-3 sm:grid-cols-2">
                 <Button variant="outline" className="w-full min-h-[56px] sm:min-h-[60px]" onClick={step === 'customer' ? onClose : goBack}>
                   {step === 'customer' ? u('common.cancel', 'Cancel') : u('common.back', 'Back')}
                 </Button>

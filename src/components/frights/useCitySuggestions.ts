@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { transliterateLocation } from '../../lib/transliterateLocation';
 
 type SuggestionSetter = Dispatch<SetStateAction<string[]>>;
 
@@ -24,7 +25,7 @@ export const useCitySuggestions = ({ seedCities }: UseCitySuggestionsParams) => 
       Array.from(
         new Set(
           seedCities
-            .map((city) => city.trim())
+            .map((city) => transliterateLocation(city.trim()))
             .filter(Boolean)
         )
       ),
@@ -51,7 +52,7 @@ export const useCitySuggestions = ({ seedCities }: UseCitySuggestionsParams) => 
       const payload = (await response.json()) as Array<{ name?: string; country?: string }>;
       const normalized = payload
         .map((item) => {
-          const city = (item.name || '').trim();
+          const city = transliterateLocation((item.name || '').trim());
           const country = (item.country || '').trim().toUpperCase();
           if (!city) return '';
           return country ? `${city}, ${country}` : city;
@@ -72,7 +73,7 @@ export const useCitySuggestions = ({ seedCities }: UseCitySuggestionsParams) => 
         return;
       }
 
-      const normalizedInput = trimmedInput.toLowerCase();
+      const normalizedInput = transliterateLocation(trimmedInput).toLowerCase();
       const localMatches = fallbackCitySuggestions
         .filter((city) => city.toLowerCase().includes(normalizedInput))
         .slice(0, 8);

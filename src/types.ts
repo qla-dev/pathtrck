@@ -40,7 +40,7 @@ export interface Package {
   history: { date: string; status: string; location: string }[];
 }
 
-export type ShipmentDetailInput = 'text' | 'number' | 'date' | 'status' | 'customer';
+export type ShipmentDetailInput = 'text' | 'number' | 'date' | 'status' | 'customer' | 'select';
 
 export type ShipmentDetail = {
   key: string;

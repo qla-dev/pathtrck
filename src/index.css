@@ -1,5 +1,100 @@
 @import "tailwindcss";
 @import "leaflet/dist/leaflet.css";
+
+.smart-time-flatpickr.flatpickr-calendar {
+  width: 240px;
+  padding: 10px;
+  border: 1px solid rgb(226 232 240);
+  border-radius: 16px;
+  background: white;
+  box-shadow: 0 18px 45px rgb(15 23 42 / 0.16);
+}
+
+.smart-time-flatpickr.flatpickr-calendar::before,
+.smart-time-flatpickr.flatpickr-calendar::after {
+  display: none;
+}
+
+.smart-time-flatpickr .flatpickr-time {
+  height: 58px;
+  max-height: 58px;
+  border: 0;
+  border-radius: 12px;
+  background: rgb(248 250 252);
+}
+
+.smart-time-flatpickr .flatpickr-time .numInputWrapper {
+  height: 58px;
+  border-radius: 10px;
+}
+
+.smart-time-flatpickr .flatpickr-time input {
+  height: 58px;
+  border-radius: 10px;
+  color: rgb(15 23 42);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.smart-time-flatpickr .flatpickr-time input:hover,
+.smart-time-flatpickr .flatpickr-time input:focus,
+.smart-time-flatpickr .flatpickr-time .numInputWrapper:hover {
+  background: transparent !important;
+  color: rgb(15 23 42);
+}
+
+.smart-time-flatpickr .flatpickr-time input::selection {
+  background: transparent;
+  color: inherit;
+}
+
+.smart-time-flatpickr .flatpickr-time .flatpickr-time-separator {
+  display: flex;
+  height: 58px;
+  align-items: center;
+  color: rgb(100 116 139);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.smart-time-flatpickr .numInputWrapper span {
+  width: 24px;
+  border-color: rgb(226 232 240);
+  opacity: 1;
+}
+
+.smart-time-flatpickr .numInputWrapper span:hover {
+  background: rgb(14 165 233 / 0.14);
+}
+
+.dark .smart-time-flatpickr.flatpickr-calendar {
+  border-color: rgb(51 65 85);
+  background: rgb(15 23 42);
+  box-shadow: 0 18px 50px rgb(0 0 0 / 0.4);
+}
+
+.dark .smart-time-flatpickr .flatpickr-time {
+  background: rgb(2 6 23);
+}
+
+.dark .smart-time-flatpickr .flatpickr-time input {
+  color: rgb(241 245 249);
+}
+
+.dark .smart-time-flatpickr .flatpickr-time input:hover,
+.dark .smart-time-flatpickr .flatpickr-time input:focus,
+.dark .smart-time-flatpickr .flatpickr-time .numInputWrapper:hover {
+  background: transparent !important;
+  color: rgb(241 245 249);
+}
+
+.dark .smart-time-flatpickr .flatpickr-time .flatpickr-time-separator {
+  color: rgb(148 163 184);
+}
+
+.dark .smart-time-flatpickr .numInputWrapper span {
+  border-color: rgb(51 65 85);
+}
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {

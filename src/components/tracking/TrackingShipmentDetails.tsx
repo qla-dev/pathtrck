@@ -74,6 +74,8 @@ const detailIcons: Record<string, LucideIcon> = {
   profit_loss: TrendingUp,
 };
 
+const INCOTERM_OPTIONS = ['EXW', 'FCA', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP', 'FAS', 'FOB', 'CFR', 'CIF'];
+
 const ShipmentDatePicker = ({ fieldKey, value, disabled, lang, onChange }: ShipmentDatePickerProps) => {
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
@@ -231,6 +233,24 @@ export const TrackingShipmentDetails = ({ details, lang, role, consigneeRecord, 
               </div>
             ) : !editing ? (
               <p className="mt-1 truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{detail.value}</p>
+            ) : detail.input === 'select' ? (
+              <div className="mt-1" onClick={(event) => event.stopPropagation()}>
+                <select
+                  autoFocus
+                  value={draft}
+                  onChange={(event) => setDraft(event.target.value)}
+                  onBlur={() => saveOnBlur(detail)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') void save(detail);
+                    if (event.key === 'Escape') cancel();
+                  }}
+                  disabled={saving}
+                  className="h-8 w-full min-w-0 cursor-pointer rounded-lg border border-primary/40 bg-white px-2 text-sm outline-none dark:bg-slate-950 dark:text-white"
+                >
+                  <option value="">Select Incoterm</option>
+                  {INCOTERM_OPTIONS.map((incoterm) => <option key={incoterm} value={incoterm}>{incoterm}</option>)}
+                </select>
+              </div>
             ) : detail.input === 'customer' ? (
               <div className="mt-1" onClick={(event) => event.stopPropagation()}>
                 <CustomerSelect

@@ -214,7 +214,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
         { key: 'atd_at', label: 'ATD Date', value: detailDate(load.atd_at), rawValue: String(load.atd_at || '').slice(0, 10), input: 'date' },
         { key: 'shipper_name', label: 'Shipper Name', value: detailValue(load.shipper_name), rawValue: String(load.shipper_name || ''), input: 'text' },
         { key: 'mediator', label: 'Mediator', value: detailValue(load.mediator), rawValue: String(load.mediator || ''), input: 'text' },
-        { key: 'incoterms', label: 'Incoterms', value: detailValue(load.incoterms), rawValue: String(load.incoterms || ''), input: 'text' },
+        { key: 'incoterms', label: 'Incoterms', value: detailValue(load.incoterms), rawValue: String(load.incoterms || ''), input: 'select' },
         { key: 'price_insurance', label: 'Price + Insurance', value: detailValue(load.price_insurance), rawValue: String(load.price_insurance || ''), input: 'text' },
         { key: 'profit_loss', label: 'GP (Profit & Loss)', value: detailValue(load.profit_loss), rawValue: String(load.profit_loss || ''), input: 'text' },
       ],

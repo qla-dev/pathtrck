@@ -83,6 +83,7 @@ import { ServiceFilters, ServiceItem } from './components/frights/FrightTypes';
 import { GLOBAL_OFFERS } from './components/frights/globalOffers';
 import { useCitySuggestions } from './components/frights/useCitySuggestions';
 import { MessagesView } from './components/views/MessagesView';
+import { MapView } from './components/views/MapView';
 import { ProfileView } from './components/views/ProfileView';
 import { AutomationsView } from './components/views/AutomationsView';
 import { PostLoadModal } from './components/modals/PostLoadModal';
@@ -3682,6 +3683,7 @@ export default function App() {
         { id: 'admin-drivers', label: u('nav.allDrivers', 'Drivers'), icon: Users },
         { id: 'feed', label: t.homeFeed, icon: Boxes },
         { id: 'tracking', label: u('nav.globalTracking', 'Global Tracking'), icon: PackageIcon },
+        { id: 'map', label: u('nav.map', 'Map'), icon: MapIcon },
         { id: 'fleet', label: u('nav.globalFleet', 'Global Fleet'), icon: Truck },
         { id: 'finance', label: u('nav.finance', 'Finance'), icon: Banknote },
         { id: 'email-studio', label: u('nav.emailStudio', 'Email Studio'), icon: Mail },
@@ -3701,6 +3703,7 @@ export default function App() {
           { id: 'company', label: u('nav.companyOverview', 'Company Overview'), icon: Building2 },
           { id: 'feed', label: t.homeFeed, icon: Boxes },
           { id: 'tracking', label: myCargoLabels[lang || 'en'], icon: PackageIcon },
+          { id: 'map', label: u('nav.map', 'Map'), icon: MapIcon },
           { id: 'fleet', label: t.myFleet, icon: Truck },
           { id: 'company-team', label: u('nav.teamPermissions', 'Team & Permissions'), icon: Users },
           { id: 'messages', label: u('nav.teamCommunication', 'Team Communication'), icon: Users },
@@ -3711,6 +3714,7 @@ export default function App() {
       : [
           ...(role === 'driver' ? [{ id: 'feed', label: t.homeFeed, icon: Boxes }] : []),
           { id: 'tracking', label: myCargoLabels[lang || 'en'], icon: PackageIcon },
+          { id: 'map', label: u('nav.map', 'Map'), icon: MapIcon },
           ...(role === 'driver' ? [
             { id: 'fleet', label: t.myFleet, icon: Truck },
           ] : []),
@@ -4143,13 +4147,13 @@ export default function App() {
           className={cn(
             "flex-1 min-h-0 p-6 pb-24 md:pb-6 mx-auto w-full",
             isSidebarOpen || shouldShowFeedSidebarPanel ? "max-w-7xl" : "max-w-none",
-            view === 'messages' ? "overflow-hidden" : "overflow-y-auto"
+            view === 'messages' || view === 'map' ? "overflow-hidden" : "overflow-y-auto"
           )}
         >
           <AnimatePresence mode="wait">
             <motion.div
               key={view}
-              className={cn(view === 'messages' && "h-full")}
+              className={cn((view === 'messages' || view === 'map') && "h-full")}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
@@ -4217,6 +4221,7 @@ export default function App() {
                 )}
 	              {view === 'notes' && <LoadNotesView lang={lang} />}
 	              {view === 'messages' && <MessagesView lang={lang} />}
+	              {view === 'map' && <MapView lang={lang} />}
 	              {view === 'admin' && <AdminOverviewView lang={lang} />}
 	              {view === 'admin-customers' && <AdminCustomersView lang={lang} onOpenEmailStudio={() => setView('email-studio')} />}
 	              {view === 'admin-companies' && <AdminCompaniesView lang={lang} onOpenEmailStudio={() => setView('email-studio')} />}
