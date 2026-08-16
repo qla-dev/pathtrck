@@ -179,7 +179,7 @@ export const CustomerSelect = ({
           'flex w-full items-center rounded-xl border bg-slate-50 text-left text-sm outline-none transition dark:bg-slate-950 dark:text-white',
           compact ? 'h-8 gap-2 px-2' : 'min-h-[54px] gap-3 px-4',
           open ? 'border-primary ring-2 ring-primary/20' : 'border-slate-200 dark:border-slate-800',
-          disabled && 'cursor-not-allowed opacity-60',
+          disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
         )}
       >
         <Building2 className={cn('shrink-0 text-primary', compact ? 'h-4 w-4' : 'h-5 w-5')} />
@@ -239,7 +239,7 @@ export const CustomerSelect = ({
                     setQuery('');
                   }}
                   className={cn(
-                    'flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-sky-50 dark:hover:bg-slate-800',
+                    'flex w-full cursor-pointer items-start gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-sky-50 dark:hover:bg-slate-800',
                     selected && 'bg-sky-50 dark:bg-sky-950/40',
                   )}
                 >
@@ -262,7 +262,7 @@ export const CustomerSelect = ({
                 type="button"
                 disabled={loading}
                 onClick={loadMore}
-                className="flex w-full items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-bold text-primary hover:bg-sky-50 disabled:opacity-60 dark:hover:bg-slate-800"
+                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-bold text-primary hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-slate-800"
               >
                 {loading && <LoaderCircle className="h-4 w-4 animate-spin" />}
                 {loading ? 'Loading...' : 'Load more'}

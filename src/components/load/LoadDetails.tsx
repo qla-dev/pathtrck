@@ -98,6 +98,13 @@ const formatLoadDate = (value: string) => {
     : new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 };
 
+const getCountryCode = (location: string) => {
+  const countryCode = location.split(',').at(-1)?.trim().toUpperCase() || '';
+  return /^[A-Z]{2}$/.test(countryCode) ? countryCode : '';
+};
+
+const countryFlagUrl = (countryCode: string) => `https://flagcdn.com/w40/${countryCode.toLowerCase()}.png`;
+
 export const LoadDetails = ({ open, load, onClose, lang, role, onEdit, onChanged }: LoadDetailsProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [offers, setOffers] = useState<Array<Record<string, unknown>>>([]);
@@ -182,6 +189,10 @@ export const LoadDetails = ({ open, load, onClose, lang, role, onEdit, onChanged
   if (!open || !load) return null;
 
   const goodsNote = getGoodsNote(load.goodsType, u);
+  const pickupLabel = load.pickup || 'Nije definisano';
+  const deliveryLabel = load.delivery || 'Nije definisano';
+  const pickupCountryCode = getCountryCode(load.pickup);
+  const deliveryCountryCode = getCountryCode(load.delivery);
 
   return (
     <motion.div
@@ -215,41 +226,41 @@ export const LoadDetails = ({ open, load, onClose, lang, role, onEdit, onChanged
 
           <div className="flex-1 overflow-y-auto p-5 md:p-7">
             <div className="space-y-6">
-              <section className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-950 text-white shadow-xl shadow-slate-950/10 dark:border-slate-800">
+              <section className="overflow-hidden rounded-3xl border border-sky-100 bg-gradient-to-br from-white via-sky-50 to-cyan-100 text-slate-900 shadow-xl shadow-sky-950/10 dark:border-slate-800 dark:bg-slate-950 dark:text-white">
                 <div className="relative isolate px-5 py-6 md:px-7 md:py-7">
-                  <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-primary/25 blur-3xl" />
-                  <div className="absolute -bottom-28 left-1/3 h-56 w-56 rounded-full bg-cyan-400/15 blur-3xl" />
+                  <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-primary/20 blur-3xl dark:bg-primary/25" />
+                  <div className="absolute -bottom-28 left-1/3 h-56 w-56 rounded-full bg-cyan-400/25 blur-3xl dark:bg-cyan-400/15" />
                   <div className="relative flex flex-wrap items-start justify-between gap-4">
                     <div>
-                      <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">{u('legacy.loadDetails.routePlan', 'Route overview')}</p>
-                      <h3 className="mt-2 text-xl font-black md:text-2xl">{load.pickup} <span className="text-cyan-300">→</span> {load.delivery}</h3>
+                      <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-600 dark:text-cyan-300">{u('legacy.loadDetails.routePlan', 'Route overview')}</p>
+                      <h3 className="mt-2 flex flex-wrap items-center gap-2 text-xl font-black md:text-2xl"><span className="inline-flex items-center gap-2">{pickupCountryCode && <img src={countryFlagUrl(pickupCountryCode)} alt={pickupCountryCode} className="h-4 w-6 rounded-sm object-cover" />}{pickupLabel}</span><span className="text-cyan-500 dark:text-cyan-300">→</span><span className="inline-flex items-center gap-2">{deliveryCountryCode && <img src={countryFlagUrl(deliveryCountryCode)} alt={deliveryCountryCode} className="h-4 w-6 rounded-sm object-cover" />}{deliveryLabel}</span></h3>
                     </div>
                     <span className={cn('rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-wider', getStatusTone(currentStatus))}>{currentStatus}</span>
                   </div>
 
                   <div className="relative mt-7 grid gap-3 md:grid-cols-[1fr_auto_1fr] md:items-center">
-                    <div className="rounded-2xl border border-white/15 bg-white/8 p-4 backdrop-blur-sm">
-                      <div className="flex items-center gap-2 text-emerald-300"><MapPin className="h-4 w-4" /><span className="text-[11px] font-black uppercase tracking-wider">{u('legacy.loadDetails.pickup', 'Pickup')}</span></div>
-                      <p className="mt-3 text-lg font-bold">{load.pickup || 'Location pending'}</p>
-                      <p className="mt-1 text-xs text-slate-300">Collection point</p>
+                    <div className="rounded-2xl border border-white/80 bg-white/75 p-4 shadow-sm backdrop-blur-sm dark:border-white/15 dark:bg-white/8 dark:shadow-none">
+                      <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-300"><MapPin className="h-4 w-4" /><span className="text-[11px] font-black uppercase tracking-wider">{u('legacy.loadDetails.pickup', 'Pickup')}</span></div>
+                      <p className="mt-3 flex items-center gap-2 text-lg font-bold">{pickupCountryCode && <img src={countryFlagUrl(pickupCountryCode)} alt="" className="h-4 w-6 rounded-sm object-cover" />}{pickupLabel}</p>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">Collection point</p>
                     </div>
-                    <div className="flex items-center justify-center gap-2 text-cyan-200 md:flex-col">
-                      <span className="h-px w-10 bg-cyan-300/60 md:h-8 md:w-px" />
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full border border-cyan-300/50 bg-cyan-300/15"><Truck className="h-5 w-5" /></div>
-                      <span className="h-px w-10 bg-cyan-300/60 md:h-8 md:w-px" />
+                    <div className="flex items-center justify-center gap-2 text-cyan-600 dark:text-cyan-200 md:flex-col">
+                      <span className="h-px w-10 bg-cyan-500/60 md:h-8 md:w-px" />
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full border border-cyan-500/50 bg-white/70 shadow-sm dark:bg-cyan-300/15 dark:shadow-none"><Truck className="h-5 w-5" /></div>
+                      <span className="h-px w-10 bg-cyan-500/60 md:h-8 md:w-px" />
                     </div>
-                    <div className="rounded-2xl border border-white/15 bg-white/8 p-4 backdrop-blur-sm">
-                      <div className="flex items-center gap-2 text-blue-300"><MapPin className="h-4 w-4" /><span className="text-[11px] font-black uppercase tracking-wider">{u('legacy.loadDetails.delivery', 'Delivery')}</span></div>
-                      <p className="mt-3 text-lg font-bold">{load.delivery || 'Location pending'}</p>
-                      <p className="mt-1 text-xs text-slate-300">Final delivery point</p>
+                    <div className="rounded-2xl border border-white/80 bg-white/75 p-4 shadow-sm backdrop-blur-sm dark:border-white/15 dark:bg-white/8 dark:shadow-none">
+                      <div className="flex items-center gap-2 text-blue-600 dark:text-blue-300"><MapPin className="h-4 w-4" /><span className="text-[11px] font-black uppercase tracking-wider">{u('legacy.loadDetails.delivery', 'Delivery')}</span></div>
+                      <p className="mt-3 flex items-center gap-2 text-lg font-bold">{deliveryCountryCode && <img src={countryFlagUrl(deliveryCountryCode)} alt="" className="h-4 w-6 rounded-sm object-cover" />}{deliveryLabel}</p>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">Final delivery point</p>
                     </div>
                   </div>
 
-                  <div className="relative mt-5 grid grid-cols-2 gap-3 border-t border-white/10 pt-5 md:grid-cols-4">
-                    <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Load ID</p><p className="mt-1 font-bold">#{load.id}</p></div>
-                    <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Transit</p><p className="mt-1 font-bold">{load.transitDays ? `${load.transitDays} days` : 'To be confirmed'}</p></div>
-                    <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Cargo</p><p className="mt-1 font-bold">{load.cargoType || 'General cargo'}</p></div>
-                    <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">ETA</p><p className="mt-1 truncate font-bold">{formatLoadDate(load.eta)}</p></div>
+                  <div className="relative mt-5 grid grid-cols-2 gap-3 border-t border-sky-200/80 pt-5 dark:border-white/10 md:grid-cols-4">
+                    <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Load ID</p><p className="mt-1 font-bold">#{load.id}</p></div>
+                    <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Transit</p><p className="mt-1 font-bold">{load.transitDays ? `${load.transitDays} days` : 'To be confirmed'}</p></div>
+                    <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Cargo</p><p className="mt-1 font-bold">{load.cargoType || 'General cargo'}</p></div>
+                    <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">ETA</p><p className="mt-1 truncate font-bold">{formatLoadDate(load.eta)}</p></div>
                   </div>
                 </div>
               </section>

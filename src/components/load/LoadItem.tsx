@@ -8,6 +8,13 @@ import { Card } from '../ui/Card';
 
 export type LoadItemLayout = 'list' | 'grid' | 'map';
 
+const getCountryCode = (location: string) => {
+  const countryCode = location.split(',').at(-1)?.trim().toUpperCase() || '';
+  return /^[A-Z]{2}$/.test(countryCode) ? countryCode : '';
+};
+
+const countryFlagUrl = (countryCode: string) => `https://flagcdn.com/w40/${countryCode.toLowerCase()}.png`;
+
 type LoadItemProps = {
   key?: string;
   layout: LoadItemLayout;
@@ -51,6 +58,10 @@ export const LoadItem = ({
         : 'bg-blue-500/10 text-blue-500 border-blue-500/30';
   const isInteractive = hideSource ? Boolean(onOpenSetup) : Boolean(onOpenDetails);
   const TransportIcon = load.transportType === 'air' ? Plane : load.transportType === 'sea' ? Ship : Truck;
+  const pickupLabel = load.pickup || 'Nije definisano';
+  const deliveryLabel = load.delivery || 'Nije definisano';
+  const pickupCountryCode = getCountryCode(load.pickup);
+  const deliveryCountryCode = getCountryCode(load.delivery);
 
   const handleCardClick = () => {
     if (hideSource) {
@@ -138,12 +149,14 @@ export const LoadItem = ({
             <div className={cn('flex min-w-0 items-center', isGrid ? 'w-full gap-2' : 'gap-8')}>
               <div className={cn('flex min-w-0 items-center gap-2', isGrid && 'flex-1')}>
                 <div className="w-2 h-2 min-w-2 min-h-2 rounded-full bg-emerald-500" />
-                <span className="truncate text-sm font-medium dark:text-slate-300">{load.pickup}</span>
+                {pickupCountryCode && <img src={countryFlagUrl(pickupCountryCode)} alt="" className="h-3 w-[18px] shrink-0 rounded-sm object-cover" />}
+                <span className="truncate text-sm font-medium dark:text-slate-300">{pickupLabel}</span>
               </div>
               <ArrowRight className="w-4 h-4 shrink-0 text-slate-300" />
               <div className={cn('flex min-w-0 items-center gap-2', isGrid && 'flex-1 justify-end text-right')}>
                 <div className="w-2 h-2 min-w-2 min-h-2 rounded-full bg-blue-500" />
-                <span className="truncate text-sm font-medium dark:text-slate-300">{load.delivery}</span>
+                <span className="truncate text-sm font-medium dark:text-slate-300">{deliveryLabel}</span>
+                {deliveryCountryCode && <img src={countryFlagUrl(deliveryCountryCode)} alt="" className="h-3 w-[18px] shrink-0 rounded-sm object-cover" />}
               </div>
             </div>
             {isGrid && (
