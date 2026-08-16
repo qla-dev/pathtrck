@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import Flatpickr from 'react-flatpickr';
-import { Search, MapPin, ChevronRight, Package as PackageIcon, Clock3, RotateCcw, Share2, Star, Bot, Route, Lock, Coins, Loader2, Sparkles, Truck, FileBarChart2, Upload, FileSpreadsheet, Fuel, BedDouble, ParkingCircle, Landmark, Filter, CalendarDays, ReceiptText, FileText, Printer } from 'lucide-react';
+import { Search, MapPin, ChevronRight, Package as PackageIcon, Clock3, RotateCcw, Share2, Star, Bot, Route, Lock, Coins, Loader2, Sparkles, Truck, FileBarChart2, Upload, FileSpreadsheet, Fuel, BedDouble, ParkingCircle, Landmark, Filter, CalendarDays, ReceiptText, FileText, Printer, Trash2 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, CircleMarker, Tooltip } from 'react-leaflet';
 import { Language, Package as PackageData, Role, ShipmentDetail } from '../../types';
 import { api } from '../../services/api';
@@ -19,6 +19,7 @@ import { TrackingShipmentDetails } from '../tracking/TrackingShipmentDetails';
 
 type AmenityCategory = 'toll' | 'fuel' | 'rest' | 'parking';
 type TrackingFilterMode = 'all' | 'today' | 'calendar';
+type TrackingStatusFilter = PackageData['status'] | 'all';
 
 const TRACKING_FLOW: PackageData['status'][] = ['Posted', 'Opened', 'Sent', 'In delivery', 'Received', 'Finished'];
 const LOAD_STATUS_OPTIONS: Array<[string, PackageData['status']]> = [
@@ -31,6 +32,22 @@ const LOAD_STATUS_OPTIONS: Array<[string, PackageData['status']]> = [
   ['pending', 'Pending'],
   ['cancelled', 'Cancelled'],
 ];
+const TRACKING_STATUS_FILTERS = LOAD_STATUS_OPTIONS
+  .map(([, status]) => status)
+  .filter((status) => status !== 'Posted');
+
+const statusCardColors = (status: TrackingStatusFilter) => {
+  switch (status) {
+    case 'Opened': return 'border-cyan-400 text-cyan-600 dark:text-cyan-300';
+    case 'Sent': return 'border-blue-500 text-blue-600 dark:text-blue-300';
+    case 'In delivery': return 'border-amber-400 text-amber-600 dark:text-amber-300';
+    case 'Received': return 'border-violet-500 text-violet-600 dark:text-violet-300';
+    case 'Finished': return 'border-emerald-500 text-emerald-600 dark:text-emerald-300';
+    case 'Pending': return 'border-orange-400 text-orange-600 dark:text-orange-300';
+    case 'Cancelled': return 'border-rose-500 text-rose-600 dark:text-rose-300';
+    default: return 'border-slate-400 text-slate-600 dark:text-slate-300';
+  }
+};
 
 const mapLoadStatus = (value: unknown): PackageData['status'] => {
   const statuses: Record<string, PackageData['status']> = {
@@ -163,6 +180,11 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
   const [selectedPackage, setSelectedPackage] = useState<PackageData>(emptyPackage);
   const [trackingDetailsOpen, setTrackingDetailsOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [carrierFilter, setCarrierFilter] = useState('');
+  const [originFilter, setOriginFilter] = useState('');
+  const [destinationFilter, setDestinationFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState<TrackingStatusFilter>('all');
+  const [filtersOpen, setFiltersOpen] = useState(true);
   const [filterMode, setFilterMode] = useState<TrackingFilterMode>('all');
   const [rangeStart, setRangeStart] = useState(() => {
     const date = new Date();
@@ -197,6 +219,9 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
 
   const filteredPackages = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
+    const normalizedCarrier = carrierFilter.trim().toLowerCase();
+    const normalizedOrigin = originFilter.trim().toLowerCase();
+    const normalizedDestination = destinationFilter.trim().toLowerCase();
     const todayStart = startOfDay(new Date()).getTime();
     const todayEnd = endOfDay(new Date()).getTime();
 
@@ -204,7 +229,12 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
       const matchesQuery = `${pkg.trackingNumber} ${pkg.recipient || ''} ${pkg.carrier} ${pkg.origin} ${pkg.destination}`
         .toLowerCase()
         .includes(normalizedQuery);
-      if (!matchesQuery || filterMode === 'all') return matchesQuery;
+      const matchesFields = matchesQuery
+        && pkg.carrier.toLowerCase().includes(normalizedCarrier)
+        && pkg.origin.toLowerCase().includes(normalizedOrigin)
+        && pkg.destination.toLowerCase().includes(normalizedDestination)
+        && (statusFilter === 'all' || pkg.status === statusFilter);
+      if (!matchesFields || filterMode === 'all') return matchesFields;
 
       const activityDate = packageActivityDate(pkg);
       if (!activityDate) return false;
@@ -214,7 +244,14 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
         ? timestamp >= todayStart && timestamp <= todayEnd
         : timestamp >= rangeStart.getTime() && timestamp <= rangeEnd.getTime();
     });
-  }, [packages, filterMode, query, rangeEnd, rangeStart]);
+  }, [carrierFilter, destinationFilter, filterMode, originFilter, packages, query, rangeEnd, rangeStart, statusFilter]);
+
+  const statusCounts = useMemo(() => Object.fromEntries(
+    ['all', ...TRACKING_STATUS_FILTERS].map((status) => [
+      status,
+      status === 'all' ? packages.length : packages.filter((pkg) => pkg.status === status).length,
+    ])
+  ) as Record<TrackingStatusFilter, number>, [packages]);
 
   useEffect(() => {
     if (!selectedPackage.id && packages[0]) setSelectedPackage(packages[0]);
@@ -481,75 +518,139 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
       <div className="w-full">
       {/* Sidebar List */}
       <div className="w-full">
-        <div className="mb-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2 grid grid-cols-3 gap-2">
-          <button
-            onClick={() => setFilterMode('all')}
-            className={cn(
-              'h-10 rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center justify-center gap-2',
-              filterMode === 'all' ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-            )}
-          >
-            <Filter className="w-4 h-4" />
-            {u('history.filter.all', 'All')}
-          </button>
-          <button
-            onClick={() => setFilterMode('today')}
-            className={cn(
-              'h-10 rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center justify-center gap-2',
-              filterMode === 'today' ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-            )}
-          >
-            <Clock3 className="w-4 h-4" />
-            {u('history.filter.today', 'Today')}
-          </button>
-          <button
-            onClick={() => setFilterMode('calendar')}
-            className={cn(
-              'h-10 rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center justify-center gap-2',
-              filterMode === 'calendar' ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-            )}
-          >
-            <CalendarDays className="w-4 h-4" />
-            {u('history.filter.calendar', 'Calendar')}
-          </button>
+        <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
+          {(['all', ...TRACKING_STATUS_FILTERS] as TrackingStatusFilter[]).map((status) => (
+            <button
+              type="button"
+              key={status}
+              onClick={() => setStatusFilter(status)}
+              className={cn(
+                'min-h-20 cursor-pointer rounded-xl border bg-white px-3 py-3 text-center transition-all hover:-translate-y-0.5 hover:shadow-sm dark:bg-slate-900',
+                statusCardColors(status),
+                statusFilter === status && 'ring-2 ring-current ring-offset-2 dark:ring-offset-slate-950'
+              )}
+            >
+              <span className="block truncate text-xs font-bold">
+                {status === 'all' ? u('history.filter.all', 'All') : trPackageStatus(lang, status)}
+              </span>
+              <span className="mt-1 block text-2xl font-black text-slate-700 dark:text-slate-100">{statusCounts[status]}</span>
+            </button>
+          ))}
         </div>
 
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            type="text"
-            placeholder={u('common.searchTracking', 'Search tracking number...')}
-            className="w-full h-12 pl-10 pr-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-primary"
-          />
-        </div>
-
-        {filterMode === 'calendar' && (
-          <div className="mt-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-            <div className="history-flatpickr">
-              <Flatpickr
-                value={[rangeStart, rangeEnd]}
-                options={{
-                  inline: true,
-                  mode: 'range',
-                  dateFormat: 'd.m.Y',
-                  locale: flatpickrI18n(lang),
-                  defaultDate: [rangeStart, rangeEnd],
-                  prevArrow: '<span aria-hidden="true">‹</span>',
-                  nextArrow: '<span aria-hidden="true">›</span>',
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-slate-800">
+            <h3 className="text-lg font-black text-slate-800 dark:text-white">{u('tracking.filters', 'Shipment filters')}</h3>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setFiltersOpen((open) => !open)}
+                aria-expanded={filtersOpen}
+                className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-primary px-3 text-xs font-bold text-primary transition-colors hover:bg-primary/5"
+              >
+                <Filter className="h-4 w-4" />
+                {filtersOpen ? u('tracking.hideFilters', 'Hide filters') : u('tracking.showFilters', 'Show filters')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const start = new Date();
+                  start.setMonth(start.getMonth() - 1);
+                  setQuery('');
+                  setCarrierFilter('');
+                  setOriginFilter('');
+                  setDestinationFilter('');
+                  setStatusFilter('all');
+                  setFilterMode('all');
+                  setRangeStart(startOfDay(start));
+                  setRangeEnd(endOfDay(new Date()));
                 }}
-                onChange={(dates) => {
-                  if (dates.length === 2) {
-                    setRangeStart(startOfDay(dates[0]));
-                    setRangeEnd(endOfDay(dates[1]));
-                  }
-                }}
-                className="hidden"
-              />
+                className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-rose-400 px-3 text-xs font-bold text-rose-500 transition-colors hover:bg-rose-50 dark:hover:bg-rose-950/20"
+              >
+                <Trash2 className="h-4 w-4" />
+                {u('tracking.clearFilters', 'Clear filters')}
+              </button>
             </div>
           </div>
-        )}
+
+          {filtersOpen && (
+            <div className="space-y-5 p-5">
+              <div className="grid grid-cols-3 gap-2">
+                {([
+                  ['all', Filter, u('history.filter.all', 'All')],
+                  ['today', Clock3, u('history.filter.today', 'Today')],
+                  ['calendar', CalendarDays, u('history.filter.calendar', 'Calendar')],
+                ] as const).map(([mode, Icon, label]) => (
+                  <button
+                    type="button"
+                    key={mode}
+                    onClick={() => setFilterMode(mode)}
+                    className={cn(
+                      'flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl text-xs font-bold transition-all',
+                      filterMode === mode
+                        ? 'bg-primary text-white shadow-sm'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                {[
+                  { label: u('tracking.search', 'Tracking / consignee'), value: query, setValue: setQuery, placeholder: u('common.searchTracking', 'Search tracking number...') },
+                  { label: u('tracking.carrier', 'Carrier'), value: carrierFilter, setValue: setCarrierFilter, placeholder: u('tracking.carrier', 'Carrier') },
+                  { label: u('tracking.origin', 'Origin'), value: originFilter, setValue: setOriginFilter, placeholder: u('tracking.origin', 'Origin') },
+                  { label: u('tracking.destination', 'Destination'), value: destinationFilter, setValue: setDestinationFilter, placeholder: u('tracking.destination', 'Destination') },
+                ].map((field) => (
+                  <label key={field.label} className="block">
+                    <span className="mb-1.5 block text-xs font-bold text-slate-500">{field.label}</span>
+                    <span className="relative block">
+                      <Search className="absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        value={field.value}
+                        onChange={(event) => field.setValue(event.target.value)}
+                        placeholder={field.placeholder}
+                        className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                      />
+                    </span>
+                  </label>
+                ))}
+              </div>
+              {filterMode === 'calendar' && (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-bold text-slate-500">{u('tracking.dateFrom', 'Date from')}</span>
+                    <span className="relative block">
+                      <CalendarDays className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      <Flatpickr
+                        value={rangeStart}
+                        options={{ dateFormat: 'Y-m-d', altInput: true, altFormat: 'd.m.Y', allowInput: true, locale: flatpickrI18n(lang) }}
+                        onChange={(dates) => dates[0] && setRangeStart(startOfDay(dates[0]))}
+                        className="h-11 w-full cursor-pointer rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-sm text-slate-900 outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                      />
+                    </span>
+                  </label>
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-bold text-slate-500">{u('tracking.dateTo', 'Date to')}</span>
+                    <span className="relative block">
+                      <CalendarDays className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      <Flatpickr
+                        value={rangeEnd}
+                        options={{ dateFormat: 'Y-m-d', altInput: true, altFormat: 'd.m.Y', allowInput: true, locale: flatpickrI18n(lang) }}
+                        onChange={(dates) => dates[0] && setRangeEnd(endOfDay(dates[0]))}
+                        className="h-11 w-full cursor-pointer rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-sm text-slate-900 outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                      />
+                    </span>
+                  </label>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {(role === 'company' || role === 'driver') && (
         <div className="mt-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-4 shadow-sm">
