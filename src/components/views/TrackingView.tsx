@@ -216,7 +216,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
   });
   const [rangeEnd, setRangeEnd] = useState(() => endOfDay(new Date()));
   const [smartStatus, setSmartStatus] = useState<string>("");
-  const [rightTab, setRightTab] = useState<'tracker' | 'details' | 'dispatch' | 'map' | 'timeline' | 'return' | 'returnRoutes' | 'reports' | 'share' | 'invoice' | 'review'>('details');
+  const [rightTab, setRightTab] = useState<'tracker' | 'details' | 'dispatch' | 'map' | 'return' | 'returnRoutes' | 'reports' | 'share' | 'invoice' | 'review'>('details');
   const [dispatchDraft, setDispatchDraft] = useState('');
   const [returnTokens, setReturnTokens] = useState(0);
   const [returnRoutesUnlocked, setReturnRoutesUnlocked] = useState(false);
@@ -829,6 +829,11 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
       <TrackingItemDetails
         open={trackingDetailsOpen && Boolean(selectedPackage.id)}
         onClose={() => setTrackingDetailsOpen(false)}
+        bodyClassName={
+          rightTab === 'dispatch' || rightTab === 'map' || (rightTab === 'returnRoutes' && !returnRoutesUnlocked)
+            ? 'overflow-hidden'
+            : undefined
+        }
         headerAction={role === 'superadmin' ? (
           <div ref={headerStatusMenuRef} className="relative">
             <button
@@ -932,16 +937,6 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
           >
             <MapPin className="w-4 h-4" />
             {u('Map', 'Map')}
-          </button>
-          <button
-            onClick={() => setRightTab('timeline')}
-            className={cn(
-              'h-full px-3 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5',
-              rightTab === 'timeline' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-            )}
-          >
-            <Clock3 className="w-4 h-4" />
-            {u('history.tab.timeline', 'Timeline')}
           </button>
           <button
             onClick={() => setRightTab('return')}
@@ -1105,7 +1100,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
         )}
 
         {rightTab === 'dispatch' && (
-          <div className="h-[620px]">
+          <div className="h-full min-h-0">
             <ChatConversationPanel
               activeConversation={dispatchConversation}
               draft={dispatchDraft}
@@ -1122,6 +1117,8 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
 
         {rightTab === 'map' && (
           <Card
+            className="flex h-full min-h-0 flex-col"
+            contentClassName="min-h-0 flex-1"
             title={u('tracking.liveLocation', 'Live Location')}
             headerAction={
               <div className="flex flex-wrap items-center justify-end gap-2">
@@ -1164,7 +1161,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
               </div>
             }
           >
-            <div className="h-[520px] rounded-xl overflow-hidden relative">
+            <div className="h-full min-h-0 rounded-xl overflow-hidden relative">
                <MapContainer center={selectedPackage.currentLocation} zoom={13} className="h-full w-full">
                   <TileLayer 
                     url="https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
@@ -1215,29 +1212,6 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
           </Card>
         )}
 
-        {rightTab === 'timeline' && (
-          <Card title={u('tracking.history', 'Tracking History')}>
-            <div className="space-y-6">
-              {selectedPackage.history.map((h, i) => (
-                <div key={i} className="flex gap-6">
-                  <div className="w-24 text-right">
-                    <p className="text-xs font-bold dark:text-white">{h.date.split(',')[0]}</p>
-                    <p className="text-[10px] text-slate-400 uppercase">{h.date.split(',')[1]}</p>
-                  </div>
-                  <div className="relative">
-                    <div className={cn("w-3 h-3 rounded-full mt-1", i === 0 ? "bg-primary" : "bg-slate-300 dark:bg-slate-700")} />
-                    {i !== selectedPackage.history.length - 1 && <div className="absolute top-4 left-1.5 w-px h-full bg-slate-200 dark:bg-slate-800" />}
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold dark:text-white">{trPackageStatus(lang, h.status)}</p>
-                    <p className="text-xs text-slate-500">{h.location}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
-
         {rightTab === 'return' && (
           <Card title={u('Return and Replace', 'Return and Replace')}>
             <div className="space-y-4">
@@ -1255,8 +1229,12 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
         )}
 
         {rightTab === 'returnRoutes' && (
-          <Card title={u('AI Return Route Suggestions', 'AI Return Route Suggestions')}>
-            <div className="space-y-4">
+          <Card
+            title={u('AI Return Route Suggestions', 'AI Return Route Suggestions')}
+            className={cn(!returnRoutesUnlocked && 'flex h-full min-h-0 flex-col')}
+            contentClassName={cn(!returnRoutesUnlocked && 'min-h-0 flex-1')}
+          >
+            <div className={cn('space-y-4', !returnRoutesUnlocked && 'flex h-full min-h-0 flex-col gap-4 space-y-0')}>
               <div className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 bg-slate-50 dark:bg-slate-900/60">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wider text-primary inline-flex items-center gap-1.5">
@@ -1273,7 +1251,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
                 </div>
               </div>
 
-              <div className="relative">
+              <div className={cn('relative', !returnRoutesUnlocked && 'min-h-0 flex-1 overflow-hidden')}>
                 <div className={cn('space-y-3 transition-all', !returnRoutesUnlocked ? 'blur-[3px] select-none pointer-events-none' : '')}>
                   {returnRouteSuggestions.map((item) => (
                     <div key={item.id} className="rounded-xl border border-slate-200 dark:border-slate-700 p-4">

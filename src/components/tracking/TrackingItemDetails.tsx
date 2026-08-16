@@ -1,15 +1,17 @@
 import { Children, useEffect, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
+import { cn } from '../../lib/cn';
 
 type TrackingItemDetailsProps = {
   open: boolean;
   headerAction?: ReactNode;
+  bodyClassName?: string;
   onClose: () => void;
   children: ReactNode;
 };
 
-export const TrackingItemDetails = ({ open, headerAction, onClose, children }: TrackingItemDetailsProps) => {
+export const TrackingItemDetails = ({ open, headerAction, bodyClassName, onClose, children }: TrackingItemDetailsProps) => {
   const [headerNavigation, ...bodyContent] = Children.toArray(children);
 
   useEffect(() => {
@@ -52,7 +54,7 @@ export const TrackingItemDetails = ({ open, headerAction, onClose, children }: T
                 </button>
               </div>
             </header>
-            <div className="min-h-0 flex-1 overflow-y-auto p-5 md:p-7">{bodyContent}</div>
+            <div className={cn('min-h-0 flex-1 overflow-y-auto p-5 md:p-7', bodyClassName)}>{bodyContent}</div>
           </motion.div>
         </motion.div>
       )}
