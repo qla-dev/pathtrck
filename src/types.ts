@@ -20,7 +20,14 @@ export interface Package {
   id: string;
   trackingNumber: string;
   carrier: string;
-  status: 'Pending' | 'In Transit' | 'Out for Delivery' | 'Delivered' | 'Exception';
+  status: LoadStatus;
+  recipient?: string;
+  shipmentId?: string;
+  totalAmount?: string;
+  statusChange?: Record<string, string>;
+  details?: ShipmentDetail[];
+  consigneeRecord?: Record<string, unknown>;
+  stops?: Array<Record<string, unknown>>;
   origin: string;
   destination: string;
   addedDate: string;
@@ -29,6 +36,18 @@ export interface Package {
   currentLocation: [number, number];
   history: { date: string; status: string; location: string }[];
 }
+
+export type ShipmentDetailInput = 'text' | 'number' | 'date' | 'status' | 'customer';
+
+export type ShipmentDetail = {
+  key: string;
+  label: string;
+  value: string;
+  rawValue?: string;
+  input?: ShipmentDetailInput;
+};
+
+export type LoadStatus = 'Posted' | 'Opened' | 'Sent' | 'In delivery' | 'Received' | 'Finished' | 'Pending' | 'Cancelled';
 
 export interface Load {
   id: string;
@@ -50,7 +69,7 @@ export interface Load {
   delivery: string;
   date: string;
   author: string;
-  status: 'Available' | 'Assigned' | 'In Transit' | 'Completed';
+  status: LoadStatus;
   cargoType: string;
   goodsType: string;
   paymentTerms: 'In Advance' | 'Negotiable' | 'On Delivery';

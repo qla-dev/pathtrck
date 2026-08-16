@@ -3111,7 +3111,7 @@ const mapGlobalOfferToLoad = (
     delivery: offer.destination,
     date: `March ${2 + index}, 2026`,
     author: offer.carrier,
-    status: 'Available',
+    status: 'Posted',
     cargoType: 'Ocean Freight',
     goodsType,
     paymentTerms: paymentTerm,
@@ -3123,14 +3123,18 @@ const mapDatabaseRecordToLoad = (record: Record<string, unknown>): Load => {
   const stops = Array.isArray(record.stops) ? record.stops as Array<Record<string, unknown>> : [];
   const pickup = stops.find((stop) => stop.type === 'pickup');
   const delivery = [...stops].reverse().find((stop) => stop.type === 'delivery');
-  const rawStatus = String(record.status || 'available').toLowerCase();
-  const status: Load['status'] = rawStatus === 'available'
-    ? 'Available'
-    : rawStatus === 'completed'
-      ? 'Completed'
-      : rawStatus === 'in_transit'
-        ? 'In Transit'
-        : 'Assigned';
+  const rawStatus = String(record.status || 'pending').toLowerCase();
+  const statusMap: Record<string, Load['status']> = {
+    posted: 'Posted',
+    opened: 'Opened',
+    sent: 'Sent',
+    in_delivery: 'In delivery',
+    received: 'Received',
+    finished: 'Finished',
+    pending: 'Pending',
+    cancelled: 'Cancelled',
+  };
+  const status = statusMap[rawStatus] || 'Pending';
   const terms = String(record.payment_terms || 'negotiable').toLowerCase();
   const loadingMethods = Array.isArray(record.loading_methods)
     ? record.loading_methods.filter((method): method is 'Forklift' | 'Crane' | 'Manual' =>
@@ -3309,7 +3313,7 @@ export default function App() {
     }
     setDatabaseLoadsLoaded(false);
     void api.auth.me().then(setCurrentUser).catch(() => setCurrentUser(null));
-    void api.loads.list({ per_page: 100, status: 'available' })
+    void api.loads.list({ per_page: 100, status: 'posted' })
       .then((response) => setDatabaseLoads(response.data.map(mapDatabaseRecordToLoad)))
       .catch(() => setDatabaseLoads([]))
       .finally(() => setDatabaseLoadsLoaded(true));

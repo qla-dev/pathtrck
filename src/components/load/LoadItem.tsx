@@ -96,9 +96,9 @@ export const LoadItem = ({
             <span
               className={cn(
                 'text-[10px] font-bold uppercase tracking-wider',
-                load.status === 'Available'
+                load.status === 'Posted'
                   ? 'text-emerald-500'
-                  : load.status === 'Assigned'
+                  : load.status === 'Sent'
                     ? 'text-amber-500'
                     : 'text-slate-400'
               )}

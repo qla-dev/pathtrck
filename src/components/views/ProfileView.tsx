@@ -255,8 +255,8 @@ export const ProfileView = ({ role, lang }: { role: Role; lang: Language }) => {
   const userRecord = (user || {}) as ApiUser & { driver?: Record<string, unknown> };
   const profile = userRecord.driver || {};
   const ownLoads = loads.items.filter((row) => role === 'driver' ? Number(row.assigned_driver_user_id) === user?.id : Number(row.customer_user_id) === user?.id);
-  const completed = ownLoads.filter((row) => String(row.status).toLowerCase() === 'completed').length;
-  const active = ownLoads.filter((row) => ['assigned', 'in_transit'].includes(String(row.status).toLowerCase())).length;
+  const completed = ownLoads.filter((row) => String(row.status).toLowerCase() === 'finished').length;
+  const active = ownLoads.filter((row) => ['sent', 'in_delivery'].includes(String(row.status).toLowerCase())).length;
   const completedRoutes = routes.items.filter((row) => String(row.status).toLowerCase() === 'completed' && (role !== 'driver' || Number(row.driver_user_id) === user?.id)).length;
   const rating = Number(profile.rating || 0);
   const content = {

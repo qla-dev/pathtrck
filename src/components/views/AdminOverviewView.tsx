@@ -19,8 +19,8 @@ export const AdminOverviewView = ({ lang: _lang }: { lang: Language }) => {
   const sources = [companies, customers, drivers, loads, vehicles, invoices, events];
   const loading = sources.some((source) => source.loading);
   const error = sources.find((source) => source.error)?.error;
-  const loadsInTransit = loads.items.filter((load) => String(load.status).toLowerCase() === 'in_transit');
-  const loadsInExchange = loads.items.filter((load) => String(load.status).toLowerCase() === 'available');
+  const loadsInTransit = loads.items.filter((load) => String(load.status).toLowerCase() === 'in_delivery');
+  const loadsInExchange = loads.items.filter((load) => String(load.status).toLowerCase() === 'posted');
   const revenue = invoices.items.filter((invoice) => String(invoice.status).toLowerCase() === 'paid').reduce((sum, invoice) => sum + number(invoice.total_amount ?? invoice.total ?? invoice.amount), 0);
   const metrics = [
     { label: 'Companies', value: companies.total, icon: Building2, tone: 'bg-violet-500/10 text-violet-500' },

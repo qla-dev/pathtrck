@@ -141,7 +141,14 @@ export const api = {
   drivers: resourceApi<Record<string, unknown>>('drivers'),
   vehicles: resourceApi<Record<string, unknown>>('vehicles'),
   fleetAccess: resourceApi<Record<string, unknown>>('fleet-access'),
-  loads: resourceApi<Record<string, unknown>>('loads'),
+  loads: {
+    ...resourceApi<Record<string, unknown>>('loads'),
+    updateStatus: (id: number | string, status: string) => request<Record<string, unknown>>(`/loads/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    }),
+  },
+  loadStops: resourceApi<Record<string, unknown>>('load-stops'),
   offers: {
     ...resourceApi<Record<string, unknown>>('offers'),
     approve: (id: number | string, driverUserId?: number) => request<Record<string, unknown>>(`/offers/${id}/approve`, {

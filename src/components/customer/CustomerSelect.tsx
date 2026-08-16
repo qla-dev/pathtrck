@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Building2, Check, ChevronDown, LoaderCircle, Search } from 'lucide-react';
 import { api } from '../../services/api';
 import { cn } from '../../lib/cn';
@@ -47,6 +48,7 @@ type CustomerSelectProps = {
   placeholder?: string;
   disabled?: boolean;
   required?: boolean;
+  compact?: boolean;
 };
 
 export const CustomerSelect = ({
@@ -55,8 +57,10 @@ export const CustomerSelect = ({
   placeholder = 'Search the global customer database',
   disabled = false,
   required = false,
+  compact = false,
 }: CustomerSelectProps) => {
   const rootRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const requestIdRef = useRef(0);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -65,6 +69,32 @@ export const CustomerSelect = ({
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [menuPosition, setMenuPosition] = useState({
+    left: 0,
+    top: 0,
+    width: 0,
+    maxListHeight: 288,
+  });
+
+  const updateMenuPosition = useCallback(() => {
+    const rect = rootRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const gap = 8;
+    const viewportPadding = 16;
+    const spaceBelow = window.innerHeight - rect.bottom - viewportPadding;
+    const spaceAbove = rect.top - viewportPadding;
+    const openAbove = spaceBelow < 260 && spaceAbove > spaceBelow;
+    const availableHeight = Math.max(160, (openAbove ? spaceAbove : spaceBelow) - gap);
+    const menuHeight = Math.min(376, availableHeight);
+
+    setMenuPosition({
+      left: rect.left,
+      top: openAbove ? Math.max(viewportPadding, rect.top - menuHeight - gap) : rect.bottom + gap,
+      width: rect.width,
+      maxListHeight: Math.max(96, menuHeight - 70),
+    });
+  }, []);
 
   const fetchPage = useCallback(async (pageNumber: number, search: string, append: boolean) => {
     const requestId = ++requestIdRef.current;
@@ -103,11 +133,23 @@ export const CustomerSelect = ({
 
   useEffect(() => {
     const closeOnOutsideClick = (event: MouseEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (!rootRef.current?.contains(target) && !menuRef.current?.contains(target)) setOpen(false);
     };
     document.addEventListener('mousedown', closeOnOutsideClick);
     return () => document.removeEventListener('mousedown', closeOnOutsideClick);
   }, []);
+
+  useLayoutEffect(() => {
+    if (!open) return undefined;
+    updateMenuPosition();
+    window.addEventListener('resize', updateMenuPosition);
+    document.addEventListener('scroll', updateMenuPosition, true);
+    return () => {
+      window.removeEventListener('resize', updateMenuPosition);
+      document.removeEventListener('scroll', updateMenuPosition, true);
+    };
+  }, [open, updateMenuPosition]);
 
   const loadMore = () => {
     if (!loading && hasMore) void fetchPage(page + 1, query, true);
@@ -123,17 +165,18 @@ export const CustomerSelect = ({
         aria-required={required}
         onClick={() => setOpen((current) => !current)}
         className={cn(
-          'flex min-h-[54px] w-full items-center gap-3 rounded-xl border bg-slate-50 px-4 text-left text-sm outline-none transition dark:bg-slate-950 dark:text-white',
+          'flex w-full items-center rounded-xl border bg-slate-50 text-left text-sm outline-none transition dark:bg-slate-950 dark:text-white',
+          compact ? 'h-8 gap-2 px-2' : 'min-h-[54px] gap-3 px-4',
           open ? 'border-primary ring-2 ring-primary/20' : 'border-slate-200 dark:border-slate-800',
           disabled && 'cursor-not-allowed opacity-60',
         )}
       >
-        <Building2 className="h-5 w-5 shrink-0 text-primary" />
+        <Building2 className={cn('shrink-0 text-primary', compact ? 'h-4 w-4' : 'h-5 w-5')} />
         <span className="min-w-0 flex-1">
           {value ? (
             <>
               <span className="block truncate font-bold">{value.text}</span>
-              {optionMeta(value) && <span className="block truncate text-xs text-slate-500">{optionMeta(value)}</span>}
+              {!compact && optionMeta(value) && <span className="block truncate text-xs text-slate-500">{optionMeta(value)}</span>}
             </>
           ) : (
             <span className="text-slate-400">{placeholder}</span>
@@ -142,8 +185,12 @@ export const CustomerSelect = ({
         <ChevronDown className={cn('h-4 w-4 shrink-0 text-slate-400 transition', open && 'rotate-180')} />
       </button>
 
-      {open && (
-        <div className="absolute z-[280] mt-2 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+      {open && createPortal(
+        <div
+          ref={menuRef}
+          className="fixed z-[300] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+          style={{ left: menuPosition.left, top: menuPosition.top, width: menuPosition.width }}
+        >
           <div className="border-b border-slate-100 p-3 dark:border-slate-800">
             <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 dark:border-slate-700 dark:bg-slate-950">
               <Search className="h-4 w-4 text-slate-400" />
@@ -160,7 +207,8 @@ export const CustomerSelect = ({
 
           <div
             role="listbox"
-            className="max-h-72 overflow-y-auto p-2"
+            className="overflow-y-auto p-2"
+            style={{ maxHeight: menuPosition.maxListHeight }}
             onScroll={(event) => {
               const target = event.currentTarget;
               if (target.scrollHeight - target.scrollTop - target.clientHeight < 64) loadMore();
@@ -210,7 +258,8 @@ export const CustomerSelect = ({
               </button>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

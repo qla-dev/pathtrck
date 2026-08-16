@@ -52,7 +52,7 @@ export const CompanyWorkspaceView = ({ lang }: { lang: Language }) => {
   const companyLoads = loads.items.filter((row) => !companyId || Number(row.company_id) === companyId);
   const companyRoutes = routes.items.filter((row) => companyLoads.some((load) => Number(load.id) === Number(row.load_id)));
   const companyMembers = memberships.items.filter((row) => !companyId || Number(row.company_id) === companyId);
-  const activeLoads = companyLoads.filter((row) => ['assigned', 'in_transit'].includes(String(row.status).toLowerCase()));
+  const activeLoads = companyLoads.filter((row) => ['sent', 'in_delivery'].includes(String(row.status).toLowerCase()));
   const revenue = companyLoads.reduce((sum, row) => sum + Number(row.budget || 0), 0);
   const distance = companyRoutes.reduce((sum, row) => sum + Number(row.distance_km || 0), 0);
   const capacity = companyVehicles.length ? Math.round((companyVehicles.filter((row) => ['active', 'available'].includes(String(row.status).toLowerCase())).length / companyVehicles.length) * 100) : 0;
@@ -68,7 +68,7 @@ export const CompanyWorkspaceView = ({ lang }: { lang: Language }) => {
     const driver = (row.assigned_driver || {}) as Record<string, unknown>;
     const vehicle = (row.vehicle || {}) as Record<string, unknown>;
     const status = String(row.status || '').toLowerCase();
-    return { id: String(row.public_id || row.id), route: `${String(stops[0]?.city || '—')} → ${String(stops[stops.length - 1]?.city || '—')}`, driver: String(driver.name || '—'), vehicle: String(vehicle.registration_number || '—'), eta: String(stops[stops.length - 1]?.window_ends_at || '').slice(11, 16) || null, progress: status === 'in_transit' ? 65 : 25, status: status === 'in_transit' ? 2 : 1 };
+    return { id: String(row.public_id || row.id), route: `${String(stops[0]?.city || '—')} → ${String(stops[stops.length - 1]?.city || '—')}`, driver: String(driver.name || '—'), vehicle: String(vehicle.registration_number || '—'), eta: String(stops[stops.length - 1]?.window_ends_at || '').slice(11, 16) || null, progress: status === 'in_delivery' ? 65 : 25, status: status === 'in_delivery' ? 2 : 1 };
   }), [activeLoads]);
   const activityRows = events.items.filter((event) => companyLoads.some((load) => Number(load.id) === Number(event.load_id))).slice(0, 4).map((event) => [String(event.event_type || event.status || 'Update'), String(event.recorded_at || event.created_at || '').replace('T', ' ').slice(0, 16)]);
   const availableVehicles = companyVehicles.filter((row) => ['active', 'available'].includes(String(row.status).toLowerCase())).length;

@@ -37,7 +37,7 @@ type PostLoadModalProps = {
   onSaved?: (load: Record<string, unknown>) => void;
 };
 
-type StepId = 'route' | 'cargo' | 'terms' | 'review';
+type StepId = 'customer' | 'routeType' | 'route' | 'cargo' | 'terms' | 'review';
 type TransportType = 'road' | 'air' | 'sea';
 
 type LoadDraft = {
@@ -193,6 +193,8 @@ const fromApiWeightKg = (value: unknown) => {
 const toApiWeightKg = (weightTonnes: string) => Number(weightTonnes) * 1000;
 
 const STEPS: Array<{ id: StepId; icon: typeof MapPin }> = [
+  { id: 'customer', icon: UserRound },
+  { id: 'routeType', icon: Route },
   { id: 'route', icon: MapPin },
   { id: 'cargo', icon: Package },
   { id: 'terms', icon: ShieldCheck },
@@ -390,7 +392,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       iconSurface: 'bg-blue-500/10',
     },
   ];
-  const [step, setStep] = useState<StepId>('route');
+  const [step, setStep] = useState<StepId>('customer');
   const [draft, setDraft] = useState<LoadDraft>(INITIAL_DRAFT);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingExisting, setIsLoadingExisting] = useState(false);
@@ -427,7 +429,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
 
   useEffect(() => {
     if (!isOpen) {
-      setStep('route');
+      setStep('customer');
       setDraft(INITIAL_DRAFT);
       setSubmitError('');
     }
@@ -473,9 +475,10 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   const stepIndex = STEPS.findIndex((item) => item.id === step);
   const stepCompletion = useMemo<Record<StepId, boolean>>(
     () => ({
+      customer: Boolean(draft.consignee),
+      routeType: Boolean(draft.transportType),
       route: Boolean(
-        draft.consignee &&
-          draft.pickupCity &&
+        draft.pickupCity &&
           draft.pickupDate &&
           draft.deliveryCity &&
           draft.deliveryDate
@@ -583,7 +586,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       };
       const response = editLoadId
         ? await api.loads.update(editLoadId, payload)
-        : await api.loads.create({ ...payload, status: 'available', published_at: new Date().toISOString() });
+        : await api.loads.create({ ...payload, status: 'posted', published_at: new Date().toISOString() });
       onSaved?.(response.data);
       onClose();
       void showSuccess(
@@ -632,6 +635,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
             </div>
             <div className="hidden xl:flex shrink-0 items-center gap-4 text-slate-500">
               <div className="inline-flex items-center gap-2 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs font-bold">
+                {step === 'customer' && <UserRound className="w-4 h-4 text-primary" />}
+                {step === 'routeType' && <Route className="w-4 h-4 text-primary" />}
                 {step === 'route' && <MapPin className="w-4 h-4 text-primary" />}
                 {step === 'cargo' && <Package className="w-4 h-4 text-primary" />}
                 {step === 'terms' && <UserRound className="w-4 h-4 text-primary" />}
@@ -666,6 +671,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
           <div className="px-4 sm:px-5 md:px-6 pb-4 sm:pb-5 md:pb-6 xl:hidden">
             <div className="flex flex-wrap items-center gap-3 text-slate-500">
               <div className="inline-flex items-center gap-2 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs font-bold">
+                {step === 'customer' && <UserRound className="w-4 h-4 text-primary" />}
+                {step === 'routeType' && <Route className="w-4 h-4 text-primary" />}
                 {step === 'route' && <MapPin className="w-4 h-4 text-primary" />}
                 {step === 'cargo' && <Package className="w-4 h-4 text-primary" />}
                 {step === 'terms' && <UserRound className="w-4 h-4 text-primary" />}
@@ -699,7 +706,11 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                 const isDone = index < stepIndex;
                 const isClickable = canNavigateToStep(index);
                 const title =
-                  item.id === 'route'
+                  item.id === 'customer'
+                    ? u('postLoadModal.step.customer', 'Customer')
+                    : item.id === 'routeType'
+                      ? u('postLoadModal.step.routeType', 'Route type')
+                      : item.id === 'route'
                     ? u('postLoadModal.step.route', 'Route & Timing')
                     : item.id === 'cargo'
                       ? u('postLoadModal.step.cargo', 'Cargo Details')
@@ -707,7 +718,11 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         ? u('postLoadModal.step.terms', 'Terms & Contact')
                         : u('postLoadModal.step.review', 'Review');
                 const subtitle =
-                  item.id === 'route'
+                  item.id === 'customer'
+                    ? u('postLoadModal.step.customerDesc', 'Who receives the shipment')
+                    : item.id === 'routeType'
+                      ? u('postLoadModal.step.routeTypeDesc', 'How the shipment will move')
+                      : item.id === 'route'
                     ? u('postLoadModal.step.routeDesc', 'Where and when the load moves')
                     : item.id === 'cargo'
                       ? u('postLoadModal.step.cargoDesc', 'What is being transported')
@@ -758,33 +773,21 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
               })}
             </div>
 
-            <div className="mt-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
-              <p className="text-xs font-black uppercase tracking-wider text-primary">
-                {u('postLoadModal.snapshot', 'Driver Snapshot')}
-              </p>
-              <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">
-                {u(
-                  'postLoadModal.snapshotDesc',
-                  'Drivers need route clarity, load specs, pickup timing, payout and any handling constraints before they commit.'
-                )}
-              </p>
-            </div>
           </aside>
 
           <div className="flex min-h-0 min-w-0 flex-col">
             <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5 md:p-6">
-              {step === 'route' && (
+              {step === 'customer' && (
                 <div className="space-y-6 sm:space-y-8">
                   <SectionTitle
-                    title={u('postLoadModal.routeTitle', 'Route & timing')}
-                    subtitle={u(
-                      'postLoadModal.routeSubtitle',
-                      'Define exact pickup and delivery details so drivers can evaluate whether the route fits their lane.'
-                    )}
+                    title={u('postLoadModal.customerTitle', 'Customer')}
+                    subtitle={u('postLoadModal.customerSubtitle', 'Select the consignee connected to this shipment.')}
                   />
-
-                  <div className="space-y-1.5 rounded-3xl border border-sky-200 bg-sky-50/60 p-4 dark:border-sky-900/60 dark:bg-sky-950/20 md:p-5">
-                    <FieldLabel>{u('postLoadModal.consignee', 'Consignee (customer)')}</FieldLabel>
+                  <div className="space-y-1.5">
+                    <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
+                      <UserRound className="h-4 w-4" />
+                      <span>{u('postLoadModal.consignee', 'Consignee (customer)')}</span>
+                    </div>
                     <CustomerSelect
                       required
                       value={draft.consignee}
@@ -795,19 +798,23 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       {u('postLoadModal.consigneeHelp', 'Search by company name, tax number, city or country. More results load as you scroll.')}
                     </p>
                   </div>
+                </div>
+              )}
 
+              {step === 'routeType' && (
+                <div className="space-y-6 sm:space-y-8">
+                  <SectionTitle
+                    title={u('postLoadModal.routeTypeTitle', 'Route type')}
+                    subtitle={u('postLoadModal.transportTypeDesc', 'Choose how this load will move between pickup and delivery.')}
+                  />
                   <fieldset>
                     <legend className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
                       <Route className="h-4 w-4" />
                       {u('postLoadModal.transportType', 'Transport type')}
                     </legend>
-                    <p className="mt-1 text-sm text-slate-500">
-                        {u('postLoadModal.transportTypeDesc', 'Choose how this load will move between pickup and delivery.')}
-                    </p>
                     <div className="mt-4 grid sm:grid-cols-3 gap-3">
                       {transportOptions.map((option) => {
                         const Icon = option.icon;
-
                         return (
                           <label
                             key={option.id}
@@ -821,10 +828,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                               onChange={() => setField('transportType', option.id)}
                               className="peer sr-only"
                             />
-                            <span
-                              aria-hidden="true"
-                              className="absolute right-4 top-4 flex h-4 w-4 items-center justify-center rounded-full border-2 border-slate-300 bg-white peer-checked:border-primary dark:border-slate-600 dark:bg-slate-900"
-                            >
+                            <span aria-hidden="true" className="absolute right-4 top-4 flex h-4 w-4 items-center justify-center rounded-full border-2 border-slate-300 bg-white peer-checked:border-primary dark:border-slate-600 dark:bg-slate-900">
                               <span className={cn('h-2 w-2 rounded-full bg-primary transition-opacity', draft.transportType === option.id ? 'opacity-100' : 'opacity-0')} />
                             </span>
                             <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', option.iconSurface)}>
@@ -839,6 +843,18 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       })}
                     </div>
                   </fieldset>
+                </div>
+              )}
+
+              {step === 'route' && (
+                <div className="space-y-6 sm:space-y-8">
+                  <SectionTitle
+                    title={u('postLoadModal.routeTitle', 'Route & timing')}
+                    subtitle={u(
+                      'postLoadModal.routeSubtitle',
+                      'Define exact pickup and delivery details so drivers can evaluate whether the route fits their lane.'
+                    )}
+                  />
 
                   <div className="grid lg:grid-cols-2 gap-4 sm:gap-5">
                     <div className="space-y-4 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
@@ -1575,8 +1591,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                 <Button variant="outline" className="w-full min-h-[56px] sm:min-h-[60px]">
                   {u('postLoadModal.saveTemplate', 'Save as template')}
                 </Button>
-                <Button variant="outline" className="w-full min-h-[56px] sm:min-h-[60px]" onClick={step === 'route' ? onClose : goBack}>
-                  {step === 'route' ? u('common.cancel', 'Cancel') : u('common.back', 'Back')}
+                <Button variant="outline" className="w-full min-h-[56px] sm:min-h-[60px]" onClick={step === 'customer' ? onClose : goBack}>
+                  {step === 'customer' ? u('common.cancel', 'Cancel') : u('common.back', 'Back')}
                 </Button>
                 {step === 'review' ? (
                   <Button className="w-full min-h-[56px] sm:min-h-[60px]" onClick={submit} disabled={isSubmitting}>

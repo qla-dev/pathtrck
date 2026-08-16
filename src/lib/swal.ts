@@ -32,3 +32,10 @@ export const showSuccess = (title: string, text?: string) => Swal.fire({
   timerProgressBar: true,
   showConfirmButton: false,
 });
+
+export const showError = (title: string, text?: string) => Swal.fire({
+  title,
+  text,
+  icon: 'error',
+  confirmButtonColor: '#00aee8',
+});

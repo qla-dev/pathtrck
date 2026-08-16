@@ -61,11 +61,11 @@ const getGoodsNote = (goodsType: string, u: UiFn) => {
 };
 
 const getStatusTone = (status: Load['status']) =>
-  status === 'Available'
+  status === 'Posted'
     ? 'text-emerald-500 bg-emerald-500/10 border-emerald-500/30'
-    : status === 'Assigned'
+    : status === 'Sent'
       ? 'text-amber-500 bg-amber-500/10 border-amber-500/30'
-      : status === 'In Transit'
+      : status === 'In delivery'
         ? 'text-sky-500 bg-sky-500/10 border-sky-500/30'
         : 'text-slate-500 bg-slate-500/10 border-slate-500/30';
 

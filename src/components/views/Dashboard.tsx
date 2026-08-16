@@ -80,7 +80,7 @@ export const Dashboard = ({ role, lang }: { role: Role; lang: Language }) => {
           tone: 'text-emerald-500',
         },
         {
-          label: trPackageStatus(lang, 'In Transit'),
+          label: trPackageStatus(lang, 'In delivery'),
           value: '6',
           delta: u('legacy.dashboard.priorityRoutes2', '2 priority routes'),
           icon: PackageIcon,
@@ -248,15 +248,15 @@ export const Dashboard = ({ role, lang }: { role: Role; lang: Language }) => {
     },
   ];
 
-  const activeCount = loadRows.filter((item) => ['available', 'assigned', 'in_transit'].includes(String(item.status).toLowerCase())).length;
-  const completedCount = loadRows.filter((item) => String(item.status).toLowerCase() === 'completed').length;
+  const activeCount = loadRows.filter((item) => ['posted', 'opened', 'sent', 'in_delivery'].includes(String(item.status).toLowerCase())).length;
+  const completedCount = loadRows.filter((item) => String(item.status).toLowerCase() === 'finished').length;
   const liveTopMetrics = topMetrics.map((metric, index) => ({
     ...metric,
     value: String([activeCount, completedCount, shipmentRows.length, routeRows.length, loadRows.length, eventsResult.total][index] ?? 0),
     delta: loadsResult.loading || routesResult.loading ? u('common.loading', 'Loading') : u('legacy.dashboard.liveDatabaseValue', 'Live database value'),
   }));
   const liveThroughputData = Array.from({ length: range === '24h' ? 6 : range === '30d' ? 4 : 7 }, (_, index) => {
-    const completed = loadRows.filter((item) => String(item.status).toLowerCase() === 'completed').length;
+    const completed = loadRows.filter((item) => String(item.status).toLowerCase() === 'finished').length;
     return { slot: range === '24h' ? `${index * 4}:00` : range === '30d' ? `W${index + 1}` : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][index], completed, planned: loadRows.length, punctuality: loadRows.length ? Math.round((completed / loadRows.length) * 100) : 0 };
   });
   const liveCorridorData = routeRows.slice(0, 5).map((item) => ({ name: String(item.route_code || `R-${item.id}`), value: Number(item.ai_confidence || 0) }));
@@ -264,7 +264,7 @@ export const Dashboard = ({ role, lang }: { role: Role; lang: Language }) => {
   const statusCount = (status: string) => shipmentRows.filter((item) => String(item.status).toLowerCase() === status).length;
   const liveServiceMix = [
     { name: u('legacy.dashboard.onTime', 'Delivered'), value: statusCount('delivered'), color: '#00AEEF' },
-    { name: u('legacy.dashboard.minorDelay', 'In transit'), value: statusCount('in_transit'), color: '#F59E0B' },
+    { name: u('legacy.dashboard.minorDelay', 'In delivery'), value: statusCount('in_delivery'), color: '#F59E0B' },
     { name: u('legacy.dashboard.criticalDelay', 'Exception'), value: statusCount('exception'), color: '#EF4444' },
   ];
   const liveAlertFeed = eventsResult.items.slice(0, 4).map((item) => ({ title: String(item.event_type || item.status || `Event ${item.id}`), time: String(item.recorded_at || item.created_at || '').slice(11, 16), tone: 'text-primary' }));
@@ -597,7 +597,7 @@ export const Dashboard = ({ role, lang }: { role: Role; lang: Language }) => {
                       <span
                         className={cn(
                           'px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider',
-                          load.status === 'Available' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'
+                          load.status === 'Posted' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'
                         )}
                       >
                         {trLoadStatus(lang, load.status)}

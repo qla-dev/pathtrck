@@ -206,7 +206,7 @@ export const HomeFeed = ({
     const endFilter = endLocation.trim().toLowerCase();
 
     return loads.filter((load) => {
-      if (load.status !== 'Available') return false;
+      if (load.status !== 'Posted') return false;
 
       const pickup = load.pickup.toLowerCase();
       const delivery = load.delivery.toLowerCase();

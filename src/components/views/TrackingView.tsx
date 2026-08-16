@@ -2,20 +2,50 @@ import { useState, useEffect, useMemo } from 'react';
 import Flatpickr from 'react-flatpickr';
 import { Search, MapPin, ChevronRight, Package as PackageIcon, Clock3, RotateCcw, Share2, Star, Bot, Route, Lock, Coins, Loader2, Sparkles, Truck, FileBarChart2, Upload, FileSpreadsheet, Fuel, BedDouble, ParkingCircle, Landmark, Filter, CalendarDays, ReceiptText, FileText, Printer } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, CircleMarker, Tooltip } from 'react-leaflet';
-import { Language, Package as PackageData, Role } from '../../types';
+import { Language, Package as PackageData, Role, ShipmentDetail } from '../../types';
 import { api } from '../../services/api';
 import { useApiList } from '../../hooks/useApiList';
 import { getSmartStatusUpdate } from '../../services/geminiService';
 import { flatpickrI18n, ui, trPackageStatus } from '../../i18n';
 import { cn } from '../../lib/cn';
+import { confirmAction, showError, showSuccess } from '../../lib/swal';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Toggle } from '../ui/Toggle';
 import { ChatConversationPanel } from '../chat/ChatConversationPanel';
 import { Conversation } from '../chat/types';
+import { TrackingItemDetails } from '../tracking/TrackingItemDetails';
+import { TrackingShipmentDetails } from '../tracking/TrackingShipmentDetails';
 
 type AmenityCategory = 'toll' | 'fuel' | 'rest' | 'parking';
 type TrackingFilterMode = 'all' | 'today' | 'calendar';
+
+const TRACKING_FLOW: PackageData['status'][] = ['Posted', 'Opened', 'Sent', 'In delivery', 'Received', 'Finished'];
+
+const mapLoadStatus = (value: unknown): PackageData['status'] => {
+  const statuses: Record<string, PackageData['status']> = {
+    posted: 'Posted', opened: 'Opened', sent: 'Sent', in_delivery: 'In delivery',
+    received: 'Received', finished: 'Finished', pending: 'Pending', cancelled: 'Cancelled',
+  };
+
+  return statuses[String(value || '').toLowerCase()] || 'Pending';
+};
+
+const apiLoadStatus = (status: PackageData['status']) => status.toLowerCase().replace(/\s+/g, '_');
+
+const detailValue = (value: unknown) => {
+  const text = String(value ?? '').trim();
+  return text && text !== 'null' ? text : '—';
+};
+
+const detailDate = (value: unknown) => {
+  const text = String(value ?? '').trim();
+  if (!text) return '—';
+  const date = new Date(text);
+  if (Number.isNaN(date.getTime())) return text;
+  const pad = (part: number) => String(part).padStart(2, '0');
+  return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()}`;
+};
 
 const startOfDay = (date: Date) => {
   const clone = new Date(date);
@@ -60,24 +90,68 @@ type TrackingViewProps = {
 
 export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingViewProps) => {
   const TRUCK_CAPACITY_KG = 48000;
-  const shipmentsResult = useApiList(api.shipments.list, { per_page: 100 });
-  const loadsResult = useApiList(api.loads.list, { per_page: 100 });
-  const packages = useMemo<PackageData[]>(() => shipmentsResult.items.map((row) => {
-    const freightLoad = (row.freight_load || {}) as Record<string, unknown>;
-    const stops = Array.isArray(freightLoad.stops) ? freightLoad.stops as Array<Record<string, unknown>> : [];
-    const events = Array.isArray(row.events) ? row.events as Array<Record<string, unknown>> : [];
-    const status = String(row.status || '').toLowerCase();
-    const mappedStatus: PackageData['status'] = status === 'delivered' ? 'Delivered' : status === 'out_for_delivery' ? 'Out for Delivery' : status === 'exception' ? 'Exception' : status === 'pending' ? 'Pending' : 'In Transit';
+  const loadsResult = useApiList(api.loads.list, { per_page: 500 });
+  const packages = useMemo<PackageData[]>(() => loadsResult.items
+    .filter((load) => String(load.status || '').toLowerCase() !== 'posted')
+    .map((load) => {
+    const stops = Array.isArray(load.stops) ? load.stops as Array<Record<string, unknown>> : [];
+    const shipment = (load.shipment || {}) as Record<string, unknown>;
+    const events = Array.isArray(shipment.events) ? shipment.events as Array<Record<string, unknown>> : [];
+    const consignee = (load.consignee || {}) as Record<string, unknown>;
+    const company = (load.company || {}) as Record<string, unknown>;
+    const mappedStatus = mapLoadStatus(load.status);
+    const estimatedDeliveryAt = String(shipment.estimated_delivery_at || stops[stops.length - 1]?.window_ends_at || Date.now());
+    const origin = String(stops[0]?.city || '—');
+    const destination = String(stops[stops.length - 1]?.city || '—');
+    const sourcePrice = String(load.price_insurance || '').trim();
     return {
-      id: String(row.id), trackingNumber: String(row.tracking_number || row.id), carrier: String(row.carrier || '—'), status: mappedStatus,
-      origin: String(stops[0]?.city || '—'), destination: String(stops[stops.length - 1]?.city || '—'),
-      addedDate: String(row.created_at || ''), transitDays: Math.max(0, Math.ceil((new Date(String(row.estimated_delivery_at || Date.now())).getTime() - Date.now()) / 86400000)),
-      description: String(freightLoad.title || freightLoad.cargo_type || ''), currentLocation: [Number(row.current_latitude || 43.8563), Number(row.current_longitude || 18.4131)],
+      recipient: String(consignee.company_name || consignee.name || '—'),
+      id: String(load.id),
+      shipmentId: shipment.id ? String(shipment.id) : undefined,
+      trackingNumber: String(shipment.tracking_number || load.public_id || load.id),
+      carrier: String(shipment.carrier || company.name || '—'),
+      status: mappedStatus,
+      totalAmount: sourcePrice || `${String(load.currency || 'EUR')} ${Number(load.budget || 0).toLocaleString()}`,
+      statusChange: load.status_change && typeof load.status_change === 'object'
+        ? Object.fromEntries(Object.entries(load.status_change as Record<string, unknown>).map(([status, changedAt]) => [status, String(changedAt)]))
+        : {},
+      origin, destination,
+      addedDate: String(load.published_at || load.created_at || ''), transitDays: Math.max(0, Math.ceil((new Date(estimatedDeliveryAt).getTime() - Date.now()) / 86400000)),
+      description: String(load.title || load.cargo_type || ''), currentLocation: [Number(shipment.current_latitude || 43.8563), Number(shipment.current_longitude || 18.4131)],
       history: events.map((event) => ({ date: String(event.recorded_at || event.created_at || ''), status: String(event.status || event.event_type || ''), location: String(event.location_name || '') })),
+      consigneeRecord: consignee,
+      stops,
+      details: [
+        { key: 'published_at', label: 'Date/Datum', value: detailDate(load.published_at || load.created_at), rawValue: String(load.published_at || '').slice(0, 10), input: 'date' },
+        { key: 'status', label: 'Shipment Status', value: trPackageStatus(lang, mappedStatus), rawValue: String(load.status || ''), input: 'status' },
+        { key: 'booking_reference', label: 'Booking reference', value: detailValue(load.booking_reference), rawValue: detailValue(load.booking_reference) === '—' ? '' : String(load.booking_reference), input: 'text' },
+        { key: 'insurance', label: 'Insurance', value: detailValue(load.insurance), rawValue: String(load.insurance || ''), input: 'text' },
+        { key: 'department', label: 'Department', value: detailValue(load.department), rawValue: String(load.department || ''), input: 'text' },
+        { key: 'freight_mode', label: 'Freight mode', value: detailValue(load.freight_mode || load.transport_type), rawValue: String(load.freight_mode || load.transport_type || ''), input: 'text' },
+        { key: 'consignee_customer_id', label: 'Consignee', value: detailValue(consignee.company_name || consignee.name), rawValue: String(consignee.id || ''), input: 'customer' },
+        { key: 'subdepartment', label: 'Subdepartment', value: detailValue(load.subdepartment), rawValue: String(load.subdepartment || ''), input: 'text' },
+        { key: 'weight_kg', label: 'KGS', value: load.weight_kg ? `${Number(load.weight_kg).toLocaleString()} kg` : '—', rawValue: String(load.weight_kg || ''), input: 'number' },
+        { key: 'quantity_measure', label: 'QTY/G.W./MEAs', value: detailValue(load.quantity_measure), rawValue: String(load.quantity_measure || ''), input: 'text' },
+        { key: 'volume_m3', label: 'CBM', value: detailValue(load.volume_m3), rawValue: String(load.volume_m3 || ''), input: 'number' },
+        { key: 'teu', label: 'TEU', value: detailValue(load.teu), rawValue: String(load.teu || ''), input: 'text' },
+        { key: 'container_types', label: 'Container Types', value: detailValue(load.container_types), rawValue: String(load.container_types || ''), input: 'text' },
+        { key: 'container_number', label: 'Container', value: detailValue(load.container_number), rawValue: String(load.container_number || ''), input: 'text' },
+        { key: 'departure', label: 'Departure Port / Station', value: detailValue(origin), rawValue: origin === '—' ? '' : origin, input: 'text' },
+        { key: 'arrival', label: 'Arrival Port / Station', value: detailValue(destination), rawValue: destination === '—' ? '' : destination, input: 'text' },
+        { key: 'etd_at', label: 'ETD Date', value: detailDate(load.etd_at), rawValue: String(load.etd_at || '').slice(0, 10), input: 'date' },
+        { key: 'eta_at', label: 'ETA Date', value: detailDate(stops[stops.length - 1]?.window_starts_at || shipment.estimated_delivery_at), rawValue: String(stops[stops.length - 1]?.window_starts_at || shipment.estimated_delivery_at || '').slice(0, 10), input: 'date' },
+        { key: 'atd_at', label: 'ATD Date', value: detailDate(load.atd_at), rawValue: String(load.atd_at || '').slice(0, 10), input: 'date' },
+        { key: 'shipper_name', label: 'Shipper Name', value: detailValue(load.shipper_name), rawValue: String(load.shipper_name || ''), input: 'text' },
+        { key: 'mediator', label: 'Mediator', value: detailValue(load.mediator), rawValue: String(load.mediator || ''), input: 'text' },
+        { key: 'incoterms', label: 'Incoterms', value: detailValue(load.incoterms), rawValue: String(load.incoterms || ''), input: 'text' },
+        { key: 'price_insurance', label: 'Price + Insurance', value: detailValue(load.price_insurance), rawValue: String(load.price_insurance || ''), input: 'text' },
+        { key: 'profit_loss', label: 'GP (Profit & Loss)', value: detailValue(load.profit_loss), rawValue: String(load.profit_loss || ''), input: 'text' },
+      ],
     };
-  }), [shipmentsResult.items]);
+  }), [lang, loadsResult.items]);
   const emptyPackage: PackageData = { id: '', trackingNumber: '', carrier: '', status: 'Pending', origin: '', destination: '', addedDate: '', transitDays: 0, currentLocation: [43.8563, 18.4131], history: [] };
   const [selectedPackage, setSelectedPackage] = useState<PackageData>(emptyPackage);
+  const [trackingDetailsOpen, setTrackingDetailsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [filterMode, setFilterMode] = useState<TrackingFilterMode>('all');
   const [rangeStart, setRangeStart] = useState(() => {
@@ -87,7 +161,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
   });
   const [rangeEnd, setRangeEnd] = useState(() => endOfDay(new Date()));
   const [smartStatus, setSmartStatus] = useState<string>("");
-  const [rightTab, setRightTab] = useState<'tracker' | 'dispatch' | 'map' | 'timeline' | 'return' | 'returnRoutes' | 'reports' | 'share' | 'invoice' | 'review'>('tracker');
+  const [rightTab, setRightTab] = useState<'tracker' | 'details' | 'dispatch' | 'map' | 'timeline' | 'return' | 'returnRoutes' | 'reports' | 'share' | 'invoice' | 'review'>('details');
   const [dispatchDraft, setDispatchDraft] = useState('');
   const [returnTokens, setReturnTokens] = useState(0);
   const [returnRoutesUnlocked, setReturnRoutesUnlocked] = useState(false);
@@ -96,6 +170,8 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
   const [tachographFile, setTachographFile] = useState<File | null>(null);
   const [invoiceLoading, setInvoiceLoading] = useState<'predracun' | 'a4-faktura' | null>(null);
   const [invoiceError, setInvoiceError] = useState('');
+  const [statusChanging, setStatusChanging] = useState<PackageData['status'] | null>(null);
+  const [savingDetailKey, setSavingDetailKey] = useState<string | null>(null);
   const [mapFilters, setMapFilters] = useState<Record<AmenityCategory, boolean>>({
     toll: true,
     fuel: false,
@@ -110,7 +186,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
     const todayEnd = endOfDay(new Date()).getTime();
 
     return packages.filter((pkg) => {
-      const matchesQuery = `${pkg.trackingNumber} ${pkg.carrier} ${pkg.origin} ${pkg.destination}`
+      const matchesQuery = `${pkg.trackingNumber} ${pkg.recipient || ''} ${pkg.carrier} ${pkg.origin} ${pkg.destination}`
         .toLowerCase()
         .includes(normalizedQuery);
       if (!matchesQuery || filterMode === 'all') return matchesQuery;
@@ -220,7 +296,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
       return false;
     });
     const activeLoads = roleLoads.filter((load) =>
-      ['assigned', 'in_transit'].includes(String(load.status).toLowerCase())
+      ['sent', 'in_delivery'].includes(String(load.status).toLowerCase())
     );
     const totalWeightKg = activeLoads.reduce((sum, load) => sum + Number(load.weight_kg || 0), 0);
     const usedPercentage = Math.min(100, Math.round((totalWeightKg / TRUCK_CAPACITY_KG) * 100));
@@ -245,21 +321,23 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
       [u('tracking.report.stops', 'Number of stops'), String(selectedPackage.history.length)],
       [u('tracking.report.breaks', 'Driver breaks'), `${Math.max(1, selectedPackage.transitDays)} x 45 min`],
       [u('tracking.report.arrival', 'Arrival time'), selectedPackage.history[0]?.date || selectedPackage.addedDate],
-      [u('tracking.report.delay', 'Delay'), selectedPackage.status === 'Delivered' ? u('tracking.report.none', 'No delay') : '18 min'],
+      [u('tracking.report.delay', 'Delay'), selectedPackage.status === 'Finished' ? u('tracking.report.none', 'No delay') : '18 min'],
       [u('tracking.report.status', 'Status'), trPackageStatus(lang, selectedPackage.status)],
     ],
     [lang, selectedPackage, u]
   );
 
-  const trackingFinancials = useMemo(() => Object.fromEntries(shipmentsResult.items.map((shipment) => {
-    const load = (shipment.freight_load || {}) as Record<string, unknown>;
-    return [String(shipment.id), { totalAmount: `${String(load.currency || 'EUR')} ${Number(load.budget || 0).toLocaleString()}` }];
-  })), [shipmentsResult.items]);
-
   const routeAmenities = useMemo<RouteAmenity[]>(
     () => PACKAGE_ROUTE_AMENITIES[selectedPackage.id] || [],
     [selectedPackage.id]
   );
+
+  const trackingStage = TRACKING_FLOW.indexOf(selectedPackage.status);
+  const trackingProgress = selectedPackage.status === 'Finished'
+    ? 100
+    : trackingStage >= 0
+      ? (trackingStage / (TRACKING_FLOW.length - 1)) * 100
+      : 0;
 
   const visibleAmenities = useMemo(
     () => routeAmenities.filter((item) => mapFilters[item.category]),
@@ -292,11 +370,11 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
   };
 
   const openInvoice = async (document: 'predracun' | 'a4-faktura') => {
-    if (!selectedPackage.id || invoiceLoading) return;
+    if (!selectedPackage.shipmentId || invoiceLoading) return;
     setInvoiceError('');
     setInvoiceLoading(document);
     try {
-      await api.shipmentInvoice(selectedPackage.id, document);
+      await api.shipmentInvoice(selectedPackage.shipmentId, document);
     } catch (error) {
       setInvoiceError(error instanceof Error ? error.message : u('tracking.invoiceError', 'The invoice could not be generated.'));
     } finally {
@@ -304,11 +382,86 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
     }
   };
 
+  const changeLoadStatus = async (status: PackageData['status']) => {
+    if (role !== 'superadmin' || !selectedPackage.id || statusChanging || status === selectedPackage.status) return;
+    const label = trPackageStatus(lang, status);
+    const confirmed = await confirmAction({
+      title: u('tracking.changeStatusTitle', `Change status to ${label}?`),
+      text: u('tracking.changeStatusText', 'The new status and exact change time will be saved immediately.'),
+      confirmText: u('tracking.changeStatusConfirm', 'Change status'),
+    });
+    if (!confirmed) return;
+
+    setStatusChanging(status);
+    try {
+      await api.loads.updateStatus(selectedPackage.id, apiLoadStatus(status));
+      await loadsResult.refresh();
+      void showSuccess(u('tracking.statusChanged', 'Status changed'), label);
+    } catch (error) {
+      void showError(
+        u('tracking.statusChangeFailed', 'Status could not be changed'),
+        error instanceof Error ? error.message : undefined
+      );
+    } finally {
+      setStatusChanging(null);
+    }
+  };
+
+  const saveShipmentDetail = async (detail: ShipmentDetail, value: string | number | null) => {
+    if (role !== 'superadmin' || !selectedPackage.id || savingDetailKey) return false;
+
+    setSavingDetailKey(detail.key);
+    try {
+      if (detail.key === 'status') {
+        await api.loads.updateStatus(selectedPackage.id, String(value));
+      } else if (detail.key === 'consignee_customer_id') {
+        await api.loads.update(selectedPackage.id, { consignee_customer_id: Number(value) });
+      } else if (detail.key === 'departure' || detail.key === 'arrival') {
+        const city = String(value || '').trim();
+        if (!city) throw new Error('Location cannot be empty.');
+
+        const type = detail.key === 'departure' ? 'pickup' : 'delivery';
+        const stop = selectedPackage.stops?.find((item) => String(item.type) === type);
+        if (stop?.id) {
+          await api.loadStops.update(String(stop.id), { city });
+        } else {
+          await api.loadStops.create({
+            load_id: Number(selectedPackage.id),
+            type,
+            position: type === 'pickup' ? 1 : 2,
+            city,
+            country_code: 'XX',
+          });
+        }
+      } else if (detail.key === 'eta_at') {
+        const deliveryStop = selectedPackage.stops?.find((item) => String(item.type) === 'delivery');
+        if (!deliveryStop?.id) throw new Error('Set the arrival location first.');
+        await api.loadStops.update(String(deliveryStop.id), { window_starts_at: value || null });
+      } else {
+        const normalizedValue = detail.input === 'number'
+          ? (value === '' || value === null ? null : Number(value))
+          : (value === '' ? null : value);
+        await api.loads.update(selectedPackage.id, { [detail.key]: normalizedValue });
+      }
+
+      await loadsResult.refresh();
+      return true;
+    } catch (error) {
+      void showError(
+        u('tracking.detailUpdateFailed', 'Shipment detail could not be updated'),
+        error instanceof Error ? error.message : undefined
+      );
+      return false;
+    } finally {
+      setSavingDetailKey(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div className="grid lg:grid-cols-12 gap-6">
+      <div className="w-full">
       {/* Sidebar List */}
-      <div className="lg:col-span-4">
+      <div className="w-full">
         <div className="mb-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2 grid grid-cols-3 gap-2">
           <button
             onClick={() => setFilterMode('all')}
@@ -429,25 +582,39 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
           {filteredPackages.map(pkg => (
             <button 
               key={pkg.id}
-              onClick={() => setSelectedPackage(pkg)}
-              className={cn(
-                "w-full p-4 rounded-2xl border text-left transition-all",
-                selectedPackage.id === pkg.id 
-                  ? "border-primary bg-primary/5 shadow-sm" 
-                  : "border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-200"
-              )}
+              onClick={() => {
+                setSelectedPackage(pkg);
+                setRightTab('details');
+                setTrackingDetailsOpen(true);
+              }}
+              className="w-full cursor-pointer rounded-2xl border border-transparent bg-white p-4 text-left transition-all hover:border-primary dark:bg-slate-900 dark:hover:border-primary"
             >
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{pkg.carrier}</span>
                 <span className={cn(
                   "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase",
-                  pkg.status === 'Delivered' ? "bg-emerald-100 text-emerald-600" : "bg-blue-100 text-blue-600"
+                  pkg.status === 'Finished'
+                    ? "bg-emerald-100 text-emerald-600"
+                    : pkg.status === 'Cancelled'
+                      ? "bg-rose-100 text-rose-600"
+                      : "bg-blue-100 text-blue-600"
                 )}>{trPackageStatus(lang, pkg.status)}</span>
               </div>
-              <p className="font-bold dark:text-white">{pkg.trackingNumber}</p>
-              <div className="flex items-center gap-2 mt-2 text-xs text-slate-500">
-                <MapPin className="w-3 h-3" />
-                <span>{pkg.destination}</span>
+              <p className="font-bold dark:text-white">{pkg.recipient || '—'}</p>
+              <div className="mt-3 grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+                <div className="flex min-w-0 items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white">
+                    <MapPin className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="truncate text-xs font-bold">{pkg.origin}</span>
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+                <div className="flex min-w-0 items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-rose-500 text-white">
+                    <MapPin className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="truncate text-xs font-bold">{pkg.destination}</span>
+                </div>
               </div>
             </button>
           ))}
@@ -460,9 +627,24 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
       </div>
 
       {/* Main Tracking Content (Amazon Inspired) */}
-      <div className="lg:col-span-8">
+      <TrackingItemDetails
+        open={trackingDetailsOpen && Boolean(selectedPackage.id)}
+        onClose={() => setTrackingDetailsOpen(false)}
+        title={selectedPackage.recipient || selectedPackage.trackingNumber || 'Tracking item'}
+        subtitle={`${selectedPackage.origin} → ${selectedPackage.destination}`}
+      >
         <div className="mb-6 overflow-x-auto px-1 [scrollbar-width:thin] [scrollbar-color:rgb(148_163_184/0.72)_transparent] dark:[scrollbar-color:rgb(71_85_105/0.8)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-400/70 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600/80 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:bg-slate-500/90 dark:[&::-webkit-scrollbar-thumb:hover]:bg-slate-500/95">
           <div className="inline-flex h-12 min-w-full w-max items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1">
+          <button
+            onClick={() => setRightTab('details')}
+            className={cn(
+              'h-full px-3 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5',
+              rightTab === 'details' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+            )}
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            {u('tracking.shipmentDetails', 'Shipment details')}
+          </button>
           <button
             onClick={() => setRightTab('tracker')}
             className={cn(
@@ -572,22 +754,18 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
               <div className="flex gap-8">
                 <div>
                   <p className="text-[10px] uppercase text-slate-500">{u('Ordered on', 'Ordered on')}</p>
-                  <p className="font-bold">Feb 26, 2026</p>
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase text-slate-500">{u('Total', 'Total')}</p>
-                  <p className="font-bold">€12.99</p>
+                  <p className="font-bold">{selectedPackage.addedDate ? new Date(selectedPackage.addedDate).toLocaleDateString() : '—'}</p>
                 </div>
                 <div>
                   <p className="text-[10px] uppercase text-slate-500">{u('tracking.totalAmount', 'Total amount')}</p>
                   <p className="font-bold text-emerald-700">
-                    {trackingFinancials[selectedPackage.id as keyof typeof trackingFinancials]?.totalAmount || 'EUR 0'}
+                    {selectedPackage.totalAmount || 'EUR 0'}
                   </p>
                 </div>
                 <div>
                   <p className="text-[10px] uppercase text-slate-500">{u('Ship to', 'Ship to')}</p>
                   <p className="font-bold text-primary flex items-center gap-1 cursor-pointer">
-                    John Doe <ChevronRight className="w-3 h-3" />
+                    {selectedPackage.recipient || '—'} <ChevronRight className="w-3 h-3" />
                   </p>
                 </div>
               </div>
@@ -597,25 +775,63 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
             </div>
             <div className="amazon-body">
               <h2 className="text-xl font-bold text-emerald-600 mb-4">
-                {selectedPackage.status === 'Delivered'
-                  ? u('Delivered Today', 'Delivered Today')
-                  : u('Arriving by 8 PM', 'Arriving by 8 PM')}
+                {trPackageStatus(lang, selectedPackage.status)}
               </h2>
               <div className="relative h-2 bg-slate-100 dark:bg-slate-800 rounded-full mb-8">
-                <div className="absolute top-0 left-0 h-full bg-emerald-500 rounded-full" style={{ width: '75%' }} />
-                <div className="absolute top-1/2 -translate-y-1/2 left-0 w-4 h-4 bg-emerald-500 rounded-full border-4 border-white dark:border-slate-900" />
-                <div className="absolute top-1/2 -translate-y-1/2 left-[37.5%] w-4 h-4 bg-emerald-500 rounded-full border-4 border-white dark:border-slate-900" />
-                <div className="absolute top-1/2 -translate-y-1/2 left-[75%] w-4 h-4 bg-emerald-500 rounded-full border-4 border-white dark:border-slate-900" />
-                <div className="absolute top-1/2 -translate-y-1/2 right-0 w-4 h-4 bg-slate-300 dark:bg-slate-700 rounded-full border-4 border-white dark:border-slate-900" />
+                <div
+                  className={cn('absolute top-0 left-0 h-full rounded-full', selectedPackage.status === 'Cancelled' ? 'bg-rose-500' : 'bg-emerald-500')}
+                  style={{ width: `${trackingProgress}%` }}
+                />
+                {TRACKING_FLOW.map((status, index) => {
+                  const position = (index / (TRACKING_FLOW.length - 1)) * 100;
+                  const active = trackingStage >= index && !['Pending', 'Cancelled'].includes(selectedPackage.status);
+                  return (
+                    <button
+                      type="button"
+                      key={status}
+                      disabled={role !== 'superadmin' || statusChanging !== null}
+                      onClick={() => void changeLoadStatus(status)}
+                      aria-label={`${u('tracking.changeStatusConfirm', 'Change status')}: ${trPackageStatus(lang, status)}`}
+                      className={cn(
+                        'absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white dark:border-slate-900',
+                        role === 'superadmin' && 'cursor-pointer transition-transform hover:scale-125 focus:outline-none focus:ring-2 focus:ring-primary/40',
+                        active ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
+                      )}
+                      style={{ left: `${position}%` }}
+                    />
+                  );
+                })}
               </div>
-              <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                <span>{u('Ordered', 'Ordered')}</span>
-                <span>{u('Shipped', 'Shipped')}</span>
-                <span>{u('Out for delivery', 'Out for delivery')}</span>
-                <span>{u('Arriving', 'Arriving')}</span>
+              <div className="grid grid-cols-6 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                {TRACKING_FLOW.map((status, index) => (
+                  <span key={status} className={cn(index === 0 ? 'text-left' : index === TRACKING_FLOW.length - 1 ? 'text-right' : 'text-center')}>
+                    <span className="block">{trPackageStatus(lang, status)}</span>
+                    {selectedPackage.statusChange?.[apiLoadStatus(status)] && (
+                      <span className="mt-1 block text-[9px] font-semibold normal-case tracking-normal text-slate-500">
+                        {new Date(selectedPackage.statusChange[apiLoadStatus(status)]).toLocaleString()}
+                      </span>
+                    )}
+                  </span>
+                ))}
               </div>
             </div>
           </div>
+        )}
+
+        {rightTab === 'details' && (
+          <Card title={u('tracking.shipmentDetails', 'Shipment details')}>
+            {role === 'superadmin' && (
+              <p className="mb-3 text-xs text-slate-400">{u('tracking.clickEdit', 'Click any field to edit.')}</p>
+            )}
+            <TrackingShipmentDetails
+              details={selectedPackage.details || []}
+              lang={lang}
+              role={role}
+              consigneeRecord={selectedPackage.consigneeRecord}
+              savingKey={savingDetailKey}
+              onSave={saveShipmentDetail}
+            />
+          </Card>
         )}
 
         {rightTab === 'dispatch' && (
@@ -903,7 +1119,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
                   </div>
                   <p className="mt-4 font-bold text-slate-900 dark:text-white">{u('tracking.proformaInvoice', 'Pro forma invoice')}</p>
                   <p className="mt-1 text-xs text-slate-500">{u('tracking.proformaHelp', 'Open a pro forma invoice ready for PDF printing.')}</p>
-                  <Button className="mt-4 w-full gap-2" disabled={!selectedPackage.id || invoiceLoading !== null} onClick={() => openInvoice('predracun')}>
+                  <Button className="mt-4 w-full gap-2" disabled={!selectedPackage.shipmentId || invoiceLoading !== null} onClick={() => openInvoice('predracun')}>
                     {invoiceLoading === 'predracun' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
                     {u('tracking.openProforma', 'Open pro forma invoice')}
                   </Button>
@@ -914,7 +1130,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
                   </div>
                   <p className="mt-4 font-bold text-slate-900 dark:text-white">{u('tracking.a4Invoice', 'A4 invoice')}</p>
                   <p className="mt-1 text-xs text-slate-500">{u('tracking.a4InvoiceHelp', 'Open the final A4 invoice with a PDF button in the header.')}</p>
-                  <Button variant="outline" className="mt-4 w-full gap-2" disabled={!selectedPackage.id || invoiceLoading !== null} onClick={() => openInvoice('a4-faktura')}>
+                  <Button variant="outline" className="mt-4 w-full gap-2" disabled={!selectedPackage.shipmentId || invoiceLoading !== null} onClick={() => openInvoice('a4-faktura')}>
                     {invoiceLoading === 'a4-faktura' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
                     {u('tracking.openA4Invoice', 'Open A4 invoice')}
                   </Button>
@@ -1012,7 +1228,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
             </div>
           </Card>
         )}
-      </div>
+      </TrackingItemDetails>
       </div>
     </div>
   );

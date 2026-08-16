@@ -4584,6 +4584,13 @@ const DATE_PICKER_I18N: Record<
 };
 
 const VALUE_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
+  Posted: { bs: 'Objavljeno', de: 'Veroeffentlicht', pl: 'Opublikowano', ro: 'Publicat', nl: 'Geplaatst', fr: 'Publie', it: 'Pubblicato', zh: '已发布', es: 'Publicado', sr: 'Objavljeno', sv: 'Publicerad', ar: 'منشور', pt: 'Publicado' },
+  Opened: { bs: 'Otvoreno', de: 'Geoeffnet', pl: 'Otwarte', ro: 'Deschis', nl: 'Geopend', fr: 'Ouvert', it: 'Aperto', zh: '已打开', es: 'Abierto', sr: 'Otvoreno', sv: 'Oppnad', ar: 'مفتوح', pt: 'Aberto' },
+  Sent: { bs: 'Poslano', de: 'Gesendet', pl: 'Wyslane', ro: 'Trimis', nl: 'Verzonden', fr: 'Envoye', it: 'Inviato', zh: '已发送', es: 'Enviado', sr: 'Poslato', sv: 'Skickad', ar: 'مرسل', pt: 'Enviado' },
+  'In delivery': { bs: 'Na dostavi', de: 'In Zustellung', pl: 'W dostawie', ro: 'In livrare', nl: 'In bezorging', fr: 'En livraison', it: 'In consegna', zh: '配送中', es: 'En reparto', sr: 'Na dostavi', sv: 'Under leverans', ar: 'قيد التوصيل', pt: 'Em entrega' },
+  Received: { bs: 'Primljeno', de: 'Empfangen', pl: 'Odebrane', ro: 'Primit', nl: 'Ontvangen', fr: 'Recu', it: 'Ricevuto', zh: '已收到', es: 'Recibido', sr: 'Primljeno', sv: 'Mottagen', ar: 'تم الاستلام', pt: 'Recebido' },
+  Finished: { bs: 'Zavrseno', de: 'Abgeschlossen', pl: 'Zakonczone', ro: 'Finalizat', nl: 'Voltooid', fr: 'Termine', it: 'Terminato', zh: '已完成', es: 'Finalizado', sr: 'Zavrseno', sv: 'Slutford', ar: 'منتهي', pt: 'Finalizado' },
+  Cancelled: { bs: 'Otkazano', de: 'Storniert', pl: 'Anulowane', ro: 'Anulat', nl: 'Geannuleerd', fr: 'Annule', it: 'Annullato', zh: '已取消', es: 'Cancelado', sr: 'Otkazano', sv: 'Avbruten', ar: 'ملغي', pt: 'Cancelado' },
   Available: { bs: 'Dostupno', de: 'Verfügbar', pl: 'Dostepne', ro: 'Disponibil', nl: 'Beschikbaar', fr: 'Disponible', it: 'Disponibile', zh: '可用', es: 'Disponible', sr: 'Dostupno', sv: 'Tillganglig', ar: 'متاح', pt: 'Disponivel' },
   Assigned: { bs: 'Dodijeljeno', de: 'Zugewiesen', pl: 'Przypisane', ro: 'Alocat', nl: 'Toegewezen', fr: 'Attribue', it: 'Assegnato', zh: '已分配', es: 'Asignado', sr: 'Dodeljeno', sv: 'Tilldelad', ar: 'مخصص', pt: 'Atribuida' },
   'In Transit': { bs: 'U tranzitu', de: 'Unterwegs', pl: 'W transporcie', ro: 'In tranzit', nl: 'Onderweg', fr: 'En transit', it: 'In transito', zh: '运输中', es: 'En transito', sr: 'U tranzitu', sv: 'I transit', ar: 'قيد النقل', pt: 'Em transito' },
