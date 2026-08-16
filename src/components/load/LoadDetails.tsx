@@ -2,14 +2,16 @@ import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import {
   AlertTriangle,
-  ArrowRight,
+  Box,
   Building2,
   CalendarDays,
+  CalendarClock,
   CheckCircle2,
-  Clock3,
   Coins,
+  Hash,
   MapPin,
   ShieldCheck,
+  Thermometer,
   Truck,
   Pencil,
   UserCheck,
@@ -23,6 +25,7 @@ import { Role } from '../../types';
 import { api } from '../../services/api';
 import { ui } from '../../i18n';
 import { Button } from '../ui/Button';
+import { LoadStatusPicker } from './LoadStatusPicker';
 
 type LoadDetailsProps = {
   open: boolean;
@@ -86,6 +89,15 @@ const getPaymentTone = (terms: Load['paymentTerms']) =>
       ? 'text-sky-500 bg-sky-500/10 border-sky-500/30'
       : 'text-blue-500 bg-blue-500/10 border-blue-500/30';
 
+const apiLoadStatus = (status: Load['status']) => status.toLowerCase().replace(/\s+/g, '_');
+
+const formatLoadDate = (value: string) => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? value || '—'
+    : new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+};
+
 export const LoadDetails = ({ open, load, onClose, lang, role, onEdit, onChanged }: LoadDetailsProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [offers, setOffers] = useState<Array<Record<string, unknown>>>([]);
@@ -93,6 +105,13 @@ export const LoadDetails = ({ open, load, onClose, lang, role, onEdit, onChanged
   const [selectedDrivers, setSelectedDrivers] = useState<Record<string, number>>({});
   const [offersLoading, setOffersLoading] = useState(false);
   const [actionMessage, setActionMessage] = useState('');
+  const [currentStatus, setCurrentStatus] = useState<Load['status']>(load?.status || 'Pending');
+  const [statusChanging, setStatusChanging] = useState(false);
+
+  useEffect(() => {
+    if (open && load) setCurrentStatus(load.status);
+  }, [open, load?.id, load?.status]);
+
   useEffect(() => {
     if (!open) return undefined;
     const handleEsc = (event: KeyboardEvent) => {
@@ -137,6 +156,29 @@ export const LoadDetails = ({ open, load, onClose, lang, role, onEdit, onChanged
     } catch (error) { setActionMessage(error instanceof Error ? error.message : 'Offer could not be approved.'); }
   };
 
+  const changeStatus = async (nextStatus: Load['status']) => {
+    if (!load || statusChanging || nextStatus === currentStatus) return;
+    const confirmed = await confirmAction({
+      title: `Change status to ${nextStatus}?`,
+      text: 'The new status and exact change time will be saved immediately.',
+      confirmText: 'Change status',
+    });
+    if (!confirmed) return;
+
+    setStatusChanging(true);
+    try {
+      await api.loads.updateStatus(load.id, apiLoadStatus(nextStatus));
+      setCurrentStatus(nextStatus);
+      setActionMessage(`Status changed to ${nextStatus}.`);
+      void showSuccess('Status changed', nextStatus);
+      onChanged?.();
+    } catch (error) {
+      setActionMessage(error instanceof Error ? error.message : 'Status could not be changed.');
+    } finally {
+      setStatusChanging(false);
+    }
+  };
+
   if (!open || !load) return null;
 
   const goodsNote = getGoodsNote(load.goodsType, u);
@@ -173,67 +215,53 @@ export const LoadDetails = ({ open, load, onClose, lang, role, onEdit, onChanged
 
           <div className="flex-1 overflow-y-auto p-5 md:p-7">
             <div className="space-y-6">
-              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
-                <p className="text-xs font-black uppercase tracking-wider text-primary mb-4">
-                  {u('legacy.loadDetails.routePlan', 'Route Plan')}
-                </p>
-                <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="h-10 w-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
-                      <MapPin className="w-5 h-5" />
+              <section className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-950 text-white shadow-xl shadow-slate-950/10 dark:border-slate-800">
+                <div className="relative isolate px-5 py-6 md:px-7 md:py-7">
+                  <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-primary/25 blur-3xl" />
+                  <div className="absolute -bottom-28 left-1/3 h-56 w-56 rounded-full bg-cyan-400/15 blur-3xl" />
+                  <div className="relative flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">{u('legacy.loadDetails.routePlan', 'Route overview')}</p>
+                      <h3 className="mt-2 text-xl font-black md:text-2xl">{load.pickup} <span className="text-cyan-300">→</span> {load.delivery}</h3>
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold uppercase text-slate-500">{u('legacy.loadDetails.pickup', 'Pickup')}</p>
-                      <p className="font-bold dark:text-white truncate">{load.pickup}</p>
+                    <span className={cn('rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-wider', getStatusTone(currentStatus))}>{currentStatus}</span>
+                  </div>
+
+                  <div className="relative mt-7 grid gap-3 md:grid-cols-[1fr_auto_1fr] md:items-center">
+                    <div className="rounded-2xl border border-white/15 bg-white/8 p-4 backdrop-blur-sm">
+                      <div className="flex items-center gap-2 text-emerald-300"><MapPin className="h-4 w-4" /><span className="text-[11px] font-black uppercase tracking-wider">{u('legacy.loadDetails.pickup', 'Pickup')}</span></div>
+                      <p className="mt-3 text-lg font-bold">{load.pickup || 'Location pending'}</p>
+                      <p className="mt-1 text-xs text-slate-300">Collection point</p>
+                    </div>
+                    <div className="flex items-center justify-center gap-2 text-cyan-200 md:flex-col">
+                      <span className="h-px w-10 bg-cyan-300/60 md:h-8 md:w-px" />
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full border border-cyan-300/50 bg-cyan-300/15"><Truck className="h-5 w-5" /></div>
+                      <span className="h-px w-10 bg-cyan-300/60 md:h-8 md:w-px" />
+                    </div>
+                    <div className="rounded-2xl border border-white/15 bg-white/8 p-4 backdrop-blur-sm">
+                      <div className="flex items-center gap-2 text-blue-300"><MapPin className="h-4 w-4" /><span className="text-[11px] font-black uppercase tracking-wider">{u('legacy.loadDetails.delivery', 'Delivery')}</span></div>
+                      <p className="mt-3 text-lg font-bold">{load.delivery || 'Location pending'}</p>
+                      <p className="mt-1 text-xs text-slate-300">Final delivery point</p>
                     </div>
                   </div>
-                  <ArrowRight className="w-5 h-5 text-slate-400 hidden md:block" />
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="h-10 w-10 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
-                      <MapPin className="w-5 h-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold uppercase text-slate-500">{u('legacy.loadDetails.delivery', 'Delivery')}</p>
-                      <p className="font-bold dark:text-white truncate">{load.delivery}</p>
-                    </div>
+
+                  <div className="relative mt-5 grid grid-cols-2 gap-3 border-t border-white/10 pt-5 md:grid-cols-4">
+                    <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Load ID</p><p className="mt-1 font-bold">#{load.id}</p></div>
+                    <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Transit</p><p className="mt-1 font-bold">{load.transitDays ? `${load.transitDays} days` : 'To be confirmed'}</p></div>
+                    <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Cargo</p><p className="mt-1 font-bold">{load.cargoType || 'General cargo'}</p></div>
+                    <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">ETA</p><p className="mt-1 truncate font-bold">{formatLoadDate(load.eta)}</p></div>
                   </div>
                 </div>
-              </div>
+              </section>
 
               <div className="grid xl:grid-cols-12 gap-6">
-                <div className="xl:col-span-8 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 p-5 space-y-4">
-                  <p className="text-xs font-black uppercase tracking-wider text-primary">
-                    {u('legacy.loadDetails.postingInfo', 'Posting Info')}
-                  </p>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="flex items-center gap-3">
-                      <Building2 className="w-4 h-4 text-slate-400" />
-                      <div>
-                        <p className="text-xs text-slate-500">{u('legacy.loadDetails.postedBy', 'Posted by')}</p>
-                        <p className="font-bold dark:text-white">{load.author}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <CalendarDays className="w-4 h-4 text-slate-400" />
-                      <div>
-                        <p className="text-xs text-slate-500">{u('legacy.loadDetails.postedDate', 'Posted date')}</p>
-                        <p className="font-bold dark:text-white">{load.date}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Clock3 className="w-4 h-4 text-slate-400" />
-                      <div>
-                        <p className="text-xs text-slate-500">{u('legacy.loadDetails.latestEta', 'Latest ETA')}</p>
-                        <p className="font-bold dark:text-white">{load.eta}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Truck className="w-4 h-4 text-slate-400" />
-                      <div>
-                        <p className="text-xs text-slate-500">{u('legacy.loadDetails.cargoCategory', 'Cargo category')}</p>
-                        <p className="font-bold dark:text-white">{load.cargoType}</p>
-                      </div>
-                    </div>
+                <div className="xl:col-span-8 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+                  <p className="mb-4 text-xs font-black uppercase tracking-wider text-primary">Load snapshot</p>
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><Building2 className="h-4 w-4 text-primary" /><p className="mt-3 text-xs text-slate-500">{u('legacy.loadDetails.postedBy', 'Posted by')}</p><p className="mt-1 truncate text-sm font-bold dark:text-white">{load.author || '—'}</p></div>
+                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><CalendarDays className="h-4 w-4 text-primary" /><p className="mt-3 text-xs text-slate-500">{u('legacy.loadDetails.postedDate', 'Posted date')}</p><p className="mt-1 text-sm font-bold dark:text-white">{formatLoadDate(load.date)}</p></div>
+                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><Box className="h-4 w-4 text-primary" /><p className="mt-3 text-xs text-slate-500">Goods type</p><p className="mt-1 truncate text-sm font-bold dark:text-white">{load.goodsType || 'General'}</p></div>
+                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><CalendarClock className="h-4 w-4 text-primary" /><p className="mt-3 text-xs text-slate-500">{u('legacy.loadDetails.latestEta', 'Latest ETA')}</p><p className="mt-1 text-sm font-bold dark:text-white">{formatLoadDate(load.eta)}</p></div>
                   </div>
                 </div>
 
@@ -244,7 +272,10 @@ export const LoadDetails = ({ open, load, onClose, lang, role, onEdit, onChanged
                       {u('legacy.loadDetails.readyActions', 'Ready Actions')}
                     </p>
                   </div>
-                  {role === 'superadmin' ? <Button className="w-full" onClick={() => onEdit?.(load)}><Pencil className="mr-2 h-4 w-4" />Edit load</Button> : <>
+                  {role === 'superadmin' ? <>
+                    <Button className="w-full" onClick={() => onEdit?.(load)}><Pencil className="mr-2 h-4 w-4" />Edit load</Button>
+                    <LoadStatusPicker lang={lang} status={currentStatus} isChanging={statusChanging} onChange={(status) => void changeStatus(status)} />
+                  </> : <>
                     <Button className="w-full">{u('legacy.loadDetails.requestAssignment', 'Request Assignment')}</Button>
                     <Button variant="outline" className="w-full">{u('legacy.loadDetails.negotiateTerms', 'Negotiate Terms')}</Button>
                   </>}
@@ -266,8 +297,8 @@ export const LoadDetails = ({ open, load, onClose, lang, role, onEdit, onChanged
                 <div className="xl:col-span-8 space-y-6">
                   <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 p-5">
                     <div className="flex flex-wrap items-center gap-2 mb-4">
-                      <span className={cn('px-3 py-1 rounded-full border text-xs font-bold uppercase tracking-wider', getStatusTone(load.status))}>
-                        {load.status}
+                      <span className={cn('px-3 py-1 rounded-full border text-xs font-bold uppercase tracking-wider', getStatusTone(currentStatus))}>
+                        {currentStatus}
                       </span>
                       <span className={cn('px-3 py-1 rounded-full border text-xs font-bold uppercase tracking-wider', getGoodsTone(load.goodsType))}>
                         {load.goodsType}
@@ -295,6 +326,16 @@ export const LoadDetails = ({ open, load, onClose, lang, role, onEdit, onChanged
                           {u('legacy.loadDetails.eta', 'ETA')}
                         </p>
                         <p className="mt-2 text-2xl font-black dark:text-white">{load.eta}</p>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-slate-200 pt-4 dark:border-slate-800">
+                      <div className="mb-3 flex items-center gap-2"><Hash className="h-4 w-4 text-primary" /><p className="text-xs font-black uppercase tracking-wider text-primary">Shipment requirements</p></div>
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950"><p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Dimensions</p><p className="mt-1 text-sm font-bold dark:text-white">{[load.length, load.width, load.height].every((value) => value != null) ? `${load.length} × ${load.width} × ${load.height} m` : 'Not specified'}</p></div>
+                        <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950"><p className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-slate-500"><Thermometer className="h-3.5 w-3.5" /> Temperature</p><p className="mt-1 text-sm font-bold dark:text-white">{load.temperatureMin != null || load.temperatureMax != null ? `${load.temperatureMin ?? '—'}° to ${load.temperatureMax ?? '—'}°C` : 'Ambient'}</p></div>
+                        <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950"><p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Handling</p><p className="mt-1 text-sm font-bold dark:text-white">{load.loadingMethods?.length ? load.loadingMethods.join(', ') : load.isFragile ? 'Fragile cargo' : 'Standard handling'}</p></div>
+                        <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950"><p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Priority</p><p className="mt-1 text-sm font-bold dark:text-white">{load.urgency || 'Standard'}{load.adrClass ? ` · ADR ${load.adrClass}` : ''}</p></div>
                       </div>
                     </div>
                   </div>

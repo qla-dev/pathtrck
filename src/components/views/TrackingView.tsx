@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Flatpickr from 'react-flatpickr';
-import { Search, MapPin, ChevronRight, ChevronDown, Package as PackageIcon, Clock3, RotateCcw, Share2, Star, Bot, Route, Lock, Coins, Loader2, Sparkles, Truck, Plane, Ship, Eye, Send, PackageCheck, CircleCheckBig, CircleX, Megaphone, FileBarChart2, Upload, FileSpreadsheet, Fuel, BedDouble, ParkingCircle, Landmark, Filter, CalendarDays, ReceiptText, FileText, Printer, Trash2, List, LayoutGrid } from 'lucide-react';
+import { Search, MapPin, ChevronRight, Package as PackageIcon, Clock3, RotateCcw, Share2, Star, Bot, Route, Lock, Coins, Loader2, Sparkles, Truck, Plane, Ship, FileBarChart2, Upload, FileSpreadsheet, Fuel, BedDouble, ParkingCircle, Landmark, Filter, CalendarDays, ReceiptText, FileText, Printer, Trash2, List, LayoutGrid } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, CircleMarker, Tooltip } from 'react-leaflet';
 import { Language, Package as PackageData, Role, ShipmentDetail } from '../../types';
 import { api } from '../../services/api';
@@ -16,6 +16,7 @@ import { ChatConversationPanel } from '../chat/ChatConversationPanel';
 import { Conversation } from '../chat/types';
 import { TrackingItemDetails } from '../tracking/TrackingItemDetails';
 import { TrackingShipmentDetails } from '../tracking/TrackingShipmentDetails';
+import { LOAD_STATUS_OPTIONS, LoadStatusIcon, LoadStatusPicker } from '../load/LoadStatusPicker';
 
 type AmenityCategory = 'toll' | 'fuel' | 'rest' | 'parking';
 type TrackingFilterMode = 'all' | 'today' | 'calendar';
@@ -23,32 +24,6 @@ type TrackingStatusFilter = PackageData['status'] | 'all';
 type TrackingLayoutMode = 'list' | 'grid';
 
 const TRACKING_FLOW: PackageData['status'][] = ['Posted', 'Opened', 'Sent', 'In delivery', 'Received', 'Finished'];
-const TRACKING_STATUS_ICONS: Record<PackageData['status'], typeof Clock3> = {
-  Posted: Megaphone,
-  Opened: Eye,
-  Sent: Send,
-  'In delivery': Truck,
-  Received: PackageCheck,
-  Finished: CircleCheckBig,
-  Pending: Clock3,
-  Cancelled: CircleX,
-};
-
-const TrackingStatusIcon = ({ status, className = 'h-3.5 w-3.5' }: { status: PackageData['status']; className?: string }) => {
-  const Icon = TRACKING_STATUS_ICONS[status];
-  return <Icon className={className} />;
-};
-
-const LOAD_STATUS_OPTIONS: Array<[string, PackageData['status']]> = [
-  ['posted', 'Posted'],
-  ['opened', 'Opened'],
-  ['sent', 'Sent'],
-  ['in_delivery', 'In delivery'],
-  ['received', 'Received'],
-  ['finished', 'Finished'],
-  ['pending', 'Pending'],
-  ['cancelled', 'Cancelled'],
-];
 const TRACKING_STATUS_FILTERS = LOAD_STATUS_OPTIONS
   .map(([, status]) => status)
   .filter((status) => status !== 'Posted');
@@ -63,18 +38,6 @@ const statusCardColors = (status: TrackingStatusFilter) => {
     case 'Pending': return 'border-orange-400 text-orange-600 dark:text-orange-300';
     case 'Cancelled': return 'border-rose-500 text-rose-600 dark:text-rose-300';
     default: return 'border-slate-400 text-slate-600 dark:text-slate-300';
-  }
-};
-
-const statusPickerColors = (status: PackageData['status']) => {
-  switch (status) {
-    case 'Opened': return 'border-cyan-400 bg-cyan-50 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-300';
-    case 'Sent': return 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300';
-    case 'In delivery': return 'border-amber-400 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300';
-    case 'Received': return 'border-violet-500 bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300';
-    case 'Finished': return 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300';
-    case 'Cancelled': return 'border-rose-500 bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300';
-    default: return 'border-slate-300 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200';
   }
 };
 
@@ -246,9 +209,6 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
   const [invoiceError, setInvoiceError] = useState('');
   const [statusChanging, setStatusChanging] = useState<PackageData['status'] | null>(null);
   const [savingDetailKey, setSavingDetailKey] = useState<string | null>(null);
-  const [headerStatus, setHeaderStatus] = useState('');
-  const [headerStatusMenuOpen, setHeaderStatusMenuOpen] = useState(false);
-  const headerStatusMenuRef = useRef<HTMLDivElement>(null);
   const [mapFilters, setMapFilters] = useState<Record<AmenityCategory, boolean>>({
     toll: true,
     fuel: false,
@@ -292,26 +252,19 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
 
   useEffect(() => {
     if (!selectedPackage.id && packages[0]) setSelectedPackage(packages[0]);
-    else if (selectedPackage.id) setSelectedPackage(packages.find((pkg) => pkg.id === selectedPackage.id) || packages[0] || emptyPackage);
+    else if (selectedPackage.id) {
+      const updatedPackage = packages.find((pkg) => pkg.id === selectedPackage.id);
+      if (updatedPackage) setSelectedPackage(updatedPackage);
+      else {
+        setSelectedPackage(emptyPackage);
+        setTrackingDetailsOpen(false);
+      }
+    }
   }, [packages]);
 
   useEffect(() => {
     if (selectedPackage.id) getSmartStatusUpdate(selectedPackage.status, selectedPackage.history[0]?.location || selectedPackage.destination).then(setSmartStatus);
   }, [selectedPackage]);
-
-  useEffect(() => {
-    setHeaderStatus(apiLoadStatus(selectedPackage.status));
-    setHeaderStatusMenuOpen(false);
-  }, [selectedPackage.id, selectedPackage.status]);
-
-  useEffect(() => {
-    if (!headerStatusMenuOpen) return undefined;
-    const closeOnOutsideClick = (event: MouseEvent) => {
-      if (!headerStatusMenuRef.current?.contains(event.target as Node)) setHeaderStatusMenuOpen(false);
-    };
-    document.addEventListener('mousedown', closeOnOutsideClick);
-    return () => document.removeEventListener('mousedown', closeOnOutsideClick);
-  }, [headerStatusMenuOpen]);
 
   useEffect(() => {
     setReturnRoutesUnlocked(false);
@@ -617,7 +570,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
               )}
             >
               <span className="flex items-center justify-center gap-1.5 truncate text-xs font-bold">
-                {status === 'all' ? <LayoutGrid className="h-3.5 w-3.5" /> : <TrackingStatusIcon status={status} />}
+                {status === 'all' ? <LayoutGrid className="h-3.5 w-3.5" /> : <LoadStatusIcon status={status} />}
                 <span>{status === 'all' ? u('history.filter.all', 'All') : trPackageStatus(lang, status)}</span>
               </span>
               <span className="mt-1 block text-2xl font-black text-slate-700 dark:text-slate-100">{statusCounts[status]}</span>
@@ -831,7 +784,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
                     'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase',
                     statusBadgeColors(pkg.status)
                   )}>
-                    <TrackingStatusIcon status={pkg.status} className="h-3 w-3" />
+                    <LoadStatusIcon status={pkg.status} className="h-3 w-3" />
                     {trPackageStatus(lang, pkg.status)}
                   </span>
                 </div>
@@ -840,6 +793,11 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
               <p className="mt-1 truncate text-[11px] font-semibold text-slate-400">
                 {u('tracking.bookingReference', 'Booking reference')}: {pkg.bookingReference || '—'}
               </p>
+              {pkg.description && (
+                <p className="mt-2 line-clamp-1 text-sm font-medium text-slate-600 dark:text-slate-300">
+                  {pkg.description}
+                </p>
+              )}
               <div className="mt-3 grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
                 <div className="flex min-w-0 items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white">
@@ -853,6 +811,20 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
                     <MapPin className="h-3.5 w-3.5" />
                   </span>
                   <span className="truncate text-xs font-bold">{pkg.destination}</span>
+                </div>
+              </div>
+              <div className="mt-3 grid gap-2 border-t border-slate-100 pt-3 sm:grid-cols-3 dark:border-slate-800">
+                <div className="flex min-w-0 items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-950">
+                  <PackageIcon className="h-4 w-4 shrink-0 text-primary" />
+                  <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{u('tracking.number', 'Tracking no.')}</p><p className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{pkg.trackingNumber}</p></div>
+                </div>
+                <div className="flex min-w-0 items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-950">
+                  <Coins className="h-4 w-4 shrink-0 text-emerald-500" />
+                  <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{u('tracking.totalAmount', 'Load value')}</p><p className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{pkg.totalAmount || '—'}</p></div>
+                </div>
+                <div className="flex min-w-0 items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-950">
+                  <CalendarDays className="h-4 w-4 shrink-0 text-violet-500" />
+                  <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{u('tracking.transit', 'Transit')}</p><p className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{pkg.transitDays ? `${pkg.transitDays} ${u('tracking.days', 'days')}` : u('tracking.notScheduled', 'Not scheduled')}</p></div>
                 </div>
               </div>
             </button>
@@ -878,69 +850,12 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
             : undefined
         }
         headerAction={role === 'superadmin' ? (
-          <div ref={headerStatusMenuRef} className="relative">
-            <button
-              type="button"
-              disabled={savingDetailKey !== null}
-              onClick={() => setHeaderStatusMenuOpen((open) => !open)}
-              aria-haspopup="listbox"
-              aria-expanded={headerStatusMenuOpen}
-              className={cn(
-                'flex h-12 cursor-pointer items-center gap-3 rounded-xl border px-4 transition-colors disabled:cursor-wait disabled:opacity-60',
-                statusPickerColors(LOAD_STATUS_OPTIONS.find(([value]) => value === headerStatus)?.[1] || 'Pending')
-              )}
-            >
-              <span className="hidden text-[10px] font-black uppercase tracking-wider opacity-65 sm:inline">Status</span>
-              <span className="flex -translate-y-0.5 items-center gap-5">
-                <span className="flex items-center gap-1.5 text-sm font-bold leading-none">
-                  <TrackingStatusIcon status={LOAD_STATUS_OPTIONS.find(([value]) => value === headerStatus)?.[1] || 'Pending'} />
-                  {trPackageStatus(lang, LOAD_STATUS_OPTIONS.find(([value]) => value === headerStatus)?.[1] || 'Pending')}
-                </span>
-                <ChevronDown className={cn('h-4 w-4 transition-transform', headerStatusMenuOpen && 'rotate-180')} />
-              </span>
-            </button>
-
-            {headerStatusMenuOpen && (
-              <div
-                role="listbox"
-                aria-label="Shipment status"
-                className="absolute inset-x-0 top-full z-60 mt-2 w-full space-y-2 rounded-xl border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900"
-              >
-                {LOAD_STATUS_OPTIONS.map(([value, status]) => (
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={headerStatus === value}
-                    key={value}
-                    onClick={() => {
-                      const previousStatus = headerStatus;
-                      const statusDetail = selectedPackage.details?.find((detail) => detail.key === 'status');
-                      setHeaderStatusMenuOpen(false);
-                      setHeaderStatus(value);
-                      if (!statusDetail) {
-                        setHeaderStatus(previousStatus);
-                        return;
-                      }
-                      void saveShipmentDetail(statusDetail, value).then((saved) => {
-                        if (!saved) setHeaderStatus(previousStatus);
-                      });
-                    }}
-                    className={cn(
-                      'flex w-full cursor-pointer items-center justify-between rounded-lg border px-3 py-2 text-left text-xs font-bold transition-transform hover:translate-x-0.5',
-                      statusPickerColors(status),
-                      headerStatus === value && 'ring-2 ring-current ring-offset-1 dark:ring-offset-slate-900'
-                    )}
-                  >
-                    <span className="flex items-center gap-2">
-                      <TrackingStatusIcon status={status} />
-                      <span>{trPackageStatus(lang, status)}</span>
-                    </span>
-                    {headerStatus === value && <span className="h-2 w-2 rounded-full bg-current" />}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <LoadStatusPicker
+            lang={lang}
+            status={selectedPackage.status}
+            isChanging={statusChanging !== null}
+            onChange={(status) => void changeLoadStatus(status)}
+          />
         ) : undefined}
       >
         <div className="overflow-x-auto [scrollbar-width:thin] [scrollbar-color:rgb(148_163_184/0.72)_transparent] dark:[scrollbar-color:rgb(71_85_105/0.8)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-400/70 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600/80 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:bg-slate-500/90 dark:[&::-webkit-scrollbar-thumb:hover]:bg-slate-500/95">
