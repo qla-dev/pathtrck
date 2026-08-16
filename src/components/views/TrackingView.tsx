@@ -21,6 +21,16 @@ type AmenityCategory = 'toll' | 'fuel' | 'rest' | 'parking';
 type TrackingFilterMode = 'all' | 'today' | 'calendar';
 
 const TRACKING_FLOW: PackageData['status'][] = ['Posted', 'Opened', 'Sent', 'In delivery', 'Received', 'Finished'];
+const LOAD_STATUS_OPTIONS: Array<[string, PackageData['status']]> = [
+  ['posted', 'Posted'],
+  ['opened', 'Opened'],
+  ['sent', 'Sent'],
+  ['in_delivery', 'In delivery'],
+  ['received', 'Received'],
+  ['finished', 'Finished'],
+  ['pending', 'Pending'],
+  ['cancelled', 'Cancelled'],
+];
 
 const mapLoadStatus = (value: unknown): PackageData['status'] => {
   const statuses: Record<string, PackageData['status']> = {
@@ -172,6 +182,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
   const [invoiceError, setInvoiceError] = useState('');
   const [statusChanging, setStatusChanging] = useState<PackageData['status'] | null>(null);
   const [savingDetailKey, setSavingDetailKey] = useState<string | null>(null);
+  const [headerStatus, setHeaderStatus] = useState('');
   const [mapFilters, setMapFilters] = useState<Record<AmenityCategory, boolean>>({
     toll: true,
     fuel: false,
@@ -179,6 +190,10 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
     parking: false,
   });
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  const shipmentDetailsWithoutStatus = useMemo(
+    () => (selectedPackage.details || []).filter((detail) => detail.key !== 'status'),
+    [selectedPackage.details]
+  );
 
   const filteredPackages = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -209,6 +224,10 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
   useEffect(() => {
     if (selectedPackage.id) getSmartStatusUpdate(selectedPackage.status, selectedPackage.history[0]?.location || selectedPackage.destination).then(setSmartStatus);
   }, [selectedPackage]);
+
+  useEffect(() => {
+    setHeaderStatus(apiLoadStatus(selectedPackage.status));
+  }, [selectedPackage.id, selectedPackage.status]);
 
   useEffect(() => {
     setReturnRoutesUnlocked(false);
@@ -632,6 +651,34 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
         onClose={() => setTrackingDetailsOpen(false)}
         title={selectedPackage.recipient || selectedPackage.trackingNumber || 'Tracking item'}
         subtitle={`${selectedPackage.origin} → ${selectedPackage.destination}`}
+        headerAction={role === 'superadmin' ? (
+          <label className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 dark:border-slate-700 dark:bg-slate-900">
+            <span className="hidden text-[10px] font-black uppercase tracking-wider text-slate-400 sm:inline">Status</span>
+            <select
+              value={headerStatus}
+              disabled={savingDetailKey !== null}
+              onChange={(event) => {
+                const nextStatus = event.target.value;
+                const previousStatus = headerStatus;
+                const statusDetail = selectedPackage.details?.find((detail) => detail.key === 'status');
+                setHeaderStatus(nextStatus);
+                if (!statusDetail) {
+                  setHeaderStatus(previousStatus);
+                  return;
+                }
+                void saveShipmentDetail(statusDetail, nextStatus).then((saved) => {
+                  if (!saved) setHeaderStatus(previousStatus);
+                });
+              }}
+              aria-label="Shipment status"
+              className="h-full cursor-pointer border-0 bg-transparent text-sm font-bold text-slate-800 outline-none disabled:cursor-wait disabled:opacity-60 dark:text-white"
+            >
+              {LOAD_STATUS_OPTIONS.map(([value, status]) => (
+                <option key={value} value={value}>{trPackageStatus(lang, status)}</option>
+              ))}
+            </select>
+          </label>
+        ) : undefined}
       >
         <div className="mb-6 overflow-x-auto px-1 [scrollbar-width:thin] [scrollbar-color:rgb(148_163_184/0.72)_transparent] dark:[scrollbar-color:rgb(71_85_105/0.8)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-400/70 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600/80 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:bg-slate-500/90 dark:[&::-webkit-scrollbar-thumb:hover]:bg-slate-500/95">
           <div className="inline-flex h-12 min-w-full w-max items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1">
@@ -824,7 +871,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
               <p className="mb-3 text-xs text-slate-400">{u('tracking.clickEdit', 'Click any field to edit.')}</p>
             )}
             <TrackingShipmentDetails
-              details={selectedPackage.details || []}
+              details={shipmentDetailsWithoutStatus}
               lang={lang}
               role={role}
               consigneeRecord={selectedPackage.consigneeRecord}

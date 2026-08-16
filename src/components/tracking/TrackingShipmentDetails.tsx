@@ -16,20 +16,10 @@ type TrackingShipmentDetailsProps = {
   onSave: (detail: ShipmentDetail, value: string | number | null) => Promise<boolean>;
 };
 
-const STATUS_OPTIONS = [
-  ['posted', 'Posted'],
-  ['opened', 'Opened'],
-  ['sent', 'Sent'],
-  ['in_delivery', 'In delivery'],
-  ['received', 'Received'],
-  ['finished', 'Finished'],
-  ['pending', 'Pending'],
-  ['cancelled', 'Cancelled'],
-] as const;
-
 export const TrackingShipmentDetails = ({ details, lang, role, consigneeRecord, savingKey, onSave }: TrackingShipmentDetailsProps) => {
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
+  const [dateValues, setDateValues] = useState<Record<string, string>>({});
   const committingKey = useRef<string | null>(null);
   const cancelledKey = useRef<string | null>(null);
   const canEdit = role === 'superadmin';
@@ -37,6 +27,14 @@ export const TrackingShipmentDetails = ({ details, lang, role, consigneeRecord, 
   useEffect(() => {
     if (editingKey && !details.some((detail) => detail.key === editingKey)) setEditingKey(null);
   }, [details, editingKey]);
+
+  useEffect(() => {
+    setDateValues(Object.fromEntries(
+      details
+        .filter((detail) => detail.input === 'date')
+        .map((detail) => [detail.key, detail.rawValue ?? ''])
+    ));
+  }, [details]);
 
   const beginEdit = (detail: ShipmentDetail) => {
     if (!canEdit || savingKey) return;
@@ -52,13 +50,15 @@ export const TrackingShipmentDetails = ({ details, lang, role, consigneeRecord, 
   };
 
   const save = async (detail: ShipmentDetail, value: string | number | null = draft) => {
-    if (committingKey.current === detail.key) return;
+    if (committingKey.current === detail.key) return false;
     committingKey.current = detail.key;
     try {
-      if (await onSave(detail, value)) {
+      const saved = await onSave(detail, value);
+      if (saved) {
         setEditingKey(null);
         setDraft('');
       }
+      return saved;
     } finally {
       committingKey.current = null;
     }
@@ -78,13 +78,17 @@ export const TrackingShipmentDetails = ({ details, lang, role, consigneeRecord, 
     void save(detail);
   };
 
-  const saveDate = (detail: ShipmentDetail, value: string) => {
+  const saveDate = async (detail: ShipmentDetail, value: string) => {
+    const originalValue = detail.rawValue ?? '';
+    setDateValues((current) => ({ ...current, [detail.key]: value }));
     if (value === (detail.rawValue ?? '')) {
       setEditingKey(null);
       setDraft('');
       return;
     }
-    void save(detail, value);
+    if (!await save(detail, value)) {
+      setDateValues((current) => ({ ...current, [detail.key]: originalValue }));
+    }
   };
 
   return (
@@ -96,7 +100,9 @@ export const TrackingShipmentDetails = ({ details, lang, role, consigneeRecord, 
         return (
           <div
             key={detail.key}
-            onClick={() => beginEdit(detail)}
+            onClick={() => {
+              if (detail.input !== 'date') beginEdit(detail);
+            }}
             title={canEdit && !editing ? 'Click to edit' : undefined}
             className={cn(
               'group h-16 min-w-0 rounded-xl border border-transparent p-2 transition-colors',
@@ -109,7 +115,23 @@ export const TrackingShipmentDetails = ({ details, lang, role, consigneeRecord, 
               {canEdit && !editing && <Pencil className="h-3 w-3 text-primary opacity-0 transition-opacity group-hover:opacity-100" />}
             </div>
 
-            {!editing ? (
+            {detail.input === 'date' && canEdit ? (
+              <div className="mt-1" onClick={(event) => event.stopPropagation()}>
+                <Flatpickr
+                  value={dateValues[detail.key] ?? detail.rawValue ?? ''}
+                  disabled={Boolean(savingKey)}
+                  options={{
+                    dateFormat: 'Y-m-d',
+                    altInput: true,
+                    altFormat: 'd.m.Y',
+                    allowInput: true,
+                    locale: flatpickrI18n(lang),
+                  }}
+                  onChange={(_, dateStr) => void saveDate(detail, dateStr)}
+                  className="h-8 w-full min-w-0 cursor-pointer border-0 bg-transparent p-0 text-sm font-semibold text-slate-800 outline-none dark:text-slate-100"
+                />
+              </div>
+            ) : !editing ? (
               <p className="mt-1 truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{detail.value}</p>
             ) : detail.input === 'customer' ? (
               <div className="mt-1" onClick={(event) => event.stopPropagation()}>
@@ -125,54 +147,20 @@ export const TrackingShipmentDetails = ({ details, lang, role, consigneeRecord, 
               </div>
             ) : (
               <div className="mt-1" onClick={(event) => event.stopPropagation()}>
-                {detail.input === 'status' ? (
-                  <select
-                    autoFocus
-                    value={draft}
-                    onChange={(event) => {
-                      setDraft(event.target.value);
-                      void save(detail, event.target.value);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') void save(detail);
-                      if (event.key === 'Escape') cancel();
-                    }}
-                    disabled={saving}
-                    className="h-8 w-full min-w-0 rounded-lg border border-primary/40 bg-white px-2 text-sm outline-none dark:bg-slate-950 dark:text-white"
-                  >
-                    {STATUS_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                  </select>
-                ) : detail.input === 'date' ? (
-                  <Flatpickr
-                    value={draft}
-                    options={{
-                      dateFormat: 'Y-m-d',
-                      altInput: true,
-                      altFormat: 'd.m.Y',
-                      allowInput: true,
-                      locale: flatpickrI18n(lang),
-                    }}
-                    onChange={(_, dateStr) => setDraft(dateStr)}
-                    onReady={(_, __, instance) => instance.open()}
-                    onClose={(_, dateStr) => saveDate(detail, dateStr)}
-                    className="h-8 w-full min-w-0 rounded-lg border border-primary/40 bg-white px-2 text-sm outline-none dark:bg-slate-950 dark:text-white"
-                  />
-                ) : (
-                  <input
-                    autoFocus
-                    type={detail.input === 'number' ? 'number' : 'text'}
-                    step={detail.key === 'weight_kg' || detail.key === 'volume_m3' ? '0.01' : undefined}
-                    value={draft}
-                    onChange={(event) => setDraft(event.target.value)}
-                    onBlur={() => saveOnBlur(detail)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') void save(detail);
-                      if (event.key === 'Escape') cancel();
-                    }}
-                    disabled={saving}
-                    className="h-8 w-full min-w-0 rounded-lg border border-primary/40 bg-white px-2 text-sm outline-none dark:bg-slate-950 dark:text-white"
-                  />
-                )}
+                <input
+                  autoFocus
+                  type={detail.input === 'number' ? 'number' : 'text'}
+                  step={detail.key === 'weight_kg' || detail.key === 'volume_m3' ? '0.01' : undefined}
+                  value={draft}
+                  onChange={(event) => setDraft(event.target.value)}
+                  onBlur={() => saveOnBlur(detail)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') void save(detail);
+                    if (event.key === 'Escape') cancel();
+                  }}
+                  disabled={saving}
+                  className="h-8 w-full min-w-0 rounded-lg border border-primary/40 bg-white px-2 text-sm outline-none dark:bg-slate-950 dark:text-white"
+                />
               </div>
             )}
           </div>

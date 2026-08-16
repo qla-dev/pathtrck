@@ -5,11 +5,12 @@ type TrackingItemDetailsProps = {
   open: boolean;
   title: string;
   subtitle?: string;
+  headerAction?: ReactNode;
   onClose: () => void;
   children: ReactNode;
 };
 
-export const TrackingItemDetails = ({ open, title, subtitle, onClose, children }: TrackingItemDetailsProps) => {
+export const TrackingItemDetails = ({ open, title, subtitle, headerAction, onClose, children }: TrackingItemDetailsProps) => {
   useEffect(() => {
     if (!open) return undefined;
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -30,14 +31,17 @@ export const TrackingItemDetails = ({ open, title, subtitle, onClose, children }
             <h2 className="truncate text-xl font-black text-slate-900 dark:text-white md:text-2xl">{title}</h2>
             {subtitle && <p className="mt-0.5 truncate text-xs text-slate-500">{subtitle}</p>}
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close tracking item details"
-            className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-slate-100 text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            {headerAction}
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close tracking item details"
+              className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-slate-100 text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto p-5 md:p-7">{children}</div>
       </div>
