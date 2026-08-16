@@ -1,6 +1,29 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Flatpickr from 'react-flatpickr';
-import { Pencil } from 'lucide-react';
+import {
+  Activity,
+  Box,
+  Boxes,
+  Building2,
+  CalendarDays,
+  CircleDollarSign,
+  Clock3,
+  Container,
+  FileText,
+  Flag,
+  Handshake,
+  Hash,
+  Info,
+  MapPin,
+  Network,
+  Pencil,
+  Scale,
+  ShieldCheck,
+  TrendingUp,
+  Truck,
+  UserRound,
+  type LucideIcon,
+} from 'lucide-react';
 
 import { cn } from '../../lib/cn';
 import { flatpickrI18n } from '../../i18n';
@@ -22,6 +45,33 @@ type ShipmentDatePickerProps = {
   disabled: boolean;
   lang: Language;
   onChange: (value: string) => void;
+};
+
+const detailIcons: Record<string, LucideIcon> = {
+  published_at: CalendarDays,
+  status: Activity,
+  booking_reference: Hash,
+  insurance: ShieldCheck,
+  department: Building2,
+  freight_mode: Truck,
+  consignee_customer_id: UserRound,
+  subdepartment: Network,
+  weight_kg: Scale,
+  quantity_measure: Boxes,
+  volume_m3: Box,
+  teu: Container,
+  container_types: Boxes,
+  container_number: Container,
+  departure: MapPin,
+  arrival: Flag,
+  etd_at: CalendarDays,
+  eta_at: Clock3,
+  atd_at: CalendarDays,
+  shipper_name: UserRound,
+  mediator: Handshake,
+  incoterms: FileText,
+  price_insurance: CircleDollarSign,
+  profit_loss: TrendingUp,
 };
 
 const ShipmentDatePicker = ({ fieldKey, value, disabled, lang, onChange }: ShipmentDatePickerProps) => {
@@ -146,6 +196,7 @@ export const TrackingShipmentDetails = ({ details, lang, role, consigneeRecord, 
       {details.map((detail) => {
         const editing = editingKey === detail.key;
         const saving = savingKey === detail.key;
+        const DetailIcon = detailIcons[detail.key] || Info;
 
         return (
           <div
@@ -161,7 +212,10 @@ export const TrackingShipmentDetails = ({ details, lang, role, consigneeRecord, 
             )}
           >
             <div className="flex items-center justify-between gap-2">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{detail.label}</p>
+              <p className="flex min-w-0 items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                <DetailIcon className="h-3.5 w-3.5 shrink-0 text-primary" />
+                <span className="truncate">{detail.label}</span>
+              </p>
               {canEdit && !editing && <Pencil className="h-3 w-3 text-primary opacity-0 transition-opacity group-hover:opacity-100" />}
             </div>
 

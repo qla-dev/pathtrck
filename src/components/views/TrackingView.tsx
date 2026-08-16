@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import Flatpickr from 'react-flatpickr';
-import { Search, MapPin, ChevronRight, ChevronDown, Package as PackageIcon, Clock3, RotateCcw, Share2, Star, Bot, Route, Lock, Coins, Loader2, Sparkles, Truck, FileBarChart2, Upload, FileSpreadsheet, Fuel, BedDouble, ParkingCircle, Landmark, Filter, CalendarDays, ReceiptText, FileText, Printer, Trash2, List, LayoutGrid } from 'lucide-react';
+import { Search, MapPin, ChevronRight, ChevronDown, Package as PackageIcon, Clock3, RotateCcw, Share2, Star, Bot, Route, Lock, Coins, Loader2, Sparkles, Truck, Plane, Ship, Eye, Send, PackageCheck, CircleCheckBig, CircleX, Megaphone, FileBarChart2, Upload, FileSpreadsheet, Fuel, BedDouble, ParkingCircle, Landmark, Filter, CalendarDays, ReceiptText, FileText, Printer, Trash2, List, LayoutGrid } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, CircleMarker, Tooltip } from 'react-leaflet';
 import { Language, Package as PackageData, Role, ShipmentDetail } from '../../types';
 import { api } from '../../services/api';
@@ -23,6 +23,22 @@ type TrackingStatusFilter = PackageData['status'] | 'all';
 type TrackingLayoutMode = 'list' | 'grid';
 
 const TRACKING_FLOW: PackageData['status'][] = ['Posted', 'Opened', 'Sent', 'In delivery', 'Received', 'Finished'];
+const TRACKING_STATUS_ICONS: Record<PackageData['status'], typeof Clock3> = {
+  Posted: Megaphone,
+  Opened: Eye,
+  Sent: Send,
+  'In delivery': Truck,
+  Received: PackageCheck,
+  Finished: CircleCheckBig,
+  Pending: Clock3,
+  Cancelled: CircleX,
+};
+
+const TrackingStatusIcon = ({ status, className = 'h-3.5 w-3.5' }: { status: PackageData['status']; className?: string }) => {
+  const Icon = TRACKING_STATUS_ICONS[status];
+  return <Icon className={className} />;
+};
+
 const LOAD_STATUS_OPTIONS: Array<[string, PackageData['status']]> = [
   ['posted', 'Posted'],
   ['opened', 'Opened'],
@@ -164,6 +180,9 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
       carrier: String(shipment.carrier || company.name || '—'),
       status: mappedStatus,
       totalAmount: sourcePrice || `${String(load.currency || 'EUR')} ${Number(load.budget || 0).toLocaleString()}`,
+      transportType: String(load.transport_type || 'road').toLowerCase(),
+      cargoType: String(load.cargo_type || ''),
+      bookingReference: String(load.booking_reference || ''),
       statusChange: load.status_change && typeof load.status_change === 'object'
         ? Object.fromEntries(Object.entries(load.status_change as Record<string, unknown>).map(([status, changedAt]) => [status, String(changedAt)]))
         : {},
@@ -248,7 +267,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
     const todayEnd = endOfDay(new Date()).getTime();
 
     return packages.filter((pkg) => {
-      const matchesQuery = `${pkg.trackingNumber} ${pkg.recipient || ''} ${pkg.carrier} ${pkg.origin} ${pkg.destination}`
+      const matchesQuery = `${pkg.trackingNumber} ${pkg.bookingReference || ''} ${pkg.recipient || ''} ${pkg.carrier} ${pkg.origin} ${pkg.destination}`
         .toLowerCase()
         .includes(normalizedQuery);
       const matchesFields = matchesQuery && (statusFilter === 'all' || pkg.status === statusFilter);
@@ -597,8 +616,9 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
                 statusFilter === status && 'ring-2 ring-current ring-offset-2 dark:ring-offset-slate-950'
               )}
             >
-              <span className="block truncate text-xs font-bold">
-                {status === 'all' ? u('history.filter.all', 'All') : trPackageStatus(lang, status)}
+              <span className="flex items-center justify-center gap-1.5 truncate text-xs font-bold">
+                {status === 'all' ? <LayoutGrid className="h-3.5 w-3.5" /> : <TrackingStatusIcon status={status} />}
+                <span>{status === 'all' ? u('history.filter.all', 'All') : trPackageStatus(lang, status)}</span>
               </span>
               <span className="mt-1 block text-2xl font-black text-slate-700 dark:text-slate-100">{statusCounts[status]}</span>
             </button>
@@ -789,14 +809,37 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
               }}
               className="h-full w-full cursor-pointer rounded-2xl border border-slate-200 bg-white p-4 text-left transition-all hover:border-primary dark:border-slate-800 dark:bg-slate-900 dark:hover:border-primary"
             >
-              <div className="flex items-center justify-between mb-2">
+              <div className="mb-2 flex items-center justify-between gap-3">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{pkg.carrier}</span>
-                <span className={cn(
-                  "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase",
-                  statusBadgeColors(pkg.status)
-                )}>{trPackageStatus(lang, pkg.status)}</span>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                    {pkg.transportType === 'air' ? (
+                      <Plane className="h-3 w-3" />
+                    ) : pkg.transportType === 'sea' ? (
+                      <Ship className="h-3 w-3" />
+                    ) : (
+                      <Truck className="h-3 w-3" />
+                    )}
+                    {pkg.transportType === 'air'
+                      ? u('postLoadModal.transport.air', 'Air')
+                      : pkg.transportType === 'sea'
+                        ? u('postLoadModal.transport.sea', 'Sea')
+                        : u('postLoadModal.transport.road', 'Road')}
+                    {pkg.cargoType ? ` · ${pkg.cargoType}` : ''}
+                  </span>
+                  <span className={cn(
+                    'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase',
+                    statusBadgeColors(pkg.status)
+                  )}>
+                    <TrackingStatusIcon status={pkg.status} className="h-3 w-3" />
+                    {trPackageStatus(lang, pkg.status)}
+                  </span>
+                </div>
               </div>
               <p className="font-bold dark:text-white">{pkg.recipient || '—'}</p>
+              <p className="mt-1 truncate text-[11px] font-semibold text-slate-400">
+                {u('tracking.bookingReference', 'Booking reference')}: {pkg.bookingReference || '—'}
+              </p>
               <div className="mt-3 grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
                 <div className="flex min-w-0 items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white">
@@ -849,7 +892,8 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
             >
               <span className="hidden text-[10px] font-black uppercase tracking-wider opacity-65 sm:inline">Status</span>
               <span className="flex -translate-y-0.5 items-center gap-5">
-                <span className="text-sm font-bold leading-none">
+                <span className="flex items-center gap-1.5 text-sm font-bold leading-none">
+                  <TrackingStatusIcon status={LOAD_STATUS_OPTIONS.find(([value]) => value === headerStatus)?.[1] || 'Pending'} />
                   {trPackageStatus(lang, LOAD_STATUS_OPTIONS.find(([value]) => value === headerStatus)?.[1] || 'Pending')}
                 </span>
                 <ChevronDown className={cn('h-4 w-4 transition-transform', headerStatusMenuOpen && 'rotate-180')} />
@@ -887,7 +931,10 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
                       headerStatus === value && 'ring-2 ring-current ring-offset-1 dark:ring-offset-slate-900'
                     )}
                   >
-                    <span>{trPackageStatus(lang, status)}</span>
+                    <span className="flex items-center gap-2">
+                      <TrackingStatusIcon status={status} />
+                      <span>{trPackageStatus(lang, status)}</span>
+                    </span>
                     {headerStatus === value && <span className="h-2 w-2 rounded-full bg-current" />}
                   </button>
                 ))}

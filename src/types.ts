@@ -24,6 +24,9 @@ export interface Package {
   recipient?: string;
   shipmentId?: string;
   totalAmount?: string;
+  transportType?: string;
+  cargoType?: string;
+  bookingReference?: string;
   statusChange?: Record<string, string>;
   details?: ShipmentDetail[];
   consigneeRecord?: Record<string, unknown>;
