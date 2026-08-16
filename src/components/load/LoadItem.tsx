@@ -83,9 +83,6 @@ export const LoadItem = ({
         </div>
 
         <div className="ml-auto max-w-[34%] shrink-0 whitespace-nowrap flex flex-col items-end gap-2">
-          <div className="max-w-full truncate text-sm min-[400px]:text-base sm:text-xl font-black text-primary text-right">
-            {load.price}
-          </div>
           {!hideSource && (
             <div className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/90 px-2.5 py-1 text-[11px] font-bold text-slate-600 dark:text-slate-200 shadow-sm">
               <Scale className="w-3.5 h-3.5 text-primary" />
@@ -136,7 +133,7 @@ export const LoadItem = ({
       {!hideSource && (
         <>
           <div className="mt-6 -mx-6 w-[calc(100%+3rem)] border-t border-slate-100 dark:border-slate-800" />
-          <div className={cn('pt-6', isGrid ? 'space-y-4' : 'flex items-center gap-8')}>
+          <div className={cn('pt-6', isGrid ? 'space-y-6' : 'flex items-center gap-8')}>
             <div className={cn('flex min-w-0 items-center', isGrid ? 'w-full gap-2' : 'gap-8')}>
               <div className={cn('flex min-w-0 items-center gap-2', isGrid && 'flex-1')}>
                 <div className="w-2 h-2 min-w-2 min-h-2 rounded-full bg-emerald-500" />
@@ -164,7 +161,7 @@ export const LoadItem = ({
                   handleCardClick();
                 }}
               >
-                {viewDetailsLabel}
+                <span>{viewDetailsLabel} · {load.price}</span>
                 <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </div>

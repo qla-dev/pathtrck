@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { motion } from 'motion/react';
 import {
   AlertTriangle,
   ArrowRight,
@@ -141,9 +142,19 @@ export const LoadDetails = ({ open, load, onClose, lang, role, onEdit, onChanged
   const goodsNote = getGoodsNote(load.goodsType, u);
 
   return (
-    <div className="fixed inset-0 z-140 bg-white dark:bg-slate-950">
+    <motion.div
+      className="fixed inset-0 z-140 bg-white dark:bg-slate-950"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
+    >
       <div className="absolute inset-0">
-        <div className="flex h-[100dvh] w-full min-h-0 flex-col overflow-hidden bg-white dark:bg-slate-950">
+        <motion.div
+          className="flex h-[100dvh] w-full min-h-0 flex-col overflow-hidden bg-white dark:bg-slate-950"
+          initial={{ opacity: 0, y: 24, scale: 0.992 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+        >
           <div className="px-5 md:px-7 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
             <div className="min-w-0">
               <p className="text-xs font-black uppercase tracking-wider text-primary">
@@ -339,8 +350,8 @@ export const LoadDetails = ({ open, load, onClose, lang, role, onEdit, onChanged
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 };

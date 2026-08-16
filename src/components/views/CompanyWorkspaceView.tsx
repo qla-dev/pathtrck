@@ -76,7 +76,7 @@ export const CompanyWorkspaceView = ({ lang }: { lang: Language }) => {
 
   return (
   <div className="space-y-6" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
-    <section className="relative overflow-hidden rounded-3xl border border-sky-100 bg-gradient-to-br from-white via-sky-50 to-cyan-100 p-6 text-slate-900 shadow-xl shadow-sky-900/10 dark:border-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-cyan-950 dark:text-white dark:shadow-black/30 md:p-8">
+    <section className="relative overflow-hidden rounded-3xl border border-sky-100 bg-gradient-to-br from-white via-sky-50 to-cyan-100 p-6 text-slate-900 dark:border-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-cyan-950 dark:text-white md:p-8">
       <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-primary/20 blur-3xl dark:bg-primary/25" />
       <div className="absolute bottom-0 right-1/3 h-28 w-48 rounded-full bg-violet-500/15 blur-3xl" />
       <div className="relative flex flex-wrap items-start justify-between gap-6">
@@ -94,14 +94,14 @@ export const CompanyWorkspaceView = ({ lang }: { lang: Language }) => {
             {copy.subtitle}
           </p>
         </div>
-        <div className="rounded-2xl border border-sky-200 bg-white/70 px-4 py-3 shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-white/5">
+        <div className="rounded-2xl border border-sky-200 bg-white/70 px-4 py-3 backdrop-blur-sm dark:border-white/10 dark:bg-white/5">
           <div className="flex items-center gap-2 text-xs font-bold uppercase text-emerald-600 dark:text-emerald-400"><Radio className="h-4 w-4 animate-pulse" /> {copy.live}</div>
           <p className="mt-1 text-sm font-semibold">{companyVehicles.length} assets · {activeLoads.length} active loads</p>
         </div>
       </div>
       <div className="relative mt-7 grid gap-3 sm:grid-cols-3">
         {copy.stats.map((label, index) => (
-          <div key={label} className="rounded-2xl border border-sky-200/80 bg-white/65 p-4 shadow-sm dark:border-white/10 dark:bg-white/5">
+          <div key={label} className="rounded-2xl border border-sky-200/80 bg-white/65 p-4 dark:border-white/10 dark:bg-white/5">
             <p className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</p>
             <p className="mt-1 text-2xl font-black">{heroStats[index]}</p>
           </div>

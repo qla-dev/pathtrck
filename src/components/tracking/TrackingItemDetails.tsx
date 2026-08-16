@@ -1,16 +1,17 @@
-import { useEffect, type ReactNode } from 'react';
+import { Children, useEffect, type ReactNode } from 'react';
 import { X } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 
 type TrackingItemDetailsProps = {
   open: boolean;
-  title: string;
-  subtitle?: string;
   headerAction?: ReactNode;
   onClose: () => void;
   children: ReactNode;
 };
 
-export const TrackingItemDetails = ({ open, title, subtitle, headerAction, onClose, children }: TrackingItemDetailsProps) => {
+export const TrackingItemDetails = ({ open, headerAction, onClose, children }: TrackingItemDetailsProps) => {
+  const [headerNavigation, ...bodyContent] = Children.toArray(children);
+
   useEffect(() => {
     if (!open) return undefined;
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -20,31 +21,41 @@ export const TrackingItemDetails = ({ open, title, subtitle, headerAction, onClo
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [onClose, open]);
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-140 bg-white dark:bg-slate-950">
-      <div className="flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-white dark:bg-slate-950">
-        <header className="flex items-center justify-between gap-4 border-b border-slate-100 px-5 py-4 dark:border-slate-800 md:px-7">
-          <div className="min-w-0">
-            <p className="text-xs font-black uppercase tracking-wider text-primary">Tracking item details</p>
-            <h2 className="truncate text-xl font-black text-slate-900 dark:text-white md:text-2xl">{title}</h2>
-            {subtitle && <p className="mt-0.5 truncate text-xs text-slate-500">{subtitle}</p>}
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            {headerAction}
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close tracking item details"
-              className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-slate-100 text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-        </header>
-        <div className="min-h-0 flex-1 overflow-y-auto p-5 md:p-7">{children}</div>
-      </div>
-    </div>
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="fixed inset-0 z-140 bg-white dark:bg-slate-950"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
+        >
+          <motion.div
+            className="flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-white dark:bg-slate-950"
+            initial={{ opacity: 0, y: 24, scale: 0.992 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 16, scale: 0.996 }}
+            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <header className="flex items-center gap-4 border-b border-slate-100 p-5 dark:border-slate-800 md:p-7">
+              <div className="min-w-0 flex-1">{headerNavigation}</div>
+              <div className="flex shrink-0 items-center gap-2">
+                {headerAction}
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Close tracking item details"
+                  className="flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-slate-100 text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </header>
+            <div className="min-h-0 flex-1 overflow-y-auto p-5 md:p-7">{bodyContent}</div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };

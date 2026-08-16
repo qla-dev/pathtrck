@@ -1432,7 +1432,7 @@ const LandingPage = ({
             </div>
             
             {/* Tracking Form - UPS Inspired */}
-            <div className="min-w-0 max-w-xl w-full overflow-hidden bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800 mb-6">
+            <div className="min-w-0 max-w-xl w-full overflow-hidden bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-100 dark:border-slate-800 mb-6">
               <div className="grid grid-cols-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl mb-5 sm:mb-6 w-full sm:w-fit">
                 <button 
                   onClick={() => setFormType('track')}
@@ -1522,7 +1522,7 @@ const LandingPage = ({
               </AnimatePresence>
             </div>
 
-            <div className="mt-2 min-w-0 max-w-xl w-full overflow-hidden bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800">
+            <div className="mt-2 min-w-0 max-w-xl w-full overflow-hidden bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800">
               <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
                 <h4 className="text-sm font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">{u('landing.availableLoads', 'Available Loads')}</h4>
                 <span className="px-2 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider">{landingLoads.length} {u('landing.liveCount', 'live')}</span>
@@ -1557,7 +1557,7 @@ const LandingPage = ({
             transition={{ duration: 1, delay: 0.2 }}
             className="relative min-w-0 max-w-full lg:sticky lg:top-32"
           >
-            <div className="relative z-10 max-w-full bg-slate-100 dark:bg-slate-900 rounded-[1.75rem] sm:rounded-[2.5rem] p-3 sm:p-4 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.2)] border border-slate-200 dark:border-slate-800">
+            <div className="relative z-10 max-w-full bg-slate-100 dark:bg-slate-900 rounded-[1.75rem] sm:rounded-[2.5rem] p-3 sm:p-4 border border-slate-200 dark:border-slate-800">
               <div className="aspect-[4/3] min-w-0 rounded-[1.4rem] sm:rounded-[2rem] overflow-hidden relative group">
                 {/* Hero Route Map */}
                 <MapContainer
@@ -1605,7 +1605,7 @@ const LandingPage = ({
 	                    </div>
 	                  </div>
 	                  
-	                  <div className="min-w-0 bg-white/80 dark:bg-white/10 backdrop-blur-2xl p-3 sm:p-6 rounded-2xl sm:rounded-3xl border border-white/30 dark:border-white/20 shadow-2xl">
+	                  <div className="min-w-0 bg-white/80 dark:bg-white/10 backdrop-blur-2xl p-3 sm:p-6 rounded-2xl sm:rounded-3xl border border-white/30 dark:border-white/20">
 	                    <div className="flex items-center justify-between gap-2 mb-2 sm:mb-4">
 	                      <span className="px-3 py-1 rounded-full bg-primary text-[10px] font-black uppercase tracking-widest text-white">{u('landing.liveRoute', 'Live Route')}</span>
 	                      <span className="text-xs font-bold text-slate-700 dark:text-white/70">{u('landing.etaMarch3', 'ETA Mar 3, 14:20')}</span>
@@ -1694,7 +1694,7 @@ const LandingPage = ({
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.2 }}
             transition={{ duration: 0.75 }}
-            className="relative min-w-0 rounded-[2rem] border border-slate-200 bg-slate-50/90 p-4 shadow-2xl shadow-slate-900/10 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/80 dark:shadow-black/30 sm:p-6"
+            className="relative min-w-0 rounded-[2rem] border border-slate-200 bg-slate-50/90 p-4 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/80 sm:p-6"
           >
             <div className="pointer-events-none absolute inset-0 opacity-40 [background-image:radial-gradient(rgb(14_165_233/0.28)_1px,transparent_1px)] [background-size:22px_22px] dark:opacity-20" />
             <div className="relative mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -1704,13 +1704,13 @@ const LandingPage = ({
 
             <div className="relative grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-stretch">
               <div className="min-w-0 space-y-3">
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-950">
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950">
                   <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-sky-500"><ScanSearch className="h-4 w-4" />{u('landing.aiDispatcher.app', 'Smartfreight app')}</div>
                   <p className="mt-3 truncate font-black text-slate-900 dark:text-white">{u('landing.aiDispatcher.loadLabel', 'Load SF-2048')}</p>
                   <p className="mt-1 truncate text-xs text-slate-500">{u('landing.aiDispatcher.loadMeta', 'Pharma · 11,200 kg · Ambient')}</p>
                   <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300"><MapPin className="h-4 w-4 text-emerald-500" /> Sarajevo <ArrowRight className="h-3.5 w-3.5" /> Vienna</div>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-950">
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950">
                   <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-violet-500"><Database className="h-4 w-4" />{u('landing.aiDispatcher.database', 'Operations database')}</div>
                   <p className="mt-3 text-sm font-black text-slate-900 dark:text-white">{u('landing.aiDispatcher.signalCount', 'Live operational records')}</p>
                   <div className="mt-3 grid grid-cols-3 gap-1.5">{[72, 94, 61].map((height, index) => <div key={height} className="flex h-8 items-end overflow-hidden rounded-md bg-slate-100 dark:bg-slate-800"><motion.div initial={{ height: 0 }} whileInView={{ height: `${height}%` }} transition={{ delay: 0.45 + index * 0.12 }} className="w-full rounded-md bg-linear-to-t from-primary to-violet-400" /></div>)}</div>
@@ -1726,7 +1726,7 @@ const LandingPage = ({
                 <div className="hidden h-px w-5 bg-linear-to-r from-primary to-violet-400/20 md:block" />
               </div>
 
-              <div className="flex min-w-0 flex-col justify-center rounded-2xl border border-primary/20 bg-white p-4 shadow-lg shadow-primary/10 dark:border-primary/20 dark:bg-slate-950">
+              <div className="flex min-w-0 flex-col justify-center rounded-2xl border border-primary/20 bg-white p-4 dark:border-primary/20 dark:bg-slate-950">
                 <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-primary"><RefreshCw className="h-4 w-4 animate-spin [animation-duration:4s]" />{u('landing.aiDispatcher.aiCore', 'AI Dispatcher')}</div>
                 <p className="mt-3 text-xs text-slate-500">{u('landing.aiDispatcher.thinking', 'Analyzing live operations')}</p>
                 <div className="mt-4 space-y-2">{[88, 64, 76].map((width, index) => <div key={width} className="h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"><motion.div initial={{ width: 0 }} whileInView={{ width: `${width}%` }} transition={{ duration: 0.8, delay: 0.35 + index * 0.14 }} className="h-full rounded-full bg-linear-to-r from-primary to-violet-500" /></div>)}</div>
@@ -1786,7 +1786,7 @@ const LandingPage = ({
           
           <div className="grid md:grid-cols-12 gap-6">
             {/* Main Feature */}
-            <div className="md:col-span-8 bg-slate-50 dark:bg-slate-900 rounded-[2.5rem] p-12 flex border border-slate-100 dark:border-slate-800 group overflow-hidden relative shadow-sm hover:shadow-2xl transition-all duration-500">
+            <div className="md:col-span-8 bg-slate-50 dark:bg-slate-900 rounded-[2.5rem] p-12 flex border border-slate-100 dark:border-slate-800 group overflow-hidden relative transition-all duration-500">
               <div className="relative z-10 flex flex-1 flex-col">
                 <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mb-10 shadow-lg shadow-primary/30 group-hover:scale-110 transition-transform">
                   <MapIcon className="text-white w-8 h-8" />
@@ -1811,7 +1811,7 @@ const LandingPage = ({
             </div>
 
             {/* Side Feature 1 */}
-            <div className="md:col-span-4 bg-white dark:bg-slate-900 rounded-[2.5rem] p-6 border border-slate-100 dark:border-slate-800 shadow-xl relative overflow-hidden">
+            <div className="md:col-span-4 bg-white dark:bg-slate-900 rounded-[2.5rem] p-6 border border-slate-100 dark:border-slate-800 relative overflow-hidden">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <p className="text-[10px] uppercase tracking-[0.2em] font-black text-primary inline-flex items-center gap-1.5">
@@ -1886,7 +1886,7 @@ const LandingPage = ({
             </div>
 
             {/* Bottom Feature 1 */}
-            <div className="md:col-span-4 bg-slate-50 dark:bg-slate-900 rounded-[2.5rem] p-8 flex flex-col justify-between border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all">
+            <div className="md:col-span-4 bg-slate-50 dark:bg-slate-900 rounded-[2.5rem] p-8 flex flex-col justify-between border border-slate-100 dark:border-slate-800 transition-all">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary inline-flex items-center gap-1.5">
@@ -2005,7 +2005,7 @@ const LandingPage = ({
             <div className="relative">
               <div className="sticky top-32">
                 <img src="https://picsum.photos/seed/logistics/800/1000" alt="Logistics" className="rounded-[3rem] shadow-2xl" referrerPolicy="no-referrer" />
-                <div className="absolute -bottom-10 -right-10 bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800 max-w-xs">
+                <div className="absolute -bottom-10 -right-10 bg-white dark:bg-slate-800 p-8 rounded-3xl border border-slate-100 dark:border-slate-800 max-w-xs">
                   <div className="flex items-center gap-4 mb-4">
                     <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center">
                       <CheckCircle2 className="text-emerald-500 w-6 h-6" />
@@ -2031,7 +2031,7 @@ const LandingPage = ({
                  initial={{ x: -100, opacity: 0 }}
                  whileInView={{ x: 0, opacity: 1 }}
                  transition={{ duration: 0.8 }}
-                 className="bg-slate-800 rounded-[2.5rem] p-4 shadow-2xl border border-slate-700"
+                 className="bg-slate-800 rounded-[2.5rem] p-4 border border-slate-700"
                >
                  <img src="https://picsum.photos/seed/dashboard/1000/800" alt="Dashboard" className="rounded-[2rem] shadow-2xl" referrerPolicy="no-referrer" />
                </motion.div>
@@ -2123,7 +2123,7 @@ const LandingPage = ({
               <div key={i} className={cn(
                 "p-10 rounded-[2.5rem] border flex flex-col justify-between transition-all",
                 plan.popular 
-                  ? "border-primary bg-primary text-white shadow-2xl shadow-primary/30 scale-105 z-10" 
+                  ? "border-primary bg-primary text-white scale-105 z-10" 
                   : "border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 hover:border-primary/50"
               )}>
                 <div>
@@ -2197,7 +2197,7 @@ const LandingPage = ({
 
       {/* Section 6: Final CTA */}
       <section className={cn("px-6", SECTION_PADDING)}>
-        <div className="max-w-7xl mx-auto bg-primary rounded-[3rem] p-12 md:p-24 text-center text-white relative overflow-hidden shadow-2xl shadow-primary/40">
+        <div className="max-w-7xl mx-auto bg-primary rounded-[3rem] p-12 md:p-24 text-center text-white relative overflow-hidden">
           <div className="relative z-10">
             <h2 className="text-4xl md:text-7xl font-display font-black mb-8">
               {u('landing.readyTo', 'READY TO')} <br /> {u('landing.startMoving', 'START MOVING?')}

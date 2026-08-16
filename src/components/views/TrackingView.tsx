@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Flatpickr from 'react-flatpickr';
-import { Search, MapPin, ChevronRight, Package as PackageIcon, Clock3, RotateCcw, Share2, Star, Bot, Route, Lock, Coins, Loader2, Sparkles, Truck, FileBarChart2, Upload, FileSpreadsheet, Fuel, BedDouble, ParkingCircle, Landmark, Filter, CalendarDays, ReceiptText, FileText, Printer, Trash2 } from 'lucide-react';
+import { Search, MapPin, ChevronRight, ChevronDown, Package as PackageIcon, Clock3, RotateCcw, Share2, Star, Bot, Route, Lock, Coins, Loader2, Sparkles, Truck, FileBarChart2, Upload, FileSpreadsheet, Fuel, BedDouble, ParkingCircle, Landmark, Filter, CalendarDays, ReceiptText, FileText, Printer, Trash2, List, LayoutGrid } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, CircleMarker, Tooltip } from 'react-leaflet';
 import { Language, Package as PackageData, Role, ShipmentDetail } from '../../types';
 import { api } from '../../services/api';
@@ -20,6 +20,7 @@ import { TrackingShipmentDetails } from '../tracking/TrackingShipmentDetails';
 type AmenityCategory = 'toll' | 'fuel' | 'rest' | 'parking';
 type TrackingFilterMode = 'all' | 'today' | 'calendar';
 type TrackingStatusFilter = PackageData['status'] | 'all';
+type TrackingLayoutMode = 'list' | 'grid';
 
 const TRACKING_FLOW: PackageData['status'][] = ['Posted', 'Opened', 'Sent', 'In delivery', 'Received', 'Finished'];
 const LOAD_STATUS_OPTIONS: Array<[string, PackageData['status']]> = [
@@ -46,6 +47,30 @@ const statusCardColors = (status: TrackingStatusFilter) => {
     case 'Pending': return 'border-orange-400 text-orange-600 dark:text-orange-300';
     case 'Cancelled': return 'border-rose-500 text-rose-600 dark:text-rose-300';
     default: return 'border-slate-400 text-slate-600 dark:text-slate-300';
+  }
+};
+
+const statusPickerColors = (status: PackageData['status']) => {
+  switch (status) {
+    case 'Opened': return 'border-cyan-400 bg-cyan-50 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-300';
+    case 'Sent': return 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300';
+    case 'In delivery': return 'border-amber-400 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300';
+    case 'Received': return 'border-violet-500 bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300';
+    case 'Finished': return 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300';
+    case 'Cancelled': return 'border-rose-500 bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300';
+    default: return 'border-slate-300 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200';
+  }
+};
+
+const statusBadgeColors = (status: PackageData['status']) => {
+  switch (status) {
+    case 'Opened': return 'bg-cyan-100 text-cyan-700 dark:bg-cyan-950/50 dark:text-cyan-300';
+    case 'Sent': return 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300';
+    case 'In delivery': return 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300';
+    case 'Received': return 'bg-violet-100 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300';
+    case 'Finished': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300';
+    case 'Cancelled': return 'bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300';
+    default: return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300';
   }
 };
 
@@ -180,11 +205,9 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
   const [selectedPackage, setSelectedPackage] = useState<PackageData>(emptyPackage);
   const [trackingDetailsOpen, setTrackingDetailsOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [carrierFilter, setCarrierFilter] = useState('');
-  const [originFilter, setOriginFilter] = useState('');
-  const [destinationFilter, setDestinationFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<TrackingStatusFilter>('all');
-  const [filtersOpen, setFiltersOpen] = useState(true);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [layout, setLayout] = useState<TrackingLayoutMode>('list');
   const [filterMode, setFilterMode] = useState<TrackingFilterMode>('all');
   const [rangeStart, setRangeStart] = useState(() => {
     const date = new Date();
@@ -205,6 +228,8 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
   const [statusChanging, setStatusChanging] = useState<PackageData['status'] | null>(null);
   const [savingDetailKey, setSavingDetailKey] = useState<string | null>(null);
   const [headerStatus, setHeaderStatus] = useState('');
+  const [headerStatusMenuOpen, setHeaderStatusMenuOpen] = useState(false);
+  const headerStatusMenuRef = useRef<HTMLDivElement>(null);
   const [mapFilters, setMapFilters] = useState<Record<AmenityCategory, boolean>>({
     toll: true,
     fuel: false,
@@ -219,9 +244,6 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
 
   const filteredPackages = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    const normalizedCarrier = carrierFilter.trim().toLowerCase();
-    const normalizedOrigin = originFilter.trim().toLowerCase();
-    const normalizedDestination = destinationFilter.trim().toLowerCase();
     const todayStart = startOfDay(new Date()).getTime();
     const todayEnd = endOfDay(new Date()).getTime();
 
@@ -229,11 +251,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
       const matchesQuery = `${pkg.trackingNumber} ${pkg.recipient || ''} ${pkg.carrier} ${pkg.origin} ${pkg.destination}`
         .toLowerCase()
         .includes(normalizedQuery);
-      const matchesFields = matchesQuery
-        && pkg.carrier.toLowerCase().includes(normalizedCarrier)
-        && pkg.origin.toLowerCase().includes(normalizedOrigin)
-        && pkg.destination.toLowerCase().includes(normalizedDestination)
-        && (statusFilter === 'all' || pkg.status === statusFilter);
+      const matchesFields = matchesQuery && (statusFilter === 'all' || pkg.status === statusFilter);
       if (!matchesFields || filterMode === 'all') return matchesFields;
 
       const activityDate = packageActivityDate(pkg);
@@ -244,7 +262,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
         ? timestamp >= todayStart && timestamp <= todayEnd
         : timestamp >= rangeStart.getTime() && timestamp <= rangeEnd.getTime();
     });
-  }, [carrierFilter, destinationFilter, filterMode, originFilter, packages, query, rangeEnd, rangeStart, statusFilter]);
+  }, [filterMode, packages, query, rangeEnd, rangeStart, statusFilter]);
 
   const statusCounts = useMemo(() => Object.fromEntries(
     ['all', ...TRACKING_STATUS_FILTERS].map((status) => [
@@ -264,7 +282,17 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
 
   useEffect(() => {
     setHeaderStatus(apiLoadStatus(selectedPackage.status));
+    setHeaderStatusMenuOpen(false);
   }, [selectedPackage.id, selectedPackage.status]);
+
+  useEffect(() => {
+    if (!headerStatusMenuOpen) return undefined;
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (!headerStatusMenuRef.current?.contains(event.target as Node)) setHeaderStatusMenuOpen(false);
+    };
+    document.addEventListener('mousedown', closeOnOutsideClick);
+    return () => document.removeEventListener('mousedown', closeOnOutsideClick);
+  }, [headerStatusMenuOpen]);
 
   useEffect(() => {
     setReturnRoutesUnlocked(false);
@@ -426,11 +454,11 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
   };
 
   const openInvoice = async (document: 'predracun' | 'a4-faktura') => {
-    if (!selectedPackage.shipmentId || invoiceLoading) return;
+    if (!selectedPackage.id || invoiceLoading) return;
     setInvoiceError('');
     setInvoiceLoading(document);
     try {
-      await api.shipmentInvoice(selectedPackage.shipmentId, document);
+      await api.loadInvoice(selectedPackage.id, document);
     } catch (error) {
       setInvoiceError(error instanceof Error ? error.message : u('tracking.invoiceError', 'The invoice could not be generated.'));
     } finally {
@@ -467,6 +495,14 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
     if (role !== 'superadmin' || !selectedPackage.id || savingDetailKey) return false;
 
     setSavingDetailKey(detail.key);
+    if (detail.input === 'date') {
+      console.log('[tracking-date] API save started', {
+        loadId: selectedPackage.id,
+        shipmentId: selectedPackage.shipmentId,
+        key: detail.key,
+        value,
+      });
+    }
     try {
       if (detail.key === 'status') {
         await api.loads.updateStatus(selectedPackage.id, String(value));
@@ -491,8 +527,24 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
         }
       } else if (detail.key === 'eta_at') {
         const deliveryStop = selectedPackage.stops?.find((item) => String(item.type) === 'delivery');
-        if (!deliveryStop?.id) throw new Error('Set the arrival location first.');
-        await api.loadStops.update(String(deliveryStop.id), { window_starts_at: value || null });
+        if (deliveryStop?.id) {
+          console.log('[tracking-date] endpoint selected', { key: detail.key, resource: 'load-stop', id: deliveryStop.id });
+          await api.loadStops.update(String(deliveryStop.id), { window_starts_at: value || null });
+        } else if (selectedPackage.shipmentId) {
+          console.log('[tracking-date] endpoint selected', { key: detail.key, resource: 'shipment', id: selectedPackage.shipmentId });
+          await api.shipments.update(selectedPackage.shipmentId, { estimated_delivery_at: value || null });
+        } else {
+          const destination = selectedPackage.destination.trim();
+          if (!destination || destination === '—') throw new Error('Set the arrival location first.');
+          await api.loadStops.create({
+            load_id: Number(selectedPackage.id),
+            type: 'delivery',
+            position: 2,
+            city: destination,
+            country_code: 'XX',
+            window_starts_at: value || null,
+          });
+        }
       } else {
         const normalizedValue = detail.input === 'number'
           ? (value === '' || value === null ? null : Number(value))
@@ -501,8 +553,23 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
       }
 
       await loadsResult.refresh();
+      if (detail.input === 'date') {
+        console.log('[tracking-date] API save and refresh succeeded', {
+          loadId: selectedPackage.id,
+          key: detail.key,
+          value,
+        });
+      }
       return true;
     } catch (error) {
+      if (detail.input === 'date') {
+        console.error('[tracking-date] API save failed', {
+          loadId: selectedPackage.id,
+          key: detail.key,
+          value,
+          error,
+        });
+      }
       void showError(
         u('tracking.detailUpdateFailed', 'Shipment detail could not be updated'),
         error instanceof Error ? error.message : undefined
@@ -525,7 +592,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
               key={status}
               onClick={() => setStatusFilter(status)}
               className={cn(
-                'min-h-20 cursor-pointer rounded-xl border bg-white px-3 py-3 text-center transition-all hover:-translate-y-0.5 hover:shadow-sm dark:bg-slate-900',
+                'min-h-20 cursor-pointer rounded-xl border bg-white px-3 py-3 text-center transition-all hover:-translate-y-0.5 dark:bg-slate-900',
                 statusCardColors(status),
                 statusFilter === status && 'ring-2 ring-current ring-offset-2 dark:ring-offset-slate-950'
               )}
@@ -538,15 +605,15 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
           ))}
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-slate-800">
             <h3 className="text-lg font-black text-slate-800 dark:text-white">{u('tracking.filters', 'Shipment filters')}</h3>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => setFiltersOpen((open) => !open)}
                 aria-expanded={filtersOpen}
-                className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-primary px-3 text-xs font-bold text-primary transition-colors hover:bg-primary/5"
+                className="flex h-11 cursor-pointer items-center gap-2 rounded-lg border border-primary px-3 text-xs font-bold text-primary transition-colors hover:bg-primary/5"
               >
                 <Filter className="h-4 w-4" />
                 {filtersOpen ? u('tracking.hideFilters', 'Hide filters') : u('tracking.showFilters', 'Show filters')}
@@ -557,19 +624,49 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
                   const start = new Date();
                   start.setMonth(start.getMonth() - 1);
                   setQuery('');
-                  setCarrierFilter('');
-                  setOriginFilter('');
-                  setDestinationFilter('');
                   setStatusFilter('all');
                   setFilterMode('all');
                   setRangeStart(startOfDay(start));
                   setRangeEnd(endOfDay(new Date()));
                 }}
-                className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-rose-400 px-3 text-xs font-bold text-rose-500 transition-colors hover:bg-rose-50 dark:hover:bg-rose-950/20"
+                className="flex h-11 cursor-pointer items-center gap-2 rounded-lg border border-rose-400 px-3 text-xs font-bold text-rose-500 transition-colors hover:bg-rose-50 dark:hover:bg-rose-950/20"
               >
                 <Trash2 className="h-4 w-4" />
                 {u('tracking.clearFilters', 'Clear filters')}
               </button>
+              <div className="relative block w-full sm:w-72">
+                <Search className="absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder={u('common.searchTracking', 'Search tracking number...')}
+                  className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                />
+              </div>
+              <div className="inline-flex h-11 items-center rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-800 dark:bg-slate-900">
+                {([
+                  ['list', List, u('home.layout.list', 'List')],
+                  ['grid', LayoutGrid, u('home.layout.grid', 'Grid')],
+                ] as const).map(([mode, Icon, label]) => (
+                  <button
+                    type="button"
+                    key={mode}
+                    onClick={() => setLayout(mode)}
+                    title={label}
+                    aria-label={label}
+                    aria-pressed={layout === mode}
+                    className={cn(
+                      'flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg transition-colors',
+                      layout === mode
+                        ? 'bg-primary text-white'
+                        : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -598,28 +695,6 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
                 ))}
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                {[
-                  { label: u('tracking.search', 'Tracking / consignee'), value: query, setValue: setQuery, placeholder: u('common.searchTracking', 'Search tracking number...') },
-                  { label: u('tracking.carrier', 'Carrier'), value: carrierFilter, setValue: setCarrierFilter, placeholder: u('tracking.carrier', 'Carrier') },
-                  { label: u('tracking.origin', 'Origin'), value: originFilter, setValue: setOriginFilter, placeholder: u('tracking.origin', 'Origin') },
-                  { label: u('tracking.destination', 'Destination'), value: destinationFilter, setValue: setDestinationFilter, placeholder: u('tracking.destination', 'Destination') },
-                ].map((field) => (
-                  <label key={field.label} className="block">
-                    <span className="mb-1.5 block text-xs font-bold text-slate-500">{field.label}</span>
-                    <span className="relative block">
-                      <Search className="absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                      <input
-                        type="text"
-                        value={field.value}
-                        onChange={(event) => field.setValue(event.target.value)}
-                        placeholder={field.placeholder}
-                        className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                      />
-                    </span>
-                  </label>
-                ))}
-              </div>
               {filterMode === 'calendar' && (
                 <div className="grid gap-4 md:grid-cols-2">
                   <label className="block">
@@ -653,7 +728,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
         </div>
 
         {(role === 'company' || role === 'driver') && (
-        <div className="mt-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-4 shadow-sm">
+        <div className="mt-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-4">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
@@ -698,7 +773,12 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
         </div>
         )}
 
-        <div className="mt-6 space-y-4">
+        <div className={cn(
+          'mt-6',
+          layout === 'list'
+            ? 'space-y-4'
+            : 'grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3'
+        )}>
           {filteredPackages.map(pkg => (
             <button 
               key={pkg.id}
@@ -707,17 +787,13 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
                 setRightTab('details');
                 setTrackingDetailsOpen(true);
               }}
-              className="w-full cursor-pointer rounded-2xl border border-transparent bg-white p-4 text-left transition-all hover:border-primary dark:bg-slate-900 dark:hover:border-primary"
+              className="h-full w-full cursor-pointer rounded-2xl border border-slate-200 bg-white p-4 text-left transition-all hover:border-primary dark:border-slate-800 dark:bg-slate-900 dark:hover:border-primary"
             >
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{pkg.carrier}</span>
                 <span className={cn(
                   "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase",
-                  pkg.status === 'Finished'
-                    ? "bg-emerald-100 text-emerald-600"
-                    : pkg.status === 'Cancelled'
-                      ? "bg-rose-100 text-rose-600"
-                      : "bg-blue-100 text-blue-600"
+                  statusBadgeColors(pkg.status)
                 )}>{trPackageStatus(lang, pkg.status)}</span>
               </div>
               <p className="font-bold dark:text-white">{pkg.recipient || '—'}</p>
@@ -739,7 +815,10 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
             </button>
           ))}
           {filteredPackages.length === 0 && (
-            <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-6 text-center text-sm text-slate-500">
+            <div className={cn(
+              'rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500 dark:border-slate-800',
+              layout === 'grid' && 'md:col-span-2 xl:col-span-3'
+            )}>
               {u('tracking.noPackagesFound', 'No tracking items found for this filter.')}
             </div>
           )}
@@ -750,38 +829,69 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
       <TrackingItemDetails
         open={trackingDetailsOpen && Boolean(selectedPackage.id)}
         onClose={() => setTrackingDetailsOpen(false)}
-        title={selectedPackage.recipient || selectedPackage.trackingNumber || 'Tracking item'}
-        subtitle={`${selectedPackage.origin} → ${selectedPackage.destination}`}
         headerAction={role === 'superadmin' ? (
-          <label className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 dark:border-slate-700 dark:bg-slate-900">
-            <span className="hidden text-[10px] font-black uppercase tracking-wider text-slate-400 sm:inline">Status</span>
-            <select
-              value={headerStatus}
+          <div ref={headerStatusMenuRef} className="relative">
+            <button
+              type="button"
               disabled={savingDetailKey !== null}
-              onChange={(event) => {
-                const nextStatus = event.target.value;
-                const previousStatus = headerStatus;
-                const statusDetail = selectedPackage.details?.find((detail) => detail.key === 'status');
-                setHeaderStatus(nextStatus);
-                if (!statusDetail) {
-                  setHeaderStatus(previousStatus);
-                  return;
-                }
-                void saveShipmentDetail(statusDetail, nextStatus).then((saved) => {
-                  if (!saved) setHeaderStatus(previousStatus);
-                });
-              }}
-              aria-label="Shipment status"
-              className="h-full cursor-pointer border-0 bg-transparent text-sm font-bold text-slate-800 outline-none disabled:cursor-wait disabled:opacity-60 dark:text-white"
+              onClick={() => setHeaderStatusMenuOpen((open) => !open)}
+              aria-haspopup="listbox"
+              aria-expanded={headerStatusMenuOpen}
+              className={cn(
+                'flex h-12 cursor-pointer items-center gap-3 rounded-xl border px-4 transition-colors disabled:cursor-wait disabled:opacity-60',
+                statusPickerColors(LOAD_STATUS_OPTIONS.find(([value]) => value === headerStatus)?.[1] || 'Pending')
+              )}
             >
-              {LOAD_STATUS_OPTIONS.map(([value, status]) => (
-                <option key={value} value={value}>{trPackageStatus(lang, status)}</option>
-              ))}
-            </select>
-          </label>
+              <span className="hidden text-[10px] font-black uppercase tracking-wider opacity-65 sm:inline">Status</span>
+              <span className="flex -translate-y-0.5 items-center gap-5">
+                <span className="text-sm font-bold leading-none">
+                  {trPackageStatus(lang, LOAD_STATUS_OPTIONS.find(([value]) => value === headerStatus)?.[1] || 'Pending')}
+                </span>
+                <ChevronDown className={cn('h-4 w-4 transition-transform', headerStatusMenuOpen && 'rotate-180')} />
+              </span>
+            </button>
+
+            {headerStatusMenuOpen && (
+              <div
+                role="listbox"
+                aria-label="Shipment status"
+                className="absolute inset-x-0 top-full z-60 mt-2 w-full space-y-2 rounded-xl border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900"
+              >
+                {LOAD_STATUS_OPTIONS.map(([value, status]) => (
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={headerStatus === value}
+                    key={value}
+                    onClick={() => {
+                      const previousStatus = headerStatus;
+                      const statusDetail = selectedPackage.details?.find((detail) => detail.key === 'status');
+                      setHeaderStatusMenuOpen(false);
+                      setHeaderStatus(value);
+                      if (!statusDetail) {
+                        setHeaderStatus(previousStatus);
+                        return;
+                      }
+                      void saveShipmentDetail(statusDetail, value).then((saved) => {
+                        if (!saved) setHeaderStatus(previousStatus);
+                      });
+                    }}
+                    className={cn(
+                      'flex w-full cursor-pointer items-center justify-between rounded-lg border px-3 py-2 text-left text-xs font-bold transition-transform hover:translate-x-0.5',
+                      statusPickerColors(status),
+                      headerStatus === value && 'ring-2 ring-current ring-offset-1 dark:ring-offset-slate-900'
+                    )}
+                  >
+                    <span>{trPackageStatus(lang, status)}</span>
+                    {headerStatus === value && <span className="h-2 w-2 rounded-full bg-current" />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         ) : undefined}
       >
-        <div className="mb-6 overflow-x-auto px-1 [scrollbar-width:thin] [scrollbar-color:rgb(148_163_184/0.72)_transparent] dark:[scrollbar-color:rgb(71_85_105/0.8)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-400/70 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600/80 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:bg-slate-500/90 dark:[&::-webkit-scrollbar-thumb:hover]:bg-slate-500/95">
+        <div className="overflow-x-auto [scrollbar-width:thin] [scrollbar-color:rgb(148_163_184/0.72)_transparent] dark:[scrollbar-color:rgb(71_85_105/0.8)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-400/70 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600/80 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:bg-slate-500/90 dark:[&::-webkit-scrollbar-thumb:hover]:bg-slate-500/95">
           <div className="inline-flex h-12 min-w-full w-max items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1">
           <button
             onClick={() => setRightTab('details')}
@@ -967,7 +1077,19 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
         )}
 
         {rightTab === 'details' && (
-          <Card title={u('tracking.shipmentDetails', 'Shipment details')}>
+          <Card title={(
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase tracking-wider text-primary">
+                {u('tracking.shipmentDetails', 'Shipment details')}
+              </p>
+              <h2 className="truncate text-xl font-black text-slate-900 dark:text-white md:text-2xl">
+                {selectedPackage.recipient || selectedPackage.trackingNumber || 'Tracking item'}
+              </h2>
+              <p className="mt-0.5 truncate text-xs font-normal text-slate-500">
+                {selectedPackage.origin} → {selectedPackage.destination}
+              </p>
+            </div>
+          )}>
             {role === 'superadmin' && (
               <p className="mb-3 text-xs text-slate-400">{u('tracking.clickEdit', 'Click any field to edit.')}</p>
             )}
@@ -1267,7 +1389,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
                   </div>
                   <p className="mt-4 font-bold text-slate-900 dark:text-white">{u('tracking.proformaInvoice', 'Pro forma invoice')}</p>
                   <p className="mt-1 text-xs text-slate-500">{u('tracking.proformaHelp', 'Open a pro forma invoice ready for PDF printing.')}</p>
-                  <Button className="mt-4 w-full gap-2" disabled={!selectedPackage.shipmentId || invoiceLoading !== null} onClick={() => openInvoice('predracun')}>
+                  <Button className="mt-4 w-full gap-2" disabled={!selectedPackage.id || invoiceLoading !== null} onClick={() => openInvoice('predracun')}>
                     {invoiceLoading === 'predracun' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
                     {u('tracking.openProforma', 'Open pro forma invoice')}
                   </Button>
@@ -1278,7 +1400,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
                   </div>
                   <p className="mt-4 font-bold text-slate-900 dark:text-white">{u('tracking.a4Invoice', 'A4 invoice')}</p>
                   <p className="mt-1 text-xs text-slate-500">{u('tracking.a4InvoiceHelp', 'Open the final A4 invoice with a PDF button in the header.')}</p>
-                  <Button variant="outline" className="mt-4 w-full gap-2" disabled={!selectedPackage.shipmentId || invoiceLoading !== null} onClick={() => openInvoice('a4-faktura')}>
+                  <Button variant="outline" className="mt-4 w-full gap-2" disabled={!selectedPackage.id || invoiceLoading !== null} onClick={() => openInvoice('a4-faktura')}>
                     {invoiceLoading === 'a4-faktura' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
                     {u('tracking.openA4Invoice', 'Open A4 invoice')}
                   </Button>

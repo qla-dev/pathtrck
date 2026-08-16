@@ -57,7 +57,7 @@ export const AiRouteCalculatorCard = ({
       : u('landing.smart', 'Smart');
 
   return (
-    <div className={cn('bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 md:p-10 border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all', className)}>
+    <div className={cn('bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 md:p-10 border border-slate-100 dark:border-slate-800 transition-all', className)}>
       <div className="flex flex-col xl:flex-row gap-6 xl:gap-8">
         <div className="flex-1 space-y-6">
           <div className="flex items-center justify-between gap-4">
@@ -179,7 +179,7 @@ export const AiRouteCalculatorCard = ({
           </div>
         </div>
 
-        <div className="xl:w-56 rounded-3xl bg-primary text-white p-6 flex flex-col justify-between shadow-xl shadow-primary/25">
+        <div className="xl:w-56 rounded-3xl bg-primary text-white p-6 flex flex-col justify-between">
           <div>
             <p className="text-[10px] uppercase tracking-[0.2em] font-black text-white/80 mb-2">{u('landing.aiConfidence', 'AI Confidence')}</p>
             <p className="text-4xl font-black mb-4">98%</p>

@@ -49,6 +49,8 @@ type CustomerSelectProps = {
   disabled?: boolean;
   required?: boolean;
   compact?: boolean;
+  autoOpen?: boolean;
+  onOutsideClose?: () => void;
 };
 
 export const CustomerSelect = ({
@@ -58,6 +60,8 @@ export const CustomerSelect = ({
   disabled = false,
   required = false,
   compact = false,
+  autoOpen = false,
+  onOutsideClose,
 }: CustomerSelectProps) => {
   const rootRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -75,6 +79,10 @@ export const CustomerSelect = ({
     width: 0,
     maxListHeight: 288,
   });
+
+  useEffect(() => {
+    if (autoOpen && !disabled) setOpen(true);
+  }, [autoOpen, disabled]);
 
   const updateMenuPosition = useCallback(() => {
     const rect = rootRef.current?.getBoundingClientRect();
@@ -134,11 +142,14 @@ export const CustomerSelect = ({
   useEffect(() => {
     const closeOnOutsideClick = (event: MouseEvent) => {
       const target = event.target as Node;
-      if (!rootRef.current?.contains(target) && !menuRef.current?.contains(target)) setOpen(false);
+      if (!rootRef.current?.contains(target) && !menuRef.current?.contains(target)) {
+        setOpen(false);
+        onOutsideClose?.();
+      }
     };
     document.addEventListener('mousedown', closeOnOutsideClick);
     return () => document.removeEventListener('mousedown', closeOnOutsideClick);
-  }, []);
+  }, [onOutsideClose]);
 
   useLayoutEffect(() => {
     if (!open) return undefined;

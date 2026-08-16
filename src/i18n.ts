@@ -1,4 +1,5 @@
 import { Language } from './types';
+import type { CustomLocale } from 'flatpickr/dist/types/locale';
 
 type Locale = Exclude<Language, null>;
 
@@ -4411,10 +4412,10 @@ for (const [locale, overrides] of Object.entries(SUPPLEMENTAL_UI)) {
 }
 
 const makeDatePicker = (
-  weekdaysShort: string[],
-  weekdaysLong: string[],
-  monthsShort: string[],
-  monthsLong: string[],
+  weekdaysShort: CustomLocale['weekdays']['shorthand'],
+  weekdaysLong: CustomLocale['weekdays']['longhand'],
+  monthsShort: CustomLocale['months']['shorthand'],
+  monthsLong: CustomLocale['months']['longhand'],
   rangeSeparator: string,
   weekAbbreviation: string,
   scrollTitle: string,
@@ -4429,18 +4430,7 @@ const makeDatePicker = (
   toggleTitle,
 });
 
-const DATE_PICKER_I18N: Record<
-  Locale,
-  {
-    weekdays: { shorthand: string[]; longhand: string[] };
-    months: { shorthand: string[]; longhand: string[] };
-    firstDayOfWeek: number;
-    rangeSeparator: string;
-    weekAbbreviation: string;
-    scrollTitle: string;
-    toggleTitle: string;
-  }
-> = {
+const DATE_PICKER_I18N: Record<Locale, CustomLocale> = {
   en: makeDatePicker(
     ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
     ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],

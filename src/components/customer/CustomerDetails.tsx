@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { motion } from "motion/react";
 import {
   BadgeCheck,
   Building2,
@@ -144,13 +145,21 @@ export const CustomerDetails = ({
   };
 
   return (
-    <div
+    <motion.div
       className="fixed inset-0 z-[240] bg-white dark:bg-slate-950"
       role="dialog"
       aria-modal="true"
       aria-labelledby="customer-details-title"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
     >
-      <div className="flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden">
+      <motion.div
+        className="flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden"
+        initial={{ opacity: 0, y: 24, scale: 0.992 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+      >
         <header className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-800 md:px-7">
           <div className="min-w-0">
             <p className="text-xs font-black uppercase tracking-wider text-primary">
@@ -368,7 +377,7 @@ export const CustomerDetails = ({
 
           </div>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };

@@ -159,6 +159,8 @@ export const api = {
   shipments: resourceApi<Record<string, unknown>>('shipments'),
   shipmentInvoice: (shipmentId: number | string, document: 'predracun' | 'a4-faktura') =>
     openDocument(`/shipments/${shipmentId}/invoice/${document}`),
+  loadInvoice: (loadId: number | string, document: 'predracun' | 'a4-faktura') =>
+    openDocument(`/loads/${loadId}/invoice/${document}`),
   routes: resourceApi<Record<string, unknown>>('routes'),
   trackingEvents: resourceApi<Record<string, unknown>>('tracking-events'),
   conversations: resourceApi<Record<string, unknown>>('conversations'),

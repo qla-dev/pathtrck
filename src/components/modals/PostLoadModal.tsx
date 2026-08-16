@@ -606,13 +606,19 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   };
 
   if (!isOpen) return null;
-  if (isLoadingExisting) return <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/70"><div className="rounded-2xl bg-white px-6 py-5 font-bold text-slate-700 shadow-2xl dark:bg-slate-900 dark:text-white">Loading load...</div></div>;
+  if (isLoadingExisting) return <motion.div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/70" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2, ease: 'easeOut' }}><motion.div className="rounded-2xl bg-white px-6 py-5 font-bold text-slate-700 shadow-2xl dark:bg-slate-900 dark:text-white" initial={{ opacity: 0, y: 24, scale: 0.992 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}>Loading load...</motion.div></motion.div>;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-stretch justify-center overflow-hidden bg-slate-950/70 backdrop-blur-sm">
+    <motion.div
+      className="fixed inset-0 z-[200] flex items-stretch justify-center overflow-hidden bg-slate-950/70 backdrop-blur-sm"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
+    >
       <motion.div
-        initial={{ opacity: 0, scale: 0.96, y: 12 }}
+        initial={{ opacity: 0, y: 24, scale: 0.992 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
         className="flex flex-col bg-white dark:bg-slate-900 shadow-2xl w-full h-[100dvh] overflow-hidden border-0 rounded-none"
       >
         <div className="sticky top-0 z-20 border-b border-slate-100 dark:border-slate-800 bg-white/96 dark:bg-slate-900/96 backdrop-blur-sm">
@@ -1608,6 +1614,6 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
           </div>
         </div>
       </motion.div>
-    </div>
+    </motion.div>
   );
 };

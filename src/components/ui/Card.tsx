@@ -5,7 +5,7 @@ type CardProps = {
   children: React.ReactNode;
   className?: string;
   contentClassName?: string;
-  title?: string;
+  title?: React.ReactNode;
   headerAction?: React.ReactNode;
 } & React.HTMLAttributes<HTMLDivElement>;
 
@@ -19,16 +19,16 @@ export const Card = ({
 }: CardProps) => (
   <div
     className={cn(
-      "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden",
+      "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden",
       className,
     )}
     {...props}
   >
     {title && (
       <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-        <h3 className="font-semibold text-slate-800 dark:text-slate-100">
+        <div className="font-semibold text-slate-800 dark:text-slate-100">
           {title}
-        </h3>
+        </div>
         {headerAction}
       </div>
     )}

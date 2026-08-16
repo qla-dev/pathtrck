@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Flatpickr from 'react-flatpickr';
 import { Pencil } from 'lucide-react';
 
@@ -16,6 +16,41 @@ type TrackingShipmentDetailsProps = {
   onSave: (detail: ShipmentDetail, value: string | number | null) => Promise<boolean>;
 };
 
+type ShipmentDatePickerProps = {
+  fieldKey: string;
+  value: string;
+  disabled: boolean;
+  lang: Language;
+  onChange: (value: string) => void;
+};
+
+const ShipmentDatePicker = ({ fieldKey, value, disabled, lang, onChange }: ShipmentDatePickerProps) => {
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  const options = useMemo(() => ({
+    dateFormat: 'Y-m-d',
+    altInput: true,
+    altInputClass: 'h-8 w-full min-w-0 cursor-pointer border-0 bg-transparent p-0 text-sm font-semibold text-slate-800 outline-none dark:text-slate-100',
+    altFormat: 'd.m.Y',
+    allowInput: true,
+    locale: flatpickrI18n(lang),
+    onChange: (_dates: Date[], dateStr: string) => {
+      console.log('[tracking-date] flatpickr changed', { key: fieldKey, dateStr });
+      onChangeRef.current(dateStr);
+    },
+  }), [fieldKey, lang]);
+
+  return (
+    <Flatpickr
+      value={value}
+      disabled={disabled}
+      options={options}
+      className="hidden"
+    />
+  );
+};
+
 export const TrackingShipmentDetails = ({ details, lang, role, consigneeRecord, savingKey, onSave }: TrackingShipmentDetailsProps) => {
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
@@ -29,11 +64,18 @@ export const TrackingShipmentDetails = ({ details, lang, role, consigneeRecord, 
   }, [details, editingKey]);
 
   useEffect(() => {
-    setDateValues(Object.fromEntries(
+    const nextDateValues = Object.fromEntries(
       details
         .filter((detail) => detail.input === 'date')
         .map((detail) => [detail.key, detail.rawValue ?? ''])
-    ));
+    );
+    setDateValues((current) => {
+      const currentKeys = Object.keys(current);
+      const nextKeys = Object.keys(nextDateValues);
+      const unchanged = currentKeys.length === nextKeys.length
+        && nextKeys.every((key) => current[key] === nextDateValues[key]);
+      return unchanged ? current : nextDateValues;
+    });
   }, [details]);
 
   const beginEdit = (detail: ShipmentDetail) => {
@@ -80,13 +122,21 @@ export const TrackingShipmentDetails = ({ details, lang, role, consigneeRecord, 
 
   const saveDate = async (detail: ShipmentDetail, value: string) => {
     const originalValue = detail.rawValue ?? '';
+    console.log('[tracking-date] save requested', {
+      key: detail.key,
+      originalValue,
+      nextValue: value,
+    });
     setDateValues((current) => ({ ...current, [detail.key]: value }));
     if (value === (detail.rawValue ?? '')) {
+      console.log('[tracking-date] save skipped: value unchanged', { key: detail.key, value });
       setEditingKey(null);
       setDraft('');
       return;
     }
-    if (!await save(detail, value)) {
+    const saved = await save(detail, value);
+    console.log('[tracking-date] save completed', { key: detail.key, value, saved });
+    if (!saved) {
       setDateValues((current) => ({ ...current, [detail.key]: originalValue }));
     }
   };
@@ -106,7 +156,7 @@ export const TrackingShipmentDetails = ({ details, lang, role, consigneeRecord, 
             title={canEdit && !editing ? 'Click to edit' : undefined}
             className={cn(
               'group h-16 min-w-0 rounded-xl border border-transparent p-2 transition-colors',
-              canEdit && !editing && 'cursor-text hover:border-primary/25 hover:bg-primary/[0.03]',
+              canEdit && !editing && 'cursor-pointer hover:border-primary/25 hover:bg-primary/[0.03]',
               editing && 'border-primary/30 bg-primary/[0.04]'
             )}
           >
@@ -117,18 +167,12 @@ export const TrackingShipmentDetails = ({ details, lang, role, consigneeRecord, 
 
             {detail.input === 'date' && canEdit ? (
               <div className="mt-1" onClick={(event) => event.stopPropagation()}>
-                <Flatpickr
+                <ShipmentDatePicker
+                  fieldKey={detail.key}
                   value={dateValues[detail.key] ?? detail.rawValue ?? ''}
                   disabled={Boolean(savingKey)}
-                  options={{
-                    dateFormat: 'Y-m-d',
-                    altInput: true,
-                    altFormat: 'd.m.Y',
-                    allowInput: true,
-                    locale: flatpickrI18n(lang),
-                  }}
-                  onChange={(_, dateStr) => void saveDate(detail, dateStr)}
-                  className="h-8 w-full min-w-0 cursor-pointer border-0 bg-transparent p-0 text-sm font-semibold text-slate-800 outline-none dark:text-slate-100"
+                  lang={lang}
+                  onChange={(nextValue) => void saveDate(detail, nextValue)}
                 />
               </div>
             ) : !editing ? (
@@ -143,6 +187,8 @@ export const TrackingShipmentDetails = ({ details, lang, role, consigneeRecord, 
                   disabled={saving}
                   placeholder="Select consignee"
                   compact
+                  autoOpen
+                  onOutsideClose={cancel}
                 />
               </div>
             ) : (

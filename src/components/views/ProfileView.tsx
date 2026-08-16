@@ -269,7 +269,7 @@ export const ProfileView = ({ role, lang }: { role: Role; lang: Language }) => {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-linear-to-br from-white to-sky-50 dark:from-slate-900 dark:to-slate-900/60 p-6 shadow-sm">
+      <section className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-linear-to-br from-white to-sky-50 dark:from-slate-900 dark:to-slate-900/60 p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-[0.2em] font-bold text-primary mb-2">
@@ -291,7 +291,7 @@ export const ProfileView = ({ role, lang }: { role: Role; lang: Language }) => {
           {content.stats.map((stat) => (
             <article
               key={stat.label}
-              className="relative overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/90 dark:bg-slate-900/80 p-5 shadow-sm"
+              className="relative overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/90 dark:bg-slate-900/80 p-5"
             >
               <div className="absolute -top-10 -right-10 h-24 w-24 rounded-full bg-primary/10 blur-2xl" />
               <div className="relative flex items-center justify-between">
@@ -307,7 +307,7 @@ export const ProfileView = ({ role, lang }: { role: Role; lang: Language }) => {
             </article>
           ))}
           {showTopReviewActions && (
-            <article className="rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 p-5 shadow-lg shadow-slate-200/60 dark:shadow-[0_16px_50px_rgba(2,6,23,0.55)]">
+            <article className="rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 p-5">
               <p className="text-xs uppercase tracking-[0.2em] font-bold text-primary mb-3">
                 {u('legacy.profile.review-actions.title', 'Review Actions')}
               </p>
@@ -477,7 +477,7 @@ export const ProfileView = ({ role, lang }: { role: Role; lang: Language }) => {
             </div>
           ) : (
             <div className="lg:col-span-3">
-              <div className="rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 p-5 shadow-lg shadow-slate-200/60 dark:shadow-[0_16px_50px_rgba(2,6,23,0.55)]">
+              <div className="rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 p-5">
                 <p className="text-xs uppercase tracking-[0.2em] font-bold text-primary mb-3">
                   {u('legacy.profile.review-actions.title', 'Review Actions')}
                 </p>
