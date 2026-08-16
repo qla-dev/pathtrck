@@ -77,6 +77,7 @@ export interface Load {
   goodsType: string;
   paymentTerms: 'In Advance' | 'Negotiable' | 'On Delivery';
   eta: string;
+  transportType?: 'road' | 'air' | 'sea';
 }
 
 export interface RouteLog {

@@ -3171,6 +3171,7 @@ const mapDatabaseRecordToLoad = (record: Record<string, unknown>): Load => {
     cargoType: String(record.cargo_type || ''),
     goodsType: String(record.goods_type || ''),
     paymentTerms: terms === 'in_advance' ? 'In Advance' : terms === 'on_delivery' ? 'On Delivery' : 'Negotiable',
+    transportType: record.transport_type === 'air' ? 'air' : record.transport_type === 'sea' ? 'sea' : 'road',
     eta: String(record.completed_at || ''),
   };
 };

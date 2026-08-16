@@ -1,4 +1,4 @@
-import { ArrowRight, ChevronRight, Scale, Truck } from 'lucide-react';
+import { ArrowRight, ChevronRight, Plane, Scale, Ship, Truck } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
 import { trGoodsType, trPaymentTerms } from '../../i18n';
@@ -50,6 +50,7 @@ export const LoadItem = ({
         ? 'bg-sky-500/10 text-sky-500 border-sky-500/30'
         : 'bg-blue-500/10 text-blue-500 border-blue-500/30';
   const isInteractive = hideSource ? Boolean(onOpenSetup) : Boolean(onOpenDetails);
+  const TransportIcon = load.transportType === 'air' ? Plane : load.transportType === 'sea' ? Ship : Truck;
 
   const handleCardClick = () => {
     if (hideSource) {
@@ -72,7 +73,7 @@ export const LoadItem = ({
       <div className="flex min-w-0 items-start justify-between gap-2 sm:gap-4">
         <div className="flex min-w-0 gap-2 sm:gap-4">
           <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-            <Truck className="text-slate-500 group-hover:text-primary transition-colors" />
+            <TransportIcon className="text-slate-500 group-hover:text-primary transition-colors" />
           </div>
           <div className="min-w-0">
             <h3 className="truncate font-bold text-sm min-[400px]:text-base sm:text-lg dark:text-white">{load.title}</h3>

@@ -78,18 +78,24 @@ type LoadDraft = {
   volumeM3: string;
   declaredValue: string;
   additionalInfo: string;
-  loadingEquipmentExchange: 'No' | 'Yes' | 'Not specified';
+  loadingEquipment: string;
   vehicleType: string;
   bodyTypes: string[];
   characteristics: string;
+  specialRequirements: string[];
+  transportMode: string;
+  deliveryProof: string;
   mustBeTrackable: boolean;
-  paymentTerms: 'Negotiable' | 'In Advance' | 'On Delivery';
+  paymentDeferred: boolean;
   incoterm: string;
   budget: string;
   freightCurrency: string;
+  shipmentValueCurrency: string;
   paymentDueDays: string;
   receivePriceProposals: boolean;
-  temperature: string;
+  temperatureControlled: boolean;
+  temperatureMin: string;
+  temperatureMax: string;
   requiresAdr: boolean;
   requiresTailLift: boolean;
   urgent: boolean;
@@ -149,18 +155,24 @@ const INITIAL_DRAFT: LoadDraft = {
   volumeM3: '',
   declaredValue: '',
   additionalInfo: '',
-  loadingEquipmentExchange: 'Not specified',
+  loadingEquipment: 'Not specified',
   vehicleType: 'Box Truck',
   bodyTypes: ['Curtain'],
   characteristics: '',
+  specialRequirements: [],
+  transportMode: 'Airport to airport',
+  deliveryProof: '',
   mustBeTrackable: false,
-  paymentTerms: 'Negotiable',
+  paymentDeferred: false,
   incoterm: '',
   budget: '',
   freightCurrency: 'EUR',
+  shipmentValueCurrency: 'EUR',
   paymentDueDays: '',
   receivePriceProposals: true,
-  temperature: '',
+  temperatureControlled: false,
+  temperatureMin: '',
+  temperatureMax: '',
   requiresAdr: false,
   requiresTailLift: false,
   urgent: false,
@@ -212,9 +224,12 @@ const STEPS: Array<{ id: StepId; icon: typeof MapPin }> = [
 ];
 
 const INCOTERM_OPTIONS = ['EXW', 'FCA', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP', 'FAS', 'FOB', 'CFR', 'CIF'];
-const VEHICLE_OPTIONS = ['Cargo Van', 'Box Truck', 'Curtainsider', 'Reefer', 'Trailer', 'Rigid Truck'];
+const VEHICLE_OPTIONS = ['Cargo Van', 'Box Truck', 'Curtainsider', 'Reefer', 'Trailer', 'Rigid Truck', 'Container truck'];
 const BODY_TYPE_OPTIONS = ['Curtain', 'Box', 'Reefer', 'Mega', 'Tautliner', 'Flatbed'];
-const CHARACTERISTIC_OPTIONS = ['ADR', 'CMR', 'GDP', 'TIR', 'Lift', 'Express'];
+const ROAD_CHARACTERISTIC_OPTIONS = ['ADR', 'CMR', 'GDP', 'TIR', 'Lift', 'Express'];
+const AIR_CHARACTERISTIC_OPTIONS = ['Non-DG', 'DG', 'TCG (temperature controlled goods)', 'MED (medicine)', 'VAL (money and other valuables)'];
+const LOADING_EQUIPMENT_OPTIONS = ['Vehicle with ramp', 'Vehicle without ramp', 'Forklift: Yes', 'Forklift: No', 'Other loading/unloading equipment', 'Not specified'];
+const AIR_SPECIAL_REQUIREMENT_OPTIONS = ['AWB required', 'Tail lift needed', 'Express onboard courier', 'Time-critical door to door'];
 const CONTACT_OPTIONS = ['Current user', 'Operations desk', 'Dispatch team'];
 const CLOSED_EXCHANGE_OPTIONS = ['', 'TIMOCOM', 'Private board'];
 
@@ -442,13 +457,14 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       const consignee = record.consignee && typeof record.consignee === 'object'
         ? customerOptionFromRecord(record.consignee as Record<string, unknown>)
         : null;
-      const terms = String(record.payment_terms || 'negotiable');
+      const terms = String(record.payment_terms || '');
       setDraft({ ...INITIAL_DRAFT,
         consignee,
         transportType: (record.transport_type as TransportType) || 'road',
         pickupPlaceType: String(pickup.place_type || INITIAL_DRAFT.pickupPlaceType), pickupCity: String(pickup.city || ''), pickupCountry: String(pickup.country_code || 'BA'), pickupAddress: String(pickup.address || ''), pickupLatitude: String(pickup.latitude || ''), pickupLongitude: String(pickup.longitude || ''), pickupDate: pickupStart.date, pickupDateTo: pickupEnd.date, pickupTimeFrom: pickupStart.time, pickupTimeTo: pickupEnd.time,
         deliveryPlaceType: String(delivery.place_type || INITIAL_DRAFT.deliveryPlaceType), deliveryCity: String(delivery.city || ''), deliveryCountry: String(delivery.country_code || 'BA'), deliveryAddress: String(delivery.address || ''), deliveryLatitude: String(delivery.latitude || ''), deliveryLongitude: String(delivery.longitude || ''), deliveryDate: deliveryStart.date, deliveryDateTo: deliveryEnd.date, deliveryTimeFrom: deliveryStart.time, deliveryTimeTo: deliveryEnd.time,
-        cargoTitle: String(record.title || ''), cargoType: String(record.cargo_type || 'FTL'), goodsType: String(record.goods_type || 'General'), weightKg: fromApiWeightKg(record.weight_kg), pallets: String(record.pallets || ''), lengthM: String(record.length_m || ''), widthM: String(record.width_m || ''), heightM: String(record.height_m || ''), volumeM3: String(record.volume_m3 || ''), declaredValue: String(record.declared_value || ''), budget: String(record.budget || ''), freightCurrency: String(record.currency || 'EUR'), paymentDueDays: String(record.payment_due_days || ''), paymentTerms: terms === 'in_advance' ? 'In Advance' : terms === 'on_delivery' ? 'On Delivery' : 'Negotiable', incoterm: String(record.incoterms || ''),
+        cargoTitle: String(record.title || ''), cargoType: String(record.cargo_type || 'FTL'), goodsType: String(record.goods_type || 'General'), weightKg: fromApiWeightKg(record.weight_kg), pallets: String(record.pallets || ''), lengthM: String(record.length_m || ''), widthM: String(record.width_m || ''), heightM: String(record.height_m || ''), volumeM3: String(record.volume_m3 || ''), declaredValue: String(record.declared_value || ''), budget: String(record.budget || ''), freightCurrency: String(record.currency || 'EUR'), shipmentValueCurrency: String(record.shipment_value_currency || record.currency || 'EUR'), paymentDueDays: String(record.payment_due_days || ''), paymentDeferred: terms === 'deferred', incoterm: String(record.incoterms || ''),
+        loadingEquipment: Array.isArray(record.loading_methods) ? String(record.loading_methods[0] || 'Not specified') : 'Not specified', vehicleType: String(record.vehicle_type || INITIAL_DRAFT.vehicleType), characteristics: String(record.characteristics || ''), specialRequirements: Array.isArray(record.special_requirements) ? record.special_requirements.map(String) : [], transportMode: String(record.transport_mode || INITIAL_DRAFT.transportMode), deliveryProof: String(record.delivery_proof || ''), temperatureControlled: record.temperature_min != null || record.temperature_max != null, temperatureMin: String(record.temperature_min ?? ''), temperatureMax: String(record.temperature_max ?? ''),
         requiresAdr: Boolean(record.requires_adr), requiresTailLift: Boolean(record.requires_tail_lift), mustBeTrackable: Boolean(record.must_be_trackable), urgent: Boolean(record.is_urgent), bodyTypes: Array.isArray(record.body_types) ? record.body_types.map(String) : [], notes: String(record.notes || ''), internalComments: String(record.internal_comments || ''), externalComments: String(record.external_comments || ''), contactName: String(contact.name || ''), contactPhone: String(contact.phone || ''), contactMobile: String(contact.mobile || ''), contactEmail: String(contact.email || ''), contactFax: String(contact.fax || ''),
       });
     }).catch((error) => setSubmitError(error instanceof Error ? error.message : 'The load could not be loaded.')).finally(() => setIsLoadingExisting(false));
@@ -507,6 +523,15 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     }));
   };
 
+  const toggleSpecialRequirement = (value: string) => {
+    setDraft((prev) => ({
+      ...prev,
+      specialRequirements: prev.specialRequirements.includes(value)
+        ? prev.specialRequirements.filter((item) => item !== value)
+        : [...prev.specialRequirements, value],
+    }));
+  };
+
   const goNext = () => {
     if (!canProceed) return;
     const next = STEPS[stepIndex + 1];
@@ -548,11 +573,20 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         volume_m3: draft.volumeM3 ? Number(draft.volumeM3) : null,
         pallets: draft.pallets ? Number(draft.pallets) : null,
         declared_value: draft.declaredValue ? Number(draft.declaredValue) : null,
+        shipment_value_currency: draft.shipmentValueCurrency,
         budget: draft.budget ? Number(draft.budget) : null,
         currency: draft.freightCurrency,
-        payment_terms: draft.paymentTerms.toLowerCase().replaceAll(' ', '_'),
+        payment_terms: draft.paymentDeferred ? 'deferred' : 'on_delivery',
         incoterms: draft.incoterm || null,
-        payment_due_days: draft.paymentDueDays ? Number(draft.paymentDueDays) : null,
+        payment_due_days: draft.paymentDeferred && draft.paymentDueDays ? Number(draft.paymentDueDays) : null,
+        temperature_min: draft.temperatureControlled && draft.temperatureMin ? Number(draft.temperatureMin) : null,
+        temperature_max: draft.temperatureControlled && draft.temperatureMax ? Number(draft.temperatureMax) : null,
+        loading_methods: [draft.loadingEquipment],
+        vehicle_type: draft.transportType === 'road' ? draft.vehicleType : null,
+        transport_mode: draft.transportType === 'air' ? draft.transportMode : null,
+        special_requirements: draft.transportType === 'air' ? draft.specialRequirements : [],
+        characteristics: draft.characteristics || null,
+        delivery_proof: draft.transportType === 'air' ? draft.deliveryProof || null : null,
         requires_adr: draft.requiresAdr,
         requires_tail_lift: draft.requiresTailLift,
         must_be_trackable: draft.mustBeTrackable,
@@ -682,7 +716,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
               </div>
               <div className="flex items-center gap-2 text-xs whitespace-nowrap">
                 <ThermometerSnowflake className="w-4 h-4" />
-                <span>{draft.temperature || u('postLoadModal.ambient', 'Ambient')}</span>
+                <span>{draft.temperatureControlled ? `${draft.temperatureMin || '—'}°C to ${draft.temperatureMax || '—'}°C` : u('postLoadModal.ambient', 'Ambient')}</span>
               </div>
             </div>
             <button
@@ -718,7 +752,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
               </div>
               <div className="hidden md:flex items-center gap-2 text-xs">
                 <ThermometerSnowflake className="w-4 h-4" />
-                <span>{draft.temperature || u('postLoadModal.ambient', 'Ambient')}</span>
+                <span>{draft.temperatureControlled ? `${draft.temperatureMin || '—'}°C to ${draft.temperatureMax || '—'}°C` : u('postLoadModal.ambient', 'Ambient')}</span>
               </div>
             </div>
           </div>
@@ -852,7 +886,11 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                               name="transportType"
                               value={option.id}
                               checked={draft.transportType === option.id}
-                              onChange={() => setField('transportType', option.id)}
+                              onChange={() => setDraft((prev) => ({
+                                ...prev,
+                                transportType: option.id,
+                                cargoType: option.id === 'air' ? 'Standard' : prev.cargoType === 'Standard' ? 'FTL' : prev.cargoType,
+                              }))}
                               className="peer sr-only"
                             />
                             <span aria-hidden="true" className="absolute right-4 top-4 flex h-4 w-4 items-center justify-center rounded-full border-2 border-slate-300 bg-white peer-checked:border-primary dark:border-slate-600 dark:bg-slate-900">
@@ -906,6 +944,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             <option value="Loading place">{u('postLoadModal.loadingPlace', 'Loading place')}</option>
                             <option value="Warehouse">{u('postLoadModal.warehouse', 'Warehouse')}</option>
                             <option value="Terminal">{u('postLoadModal.terminal', 'Terminal')}</option>
+                            {draft.transportType === 'air' && <option value="AOL / Airport of loading">AOL / Airport of loading</option>}
+                            {draft.transportType === 'air' && <option value="Address">{u('postLoadModal.address', 'Address')}</option>}
                           </Select>
                         </div>
                       </div>
@@ -999,6 +1039,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             <option value="Unloading place">{u('postLoadModal.unloadingPlace', 'Unloading place')}</option>
                             <option value="Warehouse">{u('postLoadModal.warehouse', 'Warehouse')}</option>
                             <option value="Terminal">{u('postLoadModal.terminal', 'Terminal')}</option>
+                            {draft.transportType === 'air' && <option value="Address">{u('postLoadModal.address', 'Address')}</option>}
                           </Select>
                         </div>
                       </div>
@@ -1122,10 +1163,22 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             value={draft.cargoType}
                             onChange={(e) => setField('cargoType', e.target.value)}
                           >
-                            <option value="FTL">FTL</option>
-                            <option value="LTL">LTL</option>
-                            <option value="Express">{u('postLoadModal.express', 'Express')}</option>
-                            <option value="Dedicated">{u('postLoadModal.dedicated', 'Dedicated')}</option>
+                            {draft.transportType === 'air' ? (
+                              <>
+                                <option value="Standard">Standard</option>
+                                <option value="Express">Express</option>
+                                <option value="Priority">Priority</option>
+                                <option value="Economy">Economy</option>
+                                <option value="Charter">Charter</option>
+                              </>
+                            ) : (
+                              <>
+                                <option value="FTL">FTL</option>
+                                <option value="LTL">LTL</option>
+                                <option value="Express">{u('postLoadModal.express', 'Express')}</option>
+                                <option value="Dedicated">{u('postLoadModal.dedicated', 'Dedicated')}</option>
+                              </>
+                            )}
                           </Select>
                         </div>
                       </div>
@@ -1153,15 +1206,13 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <FieldLabel>{u('postLoadModal.declaredValue', 'Cargo value')}</FieldLabel>
-                          <Input
-                            type="number"
-                            step="100"
-                            min="0"
-                            value={draft.declaredValue}
-                            onChange={(e) => setField('declaredValue', e.target.value)}
-                            placeholder="50000"
-                          />
+                          <FieldLabel>{u('postLoadModal.declaredValue', 'Value of shipment')}</FieldLabel>
+                          <div className="grid grid-cols-[minmax(0,1fr)_90px] gap-2">
+                            <Input type="number" step="100" min="0" value={draft.declaredValue} onChange={(e) => setField('declaredValue', e.target.value)} placeholder="50000" />
+                            <Select value={draft.shipmentValueCurrency} onChange={(e) => setField('shipmentValueCurrency', e.target.value)}>
+                              <option value="EUR">EUR</option><option value="BAM">BAM</option><option value="USD">USD</option>
+                            </Select>
+                          </div>
                         </div>
                       </div>
                       <div className="grid sm:grid-cols-2 gap-4">
@@ -1171,32 +1222,22 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             <option value="">{u('postLoadModal.pleaseSelect', 'Please select')}</option>
                             <option value="Stackable">{u('postLoadModal.stackable', 'Stackable')}</option>
                             <option value="Top load only">{u('postLoadModal.topLoadOnly', 'Top load only')}</option>
-                            <option value="Do not double stack">{u('postLoadModal.noDoubleStack', 'Do not double stack')}</option>
+                            <option value="Non-stackable">{u('postLoadModal.nonStackable', 'Non-stackable')}</option>
                           </Select>
                         </div>
                         <div className="space-y-1.5">
-                          <FieldLabel>{u('postLoadModal.loadingEquipmentExchange', 'Loading equipment exchange')}</FieldLabel>
-                          <div className="flex h-[54px] items-center gap-5 rounded-xl border border-slate-200 bg-slate-50 px-4 dark:border-slate-800 dark:bg-slate-950">
-                            {(['No', 'Yes', 'Not specified'] as const).map((option) => (
-                              <label key={option} className="flex items-center gap-2 text-sm dark:text-white">
-                                <input
-                                  type="radio"
-                                  name="loadingEquipmentExchange"
-                                  checked={draft.loadingEquipmentExchange === option}
-                                  onChange={() => setField('loadingEquipmentExchange', option)}
-                                />
-                                <span>{u(`postLoadModal.loadingEquipment.${option}`, option)}</span>
-                              </label>
-                            ))}
-                          </div>
+                          <FieldLabel>{u('postLoadModal.loadingEquipment', 'Loading equipment')}</FieldLabel>
+                          <Select value={draft.loadingEquipment} onChange={(e) => setField('loadingEquipment', e.target.value)}>
+                            {LOADING_EQUIPMENT_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                          </Select>
                         </div>
                       </div>
                     </div>
 
                     <div className="space-y-4 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
-                      <div className="grid sm:grid-cols-[minmax(0,1fr)_120px_120px] gap-4">
+                      <div className="grid sm:grid-cols-[minmax(0,1fr)_120px] gap-4">
                         <div className="space-y-1.5">
-                          <FieldLabel>{u('postLoadModal.payment', 'Freight charge')}</FieldLabel>
+                          <FieldLabel>{u('postLoadModal.targetPrice', 'Your expected target price')}</FieldLabel>
                           <Input
                             value={draft.budget}
                             onChange={(e) => setField('budget', e.target.value)}
@@ -1211,15 +1252,13 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             <option value="USD">USD</option>
                           </Select>
                         </div>
-                        <div className="space-y-1.5">
-                          <FieldLabel>{u('postLoadModal.paymentDueDays', 'Payment due')}</FieldLabel>
-                          <Input
-                            type="number"
-                            value={draft.paymentDueDays}
-                            onChange={(e) => setField('paymentDueDays', e.target.value)}
-                            placeholder="30"
-                          />
+                      </div>
+                      <div className="space-y-2">
+                        <FieldLabel>{u('postLoadModal.deferredPayment', 'Deferred payment')}</FieldLabel>
+                        <div className="flex items-center gap-5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-950">
+                          {[false, true].map((option) => <label key={String(option)} className="flex items-center gap-2 text-sm dark:text-white"><input type="radio" name="paymentDeferred" checked={draft.paymentDeferred === option} onChange={() => setField('paymentDeferred', option)} /><span>{option ? u('common.yes', 'Yes') : u('common.no', 'No')}</span></label>)}
                         </div>
+                        {draft.paymentDeferred && <Input type="number" min="1" value={draft.paymentDueDays} onChange={(e) => setField('paymentDueDays', e.target.value)} placeholder={u('postLoadModal.paymentDueDays', 'Number of days')} />}
                       </div>
                       <div className="space-y-1.5">
                         <FieldLabel>{u('postLoadModal.incoterm', 'Incoterm')}</FieldLabel>
@@ -1284,47 +1323,24 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
 
                   <div className="grid lg:grid-cols-2 gap-4 sm:gap-5">
                     <div className="space-y-5 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
-                      <div className="grid sm:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <FieldLabel>{u('postLoadModal.vehicleType', 'Required vehicle')}</FieldLabel>
-                          <Select value={draft.vehicleType} onChange={(e) => setField('vehicleType', e.target.value)}>
-                            {VEHICLE_OPTIONS.map((option) => (
-                              <option key={option} value={option}>
-                                {u(`postLoadModal.vehicle.${option}`, option)}
-                              </option>
-                            ))}
-                          </Select>
+                      {draft.transportType === 'air' ? (
+                        <div className="space-y-4">
+                          <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.transportMode', 'Transport mode')}</FieldLabel><Select value={draft.transportMode} onChange={(e) => setField('transportMode', e.target.value)}><option value="Airport to airport">Airport to airport</option><option value="Air freight + last-mile delivery">Air freight + last-mile delivery</option></Select></div>
+                          <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.specialRequirements', 'Special requirements')}</FieldLabel><div className="min-h-[54px] rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950"><div className="flex flex-wrap gap-2">{AIR_SPECIAL_REQUIREMENT_OPTIONS.map((option) => <button key={option} type="button" onClick={() => toggleSpecialRequirement(option)} className={cn('rounded-full border px-3 py-1.5 text-xs font-bold transition-colors', draft.specialRequirements.includes(option) ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200')}>{option}</button>)}</div></div></div>
                         </div>
-                        <div className="space-y-1.5">
-                          <FieldLabel>{u('postLoadModal.bodyTypes', 'Body types')}</FieldLabel>
-                          <div className="min-h-[54px] rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950">
-                            <div className="flex flex-wrap gap-2">
-                              {BODY_TYPE_OPTIONS.map((option) => (
-                                <button
-                                  key={option}
-                                  type="button"
-                                  onClick={() => toggleBodyType(option)}
-                                  className={cn(
-                                    'rounded-full border px-3 py-1.5 text-xs font-bold transition-colors',
-                                    draft.bodyTypes.includes(option)
-                                      ? 'border-primary bg-primary text-white'
-                                      : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
-                                  )}
-                                >
-                                  {option}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
+                      ) : (
+                        <div className="grid sm:grid-cols-2 gap-4">
+                          <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.vehicleType', 'Required vehicle')}</FieldLabel><Select value={draft.vehicleType} onChange={(e) => setField('vehicleType', e.target.value)}>{VEHICLE_OPTIONS.map((option) => <option key={option} value={option}>{u(`postLoadModal.vehicle.${option}`, option)}</option>)}</Select></div>
+                          <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.bodyTypes', 'Body types')}</FieldLabel><div className="min-h-[54px] rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950"><div className="flex flex-wrap gap-2">{BODY_TYPE_OPTIONS.map((option) => <button key={option} type="button" onClick={() => toggleBodyType(option)} className={cn('rounded-full border px-3 py-1.5 text-xs font-bold transition-colors', draft.bodyTypes.includes(option) ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200')}>{option}</button>)}</div></div></div>
                         </div>
-                      </div>
+                      )}
 
                       <div className="grid sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                           <FieldLabel>{u('postLoadModal.characteristics', 'Characteristics & certificates')}</FieldLabel>
                           <Select value={draft.characteristics} onChange={(e) => setField('characteristics', e.target.value)}>
                             <option value="">{u('postLoadModal.pleaseSelect', 'Please select')}</option>
-                            {CHARACTERISTIC_OPTIONS.map((option) => (
+                            {(draft.transportType === 'air' ? AIR_CHARACTERISTIC_OPTIONS : ROAD_CHARACTERISTIC_OPTIONS).map((option) => (
                               <option key={option} value={option}>
                                 {option}
                               </option>
@@ -1332,14 +1348,22 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           </Select>
                         </div>
                         <div className="space-y-1.5">
-                          <FieldLabel>{u('postLoadModal.temperature', 'Temperature / special range')}</FieldLabel>
+                          <FieldLabel>{u('postLoadModal.temperature', 'Temperature controlled')}</FieldLabel>
+                          <div className="flex items-center gap-5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-950">
+                            {[false, true].map((option) => <label key={String(option)} className="flex items-center gap-2 text-sm dark:text-white"><input type="radio" name="temperatureControlled" checked={draft.temperatureControlled === option} onChange={() => setField('temperatureControlled', option)} /><span>{option ? u('common.yes', 'Yes') : u('common.no', 'No')}</span></label>)}
+                          </div>
                           <Input
-                            value={draft.temperature}
-                            onChange={(e) => setField('temperature', e.target.value)}
+                            value={draft.temperatureMin}
+                            onChange={(e) => setField('temperatureMin', e.target.value)}
+                            className={cn(!draft.temperatureControlled && 'hidden')}
                             placeholder={u('postLoadModal.temperaturePlaceholder', '2°C to 8°C / Ambient')}
                           />
                         </div>
                       </div>
+
+                      {draft.temperatureControlled && <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.temperatureMax', 'To (°C)')}</FieldLabel><Input type="number" value={draft.temperatureMax} onChange={(e) => setField('temperatureMax', e.target.value)} placeholder="8" /></div>}
+
+                      {draft.transportType === 'air' && <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.deliveryProof', 'Delivery proof')}</FieldLabel><Select value={draft.deliveryProof} onChange={(e) => setField('deliveryProof', e.target.value)}><option value="">{u('postLoadModal.pleaseSelect', 'Please select')}</option><option value="POD">POD (Proof of Delivery)</option><option value="AOD">AOD</option></Select></div>}
 
                       <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm dark:border-slate-800 dark:bg-slate-950 dark:text-white">
                         <input
