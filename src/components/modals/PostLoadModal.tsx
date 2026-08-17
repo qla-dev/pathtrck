@@ -14,6 +14,7 @@ import {
   Route,
   ShieldCheck,
   Ship,
+  Sparkles,
   ThermometerSnowflake,
   Truck,
   UserRound,
@@ -24,10 +25,11 @@ import { flatpickrI18n, ui } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { confirmAction, showSuccess } from '../../lib/swal';
 import { Button } from '../ui/Button';
-import { api, ApiError } from '../../services/api';
+import { api, ApiError, LoadScanResult } from '../../services/api';
 import { CustomerSelect, customerOptionFromRecord, type CustomerOption } from '../customer/CustomerSelect';
 import { AddressMapModal } from '../maps/AddressMapModal';
 import { CountrySelect } from '../location/CountrySelect';
+import { DocumentDropzone } from './DocumentDropzone';
 
 type PostLoadModalProps = {
   isOpen: boolean;
@@ -470,13 +472,34 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   const [isLoadingExisting, setIsLoadingExisting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [addressMap, setAddressMap] = useState<'pickup' | 'delivery' | null>(null);
+  const [dropzoneOpen, setDropzoneOpen] = useState(false);
+  const [scannedDocument, setScannedDocument] = useState<string | null>(null);
   useEffect(() => {
     if (!isOpen) {
       setStep('general');
       setDraft(INITIAL_DRAFT);
       setSubmitError('');
+      setScannedDocument(null);
     }
   }, [isOpen]);
+
+  const applyScanResult = (result: LoadScanResult, imageDataUrl: string) => {
+    setDraft((prev) => ({
+      ...prev,
+      cargoTitle: result.title || prev.cargoTitle,
+      goodsType: result.goodsType || result.cargoType || prev.goodsType,
+      weightKg: result.weightKg ? String(result.weightKg / 1000) : prev.weightKg,
+      pickupCity: result.pickupCity || prev.pickupCity,
+      pickupCountry: result.pickupCountryCode || prev.pickupCountry,
+      deliveryCity: result.deliveryCity || prev.deliveryCity,
+      deliveryCountry: result.deliveryCountryCode || prev.deliveryCountry,
+      budget: result.budget ? String(result.budget) : prev.budget,
+      freightCurrency: result.currency || prev.freightCurrency,
+      notes: [result.notes, result.bookingReference ? `Booking ref: ${result.bookingReference}` : ''].filter(Boolean).join(' ').trim() || prev.notes,
+    }));
+    setScannedDocument(imageDataUrl);
+    setDropzoneOpen(false);
+  };
 
   useEffect(() => {
     if (!isOpen || !editLoadId) return;
@@ -754,6 +777,19 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                 <ThermometerSnowflake className="w-4 h-4" />
                 <span>{draft.temperatureControlled ? `${draft.temperatureMin || '—'}°C to ${draft.temperatureMax || '—'}°C` : u('postLoadModal.ambient', 'Ambient')}</span>
               </div>
+              {scannedDocument && (
+                <button
+                  type="button"
+                  onClick={() => setDropzoneOpen(true)}
+                  title={u('postLoadModal.scannedDocument', 'Scanned document — click to rescan')}
+                  className="relative h-10 w-10 shrink-0 cursor-pointer overflow-hidden rounded-xl border-2 border-primary/40 hover:border-primary transition-colors"
+                >
+                  <img src={scannedDocument} alt="Scanned document" className="h-full w-full object-cover" />
+                  <span className="absolute bottom-0 right-0 flex h-4 w-4 items-center justify-center rounded-tl-md bg-primary">
+                    <Sparkles className="h-2.5 w-2.5 text-white" />
+                  </span>
+                </button>
+              )}
             </div>
             <button
               onClick={onClose}
@@ -789,6 +825,19 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                 <ThermometerSnowflake className="w-4 h-4" />
                 <span>{draft.temperatureControlled ? `${draft.temperatureMin || '—'}°C to ${draft.temperatureMax || '—'}°C` : u('postLoadModal.ambient', 'Ambient')}</span>
               </div>
+              {scannedDocument && (
+                <button
+                  type="button"
+                  onClick={() => setDropzoneOpen(true)}
+                  title={u('postLoadModal.scannedDocument', 'Scanned document — click to rescan')}
+                  className="relative h-9 w-9 shrink-0 cursor-pointer overflow-hidden rounded-xl border-2 border-primary/40 hover:border-primary transition-colors"
+                >
+                  <img src={scannedDocument} alt="Scanned document" className="h-full w-full object-cover" />
+                  <span className="absolute bottom-0 right-0 flex h-3.5 w-3.5 items-center justify-center rounded-tl-md bg-primary">
+                    <Sparkles className="h-2 w-2 text-white" />
+                  </span>
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1641,9 +1690,18 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
 
             <div className="p-4 sm:p-5 md:p-6 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800">
               {submitError && <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400">{submitError}</div>}
-              <div className="grid w-full gap-3 sm:grid-cols-2">
+              <div className="grid w-full gap-3 sm:grid-cols-3">
                 <Button variant="outline" className="w-full min-h-[56px] sm:min-h-[60px]" onClick={step === 'general' ? onClose : goBack}>
                   {step === 'general' ? u('common.cancel', 'Cancel') : u('common.back', 'Back')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  className="w-full min-h-[56px] sm:min-h-[60px] gap-2 border border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 dark:bg-primary/15 dark:hover:bg-primary/20"
+                  onClick={() => setDropzoneOpen(true)}
+                  disabled={isSubmitting}
+                >
+                  <Sparkles className="w-4 h-4" />
+                  {u('postLoadModal.fillWithAi', 'Fill with AI · 10 tokens')}
                 </Button>
                 {step === 'review' ? (
                   <Button className="w-full min-h-[56px] sm:min-h-[60px]" onClick={submit} disabled={isSubmitting}>
@@ -1659,6 +1717,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
           </div>
         </div>
       </motion.div>
+      <DocumentDropzone open={dropzoneOpen} onClose={() => setDropzoneOpen(false)} onScanned={applyScanResult} />
     </motion.div>
   );
 };

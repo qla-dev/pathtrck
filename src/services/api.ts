@@ -22,6 +22,25 @@ export type ApiUser = {
 export type ApiLoginResult = { token: string; token_type: 'Bearer'; user: ApiUser };
 export type ListParams = Record<string, string | number | boolean | undefined>;
 
+export type ScanImage = { base64: string; mimeType?: string };
+export type LoadScanResult = {
+  isDocument: boolean;
+  title: string;
+  cargoType: string;
+  goodsType: string;
+  weightKg: number;
+  pickupCity: string;
+  pickupCountryCode: string;
+  deliveryCity: string;
+  deliveryCountryCode: string;
+  currency: string;
+  budget: number;
+  bookingReference: string;
+  notes: string;
+  confidence: number;
+  warnings: string[];
+};
+
 const API_BACKENDS = {
   local: 'https://cargo.qla.dev/endpoints/api',
   production: 'https://cargo.qla.dev/endpoints/api',
@@ -146,6 +165,10 @@ export const api = {
     updateStatus: (id: number | string, status: string) => request<Record<string, unknown>>(`/loads/${id}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),
+    }),
+    scan: (images: ScanImage[]) => request<LoadScanResult>('/load-scans', {
+      method: 'POST',
+      body: JSON.stringify({ images }),
     }),
   },
   loadStops: resourceApi<Record<string, unknown>>('load-stops'),
