@@ -5405,21 +5405,22 @@ export const translateTriplet = (lang: Language, en: string, bs: string, de: str
 };
 
 const locale = (lang: Language) => UI[(lang || 'en') as Locale] || UI.en;
+const replaceBrand = (value: string) => value.replace(/smartfreight\.ai/gi, 'Freightbook.ai').replace(/smartfreight/gi, 'Freightbook.ai');
 
 export const ui = (lang: Language, key: string, fallback: string) => {
   const active = (lang || 'en') as Locale;
   const localized = locale(lang)[key];
-  if (localized) return localized;
+  if (localized) return replaceBrand(localized);
 
   const englishValue = UI.en[key];
-  if (englishValue) return englishValue;
+  if (englishValue) return replaceBrand(englishValue);
 
   const reverseUiKey = REVERSE_UI_KEY_BY_EN[fallback];
   if (reverseUiKey) {
-    return locale(lang)[reverseUiKey] || UI.en[reverseUiKey] || fallback;
+    return replaceBrand(locale(lang)[reverseUiKey] || UI.en[reverseUiKey] || fallback);
   }
 
-  return TRIPLET_TRANSLATIONS[fallback]?.[active] || fallback;
+  return replaceBrand(TRIPLET_TRANSLATIONS[fallback]?.[active] || fallback);
 };
 
 export const flatpickrI18n = (lang: Language) =>

@@ -26,7 +26,7 @@ $write = static function (string $message): void {
     flush();
 };
 
-$lockFile = sys_get_temp_dir().DIRECTORY_SEPARATOR.'smartfreight-frontend-redeploy.lock';
+$lockFile = sys_get_temp_dir().DIRECTORY_SEPARATOR.'freightbook-frontend-redeploy.lock';
 $lock = fopen($lockFile, 'c');
 
 if ($lock === false || ! flock($lock, LOCK_EX | LOCK_NB)) {
@@ -138,7 +138,7 @@ $npmCommand = escapeshellarg($npm);
 $commands = [
     ['label' => 'Pulling latest frontend code', 'command' => 'git pull --ff-only'],
     ['label' => 'Installing frontend dependencies', 'command' => $npmCommand.' ci --no-audit --no-fund'],
-    ['label' => 'Building Smartfreight frontend', 'command' => $npmCommand.' run build'],
+    ['label' => 'Building Freightbook frontend', 'command' => $npmCommand.' run build'],
 ];
 
 $startedAt = time();

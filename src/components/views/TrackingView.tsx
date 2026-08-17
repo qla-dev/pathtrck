@@ -1304,7 +1304,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
                   {u('Public Link', 'Public Link')}
                 </p>
                 <p className="text-sm font-mono mt-2 break-all text-slate-700 dark:text-slate-200">
-                  https://smartfreight.ai/t/{selectedPackage.trackingNumber}
+                  https://freightbook.ai/t/{selectedPackage.trackingNumber}
                 </p>
               </div>
               <div className="grid grid-cols-3 gap-2">

@@ -30,7 +30,7 @@ const API_BACKENDS = {
 const configuredBackend = String(import.meta.env.VITE_API_BACKEND || 'production').toLowerCase();
 const API_BASE_URL = (API_BACKENDS[configuredBackend as keyof typeof API_BACKENDS] || API_BACKENDS.local)
   .replace(/\/+$/, '');
-const TOKEN_STORAGE_KEY = 'smartfreight_api_token';
+const TOKEN_STORAGE_KEY = 'freightbook_api_token';
 
 export class ApiError extends Error {
   constructor(message: string, public readonly status: number, public readonly errors: Record<string, string[]> = {}) {

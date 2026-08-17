@@ -102,7 +102,7 @@ import { LoginProcess } from './components/auth/LoginProcess';
 import { AiRouteCalculatorCard } from './components/ai_automattions/AiRouteCalculatorCard';
 
 const LANGUAGE_STORAGE_KEY = 'pathtrck.language';
-const SIDEBAR_STORAGE_KEY = 'smartfreight.sidebar';
+const SIDEBAR_STORAGE_KEY = 'freightbook.sidebar';
 
 const SUPPORTED_LANGUAGES: Exclude<Language, null>[] = [
   'en',
@@ -518,11 +518,10 @@ const getFlagUrl = (language: Language, width = 20) => {
   return `https://flagcdn.com/w${width}/${code}.png`;
 };
 
-const GeminiSparkIcon = ({ className }: { className?: string }) => {
-  const uid = React.useId().replace(/:/g, '');
+const FreightbookMark = ({ className }: { className?: string }) => {
+  const uid = React.useId();
   const gradientId = `gemini-spark-gradient-${uid}`;
   const glowId = `gemini-spark-glow-${uid}`;
-
   return (
     <svg viewBox="0 0 24 24" className={cn('shrink-0', className)} aria-hidden="true">
       <defs>
@@ -551,11 +550,9 @@ const GeminiSparkIcon = ({ className }: { className?: string }) => {
 };
 
 const BrandWordmark = ({ className }: { className?: string }) => (
-  <span className={cn('inline-flex items-center gap-2 font-display font-bold tracking-tight text-slate-900 dark:text-white', className)}>
-    <GeminiSparkIcon className="h-[1.4em] w-[1.4em]" />
-    <span>
-      Smartfreight<span className="text-primary">.ai</span>
-    </span>
+  <span className={cn('inline-flex items-center gap-2 font-brand font-bold leading-none tracking-tight text-slate-900 dark:text-white', className)}>
+    <FreightbookMark className="h-[1.4em] w-[1.4em] shrink-0" />
+    <span className="leading-none translate-y-[0.09em]">Freightbook<span className="text-primary">.ai</span></span>
   </span>
 );
 
@@ -1699,7 +1696,7 @@ const LandingPage = ({
           >
             <div className="pointer-events-none absolute inset-0 opacity-40 [background-image:radial-gradient(rgb(14_165_233/0.28)_1px,transparent_1px)] [background-size:22px_22px] dark:opacity-20" />
             <div className="relative mb-5 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-sm font-black text-slate-900 dark:text-white"><BrainCircuit className="h-5 w-5 text-primary" /> Smartfreight Intelligence</div>
+              <div className="flex items-center gap-2 text-sm font-black text-slate-900 dark:text-white"><BrainCircuit className="h-5 w-5 text-primary" /> Freightbook.ai Intelligence</div>
               <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400"><span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />{u('landing.aiDispatcher.liveSync', 'Secure live sync')}</div>
             </div>
 
@@ -2169,11 +2166,11 @@ const LandingPage = ({
           </div>
           <div className="grid md:grid-cols-3 gap-6">
             {[
-              { name: "Sarah Jenkins", role: "Logistics Director, TechCorp", text: "Smartfreight.ai has completely transformed how we handle our last-mile deliveries. The AI insights are a game changer." },
+              { name: "Sarah Jenkins", role: "Logistics Director, TechCorp", text: "Freightbook.ai has completely transformed how we handle our last-mile deliveries. The AI insights are a game changer." },
               { name: "Marco Rossi", role: "Fleet Manager, EuroTrans", text: "The real-time visibility is the best we've ever seen. Our drivers love the intuitive mobile app." },
-              { name: "Elena Petrova", role: "CEO, GlobalShip", text: "Scaling our operations across Europe was seamless with Smartfreight.ai's multi-carrier integration." },
+              { name: "Elena Petrova", role: "CEO, GlobalShip", text: "Scaling our operations across Europe was seamless with Freightbook.ai's multi-carrier integration." },
               { name: "David Chen", role: "Operations Lead, FastMove", text: "The automated reporting saves our team at least 15 hours a week. Highly recommended for any serious fleet." },
-              { name: "Amira Al-Fayed", role: "Founder, DesertLogistics", text: "We needed a secure, enterprise-grade solution for our high-value loads. Smartfreight.ai delivered exactly that." },
+              { name: "Amira Al-Fayed", role: "Founder, DesertLogistics", text: "We needed a secure, enterprise-grade solution for our high-value loads. Freightbook.ai delivered exactly that." },
               { name: "Lukas Weber", role: "Supply Chain Manager, AlpineGoods", text: "The route optimization engine is incredibly accurate. We've seen a 20% reduction in fuel costs." }
             ].map((t, i) => (
               <Card key={i} className="p-8 hover:border-primary/50 transition-all">
@@ -3758,7 +3755,7 @@ export default function App() {
               ? <X className="h-4 w-4" />
               : isSidebarOpen
                 ? <PanelLeftClose className="h-5 w-5 text-slate-400 transition-colors hover:text-primary dark:text-slate-500" />
-                : <GeminiSparkIcon className="h-6 w-6" />}
+                : <FreightbookMark className="h-6 w-6 text-primary" />}
           </button>
         </div>
 

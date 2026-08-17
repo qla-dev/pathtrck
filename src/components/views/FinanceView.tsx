@@ -76,7 +76,7 @@ export const FinanceView = ({ lang: _lang }: { lang: Language }) => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'smartfreight-finance.csv';
+    link.download = 'freightbook-finance.csv';
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -208,5 +208,4 @@ export const FinanceView = ({ lang: _lang }: { lang: Language }) => {
     </div>
   );
 };
-
 

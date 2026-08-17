@@ -137,11 +137,11 @@ export const EmailStudioView = ({ lang: _lang }: { lang: Language }) => {
             <div className="mt-5 overflow-auto rounded-2xl border border-slate-200 bg-slate-100 p-4 dark:border-slate-800 dark:bg-slate-950 md:p-8">
               <div className={cn('mx-auto overflow-hidden transition-all', previewMode === 'mobile' ? 'max-w-[390px]' : 'max-w-[760px]')} style={{ backgroundColor, fontFamily }}>
                 <div style={{ padding: previewMode === 'mobile' ? 18 : 32 }}>
-                  <div style={{ color: primaryColor, fontWeight: 900, fontSize: 20, marginBottom: 20 }}>smartfreight.ai</div>
+                  <div style={{ color: primaryColor, fontWeight: 900, fontSize: 20, marginBottom: 20 }}>Freightbook.ai</div>
                   <div style={{ backgroundColor: contentColor, borderRadius: radius, overflow: 'hidden', color: textColor, textAlign: alignment }}>
                     {heroImage && <img src={heroImage} alt="Campaign hero" style={{ width: '100%', height: previewMode === 'mobile' ? 160 : 260, objectFit: 'cover', display: 'block' }} />}
                     <div style={{ padding: previewMode === 'mobile' ? 22 : 40 }}>
-                      <p style={{ color: primaryColor, fontSize: 12, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', margin: 0 }}>Smartfreight update</p>
+                      <p style={{ color: primaryColor, fontSize: 12, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', margin: 0 }}>Freightbook.ai update</p>
                       <h2 style={{ fontSize: previewMode === 'mobile' ? 27 : 38, lineHeight: 1.1, margin: '14px 0', color: textColor }}>{heading}</h2>
                       <p style={{ fontSize, lineHeight: 1.65, margin: 0, color: textColor, opacity: 0.78 }}>{body}</p>
                       <a href={buttonUrl} style={{ display: 'inline-block', marginTop: 24, padding: '13px 22px', borderRadius: Math.min(radius, 14), backgroundColor: primaryColor, color: '#ffffff', fontWeight: 800, fontSize: 14, textDecoration: 'none' }}>{buttonText}</a>
