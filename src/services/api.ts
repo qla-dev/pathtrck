@@ -45,6 +45,26 @@ export type LoadScanResult = {
   warnings: string[];
 };
 
+export type BulkLoadRow = {
+  title: string;
+  cargoType: string;
+  goodsType: string;
+  weightKg: number;
+  pallets: number;
+  bodyType: string;
+  pickupCity: string;
+  pickupCountryCode: string;
+  pickupDate: string;
+  deliveryCity: string;
+  deliveryCountryCode: string;
+  deliveryDate: string;
+  currency: string;
+  budget: number;
+  bookingReference: string;
+  notes: string;
+};
+export type BulkLoadScanResult = { isDocument: boolean; rows: BulkLoadRow[]; warnings: string[] };
+
 const API_BACKENDS = {
   local: 'https://cargo.qla.dev/endpoints/api',
   production: 'https://cargo.qla.dev/endpoints/api',
@@ -173,6 +193,22 @@ export const api = {
     scan: (images: ScanImage[]) => request<LoadScanResult>('/load-scans', {
       method: 'POST',
       body: JSON.stringify({ images }),
+    }),
+    scanBulk: (images: ScanImage[]) => request<BulkLoadScanResult>('/load-scans/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ images }),
+    }),
+    scanText: (description: string) => request<LoadScanResult>('/load-scans/text', {
+      method: 'POST',
+      body: JSON.stringify({ description }),
+    }),
+    scanBulkText: (text: string) => request<BulkLoadScanResult>('/load-scans/bulk/text', {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    }),
+    createBulk: (loads: Record<string, unknown>[]) => request<Record<string, unknown>[]>('/loads/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ loads }),
     }),
   },
   loadStops: resourceApi<Record<string, unknown>>('load-stops'),

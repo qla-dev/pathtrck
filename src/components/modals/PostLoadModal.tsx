@@ -43,7 +43,7 @@ type PostLoadModalProps = {
 
 type StepId = 'general' | 'route' | 'cargo' | 'terms' | 'review';
 type TransportType = 'road' | 'air' | 'sea';
-type ScannedDocument = { id: string; imageDataUrl: string; result: LoadScanResult };
+type ScannedDocument = { id: string; imageDataUrl: string | null; result: LoadScanResult };
 
 type LoadDraft = {
   consignee: CustomerOption | null;
@@ -488,7 +488,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     }
   }, [isOpen]);
 
-  const applyScan = (result: LoadScanResult, imageDataUrl: string, patch: ScanFieldPatch) => {
+  const applyScan = (result: LoadScanResult, imageDataUrl: string | null, patch: ScanFieldPatch) => {
     setDraft((prev) => ({ ...prev, ...patch }));
     setScannedDocuments((prev) => {
       const next = [...prev, { id: `scan-${Date.now()}`, imageDataUrl, result }];
@@ -779,7 +779,13 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       title={u('postLoadModal.scannedDocument', 'Scanned document — click to view extracted data')}
                       className="relative h-10 w-10 shrink-0 cursor-pointer overflow-hidden rounded-xl border-2 border-primary/40 hover:border-primary transition-colors"
                     >
-                      <img src={doc.imageDataUrl} alt="Scanned document" className="h-full w-full object-cover" />
+                      {doc.imageDataUrl ? (
+                        <img src={doc.imageDataUrl} alt="Scanned document" className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center bg-primary/10">
+                          <FileText className="h-4 w-4 text-primary" />
+                        </div>
+                      )}
                       <span className="absolute bottom-0 right-0 flex h-4 w-4 items-center justify-center rounded-tl-md bg-primary">
                         <Sparkles className="h-2.5 w-2.5 text-white" />
                       </span>
@@ -840,7 +846,13 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       title={u('postLoadModal.scannedDocument', 'Scanned document — click to view extracted data')}
                       className="relative h-9 w-9 shrink-0 cursor-pointer overflow-hidden rounded-xl border-2 border-primary/40 hover:border-primary transition-colors"
                     >
-                      <img src={doc.imageDataUrl} alt="Scanned document" className="h-full w-full object-cover" />
+                      {doc.imageDataUrl ? (
+                        <img src={doc.imageDataUrl} alt="Scanned document" className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center bg-primary/10">
+                          <FileText className="h-4 w-4 text-primary" />
+                        </div>
+                      )}
                       <span className="absolute bottom-0 right-0 flex h-3.5 w-3.5 items-center justify-center rounded-tl-md bg-primary">
                         <Sparkles className="h-2 w-2 text-white" />
                       </span>

@@ -41,7 +41,8 @@ import {
   Sparkles,
   RefreshCw,
   ScanSearch,
-  Zap
+  Zap,
+  Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
@@ -65,7 +66,7 @@ import {
 
 // Types & Services
 import { Role, Language, Load } from './types';
-import { ApiUser, api } from './services/api';
+import { ApiUser, api, BulkLoadRow } from './services/api';
 import { MOCK_PACKAGES, MOCK_LOADS, MOCK_ROUTES } from './mockData';
 import { ui, trLoadStatus, trPackageStatus, trFuelType, trGoodsType, trPaymentTerms } from './i18n';
 import { cn } from './lib/cn';
@@ -87,6 +88,8 @@ import { MapView } from './components/views/MapView';
 import { ProfileView } from './components/views/ProfileView';
 import { AutomationsView } from './components/views/AutomationsView';
 import { PostLoadModal } from './components/modals/PostLoadModal';
+import { BulkImportModal } from './components/modals/BulkImportModal';
+import { BulkResultModal } from './components/modals/BulkResultModal';
 import { SettingsView } from './components/views/SettingsView';
 import { LoadNotesView } from './components/views/LoadNotesView';
 import { CompanyWorkspaceView } from './components/views/CompanyWorkspaceView';
@@ -3201,6 +3204,9 @@ export default function App() {
   const [isMainSortSidebarOpen, setIsMainSortSidebarOpen] = useState(false);
   const [isPostLoadOpen, setIsPostLoadOpen] = useState(false);
   const [editLoadId, setEditLoadId] = useState<string | null>(null);
+  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+  const [isBulkResultOpen, setIsBulkResultOpen] = useState(false);
+  const [lastBulkImport, setLastBulkImport] = useState<BulkLoadRow[] | null>(null);
   const [loadRefreshKey, setLoadRefreshKey] = useState(0);
   const trackingCompanyIds = useMemo(
     () => (currentUser?.companies || []).map((company) => Number(company.id)).filter(Number.isFinite),
@@ -4019,6 +4025,26 @@ export default function App() {
           </div>
           <div className="flex items-center gap-4">
             {role === 'user' || role === 'company' || role === 'superadmin' ? (
+              <div className="relative">
+                <button
+                  onClick={() => setIsBulkImportOpen(true)}
+                  className="h-10 px-4 rounded-full border border-primary/30 bg-primary/10 text-primary inline-flex items-center gap-2 text-xs font-bold hover:bg-primary/15 transition-all cursor-pointer whitespace-nowrap"
+                >
+                  <Layers className="w-4 h-4" />
+                  <span className="hidden sm:inline">{u('common.bulkImport', 'Bulk import')}</span>
+                </button>
+                {lastBulkImport && lastBulkImport.length > 0 && (
+                  <button
+                    onClick={() => setIsBulkResultOpen(true)}
+                    title={u('postLoadModal.viewLastImport', 'View last import')}
+                    className="absolute -top-1.5 -right-1.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-black text-white shadow-md cursor-pointer"
+                  >
+                    {lastBulkImport.length}
+                  </button>
+                )}
+              </div>
+            ) : null}
+            {role === 'user' || role === 'company' || role === 'superadmin' ? (
               <button
                 onClick={() => { setEditLoadId(null); setIsPostLoadOpen(true); }}
                 className="h-10 px-4 rounded-full bg-primary text-white inline-flex items-center gap-2 text-xs font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all cursor-pointer whitespace-nowrap"
@@ -4243,6 +4269,15 @@ export default function App() {
           </AnimatePresence>
         </div>
         <PostLoadModal isOpen={isPostLoadOpen} editLoadId={editLoadId} onClose={() => { setIsPostLoadOpen(false); setEditLoadId(null); }} onSaved={handleLoadSaved} lang={lang} />
+        <BulkImportModal
+          open={isBulkImportOpen}
+          onClose={() => setIsBulkImportOpen(false)}
+          onImported={(rows) => {
+            setLastBulkImport(rows);
+            setLoadRefreshKey((current) => current + 1);
+          }}
+        />
+        <BulkResultModal open={isBulkResultOpen} onClose={() => setIsBulkResultOpen(false)} rows={lastBulkImport ?? []} />
 
         {/* Bottom Nav (Mobile) */}
         <nav className="md:hidden fixed bottom-0 w-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-4 h-16 flex items-center justify-start gap-6 overflow-x-auto z-50">
