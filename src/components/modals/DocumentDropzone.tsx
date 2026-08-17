@@ -128,9 +128,7 @@ export const DocumentDropzone = ({ open, onClose, onApply }: DocumentDropzonePro
             <div className="flex items-center gap-3">
               {preview && <img src={preview} alt="Scanned document" className="h-14 w-14 shrink-0 rounded-xl object-cover" />}
               <div className="min-w-0">
-                <p className="truncate text-sm font-black text-slate-900 dark:text-white">
-                  {result.isDocument ? 'Document read successfully' : 'Could not confirm this is a freight document'}
-                </p>
+                <p className="truncate text-sm font-black text-slate-900 dark:text-white">Freight data detected</p>
                 <p className="text-xs text-slate-500">Select the fields you want to prefill</p>
               </div>
             </div>
