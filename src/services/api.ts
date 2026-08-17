@@ -29,10 +29,14 @@ export type LoadScanResult = {
   cargoType: string;
   goodsType: string;
   weightKg: number;
+  pallets: number;
+  bodyType: string;
   pickupCity: string;
   pickupCountryCode: string;
+  pickupDate: string;
   deliveryCity: string;
   deliveryCountryCode: string;
+  deliveryDate: string;
   currency: string;
   budget: number;
   bookingReference: string;

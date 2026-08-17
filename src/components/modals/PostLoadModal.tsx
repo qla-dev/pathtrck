@@ -30,6 +30,8 @@ import { CustomerSelect, customerOptionFromRecord, type CustomerOption } from '.
 import { AddressMapModal } from '../maps/AddressMapModal';
 import { CountrySelect } from '../location/CountrySelect';
 import { DocumentDropzone } from './DocumentDropzone';
+import { ScanResultModal } from './ScanResultModal';
+import { ScanFieldPatch } from './scanFieldRows';
 
 type PostLoadModalProps = {
   isOpen: boolean;
@@ -41,6 +43,7 @@ type PostLoadModalProps = {
 
 type StepId = 'general' | 'route' | 'cargo' | 'terms' | 'review';
 type TransportType = 'road' | 'air' | 'sea';
+type ScannedDocument = { id: string; imageDataUrl: string; result: LoadScanResult };
 
 type LoadDraft = {
   consignee: CustomerOption | null;
@@ -473,33 +476,33 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   const [submitError, setSubmitError] = useState('');
   const [addressMap, setAddressMap] = useState<'pickup' | 'delivery' | null>(null);
   const [dropzoneOpen, setDropzoneOpen] = useState(false);
-  const [scannedDocument, setScannedDocument] = useState<string | null>(null);
+  const [scannedDocuments, setScannedDocuments] = useState<ScannedDocument[]>([]);
+  const [viewingDocId, setViewingDocId] = useState<string | null>(null);
   useEffect(() => {
     if (!isOpen) {
       setStep('general');
       setDraft(INITIAL_DRAFT);
       setSubmitError('');
-      setScannedDocument(null);
+      setScannedDocuments([]);
+      setViewingDocId(null);
     }
   }, [isOpen]);
 
-  const applyScanResult = (result: LoadScanResult, imageDataUrl: string) => {
-    setDraft((prev) => ({
-      ...prev,
-      cargoTitle: result.title || prev.cargoTitle,
-      goodsType: result.goodsType || result.cargoType || prev.goodsType,
-      weightKg: result.weightKg ? String(result.weightKg / 1000) : prev.weightKg,
-      pickupCity: result.pickupCity || prev.pickupCity,
-      pickupCountry: result.pickupCountryCode || prev.pickupCountry,
-      deliveryCity: result.deliveryCity || prev.deliveryCity,
-      deliveryCountry: result.deliveryCountryCode || prev.deliveryCountry,
-      budget: result.budget ? String(result.budget) : prev.budget,
-      freightCurrency: result.currency || prev.freightCurrency,
-      notes: [result.notes, result.bookingReference ? `Booking ref: ${result.bookingReference}` : ''].filter(Boolean).join(' ').trim() || prev.notes,
-    }));
-    setScannedDocument(imageDataUrl);
+  const applyScan = (result: LoadScanResult, imageDataUrl: string, patch: ScanFieldPatch) => {
+    setDraft((prev) => ({ ...prev, ...patch }));
+    setScannedDocuments((prev) => {
+      const next = [...prev, { id: `scan-${Date.now()}`, imageDataUrl, result }];
+      try {
+        window.localStorage.setItem(`prefillJson${next.length}`, JSON.stringify(patch));
+      } catch {
+        // Local storage may be unavailable (private browsing, quota) - prefill still applied in-memory.
+      }
+      return next;
+    });
     setDropzoneOpen(false);
   };
+
+  const viewingDocument = scannedDocuments.find((doc) => doc.id === viewingDocId) || null;
 
   useEffect(() => {
     if (!isOpen || !editLoadId) return;
@@ -558,18 +561,6 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
 
   const canProceed = stepCompletion[step];
 
-  const maxReachableStepIndex = useMemo(() => {
-    let reachableIndex = 0;
-
-    for (let index = 0; index < STEPS.length - 1; index += 1) {
-      const currentStepId = STEPS[index].id;
-      if (!stepCompletion[currentStepId]) break;
-      reachableIndex = index + 1;
-    }
-
-    return reachableIndex;
-  }, [stepCompletion]);
-
   const setField = <K extends keyof LoadDraft>(key: K, value: LoadDraft[K]) => {
     setDraft((prev) => ({ ...prev, [key]: value }));
   };
@@ -603,8 +594,9 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     if (previous) setStep(previous.id);
   };
 
-  const canNavigateToStep = (targetIndex: number) =>
-    targetIndex <= stepIndex || targetIndex <= maxReachableStepIndex;
+  // Sidebar navigation is intentionally unrestricted - AI-fill can populate
+  // fields across steps out of order, so gating on completion just gets in the way.
+  const canNavigateToStep = (_targetIndex: number) => true;
 
   const submit = async () => {
     if (isSubmitting) return;
@@ -777,18 +769,31 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                 <ThermometerSnowflake className="w-4 h-4" />
                 <span>{draft.temperatureControlled ? `${draft.temperatureMin || '—'}°C to ${draft.temperatureMax || '—'}°C` : u('postLoadModal.ambient', 'Ambient')}</span>
               </div>
-              {scannedDocument && (
-                <button
-                  type="button"
-                  onClick={() => setDropzoneOpen(true)}
-                  title={u('postLoadModal.scannedDocument', 'Scanned document — click to rescan')}
-                  className="relative h-10 w-10 shrink-0 cursor-pointer overflow-hidden rounded-xl border-2 border-primary/40 hover:border-primary transition-colors"
-                >
-                  <img src={scannedDocument} alt="Scanned document" className="h-full w-full object-cover" />
-                  <span className="absolute bottom-0 right-0 flex h-4 w-4 items-center justify-center rounded-tl-md bg-primary">
-                    <Sparkles className="h-2.5 w-2.5 text-white" />
-                  </span>
-                </button>
+              {scannedDocuments.length > 0 && (
+                <div className="flex items-center gap-1.5">
+                  {scannedDocuments.map((doc) => (
+                    <button
+                      key={doc.id}
+                      type="button"
+                      onClick={() => setViewingDocId(doc.id)}
+                      title={u('postLoadModal.scannedDocument', 'Scanned document — click to view extracted data')}
+                      className="relative h-10 w-10 shrink-0 cursor-pointer overflow-hidden rounded-xl border-2 border-primary/40 hover:border-primary transition-colors"
+                    >
+                      <img src={doc.imageDataUrl} alt="Scanned document" className="h-full w-full object-cover" />
+                      <span className="absolute bottom-0 right-0 flex h-4 w-4 items-center justify-center rounded-tl-md bg-primary">
+                        <Sparkles className="h-2.5 w-2.5 text-white" />
+                      </span>
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setDropzoneOpen(true)}
+                    title={u('postLoadModal.addScannedDocument', 'Scan another document')}
+                    className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-slate-300 text-slate-400 hover:border-primary hover:text-primary transition-colors dark:border-slate-700"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
               )}
             </div>
             <button
@@ -825,18 +830,31 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                 <ThermometerSnowflake className="w-4 h-4" />
                 <span>{draft.temperatureControlled ? `${draft.temperatureMin || '—'}°C to ${draft.temperatureMax || '—'}°C` : u('postLoadModal.ambient', 'Ambient')}</span>
               </div>
-              {scannedDocument && (
-                <button
-                  type="button"
-                  onClick={() => setDropzoneOpen(true)}
-                  title={u('postLoadModal.scannedDocument', 'Scanned document — click to rescan')}
-                  className="relative h-9 w-9 shrink-0 cursor-pointer overflow-hidden rounded-xl border-2 border-primary/40 hover:border-primary transition-colors"
-                >
-                  <img src={scannedDocument} alt="Scanned document" className="h-full w-full object-cover" />
-                  <span className="absolute bottom-0 right-0 flex h-3.5 w-3.5 items-center justify-center rounded-tl-md bg-primary">
-                    <Sparkles className="h-2 w-2 text-white" />
-                  </span>
-                </button>
+              {scannedDocuments.length > 0 && (
+                <div className="flex items-center gap-1.5">
+                  {scannedDocuments.map((doc) => (
+                    <button
+                      key={doc.id}
+                      type="button"
+                      onClick={() => setViewingDocId(doc.id)}
+                      title={u('postLoadModal.scannedDocument', 'Scanned document — click to view extracted data')}
+                      className="relative h-9 w-9 shrink-0 cursor-pointer overflow-hidden rounded-xl border-2 border-primary/40 hover:border-primary transition-colors"
+                    >
+                      <img src={doc.imageDataUrl} alt="Scanned document" className="h-full w-full object-cover" />
+                      <span className="absolute bottom-0 right-0 flex h-3.5 w-3.5 items-center justify-center rounded-tl-md bg-primary">
+                        <Sparkles className="h-2 w-2 text-white" />
+                      </span>
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setDropzoneOpen(true)}
+                    title={u('postLoadModal.addScannedDocument', 'Scan another document')}
+                    className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-slate-300 text-slate-400 hover:border-primary hover:text-primary transition-colors dark:border-slate-700"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -1717,7 +1735,13 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
           </div>
         </div>
       </motion.div>
-      <DocumentDropzone open={dropzoneOpen} onClose={() => setDropzoneOpen(false)} onScanned={applyScanResult} />
+      <DocumentDropzone open={dropzoneOpen} onClose={() => setDropzoneOpen(false)} onApply={applyScan} />
+      <ScanResultModal
+        open={viewingDocId !== null}
+        onClose={() => setViewingDocId(null)}
+        imageDataUrl={viewingDocument?.imageDataUrl ?? null}
+        result={viewingDocument?.result ?? null}
+      />
     </motion.div>
   );
 };
