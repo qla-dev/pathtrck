@@ -232,10 +232,10 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
                     <span className="text-[11px] font-bold uppercase text-slate-400">{u('login.or', 'or')}</span>
                     <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
                   </div>
+                  <GoogleSignInButton onCredential={handleGoogleCredential} label={u('login.continueWithGoogle', 'Continue with Google')} />
                   {APPLE_CLIENT_ID && (
                     <AppleSignInButton onCredential={handleAppleCredential} label={u('login.continueWithApple', 'Continue with Apple')} />
                   )}
-                  <GoogleSignInButton onCredential={handleGoogleCredential} lang={lang} />
                 </>
               )}
 
