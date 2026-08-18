@@ -16,6 +16,9 @@ import { cn } from '../../lib/cn';
 import { ui, trFuelType } from '../../i18n';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
+import { api, ApiError } from '../../services/api';
+import { GOOGLE_CLIENT_ID } from '../../lib/googleIdentity';
+import { GoogleSignInButton } from './GoogleSignInButton';
 
 type SetupLabels = {
   username: string;
@@ -52,6 +55,23 @@ export const SetupProcess = ({ lang, labels, onComplete, onClose }: SetupProcess
   const [driverCompany, setDriverCompany] = useState({ name: '', taxId: '', address: '' });
   const [customerCompany, setCustomerCompany] = useState({ name: '', taxId: '', address: '' });
   const [carData, setCarData] = useState({ make: '', model: '', year: '', fuelType: '', plate: '' });
+  const [googleError, setGoogleError] = useState('');
+  const [googleSubmitting, setGoogleSubmitting] = useState(false);
+
+  const handleGoogleCredential = async (idToken: string) => {
+    if (!role) return;
+    setGoogleError('');
+    setGoogleSubmitting(true);
+    try {
+      const result = await api.auth.google(idToken, role);
+      if ('needs_registration' in result) return;
+      onComplete(result.user.role?.name as Role || role, lang);
+    } catch (error) {
+      setGoogleError(error instanceof ApiError ? error.message : u('login.connectionError', 'Could not connect to the API.'));
+    } finally {
+      setGoogleSubmitting(false);
+    }
+  };
 
   const isLongStep = useMemo(() => [3, 4, 6, 8].includes(step), [step]);
   const stepClass = cn(
@@ -91,7 +111,6 @@ export const SetupProcess = ({ lang, labels, onComplete, onClose }: SetupProcess
     step === 7 ? Boolean(customerType) :
     step === 8 ? Boolean(customerCompany.name && customerCompany.taxId) :
     step === 3 ? Boolean(driverData.username && driverData.password && driverData.name && driverData.country && driverData.idVerified) :
-    step === 5 ? Boolean(driverType) :
     step === 6 ? Boolean(driverCompany.name && driverCompany.taxId) :
     step === 4 ? Boolean(carData.make && carData.model && carData.fuelType && carData.plate) :
     false;
@@ -102,9 +121,8 @@ export const SetupProcess = ({ lang, labels, onComplete, onClose }: SetupProcess
     else if (step === 7) setStep(2);
     else if (step === 8) setStep(7);
     else if (step === 3) setStep(2);
-    else if (step === 5) setStep(3);
-    else if (step === 6) setStep(5);
-    else if (step === 4) setStep(driverType === 'company' ? 6 : 5);
+    else if (step === 6) setStep(3);
+    else if (step === 4) setStep(driverType === 'company' ? 6 : 3);
   };
 
   const handleNext = () => {
@@ -123,10 +141,6 @@ export const SetupProcess = ({ lang, labels, onComplete, onClose }: SetupProcess
       return;
     }
     if (step === 3 && driverData.username && driverData.password && driverData.name && driverData.country && driverData.idVerified) {
-      setStep(5);
-      return;
-    }
-    if (step === 5 && driverType) {
       setStep(driverType === 'company' ? 6 : 4);
       return;
     }
@@ -182,16 +196,32 @@ export const SetupProcess = ({ lang, labels, onComplete, onClose }: SetupProcess
                   <h2 className="text-2xl font-bold dark:text-white">{u('onboarding.whoAreYou', 'Who are you?')}</h2>
                   <p className="text-slate-500 text-sm">{u('onboarding.roleSubtitle', 'Select your role to personalize your experience')}</p>
                 </div>
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-4">
                   <button onClick={() => setRole('user')} className={cn('w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 text-left cursor-pointer', role === 'user' ? 'border-primary bg-primary/5' : 'border-slate-100 dark:border-slate-800 hover:border-primary')}>
                     <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center"><PackageIcon className="text-blue-600" /></div>
                     <div><p className="font-bold dark:text-white">{u('onboarding.customerTitle', "I'm a Customer")}</p><p className="text-xs text-slate-500">{u('onboarding.customerDesc', 'I want to track packages and post loads')}</p></div>
                   </button>
-                  <button onClick={() => setRole('driver')} className={cn('w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 text-left cursor-pointer', role === 'driver' ? 'border-primary bg-primary/5' : 'border-slate-100 dark:border-slate-800 hover:border-primary')}>
+                  <button onClick={() => { setRole('driver'); setDriverType('private'); }} className={cn('w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 text-left cursor-pointer', role === 'driver' && driverType === 'private' ? 'border-primary bg-primary/5' : 'border-slate-100 dark:border-slate-800 hover:border-primary')}>
                     <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center"><Truck className="text-emerald-600" /></div>
                     <div><p className="font-bold dark:text-white">{u('onboarding.driverTitle', "I'm a Driver")}</p><p className="text-xs text-slate-500">{u('onboarding.driverDesc', 'I want to manage deliveries and loads')}</p></div>
                   </button>
+                  <button onClick={() => { setRole('driver'); setDriverType('company'); }} className={cn('w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 text-left cursor-pointer', role === 'driver' && driverType === 'company' ? 'border-primary bg-primary/5' : 'border-slate-100 dark:border-slate-800 hover:border-primary')}>
+                    <div className="w-10 h-10 rounded-lg bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center"><Globe className="text-violet-600" /></div>
+                    <div><p className="font-bold dark:text-white">{u('setup.forwardingCompanyTitle', 'Freight Forwarding Company')}</p><p className="text-xs text-slate-500">{u('setup.forwardingCompanyDesc', 'I manage a fleet of drivers')}</p></div>
+                  </button>
                 </div>
+
+                {role && GOOGLE_CLIENT_ID && (
+                  <div className="flex flex-col gap-4">
+                    {googleError && <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400">{googleError}</div>}
+                    <div className="flex items-center gap-4">
+                      <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
+                      <span className="text-[11px] font-bold uppercase text-slate-400">{u('login.or', 'or')}</span>
+                      <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
+                    </div>
+                    <GoogleSignInButton onCredential={handleGoogleCredential} lang={lang} />
+                  </div>
+                )}
               </>
             )}
 
@@ -202,7 +232,7 @@ export const SetupProcess = ({ lang, labels, onComplete, onClose }: SetupProcess
                   <h2 className="text-2xl font-bold dark:text-white">{u('onboarding.customerTypeTitle', 'Customer Type')}</h2>
                   <p className="text-slate-500 text-sm">{u('onboarding.customerTypeDesc', 'Choose whether you are private party or freight forwarder')}</p>
                 </div>
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-4">
                   <button onClick={() => setCustomerType('private')} className={cn('w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 text-left cursor-pointer', customerType === 'private' ? 'border-primary bg-primary/5' : 'border-slate-100 dark:border-slate-800 hover:border-primary')}>
                     <div className="w-10 h-10 rounded-lg bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center"><User className="text-cyan-600" /></div>
                     <div><p className="font-bold dark:text-white">{u('onboarding.privateParty', 'Private Party')}</p><p className="text-xs text-slate-500">{u('onboarding.privatePartyDesc', 'Individual customer account')}</p></div>
@@ -223,9 +253,9 @@ export const SetupProcess = ({ lang, labels, onComplete, onClose }: SetupProcess
                   <p className="text-slate-500 text-sm">{u('onboarding.companyInfoDesc', 'Enter your registered business details')}</p>
                 </div>
                 <div className="flex flex-col gap-4">
-                  <div><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{u('onboarding.companyName', 'Company Name')}</label><input type="text" placeholder="Swift Logistics Ltd" className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors" value={step === 8 ? customerCompany.name : driverCompany.name} onChange={(e) => step === 8 ? setCustomerCompany({ ...customerCompany, name: e.target.value }) : setDriverCompany({ ...driverCompany, name: e.target.value })} /></div>
-                  <div><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{u('onboarding.taxId', 'Tax ID / VAT Number')}</label><input type="text" placeholder="EU123456789" className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors" value={step === 8 ? customerCompany.taxId : driverCompany.taxId} onChange={(e) => step === 8 ? setCustomerCompany({ ...customerCompany, taxId: e.target.value }) : setDriverCompany({ ...driverCompany, taxId: e.target.value })} /></div>
-                  <div><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{u('onboarding.businessAddress', 'Business Address')}</label><textarea placeholder="123 Logistics Way, Berlin, Germany" className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors h-24 resize-none" value={step === 8 ? customerCompany.address : driverCompany.address} onChange={(e) => step === 8 ? setCustomerCompany({ ...customerCompany, address: e.target.value }) : setDriverCompany({ ...driverCompany, address: e.target.value })} /></div>
+                  <div className="flex flex-col gap-4"><label className="text-xs font-bold text-slate-500 uppercase block">{u('onboarding.companyName', 'Company Name')}</label><input type="text" placeholder="Swift Logistics Ltd" className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors" value={step === 8 ? customerCompany.name : driverCompany.name} onChange={(e) => step === 8 ? setCustomerCompany({ ...customerCompany, name: e.target.value }) : setDriverCompany({ ...driverCompany, name: e.target.value })} /></div>
+                  <div className="flex flex-col gap-4"><label className="text-xs font-bold text-slate-500 uppercase block">{u('onboarding.taxId', 'Tax ID / VAT Number')}</label><input type="text" placeholder="EU123456789" className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors" value={step === 8 ? customerCompany.taxId : driverCompany.taxId} onChange={(e) => step === 8 ? setCustomerCompany({ ...customerCompany, taxId: e.target.value }) : setDriverCompany({ ...driverCompany, taxId: e.target.value })} /></div>
+                  <div className="flex flex-col gap-4"><label className="text-xs font-bold text-slate-500 uppercase block">{u('onboarding.businessAddress', 'Business Address')}</label><textarea placeholder="123 Logistics Way, Berlin, Germany" className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors h-24 resize-none" value={step === 8 ? customerCompany.address : driverCompany.address} onChange={(e) => step === 8 ? setCustomerCompany({ ...customerCompany, address: e.target.value }) : setDriverCompany({ ...driverCompany, address: e.target.value })} /></div>
                 </div>
               </>
             )}
@@ -239,26 +269,12 @@ export const SetupProcess = ({ lang, labels, onComplete, onClose }: SetupProcess
                 </div>
                 <div className="flex flex-col gap-4">
                   <div className="grid grid-cols-2 gap-4">
-                    <div><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{labels.username}</label><input type="text" placeholder="johndoe123" className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors" value={driverData.username} onChange={(e) => setDriverData({ ...driverData, username: e.target.value })} /></div>
-                    <div><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{labels.password}</label><input type="password" placeholder="••••••••" className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors" value={driverData.password} onChange={(e) => setDriverData({ ...driverData, password: e.target.value })} /></div>
+                    <div className="flex flex-col gap-4"><label className="text-xs font-bold text-slate-500 uppercase block">{labels.username}</label><input type="text" placeholder="johndoe123" className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors" value={driverData.username} onChange={(e) => setDriverData({ ...driverData, username: e.target.value })} /></div>
+                    <div className="flex flex-col gap-4"><label className="text-xs font-bold text-slate-500 uppercase block">{labels.password}</label><input type="password" placeholder="••••••••" className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors" value={driverData.password} onChange={(e) => setDriverData({ ...driverData, password: e.target.value })} /></div>
                   </div>
-                  <div><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{u('onboarding.fullName', 'Full Name')}</label><input type="text" placeholder="Full name" className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors" value={driverData.name} onChange={(e) => setDriverData({ ...driverData, name: e.target.value })} /></div>
-                  <div><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{u('onboarding.country', 'Country')}</label><input type="text" placeholder={u('onboarding.selectCountry', 'Select Country')} className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors" value={driverData.country} onChange={(e) => setDriverData({ ...driverData, country: e.target.value })} /></div>
+                  <div className="flex flex-col gap-4"><label className="text-xs font-bold text-slate-500 uppercase block">{u('onboarding.fullName', 'Full Name')}</label><input type="text" placeholder="Full name" className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors" value={driverData.name} onChange={(e) => setDriverData({ ...driverData, name: e.target.value })} /></div>
+                  <div className="flex flex-col gap-4"><label className="text-xs font-bold text-slate-500 uppercase block">{u('onboarding.country', 'Country')}</label><input type="text" placeholder={u('onboarding.selectCountry', 'Select Country')} className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors" value={driverData.country} onChange={(e) => setDriverData({ ...driverData, country: e.target.value })} /></div>
                   <button onClick={() => setDriverData({ ...driverData, idVerified: !driverData.idVerified })} className={cn('w-full p-6 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all cursor-pointer', driverData.idVerified ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/10' : 'border-slate-200 dark:border-slate-800 hover:border-primary/50')}>{driverData.idVerified ? <CheckCircle2 className="text-emerald-500 w-8 h-8" /> : <Camera className="text-slate-400 w-8 h-8" />}<span className={cn('text-sm font-bold', driverData.idVerified ? 'text-emerald-600' : 'text-slate-500')}>{driverData.idVerified ? u('onboarding.idUploaded', 'ID Photo Uploaded') : u('onboarding.idUpload', 'Upload Photo of ID')}</span></button>
-                </div>
-              </>
-            )}
-
-            {step === 5 && (
-              <>
-                <div className={headerClass}>
-                  <Truck className="w-12 h-12 text-primary" />
-                  <h2 className="text-2xl font-bold dark:text-white">{u('setup.driverType', 'Driver Type')}</h2>
-                  <p className="text-slate-500 text-sm">{u('setup.driverTypeDesc', 'Are you an independent driver or a company?')}</p>
-                </div>
-                <div className="flex flex-col gap-3">
-                  <button onClick={() => setDriverType('private')} className={cn('w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 text-left cursor-pointer', driverType === 'private' ? 'border-primary bg-primary/5' : 'border-slate-100 dark:border-slate-800 hover:border-primary')}><div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center"><User className="text-blue-600" /></div><div><p className="font-bold dark:text-white">{u('setup.privateDriver', 'Private Driver')}</p></div></button>
-                  <button onClick={() => setDriverType('company')} className={cn('w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 text-left cursor-pointer', driverType === 'company' ? 'border-primary bg-primary/5' : 'border-slate-100 dark:border-slate-800 hover:border-primary')}><div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center"><Globe className="text-emerald-600" /></div><div><p className="font-bold dark:text-white">{u('setup.logisticsCompany', 'Logistics Company')}</p></div></button>
                 </div>
               </>
             )}
@@ -272,14 +288,14 @@ export const SetupProcess = ({ lang, labels, onComplete, onClose }: SetupProcess
                 </div>
                 <div className="flex flex-col gap-4">
                   <div className="grid grid-cols-2 gap-4">
-                    <div><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{u('setup.make', 'Make')}</label><input type="text" className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors" value={carData.make} onChange={(e) => setCarData({ ...carData, make: e.target.value })} /></div>
-                    <div><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{u('setup.model', 'Model')}</label><input type="text" className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors" value={carData.model} onChange={(e) => setCarData({ ...carData, model: e.target.value })} /></div>
+                    <div className="flex flex-col gap-4"><label className="text-xs font-bold text-slate-500 uppercase block">{u('setup.make', 'Make')}</label><input type="text" className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors" value={carData.make} onChange={(e) => setCarData({ ...carData, make: e.target.value })} /></div>
+                    <div className="flex flex-col gap-4"><label className="text-xs font-bold text-slate-500 uppercase block">{u('setup.model', 'Model')}</label><input type="text" className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors" value={carData.model} onChange={(e) => setCarData({ ...carData, model: e.target.value })} /></div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <div><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{u('setup.year', 'Year')}</label><input type="text" className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors" value={carData.year} onChange={(e) => setCarData({ ...carData, year: e.target.value })} /></div>
-                    <div><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{labels.selectFuel}</label><select className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors" value={carData.fuelType} onChange={(e) => setCarData({ ...carData, fuelType: e.target.value })}><option value="">{labels.selectFuel}</option><option value="Diesel">{trFuelType(lang, 'Diesel')}</option><option value="Gasoline">{trFuelType(lang, 'Gasoline')}</option><option value="Electric">{trFuelType(lang, 'Electric')}</option><option value="Hybrid">{trFuelType(lang, 'Hybrid')}</option></select></div>
+                    <div className="flex flex-col gap-4"><label className="text-xs font-bold text-slate-500 uppercase block">{u('setup.year', 'Year')}</label><input type="text" className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors" value={carData.year} onChange={(e) => setCarData({ ...carData, year: e.target.value })} /></div>
+                    <div className="flex flex-col gap-4"><label className="text-xs font-bold text-slate-500 uppercase block">{labels.selectFuel}</label><select className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors" value={carData.fuelType} onChange={(e) => setCarData({ ...carData, fuelType: e.target.value })}><option value="">{labels.selectFuel}</option><option value="Diesel">{trFuelType(lang, 'Diesel')}</option><option value="Gasoline">{trFuelType(lang, 'Gasoline')}</option><option value="Electric">{trFuelType(lang, 'Electric')}</option><option value="Hybrid">{trFuelType(lang, 'Hybrid')}</option></select></div>
                   </div>
-                  <div><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{labels.licensePlate}</label><input type="text" className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors" value={carData.plate} onChange={(e) => setCarData({ ...carData, plate: e.target.value })} /></div>
+                  <div className="flex flex-col gap-4"><label className="text-xs font-bold text-slate-500 uppercase block">{labels.licensePlate}</label><input type="text" className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors" value={carData.plate} onChange={(e) => setCarData({ ...carData, plate: e.target.value })} /></div>
                 </div>
               </>
             )}
@@ -308,8 +324,12 @@ export const SetupProcess = ({ lang, labels, onComplete, onClose }: SetupProcess
       >
         <div className="max-w-md w-full mx-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl p-3">
           <div className="flex gap-3">
-            <Button variant="outline" onClick={handleBack} className="flex-1 cursor-pointer" size="lg">{u('common.back', 'Back')}</Button>
-            <Button onClick={handleNext} disabled={!canProceed} className="flex-1 cursor-pointer" size="lg">{step === 4 ? labels.completeSetup : u('common.continue', 'Continue')}</Button>
+            <Button variant="outline" onClick={handleBack} disabled={googleSubmitting} className="flex-1 cursor-pointer" size="lg">
+              {step === 2 ? u('setup.cancelSetup', 'Cancel') : u('common.back', 'Back')}
+            </Button>
+            <Button onClick={handleNext} disabled={!canProceed || googleSubmitting} className="flex-1 cursor-pointer" size="lg">
+              {googleSubmitting ? u('login.signingIn', 'Signing in...') : step === 4 ? labels.completeSetup : u('common.continue', 'Continue')}
+            </Button>
           </div>
         </div>
       </motion.div>
