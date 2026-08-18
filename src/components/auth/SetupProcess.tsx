@@ -18,7 +18,9 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { api, ApiError } from '../../services/api';
 import { GOOGLE_CLIENT_ID } from '../../lib/googleIdentity';
+import { APPLE_CLIENT_ID } from '../../lib/appleIdentity';
 import { GoogleSignInButton } from './GoogleSignInButton';
+import { AppleSignInButton } from './AppleSignInButton';
 
 type SetupLabels = {
   username: string;
@@ -55,21 +57,36 @@ export const SetupProcess = ({ lang, labels, onComplete, onClose }: SetupProcess
   const [driverCompany, setDriverCompany] = useState({ name: '', taxId: '', address: '' });
   const [customerCompany, setCustomerCompany] = useState({ name: '', taxId: '', address: '' });
   const [carData, setCarData] = useState({ make: '', model: '', year: '', fuelType: '', plate: '' });
-  const [googleError, setGoogleError] = useState('');
-  const [googleSubmitting, setGoogleSubmitting] = useState(false);
+  const [socialError, setSocialError] = useState('');
+  const [socialSubmitting, setSocialSubmitting] = useState(false);
 
   const handleGoogleCredential = async (idToken: string) => {
     if (!role) return;
-    setGoogleError('');
-    setGoogleSubmitting(true);
+    setSocialError('');
+    setSocialSubmitting(true);
     try {
       const result = await api.auth.google(idToken, role);
       if ('needs_registration' in result) return;
       onComplete(result.user.role?.name as Role || role, lang);
     } catch (error) {
-      setGoogleError(error instanceof ApiError ? error.message : u('login.connectionError', 'Could not connect to the API.'));
+      setSocialError(error instanceof ApiError ? error.message : u('login.connectionError', 'Could not connect to the API.'));
     } finally {
-      setGoogleSubmitting(false);
+      setSocialSubmitting(false);
+    }
+  };
+
+  const handleAppleCredential = async (identityToken: string, fullName?: string) => {
+    if (!role) return;
+    setSocialError('');
+    setSocialSubmitting(true);
+    try {
+      const result = await api.auth.apple(identityToken, fullName, role);
+      if ('needs_registration' in result) return;
+      onComplete(result.user.role?.name as Role || role, lang);
+    } catch (error) {
+      setSocialError(error instanceof ApiError ? error.message : u('login.connectionError', 'Could not connect to the API.'));
+    } finally {
+      setSocialSubmitting(false);
     }
   };
 
@@ -211,14 +228,17 @@ export const SetupProcess = ({ lang, labels, onComplete, onClose }: SetupProcess
                   </button>
                 </div>
 
-                {role && GOOGLE_CLIENT_ID && (
+                {role && (GOOGLE_CLIENT_ID || APPLE_CLIENT_ID) && (
                   <div className="flex flex-col gap-4">
-                    {googleError && <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400">{googleError}</div>}
+                    {socialError && <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400">{socialError}</div>}
                     <div className="flex items-center gap-4">
                       <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
                       <span className="text-[11px] font-bold uppercase text-slate-400">{u('login.or', 'or')}</span>
                       <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
                     </div>
+                    {APPLE_CLIENT_ID && (
+                      <AppleSignInButton onCredential={handleAppleCredential} label={u('login.continueWithApple', 'Continue with Apple')} />
+                    )}
                     <GoogleSignInButton onCredential={handleGoogleCredential} lang={lang} />
                   </div>
                 )}
@@ -324,11 +344,11 @@ export const SetupProcess = ({ lang, labels, onComplete, onClose }: SetupProcess
       >
         <div className="max-w-md w-full mx-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl p-3">
           <div className="flex gap-3">
-            <Button variant="outline" onClick={handleBack} disabled={googleSubmitting} className="flex-1 cursor-pointer" size="lg">
+            <Button variant="outline" onClick={handleBack} disabled={socialSubmitting} className="flex-1 cursor-pointer" size="lg">
               {step === 2 ? u('setup.cancelSetup', 'Cancel') : u('common.back', 'Back')}
             </Button>
-            <Button onClick={handleNext} disabled={!canProceed || googleSubmitting} className="flex-1 cursor-pointer" size="lg">
-              {googleSubmitting ? u('login.signingIn', 'Signing in...') : step === 4 ? labels.completeSetup : u('common.continue', 'Continue')}
+            <Button onClick={handleNext} disabled={!canProceed || socialSubmitting} className="flex-1 cursor-pointer" size="lg">
+              {socialSubmitting ? u('login.signingIn', 'Signing in...') : step === 4 ? labels.completeSetup : u('common.continue', 'Continue')}
             </Button>
           </div>
         </div>

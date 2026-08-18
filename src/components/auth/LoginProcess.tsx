@@ -194,7 +194,7 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
 
               {pendingSocialAuth ? (
                 <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm text-slate-600 dark:text-slate-300">
-                  {u('login.googleFinishSignup', 'Choose a role below to finish creating your account with Google.')}{' '}
+                  {u('login.socialFinishSignup', 'Choose a role below to finish creating your account.')}{' '}
                   <button type="button" onClick={cancelSocialRegistration} className="font-bold text-primary hover:underline cursor-pointer">
                     {u('login.cancel', 'Cancel')}
                   </button>
