@@ -9,7 +9,11 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { api, ApiError } from '../../services/api';
 import { GOOGLE_CLIENT_ID } from '../../lib/googleIdentity';
+import { APPLE_CLIENT_ID } from '../../lib/appleIdentity';
 import { GoogleSignInButton } from './GoogleSignInButton';
+import { AppleSignInButton } from './AppleSignInButton';
+
+type PendingSocialAuth = { provider: 'google' | 'apple'; token: string; email?: string; name?: string };
 
 type LoginLabels = {
   logIn: string;
@@ -43,10 +47,10 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
   const [isSwitchingToSetup, setIsSwitchingToSetup] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginError, setLoginError] = useState('');
-  const [pendingGoogleAuth, setPendingGoogleAuth] = useState<{ token: string; email?: string; name?: string } | null>(null);
+  const [pendingSocialAuth, setPendingSocialAuth] = useState<PendingSocialAuth | null>(null);
   const [quickLoginRole, setQuickLoginRole] = useState<Role>(null);
 
-  const canProceed = pendingGoogleAuth
+  const canProceed = pendingSocialAuth
     ? Boolean(loginData.role && loginData.role !== 'superadmin')
     : Boolean(loginData.username && loginData.password);
   const handleGetStarted = () => {
@@ -73,15 +77,17 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
     }
   };
 
-  const finishGoogleRegistration = async () => {
-    if (!pendingGoogleAuth || !loginData.role || isSubmitting) return;
+  const finishSocialRegistration = async () => {
+    if (!pendingSocialAuth || !loginData.role || isSubmitting) return;
     setIsSubmitting(true);
     setLoginError('');
     try {
-      const result = await api.auth.google(pendingGoogleAuth.token, loginData.role);
+      const result = pendingSocialAuth.provider === 'google'
+        ? await api.auth.google(pendingSocialAuth.token, loginData.role)
+        : await api.auth.apple(pendingSocialAuth.token, pendingSocialAuth.name, loginData.role);
       if ('needs_registration' in result) return;
       const authenticatedRole = result.user.role?.name as Role;
-      setPendingGoogleAuth(null);
+      setPendingSocialAuth(null);
       onComplete(authenticatedRole || loginData.role, lang);
     } catch (error) {
       setLoginError(error instanceof ApiError ? error.message : u('login.connectionError', 'Could not connect to the API.'));
@@ -91,7 +97,7 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
   };
 
   const handleLogin = async () => {
-    if (pendingGoogleAuth) return finishGoogleRegistration();
+    if (pendingSocialAuth) return finishSocialRegistration();
     if (!canProceed || isSubmitting) return;
     setIsSubmitting(true);
     setLoginError('');
@@ -106,8 +112,8 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
     }
   };
 
-  const cancelGoogleRegistration = () => {
-    setPendingGoogleAuth(null);
+  const cancelSocialRegistration = () => {
+    setPendingSocialAuth(null);
     setLoginError('');
     setLoginData((prev) => ({ ...prev, role: prev.role || 'superadmin' }));
   };
@@ -118,7 +124,26 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
     try {
       const result = await api.auth.google(idToken);
       if ('needs_registration' in result) {
-        setPendingGoogleAuth({ token: idToken, email: result.email, name: result.name });
+        setPendingSocialAuth({ provider: 'google', token: idToken, email: result.email, name: result.name });
+        setLoginData((prev) => ({ ...prev, role: null }));
+        return;
+      }
+      const authenticatedRole = result.user.role?.name as Role;
+      onComplete(authenticatedRole || loginData.role, lang);
+    } catch (error) {
+      setLoginError(error instanceof ApiError ? error.message : u('login.socialSignInFailed', 'Sign-in was not completed. Please try again.'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAppleCredential = async (identityToken: string, fullName?: string) => {
+    setLoginError('');
+    setIsSubmitting(true);
+    try {
+      const result = await api.auth.apple(identityToken, fullName);
+      if ('needs_registration' in result) {
+        setPendingSocialAuth({ provider: 'apple', token: identityToken, email: result.email, name: fullName || result.name });
         setLoginData((prev) => ({ ...prev, role: null }));
         return;
       }
@@ -167,10 +192,10 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
             <div className="flex flex-col gap-4">
               {loginError && <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400">{loginError}</div>}
 
-              {pendingGoogleAuth ? (
+              {pendingSocialAuth ? (
                 <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm text-slate-600 dark:text-slate-300">
                   {u('login.googleFinishSignup', 'Choose a role below to finish creating your account with Google.')}{' '}
-                  <button type="button" onClick={cancelGoogleRegistration} className="font-bold text-primary hover:underline cursor-pointer">
+                  <button type="button" onClick={cancelSocialRegistration} className="font-bold text-primary hover:underline cursor-pointer">
                     {u('login.cancel', 'Cancel')}
                   </button>
                 </div>
@@ -200,18 +225,21 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
                 </>
               )}
 
-              {!pendingGoogleAuth && GOOGLE_CLIENT_ID && (
+              {!pendingSocialAuth && (GOOGLE_CLIENT_ID || APPLE_CLIENT_ID) && (
                 <>
                   <div className="flex items-center gap-4">
                     <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
                     <span className="text-[11px] font-bold uppercase text-slate-400">{u('login.or', 'or')}</span>
                     <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
                   </div>
+                  {APPLE_CLIENT_ID && (
+                    <AppleSignInButton onCredential={handleAppleCredential} label={u('login.continueWithApple', 'Continue with Apple')} />
+                  )}
                   <GoogleSignInButton onCredential={handleGoogleCredential} lang={lang} />
                 </>
               )}
 
-              {pendingGoogleAuth && (
+              {pendingSocialAuth && (
                 <div className="grid grid-cols-2 gap-4">
                   {roleOptions.filter((option) => option.id !== 'superadmin').map((option) => {
                     const Icon = option.icon;
@@ -302,7 +330,7 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
             >
               {isSubmitting
                 ? u('login.signingIn', 'Signing in...')
-                : pendingGoogleAuth
+                : pendingSocialAuth
                   ? u('login.finishSignup', 'Finish sign-up')
                   : labels.logIn}
             </Button>

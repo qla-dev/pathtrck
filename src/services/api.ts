@@ -165,6 +165,11 @@ export const api = {
       if ('token' in response.data) setToken(response.data.token);
       return response.data;
     },
+    apple: async (identityToken: string, fullName?: string, role?: string) => {
+      const response = await request<SocialAuthResult>('/auth/apple', { method: 'POST', body: JSON.stringify({ identity_token: identityToken, full_name: fullName, role }) });
+      if ('token' in response.data) setToken(response.data.token);
+      return response.data;
+    },
   },
   roles: resourceApi<Record<string, unknown>>('roles'),
   users: {
