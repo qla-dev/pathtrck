@@ -20,6 +20,7 @@ export type ApiUser = {
 };
 
 export type ApiLoginResult = { token: string; token_type: 'Bearer'; user: ApiUser };
+export type SocialAuthResult = ApiLoginResult | { needs_registration: true; email?: string; name?: string };
 export type ListParams = Record<string, string | number | boolean | undefined>;
 
 export type ScanImage = { base64: string; mimeType?: string };
@@ -159,6 +160,11 @@ export const api = {
     me: async () => (await request<ApiUser>('/auth/me')).data,
     updateProfile: async (data: Record<string, unknown>) => (await request<ApiUser>('/auth/profile', { method: 'PUT', body: JSON.stringify(data) })).data,
     logout: async () => { try { await request<null>('/auth/logout', { method: 'POST' }); } finally { setToken(null); } },
+    google: async (idToken: string, role?: string) => {
+      const response = await request<SocialAuthResult>('/auth/google', { method: 'POST', body: JSON.stringify({ id_token: idToken, role }) });
+      if ('token' in response.data) setToken(response.data.token);
+      return response.data;
+    },
   },
   roles: resourceApi<Record<string, unknown>>('roles'),
   users: {

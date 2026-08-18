@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { Banknote, Building2, Crown, Truck, User, X } from 'lucide-react';
 
@@ -8,6 +8,7 @@ import { cn } from '../../lib/cn';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { api, ApiError } from '../../services/api';
+import { GOOGLE_CLIENT_ID, loadGoogleIdentityScript } from '../../lib/googleIdentity';
 
 type LoginLabels = {
   logIn: string;
@@ -41,14 +42,39 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
   const [isSwitchingToSetup, setIsSwitchingToSetup] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginError, setLoginError] = useState('');
+  const [pendingGoogleAuth, setPendingGoogleAuth] = useState<{ token: string; email?: string; name?: string } | null>(null);
+  const [googleButtonReady, setGoogleButtonReady] = useState(false);
+  const googleButtonRef = useRef<HTMLDivElement>(null);
+  const handleGoogleCredentialRef = useRef<(idToken: string) => void>(() => {});
 
-  const canProceed = Boolean(loginData.username && loginData.password && loginData.role);
+  const canProceed = pendingGoogleAuth
+    ? Boolean(loginData.role && loginData.role !== 'superadmin')
+    : Boolean(loginData.username && loginData.password && loginData.role);
   const handleGetStarted = () => {
     if (!onGetStarted || isSwitchingToSetup) return;
     setIsSwitchingToSetup(true);
     setTimeout(() => onGetStarted(), 260);
   };
+
+  const finishGoogleRegistration = async () => {
+    if (!pendingGoogleAuth || !loginData.role || isSubmitting) return;
+    setIsSubmitting(true);
+    setLoginError('');
+    try {
+      const result = await api.auth.google(pendingGoogleAuth.token, loginData.role);
+      if ('needs_registration' in result) return;
+      const authenticatedRole = result.user.role?.name as Role;
+      setPendingGoogleAuth(null);
+      onComplete(authenticatedRole || loginData.role, lang);
+    } catch (error) {
+      setLoginError(error instanceof ApiError ? error.message : u('login.connectionError', 'Could not connect to the API.'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleLogin = async () => {
+    if (pendingGoogleAuth) return finishGoogleRegistration();
     if (!canProceed || isSubmitting) return;
     setIsSubmitting(true);
     setLoginError('');
@@ -62,6 +88,58 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
       setIsSubmitting(false);
     }
   };
+
+  const cancelGoogleRegistration = () => {
+    setPendingGoogleAuth(null);
+    setLoginError('');
+    setLoginData((prev) => ({ ...prev, role: prev.role || 'superadmin' }));
+  };
+
+  useEffect(() => {
+    handleGoogleCredentialRef.current = async (idToken: string) => {
+      setLoginError('');
+      setIsSubmitting(true);
+      try {
+        const result = await api.auth.google(idToken);
+        if ('needs_registration' in result) {
+          setPendingGoogleAuth({ token: idToken, email: result.email, name: result.name });
+          setLoginData((prev) => ({ ...prev, role: null }));
+          return;
+        }
+        const authenticatedRole = result.user.role?.name as Role;
+        onComplete(authenticatedRole || loginData.role, lang);
+      } catch (error) {
+        setLoginError(error instanceof ApiError ? error.message : u('login.socialSignInFailed', 'Sign-in was not completed. Please try again.'));
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+  });
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return;
+    let cancelled = false;
+    loadGoogleIdentityScript()
+      .then(() => {
+        if (cancelled || !window.google || !googleButtonRef.current) return;
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: (response) => handleGoogleCredentialRef.current(response.credential),
+        });
+        window.google.accounts.id.renderButton(googleButtonRef.current, {
+          type: 'standard',
+          theme: 'outline',
+          size: 'large',
+          shape: 'pill',
+          text: 'continue_with',
+          logo_alignment: 'left',
+          width: 336,
+        });
+        setGoogleButtonReady(true);
+      })
+      .catch(() => setGoogleButtonReady(false));
+    return () => { cancelled = true; };
+  }, []);
 
   return (
     <motion.div
@@ -98,30 +176,55 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
 
           <div className="space-y-4">
             {loginError && <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400">{loginError}</div>}
-            <div>
-              <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{labels.username}</label>
-              <input
-                type="text"
-                placeholder="johndoe123"
-                className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors"
-                value={loginData.username}
-                onChange={(e) => setLoginData((prev) => ({ ...prev, username: e.target.value }))}
-              />
-            </div>
 
-            <div>
-              <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{labels.password}</label>
-              <input
-                type="password"
-                placeholder="••••••••"
-                className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors"
-                value={loginData.password}
-                onChange={(e) => setLoginData((prev) => ({ ...prev, password: e.target.value }))}
-              />
-            </div>
+            {!pendingGoogleAuth && GOOGLE_CLIENT_ID && (
+              <>
+                <div className="flex justify-center">
+                  <div ref={googleButtonRef} className={cn('transition-opacity', !googleButtonReady && 'opacity-0 pointer-events-none h-0')} />
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
+                  <span className="text-[11px] font-bold uppercase text-slate-400">{u('login.or', 'or')}</span>
+                  <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
+                </div>
+              </>
+            )}
+
+            {pendingGoogleAuth ? (
+              <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm text-slate-600 dark:text-slate-300">
+                {u('login.googleFinishSignup', 'Choose a role below to finish creating your account with Google.')}{' '}
+                <button type="button" onClick={cancelGoogleRegistration} className="font-bold text-primary hover:underline cursor-pointer">
+                  {u('login.cancel', 'Cancel')}
+                </button>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{labels.username}</label>
+                  <input
+                    type="text"
+                    placeholder="johndoe123"
+                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors"
+                    value={loginData.username}
+                    onChange={(e) => setLoginData((prev) => ({ ...prev, username: e.target.value }))}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">{labels.password}</label>
+                  <input
+                    type="password"
+                    placeholder="••••••••"
+                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 dark:text-white focus:border-primary focus:ring-0 outline-none transition-colors"
+                    value={loginData.password}
+                    onChange={(e) => setLoginData((prev) => ({ ...prev, password: e.target.value }))}
+                  />
+                </div>
+              </>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
-              {roleOptions.map((option) => {
+              {(pendingGoogleAuth ? roleOptions.filter((option) => option.id !== 'superadmin') : roleOptions).map((option) => {
                 const Icon = option.icon;
                 const selected = loginData.role === option.id;
                 return (
@@ -185,7 +288,11 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
               className="flex-1 cursor-pointer"
               size="lg"
             >
-              {isSubmitting ? u('login.signingIn', 'Signing in...') : labels.logIn}
+              {isSubmitting
+                ? u('login.signingIn', 'Signing in...')
+                : pendingGoogleAuth
+                  ? u('login.finishSignup', 'Finish sign-up')
+                  : labels.logIn}
             </Button>
           </div>
         </div>
