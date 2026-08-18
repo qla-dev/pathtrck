@@ -59,7 +59,7 @@ export function AppleSignInButton({ onCredential, label }: AppleSignInButtonProp
       type="button"
       onClick={() => void handleClick()}
       disabled={!ready || submitting}
-      className="flex h-[50px] w-full cursor-pointer items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white text-sm font-bold text-black transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+      className="flex h-[50px] w-full cursor-pointer items-center justify-center gap-3 rounded-xl border border-slate-200 bg-black text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-800 dark:bg-white dark:text-black"
     >
       <AppleLogo />
       {label}
