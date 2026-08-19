@@ -109,6 +109,7 @@ const LoadsBounds = ({ points }: { points: [number, number][] }) => {
 type HomeFeedProps = {
   lang: Language;
   role?: Role;
+  userId?: number;
   dataMode?: 'all' | 'organic' | 'global';
   loads?: Load[];
   sortMode?: FeedSortMode;
@@ -151,6 +152,7 @@ type HomeFeedProps = {
 export const HomeFeed = ({
   lang,
   role,
+  userId,
   dataMode = 'all',
   loads = MOCK_LOADS,
   sortMode = 'price_asc',
@@ -399,6 +401,7 @@ export const HomeFeed = ({
               layout="list"
               load={load}
               lang={lang}
+              userId={userId}
               onOpenDetails={setSelectedLoad}
               viewDetailsLabel={bookLoadLabel}
             />
@@ -414,6 +417,7 @@ export const HomeFeed = ({
               layout="grid"
               load={load}
               lang={lang}
+              userId={userId}
               onOpenDetails={setSelectedLoad}
               viewDetailsLabel={bookLoadLabel}
             />
@@ -430,6 +434,7 @@ export const HomeFeed = ({
                 layout="map"
                 load={load}
                 lang={lang}
+                userId={userId}
                 onOpenDetails={setSelectedLoad}
                 viewDetailsLabel={bookLoadLabel}
               />
@@ -517,6 +522,7 @@ export const HomeFeed = ({
         load={selectedLoad}
         lang={lang}
         role={role}
+        userId={userId}
         onEdit={onEditLoad}
         onChanged={onLoadChanged}
         onClose={() => setSelectedLoad(null)}

@@ -78,6 +78,9 @@ export interface Load {
   paymentTerms: 'In Advance' | 'Negotiable' | 'On Delivery';
   eta: string;
   transportType?: 'road' | 'air' | 'sea';
+  isNegotiable?: boolean;
+  budget?: number;
+  offers?: Array<Record<string, unknown>>;
 }
 
 export interface RouteLog {

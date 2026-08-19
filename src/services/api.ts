@@ -201,6 +201,9 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     }),
+    book: (id: number | string) => request<Record<string, unknown>>(`/loads/${id}/book`, {
+      method: 'POST',
+    }),
     scan: (images: ScanImage[]) => request<LoadScanResult>('/load-scans', {
       method: 'POST',
       body: JSON.stringify({ images }),

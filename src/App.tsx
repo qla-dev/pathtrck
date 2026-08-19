@@ -3173,6 +3173,9 @@ const mapDatabaseRecordToLoad = (record: Record<string, unknown>): Load => {
     paymentTerms: terms === 'in_advance' ? 'In Advance' : terms === 'on_delivery' ? 'On Delivery' : 'Negotiable',
     transportType: record.transport_type === 'air' ? 'air' : record.transport_type === 'sea' ? 'sea' : 'road',
     eta: String(record.completed_at || ''),
+    isNegotiable: record.is_negotiable == null ? true : Boolean(record.is_negotiable),
+    budget: record.budget == null ? undefined : Number(record.budget),
+    offers: Array.isArray(record.offers) ? record.offers as Array<Record<string, unknown>> : [],
   };
 };
 
@@ -4024,7 +4027,7 @@ export default function App() {
             </p>
           </div>
           <div className="flex items-center gap-4">
-            {role === 'user' || role === 'company' || role === 'superadmin' ? (
+            {role === 'user' || role === 'superadmin' ? (
               <div className="relative">
                 <button
                   onClick={() => setIsBulkImportOpen(true)}
@@ -4044,7 +4047,7 @@ export default function App() {
                 )}
               </div>
             ) : null}
-            {role === 'user' || role === 'company' || role === 'superadmin' ? (
+            {role === 'user' || role === 'superadmin' ? (
               <button
                 onClick={() => { setEditLoadId(null); setIsPostLoadOpen(true); }}
                 className="h-10 px-4 rounded-full bg-primary text-white inline-flex items-center gap-2 text-xs font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all cursor-pointer whitespace-nowrap"
@@ -4196,6 +4199,7 @@ export default function App() {
                   <HomeFeed
                     lang={lang}
                     role={role}
+                    userId={currentUser?.id}
                     dataMode={feedDataMode}
                     loads={activeFeedLoads}
                     sortMode={feedSortMode}

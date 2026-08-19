@@ -7,6 +7,7 @@ import {
   Clock3,
   Coins,
   FileText,
+  Handshake,
   MapPin,
   Package,
   Plane,
@@ -15,6 +16,7 @@ import {
   ShieldCheck,
   Ship,
   Sparkles,
+  Tag,
   ThermometerSnowflake,
   Truck,
   UserRound,
@@ -529,7 +531,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         deliveryPlaceType: String(delivery.place_type || INITIAL_DRAFT.deliveryPlaceType), deliveryCity: String(delivery.city || ''), deliveryCountry: String(delivery.country_code || 'BA'), deliveryAddress: String(delivery.address || ''), deliveryLatitude: String(delivery.latitude || ''), deliveryLongitude: String(delivery.longitude || ''), deliveryDate: deliveryStart.date, deliveryDateTo: deliveryEnd.date, deliveryTimeFrom: deliveryStart.time, deliveryTimeTo: deliveryEnd.time,
         cargoTitle: String(record.title || ''), cargoType: String(record.cargo_type || 'FTL'), goodsType: String(record.goods_type || 'General'), weightKg: fromApiWeightKg(record.weight_kg), pallets: String(record.pallets || ''), lengthM: String(record.length_m || ''), widthM: String(record.width_m || ''), heightM: String(record.height_m || ''), volumeM3: String(record.volume_m3 || ''), declaredValue: String(record.declared_value || ''), budget: String(record.budget || ''), freightCurrency: String(record.currency || 'EUR'), shipmentValueCurrency: String(record.shipment_value_currency || record.currency || 'EUR'), paymentDueDays: String(record.payment_due_days || ''), paymentDeferred: terms === 'deferred', incoterm: String(record.incoterms || ''),
         loadingEquipment: Array.isArray(record.loading_methods) ? String(record.loading_methods[0] || 'Not specified') : 'Not specified', vehicleType: String(record.vehicle_type || INITIAL_DRAFT.vehicleType), characteristics: String(record.characteristics || ''), specialRequirements: Array.isArray(record.special_requirements) ? record.special_requirements.map(String) : [], transportMode: String(record.transport_mode || INITIAL_DRAFT.transportMode), deliveryProof: String(record.delivery_proof || ''), temperatureControlled: record.temperature_min != null || record.temperature_max != null, temperatureMin: String(record.temperature_min ?? ''), temperatureMax: String(record.temperature_max ?? ''),
-        requiresAdr: Boolean(record.requires_adr), requiresTailLift: Boolean(record.requires_tail_lift), mustBeTrackable: Boolean(record.must_be_trackable), urgent: Boolean(record.is_urgent), bodyTypes: Array.isArray(record.body_types) ? record.body_types.map(String) : [], notes: String(record.notes || ''), internalComments: String(record.internal_comments || ''), externalComments: String(record.external_comments || ''), contactName: String(contact.name || ''), contactPhone: String(contact.phone || ''), contactMobile: String(contact.mobile || ''), contactEmail: String(contact.email || ''), contactFax: String(contact.fax || ''),
+        requiresAdr: Boolean(record.requires_adr), requiresTailLift: Boolean(record.requires_tail_lift), mustBeTrackable: Boolean(record.must_be_trackable), urgent: Boolean(record.is_urgent), receivePriceProposals: record.is_negotiable == null ? true : Boolean(record.is_negotiable), bodyTypes: Array.isArray(record.body_types) ? record.body_types.map(String) : [], notes: String(record.notes || ''), internalComments: String(record.internal_comments || ''), externalComments: String(record.external_comments || ''), contactName: String(contact.name || ''), contactPhone: String(contact.phone || ''), contactMobile: String(contact.mobile || ''), contactEmail: String(contact.email || ''), contactFax: String(contact.fax || ''),
       });
     }).catch((error) => setSubmitError(error instanceof Error ? error.message : 'The load could not be loaded.')).finally(() => setIsLoadingExisting(false));
   }, [editLoadId, isOpen]);
@@ -627,6 +629,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         declared_value: draft.declaredValue ? Number(draft.declaredValue) : null,
         shipment_value_currency: draft.shipmentValueCurrency,
         budget: draft.budget ? Number(draft.budget) : null,
+        is_negotiable: draft.receivePriceProposals,
         currency: draft.freightCurrency,
         payment_terms: draft.paymentDeferred ? 'deferred' : 'on_delivery',
         incoterms: draft.incoterm || null,
@@ -1363,30 +1366,24 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           ))}
                         </Select>
                       </div>
-                      <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 dark:border-slate-800 dark:bg-slate-950">
-                        <div>
-                          <p className="text-sm font-bold dark:text-white">
-                            {u('postLoadModal.receivePriceProposals', 'Receive price proposals')}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            {u('postLoadModal.receivePriceProposalsDesc', 'Allow carriers to send alternative prices')}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setField('receivePriceProposals', !draft.receivePriceProposals)}
-                          className={cn(
-                            'relative h-8 w-14 cursor-pointer rounded-full transition-colors',
-                            draft.receivePriceProposals ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700'
-                          )}
-                        >
-                          <span
-                            className={cn(
-                              'absolute top-1 h-6 w-6 rounded-full bg-white transition-all',
-                              draft.receivePriceProposals ? 'left-7' : 'left-1'
-                            )}
+                      <div className="space-y-1.5">
+                        <FieldLabel>{u('postLoadModal.priceTerms', 'Terms')}</FieldLabel>
+                        <div className="grid grid-cols-2 gap-3">
+                          <ChoiceCard
+                            active={draft.receivePriceProposals}
+                            title={u('postLoadModal.termsNegotiable', 'Negotiable')}
+                            description={u('postLoadModal.termsNegotiableDesc', 'Carriers can send alternative prices')}
+                            icon={Handshake}
+                            onClick={() => setField('receivePriceProposals', true)}
                           />
-                        </button>
+                          <ChoiceCard
+                            active={!draft.receivePriceProposals}
+                            title={u('postLoadModal.termsFixed', 'Fixed price')}
+                            description={u('postLoadModal.termsFixedDesc', 'Carriers book instantly at your price')}
+                            icon={Tag}
+                            onClick={() => setField('receivePriceProposals', false)}
+                          />
+                        </div>
                       </div>
                       <div className="flex flex-1 flex-col space-y-1.5">
                         <FieldLabel>{u('postLoadModal.notes', 'Handling notes')}</FieldLabel>

@@ -7,6 +7,7 @@ import {
   CalendarDays,
   CalendarClock,
   CheckCircle2,
+  ChevronRight,
   Coins,
   Hash,
   MapPin,
@@ -19,10 +20,11 @@ import {
 } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
-import { confirmAction, showSuccess } from '../../lib/swal';
+import { getBidState, getOfferLabel } from '../../lib/offerBid';
+import { confirmAction, showError, showSuccess } from '../../lib/swal';
 import { Language, Load } from '../../types';
 import { Role } from '../../types';
-import { api } from '../../services/api';
+import { api, ApiError } from '../../services/api';
 import { ui } from '../../i18n';
 import { Button } from '../ui/Button';
 import { LoadStatusPicker } from './LoadStatusPicker';
@@ -33,6 +35,7 @@ type LoadDetailsProps = {
   onClose: () => void;
   lang: Language;
   role?: Role;
+  userId?: number;
   onEdit?: (load: Load) => void;
   onChanged?: () => void;
 };
@@ -105,7 +108,7 @@ const getCountryCode = (location: string) => {
 
 const countryFlagUrl = (countryCode: string) => `https://flagcdn.com/w40/${countryCode.toLowerCase()}.png`;
 
-export const LoadDetails = ({ open, load, onClose, lang, role, onEdit, onChanged }: LoadDetailsProps) => {
+export const LoadDetails = ({ open, load, onClose, lang, role, userId, onEdit, onChanged }: LoadDetailsProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [offers, setOffers] = useState<Array<Record<string, unknown>>>([]);
   const [drivers, setDrivers] = useState<Array<Record<string, unknown>>>([]);
@@ -114,6 +117,17 @@ export const LoadDetails = ({ open, load, onClose, lang, role, onEdit, onChanged
   const [actionMessage, setActionMessage] = useState('');
   const [currentStatus, setCurrentStatus] = useState<Load['status']>(load?.status || 'Pending');
   const [statusChanging, setStatusChanging] = useState(false);
+  const [isBooking, setIsBooking] = useState(false);
+  const [showOfferForm, setShowOfferForm] = useState(false);
+  const [offerAmount, setOfferAmount] = useState('');
+  const [offerMessage, setOfferMessage] = useState('');
+  const [isSubmittingOffer, setIsSubmittingOffer] = useState(false);
+
+  useEffect(() => {
+    setShowOfferForm(false);
+    setOfferAmount('');
+    setOfferMessage('');
+  }, [open, load?.id]);
 
   useEffect(() => {
     if (open && load) setCurrentStatus(load.status);
@@ -129,18 +143,29 @@ export const LoadDetails = ({ open, load, onClose, lang, role, onEdit, onChanged
   }, [open, onClose]);
 
   useEffect(() => {
-    if (!open || !load || role !== 'superadmin') return;
+    if (!open || !load || (role !== 'superadmin' && role !== 'driver')) return undefined;
+    let active = true;
     setOffersLoading(true);
     setActionMessage('');
-    Promise.all([api.offers.list({ per_page: 100 }), api.drivers.list({ per_page: 100 })])
-      .then(([offerResponse, driverResponse]) => {
+    (async () => {
+      try {
+        const offerResponse = await api.offers.list({ per_page: 100 });
         const loadOffers = offerResponse.data.filter((offer) => String(offer.load_id) === String(load.id));
+        if (!active) return;
         setOffers(loadOffers);
-        setDrivers(driverResponse.data);
-        setSelectedDrivers(Object.fromEntries(loadOffers.flatMap((offer) => offer.driver_user_id ? [[String(offer.id), Number(offer.driver_user_id)]] : [])));
-      })
-      .catch((error) => setActionMessage(error instanceof Error ? error.message : 'Offers could not be loaded.'))
-      .finally(() => setOffersLoading(false));
+        if (role === 'superadmin') {
+          const driverResponse = await api.drivers.list({ per_page: 100 });
+          if (!active) return;
+          setDrivers(driverResponse.data);
+          setSelectedDrivers(Object.fromEntries(loadOffers.flatMap((offer) => offer.driver_user_id ? [[String(offer.id), Number(offer.driver_user_id)]] : [])));
+        }
+      } catch (error) {
+        if (active) setActionMessage(error instanceof Error ? error.message : 'Offers could not be loaded.');
+      } finally {
+        if (active) setOffersLoading(false);
+      }
+    })();
+    return () => { active = false; };
   }, [open, load, role]);
 
   const approveOffer = async (offer: Record<string, unknown>) => {
@@ -186,6 +211,75 @@ export const LoadDetails = ({ open, load, onClose, lang, role, onEdit, onChanged
     }
   };
 
+  const bookLoad = async () => {
+    if (!load || isBooking) return;
+    const confirmed = await confirmAction({
+      title: u('legacy.loadDetails.bookConfirmTitle', 'Book this load?'),
+      text: u('legacy.loadDetails.bookConfirmText', 'You will be assigned as the driver for this load right away.'),
+      confirmText: u('legacy.loadDetails.bookConfirm', 'Book now'),
+    });
+    if (!confirmed) return;
+
+    setIsBooking(true);
+    try {
+      await api.loads.book(load.id);
+      setCurrentStatus('Sent');
+      void showSuccess(u('legacy.loadDetails.bookedTitle', 'Load booked'), u('legacy.loadDetails.bookedText', 'You have been assigned to this load.'));
+      onChanged?.();
+      onClose();
+    } catch (error) {
+      void showError(
+        u('legacy.loadDetails.bookFailedTitle', 'Could not book this load'),
+        error instanceof ApiError ? error.message : undefined
+      );
+    } finally {
+      setIsBooking(false);
+    }
+  };
+
+  const submitOffer = async () => {
+    if (!load || isSubmittingOffer) return;
+    const amount = Number(offerAmount);
+    if (!Number.isFinite(amount) || amount <= 0) return;
+
+    setIsSubmittingOffer(true);
+    try {
+      if (myOffer) {
+        await api.offers.update(String(myOffer.id), {
+          amount,
+          currency: offerCurrency,
+          message: offerMessage.trim() || undefined,
+        });
+      } else {
+        await api.offers.create({
+          load_id: Number(load.id),
+          driver_user_id: userId,
+          created_by_user_id: userId,
+          amount,
+          currency: offerCurrency,
+          message: offerMessage.trim() || undefined,
+        });
+      }
+      void showSuccess(
+        myOffer ? u('legacy.loadDetails.offerUpdatedTitle', 'Offer updated') : u('legacy.loadDetails.offerSentTitle', 'Offer sent'),
+        myOffer ? u('legacy.loadDetails.offerUpdatedText', 'Your updated offer has been sent to the customer.') : u('legacy.loadDetails.offerSentText', 'The customer will review your offer.')
+      );
+      setShowOfferForm(false);
+      setOfferAmount('');
+      setOfferMessage('');
+      const refreshed = await api.offers.list({ per_page: 100 });
+      setOffers(refreshed.data.filter((offer) => String(offer.load_id) === String(load.id)));
+      onChanged?.();
+    } catch (error) {
+      void showError(
+        u('legacy.loadDetails.offerFailedTitle', 'Could not send the offer'),
+        error instanceof ApiError ? error.message : undefined
+      );
+    } finally {
+      setIsSubmittingOffer(false);
+    }
+  };
+
   if (!open || !load) return null;
 
   const goodsNote = getGoodsNote(load.goodsType, u);
@@ -193,6 +287,14 @@ export const LoadDetails = ({ open, load, onClose, lang, role, onEdit, onChanged
   const deliveryLabel = load.delivery || 'Nije definisano';
   const pickupCountryCode = getCountryCode(load.pickup);
   const deliveryCountryCode = getCountryCode(load.delivery);
+
+  const offerCurrency = load.price.split(' ')[0] || 'EUR';
+  const bidState = getBidState(offers, userId, load.budget);
+  const myOffer = bidState.myOffer;
+  const offerLabel = getOfferLabel(u, bidState, offerCurrency);
+  const bookLabel = load.budget && load.budget > 0
+    ? `${u('legacy.loadDetails.bookNow', 'Book now')} · ${offerCurrency} ${load.budget.toLocaleString()}`
+    : u('legacy.loadDetails.bookNow', 'Book now');
 
   return (
     <motion.div
@@ -226,15 +328,96 @@ export const LoadDetails = ({ open, load, onClose, lang, role, onEdit, onChanged
 
           <div className="flex-1 overflow-y-auto p-5 md:p-7">
             <div className="space-y-6">
+              <div className="grid xl:grid-cols-12 gap-6">
+                <div className="xl:col-span-8 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+                  <p className="mb-4 text-xs font-black uppercase tracking-wider text-primary">Load snapshot</p>
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><Building2 className="h-4 w-4 text-primary" /><p className="mt-3 text-xs text-slate-500">{u('legacy.loadDetails.postedBy', 'Posted by')}</p><p className="mt-1 truncate text-sm font-bold dark:text-white">{load.author || '—'}</p></div>
+                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><CalendarDays className="h-4 w-4 text-primary" /><p className="mt-3 text-xs text-slate-500">{u('legacy.loadDetails.postedDate', 'Posted date')}</p><p className="mt-1 text-sm font-bold dark:text-white">{formatLoadDate(load.date)}</p></div>
+                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><Box className="h-4 w-4 text-primary" /><p className="mt-3 text-xs text-slate-500">Goods type</p><p className="mt-1 truncate text-sm font-bold dark:text-white">{load.goodsType || 'General'}</p></div>
+                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><CalendarClock className="h-4 w-4 text-primary" /><p className="mt-3 text-xs text-slate-500">{u('legacy.loadDetails.latestEta', 'Latest ETA')}</p><p className="mt-1 text-sm font-bold dark:text-white">{formatLoadDate(load.eta)}</p></div>
+                  </div>
+                </div>
+
+                <div className="xl:col-span-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-3">
+                  <div className="flex items-center gap-2 text-primary">
+                    <CheckCircle2 className="w-5 h-5" />
+                    <p className="text-xs font-black uppercase tracking-wider">
+                      {u('legacy.loadDetails.readyActions', 'Ready Actions')}
+                    </p>
+                  </div>
+                  {role === 'superadmin' ? <>
+                    <Button className="w-full" onClick={() => onEdit?.(load)}><Pencil className="mr-2 h-4 w-4" />Edit load</Button>
+                    <LoadStatusPicker lang={lang} status={currentStatus} isChanging={statusChanging} onChange={(status) => void changeStatus(status)} />
+                  </> : role === 'driver' ? (
+                    load.isNegotiable === false ? (
+                      <Button
+                        className="w-full"
+                        disabled={isBooking || currentStatus !== 'Posted'}
+                        onClick={() => void bookLoad()}
+                      >
+                        {isBooking
+                          ? u('legacy.loadDetails.booking', 'Booking…')
+                          : currentStatus === 'Posted'
+                            ? bookLabel
+                            : u('legacy.loadDetails.alreadyBooked', 'Already booked')}
+                      </Button>
+                    ) : !showOfferForm ? (
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        disabled={currentStatus !== 'Posted'}
+                        onClick={() => {
+                          if (myOffer) {
+                            setOfferAmount(String(myOffer.amount ?? ''));
+                            setOfferMessage(String(myOffer.message ?? ''));
+                          }
+                          setShowOfferForm(true);
+                        }}
+                      >
+                        {offerLabel}
+                        {!myOffer && <ChevronRight className="ml-1 h-4 w-4" />}
+                      </Button>
+                    ) : (
+                      <div className="space-y-2">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          autoFocus
+                          value={offerAmount}
+                          onChange={(event) => setOfferAmount(event.target.value)}
+                          placeholder={u('legacy.loadDetails.offerAmountPlaceholder', 'Your offer amount')}
+                          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                        />
+                        <textarea
+                          value={offerMessage}
+                          onChange={(event) => setOfferMessage(event.target.value)}
+                          placeholder={u('legacy.loadDetails.offerMessagePlaceholder', 'Message to the customer (optional)')}
+                          rows={2}
+                          className="w-full resize-none rounded-xl border border-slate-200 bg-white p-3 text-sm outline-none focus:ring-2 focus:ring-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                        />
+                        <Button
+                          className="w-full"
+                          disabled={isSubmittingOffer || !offerAmount}
+                          onClick={() => void submitOffer()}
+                        >
+                          {isSubmittingOffer
+                            ? (myOffer ? u('legacy.loadDetails.updatingOffer', 'Updating…') : u('legacy.loadDetails.sendingOffer', 'Sending…'))
+                            : (myOffer ? u('legacy.loadDetails.updateOffer', 'Update offer') : u('legacy.loadDetails.sendOffer', 'Send offer'))}
+                        </Button>
+                      </div>
+                    )
+                  ) : null}
+                </div>
+              </div>
+
               <section className="overflow-hidden rounded-3xl border border-sky-100 bg-gradient-to-br from-white via-sky-50 to-cyan-100 text-slate-900 shadow-xl shadow-sky-950/10 dark:border-slate-800 dark:bg-slate-950 dark:text-white">
                 <div className="relative isolate px-5 py-6 md:px-7 md:py-7">
                   <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-primary/20 blur-3xl dark:bg-primary/25" />
                   <div className="absolute -bottom-28 left-1/3 h-56 w-56 rounded-full bg-cyan-400/25 blur-3xl dark:bg-cyan-400/15" />
                   <div className="relative flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-600 dark:text-cyan-300">{u('legacy.loadDetails.routePlan', 'Route overview')}</p>
-                      <h3 className="mt-2 flex flex-wrap items-center gap-2 text-xl font-black md:text-2xl"><span className="inline-flex items-center gap-2">{pickupCountryCode && <img src={countryFlagUrl(pickupCountryCode)} alt={pickupCountryCode} className="h-4 w-6 rounded-sm object-cover" />}{pickupLabel}</span><span className="text-cyan-500 dark:text-cyan-300">→</span><span className="inline-flex items-center gap-2">{deliveryCountryCode && <img src={countryFlagUrl(deliveryCountryCode)} alt={deliveryCountryCode} className="h-4 w-6 rounded-sm object-cover" />}{deliveryLabel}</span></h3>
-                    </div>
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-600 dark:text-cyan-300">{u('legacy.loadDetails.routePlan', 'Route overview')}</p>
                     <span className={cn('rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-wider', getStatusTone(currentStatus))}>{currentStatus}</span>
                   </div>
 
@@ -264,34 +447,6 @@ export const LoadDetails = ({ open, load, onClose, lang, role, onEdit, onChanged
                   </div>
                 </div>
               </section>
-
-              <div className="grid xl:grid-cols-12 gap-6">
-                <div className="xl:col-span-8 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-                  <p className="mb-4 text-xs font-black uppercase tracking-wider text-primary">Load snapshot</p>
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><Building2 className="h-4 w-4 text-primary" /><p className="mt-3 text-xs text-slate-500">{u('legacy.loadDetails.postedBy', 'Posted by')}</p><p className="mt-1 truncate text-sm font-bold dark:text-white">{load.author || '—'}</p></div>
-                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><CalendarDays className="h-4 w-4 text-primary" /><p className="mt-3 text-xs text-slate-500">{u('legacy.loadDetails.postedDate', 'Posted date')}</p><p className="mt-1 text-sm font-bold dark:text-white">{formatLoadDate(load.date)}</p></div>
-                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><Box className="h-4 w-4 text-primary" /><p className="mt-3 text-xs text-slate-500">Goods type</p><p className="mt-1 truncate text-sm font-bold dark:text-white">{load.goodsType || 'General'}</p></div>
-                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><CalendarClock className="h-4 w-4 text-primary" /><p className="mt-3 text-xs text-slate-500">{u('legacy.loadDetails.latestEta', 'Latest ETA')}</p><p className="mt-1 text-sm font-bold dark:text-white">{formatLoadDate(load.eta)}</p></div>
-                  </div>
-                </div>
-
-                <div className="xl:col-span-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-3">
-                  <div className="flex items-center gap-2 text-primary">
-                    <CheckCircle2 className="w-5 h-5" />
-                    <p className="text-xs font-black uppercase tracking-wider">
-                      {u('legacy.loadDetails.readyActions', 'Ready Actions')}
-                    </p>
-                  </div>
-                  {role === 'superadmin' ? <>
-                    <Button className="w-full" onClick={() => onEdit?.(load)}><Pencil className="mr-2 h-4 w-4" />Edit load</Button>
-                    <LoadStatusPicker lang={lang} status={currentStatus} isChanging={statusChanging} onChange={(status) => void changeStatus(status)} />
-                  </> : <>
-                    <Button className="w-full">{u('legacy.loadDetails.requestAssignment', 'Request Assignment')}</Button>
-                    <Button variant="outline" className="w-full">{u('legacy.loadDetails.negotiateTerms', 'Negotiate Terms')}</Button>
-                  </>}
-                </div>
-              </div>
 
               {role === 'superadmin' && <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
                 <div className="mb-4 flex items-center gap-2 text-primary"><UserCheck className="h-5 w-5" /><p className="text-xs font-black uppercase tracking-wider">Offers & driver assignment</p></div>

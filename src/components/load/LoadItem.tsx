@@ -1,7 +1,8 @@
 import { ArrowRight, ChevronRight, Plane, Scale, Ship, Truck } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
-import { trGoodsType, trPaymentTerms } from '../../i18n';
+import { getBidState, getOfferLabel } from '../../lib/offerBid';
+import { trGoodsType, trPaymentTerms, ui } from '../../i18n';
 import { Language, Load } from '../../types';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
@@ -23,6 +24,7 @@ type LoadItemProps = {
   viewDetailsLabel: string;
   hideSource?: boolean;
   statusLabel?: string;
+  userId?: number;
   onOpenDetails?: (load: Load) => void;
   onOpenSetup?: () => void;
 };
@@ -34,6 +36,7 @@ export const LoadItem = ({
   viewDetailsLabel,
   hideSource = false,
   statusLabel,
+  userId,
   onOpenDetails,
   onOpenSetup,
 }: LoadItemProps) => {
@@ -57,6 +60,14 @@ export const LoadItem = ({
         ? 'bg-sky-500/10 text-sky-500 border-sky-500/30'
         : 'bg-blue-500/10 text-blue-500 border-blue-500/30';
   const isInteractive = hideSource ? Boolean(onOpenSetup) : Boolean(onOpenDetails);
+  const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  const hasBudget = Boolean(load.budget && load.budget > 0);
+  const offerCurrency = load.price.split(' ')[0] || 'EUR';
+  const bidState = getBidState(load.offers, userId, load.budget);
+  const actionLabel = load.isNegotiable === false
+    ? (hasBudget ? `${u('common.bookNow', 'Book now')} · ${load.price}` : u('common.bookNow', 'Book now'))
+    : getOfferLabel(u, bidState, offerCurrency);
+  const showChevron = load.isNegotiable === false || !bidState.myOffer;
   const TransportIcon = load.transportType === 'air' ? Plane : load.transportType === 'sea' ? Ship : Truck;
   const pickupLabel = load.pickup || 'Nije definisano';
   const deliveryLabel = load.delivery || 'Nije definisano';
@@ -175,8 +186,8 @@ export const LoadItem = ({
                   handleCardClick();
                 }}
               >
-                <span>{viewDetailsLabel} · {load.price}</span>
-                <ChevronRight className="w-4 h-4 ml-1" />
+                <span>{actionLabel}</span>
+                {showChevron && <ChevronRight className="w-4 h-4 ml-1" />}
               </Button>
             </div>
           </div>
