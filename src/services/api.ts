@@ -29,6 +29,7 @@ export type ScanImage = { base64: string; mimeType?: string; filename?: string }
 export type LoadScanResult = {
   isDocument: boolean;
   title: string;
+  transportType: string;
   cargoType: string;
   goodsType: string;
   weightKg: number;
@@ -39,14 +40,31 @@ export type LoadScanResult = {
   heightM: number;
   volumeM3: number;
   vehicleType: string;
+  loadingEquipment: string;
+  characteristics: string;
+  specialRequirements: string[];
+  transportMode: string;
+  deliveryProof: string;
+  requiresTracking: boolean;
   pickupCity: string;
   pickupCountryCode: string;
+  pickupAddress: string;
   pickupDate: string;
+  pickupDateTo: string;
+  pickupTimeFrom: string;
+  pickupTimeTo: string;
   deliveryCity: string;
   deliveryCountryCode: string;
+  deliveryAddress: string;
   deliveryDate: string;
+  deliveryDateTo: string;
+  deliveryTimeFrom: string;
+  deliveryTimeTo: string;
   currency: string;
   budget: number;
+  priceTerms: string;
+  declaredValue: number;
+  declaredValueCurrency: string;
   incoterm: string;
   paymentDueDays: number;
   temperatureMin: number | null;
@@ -56,6 +74,8 @@ export type LoadScanResult = {
   isUrgent: boolean;
   contactName: string;
   contactPhone: string;
+  contactMobile: string;
+  contactFax: string;
   contactEmail: string;
   bookingReference: string;
   notes: string;

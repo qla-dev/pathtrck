@@ -1,15 +1,23 @@
 import type { LucideIcon } from 'lucide-react';
 import {
+  Banknote,
   CalendarClock,
   CalendarDays,
   Car,
+  ClipboardList,
   Coins,
+  FileCheck2,
   Flag,
   FileText,
+  Forklift,
+  Handshake,
   Hash,
   Layers,
+  ListChecks,
   ListPlus,
   MapPin,
+  Milestone,
+  Route,
   Ruler,
   Scale,
   ShieldCheck,
@@ -23,6 +31,7 @@ import { LoadScanResult } from '../../services/api';
 
 export type ScanFieldPatch = Partial<{
   cargoTitle: string;
+  transportType: 'road' | 'air' | 'sea';
   goodsType: string;
   weightKg: string;
   pallets: string;
@@ -32,14 +41,31 @@ export type ScanFieldPatch = Partial<{
   heightM: string;
   volumeM3: string;
   vehicleType: string;
+  loadingEquipment: string;
+  characteristics: string;
+  specialRequirements: string[];
+  transportMode: string;
+  deliveryProof: string;
+  mustBeTrackable: boolean;
   pickupCity: string;
   pickupCountry: string;
+  pickupAddress: string;
   pickupDate: string;
+  pickupDateTo: string;
+  pickupTimeFrom: string;
+  pickupTimeTo: string;
   deliveryCity: string;
   deliveryCountry: string;
+  deliveryAddress: string;
   deliveryDate: string;
+  deliveryDateTo: string;
+  deliveryTimeFrom: string;
+  deliveryTimeTo: string;
   budget: string;
   freightCurrency: string;
+  receivePriceProposals: boolean;
+  declaredValue: string;
+  shipmentValueCurrency: string;
   incoterm: string;
   paymentDeferred: boolean;
   paymentDueDays: string;
@@ -51,6 +77,8 @@ export type ScanFieldPatch = Partial<{
   urgent: boolean;
   contactName: string;
   contactPhone: string;
+  contactMobile: string;
+  contactFax: string;
   contactEmail: string;
   notes: string;
 }>;
@@ -68,11 +96,24 @@ const toDisplayDate = (isoDate: string): string => {
   return match ? `${match[3]}.${match[2]}.${match[1]}` : isoDate;
 };
 
+const TRANSPORT_TYPE_LABELS: Record<string, string> = { road: 'Road', air: 'Air', sea: 'Sea' };
+const PRICE_TERMS_LABELS: Record<string, string> = { fixed: 'Fixed price', negotiable: 'Open to offers' };
+
 export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
   const rows: ScanFieldRow[] = [];
 
   if (result.title) {
     rows.push({ key: 'title', label: 'Title', value: result.title, patch: { cargoTitle: result.title }, icon: Hash });
+  }
+
+  if (result.transportType === 'road' || result.transportType === 'air' || result.transportType === 'sea') {
+    rows.push({
+      key: 'transportType',
+      label: 'Transport type',
+      value: TRANSPORT_TYPE_LABELS[result.transportType] || result.transportType,
+      patch: { transportType: result.transportType },
+      icon: Route,
+    });
   }
 
   const goodsType = result.goodsType || result.cargoType;
@@ -127,48 +168,96 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
 
   if (result.vehicleType) rows.push({ key: 'vehicleType', label: 'Vehicle', value: result.vehicleType, patch: { vehicleType: result.vehicleType }, icon: Car });
 
-  if (result.pickupCity || result.pickupCountryCode) {
+  if (result.loadingEquipment) {
+    rows.push({
+      key: 'loadingEquipment',
+      label: 'Loading equipment',
+      value: result.loadingEquipment,
+      patch: { loadingEquipment: result.loadingEquipment },
+      icon: Forklift,
+    });
+  }
+
+  if (result.characteristics) {
+    rows.push({ key: 'characteristics', label: 'Characteristics', value: result.characteristics, patch: { characteristics: result.characteristics }, icon: ClipboardList });
+  }
+
+  if (result.specialRequirements.length > 0) {
+    rows.push({
+      key: 'specialRequirements',
+      label: 'Special requirements',
+      value: result.specialRequirements.join(' · '),
+      patch: { specialRequirements: result.specialRequirements },
+      icon: ListChecks,
+    });
+  }
+
+  if (result.transportMode) {
+    rows.push({ key: 'transportMode', label: 'Transport mode', value: result.transportMode, patch: { transportMode: result.transportMode }, icon: Milestone });
+  }
+
+  if (result.deliveryProof) {
+    rows.push({ key: 'deliveryProof', label: 'Delivery proof', value: result.deliveryProof, patch: { deliveryProof: result.deliveryProof }, icon: FileCheck2 });
+  }
+
+  if (result.pickupCity || result.pickupCountryCode || result.pickupAddress) {
     rows.push({
       key: 'pickup',
       label: 'Pickup',
-      value: [result.pickupCity, result.pickupCountryCode].filter(Boolean).join(', '),
+      value: [result.pickupAddress, result.pickupCity, result.pickupCountryCode].filter(Boolean).join(', '),
       patch: {
         ...(result.pickupCity ? { pickupCity: result.pickupCity } : {}),
         ...(result.pickupCountryCode ? { pickupCountry: result.pickupCountryCode } : {}),
+        ...(result.pickupAddress ? { pickupAddress: result.pickupAddress } : {}),
       },
       icon: MapPin,
     });
   }
 
-  if (result.pickupDate) {
+  if (result.pickupDate || result.pickupTimeFrom) {
+    const dateRange = [toDisplayDate(result.pickupDate), result.pickupDateTo ? toDisplayDate(result.pickupDateTo) : ''].filter(Boolean).join(' - ');
+    const timeRange = [result.pickupTimeFrom, result.pickupTimeTo].filter(Boolean).join(' - ');
     rows.push({
       key: 'pickupDate',
       label: 'Pickup date',
-      value: toDisplayDate(result.pickupDate),
-      patch: { pickupDate: toDisplayDate(result.pickupDate) },
+      value: [dateRange, timeRange].filter(Boolean).join(', '),
+      patch: {
+        ...(result.pickupDate ? { pickupDate: toDisplayDate(result.pickupDate) } : {}),
+        ...(result.pickupDateTo ? { pickupDateTo: toDisplayDate(result.pickupDateTo) } : {}),
+        ...(result.pickupTimeFrom ? { pickupTimeFrom: result.pickupTimeFrom } : {}),
+        ...(result.pickupTimeTo ? { pickupTimeTo: result.pickupTimeTo } : {}),
+      },
       icon: CalendarDays,
     });
   }
 
-  if (result.deliveryCity || result.deliveryCountryCode) {
+  if (result.deliveryCity || result.deliveryCountryCode || result.deliveryAddress) {
     rows.push({
       key: 'delivery',
       label: 'Delivery',
-      value: [result.deliveryCity, result.deliveryCountryCode].filter(Boolean).join(', '),
+      value: [result.deliveryAddress, result.deliveryCity, result.deliveryCountryCode].filter(Boolean).join(', '),
       patch: {
         ...(result.deliveryCity ? { deliveryCity: result.deliveryCity } : {}),
         ...(result.deliveryCountryCode ? { deliveryCountry: result.deliveryCountryCode } : {}),
+        ...(result.deliveryAddress ? { deliveryAddress: result.deliveryAddress } : {}),
       },
       icon: Flag,
     });
   }
 
-  if (result.deliveryDate) {
+  if (result.deliveryDate || result.deliveryTimeFrom) {
+    const dateRange = [toDisplayDate(result.deliveryDate), result.deliveryDateTo ? toDisplayDate(result.deliveryDateTo) : ''].filter(Boolean).join(' - ');
+    const timeRange = [result.deliveryTimeFrom, result.deliveryTimeTo].filter(Boolean).join(' - ');
     rows.push({
       key: 'deliveryDate',
       label: 'Delivery date',
-      value: toDisplayDate(result.deliveryDate),
-      patch: { deliveryDate: toDisplayDate(result.deliveryDate) },
+      value: [dateRange, timeRange].filter(Boolean).join(', '),
+      patch: {
+        ...(result.deliveryDate ? { deliveryDate: toDisplayDate(result.deliveryDate) } : {}),
+        ...(result.deliveryDateTo ? { deliveryDateTo: toDisplayDate(result.deliveryDateTo) } : {}),
+        ...(result.deliveryTimeFrom ? { deliveryTimeFrom: result.deliveryTimeFrom } : {}),
+        ...(result.deliveryTimeTo ? { deliveryTimeTo: result.deliveryTimeTo } : {}),
+      },
       icon: CalendarClock,
     });
   }
@@ -180,6 +269,26 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
       value: `${result.budget} ${result.currency || 'EUR'}`,
       patch: { budget: String(result.budget), freightCurrency: result.currency || 'EUR' },
       icon: Coins,
+    });
+  }
+
+  if (result.priceTerms) {
+    rows.push({
+      key: 'priceTerms',
+      label: 'Pricing',
+      value: PRICE_TERMS_LABELS[result.priceTerms] || result.priceTerms,
+      patch: { receivePriceProposals: result.priceTerms !== 'fixed' },
+      icon: Handshake,
+    });
+  }
+
+  if (result.declaredValue) {
+    rows.push({
+      key: 'declaredValue',
+      label: 'Cargo value',
+      value: `${result.declaredValue} ${result.declaredValueCurrency || result.currency || 'EUR'}`,
+      patch: { declaredValue: String(result.declaredValue), shipmentValueCurrency: result.declaredValueCurrency || result.currency || 'EUR' },
+      icon: Banknote,
     });
   }
 
@@ -206,15 +315,34 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
     });
   }
 
-  const requirementLabels = [result.requiresAdr ? 'ADR' : '', result.requiresTailLift ? 'Tail lift' : '', result.isUrgent ? 'Urgent' : ''].filter(Boolean);
-  if (requirementLabels.length > 0) rows.push({ key: 'requirements', label: 'Requirements', value: requirementLabels.join(' · '), patch: { requiresAdr: result.requiresAdr, requiresTailLift: result.requiresTailLift, urgent: result.isUrgent }, icon: ShieldCheck });
+  const requirementLabels = [
+    result.requiresAdr ? 'ADR' : '',
+    result.requiresTailLift ? 'Tail lift' : '',
+    result.isUrgent ? 'Urgent' : '',
+    result.requiresTracking ? 'Trackable' : '',
+  ].filter(Boolean);
+  if (requirementLabels.length > 0) {
+    rows.push({
+      key: 'requirements',
+      label: 'Requirements',
+      value: requirementLabels.join(' · '),
+      patch: { requiresAdr: result.requiresAdr, requiresTailLift: result.requiresTailLift, urgent: result.isUrgent, mustBeTrackable: result.requiresTracking },
+      icon: ShieldCheck,
+    });
+  }
 
-  if (result.contactName || result.contactPhone || result.contactEmail) {
+  if (result.contactName || result.contactPhone || result.contactMobile || result.contactFax || result.contactEmail) {
     rows.push({
       key: 'contact',
       label: 'Contact',
-      value: [result.contactName, result.contactPhone, result.contactEmail].filter(Boolean).join(' · '),
-      patch: { contactName: result.contactName, contactPhone: result.contactPhone, contactEmail: result.contactEmail },
+      value: [result.contactName, result.contactPhone, result.contactMobile, result.contactEmail].filter(Boolean).join(' · '),
+      patch: {
+        contactName: result.contactName,
+        contactPhone: result.contactPhone,
+        contactMobile: result.contactMobile,
+        contactFax: result.contactFax,
+        contactEmail: result.contactEmail,
+      },
       icon: UsersRound,
     });
   }
