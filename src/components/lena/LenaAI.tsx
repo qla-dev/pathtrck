@@ -21,7 +21,7 @@ type LenaAIProps = {
   companyIds?: number[];
   loadId?: string;
   loadLabel?: string;
-  onBookLoad?: () => void | Promise<void>;
+  onBookLoad?: (loadId?: string) => void | Promise<void>;
   onOpenLoad?: (loadId: string) => void;
   initialCanvasMode?: LenaCanvasMode | null;
   onApplyLoadPrefill?: (patch: ScanFieldPatch) => void;

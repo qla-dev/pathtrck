@@ -21,7 +21,7 @@ type UseLenaEmbeddedMessagesOptions = {
   lang: Language;
   fallbackLoadId?: string;
   onOpenLoad?: (loadId: string) => void;
-  onBookLoad?: () => void | Promise<void>;
+  onBookLoad?: (loadId?: string) => void | Promise<void>;
 };
 
 export const useLenaEmbeddedMessages = ({
@@ -126,9 +126,9 @@ export const useLenaEmbeddedMessages = ({
     const markerLoadId = bookingOffers.get(message.id);
     const offeredLoadId = markerLoadId ?? fallbackLoadId;
     const bookingLoad = offeredLoadId ? embeddedLoads[offeredLoadId] : undefined;
-    const handleBook = markerLoadId && onOpenLoad
-      ? () => onOpenLoad(markerLoadId)
-      : onBookLoad ?? (offeredLoadId && onOpenLoad ? () => onOpenLoad(offeredLoadId) : undefined);
+    const handleBook = onBookLoad
+      ? () => onBookLoad(offeredLoadId)
+      : (offeredLoadId && onOpenLoad ? () => onOpenLoad(offeredLoadId) : undefined);
 
     if (!embeddedLoad && !locationLoad && !mapLoad && !statusLoad && (!hasBooking || !handleBook)) return null;
 

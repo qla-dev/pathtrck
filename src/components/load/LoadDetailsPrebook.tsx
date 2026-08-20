@@ -780,7 +780,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
         userId={userId}
         loadId={load.id}
         loadLabel={load.title}
-        onBookLoad={currentStatus === 'Posted' ? bookLoad : undefined}
+        onBookLoad={currentStatus === 'Posted' ? () => bookLoad() : undefined}
       />
     </motion.div>
   );

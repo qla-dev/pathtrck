@@ -86,6 +86,7 @@ import { ProfileView } from './components/views/ProfileView';
 import { AutomationsView } from './components/views/AutomationsView';
 import { PostLoadModal } from './components/modals/PostLoadModal';
 import { LoadDetailsModal } from './components/tracking/LoadDetailsModal';
+import { LoadDetailsPrebook } from './components/load/LoadDetailsPrebook';
 import { LenaAI } from './components/lena/LenaAI';
 import { ScanFieldPatch } from './components/modals/scanFieldRows';
 import { LenaCanvasMode } from './lib/lenaLoadCanvas';
@@ -3279,6 +3280,12 @@ export default function App() {
     viewContentRef.current?.scrollTo({ top: 0 });
   }, [view]);
   const [openLoadDetailsId, setOpenLoadDetailsId] = useState<string | null>(null);
+  const [bookingLoad, setBookingLoad] = useState<Load | null>(null);
+  const handleBookLoad = async (loadId?: string) => {
+    if (!loadId) return;
+    const response = await api.loads.get(loadId);
+    setBookingLoad(mapDatabaseRecordToLoad(response.data));
+  };
   const [lenaAiOpen, setLenaAiOpen] = useState(false);
   const [lenaCanvasMode, setLenaCanvasMode] = useState<LenaCanvasMode | null>(null);
   const [lenaLoadPrefill, setLenaLoadPrefill] = useState<ScanFieldPatch | null>(null);
@@ -4310,6 +4317,7 @@ export default function App() {
 	                <MessagesView
 	                  lang={lang}
 	                  onOpenLoad={(loadId) => setOpenLoadDetailsId(loadId)}
+	                  onBookLoad={handleBookLoad}
 	                  onApplyLoadPrefill={(patch) => {
 	                    setLenaLoadPrefill(patch);
 	                    setEditLoadId(null);
@@ -4351,6 +4359,17 @@ export default function App() {
             onClose={() => setOpenLoadDetailsId(null)}
           />
         )}
+        <LoadDetailsPrebook
+          open={Boolean(bookingLoad)}
+          load={bookingLoad}
+          lang={lang}
+          role={role}
+          userId={currentUser?.id}
+          companyIds={trackingCompanyIds}
+          onEdit={(load) => { setBookingLoad(null); setEditLoadId(load.id); setIsPostLoadOpen(true); }}
+          onChanged={() => setLoadRefreshKey((current) => current + 1)}
+          onClose={() => setBookingLoad(null)}
+        />
         <LenaAI
           open={lenaAiOpen}
           onClose={() => { setLenaAiOpen(false); setLenaCanvasMode(null); }}
@@ -4369,6 +4388,10 @@ export default function App() {
           onOpenLoad={(loadId) => {
             setLenaAiOpen(false);
             setOpenLoadDetailsId(loadId);
+          }}
+          onBookLoad={async (loadId) => {
+            setLenaAiOpen(false);
+            await handleBookLoad(loadId);
           }}
         />
         <PostLoadModal

@@ -19,11 +19,12 @@ import { ScanFieldPatch } from '../modals/scanFieldRows';
 type MessagesViewProps = {
   lang: Language;
   onOpenLoad?: (loadId: string) => void;
+  onBookLoad?: (loadId?: string) => void | Promise<void>;
   onApplyLoadPrefill?: (patch: ScanFieldPatch) => void;
   onBulkImported?: (rows: BulkLoadRow[]) => void;
 };
 
-export const MessagesView = ({ lang, onOpenLoad, onApplyLoadPrefill, onBulkImported }: MessagesViewProps) => {
+export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill, onBulkImported }: MessagesViewProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const result = useApiList(api.conversations.list, { per_page: 100 });
   const [user, setUser] = useState<ApiUser | null>(null);
@@ -108,6 +109,7 @@ export const MessagesView = ({ lang, onOpenLoad, onApplyLoadPrefill, onBulkImpor
     lang,
     fallbackLoadId: activeConversation.loadId,
     onOpenLoad,
+    onBookLoad,
   });
 
   const displayConversation = useMemo(() => ({
