@@ -182,12 +182,13 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
     rows.push({ key: 'characteristics', label: 'Characteristics', value: result.characteristics, patch: { characteristics: result.characteristics }, icon: ClipboardList });
   }
 
-  if (result.specialRequirements.length > 0) {
+  const specialRequirements = result.specialRequirements || [];
+  if (specialRequirements.length > 0) {
     rows.push({
       key: 'specialRequirements',
       label: 'Special requirements',
-      value: result.specialRequirements.join(' · '),
-      patch: { specialRequirements: result.specialRequirements },
+      value: specialRequirements.join(' · '),
+      patch: { specialRequirements },
       icon: ListChecks,
     });
   }
