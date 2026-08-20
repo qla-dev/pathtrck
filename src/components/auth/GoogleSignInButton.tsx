@@ -1,105 +1,75 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Language } from '../../types';
-import { cn } from '../../lib/cn';
 import { GOOGLE_CLIENT_ID, loadGoogleIdentityScript } from '../../lib/googleIdentity';
 
 type GoogleSignInButtonProps = {
-  onCredential: (idToken: string) => void;
+  onCredential: (accessToken: string) => void;
+  label: string;
   lang?: Language;
 };
 
-export function GoogleSignInButton({ onCredential, lang }: GoogleSignInButtonProps) {
+function GoogleLogo() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 48 48" className="shrink-0">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.9-2.26 5.36-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <path fill="#FBBC05" d="M10.53 28.59A14.5 14.5 0 0 1 9.5 24c0-1.59.27-3.13.75-4.59l-7.98-6.19A24 24 0 0 0 0 24c0 3.87.92 7.53 2.56 10.78l7.97-6.19z" />
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </svg>
+  );
+}
+
+// A fully custom, always-static button — deliberately NOT Google's own renderButton()/One Tap
+// UI. Those are personalized by Chrome's native FedCM account chooser once a session exists
+// (renders as "Continue as {Name}" with the user's photo, which page CSS/JS cannot override
+// since it's browser-drawn, not page DOM). This uses the imperative OAuth2 token-client API
+// instead — same family as Apple's imperative signIn() — so there is never a live Google
+// element sitting in the page to be re-skinned; a real Google consent popup only ever appears
+// after the user clicks, exactly like Apple's button.
+export function GoogleSignInButton({ onCredential, label, lang }: GoogleSignInButtonProps) {
   const [ready, setReady] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLDivElement>(null);
-  const onCredentialRef = useRef(onCredential);
-  onCredentialRef.current = onCredential;
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID) return;
     let cancelled = false;
-    let resizeObserver: ResizeObserver | null = null;
-    let buttonObserver: MutationObserver | null = null;
-    let lastWidth = 0;
-
-    // Google actively disables click handling on its rendered button once it detects the
-    // button is hidden/overlaid (anti-clickjacking) — a fully custom decoy button doesn't
-    // survive contact with real browsers even though it can look fine in automated tests.
-    // So this stays the real, visible, Google-rendered button; we restyle it in place
-    // (background/border/radius only — never layout/display) and reapply via a
-    // MutationObserver instead of tearing it down, so Google's own live redraws still work.
-    const restyleButton = () => {
-      const btn = buttonRef.current?.querySelector<HTMLElement>('div[role="button"]');
-      if (!btn) return;
-      btn.style.height = '50px';
-      btn.style.borderRadius = '12px';
-      btn.style.boxSizing = 'border-box';
-      btn.style.backgroundColor = '#f97316';
-      btn.style.borderColor = '#f97316';
-    };
-
-    const renderButton = (force = false) => {
-      if (!window.google || !buttonRef.current || !containerRef.current) return;
-      const width = Math.floor(containerRef.current.getBoundingClientRect().width);
-      if (!width) return;
-      if (!force && width === lastWidth) return;
-      lastWidth = width;
-
-      buttonRef.current.innerHTML = '';
-      window.google.accounts.id.renderButton(buttonRef.current, {
-        type: 'standard',
-        theme: 'filled_black',
-        size: 'large',
-        shape: 'rectangular',
-        text: 'continue_with',
-        logo_alignment: 'left',
-        width,
-      });
-      restyleButton();
-      requestAnimationFrame(restyleButton);
-      setReady(true);
-
-      buttonObserver?.disconnect();
-      buttonObserver = new MutationObserver(() => restyleButton());
-      buttonObserver.observe(buttonRef.current, { childList: true, subtree: true, attributes: true });
-    };
-
     loadGoogleIdentityScript(lang || undefined)
       .then(() => {
         if (cancelled || !window.google) return;
-        window.google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: (response) => onCredentialRef.current(response.credential),
-          auto_select: false,
-          cancel_on_tap_outside: true,
-        });
-        // Without this, Google remembers a returning visitor's account and renders the
-        // button as "Continue as {Name}" with their photo instead of the generic label —
-        // this forces it back to a static, generic button every time, like Apple's.
-        window.google.accounts.id.disableAutoSelect();
-        renderButton(true);
-        if (containerRef.current) {
-          resizeObserver = new ResizeObserver(() => renderButton());
-          resizeObserver.observe(containerRef.current);
-        }
+        setReady(true);
       })
       .catch(() => setReady(false));
+    return () => { cancelled = true; };
+  }, [lang]);
 
-    return () => {
-      cancelled = true;
-      resizeObserver?.disconnect();
-      buttonObserver?.disconnect();
-    };
-  }, []);
+  const handleClick = () => {
+    if (!window.google || submitting) return;
+    setSubmitting(true);
+    const client = window.google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: 'openid email profile',
+      callback: (response) => {
+        setSubmitting(false);
+        if (response.access_token) onCredential(response.access_token);
+      },
+      error_callback: () => setSubmitting(false),
+    });
+    client.requestAccessToken();
+  };
 
   if (!GOOGLE_CLIENT_ID) return null;
 
   return (
-    <div
-      ref={containerRef}
-      className={cn('w-full overflow-hidden rounded-xl transition-opacity', !ready && 'opacity-0 pointer-events-none h-0')}
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={!ready || submitting}
+      className="flex h-[50px] w-full cursor-pointer items-center justify-center gap-3 rounded-xl border border-orange-500 bg-orange-500 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
     >
-      <div ref={buttonRef} />
-    </div>
+      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white">
+        <GoogleLogo />
+      </span>
+      {label}
+    </button>
   );
 }

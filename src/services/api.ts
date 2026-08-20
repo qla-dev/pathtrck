@@ -162,8 +162,8 @@ export const api = {
     me: async () => (await request<ApiUser>('/auth/me')).data,
     updateProfile: async (data: Record<string, unknown>) => (await request<ApiUser>('/auth/profile', { method: 'PUT', body: JSON.stringify(data) })).data,
     logout: async () => { try { await request<null>('/auth/logout', { method: 'POST' }); } finally { setToken(null); } },
-    google: async (idToken: string, role?: string) => {
-      const response = await request<SocialAuthResult>('/auth/google', { method: 'POST', body: JSON.stringify({ id_token: idToken, role }) });
+    google: async (accessToken: string, role?: string) => {
+      const response = await request<SocialAuthResult>('/auth/google', { method: 'POST', body: JSON.stringify({ access_token: accessToken, role }) });
       if ('token' in response.data) setToken(response.data.token);
       return response.data;
     },
