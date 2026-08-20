@@ -169,11 +169,13 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
                   {loadCapacity.activeLoads.length} {u('tracking.activeLoads', 'active loads')}
                 </p>
               </div>
-              <p className="whitespace-nowrap text-2xl font-black text-slate-900 dark:text-white">
-                {loadCapacity.totalWeightKg.toLocaleString()} kg
-              </p>
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                <Truck className="h-5 w-5" />
+              <div className="flex shrink-0 items-center gap-3">
+                <p className="whitespace-nowrap text-2xl font-black text-slate-900 dark:text-white">
+                  {loadCapacity.totalWeightKg.toLocaleString()} kg
+                </p>
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <Truck className="h-5 w-5" />
+                </div>
               </div>
             </div>
 

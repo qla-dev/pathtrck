@@ -15,6 +15,7 @@ import { TrackingItemDetails } from './TrackingItemDetails';
 import { TrackingShipmentDetails } from './TrackingShipmentDetails';
 import { LoadStatusPicker } from '../load/LoadStatusPicker';
 import { LenaAI } from '../lena/LenaAI';
+import { type LocationSearchResult } from '../../services/locationSearch';
 
 type AmenityCategory = 'toll' | 'fuel' | 'rest' | 'parking';
 
@@ -283,6 +284,54 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
     }
   };
 
+  const saveShipmentLocation = async (detail: ShipmentDetail, location: LocationSearchResult) => {
+    if (role !== 'superadmin' || !selectedPackage.id || savingDetailKey) return false;
+
+    const type = detail.key === 'departure' ? 'pickup' : 'delivery';
+    const city = location.city.trim() || location.label.trim();
+    const countryCode = location.countryCode.trim().toUpperCase();
+    if (!city || !/^[A-Z]{2}$/.test(countryCode)) {
+      void showError(
+        u('tracking.detailUpdateFailed', 'Shipment detail could not be updated'),
+        u('map.locationCountryRequired', 'Choose a location with a valid country.')
+      );
+      return false;
+    }
+
+    setSavingDetailKey(detail.key);
+    try {
+      const stop = selectedPackage.stops?.find((item) => String(item.type) === type);
+      const payload = {
+        city,
+        country_code: countryCode,
+        address: location.label,
+        latitude: location.latitude,
+        longitude: location.longitude,
+      };
+      if (stop?.id) {
+        await api.loadStops.update(String(stop.id), payload);
+      } else {
+        await api.loadStops.create({
+          load_id: Number(selectedPackage.id),
+          type,
+          position: type === 'pickup' ? 1 : 2,
+          ...payload,
+        });
+      }
+      await refreshPackage();
+      onChanged?.();
+      return true;
+    } catch (error) {
+      void showError(
+        u('tracking.detailUpdateFailed', 'Shipment detail could not be updated'),
+        error instanceof Error ? error.message : undefined
+      );
+      return false;
+    } finally {
+      setSavingDetailKey(null);
+    }
+  };
+
   return (
     <>
     <TrackingItemDetails
@@ -512,8 +561,10 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
             lang={lang}
             role={role}
             consigneeRecord={selectedPackage.consigneeRecord}
+            stops={selectedPackage.stops}
             savingKey={savingDetailKey}
             onSave={saveShipmentDetail}
+            onSaveLocation={saveShipmentLocation}
           />
         </Card>
       )}

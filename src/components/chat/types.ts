@@ -5,6 +5,7 @@ export type ChatMessage = {
   sender: 'me' | 'other' | 'system';
   text: string;
   time: string;
+  attachments?: import('../../lib/lenaLoadCanvas').LenaAttachment[];
 };
 
 export type Conversation = {
@@ -18,6 +19,7 @@ export type Conversation = {
   messages: ChatMessage[];
   loadId?: string;
   isAiDispatch?: boolean;
+  canvas?: boolean;
   meta?: string;
   status?: string;
 };

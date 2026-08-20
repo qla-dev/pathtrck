@@ -25,7 +25,7 @@ export type ListParams = Record<string, string | number | boolean | undefined>;
 
 export const AI_DISPATCH_SUBJECT_PREFIX = 'AI Dispatch — ';
 
-export type ScanImage = { base64: string; mimeType?: string };
+export type ScanImage = { base64: string; mimeType?: string; filename?: string };
 export type LoadScanResult = {
   isDocument: boolean;
   title: string;
@@ -34,6 +34,11 @@ export type LoadScanResult = {
   weightKg: number;
   pallets: number;
   bodyType: string;
+  lengthM: number;
+  widthM: number;
+  heightM: number;
+  volumeM3: number;
+  vehicleType: string;
   pickupCity: string;
   pickupCountryCode: string;
   pickupDate: string;
@@ -42,6 +47,16 @@ export type LoadScanResult = {
   deliveryDate: string;
   currency: string;
   budget: number;
+  incoterm: string;
+  paymentDueDays: number;
+  temperatureMin: number | null;
+  temperatureMax: number | null;
+  requiresAdr: boolean;
+  requiresTailLift: boolean;
+  isUrgent: boolean;
+  contactName: string;
+  contactPhone: string;
+  contactEmail: string;
   bookingReference: string;
   notes: string;
   confidence: number;
@@ -199,6 +214,7 @@ export const api = {
   fleetAccess: resourceApi<Record<string, unknown>>('fleet-access'),
   loads: {
     ...resourceApi<Record<string, unknown>>('loads'),
+    publicList: () => request<Record<string, unknown>[]>('/public-loads'),
     updateStatus: (id: number | string, status: string) => request<Record<string, unknown>>(`/loads/${id}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),

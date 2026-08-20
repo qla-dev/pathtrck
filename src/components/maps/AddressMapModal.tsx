@@ -72,6 +72,8 @@ export const AddressMapModal = ({ open, lang, title, initialQuery = '', initialP
 
   if (!open) return null;
 
+  const locationToUse = selected || results[0] || null;
+
   const selectResult = (result: LocationSearchResult) => {
     setSelected(result);
     setPosition([result.latitude, result.longitude]);
@@ -114,7 +116,17 @@ export const AddressMapModal = ({ open, lang, title, initialQuery = '', initialP
         <div className="absolute left-1/2 top-5 z-[1000] w-[min(720px,calc(100%-2rem))] -translate-x-1/2">
           <div className="relative rounded-2xl border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900">
             <Search className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-            <input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder={u('map.searchAddress', 'Search city, street or address')} className="h-12 w-full rounded-xl border-0 bg-slate-50 pl-11 pr-11 text-sm font-semibold outline-none dark:bg-slate-950 dark:text-white" />
+            <input
+              autoFocus
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setSelected(null);
+                setResults([]);
+              }}
+              placeholder={u('map.searchAddress', 'Search city, street or address')}
+              className="h-12 w-full rounded-xl border-0 bg-slate-50 pl-11 pr-11 text-sm font-semibold outline-none dark:bg-slate-950 dark:text-white"
+            />
             {loading && <Loader2 className="absolute right-5 top-1/2 h-5 w-5 -translate-y-1/2 animate-spin text-primary" />}
           </div>
           {results.length > 0 && (
@@ -131,8 +143,8 @@ export const AddressMapModal = ({ open, lang, title, initialQuery = '', initialP
       </div>
 
       <footer className="flex shrink-0 items-center justify-between gap-4 border-t border-slate-200 bg-white px-5 py-4 dark:border-slate-800 dark:bg-slate-950">
-        <p className="min-w-0 truncate text-sm text-slate-500">{selected?.label || u('map.clickHint', 'Search or click the map to select an exact location.')}</p>
-        <Button disabled={!selected} onClick={() => selected && onSelect(selected)} className="shrink-0 gap-2">
+        <p className="min-w-0 truncate text-sm text-slate-500">{locationToUse?.label || u('map.clickHint', 'Search or click the map to select an exact location.')}</p>
+        <Button disabled={!locationToUse || loading} onClick={() => locationToUse && onSelect(locationToUse)} className="shrink-0 gap-2">
           <Check className="h-4 w-4" /> {u('map.useLocation', 'Use location')}
         </Button>
       </footer>

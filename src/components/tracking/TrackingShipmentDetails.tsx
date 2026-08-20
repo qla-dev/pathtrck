@@ -26,17 +26,21 @@ import {
 } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
-import { flatpickrI18n } from '../../i18n';
+import { flatpickrI18n, ui } from '../../i18n';
 import { Language, Role, ShipmentDetail } from '../../types';
+import { type LocationSearchResult } from '../../services/locationSearch';
 import { CustomerSelect, customerOptionFromRecord } from '../customer/CustomerSelect';
+import { AddressMapModal } from '../maps/AddressMapModal';
 
 type TrackingShipmentDetailsProps = {
   details: ShipmentDetail[];
   lang: Language;
   role: Role;
   consigneeRecord?: Record<string, unknown>;
+  stops?: Array<Record<string, unknown>>;
   savingKey?: string | null;
   onSave: (detail: ShipmentDetail, value: string | number | null) => Promise<boolean>;
+  onSaveLocation: (detail: ShipmentDetail, location: LocationSearchResult) => Promise<boolean>;
 };
 
 type ShipmentDatePickerProps = {
@@ -103,8 +107,10 @@ const ShipmentDatePicker = ({ fieldKey, value, disabled, lang, onChange }: Shipm
   );
 };
 
-export const TrackingShipmentDetails = ({ details, lang, role, consigneeRecord, savingKey, onSave }: TrackingShipmentDetailsProps) => {
+export const TrackingShipmentDetails = ({ details, lang, role, consigneeRecord, stops, savingKey, onSave, onSaveLocation }: TrackingShipmentDetailsProps) => {
+  const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [locationDetail, setLocationDetail] = useState<ShipmentDetail | null>(null);
   const [draft, setDraft] = useState('');
   const [dateValues, setDateValues] = useState<Record<string, string>>({});
   const committingKey = useRef<string | null>(null);
@@ -132,6 +138,10 @@ export const TrackingShipmentDetails = ({ details, lang, role, consigneeRecord, 
 
   const beginEdit = (detail: ShipmentDetail) => {
     if (!canEdit || savingKey) return;
+    if (detail.key === 'departure' || detail.key === 'arrival') {
+      setLocationDetail(detail);
+      return;
+    }
     setEditingKey(detail.key);
     setDraft(detail.rawValue ?? (detail.value === '—' ? '' : detail.value));
   };
@@ -193,7 +203,14 @@ export const TrackingShipmentDetails = ({ details, lang, role, consigneeRecord, 
     }
   };
 
+  const locationStop = locationDetail
+    ? stops?.find((stop) => String(stop.type) === (locationDetail.key === 'departure' ? 'pickup' : 'delivery'))
+    : undefined;
+  const initialLatitude = Number(locationStop?.latitude);
+  const initialLongitude = Number(locationStop?.longitude);
+
   return (
+    <>
     <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2 xl:grid-cols-4">
       {details.map((detail) => {
         const editing = editingKey === detail.key;
@@ -287,5 +304,26 @@ export const TrackingShipmentDetails = ({ details, lang, role, consigneeRecord, 
         );
       })}
     </div>
+    <AddressMapModal
+      open={Boolean(locationDetail)}
+      lang={lang}
+      title={locationDetail?.key === 'arrival'
+        ? u('postLoadModal.deliveryAddress', 'Delivery address')
+        : u('postLoadModal.pickupAddress', 'Pickup address')}
+      initialQuery={locationDetail?.value === '—' ? '' : locationDetail?.value}
+      initialPosition={Number.isFinite(initialLatitude) && Number.isFinite(initialLongitude)
+        ? [initialLatitude, initialLongitude]
+        : null}
+      onClose={() => {
+        if (!savingKey) setLocationDetail(null);
+      }}
+      onSelect={(location) => {
+        if (!locationDetail) return;
+        void onSaveLocation(locationDetail, location).then((saved) => {
+          if (saved) setLocationDetail(null);
+        });
+      }}
+    />
+    </>
   );
 };

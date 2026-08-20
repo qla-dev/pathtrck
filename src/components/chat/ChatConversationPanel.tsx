@@ -1,8 +1,9 @@
-import { Bot, Image as ImageIcon, Mic, Paperclip, Phone, Send, Video } from 'lucide-react';
-import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { Bot, FileImage, FileSpreadsheet, FileText, Image as ImageIcon, Loader2, Mic, Paperclip, Phone, Send, Video } from 'lucide-react';
+import { useCallback, useLayoutEffect, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import { cn } from '../../lib/cn';
 import { ChatMessage, Conversation } from './types';
 import { TypewriterText } from './TypewriterText';
+import { formatAttachmentSize } from '../../lib/lenaLoadCanvas';
 
 const URL_PATTERN = /(https?:\/\/[^\s]+)/g;
 
@@ -31,7 +32,14 @@ type ChatConversationPanelProps = {
   className?: string;
   otherTyping?: boolean;
   onTitleClick?: () => void;
+  headerLeading?: ReactNode;
+  headerActions?: ReactNode;
   renderMessageExtra?: (message: ChatMessage) => ReactNode;
+  extraContentVersion?: string | number;
+  onAttachFile?: (file: File) => void | Promise<void>;
+  attachmentAccept?: string;
+  attachmentBusy?: boolean;
+  attachmentDropLabel?: string;
 };
 
 export const ChatConversationPanel = ({
@@ -43,25 +51,69 @@ export const ChatConversationPanel = ({
   className,
   otherTyping = false,
   onTitleClick,
+  headerLeading,
+  headerActions,
   renderMessageExtra,
+  extraContentVersion,
+  onAttachFile,
+  attachmentAccept,
+  attachmentBusy = false,
+  attachmentDropLabel = 'Drop file for LenaAI',
 }: ChatConversationPanelProps) => {
   const primaryActionButtonClass = 'h-9 rounded-lg bg-primary text-white flex items-center justify-center cursor-pointer transition-all hover:brightness-95';
   const messageListRef = useRef<HTMLDivElement>(null);
+  const messageContentRef = useRef<HTMLDivElement>(null);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
   const previousConversationIdRef = useRef<string | null>(null);
   const knownMessageIdsRef = useRef(new Set(activeConversation.messages.map((message) => message.id)));
-  const knownMessagesConversationIdRef = useRef(activeConversation.id);
+  const knownMessagesConversationIdRef = useRef<string | null>(null);
   const [typingMessageId, setTypingMessageId] = useState<string | null>(null);
+  const [isDraggingAttachment, setIsDraggingAttachment] = useState(false);
+  const canAttach = activeConversation.isAiDispatch && Boolean(onAttachFile) && !attachmentBusy;
+
+  const handleAttachmentDragOver = (event: DragEvent<HTMLDivElement>) => {
+    if (!canAttach || !event.dataTransfer.types.includes('Files')) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+    setIsDraggingAttachment(true);
+  };
+
+  const handleAttachmentDragLeave = (event: DragEvent<HTMLDivElement>) => {
+    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+    setIsDraggingAttachment(false);
+  };
+
+  const handleAttachmentDrop = (event: DragEvent<HTMLDivElement>) => {
+    if (!canAttach) return;
+    event.preventDefault();
+    setIsDraggingAttachment(false);
+    const file = event.dataTransfer.files?.[0];
+    if (file) void onAttachFile?.(file);
+  };
 
   const scrollMessageListToBottom = useCallback((behavior: ScrollBehavior = 'auto') => {
     const messageList = messageListRef.current;
     messageList?.scrollTo({ top: messageList.scrollHeight, behavior });
   }, []);
 
+  const scrollMessageListAfterLayout = useCallback(() => {
+    scrollMessageListToBottom('smooth');
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => scrollMessageListToBottom('auto'));
+    });
+    window.setTimeout(() => scrollMessageListToBottom('auto'), 180);
+  }, [scrollMessageListToBottom]);
+
   useLayoutEffect(() => {
     if (knownMessagesConversationIdRef.current !== activeConversation.id) {
       knownMessagesConversationIdRef.current = activeConversation.id;
       knownMessageIdsRef.current = new Set(activeConversation.messages.map((message) => message.id));
-      setTypingMessageId(null);
+      const welcomeMessage = activeConversation.messages.length === 1
+        && activeConversation.messages[0]?.sender === 'other'
+        && activeConversation.messages[0]?.id.startsWith('welcome-')
+        ? activeConversation.messages[0]
+        : null;
+      setTypingMessageId(activeConversation.isAiDispatch ? welcomeMessage?.id ?? null : null);
       return;
     }
 
@@ -82,10 +134,35 @@ export const ChatConversationPanel = ({
     scrollMessageListToBottom(isSameConversation ? 'smooth' : 'auto');
   }, [activeConversation.id, activeConversation.messages.length, otherTyping, scrollMessageListToBottom]);
 
+  useLayoutEffect(() => {
+    if (extraContentVersion === undefined) return;
+    scrollMessageListAfterLayout();
+  }, [extraContentVersion, scrollMessageListAfterLayout]);
+
+  useLayoutEffect(() => {
+    const messageContent = messageContentRef.current;
+    if (!messageContent || typeof ResizeObserver === 'undefined') return undefined;
+
+    const observer = new ResizeObserver(() => scrollMessageListAfterLayout());
+    observer.observe(messageContent);
+    return () => observer.disconnect();
+  }, [activeConversation.id, scrollMessageListAfterLayout]);
+
   return (
-  <div className={cn("lg:col-span-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col overflow-hidden h-full min-h-0", className)}>
+  <div
+    className={cn("relative lg:col-span-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col overflow-hidden h-full min-h-0", className)}
+    onDragEnter={handleAttachmentDragOver}
+    onDragOver={handleAttachmentDragOver}
+    onDragLeave={handleAttachmentDragLeave}
+    onDrop={handleAttachmentDrop}
+  >
+    {isDraggingAttachment && (
+      <div className="pointer-events-none absolute inset-3 z-30 flex items-center justify-center rounded-2xl border-2 border-dashed border-primary bg-white/95 text-sm font-black text-primary shadow-lg backdrop-blur-sm dark:bg-slate-900/95">
+        {attachmentDropLabel}
+      </div>
+    )}
     <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-      <div>
+      {headerLeading ?? <div>
         {onTitleClick ? (
           <button
             type="button"
@@ -103,8 +180,8 @@ export const ChatConversationPanel = ({
         {!activeConversation.isAiDispatch && (
           <p className="text-[11px] text-slate-500">{activeConversation.role}</p>
         )}
-      </div>
-      <div className="flex items-center gap-1">
+      </div>}
+      {headerActions ?? <div className="flex items-center gap-1">
         {activeConversation.isAiDispatch ? (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary">
             <Bot className="h-3.5 w-3.5" />
@@ -120,10 +197,11 @@ export const ChatConversationPanel = ({
             </button>
           </>
         )}
-      </div>
+      </div>}
     </div>
 
-    <div ref={messageListRef} className="flex-1 min-h-0 p-4 space-y-3 overflow-y-auto bg-slate-50/70 dark:bg-slate-950/40">
+    <div ref={messageListRef} className="flex-1 min-h-0 overflow-y-auto bg-slate-50/70 p-4 dark:bg-slate-950/40">
+      <div ref={messageContentRef} className="space-y-3">
       {activeConversation.messages.map((m) => (
         <div key={m.id} className={cn('w-fit max-w-[min(85%,36rem)]', m.sender === 'me' ? 'ml-auto' : m.sender === 'system' ? 'mx-auto' : 'mr-auto')}>
           <div
@@ -138,7 +216,7 @@ export const ChatConversationPanel = ({
           >
             <p
               className={cn(
-                'text-sm',
+                'whitespace-pre-wrap text-sm',
                 m.sender === 'me'
                   ? 'text-right text-white'
                   : m.sender === 'system'
@@ -151,7 +229,10 @@ export const ChatConversationPanel = ({
                   text={m.text}
                   render={renderMessageText}
                   onUpdate={scrollMessageListToBottom}
-                  onComplete={() => setTypingMessageId((currentId) => currentId === m.id ? null : currentId)}
+                  onComplete={() => {
+                    setTypingMessageId((currentId) => currentId === m.id ? null : currentId);
+                    scrollMessageListAfterLayout();
+                  }}
                 />
               ) : renderMessageText(m.text)}
             </p>
@@ -167,6 +248,19 @@ export const ChatConversationPanel = ({
             >
               {m.time}
             </p>
+            {m.attachments?.filter((attachment) => attachment.name !== 'LenaAI conversation').map((attachment, index) => {
+              const AttachmentIcon = attachment.type.includes('spreadsheet') || /\.(xlsx?|csv)$/i.test(attachment.name)
+                ? FileSpreadsheet
+                : attachment.type.startsWith('image/')
+                  ? FileImage
+                  : FileText;
+              return (
+                <div key={`${attachment.name}-${index}`} className={cn('mt-2 flex items-center gap-2 rounded-xl border px-2.5 py-2 text-left', m.sender === 'me' ? 'border-white/25 bg-white/10' : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800')}>
+                  <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', m.sender === 'me' ? 'bg-white/15 text-white' : 'bg-primary/10 text-primary')}><AttachmentIcon className="h-4 w-4" /></span>
+                  <span className="min-w-0"><span className="block max-w-52 truncate text-xs font-bold">{attachment.name}</span><span className={cn('block text-[10px]', m.sender === 'me' ? 'text-white/70' : 'text-slate-400')}>{attachment.type.split('/').at(-1)?.toUpperCase()} · {formatAttachmentSize(attachment.size)}</span></span>
+                </div>
+              );
+            })}
           </div>
           {typingMessageId !== m.id && renderMessageExtra?.(m)}
         </div>
@@ -178,16 +272,26 @@ export const ChatConversationPanel = ({
           <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce" />
         </div>
       )}
+      </div>
     </div>
 
     <div className="p-3 border-t border-slate-100 dark:border-slate-800">
       <div className="flex items-center gap-2">
-        <button className="h-9 w-9 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center cursor-pointer">
-          <Paperclip className="w-4 h-4" />
+        <input
+          ref={attachmentInputRef}
+          type="file"
+          accept={attachmentAccept}
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) void onAttachFile?.(file);
+            event.target.value = '';
+          }}
+        />
+        <button type="button" disabled={attachmentBusy} onClick={() => onAttachFile && attachmentInputRef.current?.click()} className="h-9 w-9 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center cursor-pointer disabled:cursor-wait disabled:opacity-60" title={activeConversation.isAiDispatch ? 'Excel, CSV, image or PDF' : undefined}>
+          {attachmentBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
         </button>
-        <button className="h-9 w-9 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center cursor-pointer">
-          <ImageIcon className="w-4 h-4" />
-        </button>
+        {!activeConversation.isAiDispatch && <button className="h-9 w-9 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center cursor-pointer"><ImageIcon className="w-4 h-4" /></button>}
         <input
           value={draft}
           onChange={(e) => onDraftChange(e.target.value)}
@@ -195,9 +299,7 @@ export const ChatConversationPanel = ({
           placeholder={messagePlaceholder}
           className="flex-1 h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 dark:text-white outline-none"
         />
-        <button className="h-9 w-9 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 flex items-center justify-center cursor-pointer transition-all">
-          <Mic className="w-4 h-4" />
-        </button>
+        {!activeConversation.isAiDispatch && <button className="h-9 w-9 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 flex items-center justify-center cursor-pointer transition-all"><Mic className="w-4 h-4" /></button>}
         <button onClick={onSend} className={cn(primaryActionButtonClass, 'w-9')}>
           <Send className="w-4 h-4" />
         </button>

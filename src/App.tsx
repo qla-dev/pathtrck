@@ -65,7 +65,7 @@ import {
 // Types & Services
 import { Role, Language, Load } from './types';
 import { ApiUser, api, BulkLoadRow } from './services/api';
-import { MOCK_PACKAGES, MOCK_LOADS, MOCK_ROUTES } from './mockData';
+import { MOCK_PACKAGES, MOCK_ROUTES } from './mockData';
 import { ui, trLoadStatus, trPackageStatus, trFuelType, trGoodsType, trPaymentTerms } from './i18n';
 import { cn } from './lib/cn';
 import { Button } from './components/ui/Button';
@@ -88,8 +88,9 @@ import { AutomationsView } from './components/views/AutomationsView';
 import { PostLoadModal } from './components/modals/PostLoadModal';
 import { LoadDetailsModal } from './components/tracking/LoadDetailsModal';
 import { LenaAI } from './components/lena/LenaAI';
-import { BulkImportModal } from './components/modals/BulkImportModal';
 import { BulkResultModal } from './components/modals/BulkResultModal';
+import { ScanFieldPatch } from './components/modals/scanFieldRows';
+import { LenaCanvasMode } from './lib/lenaLoadCanvas';
 import { SettingsView } from './components/views/SettingsView';
 import { LoadNotesView } from './components/views/LoadNotesView';
 import { CompanyWorkspaceView } from './components/views/CompanyWorkspaceView';
@@ -111,17 +112,6 @@ const SUPPORTED_LANGUAGES: Exclude<Language, null>[] = [
   'en',
   'bs',
   'de',
-  'pl',
-  'ro',
-  'nl',
-  'fr',
-  'it',
-  'zh',
-  'es',
-  'sr',
-  'sv',
-  'ar',
-  'pt',
 ];
 
 const isSupportedLanguage = (value: string | null): value is Exclude<Language, null> =>
@@ -482,7 +472,7 @@ const HeroConnectionVisual = () => {
 
 // --- Views ---
 
-const languages: { id: Language, flag: string, label: string }[] = [
+const allLanguages: { id: Language, flag: string, label: string }[] = [
   { id: 'en', flag: '🇺🇸', label: 'English' },
   { id: 'bs', flag: '🇧🇦', label: 'Bosanski' },
   { id: 'de', flag: '🇩🇪', label: 'Deutsch' },
@@ -498,6 +488,10 @@ const languages: { id: Language, flag: string, label: string }[] = [
   { id: 'ar', flag: '🇸🇦', label: 'العربية' },
   { id: 'pt', flag: '🇵🇹', label: 'Portugues' },
 ];
+
+const languages = allLanguages.filter(
+  (language) => language.id === 'en' || language.id === 'bs' || language.id === 'de'
+);
 
 const flagCodeByLanguage: Record<Exclude<Language, null>, string> = {
   en: 'us',
@@ -1222,15 +1216,25 @@ const LandingPage = ({
   const [messageIndex, setMessageIndex] = useState(0);
   const [typedMessage, setTypedMessage] = useState('');
   const [isDeletingMessage, setIsDeletingMessage] = useState(false);
+  const [landingLoads, setLandingLoads] = useState<Load[]>([]);
   const SECTION_PADDING = "py-20 sm:py-24 lg:py-32";
   const t = translations[lang || 'en'];
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const activeLang = (lang || 'en') as Exclude<Language, null>;
   const currentLang = languages.find(l => l.id === (lang || 'en')) || languages[0];
   const titleMessages = HERO_MAIN_TITLE_MESSAGES[activeLang] || HERO_MAIN_TITLE_MESSAGES.en;
-  const landingLoads = useMemo(() => {
-    const loads = MOCK_LOADS.length > 0 ? MOCK_LOADS : [];
-    return loads;
+  useEffect(() => {
+    let active = true;
+
+    void api.loads.publicList()
+      .then((response) => {
+        if (active) setLandingLoads(response.data.map(mapDatabaseRecordToLoad));
+      })
+      .catch(() => {
+        if (active) setLandingLoads([]);
+      });
+
+    return () => { active = false; };
   }, []);
   const activeMessageConfig = titleMessages[messageIndex % titleMessages.length];
   const activeKeyword = activeMessageConfig?.keyword ?? '';
@@ -3278,13 +3282,14 @@ export default function App() {
   }, [view]);
   const [openLoadDetailsId, setOpenLoadDetailsId] = useState<string | null>(null);
   const [lenaAiOpen, setLenaAiOpen] = useState(false);
+  const [lenaCanvasMode, setLenaCanvasMode] = useState<LenaCanvasMode | null>(null);
+  const [lenaLoadPrefill, setLenaLoadPrefill] = useState<ScanFieldPatch | null>(null);
   const [isDark, setIsDark] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => getInitialSidebarState());
   const [isMainFilterSidebarOpen, setIsMainFilterSidebarOpen] = useState(false);
   const [isMainSortSidebarOpen, setIsMainSortSidebarOpen] = useState(false);
   const [isPostLoadOpen, setIsPostLoadOpen] = useState(false);
   const [editLoadId, setEditLoadId] = useState<string | null>(null);
-  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   const [isBulkResultOpen, setIsBulkResultOpen] = useState(false);
   const [lastBulkImport, setLastBulkImport] = useState<BulkLoadRow[] | null>(null);
   const [loadRefreshKey, setLoadRefreshKey] = useState(0);
@@ -4072,7 +4077,7 @@ export default function App() {
               <div className="p-4 border-t border-slate-100 dark:border-slate-800">
                 <button
                   aria-label={!isSidebarOpen ? ui(lang, 'LenaAI', 'LenaAI') : undefined}
-                  onClick={() => setLenaAiOpen(true)}
+                  onClick={() => { setLenaCanvasMode(null); setLenaAiOpen(true); }}
                   className="group relative w-full flex items-center justify-center gap-3 p-3 rounded-xl transition-all cursor-pointer bg-primary text-white shadow-lg shadow-primary/20"
                 >
                   <Sparkles className="w-5 h-5 shrink-0" />
@@ -4103,13 +4108,22 @@ export default function App() {
           </div>
           <div className="flex items-center gap-4">
             {role === 'user' || role === 'superadmin' ? (
+              <button
+                onClick={() => { setLenaLoadPrefill(null); setEditLoadId(null); setIsPostLoadOpen(true); }}
+                className="h-10 px-4 rounded-full bg-primary text-white inline-flex items-center gap-2 text-xs font-bold hover:scale-[1.02] transition-all cursor-pointer whitespace-nowrap"
+              >
+                <Plus className="w-4 h-4" />
+                <span>{u('common.postLoad', 'Post Load')}</span>
+              </button>
+            ) : null}
+            {role === 'user' || role === 'superadmin' ? (
               <div className="relative">
                 <button
-                  onClick={() => setIsBulkImportOpen(true)}
+                  onClick={() => { setLenaCanvasMode('bulk'); setLenaAiOpen(true); }}
                   className="h-10 px-4 rounded-full border border-primary/30 bg-primary/10 text-primary inline-flex items-center gap-2 text-xs font-bold hover:bg-primary/15 transition-all cursor-pointer whitespace-nowrap"
                 >
                   <Layers className="w-4 h-4" />
-                  <span className="hidden sm:inline">{u('common.bulkImport', 'Bulk import')}</span>
+                  <span className="hidden sm:inline">{u('common.bulkImport', 'Bulk import')} · LenaAI</span>
                 </button>
                 {lastBulkImport && lastBulkImport.length > 0 && (
                   <button
@@ -4121,15 +4135,6 @@ export default function App() {
                   </button>
                 )}
               </div>
-            ) : null}
-            {role === 'user' || role === 'superadmin' ? (
-              <button
-                onClick={() => { setEditLoadId(null); setIsPostLoadOpen(true); }}
-                className="h-10 px-4 rounded-full bg-primary text-white inline-flex items-center gap-2 text-xs font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all cursor-pointer whitespace-nowrap"
-              >
-                <Plus className="w-4 h-4" />
-                <span>{u('common.postLoad', 'Post Load')}</span>
-              </button>
             ) : null}
 
             <span
@@ -4270,7 +4275,6 @@ export default function App() {
                     role={role}
                     userId={currentUser?.id}
                     companyIds={trackingCompanyIds}
-                    companyIds={trackingCompanyIds}
                   />
                 )}
 	              {view === 'feed' && (
@@ -4367,23 +4371,40 @@ export default function App() {
         )}
         <LenaAI
           open={lenaAiOpen}
-          onClose={() => setLenaAiOpen(false)}
+          onClose={() => { setLenaAiOpen(false); setLenaCanvasMode(null); }}
           lang={lang}
           userId={currentUser?.id}
           companyIds={trackingCompanyIds}
+          initialCanvasMode={lenaCanvasMode}
+          onApplyLoadPrefill={(patch) => {
+            setLenaLoadPrefill(patch);
+            setLenaAiOpen(false);
+            setLenaCanvasMode(null);
+            setEditLoadId(null);
+            setIsPostLoadOpen(true);
+          }}
+          onBulkImported={(rows) => {
+            setLastBulkImport(rows);
+            setLoadRefreshKey((current) => current + 1);
+          }}
           onOpenLoad={(loadId) => {
             setLenaAiOpen(false);
             setOpenLoadDetailsId(loadId);
           }}
         />
-        <PostLoadModal isOpen={isPostLoadOpen} editLoadId={editLoadId} onClose={() => { setIsPostLoadOpen(false); setEditLoadId(null); }} onSaved={handleLoadSaved} lang={lang} />
-        <BulkImportModal
-          open={isBulkImportOpen}
-          onClose={() => setIsBulkImportOpen(false)}
-          onImported={(rows) => {
-            setLastBulkImport(rows);
-            setLoadRefreshKey((current) => current + 1);
+        <PostLoadModal
+          isOpen={isPostLoadOpen}
+          editLoadId={editLoadId}
+          initialPrefill={lenaLoadPrefill}
+          onOpenLenaAI={() => {
+            setIsPostLoadOpen(false);
+            setEditLoadId(null);
+            setLenaCanvasMode('new_load');
+            setLenaAiOpen(true);
           }}
+          onClose={() => { setIsPostLoadOpen(false); setEditLoadId(null); setLenaLoadPrefill(null); }}
+          onSaved={(load) => { setLenaLoadPrefill(null); handleLoadSaved(load); }}
+          lang={lang}
         />
         <BulkResultModal open={isBulkResultOpen} onClose={() => setIsBulkResultOpen(false)} rows={lastBulkImport ?? []} />
 

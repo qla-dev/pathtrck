@@ -5,14 +5,12 @@ import { ui } from '../../i18n';
 import { showError } from '../../lib/swal';
 import { ChatConversationPanel } from '../chat/ChatConversationPanel';
 import { ChatSidebar } from '../chat/ChatSidebar';
-import { Channel, ChatMessage, Conversation } from '../chat/types';
+import { Channel, Conversation } from '../chat/types';
 import { AI_DISPATCH_SUBJECT_PREFIX, ApiUser, api } from '../../services/api';
 import { useApiList } from '../../hooks/useApiList';
 import { mapLoadStatus } from '../../lib/loadDetails';
 import { trPackageStatus } from '../../i18n';
-
-const BOOKING_MARKER_PATTERN = /\[\[OFFER_BOOKING(?::(\d+))?\]\]/;
-const BOOKING_MARKER_GLOBAL_PATTERN = /\[\[OFFER_BOOKING(?::\d+)?\]\]/g;
+import { useLenaEmbeddedMessages } from '../lena/useLenaEmbeddedMessages';
 
 export const MessagesView = ({ lang, onOpenLoad }: { lang: Language; onOpenLoad?: (loadId: string) => void }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
@@ -24,6 +22,8 @@ export const MessagesView = ({ lang, onOpenLoad }: { lang: Language; onOpenLoad?
     const counterpart = participants.find((participant) => Number(participant.id) !== user?.id) || participants[0];
     const messages = Array.isArray(row.messages) ? row.messages as Array<Record<string, unknown>> : [];
     const isAiDispatch = typeof row.subject === 'string' && row.subject.startsWith(AI_DISPATCH_SUBJECT_PREFIX);
+    const generatedAiTitle = isAiDispatch ? String(row.subject).slice(AI_DISPATCH_SUBJECT_PREFIX.length).trim() : '';
+    const visibleAiTitle = generatedAiTitle && generatedAiTitle !== 'General' ? generatedAiTitle : '';
     const load = row.freight_load as Record<string, unknown> | undefined;
     const consignee = (load?.consignee || {}) as Record<string, unknown>;
     const loadName = load
@@ -42,14 +42,15 @@ export const MessagesView = ({ lang, onOpenLoad }: { lang: Language; onOpenLoad?
     return {
       id: String(row.id),
       name: isAiDispatch
-        ? String(loadName || (row.load_id ? `Load #${row.load_id}` : `Conversation ${row.id}`))
+        ? String(loadName || visibleAiTitle || (row.load_id ? `Load #${row.load_id}` : `Conversation ${row.id}`))
         : String(row.subject || counterpart?.name || `Conversation ${row.id}`),
       role: isAiDispatch ? u('LenaAI', 'LenaAI') : String(((counterpart?.role || {}) as Record<string, unknown>).label || ''),
       channel: (String(row.channel || 'inapp') as Channel),
       online: false, unread: 0, lastTime: String(row.last_message_at || '').slice(11, 16),
-      messages: messages.map((message) => ({ id: String(message.id), sender: Number(message.sender_user_id) === user?.id ? 'me' : 'other', text: String(message.body || ''), time: String(message.sent_at || message.created_at || '').slice(11, 16) })),
+      messages: messages.map((message) => ({ id: String(message.id), sender: Number(message.sender_user_id) === user?.id ? 'me' : 'other', text: String(message.body || ''), time: String(message.sent_at || message.created_at || '').slice(11, 16), attachments: Array.isArray(message.attachments) ? message.attachments as import('../../lib/lenaLoadCanvas').LenaAttachment[] : undefined })),
       loadId: row.load_id ? String(row.load_id) : undefined,
       isAiDispatch,
+      canvas: Boolean(row.canvas),
       meta: meta || undefined,
       status,
     };
@@ -81,40 +82,17 @@ export const MessagesView = ({ lang, onOpenLoad }: { lang: Language; onOpenLoad?
     return { ...base, messages: [...base.messages, { id: 'optimistic', sender: 'me' as const, text: optimisticText, time: '' }] };
   }, [filteredConversations, activeId, conversations, optimisticText]);
 
-  const bookingOffers = useMemo(
-    () => new Map(activeConversation.messages.flatMap((message) => {
-      const match = message.text.match(BOOKING_MARKER_PATTERN);
-      return match ? [[message.id, match[1] ?? null] as const] : [];
-    })),
-    [activeConversation.messages]
-  );
+  const { displayMessages, renderMessageExtra, extraContentVersion } = useLenaEmbeddedMessages({
+    messages: activeConversation.messages,
+    lang,
+    fallbackLoadId: activeConversation.loadId,
+    onOpenLoad,
+  });
 
   const displayConversation = useMemo(() => ({
     ...activeConversation,
-    messages: activeConversation.messages.map((message) => ({
-      ...message,
-      text: message.text.replace(BOOKING_MARKER_GLOBAL_PATTERN, '').trim(),
-    })),
-  }), [activeConversation]);
-
-  const renderMessageExtra = onOpenLoad
-    ? (message: ChatMessage) => {
-        const offeredLoadId = bookingOffers.get(message.id);
-        if (!offeredLoadId) return null;
-
-        return (
-          <div className="mt-2 flex w-fit max-w-full items-center rounded-xl border border-primary/30 bg-primary/5 p-2">
-            <button
-              type="button"
-              onClick={() => onOpenLoad(offeredLoadId)}
-              className="shrink-0 cursor-pointer rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-white transition-all hover:brightness-95"
-            >
-              {u('common.bookLoad', 'Reserve')}
-            </button>
-          </div>
-        );
-      }
-    : undefined;
+    messages: displayMessages,
+  }), [activeConversation, displayMessages]);
 
   const sendMessage = async () => {
     const text = draft.trim();
@@ -168,6 +146,7 @@ export const MessagesView = ({ lang, onOpenLoad }: { lang: Language; onOpenLoad?
           otherTyping={aiReplying}
           onTitleClick={activeConversation.loadId && onOpenLoad ? () => onOpenLoad(activeConversation.loadId!) : undefined}
           renderMessageExtra={renderMessageExtra}
+          extraContentVersion={`${activeConversation.id}:${extraContentVersion}`}
         />
       </div>
     </div>

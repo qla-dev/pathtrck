@@ -41,6 +41,8 @@ type PostLoadModalProps = {
   lang: Language;
   editLoadId?: number | string | null;
   onSaved?: (load: Record<string, unknown>) => void;
+  initialPrefill?: ScanFieldPatch | null;
+  onOpenLenaAI?: () => void;
 };
 
 type StepId = 'general' | 'route' | 'cargo' | 'terms' | 'review';
@@ -443,7 +445,7 @@ const SummaryRow = ({
   </div>
 );
 
-export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSaved }: PostLoadModalProps) => {
+export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSaved, initialPrefill = null, onOpenLenaAI }: PostLoadModalProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const transportOptions = [
     {
@@ -489,6 +491,11 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       setViewingDocId(null);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || editLoadId || !initialPrefill) return;
+    setDraft((current) => ({ ...current, ...initialPrefill }));
+  }, [editLoadId, initialPrefill, isOpen]);
 
   const applyScan = (result: LoadScanResult, imageDataUrl: string | null, patch: ScanFieldPatch) => {
     setDraft((prev) => ({ ...prev, ...patch }));
@@ -796,7 +803,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                   ))}
                   <button
                     type="button"
-                    onClick={() => setDropzoneOpen(true)}
+                    onClick={onOpenLenaAI ?? (() => setDropzoneOpen(true))}
                     title={u('postLoadModal.addScannedDocument', 'Scan another document')}
                     className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-slate-300 text-slate-400 hover:border-primary hover:text-primary transition-colors dark:border-slate-700"
                   >
@@ -863,7 +870,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                   ))}
                   <button
                     type="button"
-                    onClick={() => setDropzoneOpen(true)}
+                    onClick={onOpenLenaAI ?? (() => setDropzoneOpen(true))}
                     title={u('postLoadModal.addScannedDocument', 'Scan another document')}
                     className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-slate-300 text-slate-400 hover:border-primary hover:text-primary transition-colors dark:border-slate-700"
                   >
@@ -1724,11 +1731,11 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                 <Button
                   variant="secondary"
                   className="w-full min-h-[56px] sm:min-h-[60px] gap-2 border border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 dark:bg-primary/15 dark:hover:bg-primary/20"
-                  onClick={() => setDropzoneOpen(true)}
+                  onClick={onOpenLenaAI ?? (() => setDropzoneOpen(true))}
                   disabled={isSubmitting}
                 >
                   <Sparkles className="w-4 h-4" />
-                  {u('postLoadModal.fillWithAi', 'Fill with AI · 10 tokens')}
+                  {u('postLoadModal.fillWithLenaAI', 'Fill with LenaAI')}
                 </Button>
                 {step === 'review' ? (
                   <Button className="w-full min-h-[56px] sm:min-h-[60px]" onClick={submit} disabled={isSubmitting}>
