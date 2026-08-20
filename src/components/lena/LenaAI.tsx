@@ -129,7 +129,7 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
                     className={`flex h-10 items-center gap-2 rounded-xl border px-3 text-xs font-bold transition-all cursor-pointer ${canvasEnabled ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-slate-100 text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}
                   >
                     <PanelRightOpen className="h-4 w-4" />
-                    {u('Post a new load', 'Post a new load')}
+                    {u('Prepare load', 'Prepare load')}
                   </button>}
                   <button
                     type="button"

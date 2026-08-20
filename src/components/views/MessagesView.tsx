@@ -182,7 +182,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
                 className={`flex h-9 items-center gap-2 rounded-full border px-3 text-xs font-bold transition-all cursor-pointer ${canvasEnabled ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-slate-100 text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}
               >
                 <PanelRightOpen className="h-4 w-4" />
-                {u('postLoadModal.enterCanvas', 'Canvas mode')}
+                {u('Prepare load', 'Prepare load')}
               </button>
             )}
           />
