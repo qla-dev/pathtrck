@@ -69,13 +69,14 @@ export const ChatConversationPanel = ({
   const knownMessagesConversationIdRef = useRef<string | null>(null);
   const [typingMessageId, setTypingMessageId] = useState<string | null>(null);
   const [isDraggingAttachment, setIsDraggingAttachment] = useState(false);
-  const canAttach = activeConversation.isAiDispatch && Boolean(onAttachFile) && !attachmentBusy;
+  const hasAttachmentHandler = activeConversation.isAiDispatch && Boolean(onAttachFile);
+  const canAttach = hasAttachmentHandler && !attachmentBusy;
 
   const handleAttachmentDragOver = (event: DragEvent<HTMLDivElement>) => {
-    if (!canAttach || !event.dataTransfer.types.includes('Files')) return;
+    if (!hasAttachmentHandler || !event.dataTransfer.types.includes('Files')) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = 'copy';
-    setIsDraggingAttachment(true);
+    if (canAttach) setIsDraggingAttachment(true);
   };
 
   const handleAttachmentDragLeave = (event: DragEvent<HTMLDivElement>) => {
@@ -84,9 +85,10 @@ export const ChatConversationPanel = ({
   };
 
   const handleAttachmentDrop = (event: DragEvent<HTMLDivElement>) => {
-    if (!canAttach) return;
+    if (!hasAttachmentHandler) return;
     event.preventDefault();
     setIsDraggingAttachment(false);
+    if (!canAttach) return;
     const file = event.dataTransfer.files?.[0];
     if (file) void onAttachFile?.(file);
   };

@@ -4717,6 +4717,15 @@ const VALUE_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
 };
 
 const TRIPLET_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
+  'Post a new load': { bs: 'Objavi novi teret', de: 'Neue Ladung veröffentlichen' },
+  'Drop file for LenaAI': { bs: 'Ispustite datoteku za LenaAI', de: 'Datei für LenaAI hier ablegen' },
+  'New load canvas': { bs: 'Priprema novog tereta', de: 'Arbeitsbereich für neue Ladung' },
+  'Bulk load canvas': { bs: 'Masovni unos tereta', de: 'Arbeitsbereich für Massenimport' },
+  'Load data detected': { bs: 'Prepoznati su podaci o teretu', de: 'Ladungsdaten erkannt' },
+  'Open edit mode to review and complete the posting.': { bs: 'Otvorite uređivanje da pregledate i dopunite objavu.', de: 'Öffnen Sie den Bearbeitungsmodus, um die Veröffentlichung zu prüfen und zu vervollständigen.' },
+  'Open edit mode': { bs: 'Otvori uređivanje', de: 'Bearbeitungsmodus öffnen' },
+  'loads detected': { bs: 'tereta prepoznato', de: 'Ladungen erkannt' },
+  'Current load status': { bs: 'Trenutni status tereta', de: 'Aktueller Ladungsstatus' },
   'or': { bs: 'ili', de: 'oder', pl: 'lub', ro: 'sau', nl: 'of', fr: 'ou', it: 'o', zh: '或', es: 'o', sr: 'ili', sv: 'eller', ar: 'أو', pt: 'ou' },
   'Finance & Administration': { bs: 'Finansije i administracija', de: 'Finanzen & Verwaltung', pl: 'Finanse i administracja', ro: 'Finante si administratie', nl: 'Financien & Administratie', fr: 'Finance et administration', it: 'Finanza e amministrazione', zh: '财务与行政', es: 'Finanzas y administracion', sr: 'Finansije i administracija', sv: 'Ekonomi och administration', ar: 'المالية والإدارة', pt: 'Financas e administracao' },
   'Choose a role below to finish creating your account.': { bs: 'Odaberite ulogu ispod da zavrsite kreiranje racuna.', de: 'Waehlen Sie unten eine Rolle, um Ihr Konto fertigzustellen.', pl: 'Wybierz role ponizej, aby dokonczyc tworzenie konta.', ro: 'Alege un rol mai jos pentru a finaliza crearea contului.', nl: 'Kies hieronder een rol om je account af te ronden.', fr: 'Choisissez un role ci-dessous pour terminer la creation de votre compte.', it: "Scegli un ruolo qui sotto per completare la creazione dell'account.", zh: '请在下方选择角色以完成账户创建。', es: 'Elige un rol a continuacion para terminar de crear tu cuenta.', sr: 'Izaberite ulogu ispod da zavrsite kreiranje naloga.', sv: 'Valj en roll nedan for att slutfora ditt konto.', ar: 'اختر دورًا أدناه لإكمال إنشاء حسابك.', pt: 'Escolha uma funcao abaixo para concluir a criacao da sua conta.' },
