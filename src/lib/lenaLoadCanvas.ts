@@ -46,7 +46,7 @@ const spreadsheetToText = async (file: File): Promise<string> => {
   }).join('\n\n').trim();
 };
 
-export const analyzeLenaAttachment = async (file: File, mode: LenaCanvasMode): Promise<LenaAttachment> => {
+export const analyzeLenaAttachment = async (file: File, mode: LenaCanvasMode, current?: LoadScanResult): Promise<LenaAttachment> => {
   if (!isSupportedLenaFile(file)) {
     throw new Error('Use an Excel, CSV, image, or PDF file.');
   }
@@ -69,8 +69,18 @@ export const analyzeLenaAttachment = async (file: File, mode: LenaCanvasMode): P
     return { ...base, bulkRows: response.data.rows };
   }
 
-  const response = await api.loads.scan([encoded]);
+  const response = await api.loads.scan([encoded], current);
   return { ...base, loadScan: response.data };
+};
+
+// The backend now returns the full accumulated draft on every scan (not just the fields the
+// latest message/file mentioned), so the most recent scanned attachment is always the
+// authoritative current state of the load-post canvas.
+export const latestLoadScan = (attachments: LenaAttachment[]): LoadScanResult | undefined => {
+  for (let index = attachments.length - 1; index >= 0; index -= 1) {
+    if (attachments[index].loadScan) return attachments[index].loadScan;
+  }
+  return undefined;
 };
 
 export const formatAttachmentSize = (size: number) => size >= 1024 * 1024

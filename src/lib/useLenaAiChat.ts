@@ -3,7 +3,7 @@ import { Conversation } from '../components/chat/types';
 import { AI_DISPATCH_SUBJECT_PREFIX, api } from '../services/api';
 import { useApiList } from '../hooks/useApiList';
 import { showError } from './swal';
-import { analyzeLenaAttachment, LenaAttachment, LenaCanvasMode } from './lenaLoadCanvas';
+import { analyzeLenaAttachment, latestLoadScan, LenaAttachment, LenaCanvasMode } from './lenaLoadCanvas';
 
 export const LENA_AI_GENERAL_SUBJECT = `${AI_DISPATCH_SUBJECT_PREFIX}General`;
 
@@ -148,7 +148,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welc
       let attachments: LenaAttachment[] | undefined;
       if (desiredCanvas && text.length >= 8) {
         try {
-          const scan = await api.loads.scanText(text);
+          const scan = await api.loads.scanText(text, latestLoadScan(canvasAttachments));
           attachments = [{ name: 'LenaAI conversation', type: 'text/plain', size: new Blob([text]).size, loadScan: scan.data }];
         } catch {
           // The normal conversation must still be sent if structured extraction is unavailable.
@@ -183,7 +183,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welc
     const attachmentOpensCanvas = !loadId;
     if (attachmentOpensCanvas) setCanvasOverride(true);
     try {
-      const attachment = await analyzeLenaAttachment(file, canvasMode);
+      const attachment = await analyzeLenaAttachment(file, canvasMode, latestLoadScan(canvasAttachments));
       const conversationId = await ensureConversation(attachmentOpensCanvas);
       const body = !attachmentOpensCanvas
         ? `Attached ${file.name}.`

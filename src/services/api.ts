@@ -223,17 +223,17 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ company_id: options?.companyId, driver_user_id: options?.driverUserId }),
     }),
-    scan: (images: ScanImage[]) => request<LoadScanResult>('/load-scans', {
+    scan: (images: ScanImage[], current?: LoadScanResult) => request<LoadScanResult>('/load-scans', {
       method: 'POST',
-      body: JSON.stringify({ images }),
+      body: JSON.stringify({ images, current }),
     }),
     scanBulk: (images: ScanImage[]) => request<BulkLoadScanResult>('/load-scans/bulk', {
       method: 'POST',
       body: JSON.stringify({ images }),
     }),
-    scanText: (description: string) => request<LoadScanResult>('/load-scans/text', {
+    scanText: (description: string, current?: LoadScanResult) => request<LoadScanResult>('/load-scans/text', {
       method: 'POST',
-      body: JSON.stringify({ description }),
+      body: JSON.stringify({ description, current }),
     }),
     scanBulkText: (text: string) => request<BulkLoadScanResult>('/load-scans/bulk/text', {
       method: 'POST',
