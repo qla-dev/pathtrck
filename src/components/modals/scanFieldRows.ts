@@ -327,7 +327,12 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
       key: 'requirements',
       label: 'Requirements',
       value: requirementLabels.join(' · '),
-      patch: { requiresAdr: result.requiresAdr, requiresTailLift: result.requiresTailLift, urgent: result.isUrgent, mustBeTrackable: result.requiresTracking },
+      patch: {
+        ...(result.requiresAdr ? { requiresAdr: true } : {}),
+        ...(result.requiresTailLift ? { requiresTailLift: true } : {}),
+        ...(result.isUrgent ? { urgent: true } : {}),
+        ...(result.requiresTracking ? { mustBeTrackable: true } : {}),
+      },
       icon: ShieldCheck,
     });
   }
@@ -338,11 +343,11 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
       label: 'Contact',
       value: [result.contactName, result.contactPhone, result.contactMobile, result.contactEmail].filter(Boolean).join(' · '),
       patch: {
-        contactName: result.contactName,
-        contactPhone: result.contactPhone,
-        contactMobile: result.contactMobile,
-        contactFax: result.contactFax,
-        contactEmail: result.contactEmail,
+        ...(result.contactName ? { contactName: result.contactName } : {}),
+        ...(result.contactPhone ? { contactPhone: result.contactPhone } : {}),
+        ...(result.contactMobile ? { contactMobile: result.contactMobile } : {}),
+        ...(result.contactFax ? { contactFax: result.contactFax } : {}),
+        ...(result.contactEmail ? { contactEmail: result.contactEmail } : {}),
       },
       icon: UsersRound,
     });

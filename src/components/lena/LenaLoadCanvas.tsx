@@ -3,7 +3,6 @@ import { Check, FileSpreadsheet, Loader2, PackagePlus, Pencil } from 'lucide-rea
 import { Language } from '../../types';
 import { ui } from '../../i18n';
 import { api, BulkLoadRow } from '../../services/api';
-import { cn } from '../../lib/cn';
 import { latestLoadScan, LenaAttachment, LenaCanvasMode } from '../../lib/lenaLoadCanvas';
 import { buildScanFieldRows, ScanFieldPatch } from '../modals/scanFieldRows';
 import { buildBulkLoadPayload } from '../modals/bulkLoadRows';
@@ -59,16 +58,13 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, onApplyPrefill, onBulk
               <BulkLoadRowsTable rows={bulkRows} />
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="flex flex-col gap-1.5">
               {rows.map((row) => (
                 <div
                   key={row.key}
-                  className={cn(
-                    'flex items-start gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 dark:border-slate-700 dark:bg-slate-800/70',
-                    row.value.length > 22 && 'col-span-2'
-                  )}
+                  className="flex w-full items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/70"
                 >
-                  <row.icon className="mt-0.5 h-3 w-3 shrink-0 text-primary" />
+                  <row.icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
                   <div className="min-w-0">
                     <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">{row.label}</p>
                     <p className="mt-0.5 text-xs font-bold leading-snug text-slate-900 dark:text-white">{row.value}</p>
