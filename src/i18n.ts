@@ -4725,6 +4725,8 @@ const TRIPLET_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
   'Open edit mode to review and complete the posting.': { bs: 'Otvorite uređivanje da pregledate i dopunite objavu.', de: 'Öffnen Sie den Bearbeitungsmodus, um die Veröffentlichung zu prüfen und zu vervollständigen.' },
   'Open edit mode': { bs: 'Nastavi sa uređivanjem', de: 'Bearbeitungsmodus öffnen' },
   'fields from AI': { bs: 'polja od AI', de: 'Felder von KI' },
+  'Save changes': { bs: 'Spasi izmjene', de: 'Änderungen speichern' },
+  'Canvas mode': { bs: 'Canvas mode', de: 'Canvas-Modus' },
   'Filled by LenaAI — click to refill from AI data': { bs: 'Popunjeno od AI — kliknite za ponovno popunjavanje', de: 'Von KI ausgefüllt — klicken, um erneut mit KI-Daten zu füllen' },
   'loads detected': { bs: 'tereta prepoznato', de: 'Ladungen erkannt' },
   'Current load status': { bs: 'Trenutni status tereta', de: 'Aktueller Ladungsstatus' },

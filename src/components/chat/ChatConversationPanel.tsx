@@ -34,6 +34,7 @@ type ChatConversationPanelProps = {
   onTitleClick?: () => void;
   headerLeading?: ReactNode;
   headerActions?: ReactNode;
+  headerActionsLeading?: ReactNode;
   renderMessageExtra?: (message: ChatMessage) => ReactNode;
   extraContentVersion?: string | number;
   onAttachFile?: (file: File) => void | Promise<void>;
@@ -53,6 +54,7 @@ export const ChatConversationPanel = ({
   onTitleClick,
   headerLeading,
   headerActions,
+  headerActionsLeading,
   renderMessageExtra,
   extraContentVersion,
   onAttachFile,
@@ -183,22 +185,25 @@ export const ChatConversationPanel = ({
           <p className="text-[11px] text-slate-500">{activeConversation.role}</p>
         )}
       </div>}
-      {headerActions ?? <div className="flex items-center gap-1">
-        {activeConversation.isAiDispatch ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary">
-            <Bot className="h-3.5 w-3.5" />
-            {activeConversation.role}
-          </span>
-        ) : (
-          <>
-            <button className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center cursor-pointer">
-              <Phone className="w-4 h-4" />
-            </button>
-            <button className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center cursor-pointer">
-              <Video className="w-4 h-4" />
-            </button>
-          </>
-        )}
+      {headerActions ?? <div className="flex items-center gap-2">
+        {headerActionsLeading}
+        <div className="flex items-center gap-1">
+          {activeConversation.isAiDispatch ? (
+            <span className="inline-flex h-9 items-center gap-1.5 rounded-full bg-primary/10 px-3 text-xs font-bold text-primary">
+              <Bot className="h-3.5 w-3.5" />
+              {activeConversation.role}
+            </span>
+          ) : (
+            <>
+              <button className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center cursor-pointer">
+                <Phone className="w-4 h-4" />
+              </button>
+              <button className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center cursor-pointer">
+                <Video className="w-4 h-4" />
+              </button>
+            </>
+          )}
+        </div>
       </div>}
     </div>
 

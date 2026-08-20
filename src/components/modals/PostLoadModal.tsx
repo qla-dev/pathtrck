@@ -592,8 +592,6 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     [draft]
   );
 
-  const canProceed = stepCompletion[step];
-
   const setField = <K extends keyof LoadDraft>(key: K, value: LoadDraft[K]) => {
     setDraft((prev) => ({ ...prev, [key]: value }));
   };
@@ -640,12 +638,6 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         ? prev.specialRequirements.filter((item) => item !== value)
         : [...prev.specialRequirements, value],
     }));
-  };
-
-  const goNext = () => {
-    if (!canProceed) return;
-    const next = STEPS[stepIndex + 1];
-    if (next) setStep(next.id);
   };
 
   const goBack = () => {
@@ -950,7 +942,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
               {STEPS.map((item, index) => {
                 const Icon = item.icon;
                 const isActive = item.id === step;
-                const isDone = index < stepIndex;
+                const isDone = stepCompletion[item.id];
                 const isClickable = canNavigateToStep(index);
                 const title =
                   item.id === 'general'
@@ -1799,15 +1791,9 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                   <Sparkles className="w-4 h-4" />
                   {u('postLoadModal.fillWithLenaAI', 'Fill with LenaAI')}
                 </Button>
-                {step === 'review' ? (
-                  <Button className="w-full min-h-[56px] sm:min-h-[60px]" onClick={submit} disabled={isSubmitting}>
-                    {isSubmitting ? u('postLoadModal.publishing', 'Saving...') : editLoadId ? u('common.save', 'Save changes') : u('common.postLoad', 'Publish')}
-                  </Button>
-                ) : (
-                  <Button className="w-full min-h-[56px] sm:min-h-[60px]" onClick={goNext} disabled={!canProceed}>
-                    {u('common.continue', 'Continue')}
-                  </Button>
-                )}
+                <Button className="w-full min-h-[56px] sm:min-h-[60px]" onClick={submit} disabled={isSubmitting}>
+                  {isSubmitting ? u('postLoadModal.publishing', 'Saving...') : editLoadId ? u('common.save', 'Save changes') : u('common.postLoad', 'Publish')}
+                </Button>
               </div>
             </div>
           </div>

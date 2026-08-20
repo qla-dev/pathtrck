@@ -1,18 +1,29 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Bot, LayoutGrid, MessageCircle } from 'lucide-react';
+import { Bot, LayoutGrid, MessageCircle, PanelRightOpen } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import { Language } from '../../types';
 import { ui } from '../../i18n';
+import { cn } from '../../lib/cn';
 import { showError } from '../../lib/swal';
 import { ChatConversationPanel } from '../chat/ChatConversationPanel';
 import { ChatSidebar } from '../chat/ChatSidebar';
 import { Channel, Conversation } from '../chat/types';
-import { AI_DISPATCH_SUBJECT_PREFIX, ApiUser, api } from '../../services/api';
+import { AI_DISPATCH_SUBJECT_PREFIX, ApiUser, api, BulkLoadRow } from '../../services/api';
 import { useApiList } from '../../hooks/useApiList';
 import { mapLoadStatus } from '../../lib/loadDetails';
 import { trPackageStatus } from '../../i18n';
 import { useLenaEmbeddedMessages } from '../lena/useLenaEmbeddedMessages';
+import { LenaLoadCanvas } from '../lena/LenaLoadCanvas';
+import { ScanFieldPatch } from '../modals/scanFieldRows';
 
-export const MessagesView = ({ lang, onOpenLoad }: { lang: Language; onOpenLoad?: (loadId: string) => void }) => {
+type MessagesViewProps = {
+  lang: Language;
+  onOpenLoad?: (loadId: string) => void;
+  onApplyLoadPrefill?: (patch: ScanFieldPatch) => void;
+  onBulkImported?: (rows: BulkLoadRow[]) => void;
+};
+
+export const MessagesView = ({ lang, onOpenLoad, onApplyLoadPrefill, onBulkImported }: MessagesViewProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const result = useApiList(api.conversations.list, { per_page: 100 });
   const [user, setUser] = useState<ApiUser | null>(null);
@@ -39,6 +50,7 @@ export const MessagesView = ({ lang, onOpenLoad }: { lang: Language; onOpenLoad?
         ].filter(Boolean).join(' · ')
       : '';
     const status = load ? trPackageStatus(lang, mapLoadStatus(load.status)) : undefined;
+    const loadPosted = load ? String(load.status || '').toLowerCase() === 'posted' : false;
     return {
       id: String(row.id),
       name: isAiDispatch
@@ -53,6 +65,7 @@ export const MessagesView = ({ lang, onOpenLoad }: { lang: Language; onOpenLoad?
       canvas: Boolean(row.canvas),
       meta: meta || undefined,
       status,
+      loadPosted,
     };
   }), [result.items, user, lang]);
   const [channelFilter, setChannelFilter] = useState<'all' | 'ai' | 'direct'>('all');
@@ -81,6 +94,14 @@ export const MessagesView = ({ lang, onOpenLoad }: { lang: Language; onOpenLoad?
     if (!optimisticText) return base;
     return { ...base, messages: [...base.messages, { id: 'optimistic', sender: 'me' as const, text: optimisticText, time: '' }] };
   }, [filteredConversations, activeId, conversations, optimisticText]);
+
+  const [canvasEnabled, setCanvasEnabled] = useState(false);
+  useEffect(() => setCanvasEnabled(false), [activeConversation.id]);
+  const canEnterCanvas = Boolean(activeConversation.isAiDispatch) && (!activeConversation.loadId || !activeConversation.loadPosted);
+  const canvasAttachments = useMemo(
+    () => activeConversation.messages.flatMap((message) => message.attachments || []),
+    [activeConversation.messages]
+  );
 
   const { displayMessages, renderMessageExtra, extraContentVersion } = useLenaEmbeddedMessages({
     messages: activeConversation.messages,
@@ -123,31 +144,67 @@ export const MessagesView = ({ lang, onOpenLoad }: { lang: Language; onOpenLoad?
     }
   };
 
+  const showCanvas = canEnterCanvas && canvasEnabled;
+
   return (
     <div className="h-full">
       <div className="h-full grid lg:grid-cols-12 gap-4">
-        <ChatSidebar
-          searchPlaceholder={u('Search messages...', 'Search messages...')}
-          channels={channels}
-          channelFilter={channelFilter}
-          onChannelFilterChange={(id) => setChannelFilter(id as 'all' | 'ai' | 'direct')}
-          conversations={filteredConversations}
-          activeConversationId={activeConversation.id}
-          onSelectConversation={setActiveId}
-        />
+        {!showCanvas && (
+          <ChatSidebar
+            searchPlaceholder={u('Search messages...', 'Search messages...')}
+            channels={channels}
+            channelFilter={channelFilter}
+            onChannelFilterChange={(id) => setChannelFilter(id as 'all' | 'ai' | 'direct')}
+            conversations={filteredConversations}
+            activeConversationId={activeConversation.id}
+            onSelectConversation={setActiveId}
+          />
+        )}
 
-        <ChatConversationPanel
-          activeConversation={displayConversation}
-          draft={draft}
-          onDraftChange={setDraft}
-          onSend={sendMessage}
-          messagePlaceholder={u('Write a message...', 'Write a message...')}
-          className="lg:col-span-8"
-          otherTyping={aiReplying}
-          onTitleClick={activeConversation.loadId && onOpenLoad ? () => onOpenLoad(activeConversation.loadId!) : undefined}
-          renderMessageExtra={renderMessageExtra}
-          extraContentVersion={`${activeConversation.id}:${extraContentVersion}`}
-        />
+        <div className={cn('flex min-h-0 gap-4', showCanvas ? 'lg:col-span-12' : 'lg:col-span-8')}>
+          <ChatConversationPanel
+            activeConversation={displayConversation}
+            draft={draft}
+            onDraftChange={setDraft}
+            onSend={sendMessage}
+            messagePlaceholder={u('Write a message...', 'Write a message...')}
+            className="flex-1 min-h-0"
+            otherTyping={aiReplying}
+            onTitleClick={activeConversation.loadId && onOpenLoad ? () => onOpenLoad(activeConversation.loadId!) : undefined}
+            renderMessageExtra={renderMessageExtra}
+            extraContentVersion={`${activeConversation.id}:${extraContentVersion}`}
+            headerActionsLeading={canEnterCanvas && (
+              <button
+                type="button"
+                onClick={() => setCanvasEnabled((current) => !current)}
+                className={`flex h-9 items-center gap-2 rounded-full border px-3 text-xs font-bold transition-all cursor-pointer ${canvasEnabled ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-slate-100 text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}
+              >
+                <PanelRightOpen className="h-4 w-4" />
+                {u('postLoadModal.enterCanvas', 'Canvas mode')}
+              </button>
+            )}
+          />
+          <AnimatePresence initial={false}>
+            {showCanvas && (
+              <motion.div
+                key="load-canvas"
+                className="hidden h-full shrink-0 md:block"
+                initial={{ opacity: 0, x: 24, width: 0 }}
+                animate={{ opacity: 1, x: 0, width: 'auto' }}
+                exit={{ opacity: 0, x: 24, width: 0 }}
+                transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <LenaLoadCanvas
+                  lang={lang}
+                  mode="new_load"
+                  attachments={canvasAttachments}
+                  onApplyPrefill={onApplyLoadPrefill}
+                  onBulkImported={onBulkImported}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );

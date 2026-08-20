@@ -39,8 +39,7 @@ import {
   Database,
   Sparkles,
   RefreshCw,
-  ScanSearch,
-  Layers
+  ScanSearch
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
@@ -64,7 +63,7 @@ import {
 
 // Types & Services
 import { Role, Language, Load } from './types';
-import { ApiUser, api, BulkLoadRow } from './services/api';
+import { ApiUser, api } from './services/api';
 import { MOCK_PACKAGES, MOCK_ROUTES } from './mockData';
 import { ui, trLoadStatus, trPackageStatus, trFuelType, trGoodsType, trPaymentTerms } from './i18n';
 import { cn } from './lib/cn';
@@ -88,7 +87,6 @@ import { AutomationsView } from './components/views/AutomationsView';
 import { PostLoadModal } from './components/modals/PostLoadModal';
 import { LoadDetailsModal } from './components/tracking/LoadDetailsModal';
 import { LenaAI } from './components/lena/LenaAI';
-import { BulkResultModal } from './components/modals/BulkResultModal';
 import { ScanFieldPatch } from './components/modals/scanFieldRows';
 import { LenaCanvasMode } from './lib/lenaLoadCanvas';
 import { SettingsView } from './components/views/SettingsView';
@@ -3290,8 +3288,6 @@ export default function App() {
   const [isMainSortSidebarOpen, setIsMainSortSidebarOpen] = useState(false);
   const [isPostLoadOpen, setIsPostLoadOpen] = useState(false);
   const [editLoadId, setEditLoadId] = useState<string | null>(null);
-  const [isBulkResultOpen, setIsBulkResultOpen] = useState(false);
-  const [lastBulkImport, setLastBulkImport] = useState<BulkLoadRow[] | null>(null);
   const [loadRefreshKey, setLoadRefreshKey] = useState(0);
   const trackingCompanyIds = useMemo(
     () => (currentUser?.companies || []).map((company) => Number(company.id)).filter(Number.isFinite),
@@ -4041,7 +4037,7 @@ export default function App() {
           ) : (
             <motion.div
               key="main-sidebar-nav"
-              className="flex-1 flex flex-col"
+              className="flex-1 min-h-0 flex flex-col"
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -10 }}
@@ -4115,26 +4111,6 @@ export default function App() {
                 <Plus className="w-4 h-4" />
                 <span>{u('common.postLoad', 'Post Load')}</span>
               </button>
-            ) : null}
-            {role === 'user' || role === 'superadmin' ? (
-              <div className="relative">
-                <button
-                  onClick={() => { setLenaCanvasMode('bulk'); setLenaAiOpen(true); }}
-                  className="h-10 px-4 rounded-full border border-primary/30 bg-primary/10 text-primary inline-flex items-center gap-2 text-xs font-bold hover:bg-primary/15 transition-all cursor-pointer whitespace-nowrap"
-                >
-                  <Layers className="w-4 h-4" />
-                  <span className="hidden sm:inline">{u('common.bulkImport', 'Bulk import')} · LenaAI</span>
-                </button>
-                {lastBulkImport && lastBulkImport.length > 0 && (
-                  <button
-                    onClick={() => setIsBulkResultOpen(true)}
-                    title={u('postLoadModal.viewLastImport', 'View last import')}
-                    className="absolute -top-1.5 -right-1.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-black text-white shadow-md cursor-pointer"
-                  >
-                    {lastBulkImport.length}
-                  </button>
-                )}
-              </div>
             ) : null}
 
             <span
@@ -4334,6 +4310,12 @@ export default function App() {
 	                <MessagesView
 	                  lang={lang}
 	                  onOpenLoad={(loadId) => setOpenLoadDetailsId(loadId)}
+	                  onApplyLoadPrefill={(patch) => {
+	                    setLenaLoadPrefill(patch);
+	                    setEditLoadId(null);
+	                    setIsPostLoadOpen(true);
+	                  }}
+	                  onBulkImported={() => setLoadRefreshKey((current) => current + 1)}
 	                />
 	              )}
 	              {view === 'map' && <MapView lang={lang} />}
@@ -4383,10 +4365,7 @@ export default function App() {
             setEditLoadId(null);
             setIsPostLoadOpen(true);
           }}
-          onBulkImported={(rows) => {
-            setLastBulkImport(rows);
-            setLoadRefreshKey((current) => current + 1);
-          }}
+          onBulkImported={() => setLoadRefreshKey((current) => current + 1)}
           onOpenLoad={(loadId) => {
             setLenaAiOpen(false);
             setOpenLoadDetailsId(loadId);
@@ -4406,7 +4385,6 @@ export default function App() {
           onSaved={(load) => { setLenaLoadPrefill(null); handleLoadSaved(load); }}
           lang={lang}
         />
-        <BulkResultModal open={isBulkResultOpen} onClose={() => setIsBulkResultOpen(false)} rows={lastBulkImport ?? []} />
 
         {/* Bottom Nav (Mobile) */}
         <nav className="md:hidden fixed bottom-0 w-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-4 h-16 flex items-center justify-start gap-6 overflow-x-auto z-50">
