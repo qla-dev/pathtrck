@@ -1,19 +1,18 @@
-import { Circle, Search } from 'lucide-react';
+import { Circle, Search, type LucideIcon } from 'lucide-react';
 import { cn } from '../../lib/cn';
-import { Channel, Conversation } from './types';
-
-type ChatChannelFilter = 'all' | Channel;
+import { Conversation } from './types';
 
 type ChannelTab = {
-  id: ChatChannelFilter;
+  id: string;
   label: string;
+  icon: LucideIcon;
 };
 
 type ChatSidebarProps = {
   searchPlaceholder: string;
   channels: ChannelTab[];
-  channelFilter: ChatChannelFilter;
-  onChannelFilterChange: (filter: ChatChannelFilter) => void;
+  channelFilter: string;
+  onChannelFilterChange: (filter: string) => void;
   conversations: Conversation[];
   activeConversationId: string;
   onSelectConversation: (id: string) => void;
@@ -37,21 +36,25 @@ export const ChatSidebar = ({
       />
     </div>
 
-    <div className="grid grid-cols-4 gap-1 mb-3">
-      {channels.map((ch) => (
-        <button
-          key={ch.id}
-          onClick={() => onChannelFilterChange(ch.id)}
-          className={cn(
-            'h-8 rounded-lg text-[11px] font-bold cursor-pointer transition-all',
-            channelFilter === ch.id
-              ? 'bg-primary text-white'
-              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-          )}
-        >
-          {ch.label}
-        </button>
-      ))}
+    <div className="grid grid-cols-3 gap-1 mb-3">
+      {channels.map((ch) => {
+        const Icon = ch.icon;
+        return (
+          <button
+            key={ch.id}
+            onClick={() => onChannelFilterChange(ch.id)}
+            className={cn(
+              'flex h-9 items-center justify-center gap-1.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all',
+              channelFilter === ch.id
+                ? 'bg-primary text-white'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+            )}
+          >
+            <Icon className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">{ch.label}</span>
+          </button>
+        );
+      })}
     </div>
 
     <div className="flex-1 min-h-0 space-y-2 overflow-y-auto pr-1">

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Bot, LayoutGrid, MessageCircle } from 'lucide-react';
 import { Language } from '../../types';
 import { ui } from '../../i18n';
 import { showError } from '../../lib/swal';
@@ -18,48 +19,71 @@ export const MessagesView = ({ lang, onOpenLoad }: { lang: Language; onOpenLoad?
     const counterpart = participants.find((participant) => Number(participant.id) !== user?.id) || participants[0];
     const messages = Array.isArray(row.messages) ? row.messages as Array<Record<string, unknown>> : [];
     const isAiDispatch = typeof row.subject === 'string' && row.subject.startsWith(AI_DISPATCH_SUBJECT_PREFIX);
-    const load = row.freightLoad as Record<string, unknown> | undefined;
+    const load = row.freight_load as Record<string, unknown> | undefined;
     const consignee = (load?.consignee || {}) as Record<string, unknown>;
-    const loadName = load ? String(consignee.company_name || consignee.name || load.title || '') : '';
+    const loadName = load
+      ? String(consignee.company_name || consignee.name || load.title || load.public_id || (load.id ? `Load #${load.id}` : '') || '')
+      : '';
+    const stops = load && Array.isArray(load.stops) ? load.stops as Array<Record<string, unknown>> : [];
+    const origin = stops.find((stop) => stop.type === 'pickup')?.city;
+    const destination = stops.find((stop) => stop.type === 'delivery')?.city;
+    const meta = isAiDispatch
+      ? [
+          load?.booking_reference ? `${u('Booking reference', 'Booking reference')}: ${load.booking_reference}` : null,
+          origin && destination ? `${origin} → ${destination}` : null,
+        ].filter(Boolean).join(' · ')
+      : '';
     return {
-      id: String(row.id), name: isAiDispatch && loadName ? loadName : String(row.subject || counterpart?.name || `Conversation ${row.id}`),
-      role: String(((counterpart?.role || {}) as Record<string, unknown>).label || ''), channel: (String(row.channel || 'inapp') as Channel),
+      id: String(row.id),
+      name: isAiDispatch
+        ? String(loadName || (row.load_id ? `Load #${row.load_id}` : `Conversation ${row.id}`))
+        : String(row.subject || counterpart?.name || `Conversation ${row.id}`),
+      role: isAiDispatch ? u('Lena AI', 'Lena AI') : String(((counterpart?.role || {}) as Record<string, unknown>).label || ''),
+      channel: (String(row.channel || 'inapp') as Channel),
       online: false, unread: 0, lastTime: String(row.last_message_at || '').slice(11, 16),
       messages: messages.map((message) => ({ id: String(message.id), sender: Number(message.sender_user_id) === user?.id ? 'me' : 'other', text: String(message.body || ''), time: String(message.sent_at || message.created_at || '').slice(11, 16) })),
       loadId: row.load_id ? String(row.load_id) : undefined,
       isAiDispatch,
+      meta: meta || undefined,
     };
-  }), [result.items, user]);
-  const [channelFilter, setChannelFilter] = useState<'all' | Channel>('all');
+  }), [result.items, user, lang]);
+  const [channelFilter, setChannelFilter] = useState<'all' | 'ai' | 'direct'>('all');
   const [activeId, setActiveId] = useState('');
   const [draft, setDraft] = useState('');
   const [aiReplying, setAiReplying] = useState(false);
+  const [optimisticText, setOptimisticText] = useState<string | null>(null);
 
   const channels = [
-    { id: 'all' as const, label: u('All', 'All') },
-    { id: 'whatsapp' as const, label: 'WhatsApp' },
-    { id: 'telegram' as const, label: 'Telegram' },
-    { id: 'inapp' as const, label: u('In App', 'In App') },
+    { id: 'all' as const, label: u('All', 'All'), icon: LayoutGrid },
+    { id: 'ai' as const, label: u('Lena AI', 'Lena AI'), icon: Bot },
+    { id: 'direct' as const, label: u('Direct messages', 'Direct messages'), icon: MessageCircle },
   ];
 
   const filteredConversations = useMemo(
-    () => conversations.filter((c) => channelFilter === 'all' || c.channel === channelFilter),
+    () => conversations.filter((c) => {
+      if (channelFilter === 'ai') return c.isAiDispatch;
+      if (channelFilter === 'direct') return !c.isAiDispatch;
+      return true;
+    }),
     [channelFilter, conversations]
   );
 
-  const activeConversation = useMemo(
-    () => filteredConversations.find((c) => c.id === activeId) ?? filteredConversations[0] ?? conversations[0] ?? { id: '', name: u('messages.empty', 'No conversation'), role: '', channel: 'inapp' as const, online: false, unread: 0, lastTime: '', messages: [] },
-    [filteredConversations, activeId, conversations]
-  );
+  const activeConversation = useMemo(() => {
+    const base = filteredConversations.find((c) => c.id === activeId) ?? filteredConversations[0] ?? conversations[0] ?? { id: '', name: u('messages.empty', 'No conversation'), role: '', channel: 'inapp' as const, online: false, unread: 0, lastTime: '', messages: [] };
+    if (!optimisticText) return base;
+    return { ...base, messages: [...base.messages, { id: 'optimistic', sender: 'me' as const, text: optimisticText, time: '' }] };
+  }, [filteredConversations, activeId, conversations, optimisticText]);
 
   const sendMessage = async () => {
     const text = draft.trim();
     if (!text || !activeConversation.id || !user || aiReplying) return;
 
     setDraft('');
+    setOptimisticText(text);
     try {
       await api.messages.create({ conversation_id: Number(activeConversation.id), sender_user_id: user.id, body: text, sent_at: new Date().toISOString() });
       await result.refresh();
+      setOptimisticText(null);
 
       if (activeConversation.isAiDispatch) {
         setAiReplying(true);
@@ -71,19 +95,12 @@ export const MessagesView = ({ lang, onOpenLoad }: { lang: Language; onOpenLoad?
         await result.refresh();
       }
     } catch (error) {
+      setOptimisticText(null);
       void showError(
         u('messages.sendFailed', 'Message could not be sent'),
         error instanceof Error ? error.message : undefined
       );
     }
-  };
-
-  const handleAiDispatchCompose = () => {
-    const seed = u(
-      'Draft an ETA update for dispatch and clients on this route.',
-      'Draft an ETA update for dispatch and clients on this route.',
-    );
-    setDraft(seed);
   };
 
   return (
@@ -93,7 +110,7 @@ export const MessagesView = ({ lang, onOpenLoad }: { lang: Language; onOpenLoad?
           searchPlaceholder={u('Search messages...', 'Search messages...')}
           channels={channels}
           channelFilter={channelFilter}
-          onChannelFilterChange={setChannelFilter}
+          onChannelFilterChange={(id) => setChannelFilter(id as 'all' | 'ai' | 'direct')}
           conversations={filteredConversations}
           activeConversationId={activeConversation.id}
           onSelectConversation={setActiveId}
@@ -106,9 +123,6 @@ export const MessagesView = ({ lang, onOpenLoad }: { lang: Language; onOpenLoad?
           onSend={sendMessage}
           messagePlaceholder={u('Write a message...', 'Write a message...')}
           className="lg:col-span-8"
-          showAiDispatchButton
-          aiDispatchLabel={u('Write with AI Dispatch', 'Write with AI Dispatch')}
-          onAiDispatchClick={handleAiDispatchCompose}
           otherTyping={aiReplying}
           onTitleClick={activeConversation.loadId && onOpenLoad ? () => onOpenLoad(activeConversation.loadId!) : undefined}
         />

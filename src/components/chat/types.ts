@@ -18,5 +18,6 @@ export type Conversation = {
   messages: ChatMessage[];
   loadId?: string;
   isAiDispatch?: boolean;
+  meta?: string;
 };
 

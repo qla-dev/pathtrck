@@ -28,9 +28,6 @@ type ChatConversationPanelProps = {
   onSend: () => void;
   messagePlaceholder: string;
   className?: string;
-  showAiDispatchButton?: boolean;
-  aiDispatchLabel?: string;
-  onAiDispatchClick?: () => void;
   otherTyping?: boolean;
   onTitleClick?: () => void;
 };
@@ -42,9 +39,6 @@ export const ChatConversationPanel = ({
   onSend,
   messagePlaceholder,
   className,
-  showAiDispatchButton = false,
-  aiDispatchLabel = 'Write with AI Dispatch',
-  onAiDispatchClick,
   otherTyping = false,
   onTitleClick,
 }: ChatConversationPanelProps) => {
@@ -70,15 +64,29 @@ export const ChatConversationPanel = ({
         ) : (
           <p className="text-sm font-bold dark:text-white">{activeConversation.name}</p>
         )}
-        <p className="text-[11px] text-slate-500">{activeConversation.role}</p>
+        {activeConversation.meta && (
+          <p className="text-[11px] text-slate-400 truncate">{activeConversation.meta}</p>
+        )}
+        {!activeConversation.isAiDispatch && (
+          <p className="text-[11px] text-slate-500">{activeConversation.role}</p>
+        )}
       </div>
       <div className="flex items-center gap-1">
-        <button className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center cursor-pointer">
-          <Phone className="w-4 h-4" />
-        </button>
-        <button className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center cursor-pointer">
-          <Video className="w-4 h-4" />
-        </button>
+        {activeConversation.isAiDispatch ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary">
+            <Bot className="h-3.5 w-3.5" />
+            {activeConversation.role}
+          </span>
+        ) : (
+          <>
+            <button className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center cursor-pointer">
+              <Phone className="w-4 h-4" />
+            </button>
+            <button className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center cursor-pointer">
+              <Video className="w-4 h-4" />
+            </button>
+          </>
+        )}
       </div>
     </div>
 
@@ -149,15 +157,6 @@ export const ChatConversationPanel = ({
         <button className="h-9 w-9 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 flex items-center justify-center cursor-pointer transition-all">
           <Mic className="w-4 h-4" />
         </button>
-        {showAiDispatchButton && (
-          <button
-            onClick={onAiDispatchClick}
-            className={cn(primaryActionButtonClass, 'px-3 text-xs font-bold gap-1.5')}
-          >
-            <Bot className="w-4 h-4" />
-            {aiDispatchLabel}
-          </button>
-        )}
         <button onClick={onSend} className={cn(primaryActionButtonClass, 'w-9')}>
           <Send className="w-4 h-4" />
         </button>

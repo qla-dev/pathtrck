@@ -88,6 +88,7 @@ import { MapView } from './components/views/MapView';
 import { ProfileView } from './components/views/ProfileView';
 import { AutomationsView } from './components/views/AutomationsView';
 import { PostLoadModal } from './components/modals/PostLoadModal';
+import { LoadDetailsModal } from './components/tracking/LoadDetailsModal';
 import { BulkImportModal } from './components/modals/BulkImportModal';
 import { BulkResultModal } from './components/modals/BulkResultModal';
 import { SettingsView } from './components/views/SettingsView';
@@ -3201,7 +3202,7 @@ export default function App() {
   const [lang, setLang] = useState<Language>(() => getInitialLanguage());
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [view, setView] = useState('tracking');
-  const [pendingTrackingLoadId, setPendingTrackingLoadId] = useState<string | null>(null);
+  const [openLoadDetailsId, setOpenLoadDetailsId] = useState<string | null>(null);
   const [isDark, setIsDark] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => getInitialSidebarState());
   const [isMainFilterSidebarOpen, setIsMainFilterSidebarOpen] = useState(false);
@@ -4194,8 +4195,6 @@ export default function App() {
                     role={role}
                     userId={currentUser?.id}
                     companyIds={trackingCompanyIds}
-                    initialLoadId={pendingTrackingLoadId ?? undefined}
-                    onInitialLoadHandled={() => setPendingTrackingLoadId(null)}
                   />
                 )}
 	              {view === 'feed' && (
@@ -4254,10 +4253,7 @@ export default function App() {
 	              {view === 'messages' && (
 	                <MessagesView
 	                  lang={lang}
-	                  onOpenLoad={(loadId) => {
-	                    setPendingTrackingLoadId(loadId);
-	                    setView('tracking');
-	                  }}
+	                  onOpenLoad={(loadId) => setOpenLoadDetailsId(loadId)}
 	                />
 	              )}
 	              {view === 'map' && <MapView lang={lang} />}
@@ -4283,6 +4279,16 @@ export default function App() {
             </motion.div>
           </AnimatePresence>
         </div>
+        {openLoadDetailsId && (
+          <LoadDetailsModal
+            loadId={openLoadDetailsId}
+            lang={lang}
+            role={role}
+            userId={currentUser?.id}
+            companyIds={trackingCompanyIds}
+            onClose={() => setOpenLoadDetailsId(null)}
+          />
+        )}
         <PostLoadModal isOpen={isPostLoadOpen} editLoadId={editLoadId} onClose={() => { setIsPostLoadOpen(false); setEditLoadId(null); }} onSaved={handleLoadSaved} lang={lang} />
         <BulkImportModal
           open={isBulkImportOpen}
