@@ -66,24 +66,27 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, onApplyPrefill, onBulk
               <BulkLoadRowsTable rows={bulkRows} />
             </div>
           ) : (
-            <div className="space-y-4">
-              <div className="rounded-2xl border border-primary/25 bg-primary/5 p-4">
-                <p className="text-sm font-black text-slate-900 dark:text-white">{u('Load data detected', 'Load data detected')}</p>
-                <p className="mt-1 text-xs leading-5 text-slate-500">{u('Open edit mode to review and complete the posting.', 'Open edit mode to review and complete the posting.')}</p>
-                <button type="button" onClick={() => onApplyPrefill?.(patch)} className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-primary text-xs font-black text-white">
-                  <Pencil className="h-4 w-4" /> {u('Open edit mode', 'Open edit mode')}
-                </button>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                {rows.map((row) => (
-                  <div key={row.key} className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/70">
-                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">{row.label}</p>
-                    <p className="mt-1 text-sm font-bold text-slate-900 dark:text-white">{row.value}</p>
-                  </div>
-                ))}
-              </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+              {rows.map((row) => (
+                <div key={row.key} className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/70">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">{row.label}</p>
+                  <p className="mt-1 text-sm font-bold text-slate-900 dark:text-white">{row.value}</p>
+                </div>
+              ))}
             </div>
           )}
+        </div>
+      )}
+
+      {bulkRows.length === 0 && rows.length > 0 && (
+        <div className="border-t border-slate-100 p-4 dark:border-slate-800">
+          <div className="rounded-2xl border border-primary/25 bg-primary/5 p-4">
+            <p className="text-sm font-black text-slate-900 dark:text-white">{u('Load data detected', 'Load data detected')}</p>
+            <p className="mt-1 text-xs leading-5 text-slate-500">{u('Open edit mode to review and complete the posting.', 'Open edit mode to review and complete the posting.')}</p>
+            <button type="button" onClick={() => onApplyPrefill?.(patch)} className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-primary text-xs font-black text-white">
+              <Pencil className="h-4 w-4" /> {u('Open edit mode', 'Open edit mode')}
+            </button>
+          </div>
         </div>
       )}
 

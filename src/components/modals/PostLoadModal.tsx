@@ -254,8 +254,28 @@ const SectionTitle = ({
   </div>
 );
 
-const FieldLabel = ({ children }: { children: string }) => (
-  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 ml-1">{children}</label>
+const FieldLabel = ({
+  children,
+  ai,
+  title,
+  onReprefill,
+}: {
+  children: string;
+  ai?: boolean;
+  title?: string;
+  onReprefill?: () => void;
+}) => (
+  <label
+    onClick={ai ? onReprefill : undefined}
+    title={ai ? title : undefined}
+    className={cn(
+      'ml-1 text-[10px] font-bold uppercase tracking-wider',
+      ai ? 'inline-flex cursor-pointer items-center gap-1 text-primary' : 'text-slate-500'
+    )}
+  >
+    {children}
+    {ai && <Sparkles className="h-2.5 w-2.5 shrink-0" />}
+  </label>
 );
 
 const Input = (props: InputHTMLAttributes<HTMLInputElement>) => (
@@ -482,6 +502,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   const [dropzoneOpen, setDropzoneOpen] = useState(false);
   const [scannedDocuments, setScannedDocuments] = useState<ScannedDocument[]>([]);
   const [viewingDocId, setViewingDocId] = useState<string | null>(null);
+  const [aiFilledPatch, setAiFilledPatch] = useState<ScanFieldPatch>({});
   useEffect(() => {
     if (!isOpen) {
       setStep('general');
@@ -489,16 +510,19 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       setSubmitError('');
       setScannedDocuments([]);
       setViewingDocId(null);
+      setAiFilledPatch({});
     }
   }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen || editLoadId || !initialPrefill) return;
     setDraft((current) => ({ ...current, ...initialPrefill }));
+    setAiFilledPatch((current) => ({ ...current, ...initialPrefill }));
   }, [editLoadId, initialPrefill, isOpen]);
 
   const applyScan = (result: LoadScanResult, imageDataUrl: string | null, patch: ScanFieldPatch) => {
     setDraft((prev) => ({ ...prev, ...patch }));
+    setAiFilledPatch((prev) => ({ ...prev, ...patch }));
     setScannedDocuments((prev) => {
       const next = [...prev, { id: `scan-${Date.now()}`, imageDataUrl, result }];
       try {
@@ -573,6 +597,32 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   const setField = <K extends keyof LoadDraft>(key: K, value: LoadDraft[K]) => {
     setDraft((prev) => ({ ...prev, [key]: value }));
   };
+
+  const aiFieldCount = Object.keys(aiFilledPatch).length;
+
+  const isAiField = (key: keyof ScanFieldPatch) => aiFilledPatch[key] !== undefined;
+
+  const reprefillField = async <K extends keyof ScanFieldPatch & keyof LoadDraft>(key: K) => {
+    const aiValue = aiFilledPatch[key];
+    if (aiValue === undefined) return;
+    const confirmed = await confirmAction({
+      title: 'Refill this field with AI data?',
+      text: 'Your current value will be overwritten with the value LenaAI detected.',
+      confirmText: 'Refill',
+    });
+    if (!confirmed) return;
+    setField(key, aiValue as LoadDraft[K]);
+  };
+
+  const fieldLabel = (key: keyof ScanFieldPatch & keyof LoadDraft, labelKey: string, fallback: string) => (
+    <FieldLabel
+      ai={isAiField(key)}
+      title={u('postLoadModal.aiRefillHint', 'Filled by LenaAI — click to refill from AI data')}
+      onReprefill={() => void reprefillField(key)}
+    >
+      {u(labelKey, fallback)}
+    </FieldLabel>
+  );
 
   const toggleBodyType = (value: string) => {
     setDraft((prev) => ({
@@ -779,6 +829,12 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                 <ThermometerSnowflake className="w-4 h-4" />
                 <span>{draft.temperatureControlled ? `${draft.temperatureMin || '—'}°C to ${draft.temperatureMax || '—'}°C` : u('postLoadModal.ambient', 'Ambient')}</span>
               </div>
+              {aiFieldCount > 0 && (
+                <div className="flex items-center gap-2 text-xs whitespace-nowrap text-primary">
+                  <Sparkles className="w-4 h-4" />
+                  <span>{aiFieldCount} {u('postLoadModal.aiFilledCount', 'fields from AI')}</span>
+                </div>
+              )}
               {scannedDocuments.length > 0 && (
                 <div className="flex items-center gap-1.5">
                   {scannedDocuments.map((doc) => (
@@ -846,6 +902,12 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                 <ThermometerSnowflake className="w-4 h-4" />
                 <span>{draft.temperatureControlled ? `${draft.temperatureMin || '—'}°C to ${draft.temperatureMax || '—'}°C` : u('postLoadModal.ambient', 'Ambient')}</span>
               </div>
+              {aiFieldCount > 0 && (
+                <div className="hidden md:flex items-center gap-2 text-xs text-primary">
+                  <Sparkles className="w-4 h-4" />
+                  <span>{aiFieldCount} {u('postLoadModal.aiFilledCount', 'fields from AI')}</span>
+                </div>
+              )}
               {scannedDocuments.length > 0 && (
                 <div className="flex items-center gap-1.5">
                   {scannedDocuments.map((doc) => (
@@ -1085,18 +1147,18 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
                       <div className="grid sm:grid-cols-[240px_minmax(0,1fr)] gap-4">
                         <div className="space-y-1.5">
-                          <FieldLabel>{u('postLoadModal.pickupCountryShort', 'Country')}</FieldLabel>
+                          {fieldLabel('pickupCountry', 'postLoadModal.pickupCountryShort', 'Country')}
                           <CountrySelect value={draft.pickupCountry} onChange={(value) => setField('pickupCountry', value)} placeholder={u('postLoadModal.selectCountry', 'Select country')} />
                         </div>
                         <div className="space-y-1.5">
-                          <FieldLabel>{u('postLoadModal.pickupCity', 'Post code, place')}</FieldLabel>
+                          {fieldLabel('pickupCity', 'postLoadModal.pickupCity', 'Post code, place')}
                           <Input value={draft.pickupCity} onChange={(event) => setField('pickupCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', 'City or postcode')} />
                         </div>
                       </div>
                       <div className="grid sm:grid-cols-2 gap-4">
                         <div className="grid grid-cols-2 gap-3">
                           <div className="flex h-full flex-col justify-between space-y-1.5">
-                            <FieldLabel>{u('postLoadModal.pickupDate', 'Date from')}</FieldLabel>
+                            {fieldLabel('pickupDate', 'postLoadModal.pickupDate', 'Date from')}
                             <DateInput
                               value={draft.pickupDate}
                               onChange={(value) => setField('pickupDate', value)}
@@ -1179,18 +1241,18 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
                       <div className="grid sm:grid-cols-[240px_minmax(0,1fr)] gap-4">
                         <div className="space-y-1.5">
-                          <FieldLabel>{u('postLoadModal.deliveryCountryShort', 'Country')}</FieldLabel>
+                          {fieldLabel('deliveryCountry', 'postLoadModal.deliveryCountryShort', 'Country')}
                           <CountrySelect value={draft.deliveryCountry} onChange={(value) => setField('deliveryCountry', value)} placeholder={u('postLoadModal.selectCountry', 'Select country')} />
                         </div>
                         <div className="space-y-1.5">
-                          <FieldLabel>{u('postLoadModal.deliveryCity', 'Post code, place')}</FieldLabel>
+                          {fieldLabel('deliveryCity', 'postLoadModal.deliveryCity', 'Post code, place')}
                           <Input value={draft.deliveryCity} onChange={(event) => setField('deliveryCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', 'City or postcode')} />
                         </div>
                       </div>
                       <div className="grid sm:grid-cols-2 gap-4">
                         <div className="grid grid-cols-2 gap-3">
                           <div className="flex h-full flex-col justify-between space-y-1.5">
-                            <FieldLabel>{u('postLoadModal.deliveryDate', 'Date from')}</FieldLabel>
+                            {fieldLabel('deliveryDate', 'postLoadModal.deliveryDate', 'Date from')}
                             <DateInput
                               value={draft.deliveryDate}
                               onChange={(value) => setField('deliveryDate', value)}
@@ -1247,7 +1309,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                   <div className="grid lg:grid-cols-2 gap-4 sm:gap-5">
                     <div className="space-y-4 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
                       <div className="space-y-1.5">
-                        <FieldLabel>{u('postLoadModal.cargoName', 'Type of goods')}</FieldLabel>
+                        {fieldLabel('cargoTitle', 'postLoadModal.cargoName', 'Type of goods')}
                         <Input
                           value={draft.cargoTitle}
                           onChange={(e) => setField('cargoTitle', e.target.value)}
@@ -1256,7 +1318,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
                       <div className="grid sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <FieldLabel>{u('postLoadModal.length', 'Length (m)')}</FieldLabel>
+                          {fieldLabel('lengthM', 'postLoadModal.length', 'Length (m)')}
                           <Input
                             type="number"
                             step="0.1"
@@ -1267,7 +1329,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <FieldLabel>{u('postLoadModal.weight', 'Weight (t)')}</FieldLabel>
+                          {fieldLabel('weightKg', 'postLoadModal.weight', 'Weight (t)')}
                           <Input
                             type="number"
                             step="0.1"
@@ -1280,7 +1342,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
                       <div className="grid sm:grid-cols-3 gap-4">
                         <div className="space-y-1.5">
-                          <FieldLabel>{u('postLoadModal.width', 'Width (m)')}</FieldLabel>
+                          {fieldLabel('widthM', 'postLoadModal.width', 'Width (m)')}
                           <Input
                             type="number"
                             step="0.05"
@@ -1291,7 +1353,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <FieldLabel>{u('postLoadModal.height', 'Height (m)')}</FieldLabel>
+                          {fieldLabel('heightM', 'postLoadModal.height', 'Height (m)')}
                           <Input
                             type="number"
                             step="0.05"
@@ -1340,7 +1402,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                     <div className="flex flex-col space-y-4 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
                       <div className="grid sm:grid-cols-[minmax(0,1fr)_120px] gap-4">
                         <div className="space-y-1.5">
-                          <FieldLabel>{u('postLoadModal.targetPrice', 'Your expected target price')}</FieldLabel>
+                          {fieldLabel('budget', 'postLoadModal.targetPrice', 'Your expected target price')}
                           <Input
                             value={draft.budget}
                             onChange={(e) => setField('budget', e.target.value)}
@@ -1348,7 +1410,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <FieldLabel>{u('postLoadModal.currency', 'Currency')}</FieldLabel>
+                          {fieldLabel('freightCurrency', 'postLoadModal.currency', 'Currency')}
                           <Select value={draft.freightCurrency} onChange={(e) => setField('freightCurrency', e.target.value)}>
                             <option value="EUR">EUR</option>
                             <option value="BAM">BAM</option>
@@ -1357,7 +1419,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <FieldLabel>{u('postLoadModal.deferredPayment', 'Deferred payment')}</FieldLabel>
+                        {fieldLabel('paymentDeferred', 'postLoadModal.deferredPayment', 'Deferred payment')}
                         <div className="grid grid-cols-2 gap-2">
                           <ChoiceCard compact active={!draft.paymentDeferred} title={u('common.no', 'No')} description="Pay on delivery" icon={Coins} onClick={() => setField('paymentDeferred', false)} />
                           <ChoiceCard compact active={draft.paymentDeferred} title={u('common.yes', 'Yes')} description="Set payment window" icon={Clock3} onClick={() => setField('paymentDeferred', true)} />
@@ -1365,7 +1427,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         {draft.paymentDeferred && <Input type="number" min="1" value={draft.paymentDueDays} onChange={(e) => setField('paymentDueDays', e.target.value)} placeholder={u('postLoadModal.paymentDueDays', 'Number of days')} />}
                       </div>
                       <div className="space-y-1.5">
-                        <FieldLabel>{u('postLoadModal.incoterm', 'Incoterm')}</FieldLabel>
+                        {fieldLabel('incoterm', 'postLoadModal.incoterm', 'Incoterm')}
                         <Select value={draft.incoterm} onChange={(event) => setField('incoterm', event.target.value)}>
                           <option value="">{u('postLoadModal.pleaseSelect', 'Please select')}</option>
                           {INCOTERM_OPTIONS.map((incoterm) => (
@@ -1393,7 +1455,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         </div>
                       </div>
                       <div className="flex flex-1 flex-col space-y-1.5">
-                        <FieldLabel>{u('postLoadModal.notes', 'Handling notes')}</FieldLabel>
+                        {fieldLabel('notes', 'postLoadModal.notes', 'Handling notes')}
                         <Textarea
                           value={draft.notes}
                           onChange={(e) => setField('notes', e.target.value)}
@@ -1428,8 +1490,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         </div>
                       ) : (
                         <div className="grid sm:grid-cols-2 gap-4">
-                          <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.vehicleType', 'Required vehicle')}</FieldLabel><Select value={draft.vehicleType} onChange={(e) => setField('vehicleType', e.target.value)}>{VEHICLE_OPTIONS.map((option) => <option key={option} value={option}>{u(`postLoadModal.vehicle.${option}`, option)}</option>)}</Select></div>
-                          <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.bodyTypes', 'Body types')}</FieldLabel><div className="min-h-[54px] rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950"><div className="flex flex-wrap gap-2">{BODY_TYPE_OPTIONS.map((option) => <button key={option} type="button" onClick={() => toggleBodyType(option)} className={cn('cursor-pointer rounded-full border px-3 py-1.5 text-xs font-bold transition-colors', draft.bodyTypes.includes(option) ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200')}>{option}</button>)}</div></div></div>
+                          <div className="space-y-1.5">{fieldLabel('vehicleType', 'postLoadModal.vehicleType', 'Required vehicle')}<Select value={draft.vehicleType} onChange={(e) => setField('vehicleType', e.target.value)}>{VEHICLE_OPTIONS.map((option) => <option key={option} value={option}>{u(`postLoadModal.vehicle.${option}`, option)}</option>)}</Select></div>
+                          <div className="space-y-1.5">{fieldLabel('bodyTypes', 'postLoadModal.bodyTypes', 'Body types')}<div className="min-h-[54px] rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950"><div className="flex flex-wrap gap-2">{BODY_TYPE_OPTIONS.map((option) => <button key={option} type="button" onClick={() => toggleBodyType(option)} className={cn('cursor-pointer rounded-full border px-3 py-1.5 text-xs font-bold transition-colors', draft.bodyTypes.includes(option) ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200')}>{option}</button>)}</div></div></div>
                         </div>
                       )}
 
@@ -1443,7 +1505,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           </div>
                         </div>
                         <div className="space-y-1.5">
-                          <FieldLabel>{u('postLoadModal.temperature', 'Temperature controlled')}</FieldLabel>
+                          {fieldLabel('temperatureControlled', 'postLoadModal.temperature', 'Temperature controlled')}
                           <div className="grid grid-cols-2 gap-2">
                             <ChoiceCard compact active={!draft.temperatureControlled} title={u('common.no', 'No')} description="Ambient conditions" icon={Package} onClick={() => setField('temperatureControlled', false)} />
                             <ChoiceCard compact active={draft.temperatureControlled} title={u('common.yes', 'Yes')} description="Set a temperature range" icon={ThermometerSnowflake} onClick={() => setField('temperatureControlled', true)} />
@@ -1503,7 +1565,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
 
                     <div className="space-y-5 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
                       <div className="space-y-1.5">
-                        <FieldLabel>{u('postLoadModal.contactName', 'Contact in your company')}</FieldLabel>
+                        {fieldLabel('contactName', 'postLoadModal.contactName', 'Contact in your company')}
                         <Select
                           value={draft.contactName}
                           onChange={(e) => setField('contactName', e.target.value)}
@@ -1518,7 +1580,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
                       <div className="grid sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <FieldLabel>{u('postLoadModal.contactEmail', 'E-mail address')}</FieldLabel>
+                          {fieldLabel('contactEmail', 'postLoadModal.contactEmail', 'E-mail address')}
                           <Input
                             value={draft.contactEmail}
                             onChange={(e) => setField('contactEmail', e.target.value)}
@@ -1526,7 +1588,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <FieldLabel>{u('postLoadModal.contactPhone', 'Phone number')}</FieldLabel>
+                          {fieldLabel('contactPhone', 'postLoadModal.contactPhone', 'Phone number')}
                           <Input
                             value={draft.contactPhone}
                             onChange={(e) => setField('contactPhone', e.target.value)}
