@@ -31,10 +31,9 @@ export function GoogleSignInButton({ onCredential, lang }: GoogleSignInButtonPro
     const restyleButton = () => {
       const btn = buttonRef.current?.querySelector<HTMLElement>('div[role="button"]');
       if (!btn) return;
+      btn.style.height = '50px';
       btn.style.borderRadius = '12px';
       btn.style.boxSizing = 'border-box';
-      btn.style.paddingTop = '5px';
-      btn.style.paddingBottom = '5px';
       btn.style.backgroundColor = '#f97316';
       btn.style.borderColor = '#f97316';
     };
@@ -71,7 +70,13 @@ export function GoogleSignInButton({ onCredential, lang }: GoogleSignInButtonPro
         window.google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
           callback: (response) => onCredentialRef.current(response.credential),
+          auto_select: false,
+          cancel_on_tap_outside: true,
         });
+        // Without this, Google remembers a returning visitor's account and renders the
+        // button as "Continue as {Name}" with their photo instead of the generic label —
+        // this forces it back to a static, generic button every time, like Apple's.
+        window.google.accounts.id.disableAutoSelect();
         renderButton(true);
         if (containerRef.current) {
           resizeObserver = new ResizeObserver(() => renderButton());
