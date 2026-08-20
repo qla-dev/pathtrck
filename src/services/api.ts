@@ -59,6 +59,7 @@ export type LoadScanResult = {
   contactEmail: string;
   bookingReference: string;
   notes: string;
+  customFields: { label: string; value: string }[];
   confidence: number;
   warnings: string[];
 };

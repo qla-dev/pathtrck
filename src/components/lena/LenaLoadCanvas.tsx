@@ -64,12 +64,15 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, onApplyPrefill, onBulk
                 <div
                   key={row.key}
                   className={cn(
-                    'rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 dark:border-slate-700 dark:bg-slate-800/70',
+                    'flex items-start gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 dark:border-slate-700 dark:bg-slate-800/70',
                     row.value.length > 22 && 'col-span-2'
                   )}
                 >
-                  <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">{row.label}</p>
-                  <p className="mt-0.5 text-xs font-bold leading-snug text-slate-900 dark:text-white">{row.value}</p>
+                  <row.icon className="mt-0.5 h-3 w-3 shrink-0 text-primary" />
+                  <div className="min-w-0">
+                    <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">{row.label}</p>
+                    <p className="mt-0.5 text-xs font-bold leading-snug text-slate-900 dark:text-white">{row.value}</p>
+                  </div>
                 </div>
               ))}
             </div>

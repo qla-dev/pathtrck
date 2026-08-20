@@ -4717,7 +4717,7 @@ const VALUE_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
 };
 
 const TRIPLET_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
-  'Post a new load': { bs: 'Objavi novi teret', de: 'Neue Ladung veröffentlichen' },
+  'Post a new load': { bs: 'Priprema tereta', de: 'Ladung vorbereiten' },
   'Drop file for LenaAI': { bs: 'Ispustite datoteku za LenaAI', de: 'Datei für LenaAI hier ablegen' },
   'New load canvas': { bs: 'Priprema novog tereta', de: 'Arbeitsbereich für neue Ladung' },
   'Bulk load canvas': { bs: 'Masovni unos tereta', de: 'Arbeitsbereich für Massenimport' },
@@ -5605,7 +5605,7 @@ export const ui = (lang: Language, key: string, fallback: string) => {
     return replaceBrand(locale(lang)[reverseUiKey] || UI.en[reverseUiKey] || fallback);
   }
 
-  return replaceBrand(TRIPLET_TRANSLATIONS[fallback]?.[active] || fallback);
+  return replaceBrand(TRIPLET_TRANSLATIONS[fallback]?.[active] || TRIPLET_TRANSLATIONS[key]?.[active] || fallback);
 };
 
 export const flatpickrI18n = (lang: Language) =>
