@@ -1,7 +1,7 @@
 import { Bot, Image as ImageIcon, Mic, Paperclip, Phone, Send, Video } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import { cn } from '../../lib/cn';
-import { Conversation } from './types';
+import { ChatMessage, Conversation } from './types';
 
 const URL_PATTERN = /(https?:\/\/[^\s]+)/g;
 
@@ -30,6 +30,7 @@ type ChatConversationPanelProps = {
   className?: string;
   otherTyping?: boolean;
   onTitleClick?: () => void;
+  renderMessageExtra?: (message: ChatMessage) => ReactNode;
 };
 
 export const ChatConversationPanel = ({
@@ -41,12 +42,22 @@ export const ChatConversationPanel = ({
   className,
   otherTyping = false,
   onTitleClick,
+  renderMessageExtra,
 }: ChatConversationPanelProps) => {
   const primaryActionButtonClass = 'h-9 rounded-lg bg-primary text-white flex items-center justify-center cursor-pointer transition-all hover:brightness-95';
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageListRef = useRef<HTMLDivElement>(null);
+  const previousConversationIdRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  useLayoutEffect(() => {
+    // Scroll only the message list. scrollIntoView also scrolls outer ancestors,
+    // which can move the entire application when this view opens from the header.
+    const isSameConversation = previousConversationIdRef.current === activeConversation.id;
+    previousConversationIdRef.current = activeConversation.id;
+    const messageList = messageListRef.current;
+    messageList?.scrollTo({
+      top: messageList.scrollHeight,
+      behavior: isSameConversation ? 'smooth' : 'auto',
+    });
   }, [activeConversation.id, activeConversation.messages.length, otherTyping]);
 
   return (
@@ -90,43 +101,45 @@ export const ChatConversationPanel = ({
       </div>
     </div>
 
-    <div className="flex-1 min-h-0 p-4 space-y-3 overflow-y-auto bg-slate-50/70 dark:bg-slate-950/40">
+    <div ref={messageListRef} className="flex-1 min-h-0 p-4 space-y-3 overflow-y-auto bg-slate-50/70 dark:bg-slate-950/40">
       {activeConversation.messages.map((m) => (
-        <div
-          key={m.id}
-          className={cn(
-            'w-fit max-w-[min(85%,36rem)] rounded-2xl px-3 py-2',
-            m.sender === 'me'
-              ? 'ml-auto bg-primary text-white'
-              : m.sender === 'system'
-                ? 'mx-auto bg-amber-100 text-amber-800 text-xs'
-                : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800'
-          )}
-        >
-          <p
+        <div key={m.id} className={cn('w-fit max-w-[min(85%,36rem)]', m.sender === 'me' ? 'ml-auto' : m.sender === 'system' ? 'mx-auto' : 'mr-auto')}>
+          <div
             className={cn(
-              'text-sm',
+              'w-fit max-w-full rounded-2xl px-3 py-2',
               m.sender === 'me'
-                ? 'text-right text-white'
+                ? 'ml-auto bg-primary text-white'
                 : m.sender === 'system'
-                  ? 'text-amber-800'
-                  : 'dark:text-slate-200'
+                  ? 'mx-auto bg-amber-100 text-amber-800 text-xs'
+                  : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800'
             )}
           >
-            {renderMessageText(m.text)}
-          </p>
-          <p
-            className={cn(
-              'text-[10px] mt-1',
-              m.sender === 'me'
-                ? 'text-right text-white/70'
-                : m.sender === 'system'
-                  ? 'text-amber-700'
-                  : 'text-slate-400'
-            )}
-          >
-            {m.time}
-          </p>
+            <p
+              className={cn(
+                'text-sm',
+                m.sender === 'me'
+                  ? 'text-right text-white'
+                  : m.sender === 'system'
+                    ? 'text-amber-800'
+                    : 'dark:text-slate-200'
+              )}
+            >
+              {renderMessageText(m.text)}
+            </p>
+            <p
+              className={cn(
+                'text-[10px] mt-1',
+                m.sender === 'me'
+                  ? 'text-right text-white/70'
+                  : m.sender === 'system'
+                    ? 'text-amber-700'
+                    : 'text-slate-400'
+              )}
+            >
+              {m.time}
+            </p>
+          </div>
+          {renderMessageExtra?.(m)}
         </div>
       ))}
       {otherTyping && (
@@ -136,7 +149,6 @@ export const ChatConversationPanel = ({
           <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce" />
         </div>
       )}
-      <div ref={messagesEndRef} />
     </div>
 
     <div className="p-3 border-t border-slate-100 dark:border-slate-800">

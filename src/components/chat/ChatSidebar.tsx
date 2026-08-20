@@ -85,7 +85,7 @@ export const ChatSidebar = ({
           </div>
           <div className="flex items-center gap-2 mt-2">
             <Circle className={cn('w-2.5 h-2.5', chat.online ? 'text-emerald-500 fill-current' : 'text-slate-300')} />
-            <span className="text-[11px] text-slate-500 uppercase">{chat.channel}</span>
+            <span className="text-[11px] text-slate-500 uppercase">{chat.status || chat.channel}</span>
           </div>
         </button>
       ))}

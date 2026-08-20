@@ -194,7 +194,7 @@ export const TrackingShipmentDetails = ({ details, lang, role, consigneeRecord, 
   };
 
   return (
-    <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2 xl:grid-cols-4">
       {details.map((detail) => {
         const editing = editingKey === detail.key;
         const saving = savingKey === detail.key;

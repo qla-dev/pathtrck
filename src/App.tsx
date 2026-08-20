@@ -37,11 +37,9 @@ import {
   PanelLeftClose,
   BrainCircuit,
   Database,
-  RadioTower,
   Sparkles,
   RefreshCw,
   ScanSearch,
-  Zap,
   Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -89,6 +87,7 @@ import { ProfileView } from './components/views/ProfileView';
 import { AutomationsView } from './components/views/AutomationsView';
 import { PostLoadModal } from './components/modals/PostLoadModal';
 import { LoadDetailsModal } from './components/tracking/LoadDetailsModal';
+import { LenaAI } from './components/lena/LenaAI';
 import { BulkImportModal } from './components/modals/BulkImportModal';
 import { BulkResultModal } from './components/modals/BulkResultModal';
 import { SettingsView } from './components/views/SettingsView';
@@ -1226,15 +1225,6 @@ const LandingPage = ({
   const SECTION_PADDING = "py-20 sm:py-24 lg:py-32";
   const t = translations[lang || 'en'];
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
-  const partners = [
-    "https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg",
-    "https://upload.wikimedia.org/wikipedia/commons/b/b3/DHL_Express_logo.svg",
-    "https://upload.wikimedia.org/wikipedia/commons/a/a2/FedEx_Express_logo.svg",
-    "https://upload.wikimedia.org/wikipedia/commons/b/b9/UPS_logo.svg",
-    "https://upload.wikimedia.org/wikipedia/commons/4/4b/United_States_Postal_Service_logo.svg",
-    "https://upload.wikimedia.org/wikipedia/commons/d/d5/DPD_logo.svg",
-  ];
-
   const activeLang = (lang || 'en') as Exclude<Language, null>;
   const currentLang = languages.find(l => l.id === (lang || 'en')) || languages[0];
   const titleMessages = HERO_MAIN_TITLE_MESSAGES[activeLang] || HERO_MAIN_TITLE_MESSAGES.en;
@@ -1289,6 +1279,44 @@ const LandingPage = ({
       iconClass: 'text-violet-500 bg-violet-500/12'
     },
   ];
+  const lenaCapabilities = [
+    {
+      icon: Database,
+      title: u('landing.aiDispatcher.loadDataTitle', 'Current load context'),
+      description: u('landing.aiDispatcher.loadDataDesc', 'Reads the authorized load record again before every reply—status, route, dates, cargo, references, and commercial details.'),
+      cardClass: 'border-sky-100 bg-sky-50/80 dark:border-sky-500/15 dark:bg-sky-500/5',
+      iconClass: 'bg-sky-500/10 text-sky-500',
+    },
+    {
+      icon: CheckCircle2,
+      title: u('landing.aiDispatcher.bookingTitle', 'Book from the conversation'),
+      description: u('landing.aiDispatcher.bookingDesc', 'When an open load fits, a clear booking request becomes an in-chat action—without losing the load context.'),
+      cardClass: 'border-emerald-100 bg-emerald-50/80 dark:border-emerald-500/15 dark:bg-emerald-500/5',
+      iconClass: 'bg-emerald-500/10 text-emerald-500',
+    },
+    {
+      icon: MapPin,
+      title: u('landing.aiDispatcher.guidanceTitle', 'Guidance along the way'),
+      description: u('landing.aiDispatcher.guidanceDesc', 'Find the right Freightbook.ai workflow, ask logistics questions, or get a useful map search once the area is known.'),
+      cardClass: 'border-violet-100 bg-violet-50/80 dark:border-violet-500/15 dark:bg-violet-500/5',
+      iconClass: 'bg-violet-500/10 text-violet-500',
+    },
+    {
+      icon: MessageSquare,
+      title: u('landing.aiDispatcher.historyTitle', 'One continuous workspace'),
+      description: u('landing.aiDispatcher.historyDesc', 'Draft concise updates, start a fresh chat when needed, and find previous LenaAI conversations in Messages.'),
+      cardClass: 'border-amber-100 bg-amber-50/80 dark:border-amber-500/15 dark:bg-amber-500/5',
+      iconClass: 'bg-amber-500/10 text-amber-500',
+    },
+  ];
+  const lenaLoadFacts = [
+    u('landing.aiDispatcher.factStatus', 'Status'),
+    u('landing.aiDispatcher.factRoute', 'Route'),
+    u('landing.aiDispatcher.factCargo', 'Cargo'),
+    u('landing.aiDispatcher.factDates', 'Dates'),
+    u('landing.aiDispatcher.factReferences', 'References'),
+    u('landing.aiDispatcher.factCommercials', 'Commercials'),
+  ];
 
   useEffect(() => {
     setMessageIndex(0);
@@ -1333,6 +1361,10 @@ const LandingPage = ({
             <BrandWordmark className="text-base sm:text-2xl" />
           </div>
           <div className="hidden lg:flex items-center gap-10 text-sm font-semibold text-slate-500 dark:text-slate-400">
+            <a href="#lena-ai" className="inline-flex items-center gap-2 text-slate-700 transition-colors hover:text-primary dark:text-slate-200">
+              <Sparkles className="h-4 w-4 text-primary" />
+              LenaAI
+            </a>
             <a href="#features" className="hover:text-primary transition-colors">{t.features}</a>
             <a href="#network" className="hover:text-primary transition-colors">{t.network}</a>
             <a href="#enterprise" className="hover:text-primary transition-colors">{t.enterprise}</a>
@@ -1635,25 +1667,25 @@ const LandingPage = ({
       {/* Section 2: Trust Marquee */}
       <section className="py-12 border-y border-slate-100 dark:border-slate-900 bg-slate-50/50 dark:bg-slate-900/20 overflow-hidden">
         <div className="flex whitespace-nowrap animate-marquee">
-          {[...partners, ...partners, ...partners].map((logo, i) => (
+          {Array.from({ length: 18 }, (_, i) => (
             <div key={i} className="flex items-center justify-center px-12 grayscale opacity-40 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer">
-              <img src={logo} alt="Partner" className="h-8 md:h-10 w-auto" referrerPolicy="no-referrer" />
+              <BrandWordmark className="text-xl md:text-2xl" />
             </div>
           ))}
         </div>
         <div className="flex whitespace-nowrap animate-marquee mt-8" style={{ animationDirection: 'reverse' }}>
-          {[...partners, ...partners, ...partners].reverse().map((logo, i) => (
+          {Array.from({ length: 18 }, (_, i) => (
             <div key={i} className="flex items-center justify-center px-12 grayscale opacity-40 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer">
-              <img src={logo} alt="Partner" className="h-8 md:h-10 w-auto" referrerPolicy="no-referrer" />
+              <BrandWordmark className="text-xl md:text-2xl" />
             </div>
           ))}
         </div>
       </section>
 
       {/* AI Dispatcher */}
-      <section className="relative overflow-hidden bg-white py-20 dark:bg-slate-950 sm:py-24 lg:py-32">
+      <section id="lena-ai" className={cn("scroll-mt-20 relative overflow-hidden bg-white dark:bg-slate-950", SECTION_PADDING)}>
         <div className="absolute left-1/2 top-1/2 h-[34rem] w-[34rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-[120px] dark:bg-primary/15" />
-        <div className="relative z-10 mx-auto grid max-w-7xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-[0.82fr_1.18fr] lg:gap-16">
+        <div className="relative z-10 mx-auto max-w-7xl space-y-8 px-4 sm:px-6">
           <motion.div
             initial={{ opacity: 0, x: -24 }}
             whileInView={{ opacity: 1, x: 0 }}
@@ -1663,30 +1695,27 @@ const LandingPage = ({
           >
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-primary sm:text-xs">
               <Sparkles className="h-4 w-4" />
-              {u('landing.aiDispatcher.eyebrow', 'Your AI operations partner')}
+              {u('landing.aiDispatcher.eyebrow', 'Meet LenaAI · your AI operations partner')}
             </div>
-            <h2 className="max-w-xl text-4xl font-black leading-[1.02] tracking-tight text-slate-900 dark:text-white sm:text-5xl lg:text-6xl">
-              {u('landing.aiDispatcher.title', 'An AI dispatcher that already knows every load.')}
+            <h2 className="w-full text-4xl font-black leading-[1.02] tracking-tight text-slate-900 dark:text-white sm:text-5xl lg:text-7xl">
+              {u('landing.aiDispatcher.title', 'Ask your freight operation. Act from the answer.')}
             </h2>
-            <p className="mt-6 max-w-xl text-base leading-7 text-slate-600 dark:text-slate-300 sm:text-lg">
-              {u('landing.aiDispatcher.description', 'Connected securely to your authorized operational database, it understands cargo details, routes, drivers, vehicles, deadlines, and live status changes—at any moment.')}
+            <p className="mt-6 w-full text-base leading-7 text-slate-600 dark:text-slate-300 sm:text-xl sm:leading-8">
+              {u('landing.aiDispatcher.description', 'LenaAI is artificial intelligence built to work as a digital freight dispatcher. It helps freight forwarders coordinate loads, routes, statuses, and bookings, while giving drivers fast, clear answers about the work ahead—all from the latest data they are authorized to see.')}
             </p>
 
-            <div className="mt-8 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-sky-100 bg-sky-50/80 p-4 dark:border-sky-500/15 dark:bg-sky-500/5">
-                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-sky-500/10 text-sky-500"><Database className="h-5 w-5" /></div>
-                <h3 className="font-black text-slate-900 dark:text-white">{u('landing.aiDispatcher.databaseTitle', 'Always connected to your data')}</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{u('landing.aiDispatcher.databaseDesc', 'Every authorized update becomes useful context, without copying information between tools.')}</p>
-              </div>
-              <div className="rounded-2xl border border-violet-100 bg-violet-50/80 p-4 dark:border-violet-500/15 dark:bg-violet-500/5">
-                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/10 text-violet-500"><RadioTower className="h-5 w-5" /></div>
-                <h3 className="font-black text-slate-900 dark:text-white">{u('landing.aiDispatcher.decisionTitle', 'Decisions in real time')}</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{u('landing.aiDispatcher.decisionDesc', 'It detects risk, recommends the next action, and prepares clear updates for your team and customers.')}</p>
-              </div>
+            <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {lenaCapabilities.map((capability) => (
+                <div key={capability.title} className={cn('rounded-2xl border p-5', capability.cardClass)}>
+                  <div className={cn('mb-3 flex h-10 w-10 items-center justify-center rounded-xl', capability.iconClass)}><capability.icon className="h-5 w-5" /></div>
+                  <h3 className="font-black text-slate-900 dark:text-white">{capability.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{capability.description}</p>
+                </div>
+              ))}
             </div>
 
             <button onClick={onStart} className="mt-8 inline-flex h-12 items-center gap-2 rounded-full bg-primary px-6 text-sm font-black text-white shadow-lg shadow-primary/25 transition-transform hover:scale-[1.02]">
-              {u('landing.aiDispatcher.cta', 'Meet your AI dispatcher')}
+              {u('landing.aiDispatcher.cta', 'Start with LenaAI')}
               <ArrowRight className="h-4 w-4" />
             </button>
           </motion.div>
@@ -1696,56 +1725,78 @@ const LandingPage = ({
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.2 }}
             transition={{ duration: 0.75 }}
-            className="relative min-w-0 rounded-[2rem] border border-slate-200 bg-slate-50/90 p-4 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/80 sm:p-6"
+            className="relative min-w-0 rounded-[2.5rem] border border-slate-200 bg-slate-50/90 p-4 shadow-2xl shadow-sky-500/10 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/80 sm:p-7 lg:p-10"
           >
             <div className="pointer-events-none absolute inset-0 opacity-40 [background-image:radial-gradient(rgb(14_165_233/0.28)_1px,transparent_1px)] [background-size:22px_22px] dark:opacity-20" />
             <div className="relative mb-5 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-sm font-black text-slate-900 dark:text-white"><BrainCircuit className="h-5 w-5 text-primary" /> Freightbook.ai Intelligence</div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400"><span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />{u('landing.aiDispatcher.liveSync', 'Secure live sync')}</div>
+              <div className="flex items-center gap-2 text-sm font-black text-slate-900 dark:text-white"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-white"><Sparkles className="h-4 w-4" /></span><span><span className="block">LenaAI</span><span className="block text-[10px] font-semibold text-slate-400">{u('landing.aiDispatcher.aiCore', 'Freightbook.ai assistant')}</span></span></div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400"><span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />{u('landing.aiDispatcher.liveSync', 'Authorized context ready')}</div>
             </div>
 
-            <div className="relative grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-stretch">
+            <div className="relative mb-6 grid min-w-0 gap-4 rounded-3xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950 sm:p-6 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-stretch">
               <div className="min-w-0 space-y-3">
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950">
-                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-sky-500"><ScanSearch className="h-4 w-4" />{u('landing.aiDispatcher.app', 'Smartfreight app')}</div>
-                  <p className="mt-3 truncate font-black text-slate-900 dark:text-white">{u('landing.aiDispatcher.loadLabel', 'Load SF-2048')}</p>
-                  <p className="mt-1 truncate text-xs text-slate-500">{u('landing.aiDispatcher.loadMeta', 'Pharma · 11,200 kg · Ambient')}</p>
-                  <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300"><MapPin className="h-4 w-4 text-emerald-500" /> Sarajevo <ArrowRight className="h-3.5 w-3.5" /> Vienna</div>
+                <div className="rounded-2xl border border-sky-100 bg-sky-50/70 p-4 dark:border-sky-500/15 dark:bg-sky-500/5">
+                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-sky-500"><ScanSearch className="h-4 w-4" />{u('landing.aiDispatcher.app', 'Freightbook.ai app')}</div>
+                  <p className="mt-3 font-black text-slate-900 dark:text-white">{u('landing.aiDispatcher.loadLabel', 'Load SF-2048')}</p>
+                  <p className="mt-1 text-xs text-slate-500">Sarajevo → Vienna · {u('landing.aiDispatcher.loadMeta', 'Pharma · 11,200 kg · Ambient')}</p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950">
-                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-violet-500"><Database className="h-4 w-4" />{u('landing.aiDispatcher.database', 'Operations database')}</div>
-                  <p className="mt-3 text-sm font-black text-slate-900 dark:text-white">{u('landing.aiDispatcher.signalCount', 'Live operational records')}</p>
-                  <div className="mt-3 grid grid-cols-3 gap-1.5">{[72, 94, 61].map((height, index) => <div key={height} className="flex h-8 items-end overflow-hidden rounded-md bg-slate-100 dark:bg-slate-800"><motion.div initial={{ height: 0 }} whileInView={{ height: `${height}%` }} transition={{ delay: 0.45 + index * 0.12 }} className="w-full rounded-md bg-linear-to-t from-primary to-violet-400" /></div>)}</div>
+                <div className="rounded-2xl border border-violet-100 bg-violet-50/70 p-4 dark:border-violet-500/15 dark:bg-violet-500/5">
+                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-violet-500"><Database className="h-4 w-4" />{u('landing.aiDispatcher.database', 'Authorized operations database')}</div>
+                  <p className="mt-3 text-sm font-black text-slate-900 dark:text-white">{u('landing.aiDispatcher.signalCount', 'Current operational record')}</p>
+                  <div className="mt-3 grid grid-cols-3 gap-2"><span className="h-2 rounded-full bg-sky-400" /><span className="h-2 rounded-full bg-violet-400" /><span className="h-2 rounded-full bg-emerald-400" /></div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-center py-1 md:px-1 md:py-0">
-                <div className="hidden h-px w-5 bg-linear-to-r from-primary/20 to-primary md:block" />
-                <div className="relative flex h-24 w-24 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-white shadow-[0_0_45px_rgba(14,165,233,0.22)] dark:bg-slate-950">
+              <div className="flex items-center justify-center py-2 md:px-3 md:py-0">
+                <div className="hidden h-px w-8 bg-linear-to-r from-primary/20 to-primary md:block" />
+                <div className="relative flex h-28 w-28 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-white shadow-[0_0_55px_rgba(14,165,233,0.24)] dark:bg-slate-950">
                   <div className="absolute inset-2 animate-pulse rounded-full bg-primary/10" />
-                  <BrainCircuit className="relative h-10 w-10 text-primary" />
+                  <BrainCircuit className="relative h-12 w-12 text-primary" />
                 </div>
-                <div className="hidden h-px w-5 bg-linear-to-r from-primary to-violet-400/20 md:block" />
+                <div className="hidden h-px w-8 bg-linear-to-r from-primary to-violet-400/20 md:block" />
               </div>
 
-              <div className="flex min-w-0 flex-col justify-center rounded-2xl border border-primary/20 bg-white p-4 dark:border-primary/20 dark:bg-slate-950">
-                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-primary"><RefreshCw className="h-4 w-4 animate-spin [animation-duration:4s]" />{u('landing.aiDispatcher.aiCore', 'AI Dispatcher')}</div>
-                <p className="mt-3 text-xs text-slate-500">{u('landing.aiDispatcher.thinking', 'Analyzing live operations')}</p>
-                <div className="mt-4 space-y-2">{[88, 64, 76].map((width, index) => <div key={width} className="h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"><motion.div initial={{ width: 0 }} whileInView={{ width: `${width}%` }} transition={{ duration: 0.8, delay: 0.35 + index * 0.14 }} className="h-full rounded-full bg-linear-to-r from-primary to-violet-500" /></div>)}</div>
-                <div className="mt-5 flex items-center gap-2 rounded-xl bg-emerald-500/10 p-2.5 text-xs font-bold text-emerald-600 dark:text-emerald-400"><CheckCircle2 className="h-4 w-4 shrink-0" />{u('landing.aiDispatcher.loadContext', 'Complete load context')}</div>
+              <div className="flex min-w-0 flex-col justify-center rounded-2xl border border-primary/20 bg-slate-50 p-5 dark:bg-slate-900">
+                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-primary"><RefreshCw className="h-4 w-4 animate-spin [animation-duration:4s]" />{u('landing.aiDispatcher.contextRefresh', 'LenaAI refreshes the load context')}</div>
+                <p className="mt-3 text-sm font-black text-slate-900 dark:text-white">{u('landing.aiDispatcher.contextReady', 'Grounded answer ready')}</p>
+                <div className="mt-4 flex flex-wrap gap-2 text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                  {lenaLoadFacts.map((fact) => <span key={fact} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 dark:border-slate-700 dark:bg-slate-950">{fact}</span>)}
+                </div>
+                <div className="mt-5 flex items-center gap-2 rounded-xl bg-emerald-500/10 p-3 text-xs font-bold text-emerald-600 dark:text-emerald-400"><CheckCircle2 className="h-4 w-4 shrink-0" />{u('landing.aiDispatcher.loadContext', 'Current load context')}</div>
               </div>
             </div>
 
-            <motion.div initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: 0.75 }} className="relative mt-4 rounded-2xl border border-violet-200 bg-linear-to-r from-violet-50 via-white to-sky-50 p-4 dark:border-violet-500/20 dark:from-violet-500/10 dark:via-slate-950 dark:to-sky-500/10">
-              <div className="flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-violet-600 dark:text-violet-400"><Zap className="h-4 w-4" />{u('landing.aiDispatcher.outputLabel', 'Recommended action')}</div><span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-black text-emerald-600 dark:text-emerald-400">{u('landing.aiDispatcher.confidence', '97% confidence')}</span></div>
-              <p className="mt-3 text-sm font-bold leading-6 text-slate-800 dark:text-slate-100">{u('landing.aiDispatcher.output', 'Notify the customer and move delivery to the 14:20 dock slot.')}</p>
+            <div className="relative rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950 sm:p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4 dark:border-slate-800">
+                <div><p className="text-[10px] font-black uppercase tracking-wider text-primary">{u('landing.aiDispatcher.loadContext', 'Current load context')}</p><p className="mt-1 font-black text-slate-900 dark:text-white">{u('landing.aiDispatcher.loadLabel', 'Load SF-2048')}</p></div>
+                <span className="rounded-full bg-emerald-500/10 px-3 py-1.5 text-[10px] font-black text-emerald-600 dark:text-emerald-400">{u('landing.aiDispatcher.openBooking', 'Posted · Open for booking')}</span>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                <span className="rounded-lg bg-slate-100 px-2.5 py-1.5 dark:bg-slate-800">Sarajevo <ArrowRight className="mx-1 inline h-3 w-3" /> Vienna</span>
+                <span className="rounded-lg bg-slate-100 px-2.5 py-1.5 dark:bg-slate-800">{u('landing.aiDispatcher.loadMeta', 'Pharma · 11,200 kg · Ambient')}</span>
+                <span className="rounded-lg bg-slate-100 px-2.5 py-1.5 dark:bg-slate-800">Incoterms DAP</span>
+              </div>
+
+              <div className="mt-6 space-y-4">
+                <div className="ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-md bg-primary px-4 py-3 text-sm font-semibold text-white shadow-sm">{u('landing.aiDispatcher.demoQuestion', 'Can I take this load?')}</div>
+                <div className="w-fit max-w-[92%] rounded-2xl rounded-bl-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">{u('landing.aiDispatcher.demoAnswer', 'Yes. This load is posted and currently open for booking. Review the current details and confirm below.')}</div>
+                <button onClick={onStart} className="flex w-full items-center justify-between gap-3 rounded-2xl border border-primary/30 bg-primary/5 p-3 text-left transition-colors hover:bg-primary/10">
+                  <span><span className="block text-xs font-black text-primary">{u('landing.aiDispatcher.bookingReady', 'Booking action ready')}</span><span className="mt-1 block text-[11px] text-slate-500">{u('landing.aiDispatcher.bookingReadyDesc', 'Continue with the same verified load context')}</span></span>
+                  <span className="shrink-0 rounded-xl bg-primary px-4 py-2 text-xs font-black text-white">{u('landing.aiDispatcher.bookAction', 'Book this load')}</span>
+                </button>
+              </div>
+            </div>
+
+            <motion.div initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: 0.75 }} className="relative mt-4 flex items-start gap-3 rounded-2xl border border-violet-200 bg-linear-to-r from-violet-50 via-white to-sky-50 p-4 dark:border-violet-500/20 dark:from-violet-500/10 dark:via-slate-950 dark:to-sky-500/10">
+              <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-violet-500" />
+              <p className="text-xs font-semibold leading-5 text-slate-600 dark:text-slate-300">{u('landing.aiDispatcher.groundedNote', 'LenaAI answers from the user’s authorized context. It does not claim live GPS access or invent missing operational details.')}</p>
             </motion.div>
           </motion.div>
         </div>
       </section>
 
       {/* Stats Row - Relocated */}
-      <section id="network" className={cn("scroll-mt-28 bg-white dark:bg-slate-950 relative overflow-hidden", SECTION_PADDING)}>
+      <section id="network" className={cn("scroll-mt-28 bg-slate-50 dark:bg-slate-900/50 relative overflow-hidden", SECTION_PADDING)}>
         <div className="max-w-7xl mx-auto px-6 relative z-10">
           <div className="grid lg:grid-cols-4 gap-12 text-center">
             {[
@@ -1775,7 +1826,7 @@ const LandingPage = ({
       </section>
 
       {/* Section 3: Bento Features Grid */}
-      <section id="features" className={cn("scroll-mt-28 bg-slate-50 dark:bg-slate-900/50", SECTION_PADDING)}>
+      <section id="features" className={cn("scroll-mt-28 bg-white dark:bg-slate-950", SECTION_PADDING)}>
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-20">
             <h2 className="text-4xl md:text-6xl font-display font-bold mb-6 dark:text-white tracking-tight">
@@ -1957,7 +2008,7 @@ const LandingPage = ({
       </section>
 
       {/* Section 4: How it Works - Vertical Timeline */}
-      <section className={cn("bg-white dark:bg-slate-950", SECTION_PADDING)}>
+      <section className={cn("bg-slate-50 dark:bg-slate-900/50", SECTION_PADDING)}>
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-20">
             <div>
@@ -2025,8 +2076,8 @@ const LandingPage = ({
       </section>
 
       {/* Section 5: The Experience / Dashboard Preview */}
-      <section id="enterprise" className={cn("scroll-mt-28 bg-slate-900 overflow-hidden relative", SECTION_PADDING)}>
-        <div className="max-w-7xl mx-auto px-6 relative z-10">
+      <section id="enterprise" className={cn("scroll-mt-28 bg-white dark:bg-slate-950 overflow-hidden relative", SECTION_PADDING)}>
+        <div className="max-w-7xl mx-auto mx-4 sm:mx-6 xl:mx-auto rounded-[2.5rem] bg-slate-900 px-6 py-12 sm:p-12 lg:p-16 relative z-10">
           <div className="grid lg:grid-cols-2 gap-20 items-center">
             <div className="relative order-2 lg:order-1">
                <motion.div 
@@ -2075,7 +2126,7 @@ const LandingPage = ({
       </section>
 
       {/* Section 6: Pricing - Modern Cards */}
-      <section id="pricing" className={cn("scroll-mt-28 bg-white dark:bg-slate-950", SECTION_PADDING)}>
+      <section id="pricing" className={cn("scroll-mt-28 bg-slate-50 dark:bg-slate-900/50", SECTION_PADDING)}>
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-20">
             <h2 className="text-4xl md:text-6xl font-display font-bold mb-6 dark:text-white tracking-tight">
@@ -2126,7 +2177,7 @@ const LandingPage = ({
                 "p-10 rounded-[2.5rem] border flex flex-col justify-between transition-all",
                 plan.popular 
                   ? "border-primary bg-primary text-white scale-105 z-10" 
-                  : "border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 hover:border-primary/50"
+                  : "border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-primary/50"
               )}>
                 <div>
                   {plan.popular && <span className="px-4 py-1 rounded-full bg-white text-primary text-[10px] font-black uppercase tracking-widest mb-6 inline-block">{u('landing.mostPopular', 'Most Popular')}</span>}
@@ -2157,7 +2208,7 @@ const LandingPage = ({
       </section>
 
       {/* Section 7: Testimonials - Wall of Love */}
-      <section className={cn("bg-slate-50 dark:bg-slate-900/20", SECTION_PADDING)}>
+      <section className={cn("bg-white dark:bg-slate-950", SECTION_PADDING)}>
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-20">
             <h2 className="text-4xl md:text-6xl font-display font-bold mb-6 dark:text-white tracking-tight">
@@ -2198,7 +2249,7 @@ const LandingPage = ({
       </section>
 
       {/* Section 6: Final CTA */}
-      <section className={cn("px-6", SECTION_PADDING)}>
+      <section className={cn("bg-slate-50 px-6 dark:bg-slate-900/50", SECTION_PADDING)}>
         <div className="max-w-7xl mx-auto bg-primary rounded-[3rem] p-12 md:p-24 text-center text-white relative overflow-hidden">
           <div className="relative z-10">
             <h2 className="text-4xl md:text-7xl font-display font-black mb-8">
@@ -2229,10 +2280,10 @@ const LandingPage = ({
               {u('footer.tagline', 'The next-generation logistics platform for the modern world. Built with precision, powered by AI.')}
             </p>
             <div className="flex gap-4">
-              {/* Social icons placeholder */}
+              {/* Brand placeholders */}
               {[1,2,3,4].map(i => (
                 <div key={i} className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-900 flex items-center justify-center hover:bg-primary hover:text-white transition-all cursor-pointer">
-                  <Globe className="w-5 h-5" />
+                  <FreightbookMark className="h-5 w-5" />
                 </div>
               ))}
             </div>
@@ -3173,10 +3224,15 @@ const mapDatabaseRecordToLoad = (record: Record<string, unknown>): Load => {
     goodsType: String(record.goods_type || ''),
     paymentTerms: terms === 'in_advance' ? 'In Advance' : terms === 'on_delivery' ? 'On Delivery' : 'Negotiable',
     transportType: record.transport_type === 'air' ? 'air' : record.transport_type === 'sea' ? 'sea' : 'road',
-    eta: String(record.completed_at || ''),
+    eta: String(delivery?.window_starts_at || delivery?.window_ends_at || record.completed_at || ''),
     isNegotiable: record.is_negotiable == null ? true : Boolean(record.is_negotiable),
     budget: record.budget == null ? undefined : Number(record.budget),
     offers: Array.isArray(record.offers) ? record.offers as Array<Record<string, unknown>> : [],
+    bookingReference: record.booking_reference == null ? undefined : String(record.booking_reference),
+    incoterms: record.incoterms == null ? undefined : String(record.incoterms),
+    insurance: record.insurance == null ? undefined : String(record.insurance),
+    shipperName: record.shipper_name == null ? undefined : String(record.shipper_name),
+    mediator: record.mediator == null ? undefined : String(record.mediator),
   };
 };
 
@@ -3202,7 +3258,12 @@ export default function App() {
   const [lang, setLang] = useState<Language>(() => getInitialLanguage());
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [view, setView] = useState('tracking');
+  const viewContentRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    viewContentRef.current?.scrollTo({ top: 0 });
+  }, [view]);
   const [openLoadDetailsId, setOpenLoadDetailsId] = useState<string | null>(null);
+  const [lenaAiOpen, setLenaAiOpen] = useState(false);
   const [isDark, setIsDark] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => getInitialSidebarState());
   const [isMainFilterSidebarOpen, setIsMainFilterSidebarOpen] = useState(false);
@@ -3696,7 +3757,6 @@ export default function App() {
         { id: 'fleet', label: u('nav.globalFleet', 'Global Fleet'), icon: Truck },
         { id: 'finance', label: u('nav.finance', 'Finance'), icon: Banknote },
         { id: 'email-studio', label: u('nav.emailStudio', 'Email Studio'), icon: Mail },
-        { id: 'messages', label: t.messages, icon: MessageSquare },
         { id: 'notes', label: ui(lang, 'notes.navLabel', 'Notes'), icon: NotebookPen },
         { id: 'dashboard', label: analyticsLabel, icon: BarChart3 },
         { id: 'network', label: t.network, icon: Globe },
@@ -3715,7 +3775,6 @@ export default function App() {
           { id: 'map', label: u('nav.map', 'Map'), icon: MapIcon },
           { id: 'fleet', label: t.myFleet, icon: Truck },
           { id: 'company-team', label: u('nav.teamPermissions', 'Team & Permissions'), icon: Users },
-          { id: 'messages', label: u('nav.teamCommunication', 'Team Communication'), icon: Users },
           { id: 'dashboard', label: analyticsLabel, icon: BarChart3 },
           { id: 'network', label: t.network, icon: Globe },
           { id: 'settings', label: t.settings, icon: Settings },
@@ -3996,17 +4055,17 @@ export default function App() {
                 ))}
               </nav>
 
-              <div className="p-6 border-t border-slate-100 dark:border-slate-800">
+              <div className="p-4 border-t border-slate-100 dark:border-slate-800">
                 <button
-                  aria-label={!isSidebarOpen ? ui(lang, 'common.myProfile', 'Moj profil') : undefined}
-                  onClick={() => setView(role === 'company' || role === 'finance' || role === 'superadmin' ? 'settings' : 'profile')}
-                  className="group relative w-full flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer bg-primary text-white shadow-lg shadow-primary/20"
+                  aria-label={!isSidebarOpen ? ui(lang, 'LenaAI', 'LenaAI') : undefined}
+                  onClick={() => setLenaAiOpen(true)}
+                  className="group relative w-full flex items-center justify-center gap-3 p-3 rounded-xl transition-all cursor-pointer bg-primary text-white shadow-lg shadow-primary/20"
                 >
-                  <User className="w-5 h-5" />
-                  {isSidebarOpen && <span className="font-medium">{ui(lang, 'common.myProfile', 'Moj profil')}</span>}
+                  <Sparkles className="w-5 h-5 shrink-0" />
+                  {isSidebarOpen && <span className="font-medium">{ui(lang, 'LenaAI', 'LenaAI')}</span>}
                   {!isSidebarOpen && (
                     <span role="tooltip" className="pointer-events-none absolute left-full top-1/2 z-[120] ml-3 -translate-y-1/2 whitespace-nowrap rounded-lg bg-primary px-3 py-2 text-xs font-bold text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-                      {ui(lang, 'common.myProfile', 'Moj profil')}
+                      {ui(lang, 'LenaAI', 'LenaAI')}
                     </span>
                   )}
                 </button>
@@ -4173,6 +4232,7 @@ export default function App() {
 
         {/* View Content */}
         <div
+          ref={viewContentRef}
           className={cn(
             "flex-1 min-h-0 p-6 pb-24 md:pb-6 mx-auto w-full",
             isSidebarOpen || shouldShowFeedSidebarPanel ? "max-w-7xl" : "max-w-none",
@@ -4289,6 +4349,13 @@ export default function App() {
             onClose={() => setOpenLoadDetailsId(null)}
           />
         )}
+        <LenaAI
+          open={lenaAiOpen}
+          onClose={() => setLenaAiOpen(false)}
+          lang={lang}
+          userId={currentUser?.id}
+          companyIds={trackingCompanyIds}
+        />
         <PostLoadModal isOpen={isPostLoadOpen} editLoadId={editLoadId} onClose={() => { setIsPostLoadOpen(false); setEditLoadId(null); }} onSaved={handleLoadSaved} lang={lang} />
         <BulkImportModal
           open={isBulkImportOpen}

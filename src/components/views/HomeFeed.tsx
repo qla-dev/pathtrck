@@ -7,7 +7,7 @@ import { ui } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { MOCK_LOADS } from '../../mockData';
 import { Language, Load, Role } from '../../types';
-import { LoadDetails } from '../load/LoadDetails';
+import { LoadDetailsPrebook } from '../load/LoadDetailsPrebook';
 import { LoadItem } from '../load/LoadItem';
 import { Button } from '../ui/Button';
 import { EmptyState } from '../ui/EmptyState';
@@ -517,7 +517,7 @@ export const HomeFeed = ({
         </div>
       )}
 
-      <LoadDetails
+      <LoadDetailsPrebook
         open={Boolean(selectedLoad)}
         load={selectedLoad}
         lang={lang}

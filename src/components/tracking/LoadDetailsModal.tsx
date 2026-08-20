@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, CircleMarker, Tooltip } from 'react-leaflet';
-import { MapPin, ChevronRight, Package as PackageIcon, RotateCcw, Share2, Star, Bot, Route, Lock, Coins, Loader2, Sparkles, FileBarChart2, Upload, FileSpreadsheet, Fuel, BedDouble, ParkingCircle, Landmark, ReceiptText, FileText, Printer } from 'lucide-react';
+import { MapPin, ChevronRight, Package as PackageIcon, RotateCcw, Share2, Star, Route, Lock, Coins, Loader2, Sparkles, FileBarChart2, Upload, FileSpreadsheet, Fuel, BedDouble, ParkingCircle, Landmark, ReceiptText, FileText, Printer } from 'lucide-react';
 import { Language, Package as PackageData, Role, ShipmentDetail } from '../../types';
-import { AI_DISPATCH_SUBJECT_PREFIX, api } from '../../services/api';
+import { api } from '../../services/api';
 import { useApiList } from '../../hooks/useApiList';
 import { ui, trPackageStatus } from '../../i18n';
 import { cn } from '../../lib/cn';
@@ -11,11 +11,10 @@ import { TRACKING_FLOW, apiLoadStatus, mapLoadToPackage } from '../../lib/loadDe
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Toggle } from '../ui/Toggle';
-import { ChatConversationPanel } from '../chat/ChatConversationPanel';
-import { Conversation } from '../chat/types';
 import { TrackingItemDetails } from './TrackingItemDetails';
 import { TrackingShipmentDetails } from './TrackingShipmentDetails';
 import { LoadStatusPicker } from '../load/LoadStatusPicker';
+import { LenaAI } from '../lena/LenaAI';
 
 type AmenityCategory = 'toll' | 'fuel' | 'rest' | 'parking';
 
@@ -59,8 +58,8 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
     return () => { cancelled = true; };
   }, [loadId, lang]);
 
-  const [rightTab, setRightTab] = useState<'tracker' | 'details' | 'dispatch' | 'map' | 'return' | 'returnRoutes' | 'reports' | 'share' | 'invoice' | 'review'>('details');
-  const [dispatchDraft, setDispatchDraft] = useState('');
+  const [rightTab, setRightTab] = useState<'tracker' | 'details' | 'map' | 'return' | 'returnRoutes' | 'reports' | 'share' | 'invoice' | 'review'>('details');
+  const [lenaOpen, setLenaOpen] = useState(false);
   const [returnTokens, setReturnTokens] = useState(0);
   const [returnRoutesUnlocked, setReturnRoutesUnlocked] = useState(false);
   const [isUnlockingReturnRoutes, setIsUnlockingReturnRoutes] = useState(false);
@@ -94,105 +93,6 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
     }, 700);
     return () => clearInterval(timer);
   }, [isUnlockingReturnRoutes]);
-
-  const dispatchConversationResult = useApiList(api.conversations.list, {
-    load_id: selectedPackage.id ? Number(selectedPackage.id) : -1,
-    per_page: 50,
-  });
-  const dispatchConversationRow = useMemo(
-    () => dispatchConversationResult.items.find((row) => row.channel === 'inapp') as Record<string, unknown> | undefined,
-    [dispatchConversationResult.items]
-  );
-  const [dispatchSending, setDispatchSending] = useState(false);
-  const [optimisticDispatchText, setOptimisticDispatchText] = useState<string | null>(null);
-
-  const dispatchConversation = useMemo<Conversation>(() => {
-    const messages: Conversation['messages'] = dispatchConversationRow
-      ? (Array.isArray(dispatchConversationRow.messages) ? dispatchConversationRow.messages as Array<Record<string, unknown>> : []).map((message) => ({
-          id: String(message.id),
-          sender: Number(message.sender_user_id) === userId ? 'me' : 'other',
-          text: String(message.body || ''),
-          time: String(message.sent_at || message.created_at || '').slice(11, 16),
-        }))
-      : [
-          {
-            id: 'd0',
-            sender: 'other',
-            text: u(
-              "Hi, I'm Lena from Route Ops. Ask me anything about this load — status, ETA, route, or nearby stops.",
-              "Hi, I'm Lena from Route Ops. Ask me anything about this load — status, ETA, route, or nearby stops."
-            ),
-            time: u('AI', 'AI'),
-          },
-        ];
-
-    if (optimisticDispatchText) {
-      messages.push({ id: 'optimistic', sender: 'me', text: optimisticDispatchText, time: '' });
-    }
-
-    const meta = [
-      selectedPackage.bookingReference ? `${u('Booking reference', 'Booking reference')}: ${selectedPackage.bookingReference}` : null,
-      selectedPackage.origin && selectedPackage.destination ? `${selectedPackage.origin} → ${selectedPackage.destination}` : null,
-    ].filter(Boolean).join(' · ');
-
-    return {
-      id: dispatchConversationRow ? String(dispatchConversationRow.id) : '',
-      name: 'Lena / Route Ops',
-      role: u('Lena AI', 'Lena AI'),
-      channel: 'inapp',
-      online: true,
-      unread: 0,
-      lastTime: 'now',
-      messages,
-      isAiDispatch: true,
-      meta: meta || undefined,
-    };
-  }, [dispatchConversationRow, lang, userId, optimisticDispatchText, selectedPackage.bookingReference, selectedPackage.origin, selectedPackage.destination]);
-
-  const handleDispatchSend = async () => {
-    const text = dispatchDraft.trim();
-    if (!text || !userId || dispatchSending) return;
-
-    setDispatchDraft('');
-    setOptimisticDispatchText(text);
-    setDispatchSending(true);
-    try {
-      let conversationId = dispatchConversationRow ? Number(dispatchConversationRow.id) : null;
-
-      if (!conversationId) {
-        const created = await api.conversations.create({
-          load_id: Number(selectedPackage.id),
-          company_id: companyIds[0],
-          created_by_user_id: userId,
-          channel: 'inapp',
-          subject: `${AI_DISPATCH_SUBJECT_PREFIX}${selectedPackage.trackingNumber}`,
-          last_message_at: new Date().toISOString(),
-          participant_ids: [userId],
-        });
-        conversationId = Number(created.data.id);
-      }
-
-      await api.messages.create({
-        conversation_id: conversationId,
-        sender_user_id: userId,
-        body: text,
-        sent_at: new Date().toISOString(),
-      });
-      await dispatchConversationResult.refresh();
-      setOptimisticDispatchText(null);
-
-      await api.dispatchChat.reply(conversationId);
-      await dispatchConversationResult.refresh();
-    } catch (error) {
-      setOptimisticDispatchText(null);
-      void showError(
-        u('tracking.dispatchSendFailed', 'Message could not be sent'),
-        error instanceof Error ? error.message : undefined
-      );
-    } finally {
-      setDispatchSending(false);
-    }
-  };
 
   const suggestionLoadsResult = useApiList(api.loads.list, { per_page: 4 });
   const returnRouteSuggestions = useMemo(
@@ -384,22 +284,43 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
   };
 
   return (
+    <>
     <TrackingItemDetails
       open={Boolean(selectedPackage.id)}
       onClose={onClose}
       bodyClassName={
-        rightTab === 'dispatch' || rightTab === 'map' || (rightTab === 'returnRoutes' && !returnRoutesUnlocked)
+        rightTab === 'map' || (rightTab === 'returnRoutes' && !returnRoutesUnlocked)
           ? 'overflow-hidden'
           : undefined
       }
-      headerAction={role === 'superadmin' ? (
-        <LoadStatusPicker
-          lang={lang}
-          status={selectedPackage.status}
-          isChanging={statusChanging !== null}
-          onChange={(status) => void changeLoadStatus(status)}
-        />
-      ) : undefined}
+      headerAction={(
+        <>
+          <button
+            type="button"
+            onClick={() => setLenaOpen(true)}
+            className="hidden sm:inline-flex h-12 items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 text-xs font-bold text-primary transition-all hover:bg-primary/10 cursor-pointer"
+          >
+            <Sparkles className="w-4 h-4" />
+            {u('Ask LenaAI about this Load', 'Ask LenaAI about this Load')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setLenaOpen(true)}
+            aria-label={u('Ask LenaAI about this Load', 'Ask LenaAI about this Load')}
+            className="sm:hidden h-12 w-12 rounded-xl border border-primary/30 bg-primary/5 text-primary flex items-center justify-center hover:bg-primary/10 transition-all cursor-pointer"
+          >
+            <Sparkles className="w-5 h-5" />
+          </button>
+          {role === 'superadmin' && (
+            <LoadStatusPicker
+              lang={lang}
+              status={selectedPackage.status}
+              isChanging={statusChanging !== null}
+              onChange={(status) => void changeLoadStatus(status)}
+            />
+          )}
+        </>
+      )}
     >
       <div className="overflow-x-auto [scrollbar-width:thin] [scrollbar-color:rgb(148_163_184/0.72)_transparent] dark:[scrollbar-color:rgb(71_85_105/0.8)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-400/70 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600/80 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:bg-slate-500/90 dark:[&::-webkit-scrollbar-thumb:hover]:bg-slate-500/95">
         <div className="inline-flex h-12 min-w-full w-max items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1">
@@ -422,16 +343,6 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
         >
           <PackageIcon className="w-4 h-4" />
           {u('Tracker', 'Tracker')}
-        </button>
-        <button
-          onClick={() => setRightTab('dispatch')}
-          className={cn(
-            'h-full px-3 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5',
-            rightTab === 'dispatch' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-          )}
-        >
-          <Bot className="w-4 h-4" />
-          {u('Lena AI', 'Lena AI')}
         </button>
         <button
           onClick={() => setRightTab('map')}
@@ -602,20 +513,6 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
             onSave={saveShipmentDetail}
           />
         </Card>
-      )}
-
-      {rightTab === 'dispatch' && (
-        <div className="h-full min-h-0">
-          <ChatConversationPanel
-            activeConversation={dispatchConversation}
-            draft={dispatchDraft}
-            onDraftChange={setDispatchDraft}
-            onSend={handleDispatchSend}
-            messagePlaceholder={u('Write a message to dispatch...', 'Write a message to dispatch...')}
-            className="h-full"
-            otherTyping={dispatchSending}
-          />
-        </div>
       )}
 
       {rightTab === 'map' && (
@@ -980,5 +877,15 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
         </Card>
       )}
     </TrackingItemDetails>
+    <LenaAI
+      open={lenaOpen}
+      onClose={() => setLenaOpen(false)}
+      lang={lang}
+      userId={userId}
+      companyIds={companyIds}
+      loadId={selectedPackage.id}
+      loadLabel={selectedPackage.trackingNumber}
+    />
+    </>
   );
 };

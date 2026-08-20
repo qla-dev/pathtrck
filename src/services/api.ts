@@ -203,8 +203,9 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     }),
-    book: (id: number | string) => request<Record<string, unknown>>(`/loads/${id}/book`, {
+    book: (id: number | string, options?: { companyId?: number; driverUserId?: number }) => request<Record<string, unknown>>(`/loads/${id}/book`, {
       method: 'POST',
+      body: JSON.stringify({ company_id: options?.companyId, driver_user_id: options?.driverUserId }),
     }),
     scan: (images: ScanImage[]) => request<LoadScanResult>('/load-scans', {
       method: 'POST',

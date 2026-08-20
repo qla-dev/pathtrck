@@ -5,7 +5,7 @@ export const TRACKING_FLOW: PackageData['status'][] = ['Posted', 'Opened', 'Sent
 
 export const apiLoadStatus = (status: PackageData['status']) => status.toLowerCase().replace(/\s+/g, '_');
 
-const mapLoadStatus = (value: unknown): PackageData['status'] => {
+export const mapLoadStatus = (value: unknown): PackageData['status'] => {
   const statuses: Record<string, PackageData['status']> = {
     posted: 'Posted', opened: 'Opened', sent: 'Sent', in_delivery: 'In delivery',
     received: 'Received', finished: 'Finished', pending: 'Pending', cancelled: 'Cancelled',

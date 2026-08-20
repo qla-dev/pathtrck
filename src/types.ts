@@ -81,6 +81,11 @@ export interface Load {
   isNegotiable?: boolean;
   budget?: number;
   offers?: Array<Record<string, unknown>>;
+  bookingReference?: string;
+  incoterms?: string;
+  insurance?: string;
+  shipperName?: string;
+  mediator?: string;
 }
 
 export interface RouteLog {

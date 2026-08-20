@@ -8,6 +8,8 @@ import { ChatSidebar } from '../chat/ChatSidebar';
 import { Channel, Conversation } from '../chat/types';
 import { AI_DISPATCH_SUBJECT_PREFIX, ApiUser, api } from '../../services/api';
 import { useApiList } from '../../hooks/useApiList';
+import { mapLoadStatus } from '../../lib/loadDetails';
+import { trPackageStatus } from '../../i18n';
 
 export const MessagesView = ({ lang, onOpenLoad }: { lang: Language; onOpenLoad?: (loadId: string) => void }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
@@ -33,18 +35,20 @@ export const MessagesView = ({ lang, onOpenLoad }: { lang: Language; onOpenLoad?
           origin && destination ? `${origin} → ${destination}` : null,
         ].filter(Boolean).join(' · ')
       : '';
+    const status = load ? trPackageStatus(lang, mapLoadStatus(load.status)) : undefined;
     return {
       id: String(row.id),
       name: isAiDispatch
         ? String(loadName || (row.load_id ? `Load #${row.load_id}` : `Conversation ${row.id}`))
         : String(row.subject || counterpart?.name || `Conversation ${row.id}`),
-      role: isAiDispatch ? u('Lena AI', 'Lena AI') : String(((counterpart?.role || {}) as Record<string, unknown>).label || ''),
+      role: isAiDispatch ? u('LenaAI', 'LenaAI') : String(((counterpart?.role || {}) as Record<string, unknown>).label || ''),
       channel: (String(row.channel || 'inapp') as Channel),
       online: false, unread: 0, lastTime: String(row.last_message_at || '').slice(11, 16),
       messages: messages.map((message) => ({ id: String(message.id), sender: Number(message.sender_user_id) === user?.id ? 'me' : 'other', text: String(message.body || ''), time: String(message.sent_at || message.created_at || '').slice(11, 16) })),
       loadId: row.load_id ? String(row.load_id) : undefined,
       isAiDispatch,
       meta: meta || undefined,
+      status,
     };
   }), [result.items, user, lang]);
   const [channelFilter, setChannelFilter] = useState<'all' | 'ai' | 'direct'>('all');
@@ -55,7 +59,7 @@ export const MessagesView = ({ lang, onOpenLoad }: { lang: Language; onOpenLoad?
 
   const channels = [
     { id: 'all' as const, label: u('All', 'All'), icon: LayoutGrid },
-    { id: 'ai' as const, label: u('Lena AI', 'Lena AI'), icon: Bot },
+    { id: 'ai' as const, label: u('LenaAI', 'LenaAI'), icon: Bot },
     { id: 'direct' as const, label: u('Direct messages', 'Direct messages'), icon: MessageCircle },
   ];
 

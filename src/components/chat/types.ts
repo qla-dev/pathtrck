@@ -19,5 +19,6 @@ export type Conversation = {
   loadId?: string;
   isAiDispatch?: boolean;
   meta?: string;
+  status?: string;
 };
 
