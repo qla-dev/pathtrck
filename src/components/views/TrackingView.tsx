@@ -14,6 +14,8 @@ type TrackingFilterMode = 'all' | 'today' | 'calendar';
 type TrackingStatusFilter = PackageData['status'] | 'all';
 type TrackingLayoutMode = 'list' | 'grid';
 
+const countryFlagUrl = (countryCode: string) => `https://flagcdn.com/w40/${countryCode.toLowerCase()}.png`;
+
 const TRACKING_STATUS_FILTERS = LOAD_STATUS_OPTIONS
   .map(([, status]) => status)
   .filter((status) => status !== 'Posted');
@@ -86,7 +88,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<TrackingStatusFilter>('all');
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [layout, setLayout] = useState<TrackingLayoutMode>('list');
+  const [layout, setLayout] = useState<TrackingLayoutMode>('grid');
   const [filterMode, setFilterMode] = useState<TrackingFilterMode>('all');
   const [rangeStart, setRangeStart] = useState(() => {
     const date = new Date();
@@ -156,6 +158,52 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
       <div className="w-full">
       {/* Sidebar List */}
       <div className="w-full">
+        {(role === 'company' || role === 'driver') && (
+          <div className="mb-5 rounded-2xl border border-slate-200 bg-white px-4 py-4 dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                  {u('tracking.loadCapacity', 'Load on truck')}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {loadCapacity.activeLoads.length} {u('tracking.activeLoads', 'active loads')}
+                </p>
+              </div>
+              <p className="whitespace-nowrap text-2xl font-black text-slate-900 dark:text-white">
+                {loadCapacity.totalWeightKg.toLocaleString()} kg
+              </p>
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <Truck className="h-5 w-5" />
+              </div>
+            </div>
+
+            <div className="mt-3 flex items-center gap-4">
+              <div className="min-w-0 flex-1">
+                <div className="h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all"
+                    style={{ width: `${loadCapacity.usedPercentage}%` }}
+                  />
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-4">
+                <div>
+                  <p className="text-lg font-black text-primary">{loadCapacity.usedPercentage}%</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    {u('tracking.cargoUsed', 'Cargo')}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-black text-slate-900 dark:text-white">{loadCapacity.remainingPercentage}%</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    {u('tracking.freeSpace', 'Free space')}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
           {(['all', ...TRACKING_STATUS_FILTERS] as TrackingStatusFilter[]).map((status) => (
             <button
@@ -299,52 +347,6 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
           )}
         </div>
 
-        {(role === 'company' || role === 'driver') && (
-        <div className="mt-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
-                {u('tracking.loadCapacity', 'Load on truck')}
-              </p>
-              <p className="mt-1 text-xs text-slate-500">
-                {loadCapacity.activeLoads.length} {u('tracking.activeLoads', 'active loads')}
-              </p>
-            </div>
-            <p className="text-2xl font-black text-slate-900 dark:text-white whitespace-nowrap">
-              {loadCapacity.totalWeightKg.toLocaleString()} kg
-            </p>
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-              <Truck className="h-5 w-5" />
-            </div>
-          </div>
-
-          <div className="mt-3 flex items-center gap-4">
-            <div className="flex-1 min-w-0">
-              <div className="h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                <div
-                  className="h-full rounded-full bg-primary transition-all"
-                  style={{ width: `${loadCapacity.usedPercentage}%` }}
-                />
-              </div>
-            </div>
-            <div className="flex items-center gap-4 shrink-0">
-              <div>
-                <p className="text-lg font-black text-primary">{loadCapacity.usedPercentage}%</p>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                  {u('tracking.cargoUsed', 'Cargo')}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-lg font-black text-slate-900 dark:text-white">{loadCapacity.remainingPercentage}%</p>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                  {u('tracking.freeSpace', 'Free space')}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-        )}
-
         <div className={cn(
           'mt-6',
           layout === 'list'
@@ -395,27 +397,27 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
               )}
               <div className="mt-3 grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
                 <div className="flex min-w-0 items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white">
-                    <MapPin className="h-3.5 w-3.5" />
-                  </span>
+                  {pkg.originCountryCode
+                    ? <img src={countryFlagUrl(pkg.originCountryCode)} alt={pkg.originCountryCode} className="h-4 w-6 shrink-0 rounded-sm object-cover shadow-sm" />
+                    : <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white"><MapPin className="h-3.5 w-3.5" /></span>}
                   <span className="truncate text-xs font-bold">{pkg.origin}</span>
                 </div>
                 <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
                 <div className="flex min-w-0 items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-rose-500 text-white">
-                    <MapPin className="h-3.5 w-3.5" />
-                  </span>
+                  {pkg.destinationCountryCode
+                    ? <img src={countryFlagUrl(pkg.destinationCountryCode)} alt={pkg.destinationCountryCode} className="h-4 w-6 shrink-0 rounded-sm object-cover shadow-sm" />
+                    : <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-rose-500 text-white"><MapPin className="h-3.5 w-3.5" /></span>}
                   <span className="truncate text-xs font-bold">{pkg.destination}</span>
                 </div>
               </div>
               <div className="mt-3 grid gap-2 border-t border-slate-100 pt-3 sm:grid-cols-3 dark:border-slate-800">
                 <div className="flex min-w-0 items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-950">
                   <PackageIcon className="h-4 w-4 shrink-0 text-primary" />
-                  <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{u('tracking.number', 'Tracking no.')}</p><p className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{pkg.trackingNumber}</p></div>
+                  <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{u('Track no.', 'Track no.')}</p><p className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{pkg.trackingNumber}</p></div>
                 </div>
                 <div className="flex min-w-0 items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-950">
                   <Coins className="h-4 w-4 shrink-0 text-emerald-500" />
-                  <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{u('tracking.totalAmount', 'Load value')}</p><p className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{pkg.totalAmount || '—'}</p></div>
+                  <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{u('Amount', 'Amount')}</p><p className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{pkg.totalAmount || '—'}</p></div>
                 </div>
                 <div className="flex min-w-0 items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-950">
                   <CalendarDays className="h-4 w-4 shrink-0 text-violet-500" />

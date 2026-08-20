@@ -110,6 +110,7 @@ type HomeFeedProps = {
   lang: Language;
   role?: Role;
   userId?: number;
+  companyIds?: number[];
   dataMode?: 'all' | 'organic' | 'global';
   loads?: Load[];
   sortMode?: FeedSortMode;
@@ -153,6 +154,7 @@ export const HomeFeed = ({
   lang,
   role,
   userId,
+  companyIds = [],
   dataMode = 'all',
   loads = MOCK_LOADS,
   sortMode = 'price_asc',
@@ -523,6 +525,7 @@ export const HomeFeed = ({
         lang={lang}
         role={role}
         userId={userId}
+        companyIds={companyIds}
         onEdit={onEditLoad}
         onChanged={onLoadChanged}
         onClose={() => setSelectedLoad(null)}

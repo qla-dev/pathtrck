@@ -9,7 +9,8 @@ import { ChatConversationPanel } from '../chat/ChatConversationPanel';
 import { ChatMessage } from '../chat/types';
 import { useLenaAiChat } from '../../lib/useLenaAiChat';
 
-const BOOKING_MARKER = '[[OFFER_BOOKING]]';
+const BOOKING_MARKER_PATTERN = /\[\[OFFER_BOOKING(?::(\d+))?\]\]/;
+const BOOKING_MARKER_GLOBAL_PATTERN = /\[\[OFFER_BOOKING(?::\d+)?\]\]/g;
 
 type LenaAIProps = {
   open: boolean;
@@ -20,13 +21,14 @@ type LenaAIProps = {
   loadId?: string;
   loadLabel?: string;
   onBookLoad?: () => void | Promise<void>;
+  onOpenLoad?: (loadId: string) => void;
 };
 
 // Reusable LenaAI chat overlay — with no loadId it's a general app assistant (opened from the
 // sidebar); with a loadId it's the same per-load dispatch chat used elsewhere, plus an optional
-// embedded booking action when the backend signals booking intent (see onBookLoad/BOOKING_MARKER).
+// embedded booking action when the backend signals booking intent.
 // Full-screen takeover with the same enter/exit animation as TrackingItemDetails.tsx.
-export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLabel, onBookLoad }: LenaAIProps) {
+export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLabel, onBookLoad, onOpenLoad }: LenaAIProps) {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
 
   useEffect(() => {
@@ -50,29 +52,40 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
     sendFailedTitle: u('Message could not be sent', 'Message could not be sent'),
   });
 
-  const bookingMessageIds = useMemo(
-    () => new Set(conversation.messages.filter((message) => message.text.includes(BOOKING_MARKER)).map((message) => message.id)),
+  const bookingOffers = useMemo(
+    () => new Map(conversation.messages.flatMap((message) => {
+      const match = message.text.match(BOOKING_MARKER_PATTERN);
+      return match ? [[message.id, match[1] ?? null] as const] : [];
+    })),
     [conversation.messages]
   );
 
   const displayConversation = useMemo(() => ({
     ...conversation,
-    messages: conversation.messages.map((message) => ({ ...message, text: message.text.replace(BOOKING_MARKER, '').trim() })),
+    messages: conversation.messages.map((message) => ({ ...message, text: message.text.replace(BOOKING_MARKER_GLOBAL_PATTERN, '').trim() })),
   }), [conversation]);
 
-  const renderMessageExtra = onBookLoad
-    ? (message: ChatMessage) => bookingMessageIds.has(message.id) ? (
-        <div className="mt-2 flex w-fit max-w-full items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2">
-          <p className="text-xs font-semibold text-primary">{u('This load is available to book.', 'This load is available to book.')}</p>
+  const renderMessageExtra = onBookLoad || onOpenLoad
+    ? (message: ChatMessage) => {
+        if (!bookingOffers.has(message.id)) return null;
+        const offeredLoadId = bookingOffers.get(message.id);
+        const handleBook = offeredLoadId && onOpenLoad
+          ? () => onOpenLoad(offeredLoadId)
+          : onBookLoad;
+        if (!handleBook) return null;
+
+        return (
+        <div className="mt-2 flex w-fit max-w-full items-center rounded-xl border border-primary/30 bg-primary/5 p-2">
           <button
             type="button"
-            onClick={() => void onBookLoad()}
+            onClick={() => void handleBook()}
             className="shrink-0 cursor-pointer rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-white transition-all hover:brightness-95"
           >
-            {u('Book this load', 'Book this load')}
+            {u('common.bookLoad', 'Reserve')}
           </button>
         </div>
-      ) : null
+        );
+      }
     : undefined;
 
   const handleNewChat = async () => {

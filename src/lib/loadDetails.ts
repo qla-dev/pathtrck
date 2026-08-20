@@ -55,6 +55,8 @@ export const mapLoadToPackage = (load: Record<string, unknown>, lang: Language):
       ? Object.fromEntries(Object.entries(load.status_change as Record<string, unknown>).map(([status, changedAt]) => [status, String(changedAt)]))
       : {},
     origin, destination,
+    originCountryCode: String(stops[0]?.country_code || '').toUpperCase(),
+    destinationCountryCode: String(stops[stops.length - 1]?.country_code || '').toUpperCase(),
     addedDate: String(load.published_at || load.created_at || ''), transitDays: Math.max(0, Math.ceil((new Date(estimatedDeliveryAt).getTime() - Date.now()) / 86400000)),
     description: String(load.title || load.cargo_type || ''), currentLocation: [Number(shipment.current_latitude || 43.8563), Number(shipment.current_longitude || 18.4131)],
     history: events.map((event) => ({ date: String(event.recorded_at || event.created_at || ''), status: String(event.status || event.event_type || ''), location: String(event.location_name || '') })),

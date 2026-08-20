@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   ChevronRight,
   Coins,
+  FileText,
   Hash,
   MapPin,
   ShieldCheck,
@@ -16,7 +17,7 @@ import {
   Thermometer,
   Truck,
   Pencil,
-  UserCheck,
+  UsersRound,
   X,
 } from 'lucide-react';
 
@@ -30,6 +31,9 @@ import { ui } from '../../i18n';
 import { Button } from '../ui/Button';
 import { LoadStatusPicker } from './LoadStatusPicker';
 import { LenaAI } from '../lena/LenaAI';
+import { LoadAssignmentModal } from './LoadAssignmentModal';
+import { LoadBidModal } from './LoadBidModal';
+import { LoadOffersPanel } from './LoadOffersPanel';
 
 type LoadDetailsPrebookProps = {
   open: boolean;
@@ -38,6 +42,7 @@ type LoadDetailsPrebookProps = {
   lang: Language;
   role?: Role;
   userId?: number;
+  companyIds?: number[];
   onEdit?: (load: Load) => void;
   onChanged?: () => void;
 };
@@ -110,7 +115,7 @@ const getCountryCode = (location: string) => {
 
 const countryFlagUrl = (countryCode: string) => `https://flagcdn.com/w40/${countryCode.toLowerCase()}.png`;
 
-export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, onEdit, onChanged }: LoadDetailsPrebookProps) => {
+export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, companyIds = [], onEdit, onChanged }: LoadDetailsPrebookProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [offers, setOffers] = useState<Array<Record<string, unknown>>>([]);
   const [drivers, setDrivers] = useState<Array<Record<string, unknown>>>([]);
@@ -129,6 +134,8 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, on
   const [assignDriverNow, setAssignDriverNow] = useState(false);
   const [bookingDriverId, setBookingDriverId] = useState('');
   const [bookingCompanyId, setBookingCompanyId] = useState('');
+  const [assignmentOpen, setAssignmentOpen] = useState(false);
+  const [bodyView, setBodyView] = useState<'details' | 'offers'>('details');
 
   useEffect(() => {
     setShowOfferForm(false);
@@ -153,6 +160,8 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, on
     setAssignDriverNow(false);
     setBookingDriverId('');
     setBookingCompanyId('');
+    setAssignmentOpen(false);
+    setBodyView('details');
   }, [open, load?.id]);
 
   useEffect(() => {
@@ -162,7 +171,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, on
     setActionMessage('');
     (async () => {
       try {
-        if (role === 'superadmin' || role === 'driver') {
+        if (role === 'superadmin' || role === 'driver' || role === 'company') {
           const offerResponse = await api.offers.list({ per_page: 100 });
           const loadOffers = offerResponse.data.filter((offer) => String(offer.load_id) === String(load.id));
           if (!active) return;
@@ -234,17 +243,19 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, on
     }
   };
 
-  const bookLoad = async (options?: { companyId?: number; driverUserId?: number }) => {
+  const bookLoad = async (options?: { companyId?: number; driverUserId?: number }, confirmedInAssignmentModal = false) => {
     if (!load || isBooking) return;
-    const assigningDriver = role === 'driver' || Boolean(options?.driverUserId);
-    const confirmed = await confirmAction({
-      title: u('legacy.loadDetails.bookConfirmTitle', 'Book this load?'),
-      text: assigningDriver
-        ? u('legacy.loadDetails.bookConfirmText', 'You will be assigned as the driver for this load right away.')
-        : u('legacy.loadDetails.bookConfirmTextCompany', 'This load will be booked for your company. You can assign a driver from your team later.'),
-      confirmText: u('legacy.loadDetails.bookConfirm', 'Book now'),
-    });
-    if (!confirmed) return;
+    if (!confirmedInAssignmentModal) {
+      const assigningDriver = role === 'driver' || Boolean(options?.driverUserId);
+      const confirmed = await confirmAction({
+        title: u('legacy.loadDetails.bookConfirmTitle', 'Book this load?'),
+        text: assigningDriver
+          ? u('legacy.loadDetails.bookConfirmText', 'You will be assigned as the driver for this load right away.')
+          : u('legacy.loadDetails.bookConfirmTextCompany', 'This load will be booked for your company. You can assign a driver from your team later.'),
+        confirmText: u('legacy.loadDetails.bookConfirm', 'Book now'),
+      });
+      if (!confirmed) return;
+    }
 
     setIsBooking(true);
     try {
@@ -266,7 +277,14 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, on
   const submitOffer = async () => {
     if (!load || isSubmittingOffer) return;
     const amount = Number(offerAmount);
-    if (!Number.isFinite(amount) || amount <= 0) return;
+    const minimumAmount = getBidState(offers, userId, load.budget).displayAmount ?? 0;
+    if (!Number.isFinite(amount) || amount <= 0 || amount < minimumAmount) {
+      void showError(
+        u('Offer amount too low', 'Offer amount too low'),
+        u('Offer minimum amount', 'Your offer must be at least {amount}.').replace('{amount}', `${offerCurrency} ${minimumAmount.toLocaleString()}`)
+      );
+      return;
+    }
 
     setIsSubmittingOffer(true);
     try {
@@ -279,7 +297,8 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, on
       } else {
         await api.offers.create({
           load_id: Number(load.id),
-          driver_user_id: userId,
+          company_id: role === 'company' ? companyIds[0] : undefined,
+          driver_user_id: role === 'driver' ? userId : undefined,
           created_by_user_id: userId,
           amount,
           currency: offerCurrency,
@@ -318,9 +337,33 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, on
   const bidState = getBidState(offers, userId, load.budget);
   const myOffer = bidState.myOffer;
   const offerLabel = getOfferLabel(u, bidState, offerCurrency);
-  const bookLabel = load.budget && load.budget > 0
-    ? `${u('legacy.loadDetails.bookNow', 'Book now')} · ${offerCurrency} ${load.budget.toLocaleString()}`
-    : u('legacy.loadDetails.bookNow', 'Book now');
+  const bookLabel = u('legacy.loadDetails.bookNow', 'Book now');
+  const paymentTermsLabel = load.paymentTerms === 'Deferred' && load.paymentDueDays
+    ? `${load.paymentTerms} · ${load.paymentDueDays} days`
+    : load.paymentTerms || '—';
+  const actionPriceLabel = load.isNegotiable === true
+    ? u('Highest offer', 'Highest offer')
+    : u('legacy.loadDetails.price', 'Price');
+  const actionPriceValue = load.isNegotiable === true && bidState.highestBidAmount != null
+    ? `${offerCurrency} ${bidState.highestBidAmount.toLocaleString()}`
+    : load.price;
+  const bookingSummary = (
+    <div className="grid grid-cols-2 gap-2">
+      <div className="rounded-xl border border-primary/15 bg-primary/5 p-3">
+        <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-slate-500"><Coins className="h-3.5 w-3.5 text-primary" />{actionPriceLabel}</div>
+        <p className="mt-1 truncate text-base font-black text-primary">{actionPriceValue}</p>
+      </div>
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-950/60">
+        <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-slate-500"><CalendarClock className="h-3.5 w-3.5 text-primary" />{u('legacy.loadDetails.terms', 'Terms')}</div>
+        <p className="mt-1 truncate text-sm font-bold text-slate-800 dark:text-white">{paymentTermsLabel}</p>
+      </div>
+    </div>
+  );
+  const openBidModal = () => {
+    setOfferAmount(bidState.displayAmount == null ? '' : String(bidState.displayAmount));
+    setOfferMessage(myOffer ? String(myOffer.message ?? '') : '');
+    setShowOfferForm(true);
+  };
 
   return (
     <motion.div
@@ -344,6 +387,44 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, on
               <h2 className="text-xl md:text-2xl font-black dark:text-white truncate">{load.title}</h2>
             </div>
             <div className="flex shrink-0 items-center gap-2">
+              {role === 'superadmin' && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setBodyView((current) => current === 'details' ? 'offers' : 'details')}
+                    className="relative hidden h-10 w-40 cursor-pointer items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 text-xs font-bold text-primary transition-all hover:bg-primary/10 sm:inline-flex"
+                  >
+                    {bodyView === 'offers' ? <FileText className="h-4 w-4 shrink-0" /> : <UsersRound className="h-4 w-4 shrink-0" />}
+                    <span>{bodyView === 'offers' ? u('View details', 'View details') : u('View offers', 'View offers')}</span>
+                    {bodyView === 'details' && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-black text-white">{offers.length}</span>}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBodyView((current) => current === 'details' ? 'offers' : 'details')}
+                    aria-label={bodyView === 'offers' ? u('View details', 'View details') : u('View offers', 'View offers')}
+                    className="relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-primary/30 bg-primary/5 text-primary transition-all hover:bg-primary/10 sm:hidden"
+                  >
+                    {bodyView === 'offers' ? <FileText className="h-5 w-5" /> : <UsersRound className="h-5 w-5" />}
+                    {bodyView === 'details' && <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-black text-white">{offers.length}</span>}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onEdit?.(load)}
+                    className="hidden h-10 w-40 cursor-pointer items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 text-xs font-bold text-primary transition-all hover:bg-primary/10 lg:inline-flex"
+                  >
+                    <Pencil className="h-4 w-4 shrink-0" />
+                    <span>{u('Edit load', 'Edit load')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onEdit?.(load)}
+                    aria-label={u('Edit load', 'Edit load')}
+                    className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-primary/30 bg-primary/5 text-primary transition-all hover:bg-primary/10 lg:hidden"
+                  >
+                    <Pencil className="h-5 w-5" />
+                  </button>
+                </>
+              )}
               <button
                 type="button"
                 onClick={() => setLenaOpen(true)}
@@ -360,6 +441,25 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, on
               >
                 <Sparkles className="w-5 h-5" />
               </button>
+              {role === 'superadmin' && (
+                <>
+                  <LoadStatusPicker
+                    lang={lang}
+                    status={currentStatus}
+                    isChanging={statusChanging}
+                    onChange={(status) => void changeStatus(status)}
+                    className="hidden w-44 lg:block [&_button]:h-10"
+                  />
+                  <LoadStatusPicker
+                    compact
+                    lang={lang}
+                    status={currentStatus}
+                    isChanging={statusChanging}
+                    onChange={(status) => void changeStatus(status)}
+                    className="lg:hidden"
+                  />
+                </>
+              )}
               <button
                 type="button"
                 onClick={onClose}
@@ -371,15 +471,30 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, on
           </div>
 
           <div className="flex-1 overflow-y-auto p-5 md:p-7">
+            {role === 'superadmin' && bodyView === 'offers' ? (
+              <LoadOffersPanel
+                lang={lang}
+                offers={offers}
+                drivers={drivers.flatMap((driver) => {
+                  const driverUser = driver.user as { id?: number; name?: string } | undefined;
+                  return driverUser?.id ? [{ id: driverUser.id, label: driverUser.name || `Driver ${driverUser.id}` }] : [];
+                })}
+                selectedDrivers={selectedDrivers}
+                loading={offersLoading}
+                actionMessage={actionMessage}
+                onDriverChange={(offerId, driverId) => setSelectedDrivers((current) => ({ ...current, [offerId]: driverId }))}
+                onApprove={(offer) => void approveOffer(offer)}
+              />
+            ) : (
             <div className="space-y-6">
               <div className="grid xl:grid-cols-12 gap-6">
-                <div className="xl:col-span-8 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+                <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900 xl:col-span-8">
                   <p className="mb-4 text-xs font-black uppercase tracking-wider text-primary">Load snapshot</p>
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><Building2 className="h-4 w-4 text-primary" /><p className="mt-3 text-xs text-slate-500">{u('legacy.loadDetails.postedBy', 'Posted by')}</p><p className="mt-1 truncate text-sm font-bold dark:text-white">{load.author || '—'}</p></div>
-                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><CalendarDays className="h-4 w-4 text-primary" /><p className="mt-3 text-xs text-slate-500">{u('legacy.loadDetails.postedDate', 'Posted date')}</p><p className="mt-1 text-sm font-bold dark:text-white">{formatLoadDate(load.date)}</p></div>
-                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><Box className="h-4 w-4 text-primary" /><p className="mt-3 text-xs text-slate-500">Goods type</p><p className="mt-1 truncate text-sm font-bold dark:text-white">{load.goodsType || 'General'}</p></div>
-                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><CalendarClock className="h-4 w-4 text-primary" /><p className="mt-3 text-xs text-slate-500">{u('legacy.loadDetails.latestEta', 'Latest ETA')}</p><p className="mt-1 text-sm font-bold dark:text-white">{formatLoadDate(load.eta)}</p></div>
+                  <div className="grid flex-1 items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <div className="flex h-full min-h-32 flex-col justify-center rounded-xl bg-slate-50 p-4 dark:bg-slate-950"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Building2 className="h-6 w-6" /></div><p className="mt-4 text-xs text-slate-500">{u('legacy.loadDetails.postedBy', 'Posted by')}</p><p className="mt-1 truncate text-sm font-bold dark:text-white">{load.author || '—'}</p></div>
+                    <div className="flex h-full min-h-32 flex-col justify-center rounded-xl bg-slate-50 p-4 dark:bg-slate-950"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><CalendarDays className="h-6 w-6" /></div><p className="mt-4 text-xs text-slate-500">{u('legacy.loadDetails.postedDate', 'Posted date')}</p><p className="mt-1 text-sm font-bold dark:text-white">{formatLoadDate(load.date)}</p></div>
+                    <div className="flex h-full min-h-32 flex-col justify-center rounded-xl bg-slate-50 p-4 dark:bg-slate-950"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Box className="h-6 w-6" /></div><p className="mt-4 text-xs text-slate-500">Goods type</p><p className="mt-1 truncate text-sm font-bold dark:text-white">{load.goodsType || 'General'}</p></div>
+                    <div className="flex h-full min-h-32 flex-col justify-center rounded-xl bg-slate-50 p-4 dark:bg-slate-950"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><CalendarClock className="h-6 w-6" /></div><p className="mt-4 text-xs text-slate-500">{u('legacy.loadDetails.latestEta', 'Latest ETA')}</p><p className="mt-1 text-sm font-bold dark:text-white">{formatLoadDate(load.eta)}</p></div>
                   </div>
                 </div>
 
@@ -391,42 +506,13 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, on
                     </p>
                   </div>
                   {role === 'superadmin' ? <>
-                    <Button className="w-full" onClick={() => onEdit?.(load)}><Pencil className="mr-2 h-4 w-4" />Edit load</Button>
-                    <LoadStatusPicker lang={lang} status={currentStatus} isChanging={statusChanging} onChange={(status) => void changeStatus(status)} />
-                    {currentStatus === 'Posted' && (
-                      <div className="space-y-2 border-t border-slate-100 pt-3 dark:border-slate-800">
-                        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                          {u('legacy.loadDetails.bookAndDedicate', 'Book & dedicate')}
-                        </p>
-                        <select
-                          value={bookingCompanyId}
-                          onChange={(event) => setBookingCompanyId(event.target.value)}
-                          className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                        >
-                          <option value="">{u('legacy.loadDetails.selectCompanyOptional', 'Company (optional)')}</option>
-                          {companies.map((company) => (
-                            <option key={String(company.id)} value={String(company.id)}>{String(company.name || `Company ${company.id}`)}</option>
-                          ))}
-                        </select>
-                        <select
-                          value={bookingDriverId}
-                          onChange={(event) => setBookingDriverId(event.target.value)}
-                          className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                        >
-                          <option value="">{u('legacy.loadDetails.selectDriverOptional', 'Driver (optional)')}</option>
-                          {drivers.map((driver) => {
-                            const driverUser = driver.user as { id?: number; name?: string } | undefined;
-                            return driverUser?.id ? <option key={driverUser.id} value={driverUser.id}>{driverUser.name || `Driver ${driverUser.id}`}</option> : null;
-                          })}
-                        </select>
+                    {currentStatus === 'Posted' && load.isNegotiable !== true && (
+                      <div className="space-y-3 border-t border-slate-100 pt-3 dark:border-slate-800">
+                        {bookingSummary}
                         <Button
-                          variant="outline"
-                          className="w-full"
+                          className="h-11 w-full rounded-xl shadow-lg shadow-primary/20"
                           disabled={isBooking}
-                          onClick={() => void bookLoad({
-                            companyId: bookingCompanyId ? Number(bookingCompanyId) : undefined,
-                            driverUserId: bookingDriverId ? Number(bookingDriverId) : undefined,
-                          })}
+                          onClick={() => setAssignmentOpen(true)}
                         >
                           {isBooking ? u('legacy.loadDetails.booking', 'Booking…') : u('legacy.loadDetails.bookAndDedicate', 'Book & dedicate')}
                         </Button>
@@ -434,47 +520,26 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, on
                     )}
                   </> : role === 'company' ? (
                     currentStatus === 'Posted' ? (
-                      <div className="space-y-2">
-                        <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
-                          <input
-                            type="checkbox"
-                            checked={assignDriverNow}
-                            onChange={(event) => {
-                              setAssignDriverNow(event.target.checked);
-                              if (!event.target.checked) setBookingDriverId('');
-                            }}
-                            className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
-                          />
-                          {u('legacy.loadDetails.assignDriverNow', 'Assign a driver now')}
-                        </label>
-                        {assignDriverNow && (
-                          <select
-                            value={bookingDriverId}
-                            onChange={(event) => setBookingDriverId(event.target.value)}
-                            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                          >
-                            <option value="">{u('legacy.loadDetails.selectDriver', 'Select a driver')}</option>
-                            {drivers.map((driver) => {
-                              const driverUser = driver.user as { id?: number; name?: string } | undefined;
-                              return driverUser?.id ? <option key={driverUser.id} value={driverUser.id}>{driverUser.name || `Driver ${driverUser.id}`}</option> : null;
-                            })}
-                          </select>
-                        )}
+                      <div className="space-y-3">
+                        {bookingSummary}
                         <Button
-                          className="w-full"
-                          disabled={isBooking || (assignDriverNow && !bookingDriverId)}
-                          onClick={() => void bookLoad({ driverUserId: assignDriverNow && bookingDriverId ? Number(bookingDriverId) : undefined })}
+                          className="h-11 w-full rounded-xl shadow-lg shadow-primary/20"
+                          disabled={isBooking || isSubmittingOffer}
+                          onClick={load.isNegotiable === true ? openBidModal : () => setAssignmentOpen(true)}
                         >
-                          {isBooking ? u('legacy.loadDetails.booking', 'Booking…') : bookLabel}
+                          {load.isNegotiable === true ? offerLabel : (isBooking ? u('legacy.loadDetails.booking', 'Booking…') : bookLabel)}
+                          {load.isNegotiable === true && !myOffer && <ChevronRight className="ml-1 h-4 w-4" />}
                         </Button>
                       </div>
                     ) : (
                       <p className="text-sm text-slate-500">{u('legacy.loadDetails.alreadyBooked', 'Already booked')}</p>
                     )
                   ) : role === 'driver' ? (
-                    load.isNegotiable === false ? (
+                    <div className="space-y-3">
+                    {bookingSummary}
+                    {load.isNegotiable !== true ? (
                       <Button
-                        className="w-full"
+                        className="h-11 w-full rounded-xl shadow-lg shadow-primary/20"
                         disabled={isBooking || currentStatus !== 'Posted'}
                         onClick={() => void bookLoad()}
                       >
@@ -484,58 +549,67 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, on
                             ? bookLabel
                             : u('legacy.loadDetails.alreadyBooked', 'Already booked')}
                       </Button>
-                    ) : !showOfferForm ? (
+                    ) : (
                       <Button
-                        variant="outline"
-                        className="w-full"
+                        className="h-11 w-full rounded-xl shadow-lg shadow-primary/20"
                         disabled={currentStatus !== 'Posted'}
-                        onClick={() => {
-                          if (myOffer) {
-                            setOfferAmount(String(myOffer.amount ?? ''));
-                            setOfferMessage(String(myOffer.message ?? ''));
-                          }
-                          setShowOfferForm(true);
-                        }}
+                        onClick={openBidModal}
                       >
                         {offerLabel}
                         {!myOffer && <ChevronRight className="ml-1 h-4 w-4" />}
                       </Button>
-                    ) : (
-                      <div className="space-y-2">
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          autoFocus
-                          value={offerAmount}
-                          onChange={(event) => setOfferAmount(event.target.value)}
-                          placeholder={u('legacy.loadDetails.offerAmountPlaceholder', 'Your offer amount')}
-                          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                        />
-                        <textarea
-                          value={offerMessage}
-                          onChange={(event) => setOfferMessage(event.target.value)}
-                          placeholder={u('legacy.loadDetails.offerMessagePlaceholder', 'Message to the customer (optional)')}
-                          rows={2}
-                          className="w-full resize-none rounded-xl border border-slate-200 bg-white p-3 text-sm outline-none focus:ring-2 focus:ring-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                        />
-                        <Button
-                          className="w-full"
-                          disabled={isSubmittingOffer || !offerAmount}
-                          onClick={() => void submitOffer()}
-                        >
-                          {isSubmittingOffer
-                            ? (myOffer ? u('legacy.loadDetails.updatingOffer', 'Updating…') : u('legacy.loadDetails.sendingOffer', 'Sending…'))
-                            : (myOffer ? u('legacy.loadDetails.updateOffer', 'Update offer') : u('legacy.loadDetails.sendOffer', 'Send offer'))}
-                        </Button>
-                      </div>
-                    )
+                    )}
+                    </div>
                   ) : null}
                 </div>
               </div>
 
-              <section className="overflow-hidden rounded-3xl border border-sky-100 bg-gradient-to-br from-white via-sky-50 to-cyan-100 text-slate-900 shadow-xl shadow-sky-950/10 dark:border-slate-800 dark:bg-slate-950 dark:text-white">
-                <div className="relative isolate px-5 py-6 md:px-7 md:py-7">
+              <div className="grid gap-6 xl:grid-cols-12">
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900 xl:col-span-4">
+                  <div className="space-y-4">
+                    <p className="text-xs font-black uppercase tracking-wider text-primary">
+                      {u('legacy.loadDetails.financialTerms', 'Financial Terms')}
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+                        <p className="text-xs text-slate-500">{u('legacy.loadDetails.price', 'Price')}</p>
+                        <p className="mt-1 text-xl font-black text-primary">{load.price}</p>
+                      </div>
+                      <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+                        <p className="text-xs text-slate-500">{u('legacy.loadDetails.terms', 'Terms')}</p>
+                        <p className="mt-1 text-sm font-bold dark:text-white">{paymentTermsLabel}</p>
+                      </div>
+                      <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+                        <p className="text-xs text-slate-500">{u('legacy.loadDetails.incoterms', 'Incoterms')}</p>
+                        <p className="mt-1 text-sm font-bold dark:text-white">{load.incoterms || '—'}</p>
+                      </div>
+                      <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+                        <p className="text-xs text-slate-500">{u('legacy.loadDetails.insurance', 'Insurance')}</p>
+                        <p className="mt-1 text-sm font-bold dark:text-white">{load.insurance || '—'}</p>
+                      </div>
+                      <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+                        <p className="text-xs text-slate-500">{u('legacy.loadDetails.shipper', 'Shipper')}</p>
+                        <p className="mt-1 truncate text-sm font-bold dark:text-white">{load.shipperName || '—'}</p>
+                      </div>
+                      <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+                        <p className="text-xs text-slate-500">{u('legacy.loadDetails.mediator', 'Mediator')}</p>
+                        <p className="mt-1 truncate text-sm font-bold dark:text-white">{load.mediator || '—'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+                      <Coins className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                      <p className="text-xs text-slate-600 dark:text-slate-300">
+                        {u(
+                          'legacy.loadDetails.smartSplitPayoutAvailable',
+                          'Smart split payout available after automated POD confirmation.'
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+              <section className="overflow-hidden rounded-3xl border border-sky-100 bg-gradient-to-br from-white via-sky-50 to-cyan-100 text-slate-900 shadow-xl shadow-sky-950/10 dark:border-slate-800 dark:bg-slate-950 dark:text-white xl:col-span-8">
+                <div className="relative isolate flex h-full flex-col px-5 py-6 md:px-7 md:py-7">
                   <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-primary/20 blur-3xl dark:bg-primary/25" />
                   <div className="absolute -bottom-28 left-1/3 h-56 w-56 rounded-full bg-cyan-400/25 blur-3xl dark:bg-cyan-400/15" />
                   <div className="relative flex flex-wrap items-start justify-between gap-4">
@@ -543,7 +617,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, on
                     <div className="flex flex-wrap items-center gap-2">
                       <span className={cn('rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-wider', getStatusTone(currentStatus))}>{currentStatus}</span>
                       <span className={cn('rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-wider', getGoodsTone(load.goodsType))}>{load.goodsType}</span>
-                      <span className={cn('rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-wider', getPaymentTone(load.paymentTerms))}>{load.paymentTerms}</span>
+                      <span className={cn('rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-wider', getPaymentTone(load.paymentTerms))}>{paymentTermsLabel}</span>
                     </div>
                   </div>
 
@@ -565,28 +639,30 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, on
                     </div>
                   </div>
 
-                  <div className="relative mt-5 grid grid-cols-2 gap-3 border-t border-sky-200/80 pt-5 dark:border-white/10 md:grid-cols-4">
-                    <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Load ID</p><p className="mt-1 font-bold">#{load.id}</p></div>
-                    <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Transit</p><p className="mt-1 font-bold">{load.transitDays ? `${load.transitDays} days` : 'To be confirmed'}</p></div>
-                    <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Cargo</p><p className="mt-1 font-bold">{load.cargoType || 'General cargo'}</p></div>
-                    <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">ETA</p><p className="mt-1 truncate font-bold">{formatLoadDate(load.eta)}</p></div>
+                  <div className="relative mt-5 grid flex-1 grid-cols-2 items-stretch gap-3 border-t border-sky-200/80 pt-5 dark:border-white/10 md:grid-cols-4">
+                    <div className="flex h-full min-h-24 items-center gap-3 rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur-sm dark:border-white/15 dark:bg-white/8">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-600 dark:text-cyan-300"><Hash className="h-5 w-5" /></div>
+                      <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Load ID</p><p className="mt-1 truncate font-bold">#{load.id}</p></div>
+                    </div>
+                    <div className="flex h-full min-h-24 items-center gap-3 rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur-sm dark:border-white/15 dark:bg-white/8">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-violet-600 dark:text-violet-300"><CalendarClock className="h-5 w-5" /></div>
+                      <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Transit</p><p className="mt-1 font-bold">{load.transitDays ? `${load.transitDays} days` : 'To be confirmed'}</p></div>
+                    </div>
+                    <div className="flex h-full min-h-24 items-center gap-3 rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur-sm dark:border-white/15 dark:bg-white/8">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-300"><Box className="h-5 w-5" /></div>
+                      <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Cargo</p><p className="mt-1 truncate font-bold">{load.cargoType || 'General cargo'}</p></div>
+                    </div>
+                    <div className="flex h-full min-h-24 items-center gap-3 rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur-sm dark:border-white/15 dark:bg-white/8">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-300"><CalendarDays className="h-5 w-5" /></div>
+                      <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">ETA</p><p className="mt-1 truncate font-bold">{formatLoadDate(load.eta)}</p></div>
+                    </div>
                   </div>
                 </div>
               </section>
-
-              {role === 'superadmin' && <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-                <div className="mb-4 flex items-center gap-2 text-primary"><UserCheck className="h-5 w-5" /><p className="text-xs font-black uppercase tracking-wider">Offers & driver assignment</p></div>
-                {actionMessage && <p className="mb-3 text-sm font-semibold text-slate-500">{actionMessage}</p>}
-                {offersLoading ? <p className="py-6 text-center text-sm text-slate-500">Loading offers...</p> : offers.length === 0 ? <p className="py-6 text-center text-sm text-slate-500">No offers for this load yet.</p> : <div className="space-y-3">{offers.map((offer) => {
-                  const company = offer.company as { name?: string } | undefined;
-                  const creator = offer.creator as { name?: string; email?: string } | undefined;
-                  const driver = offer.driver as { id?: number; name?: string } | undefined;
-                  return <div key={String(offer.id)} className="grid gap-3 rounded-xl border border-slate-200 p-4 dark:border-slate-800 lg:grid-cols-[1fr_auto] lg:items-center"><div><p className="font-black text-slate-900 dark:text-white">{company?.name || creator?.name || 'Independent offer'}</p><p className="text-xs text-slate-500">Offered by {creator?.name || creator?.email || '—'} · {String(offer.currency || 'EUR')} {Number(offer.amount || 0).toLocaleString()}</p>{offer.message && <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{String(offer.message)}</p>}<span className="mt-2 inline-flex rounded-full bg-slate-100 px-2 py-1 text-xs font-bold uppercase text-slate-500 dark:bg-slate-800">{String(offer.status || 'pending')}</span></div><div className="flex min-w-64 flex-col gap-2"><select value={selectedDrivers[String(offer.id)] || driver?.id || ''} onChange={(event) => setSelectedDrivers((current) => ({ ...current, [String(offer.id)]: Number(event.target.value) }))} disabled={offer.status === 'accepted'} className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white"><option value="">Select driver</option>{drivers.map((profile) => { const user = profile.user as { id?: number; name?: string } | undefined; return user?.id ? <option key={user.id} value={user.id}>{user.name || `Driver ${user.id}`}</option> : null; })}</select><Button disabled={offer.status !== 'pending'} onClick={() => void approveOffer(offer)}>{offer.status === 'accepted' ? 'Approved' : 'Approve & assign'}</Button></div></div>;
-                })}</div>}
-              </div>}
+              </div>
 
               <div className="grid xl:grid-cols-12 gap-6">
-                <div className="xl:col-span-8 space-y-6">
+                <div className="space-y-6 xl:col-span-12">
                   <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 p-5">
                     <div className="grid md:grid-cols-3 gap-4">
                       <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-4">
@@ -609,7 +685,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, on
                       </div>
                     </div>
 
-                    <div className="border-t border-slate-200 pt-4 dark:border-slate-800">
+                    <div className="mt-4">
                       <div className="mb-3 flex items-center gap-2"><Hash className="h-4 w-4 text-primary" /><p className="text-xs font-black uppercase tracking-wider text-primary">Shipment requirements</p></div>
                       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                         <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950"><p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Dimensions</p><p className="mt-1 text-sm font-bold dark:text-white">{[load.length, load.width, load.height].every((value) => value != null) ? `${load.length} × ${load.width} × ${load.height} m` : 'Not specified'}</p></div>
@@ -642,53 +718,60 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, on
                   </div>
                 </div>
 
-                <div className="xl:col-span-4 space-y-6">
-                  <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-4">
-                    <p className="text-xs font-black uppercase tracking-wider text-primary">
-                      {u('legacy.loadDetails.financialTerms', 'Financial Terms')}
-                    </p>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
-                        <p className="text-xs text-slate-500">{u('legacy.loadDetails.price', 'Price')}</p>
-                        <p className="text-xl font-black text-primary mt-1">{load.price}</p>
-                      </div>
-                      <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
-                        <p className="text-xs text-slate-500">{u('legacy.loadDetails.terms', 'Terms')}</p>
-                        <p className="text-sm font-bold dark:text-white mt-1">{load.paymentTerms}</p>
-                      </div>
-                      <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
-                        <p className="text-xs text-slate-500">{u('legacy.loadDetails.incoterms', 'Incoterms')}</p>
-                        <p className="text-sm font-bold dark:text-white mt-1">{load.incoterms || '—'}</p>
-                      </div>
-                      <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
-                        <p className="text-xs text-slate-500">{u('legacy.loadDetails.insurance', 'Insurance')}</p>
-                        <p className="text-sm font-bold dark:text-white mt-1">{load.insurance || '—'}</p>
-                      </div>
-                      <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
-                        <p className="text-xs text-slate-500">{u('legacy.loadDetails.shipper', 'Shipper')}</p>
-                        <p className="truncate text-sm font-bold dark:text-white mt-1">{load.shipperName || '—'}</p>
-                      </div>
-                      <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
-                        <p className="text-xs text-slate-500">{u('legacy.loadDetails.mediator', 'Mediator')}</p>
-                        <p className="truncate text-sm font-bold dark:text-white mt-1">{load.mediator || '—'}</p>
-                      </div>
-                    </div>
-                    <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3 flex items-start gap-2">
-                      <Coins className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                      <p className="text-xs text-slate-600 dark:text-slate-300">
-                        {u(
-                          'legacy.loadDetails.smartSplitPayoutAvailable',
-                          'Smart split payout available after automated POD confirmation.'
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
+            )}
           </div>
         </motion.div>
       </div>
+
+      {(role === 'company' || role === 'superadmin') && (
+        <LoadAssignmentModal
+          open={assignmentOpen}
+          lang={lang}
+          mode={role}
+          companies={companies.map((company) => ({
+            id: String(company.id),
+            label: String(company.name || `Company ${company.id}`),
+          }))}
+          drivers={drivers.flatMap((driver) => {
+            const driverUser = driver.user as { id?: number; name?: string } | undefined;
+            return driverUser?.id ? [{ id: String(driverUser.id), label: driverUser.name || `Driver ${driverUser.id}` }] : [];
+          })}
+          companyId={bookingCompanyId}
+          driverId={bookingDriverId}
+          assignDriver={assignDriverNow}
+          loading={isBooking}
+          onCompanyChange={setBookingCompanyId}
+          onDriverChange={setBookingDriverId}
+          onAssignDriverChange={(value) => {
+            setAssignDriverNow(value);
+            if (!value) setBookingDriverId('');
+          }}
+          onClose={() => setAssignmentOpen(false)}
+          onConfirm={() => void bookLoad({
+            companyId: role === 'superadmin' && bookingCompanyId ? Number(bookingCompanyId) : undefined,
+            driverUserId: (role === 'superadmin' || assignDriverNow) && bookingDriverId ? Number(bookingDriverId) : undefined,
+          }, true)}
+        />
+      )}
+
+      {(role === 'company' || role === 'driver') && (
+        <LoadBidModal
+          open={showOfferForm}
+          lang={lang}
+          amount={offerAmount}
+          currency={offerCurrency}
+          message={offerMessage}
+          referenceAmount={bidState.displayAmount}
+          editing={Boolean(myOffer)}
+          loading={isSubmittingOffer}
+          onAmountChange={setOfferAmount}
+          onMessageChange={setOfferMessage}
+          onClose={() => setShowOfferForm(false)}
+          onSubmit={() => void submitOffer()}
+        />
+      )}
 
       <LenaAI
         open={lenaOpen}

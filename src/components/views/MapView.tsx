@@ -72,7 +72,7 @@ export const MapView = ({ lang }: { lang: Language }) => {
   };
 
   return (
-    <div className="relative h-full min-h-0 overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+    <div className="relative h-full min-h-0 overflow-hidden bg-white dark:bg-slate-900">
       <MapContainer center={[43.8563, 18.4131]} zoom={7} className="h-full w-full">
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap contributors" />
         <MapViewport result={selected} />

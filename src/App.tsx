@@ -3189,6 +3189,15 @@ const mapDatabaseRecordToLoad = (record: Record<string, unknown>): Load => {
   };
   const status = statusMap[rawStatus] || 'Pending';
   const terms = String(record.payment_terms || 'negotiable').toLowerCase();
+  const paymentTerms = terms === 'in_advance'
+    ? 'In Advance'
+    : terms === 'on_delivery'
+      ? 'On Delivery'
+      : terms === 'deferred'
+        ? 'Deferred'
+        : terms === 'negotiable'
+          ? 'Negotiable'
+          : terms.split('_').filter(Boolean).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ') || '—';
   const loadingMethods = Array.isArray(record.loading_methods)
     ? record.loading_methods.filter((method): method is 'Forklift' | 'Crane' | 'Manual' =>
         ['Forklift', 'Crane', 'Manual'].includes(String(method))
@@ -3218,11 +3227,16 @@ const mapDatabaseRecordToLoad = (record: Record<string, unknown>): Load => {
     pickup: [pickup?.city, pickup?.country_code].filter(Boolean).join(', '),
     delivery: [delivery?.city, delivery?.country_code].filter(Boolean).join(', '),
     date: String(record.published_at || record.created_at || ''),
-    author: String((record.customer as { name?: string } | undefined)?.name || ''),
+    author: String(
+      (record.company as { name?: string } | undefined)?.name
+      || (record.customer as { name?: string } | undefined)?.name
+      || ''
+    ),
     status,
     cargoType: String(record.cargo_type || ''),
     goodsType: String(record.goods_type || ''),
-    paymentTerms: terms === 'in_advance' ? 'In Advance' : terms === 'on_delivery' ? 'On Delivery' : 'Negotiable',
+    paymentTerms,
+    paymentDueDays: record.payment_due_days == null ? undefined : Number(record.payment_due_days),
     transportType: record.transport_type === 'air' ? 'air' : record.transport_type === 'sea' ? 'sea' : 'road',
     eta: String(delivery?.window_starts_at || delivery?.window_ends_at || record.completed_at || ''),
     isNegotiable: record.is_negotiable == null ? true : Boolean(record.is_negotiable),
@@ -4234,8 +4248,9 @@ export default function App() {
         <div
           ref={viewContentRef}
           className={cn(
-            "flex-1 min-h-0 p-6 pb-24 md:pb-6 mx-auto w-full",
-            isSidebarOpen || shouldShowFeedSidebarPanel ? "max-w-7xl" : "max-w-none",
+            "flex-1 min-h-0 mx-auto w-full",
+            view === 'map' ? "max-w-none p-0" : "p-6 pb-24 md:pb-6",
+            view !== 'map' && (isSidebarOpen || shouldShowFeedSidebarPanel ? "max-w-7xl" : "max-w-none"),
             view === 'messages' || view === 'map' ? "overflow-hidden" : "overflow-y-auto"
           )}
         >
@@ -4254,6 +4269,7 @@ export default function App() {
                     lang={lang}
                     role={role}
                     userId={currentUser?.id}
+                    companyIds={trackingCompanyIds}
                     companyIds={trackingCompanyIds}
                   />
                 )}
@@ -4355,6 +4371,10 @@ export default function App() {
           lang={lang}
           userId={currentUser?.id}
           companyIds={trackingCompanyIds}
+          onOpenLoad={(loadId) => {
+            setLenaAiOpen(false);
+            setOpenLoadDetailsId(loadId);
+          }}
         />
         <PostLoadModal isOpen={isPostLoadOpen} editLoadId={editLoadId} onClose={() => { setIsPostLoadOpen(false); setEditLoadId(null); }} onSaved={handleLoadSaved} lang={lang} />
         <BulkImportModal

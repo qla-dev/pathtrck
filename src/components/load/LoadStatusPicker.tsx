@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, CircleCheckBig, CircleX, Clock3, Eye, Loader2, Megaphone, PackageCheck, Send, Truck } from 'lucide-react';
+import { CircleCheckBig, CircleX, Clock3, Eye, Loader2, Megaphone, PackageCheck, Send, Truck } from 'lucide-react';
 
 import { trPackageStatus } from '../../i18n';
 import { cn } from '../../lib/cn';
@@ -38,9 +38,10 @@ type LoadStatusPickerProps = {
   isChanging?: boolean;
   onChange: (status: LoadStatus) => void;
   className?: string;
+  compact?: boolean;
 };
 
-export const LoadStatusPicker = ({ lang, status, isChanging = false, onChange, className }: LoadStatusPickerProps) => {
+export const LoadStatusPicker = ({ lang, status, isChanging = false, onChange, className, compact = false }: LoadStatusPickerProps) => {
   const [open, setOpen] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
 
@@ -62,23 +63,31 @@ export const LoadStatusPicker = ({ lang, status, isChanging = false, onChange, c
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-busy={isChanging}
+        aria-label={`${trPackageStatus(lang, status)} status`}
         className={cn(
-          'flex h-12 w-full cursor-pointer items-center gap-3 rounded-xl border px-4 transition-colors disabled:cursor-wait disabled:opacity-60',
+          compact
+            ? 'flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border transition-colors disabled:cursor-wait disabled:opacity-60'
+            : 'flex h-12 w-full cursor-pointer items-center gap-3 rounded-xl border px-4 transition-colors disabled:cursor-wait disabled:opacity-60',
           statusPickerColors(status)
         )}
       >
-        <span className="hidden text-[10px] font-black uppercase tracking-wider opacity-65 sm:inline">Status</span>
-        <span className="flex min-w-0 flex-1 items-center justify-between gap-5">
-          <span className="flex items-center gap-1.5 text-sm font-bold leading-none">
-            {isChanging ? <Loader2 className="h-4 w-4 animate-spin" /> : <LoadStatusIcon status={status} />}
-            {trPackageStatus(lang, status)}
-          </span>
-          <ChevronDown className={cn('h-4 w-4 shrink-0 transition-transform', open && 'rotate-180')} />
-        </span>
+        {compact ? (
+          isChanging ? <Loader2 className="h-4 w-4 animate-spin" /> : <LoadStatusIcon status={status} className="h-5 w-5" />
+        ) : (
+          <>
+            <span className="hidden text-[10px] font-black uppercase tracking-wider opacity-65 sm:inline">Status</span>
+            <span className="flex min-w-0 flex-1 items-center gap-1.5">
+              <span className="flex items-center gap-1.5 text-sm font-bold leading-none">
+                {isChanging ? <Loader2 className="h-4 w-4 animate-spin" /> : <LoadStatusIcon status={status} />}
+                {trPackageStatus(lang, status)}
+              </span>
+            </span>
+          </>
+        )}
       </button>
 
       {open && (
-        <div role="listbox" aria-label="Shipment status" className="absolute inset-x-0 top-full z-60 mt-2 w-full space-y-2 rounded-xl border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+        <div role="listbox" aria-label="Shipment status" className={cn('absolute top-full z-60 mt-2 space-y-2 rounded-xl border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900', compact ? 'right-0 w-56' : 'inset-x-0 w-full')}>
           {LOAD_STATUS_OPTIONS.map(([value, option]) => (
             <button
               type="button"

@@ -40,7 +40,7 @@ export const TrackingItemDetails = ({ open, headerAction, bodyClassName, onClose
             exit={{ opacity: 0, y: 16, scale: 0.996 }}
             transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
           >
-            <header className="flex items-center gap-4 border-b border-slate-100 p-5 dark:border-slate-800 md:p-7">
+            <header className="flex items-center gap-4 border-b border-slate-100 px-5 py-4 dark:border-slate-800 md:px-7">
               <div className="min-w-0 flex-1">{headerNavigation}</div>
               <div className="flex shrink-0 items-center gap-2">
                 {headerAction}
@@ -48,7 +48,7 @@ export const TrackingItemDetails = ({ open, headerAction, bodyClassName, onClose
                   type="button"
                   onClick={onClose}
                   aria-label="Close tracking item details"
-                  className="flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-slate-100 text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                  className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-slate-100 text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
                 >
                   <X className="h-5 w-5" />
                 </button>

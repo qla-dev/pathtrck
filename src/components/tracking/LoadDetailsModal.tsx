@@ -289,8 +289,10 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
       open={Boolean(selectedPackage.id)}
       onClose={onClose}
       bodyClassName={
-        rightTab === 'map' || (rightTab === 'returnRoutes' && !returnRoutesUnlocked)
-          ? 'overflow-hidden'
+        rightTab === 'map'
+          ? 'overflow-hidden p-0 md:p-0'
+          : rightTab === 'returnRoutes' && !returnRoutesUnlocked
+            ? 'overflow-hidden'
           : undefined
       }
       headerAction={(
@@ -298,7 +300,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
           <button
             type="button"
             onClick={() => setLenaOpen(true)}
-            className="hidden sm:inline-flex h-12 items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 text-xs font-bold text-primary transition-all hover:bg-primary/10 cursor-pointer"
+            className="hidden sm:inline-flex h-10 items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 text-xs font-bold text-primary transition-all hover:bg-primary/10 cursor-pointer"
           >
             <Sparkles className="w-4 h-4" />
             {u('Ask LenaAI about this Load', 'Ask LenaAI about this Load')}
@@ -307,7 +309,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
             type="button"
             onClick={() => setLenaOpen(true)}
             aria-label={u('Ask LenaAI about this Load', 'Ask LenaAI about this Load')}
-            className="sm:hidden h-12 w-12 rounded-xl border border-primary/30 bg-primary/5 text-primary flex items-center justify-center hover:bg-primary/10 transition-all cursor-pointer"
+            className="sm:hidden h-10 w-10 rounded-xl border border-primary/30 bg-primary/5 text-primary flex items-center justify-center hover:bg-primary/10 transition-all cursor-pointer"
           >
             <Sparkles className="w-5 h-5" />
           </button>
@@ -317,13 +319,14 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
               status={selectedPackage.status}
               isChanging={statusChanging !== null}
               onChange={(status) => void changeLoadStatus(status)}
+              className="[&_button]:h-10"
             />
           )}
         </>
       )}
     >
       <div className="overflow-x-auto [scrollbar-width:thin] [scrollbar-color:rgb(148_163_184/0.72)_transparent] dark:[scrollbar-color:rgb(71_85_105/0.8)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-400/70 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600/80 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:bg-slate-500/90 dark:[&::-webkit-scrollbar-thumb:hover]:bg-slate-500/95">
-        <div className="inline-flex h-12 min-w-full w-max items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1">
+        <div className="inline-flex h-10 min-w-full w-max items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1">
         <button
           onClick={() => setRightTab('details')}
           className={cn(
@@ -517,8 +520,8 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
 
       {rightTab === 'map' && (
         <Card
-          className="flex h-full min-h-0 flex-col"
-          contentClassName="min-h-0 flex-1"
+          className="flex h-full min-h-0 flex-col rounded-none border-0"
+          contentClassName="min-h-0 flex-1 p-0"
           title={u('tracking.liveLocation', 'Live Location')}
           headerAction={
             <div className="flex flex-wrap items-center justify-end gap-2">
@@ -561,7 +564,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
             </div>
           }
         >
-          <div className="h-full min-h-0 rounded-xl overflow-hidden relative">
+          <div className="relative h-full min-h-0 overflow-hidden">
              <MapContainer center={selectedPackage.currentLocation} zoom={13} className="h-full w-full">
                 <TileLayer
                   url="https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"

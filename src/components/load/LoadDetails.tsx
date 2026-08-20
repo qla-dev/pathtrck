@@ -28,6 +28,7 @@ import { api, ApiError } from '../../services/api';
 import { ui } from '../../i18n';
 import { Button } from '../ui/Button';
 import { LoadStatusPicker } from './LoadStatusPicker';
+import { LoadBidModal } from './LoadBidModal';
 
 type LoadDetailsProps = {
   open: boolean;
@@ -240,7 +241,14 @@ export const LoadDetails = ({ open, load, onClose, lang, role, userId, onEdit, o
   const submitOffer = async () => {
     if (!load || isSubmittingOffer) return;
     const amount = Number(offerAmount);
-    if (!Number.isFinite(amount) || amount <= 0) return;
+    const minimumAmount = getBidState(offers, userId, load.budget).displayAmount ?? 0;
+    if (!Number.isFinite(amount) || amount <= 0 || amount < minimumAmount) {
+      void showError(
+        u('Offer amount too low', 'Offer amount too low'),
+        u('Offer minimum amount', 'Your offer must be at least {amount}.').replace('{amount}', `${offerCurrency} ${minimumAmount.toLocaleString()}`)
+      );
+      return;
+    }
 
     setIsSubmittingOffer(true);
     try {
@@ -292,9 +300,17 @@ export const LoadDetails = ({ open, load, onClose, lang, role, userId, onEdit, o
   const bidState = getBidState(offers, userId, load.budget);
   const myOffer = bidState.myOffer;
   const offerLabel = getOfferLabel(u, bidState, offerCurrency);
+  const paymentTermsLabel = load.paymentTerms === 'Deferred' && load.paymentDueDays
+    ? `${load.paymentTerms} · ${load.paymentDueDays} days`
+    : load.paymentTerms || '—';
   const bookLabel = load.budget && load.budget > 0
     ? `${u('legacy.loadDetails.bookNow', 'Book now')} · ${offerCurrency} ${load.budget.toLocaleString()}`
     : u('legacy.loadDetails.bookNow', 'Book now');
+  const openBidModal = () => {
+    setOfferAmount(bidState.displayAmount == null ? '' : String(bidState.displayAmount));
+    setOfferMessage(myOffer ? String(myOffer.message ?? '') : '');
+    setShowOfferForm(true);
+  };
 
   return (
     <motion.div
@@ -329,13 +345,13 @@ export const LoadDetails = ({ open, load, onClose, lang, role, userId, onEdit, o
           <div className="flex-1 overflow-y-auto p-5 md:p-7">
             <div className="space-y-6">
               <div className="grid xl:grid-cols-12 gap-6">
-                <div className="xl:col-span-8 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+                <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900 xl:col-span-8">
                   <p className="mb-4 text-xs font-black uppercase tracking-wider text-primary">Load snapshot</p>
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><Building2 className="h-4 w-4 text-primary" /><p className="mt-3 text-xs text-slate-500">{u('legacy.loadDetails.postedBy', 'Posted by')}</p><p className="mt-1 truncate text-sm font-bold dark:text-white">{load.author || '—'}</p></div>
-                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><CalendarDays className="h-4 w-4 text-primary" /><p className="mt-3 text-xs text-slate-500">{u('legacy.loadDetails.postedDate', 'Posted date')}</p><p className="mt-1 text-sm font-bold dark:text-white">{formatLoadDate(load.date)}</p></div>
-                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><Box className="h-4 w-4 text-primary" /><p className="mt-3 text-xs text-slate-500">Goods type</p><p className="mt-1 truncate text-sm font-bold dark:text-white">{load.goodsType || 'General'}</p></div>
-                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><CalendarClock className="h-4 w-4 text-primary" /><p className="mt-3 text-xs text-slate-500">{u('legacy.loadDetails.latestEta', 'Latest ETA')}</p><p className="mt-1 text-sm font-bold dark:text-white">{formatLoadDate(load.eta)}</p></div>
+                  <div className="grid flex-1 items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <div className="flex h-full min-h-32 flex-col justify-center rounded-xl bg-slate-50 p-4 dark:bg-slate-950"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Building2 className="h-6 w-6" /></div><p className="mt-4 text-xs text-slate-500">{u('legacy.loadDetails.postedBy', 'Posted by')}</p><p className="mt-1 truncate text-sm font-bold dark:text-white">{load.author || '—'}</p></div>
+                    <div className="flex h-full min-h-32 flex-col justify-center rounded-xl bg-slate-50 p-4 dark:bg-slate-950"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><CalendarDays className="h-6 w-6" /></div><p className="mt-4 text-xs text-slate-500">{u('legacy.loadDetails.postedDate', 'Posted date')}</p><p className="mt-1 text-sm font-bold dark:text-white">{formatLoadDate(load.date)}</p></div>
+                    <div className="flex h-full min-h-32 flex-col justify-center rounded-xl bg-slate-50 p-4 dark:bg-slate-950"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Box className="h-6 w-6" /></div><p className="mt-4 text-xs text-slate-500">Goods type</p><p className="mt-1 truncate text-sm font-bold dark:text-white">{load.goodsType || 'General'}</p></div>
+                    <div className="flex h-full min-h-32 flex-col justify-center rounded-xl bg-slate-50 p-4 dark:bg-slate-950"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><CalendarClock className="h-6 w-6" /></div><p className="mt-4 text-xs text-slate-500">{u('legacy.loadDetails.latestEta', 'Latest ETA')}</p><p className="mt-1 text-sm font-bold dark:text-white">{formatLoadDate(load.eta)}</p></div>
                   </div>
                 </div>
 
@@ -350,7 +366,7 @@ export const LoadDetails = ({ open, load, onClose, lang, role, userId, onEdit, o
                     <Button className="w-full" onClick={() => onEdit?.(load)}><Pencil className="mr-2 h-4 w-4" />Edit load</Button>
                     <LoadStatusPicker lang={lang} status={currentStatus} isChanging={statusChanging} onChange={(status) => void changeStatus(status)} />
                   </> : role === 'driver' ? (
-                    load.isNegotiable === false ? (
+                    load.isNegotiable !== true ? (
                       <Button
                         className="w-full"
                         disabled={isBooking || currentStatus !== 'Posted'}
@@ -362,58 +378,50 @@ export const LoadDetails = ({ open, load, onClose, lang, role, userId, onEdit, o
                             ? bookLabel
                             : u('legacy.loadDetails.alreadyBooked', 'Already booked')}
                       </Button>
-                    ) : !showOfferForm ? (
+                    ) : (
                       <Button
-                        variant="outline"
-                        className="w-full"
+                        className="h-11 w-full rounded-xl shadow-lg shadow-primary/20"
                         disabled={currentStatus !== 'Posted'}
-                        onClick={() => {
-                          if (myOffer) {
-                            setOfferAmount(String(myOffer.amount ?? ''));
-                            setOfferMessage(String(myOffer.message ?? ''));
-                          }
-                          setShowOfferForm(true);
-                        }}
+                        onClick={openBidModal}
                       >
                         {offerLabel}
                         {!myOffer && <ChevronRight className="ml-1 h-4 w-4" />}
                       </Button>
-                    ) : (
-                      <div className="space-y-2">
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          autoFocus
-                          value={offerAmount}
-                          onChange={(event) => setOfferAmount(event.target.value)}
-                          placeholder={u('legacy.loadDetails.offerAmountPlaceholder', 'Your offer amount')}
-                          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                        />
-                        <textarea
-                          value={offerMessage}
-                          onChange={(event) => setOfferMessage(event.target.value)}
-                          placeholder={u('legacy.loadDetails.offerMessagePlaceholder', 'Message to the customer (optional)')}
-                          rows={2}
-                          className="w-full resize-none rounded-xl border border-slate-200 bg-white p-3 text-sm outline-none focus:ring-2 focus:ring-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                        />
-                        <Button
-                          className="w-full"
-                          disabled={isSubmittingOffer || !offerAmount}
-                          onClick={() => void submitOffer()}
-                        >
-                          {isSubmittingOffer
-                            ? (myOffer ? u('legacy.loadDetails.updatingOffer', 'Updating…') : u('legacy.loadDetails.sendingOffer', 'Sending…'))
-                            : (myOffer ? u('legacy.loadDetails.updateOffer', 'Update offer') : u('legacy.loadDetails.sendOffer', 'Send offer'))}
-                        </Button>
-                      </div>
                     )
                   ) : null}
                 </div>
               </div>
 
-              <section className="overflow-hidden rounded-3xl border border-sky-100 bg-gradient-to-br from-white via-sky-50 to-cyan-100 text-slate-900 shadow-xl shadow-sky-950/10 dark:border-slate-800 dark:bg-slate-950 dark:text-white">
-                <div className="relative isolate px-5 py-6 md:px-7 md:py-7">
+              <div className="grid gap-6 xl:grid-cols-12">
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900 xl:col-span-4">
+                  <div className="space-y-4">
+                    <p className="text-xs font-black uppercase tracking-wider text-primary">
+                      {u('legacy.loadDetails.financialTerms', 'Financial Terms')}
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+                        <p className="text-xs text-slate-500">{u('legacy.loadDetails.price', 'Price')}</p>
+                        <p className="mt-1 text-xl font-black text-primary">{load.price}</p>
+                      </div>
+                      <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+                        <p className="text-xs text-slate-500">{u('legacy.loadDetails.terms', 'Terms')}</p>
+                        <p className="mt-1 text-sm font-bold dark:text-white">{paymentTermsLabel}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+                      <Coins className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                      <p className="text-xs text-slate-600 dark:text-slate-300">
+                        {u(
+                          'legacy.loadDetails.smartSplitPayoutAvailable',
+                          'Smart split payout available after automated POD confirmation.'
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+              <section className="overflow-hidden rounded-3xl border border-sky-100 bg-gradient-to-br from-white via-sky-50 to-cyan-100 text-slate-900 shadow-xl shadow-sky-950/10 dark:border-slate-800 dark:bg-slate-950 dark:text-white xl:col-span-8">
+                <div className="relative isolate flex h-full flex-col px-5 py-6 md:px-7 md:py-7">
                   <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-primary/20 blur-3xl dark:bg-primary/25" />
                   <div className="absolute -bottom-28 left-1/3 h-56 w-56 rounded-full bg-cyan-400/25 blur-3xl dark:bg-cyan-400/15" />
                   <div className="relative flex flex-wrap items-start justify-between gap-4">
@@ -439,14 +447,27 @@ export const LoadDetails = ({ open, load, onClose, lang, role, userId, onEdit, o
                     </div>
                   </div>
 
-                  <div className="relative mt-5 grid grid-cols-2 gap-3 border-t border-sky-200/80 pt-5 dark:border-white/10 md:grid-cols-4">
-                    <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Load ID</p><p className="mt-1 font-bold">#{load.id}</p></div>
-                    <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Transit</p><p className="mt-1 font-bold">{load.transitDays ? `${load.transitDays} days` : 'To be confirmed'}</p></div>
-                    <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Cargo</p><p className="mt-1 font-bold">{load.cargoType || 'General cargo'}</p></div>
-                    <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">ETA</p><p className="mt-1 truncate font-bold">{formatLoadDate(load.eta)}</p></div>
+                  <div className="relative mt-5 grid flex-1 grid-cols-2 items-stretch gap-3 border-t border-sky-200/80 pt-5 dark:border-white/10 md:grid-cols-4">
+                    <div className="flex h-full min-h-24 items-center gap-3 rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur-sm dark:border-white/15 dark:bg-white/8">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-600 dark:text-cyan-300"><Hash className="h-5 w-5" /></div>
+                      <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Load ID</p><p className="mt-1 truncate font-bold">#{load.id}</p></div>
+                    </div>
+                    <div className="flex h-full min-h-24 items-center gap-3 rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur-sm dark:border-white/15 dark:bg-white/8">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-violet-600 dark:text-violet-300"><CalendarClock className="h-5 w-5" /></div>
+                      <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Transit</p><p className="mt-1 font-bold">{load.transitDays ? `${load.transitDays} days` : 'To be confirmed'}</p></div>
+                    </div>
+                    <div className="flex h-full min-h-24 items-center gap-3 rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur-sm dark:border-white/15 dark:bg-white/8">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-300"><Box className="h-5 w-5" /></div>
+                      <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Cargo</p><p className="mt-1 truncate font-bold">{load.cargoType || 'General cargo'}</p></div>
+                    </div>
+                    <div className="flex h-full min-h-24 items-center gap-3 rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur-sm dark:border-white/15 dark:bg-white/8">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-300"><CalendarDays className="h-5 w-5" /></div>
+                      <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">ETA</p><p className="mt-1 truncate font-bold">{formatLoadDate(load.eta)}</p></div>
+                    </div>
                   </div>
                 </div>
               </section>
+              </div>
 
               {role === 'superadmin' && <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
                 <div className="mb-4 flex items-center gap-2 text-primary"><UserCheck className="h-5 w-5" /><p className="text-xs font-black uppercase tracking-wider">Offers & driver assignment</p></div>
@@ -460,7 +481,7 @@ export const LoadDetails = ({ open, load, onClose, lang, role, userId, onEdit, o
               </div>}
 
               <div className="grid xl:grid-cols-12 gap-6">
-                <div className="xl:col-span-8 space-y-6">
+                <div className="space-y-6 xl:col-span-12">
                   <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 p-5">
                     <div className="flex flex-wrap items-center gap-2 mb-4">
                       <span className={cn('px-3 py-1 rounded-full border text-xs font-bold uppercase tracking-wider', getStatusTone(currentStatus))}>
@@ -470,7 +491,7 @@ export const LoadDetails = ({ open, load, onClose, lang, role, userId, onEdit, o
                         {load.goodsType}
                       </span>
                       <span className={cn('px-3 py-1 rounded-full border text-xs font-bold uppercase tracking-wider', getPaymentTone(load.paymentTerms))}>
-                        {load.paymentTerms}
+                        {paymentTermsLabel}
                       </span>
                     </div>
 
@@ -495,7 +516,7 @@ export const LoadDetails = ({ open, load, onClose, lang, role, userId, onEdit, o
                       </div>
                     </div>
 
-                    <div className="border-t border-slate-200 pt-4 dark:border-slate-800">
+                    <div className="mt-4">
                       <div className="mb-3 flex items-center gap-2"><Hash className="h-4 w-4 text-primary" /><p className="text-xs font-black uppercase tracking-wider text-primary">Shipment requirements</p></div>
                       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                         <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950"><p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Dimensions</p><p className="mt-1 text-sm font-bold dark:text-white">{[load.length, load.width, load.height].every((value) => value != null) ? `${load.length} × ${load.width} × ${load.height} m` : 'Not specified'}</p></div>
@@ -528,37 +549,27 @@ export const LoadDetails = ({ open, load, onClose, lang, role, userId, onEdit, o
                   </div>
                 </div>
 
-                <div className="xl:col-span-4 space-y-6">
-                  <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-4">
-                    <p className="text-xs font-black uppercase tracking-wider text-primary">
-                      {u('legacy.loadDetails.financialTerms', 'Financial Terms')}
-                    </p>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
-                        <p className="text-xs text-slate-500">{u('legacy.loadDetails.price', 'Price')}</p>
-                        <p className="text-xl font-black text-primary mt-1">{load.price}</p>
-                      </div>
-                      <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
-                        <p className="text-xs text-slate-500">{u('legacy.loadDetails.terms', 'Terms')}</p>
-                        <p className="text-sm font-bold dark:text-white mt-1">{load.paymentTerms}</p>
-                      </div>
-                    </div>
-                    <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3 flex items-start gap-2">
-                      <Coins className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                      <p className="text-xs text-slate-600 dark:text-slate-300">
-                        {u(
-                          'legacy.loadDetails.smartSplitPayoutAvailable',
-                          'Smart split payout available after automated POD confirmation.'
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
         </motion.div>
       </div>
+      {role === 'driver' && (
+        <LoadBidModal
+          open={showOfferForm}
+          lang={lang}
+          amount={offerAmount}
+          currency={offerCurrency}
+          message={offerMessage}
+          referenceAmount={bidState.displayAmount}
+          editing={Boolean(myOffer)}
+          loading={isSubmittingOffer}
+          onAmountChange={setOfferAmount}
+          onMessageChange={setOfferMessage}
+          onClose={() => setShowOfferForm(false)}
+          onSubmit={() => void submitOffer()}
+        />
+      )}
     </motion.div>
   );
 };

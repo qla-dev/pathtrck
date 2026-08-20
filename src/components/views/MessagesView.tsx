@@ -5,11 +5,14 @@ import { ui } from '../../i18n';
 import { showError } from '../../lib/swal';
 import { ChatConversationPanel } from '../chat/ChatConversationPanel';
 import { ChatSidebar } from '../chat/ChatSidebar';
-import { Channel, Conversation } from '../chat/types';
+import { Channel, ChatMessage, Conversation } from '../chat/types';
 import { AI_DISPATCH_SUBJECT_PREFIX, ApiUser, api } from '../../services/api';
 import { useApiList } from '../../hooks/useApiList';
 import { mapLoadStatus } from '../../lib/loadDetails';
 import { trPackageStatus } from '../../i18n';
+
+const BOOKING_MARKER_PATTERN = /\[\[OFFER_BOOKING(?::(\d+))?\]\]/;
+const BOOKING_MARKER_GLOBAL_PATTERN = /\[\[OFFER_BOOKING(?::\d+)?\]\]/g;
 
 export const MessagesView = ({ lang, onOpenLoad }: { lang: Language; onOpenLoad?: (loadId: string) => void }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
@@ -78,6 +81,41 @@ export const MessagesView = ({ lang, onOpenLoad }: { lang: Language; onOpenLoad?
     return { ...base, messages: [...base.messages, { id: 'optimistic', sender: 'me' as const, text: optimisticText, time: '' }] };
   }, [filteredConversations, activeId, conversations, optimisticText]);
 
+  const bookingOffers = useMemo(
+    () => new Map(activeConversation.messages.flatMap((message) => {
+      const match = message.text.match(BOOKING_MARKER_PATTERN);
+      return match ? [[message.id, match[1] ?? null] as const] : [];
+    })),
+    [activeConversation.messages]
+  );
+
+  const displayConversation = useMemo(() => ({
+    ...activeConversation,
+    messages: activeConversation.messages.map((message) => ({
+      ...message,
+      text: message.text.replace(BOOKING_MARKER_GLOBAL_PATTERN, '').trim(),
+    })),
+  }), [activeConversation]);
+
+  const renderMessageExtra = onOpenLoad
+    ? (message: ChatMessage) => {
+        const offeredLoadId = bookingOffers.get(message.id);
+        if (!offeredLoadId) return null;
+
+        return (
+          <div className="mt-2 flex w-fit max-w-full items-center rounded-xl border border-primary/30 bg-primary/5 p-2">
+            <button
+              type="button"
+              onClick={() => onOpenLoad(offeredLoadId)}
+              className="shrink-0 cursor-pointer rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-white transition-all hover:brightness-95"
+            >
+              {u('common.bookLoad', 'Reserve')}
+            </button>
+          </div>
+        );
+      }
+    : undefined;
+
   const sendMessage = async () => {
     const text = draft.trim();
     if (!text || !activeConversation.id || !user || aiReplying) return;
@@ -121,7 +159,7 @@ export const MessagesView = ({ lang, onOpenLoad }: { lang: Language; onOpenLoad?
         />
 
         <ChatConversationPanel
-          activeConversation={activeConversation}
+          activeConversation={displayConversation}
           draft={draft}
           onDraftChange={setDraft}
           onSend={sendMessage}
@@ -129,6 +167,7 @@ export const MessagesView = ({ lang, onOpenLoad }: { lang: Language; onOpenLoad?
           className="lg:col-span-8"
           otherTyping={aiReplying}
           onTitleClick={activeConversation.loadId && onOpenLoad ? () => onOpenLoad(activeConversation.loadId!) : undefined}
+          renderMessageExtra={renderMessageExtra}
         />
       </div>
     </div>

@@ -33,6 +33,8 @@ export interface Package {
   stops?: Array<Record<string, unknown>>;
   origin: string;
   destination: string;
+  originCountryCode?: string;
+  destinationCountryCode?: string;
   addedDate: string;
   transitDays: number;
   description?: string;
@@ -75,7 +77,8 @@ export interface Load {
   status: LoadStatus;
   cargoType: string;
   goodsType: string;
-  paymentTerms: 'In Advance' | 'Negotiable' | 'On Delivery';
+  paymentTerms: string;
+  paymentDueDays?: number;
   eta: string;
   transportType?: 'road' | 'air' | 'sea';
   isNegotiable?: boolean;

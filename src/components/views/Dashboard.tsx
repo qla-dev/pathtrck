@@ -309,7 +309,7 @@ export const Dashboard = ({ role, lang }: { role: Role; lang: Language }) => {
 
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {liveTopMetrics.map((metric) => (
-          <Card key={metric.label} className="p-4">
+          <Card key={metric.label} contentClassName="p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold leading-snug break-words max-w-[11ch]">

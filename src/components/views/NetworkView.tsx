@@ -44,7 +44,7 @@ export const NetworkView = ({ lang }: { lang: Language }) => {
 
       <div className="grid md:grid-cols-4 gap-6">
         {stats.map((s, i) => (
-          <Card key={i} className="p-6">
+          <Card key={i} contentClassName="p-4">
             <div className="flex items-center gap-4">
               <div className={cn("p-3 rounded-2xl bg-slate-50 dark:bg-slate-800", s.color)}>
                 <s.icon className="w-6 h-6" />
