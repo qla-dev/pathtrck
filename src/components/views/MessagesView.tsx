@@ -93,10 +93,10 @@ export const MessagesView = ({ lang, onOpenLoad }: { lang: Language; onOpenLoad?
         setAiReplying(true);
         try {
           await api.dispatchChat.reply(Number(activeConversation.id));
+          await result.refresh();
         } finally {
           setAiReplying(false);
         }
-        await result.refresh();
       }
     } catch (error) {
       setOptimisticText(null);

@@ -1,7 +1,8 @@
 import { Bot, Image as ImageIcon, Mic, Paperclip, Phone, Send, Video } from 'lucide-react';
-import { useLayoutEffect, useRef, type ReactNode } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { cn } from '../../lib/cn';
 import { ChatMessage, Conversation } from './types';
+import { TypewriterText } from './TypewriterText';
 
 const URL_PATTERN = /(https?:\/\/[^\s]+)/g;
 
@@ -47,18 +48,39 @@ export const ChatConversationPanel = ({
   const primaryActionButtonClass = 'h-9 rounded-lg bg-primary text-white flex items-center justify-center cursor-pointer transition-all hover:brightness-95';
   const messageListRef = useRef<HTMLDivElement>(null);
   const previousConversationIdRef = useRef<string | null>(null);
+  const knownMessageIdsRef = useRef(new Set(activeConversation.messages.map((message) => message.id)));
+  const knownMessagesConversationIdRef = useRef(activeConversation.id);
+  const [typingMessageId, setTypingMessageId] = useState<string | null>(null);
+
+  const scrollMessageListToBottom = useCallback((behavior: ScrollBehavior = 'auto') => {
+    const messageList = messageListRef.current;
+    messageList?.scrollTo({ top: messageList.scrollHeight, behavior });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (knownMessagesConversationIdRef.current !== activeConversation.id) {
+      knownMessagesConversationIdRef.current = activeConversation.id;
+      knownMessageIdsRef.current = new Set(activeConversation.messages.map((message) => message.id));
+      setTypingMessageId(null);
+      return;
+    }
+
+    const newMessages = activeConversation.messages.filter((message) => !knownMessageIdsRef.current.has(message.id));
+    newMessages.forEach((message) => knownMessageIdsRef.current.add(message.id));
+
+    const latestNewMessage = newMessages.at(-1);
+    if (activeConversation.isAiDispatch && latestNewMessage?.sender === 'other') {
+      setTypingMessageId(latestNewMessage.id);
+    }
+  }, [activeConversation.id, activeConversation.isAiDispatch, activeConversation.messages]);
 
   useLayoutEffect(() => {
     // Scroll only the message list. scrollIntoView also scrolls outer ancestors,
     // which can move the entire application when this view opens from the header.
     const isSameConversation = previousConversationIdRef.current === activeConversation.id;
     previousConversationIdRef.current = activeConversation.id;
-    const messageList = messageListRef.current;
-    messageList?.scrollTo({
-      top: messageList.scrollHeight,
-      behavior: isSameConversation ? 'smooth' : 'auto',
-    });
-  }, [activeConversation.id, activeConversation.messages.length, otherTyping]);
+    scrollMessageListToBottom(isSameConversation ? 'smooth' : 'auto');
+  }, [activeConversation.id, activeConversation.messages.length, otherTyping, scrollMessageListToBottom]);
 
   return (
   <div className={cn("lg:col-span-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col overflow-hidden h-full min-h-0", className)}>
@@ -124,7 +146,14 @@ export const ChatConversationPanel = ({
                     : 'dark:text-slate-200'
               )}
             >
-              {renderMessageText(m.text)}
+              {typingMessageId === m.id ? (
+                <TypewriterText
+                  text={m.text}
+                  render={renderMessageText}
+                  onUpdate={scrollMessageListToBottom}
+                  onComplete={() => setTypingMessageId((currentId) => currentId === m.id ? null : currentId)}
+                />
+              ) : renderMessageText(m.text)}
             </p>
             <p
               className={cn(
@@ -139,7 +168,7 @@ export const ChatConversationPanel = ({
               {m.time}
             </p>
           </div>
-          {renderMessageExtra?.(m)}
+          {typingMessageId !== m.id && renderMessageExtra?.(m)}
         </div>
       ))}
       {otherTyping && (
