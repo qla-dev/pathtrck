@@ -15,6 +15,7 @@ import { trPackageStatus } from '../../i18n';
 import { useLenaEmbeddedMessages } from '../lena/useLenaEmbeddedMessages';
 import { LenaLoadCanvas } from '../lena/LenaLoadCanvas';
 import { ScanFieldPatch } from '../modals/scanFieldRows';
+import { latestLoadScan, LenaAttachment } from '../../lib/lenaLoadCanvas';
 
 type MessagesViewProps = {
   lang: Language;
@@ -124,7 +125,16 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     setDraft('');
     setOptimisticText(text);
     try {
-      await api.messages.create({ conversation_id: Number(activeConversation.id), sender_user_id: user.id, body: text, sent_at: new Date().toISOString() });
+      let attachments: LenaAttachment[] | undefined;
+      if (canvasEnabled && activeConversation.isAiDispatch && text.length >= 8) {
+        try {
+          const scan = await api.loads.scanText(text, latestLoadScan(canvasAttachments));
+          attachments = [{ name: 'LenaAI conversation', type: 'text/plain', size: new Blob([text]).size, loadScan: scan.data }];
+        } catch {
+          // The normal conversation must still be sent if structured extraction is unavailable.
+        }
+      }
+      await api.messages.create({ conversation_id: Number(activeConversation.id), sender_user_id: user.id, body: text, attachments, sent_at: new Date().toISOString() });
       await result.refresh();
       setOptimisticText(null);
 
