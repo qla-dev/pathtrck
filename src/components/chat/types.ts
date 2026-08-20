@@ -16,5 +16,7 @@ export type Conversation = {
   unread: number;
   lastTime: string;
   messages: ChatMessage[];
+  loadId?: string;
+  isAiDispatch?: boolean;
 };
 

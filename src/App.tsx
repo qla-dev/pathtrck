@@ -3201,6 +3201,7 @@ export default function App() {
   const [lang, setLang] = useState<Language>(() => getInitialLanguage());
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [view, setView] = useState('tracking');
+  const [pendingTrackingLoadId, setPendingTrackingLoadId] = useState<string | null>(null);
   const [isDark, setIsDark] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => getInitialSidebarState());
   const [isMainFilterSidebarOpen, setIsMainFilterSidebarOpen] = useState(false);
@@ -4193,6 +4194,8 @@ export default function App() {
                     role={role}
                     userId={currentUser?.id}
                     companyIds={trackingCompanyIds}
+                    initialLoadId={pendingTrackingLoadId ?? undefined}
+                    onInitialLoadHandled={() => setPendingTrackingLoadId(null)}
                   />
                 )}
 	              {view === 'feed' && (
@@ -4248,7 +4251,15 @@ export default function App() {
                   />
                 )}
 	              {view === 'notes' && <LoadNotesView lang={lang} />}
-	              {view === 'messages' && <MessagesView lang={lang} />}
+	              {view === 'messages' && (
+	                <MessagesView
+	                  lang={lang}
+	                  onOpenLoad={(loadId) => {
+	                    setPendingTrackingLoadId(loadId);
+	                    setView('tracking');
+	                  }}
+	                />
+	              )}
 	              {view === 'map' && <MapView lang={lang} />}
 	              {view === 'admin' && <AdminOverviewView lang={lang} />}
 	              {view === 'admin-customers' && <AdminCustomersView lang={lang} onOpenEmailStudio={() => setView('email-studio')} />}

@@ -32,4 +32,4 @@ Local development and production both call the deployed Laravel API directly. Ke
 VITE_API_BACKEND=production
 ```
 
-Production builds then call `https://cargo.qla.dev/endpoints/api` directly.
+Production builds then call `https://freightbook.ai/endpoints/api` directly.

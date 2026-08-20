@@ -41,3 +41,4 @@ export async function getRouteInsights(stops: string[]) {
     return "Maintain steady speed for optimal fuel efficiency.";
   }
 }
+

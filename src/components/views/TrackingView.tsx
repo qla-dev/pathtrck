@@ -3,7 +3,7 @@ import Flatpickr from 'react-flatpickr';
 import { Search, MapPin, ChevronRight, Package as PackageIcon, Clock3, RotateCcw, Share2, Star, Bot, Route, Lock, Coins, Loader2, Sparkles, Truck, Plane, Ship, FileBarChart2, Upload, FileSpreadsheet, Fuel, BedDouble, ParkingCircle, Landmark, Filter, CalendarDays, ReceiptText, FileText, Printer, Trash2, List, LayoutGrid } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, CircleMarker, Tooltip } from 'react-leaflet';
 import { Language, Package as PackageData, Role, ShipmentDetail } from '../../types';
-import { api } from '../../services/api';
+import { AI_DISPATCH_SUBJECT_PREFIX, api } from '../../services/api';
 import { useApiList } from '../../hooks/useApiList';
 import { getSmartStatusUpdate } from '../../services/geminiService';
 import { flatpickrI18n, ui, trPackageStatus } from '../../i18n';
@@ -117,9 +117,11 @@ type TrackingViewProps = {
   role: Role;
   userId?: number;
   companyIds?: number[];
+  initialLoadId?: string;
+  onInitialLoadHandled?: () => void;
 };
 
-export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingViewProps) => {
+export const TrackingView = ({ lang, role, userId, companyIds = [], initialLoadId, onInitialLoadHandled }: TrackingViewProps) => {
   const TRUCK_CAPACITY_KG = 48000;
   const loadsResult = useApiList(api.loads.list, { per_page: 500 });
   const packages = useMemo<PackageData[]>(() => loadsResult.items
@@ -263,6 +265,17 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
   }, [packages]);
 
   useEffect(() => {
+    if (!initialLoadId || !packages.length) return;
+    const target = packages.find((pkg) => pkg.id === initialLoadId);
+    if (target) {
+      setSelectedPackage(target);
+      setRightTab('details');
+      setTrackingDetailsOpen(true);
+    }
+    onInitialLoadHandled?.();
+  }, [initialLoadId, packages]);
+
+  useEffect(() => {
     if (selectedPackage.id) getSmartStatusUpdate(selectedPackage.status, selectedPackage.history[0]?.location || selectedPackage.destination).then(setSmartStatus);
   }, [selectedPackage]);
 
@@ -280,9 +293,38 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
     return () => clearInterval(timer);
   }, [isUnlockingReturnRoutes]);
 
-  const dispatchConversation = useMemo<Conversation>(
-    () => ({
-      id: `dispatch-${selectedPackage.id}`,
+  const dispatchConversationResult = useApiList(api.conversations.list, {
+    load_id: selectedPackage.id ? Number(selectedPackage.id) : -1,
+    per_page: 50,
+  });
+  const dispatchConversationRow = useMemo(
+    () => dispatchConversationResult.items.find((row) => row.channel === 'inapp') as Record<string, unknown> | undefined,
+    [dispatchConversationResult.items]
+  );
+  const [dispatchSending, setDispatchSending] = useState(false);
+
+  const dispatchConversation = useMemo<Conversation>(() => {
+    if (dispatchConversationRow) {
+      const rowMessages = Array.isArray(dispatchConversationRow.messages) ? dispatchConversationRow.messages as Array<Record<string, unknown>> : [];
+      return {
+        id: String(dispatchConversationRow.id),
+        name: 'Lena / Route Ops',
+        role: u('Dispatch Manager', 'Dispatch Manager'),
+        channel: 'inapp',
+        online: true,
+        unread: 0,
+        lastTime: 'now',
+        messages: rowMessages.map((message) => ({
+          id: String(message.id),
+          sender: Number(message.sender_user_id) === userId ? 'me' : 'other',
+          text: String(message.body || ''),
+          time: String(message.sent_at || message.created_at || '').slice(11, 16),
+        })),
+      };
+    }
+
+    return {
+      id: '',
       name: 'Lena / Route Ops',
       role: u('Dispatch Manager', 'Dispatch Manager'),
       channel: 'inapp',
@@ -292,20 +334,57 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
       messages: [
         {
           id: 'd0',
-          sender: 'system',
-          text:
-            smartStatus ||
-            u('AI status is updating...', 'AI status is updating...'),
+          sender: 'other',
+          text: u(
+            "Hi, I'm Lena from Route Ops. Ask me anything about this load — status, ETA, route, or nearby stops.",
+            "Hi, I'm Lena from Route Ops. Ask me anything about this load — status, ETA, route, or nearby stops."
+          ),
           time: u('AI', 'AI'),
         },
       ],
-    }),
-    [selectedPackage.id, smartStatus, lang]
-  );
+    };
+  }, [dispatchConversationRow, lang, userId]);
 
-  const handleDispatchSend = () => {
-    if (!dispatchDraft.trim()) return;
+  const handleDispatchSend = async () => {
+    const text = dispatchDraft.trim();
+    if (!text || !userId || dispatchSending) return;
+
+    setDispatchSending(true);
     setDispatchDraft('');
+    try {
+      let conversationId = dispatchConversationRow ? Number(dispatchConversationRow.id) : null;
+
+      if (!conversationId) {
+        const created = await api.conversations.create({
+          load_id: Number(selectedPackage.id),
+          company_id: companyIds[0],
+          created_by_user_id: userId,
+          channel: 'inapp',
+          subject: `${AI_DISPATCH_SUBJECT_PREFIX}${selectedPackage.trackingNumber}`,
+          last_message_at: new Date().toISOString(),
+          participant_ids: [userId],
+        });
+        conversationId = Number(created.data.id);
+      }
+
+      await api.messages.create({
+        conversation_id: conversationId,
+        sender_user_id: userId,
+        body: text,
+        sent_at: new Date().toISOString(),
+      });
+      await dispatchConversationResult.refresh();
+
+      await api.dispatchChat.reply(conversationId);
+      await dispatchConversationResult.refresh();
+    } catch (error) {
+      void showError(
+        u('tracking.dispatchSendFailed', 'Message could not be sent'),
+        error instanceof Error ? error.message : undefined
+      );
+    } finally {
+      setDispatchSending(false);
+    }
   };
 
   const handleAiDispatchCompose = () => {
@@ -1073,6 +1152,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
               showAiDispatchButton
               aiDispatchLabel={u('Write with AI Dispatch', 'Write with AI Dispatch')}
               onAiDispatchClick={handleAiDispatchCompose}
+              otherTyping={dispatchSending}
             />
           </div>
         )}

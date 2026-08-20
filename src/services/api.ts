@@ -23,6 +23,8 @@ export type ApiLoginResult = { token: string; token_type: 'Bearer'; user: ApiUse
 export type SocialAuthResult = ApiLoginResult | { needs_registration: true; email?: string; name?: string };
 export type ListParams = Record<string, string | number | boolean | undefined>;
 
+export const AI_DISPATCH_SUBJECT_PREFIX = 'AI Dispatch — ';
+
 export type ScanImage = { base64: string; mimeType?: string };
 export type LoadScanResult = {
   isDocument: boolean;
@@ -67,8 +69,8 @@ export type BulkLoadRow = {
 export type BulkLoadScanResult = { isDocument: boolean; rows: BulkLoadRow[]; warnings: string[] };
 
 const API_BACKENDS = {
-  local: 'https://cargo.qla.dev/endpoints/api',
-  production: 'https://cargo.qla.dev/endpoints/api',
+  local: 'https://freightbook.ai/endpoints/api',
+  production: 'https://freightbook.ai/endpoints/api',
 } as const;
 
 const configuredBackend = String(import.meta.env.VITE_API_BACKEND || 'production').toLowerCase();
@@ -242,6 +244,12 @@ export const api = {
   trackingEvents: resourceApi<Record<string, unknown>>('tracking-events'),
   conversations: resourceApi<Record<string, unknown>>('conversations'),
   messages: resourceApi<Record<string, unknown>>('messages'),
+  dispatchChat: {
+    reply: async (conversationId: number) => (await request<Record<string, unknown>>('/dispatch-chat', {
+      method: 'POST',
+      body: JSON.stringify({ conversation_id: conversationId }),
+    })).data,
+  },
   notes: resourceApi<Record<string, unknown>>('load-notes'),
   documents: resourceApi<Record<string, unknown>>('documents'),
   invoices: resourceApi<Record<string, unknown>>('invoices'),

@@ -1,6 +1,25 @@
 import { Bot, Image as ImageIcon, Mic, Paperclip, Phone, Send, Video } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 import { cn } from '../../lib/cn';
 import { Conversation } from './types';
+
+const URL_PATTERN = /(https?:\/\/[^\s]+)/g;
+
+const renderMessageText = (text: string) =>
+  text.split(URL_PATTERN).map((part, index) => {
+    if (index % 2 === 0) return part;
+    const trailingMatch = part.match(/[.,)\]]+$/);
+    const trailing = trailingMatch ? trailingMatch[0] : '';
+    const url = trailing ? part.slice(0, -trailing.length) : part;
+    return (
+      <span key={index}>
+        <a href={url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 break-all hover:opacity-80">
+          {url}
+        </a>
+        {trailing}
+      </span>
+    );
+  });
 
 type ChatConversationPanelProps = {
   activeConversation: Conversation;
@@ -12,6 +31,8 @@ type ChatConversationPanelProps = {
   showAiDispatchButton?: boolean;
   aiDispatchLabel?: string;
   onAiDispatchClick?: () => void;
+  otherTyping?: boolean;
+  onTitleClick?: () => void;
 };
 
 export const ChatConversationPanel = ({
@@ -24,14 +45,31 @@ export const ChatConversationPanel = ({
   showAiDispatchButton = false,
   aiDispatchLabel = 'Write with AI Dispatch',
   onAiDispatchClick,
+  otherTyping = false,
+  onTitleClick,
 }: ChatConversationPanelProps) => {
   const primaryActionButtonClass = 'h-9 rounded-lg bg-primary text-white flex items-center justify-center cursor-pointer transition-all hover:brightness-95';
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [activeConversation.id, activeConversation.messages.length, otherTyping]);
 
   return (
   <div className={cn("lg:col-span-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col overflow-hidden h-full min-h-0", className)}>
     <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
       <div>
-        <p className="text-sm font-bold dark:text-white">{activeConversation.name}</p>
+        {onTitleClick ? (
+          <button
+            type="button"
+            onClick={onTitleClick}
+            className="text-sm font-bold text-primary hover:underline cursor-pointer text-left"
+          >
+            {activeConversation.name}
+          </button>
+        ) : (
+          <p className="text-sm font-bold dark:text-white">{activeConversation.name}</p>
+        )}
         <p className="text-[11px] text-slate-500">{activeConversation.role}</p>
       </div>
       <div className="flex items-center gap-1">
@@ -49,7 +87,7 @@ export const ChatConversationPanel = ({
         <div
           key={m.id}
           className={cn(
-            'max-w-[85%] rounded-2xl px-3 py-2',
+            'w-fit max-w-[min(85%,36rem)] rounded-2xl px-3 py-2',
             m.sender === 'me'
               ? 'ml-auto bg-primary text-white'
               : m.sender === 'system'
@@ -61,19 +99,19 @@ export const ChatConversationPanel = ({
             className={cn(
               'text-sm',
               m.sender === 'me'
-                ? 'text-white'
+                ? 'text-right text-white'
                 : m.sender === 'system'
                   ? 'text-amber-800'
                   : 'dark:text-slate-200'
             )}
           >
-            {m.text}
+            {renderMessageText(m.text)}
           </p>
           <p
             className={cn(
               'text-[10px] mt-1',
               m.sender === 'me'
-                ? 'text-white/70'
+                ? 'text-right text-white/70'
                 : m.sender === 'system'
                   ? 'text-amber-700'
                   : 'text-slate-400'
@@ -83,6 +121,14 @@ export const ChatConversationPanel = ({
           </p>
         </div>
       ))}
+      {otherTyping && (
+        <div className="max-w-[85%] mr-auto rounded-2xl rounded-tl-none px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center gap-1.5 w-fit">
+          <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.3s]" />
+          <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.15s]" />
+          <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce" />
+        </div>
+      )}
+      <div ref={messagesEndRef} />
     </div>
 
     <div className="p-3 border-t border-slate-100 dark:border-slate-800">
