@@ -555,6 +555,19 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                         </Button>
                       </div>
                     )}
+                    {currentStatus === 'Posted' && load.isNegotiable === true && (
+                      <div className="space-y-3 border-t border-slate-100 pt-3 dark:border-slate-800">
+                        {bookingSummary}
+                        <Button
+                          className="h-11 w-full rounded-xl shadow-lg shadow-primary/20"
+                          disabled={isSubmittingOffer}
+                          onClick={openBidModal}
+                        >
+                          {offerLabel}
+                          {!myOffer && <ChevronRight className="ml-1 h-4 w-4" />}
+                        </Button>
+                      </div>
+                    )}
                   </> : role === 'company' ? (
                     currentStatus === 'Posted' ? (
                       <div className="space-y-3">
@@ -793,7 +806,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
         />
       )}
 
-      {(role === 'company' || role === 'driver') && (
+      {(role === 'company' || role === 'driver' || role === 'superadmin') && (
         <LoadBidModal
           open={showOfferForm}
           lang={lang}
