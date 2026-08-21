@@ -107,6 +107,11 @@ type LoadDraft = {
   temperatureMax: string;
   requiresAdr: boolean;
   requiresTailLift: boolean;
+  tollRoadsIncluded: boolean;
+  ferryIncluded: boolean;
+  cmrRequired: boolean;
+  palletExchangeRequired: boolean;
+  customsRequired: boolean;
   urgent: boolean;
   notes: string;
   contactName: string;
@@ -184,6 +189,11 @@ const INITIAL_DRAFT: LoadDraft = {
   temperatureMax: '',
   requiresAdr: false,
   requiresTailLift: false,
+  tollRoadsIncluded: false,
+  ferryIncluded: false,
+  cmrRequired: true,
+  palletExchangeRequired: false,
+  customsRequired: false,
   urgent: false,
   notes: '',
   contactName: '',
@@ -562,7 +572,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         deliveryPlaceType: String(delivery.place_type || INITIAL_DRAFT.deliveryPlaceType), deliveryCity: String(delivery.city || ''), deliveryCountry: String(delivery.country_code || 'BA'), deliveryAddress: String(delivery.address || ''), deliveryLatitude: String(delivery.latitude || ''), deliveryLongitude: String(delivery.longitude || ''), deliveryDate: deliveryStart.date, deliveryDateTo: deliveryEnd.date, deliveryTimeFrom: deliveryStart.time, deliveryTimeTo: deliveryEnd.time,
         cargoTitle: String(record.title || ''), cargoType: String(record.cargo_type || 'FTL'), goodsType: String(record.goods_type || 'General'), weightKg: fromApiWeightKg(record.weight_kg), pallets: String(record.pallets || ''), lengthM: String(record.length_m || ''), widthM: String(record.width_m || ''), heightM: String(record.height_m || ''), volumeM3: String(record.volume_m3 || ''), declaredValue: String(record.declared_value || ''), budget: String(record.budget || ''), freightCurrency: String(record.currency || 'EUR'), shipmentValueCurrency: String(record.shipment_value_currency || record.currency || 'EUR'), paymentDueDays: String(record.payment_due_days || ''), paymentDeferred: terms === 'deferred', incoterm: String(record.incoterms || ''),
         loadingEquipment: Array.isArray(record.loading_methods) ? String(record.loading_methods[0] || 'Not specified') : 'Not specified', vehicleType: String(record.vehicle_type || INITIAL_DRAFT.vehicleType), characteristics: String(record.characteristics || ''), specialRequirements: Array.isArray(record.special_requirements) ? record.special_requirements.map(String) : [], transportMode: String(record.transport_mode || INITIAL_DRAFT.transportMode), deliveryProof: String(record.delivery_proof || ''), temperatureControlled: record.temperature_min != null || record.temperature_max != null, temperatureMin: String(record.temperature_min ?? ''), temperatureMax: String(record.temperature_max ?? ''),
-        requiresAdr: Boolean(record.requires_adr), requiresTailLift: Boolean(record.requires_tail_lift), mustBeTrackable: Boolean(record.must_be_trackable), urgent: Boolean(record.is_urgent), receivePriceProposals: record.is_negotiable == null ? true : Boolean(record.is_negotiable), bodyTypes: Array.isArray(record.body_types) ? record.body_types.map(String) : [], notes: String(record.notes || ''), internalComments: String(record.internal_comments || ''), externalComments: String(record.external_comments || ''), contactName: String(contact.name || ''), contactPhone: String(contact.phone || ''), contactMobile: String(contact.mobile || ''), contactEmail: String(contact.email || ''), contactFax: String(contact.fax || ''),
+        requiresAdr: Boolean(record.requires_adr), requiresTailLift: Boolean(record.requires_tail_lift), tollRoadsIncluded: Boolean(record.toll_roads_included), ferryIncluded: Boolean(record.ferry_included), cmrRequired: record.cmr_required == null ? true : Boolean(record.cmr_required), palletExchangeRequired: Boolean(record.pallet_exchange_required), customsRequired: Boolean(record.customs_required), mustBeTrackable: Boolean(record.must_be_trackable), urgent: Boolean(record.is_urgent), receivePriceProposals: record.is_negotiable == null ? true : Boolean(record.is_negotiable), bodyTypes: Array.isArray(record.body_types) ? record.body_types.map(String) : [], notes: String(record.notes || ''), internalComments: String(record.internal_comments || ''), externalComments: String(record.external_comments || ''), contactName: String(contact.name || ''), contactPhone: String(contact.phone || ''), contactMobile: String(contact.mobile || ''), contactEmail: String(contact.email || ''), contactFax: String(contact.fax || ''),
       });
     }).catch((error) => setSubmitError(error instanceof Error ? error.message : 'The load could not be loaded.')).finally(() => setIsLoadingExisting(false));
   }, [editLoadId, isOpen]);
@@ -693,6 +703,11 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         delivery_proof: draft.transportType === 'air' ? draft.deliveryProof || null : null,
         requires_adr: draft.requiresAdr,
         requires_tail_lift: draft.requiresTailLift,
+        toll_roads_included: draft.tollRoadsIncluded,
+        ferry_included: draft.ferryIncluded,
+        cmr_required: draft.cmrRequired,
+        pallet_exchange_required: draft.palletExchangeRequired,
+        customs_required: draft.customsRequired,
         must_be_trackable: draft.mustBeTrackable,
         is_urgent: draft.urgent,
         body_types: draft.bodyTypes,
@@ -1542,6 +1557,39 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           onClick={() => setField('urgent', !draft.urgent)}
                           title={u('postLoadModal.urgent', 'Priority load')}
                           description={u('postLoadModal.urgentDesc', 'Higher urgency and faster acceptance')}
+                        />
+                      </div>
+
+                      <div className="grid md:grid-cols-3 gap-3">
+                        <ToggleCard
+                          active={draft.tollRoadsIncluded}
+                          onClick={() => setField('tollRoadsIncluded', !draft.tollRoadsIncluded)}
+                          title={u('postLoadModal.tollRoads', 'Toll roads')}
+                          description={u('postLoadModal.tollRoadsDesc', 'Route includes toll roads or motorways')}
+                        />
+                        <ToggleCard
+                          active={draft.ferryIncluded}
+                          onClick={() => setField('ferryIncluded', !draft.ferryIncluded)}
+                          title={u('postLoadModal.ferry', 'Ferry')}
+                          description={u('postLoadModal.ferryDesc', 'Route includes a ferry / RoRo crossing')}
+                        />
+                        <ToggleCard
+                          active={draft.cmrRequired}
+                          onClick={() => setField('cmrRequired', !draft.cmrRequired)}
+                          title={u('postLoadModal.cmr', 'CMR')}
+                          description={u('postLoadModal.cmrDesc', 'CMR consignment note required')}
+                        />
+                        <ToggleCard
+                          active={draft.palletExchangeRequired}
+                          onClick={() => setField('palletExchangeRequired', !draft.palletExchangeRequired)}
+                          title={u('postLoadModal.palletExchange', 'Pallet exchange')}
+                          description={u('postLoadModal.palletExchangeDesc', 'Pallets must be swapped on delivery')}
+                        />
+                        <ToggleCard
+                          active={draft.customsRequired}
+                          onClick={() => setField('customsRequired', !draft.customsRequired)}
+                          title={u('postLoadModal.customs', 'Customs')}
+                          description={u('postLoadModal.customsDesc', 'Customs clearance required')}
                         />
                       </div>
 

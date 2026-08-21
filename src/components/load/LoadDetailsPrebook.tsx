@@ -22,9 +22,17 @@ import {
 } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
-import { getBidState, getOfferLabel } from '../../lib/offerBid';
+import {
+  createEmptyOfferDraft,
+  getBidState,
+  getOfferLabel,
+  offerDraftFromRecord,
+  offerDraftToPayload,
+  toFlatpickrDate,
+  validateOfferDraft,
+} from '../../lib/offerBid';
 import { confirmAction, showError, showSuccess } from '../../lib/swal';
-import { Language, Load } from '../../types';
+import { Language, Load, Offer } from '../../types';
 import { Role } from '../../types';
 import { api, ApiError } from '../../services/api';
 import { ui } from '../../i18n';
@@ -126,8 +134,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
   const [statusChanging, setStatusChanging] = useState(false);
   const [isBooking, setIsBooking] = useState(false);
   const [showOfferForm, setShowOfferForm] = useState(false);
-  const [offerAmount, setOfferAmount] = useState('');
-  const [offerMessage, setOfferMessage] = useState('');
+  const [offerDraft, setOfferDraft] = useState<Offer>(() => createEmptyOfferDraft());
   const [isSubmittingOffer, setIsSubmittingOffer] = useState(false);
   const [lenaOpen, setLenaOpen] = useState(false);
   const [companies, setCompanies] = useState<Array<Record<string, unknown>>>([]);
@@ -139,8 +146,6 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
 
   useEffect(() => {
     setShowOfferForm(false);
-    setOfferAmount('');
-    setOfferMessage('');
   }, [open, load?.id]);
 
   useEffect(() => {
@@ -201,23 +206,41 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
   }, [open, load, role]);
 
   const approveOffer = async (offer: Record<string, unknown>) => {
-    const driverId = selectedDrivers[String(offer.id)] || Number(offer.driver_user_id || 0);
+    const offerDriverId = Number(offer.driver_user_id || 0);
+    const driverId = offerDriverId || selectedDrivers[String(offer.id)];
     if (!driverId) { setActionMessage('Select a driver before approving the offer.'); return; }
     const confirmed = await confirmAction({
       title: 'Approve this offer?',
-      text: 'The offer will be accepted, the selected driver assigned, and other pending offers rejected.',
-      confirmText: 'Approve & assign',
+      text: 'The offer will be accepted and the driver assigned.',
+      confirmText: 'Approve',
       icon: 'warning',
     });
     if (!confirmed) return;
     setActionMessage('Approving offer...');
     try {
-      await api.offers.approve(String(offer.id), driverId);
+      await api.offers.approve(String(offer.id), offerDriverId ? undefined : driverId);
       setOffers((current) => current.map((item) => ({ ...item, status: item.id === offer.id ? 'accepted' : item.status === 'pending' ? 'rejected' : item.status })));
       setActionMessage('Offer approved and driver assigned.');
       void showSuccess('Offer approved', 'The driver has been assigned to this load.');
       onChanged?.();
     } catch (error) { setActionMessage(error instanceof Error ? error.message : 'Offer could not be approved.'); }
+  };
+
+  const rejectOffer = async (offer: Record<string, unknown>) => {
+    const confirmed = await confirmAction({
+      title: 'Reject this offer?',
+      text: 'The carrier will be notified that their offer was not accepted.',
+      confirmText: 'Reject',
+      icon: 'warning',
+    });
+    if (!confirmed) return;
+    setActionMessage('Rejecting offer...');
+    try {
+      await api.offers.update(String(offer.id), { status: 'rejected' });
+      setOffers((current) => current.map((item) => (item.id === offer.id ? { ...item, status: 'rejected' } : item)));
+      setActionMessage('Offer rejected.');
+      void showSuccess('Offer rejected', 'The offer has been marked as rejected.');
+    } catch (error) { setActionMessage(error instanceof Error ? error.message : 'Offer could not be rejected.'); }
   };
 
   const changeStatus = async (nextStatus: Load['status']) => {
@@ -276,7 +299,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
 
   const submitOffer = async () => {
     if (!load || isSubmittingOffer) return;
-    const amount = Number(offerAmount);
+    const amount = Number(offerDraft.amount);
     const minimumAmount = getBidState(offers, userId, load.budget).displayAmount ?? 0;
     if (!Number.isFinite(amount) || amount <= 0 || amount < minimumAmount) {
       void showError(
@@ -286,23 +309,24 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
       return;
     }
 
+    const validationError = validateOfferDraft(offerDraft, u);
+    if (validationError) {
+      void showError(u('Incomplete offer', 'Incomplete offer'), validationError);
+      return;
+    }
+
     setIsSubmittingOffer(true);
     try {
+      const payload = offerDraftToPayload(offerDraft);
       if (myOffer) {
-        await api.offers.update(String(myOffer.id), {
-          amount,
-          currency: offerCurrency,
-          message: offerMessage.trim() || undefined,
-        });
+        await api.offers.update(String(myOffer.id), payload);
       } else {
         await api.offers.create({
           load_id: Number(load.id),
           company_id: role === 'company' ? companyIds[0] : undefined,
           driver_user_id: role === 'driver' ? userId : undefined,
           created_by_user_id: userId,
-          amount,
-          currency: offerCurrency,
-          message: offerMessage.trim() || undefined,
+          ...payload,
         });
       }
       void showSuccess(
@@ -310,8 +334,6 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
         myOffer ? u('legacy.loadDetails.offerUpdatedText', 'Your updated offer has been sent to the customer.') : u('legacy.loadDetails.offerSentText', 'The customer will review your offer.')
       );
       setShowOfferForm(false);
-      setOfferAmount('');
-      setOfferMessage('');
       const refreshed = await api.offers.list({ per_page: 100 });
       setOffers(refreshed.data.filter((offer) => String(offer.load_id) === String(load.id)));
       onChanged?.();
@@ -360,8 +382,21 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
     </div>
   );
   const openBidModal = () => {
-    setOfferAmount(bidState.displayAmount == null ? '' : String(bidState.displayAmount));
-    setOfferMessage(myOffer ? String(myOffer.message ?? '') : '');
+    if (myOffer) {
+      setOfferDraft(offerDraftFromRecord(myOffer, { loadId: String(load.id), currency: offerCurrency }));
+    } else {
+      const defaultValidUntil = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+      setOfferDraft(createEmptyOfferDraft({
+        loadId: String(load.id),
+        amount: bidState.displayAmount == null ? '' : String(bidState.displayAmount),
+        currency: offerCurrency,
+        validUntil: `${toFlatpickrDate(defaultValidUntil.toISOString())} 18:00`,
+        availableDate: toFlatpickrDate(load.pickupWindowStart),
+        exactLoadingDate: toFlatpickrDate(load.pickupWindowStart),
+        estimatedDeliveryDate: toFlatpickrDate(load.deliveryWindowEnd),
+        estimatedTransitDays: load.transitDays ? String(load.transitDays) : '',
+      }));
+    }
     setShowOfferForm(true);
   };
 
@@ -474,6 +509,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
             {role === 'superadmin' && bodyView === 'offers' ? (
               <LoadOffersPanel
                 lang={lang}
+                load={load}
                 offers={offers}
                 drivers={drivers.flatMap((driver) => {
                   const driverUser = driver.user as { id?: number; name?: string } | undefined;
@@ -484,6 +520,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                 actionMessage={actionMessage}
                 onDriverChange={(offerId, driverId) => setSelectedDrivers((current) => ({ ...current, [offerId]: driverId }))}
                 onApprove={(offer) => void approveOffer(offer)}
+                onReject={(offer) => void rejectOffer(offer)}
               />
             ) : (
             <div className="space-y-6">
@@ -760,14 +797,14 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
         <LoadBidModal
           open={showOfferForm}
           lang={lang}
-          amount={offerAmount}
-          currency={offerCurrency}
-          message={offerMessage}
-          referenceAmount={bidState.displayAmount}
+          load={load}
+          draft={offerDraft}
+          onDraftChange={(patch) => setOfferDraft((current) => ({ ...current, ...patch }))}
           editing={Boolean(myOffer)}
           loading={isSubmittingOffer}
-          onAmountChange={setOfferAmount}
-          onMessageChange={setOfferMessage}
+          role={role}
+          userId={userId}
+          companyIds={companyIds}
           onClose={() => setShowOfferForm(false)}
           onSubmit={() => void submitOffer()}
         />

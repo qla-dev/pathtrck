@@ -3250,6 +3250,20 @@ const mapDatabaseRecordToLoad = (record: Record<string, unknown>): Load => {
     insurance: record.insurance == null ? undefined : String(record.insurance),
     shipperName: record.shipper_name == null ? undefined : String(record.shipper_name),
     mediator: record.mediator == null ? undefined : String(record.mediator),
+    publicId: record.public_id == null ? undefined : String(record.public_id),
+    volume: record.volume_m3 == null ? undefined : Number(record.volume_m3),
+    pallets: record.pallets == null ? undefined : Number(record.pallets),
+    truckType: record.vehicle_type == null ? undefined : String(record.vehicle_type),
+    requiresAdr: Boolean(record.requires_adr),
+    tollRoadsIncluded: Boolean(record.toll_roads_included),
+    ferryIncluded: Boolean(record.ferry_included),
+    cmrRequired: Boolean(record.cmr_required),
+    palletExchangeRequired: Boolean(record.pallet_exchange_required),
+    customsRequired: Boolean(record.customs_required),
+    pickupWindowStart: pickup?.window_starts_at == null ? undefined : String(pickup.window_starts_at),
+    pickupWindowEnd: pickup?.window_ends_at == null ? undefined : String(pickup.window_ends_at),
+    deliveryWindowStart: delivery?.window_starts_at == null ? undefined : String(delivery.window_starts_at),
+    deliveryWindowEnd: delivery?.window_ends_at == null ? undefined : String(delivery.window_ends_at),
   };
 };
 
@@ -4337,7 +4351,7 @@ export default function App() {
 	              {view === 'finance' && <FinanceView lang={lang} />}
 	              {view === 'network' && <NetworkView lang={lang} />}
 	              {view === 'automations' && <AutomationsView lang={lang} />}
-	              {view === 'fleet' && <FleetView lang={lang} role={role} />}
+	              {view === 'fleet' && <FleetView lang={lang} role={role} userId={currentUser?.id} companyIds={trackingCompanyIds} />}
 	              {view === 'profile' && <ProfileView role={role} lang={lang} />}
 	              {view === 'settings' && (
                   <SettingsView

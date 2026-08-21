@@ -89,6 +89,58 @@ export interface Load {
   insurance?: string;
   shipperName?: string;
   mediator?: string;
+  publicId?: string;
+  volume?: number;
+  pallets?: number;
+  truckType?: string;
+  requiresAdr?: boolean;
+  tollRoadsIncluded?: boolean;
+  ferryIncluded?: boolean;
+  cmrRequired?: boolean;
+  palletExchangeRequired?: boolean;
+  customsRequired?: boolean;
+  pickupWindowStart?: string;
+  pickupWindowEnd?: string;
+  deliveryWindowStart?: string;
+  deliveryWindowEnd?: string;
+}
+
+export type AdditionalChargeRow = {
+  type: string;
+  condition: string;
+  rate: string;
+  unit: string;
+};
+
+export interface Offer {
+  id?: string;
+  loadId: string;
+  companyId?: number;
+  driverUserId?: number;
+  createdByUserId?: number;
+  amount: string;
+  currency: string;
+  status?: string;
+  priceBasis: string;
+  vat: string;
+  paymentTerms: string;
+  validUntil: string;
+  includedCharges: string[];
+  excludedCharges: string[];
+  equipmentType: string;
+  vehicleAvailability: string;
+  vehicleId: string;
+  availableDate: string;
+  exactLoadingDate: string;
+  estimatedTransitDays: string;
+  estimatedDeliveryDate: string;
+  canPerformAsRequired: boolean;
+  additionalCharges: AdditionalChargeRow[];
+  hasExceptions: boolean;
+  message: string;
+  confirmedAuthorized: boolean;
+  confirmedDetailsMatch: boolean;
+  confirmedTerms: boolean;
 }
 
 export interface RouteLog {

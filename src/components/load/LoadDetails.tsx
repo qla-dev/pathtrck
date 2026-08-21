@@ -20,9 +20,17 @@ import {
 } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
-import { getBidState, getOfferLabel } from '../../lib/offerBid';
+import {
+  createEmptyOfferDraft,
+  getBidState,
+  getOfferLabel,
+  offerDraftFromRecord,
+  offerDraftToPayload,
+  toFlatpickrDate,
+  validateOfferDraft,
+} from '../../lib/offerBid';
 import { confirmAction, showError, showSuccess } from '../../lib/swal';
-import { Language, Load } from '../../types';
+import { Language, Load, Offer } from '../../types';
 import { Role } from '../../types';
 import { api, ApiError } from '../../services/api';
 import { ui } from '../../i18n';
@@ -120,14 +128,11 @@ export const LoadDetails = ({ open, load, onClose, lang, role, userId, onEdit, o
   const [statusChanging, setStatusChanging] = useState(false);
   const [isBooking, setIsBooking] = useState(false);
   const [showOfferForm, setShowOfferForm] = useState(false);
-  const [offerAmount, setOfferAmount] = useState('');
-  const [offerMessage, setOfferMessage] = useState('');
+  const [offerDraft, setOfferDraft] = useState<Offer>(() => createEmptyOfferDraft());
   const [isSubmittingOffer, setIsSubmittingOffer] = useState(false);
 
   useEffect(() => {
     setShowOfferForm(false);
-    setOfferAmount('');
-    setOfferMessage('');
   }, [open, load?.id]);
 
   useEffect(() => {
@@ -240,7 +245,7 @@ export const LoadDetails = ({ open, load, onClose, lang, role, userId, onEdit, o
 
   const submitOffer = async () => {
     if (!load || isSubmittingOffer) return;
-    const amount = Number(offerAmount);
+    const amount = Number(offerDraft.amount);
     const minimumAmount = getBidState(offers, userId, load.budget).displayAmount ?? 0;
     if (!Number.isFinite(amount) || amount <= 0 || amount < minimumAmount) {
       void showError(
@@ -250,22 +255,23 @@ export const LoadDetails = ({ open, load, onClose, lang, role, userId, onEdit, o
       return;
     }
 
+    const validationError = validateOfferDraft(offerDraft, u);
+    if (validationError) {
+      void showError(u('Incomplete offer', 'Incomplete offer'), validationError);
+      return;
+    }
+
     setIsSubmittingOffer(true);
     try {
+      const payload = offerDraftToPayload(offerDraft);
       if (myOffer) {
-        await api.offers.update(String(myOffer.id), {
-          amount,
-          currency: offerCurrency,
-          message: offerMessage.trim() || undefined,
-        });
+        await api.offers.update(String(myOffer.id), payload);
       } else {
         await api.offers.create({
           load_id: Number(load.id),
           driver_user_id: userId,
           created_by_user_id: userId,
-          amount,
-          currency: offerCurrency,
-          message: offerMessage.trim() || undefined,
+          ...payload,
         });
       }
       void showSuccess(
@@ -273,8 +279,6 @@ export const LoadDetails = ({ open, load, onClose, lang, role, userId, onEdit, o
         myOffer ? u('legacy.loadDetails.offerUpdatedText', 'Your updated offer has been sent to the customer.') : u('legacy.loadDetails.offerSentText', 'The customer will review your offer.')
       );
       setShowOfferForm(false);
-      setOfferAmount('');
-      setOfferMessage('');
       const refreshed = await api.offers.list({ per_page: 100 });
       setOffers(refreshed.data.filter((offer) => String(offer.load_id) === String(load.id)));
       onChanged?.();
@@ -307,8 +311,21 @@ export const LoadDetails = ({ open, load, onClose, lang, role, userId, onEdit, o
     ? `${u('legacy.loadDetails.bookNow', 'Book now')} · ${offerCurrency} ${load.budget.toLocaleString()}`
     : u('legacy.loadDetails.bookNow', 'Book now');
   const openBidModal = () => {
-    setOfferAmount(bidState.displayAmount == null ? '' : String(bidState.displayAmount));
-    setOfferMessage(myOffer ? String(myOffer.message ?? '') : '');
+    if (myOffer) {
+      setOfferDraft(offerDraftFromRecord(myOffer, { loadId: String(load.id), currency: offerCurrency }));
+    } else {
+      const defaultValidUntil = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+      setOfferDraft(createEmptyOfferDraft({
+        loadId: String(load.id),
+        amount: bidState.displayAmount == null ? '' : String(bidState.displayAmount),
+        currency: offerCurrency,
+        validUntil: `${toFlatpickrDate(defaultValidUntil.toISOString())} 18:00`,
+        availableDate: toFlatpickrDate(load.pickupWindowStart),
+        exactLoadingDate: toFlatpickrDate(load.pickupWindowStart),
+        estimatedDeliveryDate: toFlatpickrDate(load.deliveryWindowEnd),
+        estimatedTransitDays: load.transitDays ? String(load.transitDays) : '',
+      }));
+    }
     setShowOfferForm(true);
   };
 
@@ -558,14 +575,13 @@ export const LoadDetails = ({ open, load, onClose, lang, role, userId, onEdit, o
         <LoadBidModal
           open={showOfferForm}
           lang={lang}
-          amount={offerAmount}
-          currency={offerCurrency}
-          message={offerMessage}
-          referenceAmount={bidState.displayAmount}
+          load={load}
+          draft={offerDraft}
+          onDraftChange={(patch) => setOfferDraft((current) => ({ ...current, ...patch }))}
           editing={Boolean(myOffer)}
           loading={isSubmittingOffer}
-          onAmountChange={setOfferAmount}
-          onMessageChange={setOfferMessage}
+          role={role}
+          userId={userId}
           onClose={() => setShowOfferForm(false)}
           onSubmit={() => void submitOffer()}
         />
