@@ -501,11 +501,11 @@ export const LoadBidModal = ({
                       <span>{u('I confirm that I can perform the transport according to the load requirements.', 'I confirm that I can perform the transport according to the load requirements.')}</span>
                     </div>
                     <div className="flex shrink-0 items-center gap-4 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                      <label className="flex cursor-pointer items-center gap-1.5">
+                      <label className="flex cursor-pointer items-center gap-1.5 has-[:disabled]:cursor-default">
                         <input type="radio" checked={draft.canPerformAsRequired} onChange={() => onDraftChange({ canPerformAsRequired: true })} className="h-4 w-4 accent-primary" />
                         {u('common.yes', 'Yes')}
                       </label>
-                      <label className="flex cursor-pointer items-center gap-1.5">
+                      <label className="flex cursor-pointer items-center gap-1.5 has-[:disabled]:cursor-default">
                         <input type="radio" checked={!draft.canPerformAsRequired} onChange={() => onDraftChange({ canPerformAsRequired: false })} className="h-4 w-4 accent-primary" />
                         {u('No, I need to propose changes', 'No, I need to propose changes')}
                       </label>
@@ -518,7 +518,7 @@ export const LoadBidModal = ({
                   <p className="text-xs font-black uppercase tracking-wider text-primary">3. {u('Included in your price', 'Included in your price')}</p>
                   <div className="grid grid-cols-2 gap-x-6 gap-y-2.5 sm:grid-cols-3 sm:grid-flow-col sm:grid-rows-4">
                     {STANDARD_CHARGE_ITEMS.map((item) => (
-                      <label key={item.key} className="flex cursor-pointer items-center gap-2 text-sm">
+                      <label key={item.key} className="flex cursor-pointer items-center gap-2 text-sm has-[:disabled]:cursor-default">
                         <input
                           type="checkbox"
                           checked={draft.includedCharges.includes(item.key)}
@@ -560,11 +560,11 @@ export const LoadBidModal = ({
                 <section className="flex flex-col space-y-3">
                   <p className="text-xs font-black uppercase tracking-wider text-primary">5. {u('Exceptions / Comments', 'Exceptions / Comments')}</p>
                   <div className="flex flex-wrap items-center gap-5 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                    <label className="flex cursor-pointer items-center gap-1.5">
+                    <label className="flex cursor-pointer items-center gap-1.5 has-[:disabled]:cursor-default">
                       <input type="radio" checked={!draft.hasExceptions} onChange={() => onDraftChange({ hasExceptions: false })} className="h-4 w-4 accent-primary" />
                       {u('No exceptions', 'No exceptions')}
                     </label>
-                    <label className="flex cursor-pointer items-center gap-1.5">
+                    <label className="flex cursor-pointer items-center gap-1.5 has-[:disabled]:cursor-default">
                       <input type="radio" checked={draft.hasExceptions} onChange={() => onDraftChange({ hasExceptions: true })} className="h-4 w-4 accent-primary" />
                       {u('I am submitting this offer with exceptions', 'I am submitting this offer with exceptions')}
                     </label>
@@ -588,7 +588,7 @@ export const LoadBidModal = ({
                       ['confirmedDetailsMatch', u('I confirm that my offer is based on the shipment details published in this Load.', 'I confirm that my offer is based on the shipment details published in this Load.')],
                       ['confirmedTerms', u('I confirm that the price and conditions above are those on which I am submitting the offer.', 'I confirm that the price and conditions above are those on which I am submitting the offer.')],
                     ] as const).map(([field, label]) => (
-                      <label key={field} className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-slate-200 p-3 text-sm dark:border-slate-800">
+                      <label key={field} className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-slate-200 p-3 text-sm has-[:disabled]:cursor-default dark:border-slate-800">
                         <input
                           type="checkbox"
                           checked={draft[field]}
