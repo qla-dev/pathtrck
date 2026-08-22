@@ -5,16 +5,28 @@ import {
   ArrowUp,
   ArrowUpDown,
   Building2,
+  CalendarClock,
   CreditCard,
   DollarSign,
   Flag,
+  Flame,
+  Gem,
+  HandCoins,
+  Handshake,
   MapPin,
+  Package,
+  PackageOpen,
   PackageSearch,
   Plane,
   Route,
   Scale,
+  ShieldAlert,
   Ship,
+  Snowflake,
+  Timer,
   Truck,
+  Wallet,
+  Weight,
   Zap,
 } from 'lucide-react';
 
@@ -80,19 +92,63 @@ const getGoodsTone = (value: string) =>
       ? 'bg-cyan-500/10 text-cyan-500 border-cyan-500/30'
       : value === 'High Value'
         ? 'bg-violet-500/10 text-violet-500 border-violet-500/30'
-        : 'bg-slate-500/10 text-slate-500 border-slate-500/30';
+        : value === 'Heavy'
+          ? 'bg-slate-500/10 text-slate-600 border-slate-500/30 dark:text-slate-300'
+          : value === 'Perishable'
+            ? 'bg-sky-500/10 text-sky-500 border-sky-500/30'
+            : value === 'Hazardous'
+              ? 'bg-rose-500/10 text-rose-500 border-rose-500/30'
+              : 'bg-slate-500/10 text-slate-500 border-slate-500/30';
+
+const getGoodsIcon = (value: string): LucideIcon =>
+  value === 'Flammable'
+    ? Flame
+    : value === 'Fragile'
+      ? PackageOpen
+      : value === 'High Value'
+        ? Gem
+        : value === 'Heavy'
+          ? Weight
+          : value === 'Perishable'
+            ? Snowflake
+            : value === 'Hazardous'
+              ? ShieldAlert
+              : Package;
 
 const getPaymentTone = (value: string) =>
   value === 'In Advance'
     ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
     : value === 'On Delivery'
       ? 'bg-sky-500/10 text-sky-500 border-sky-500/30'
-      : 'bg-blue-500/10 text-blue-500 border-blue-500/30';
+      : value === 'Deferred'
+        ? 'bg-violet-500/10 text-violet-500 border-violet-500/30'
+        : value === 'Negotiable'
+          ? 'bg-amber-500/10 text-amber-500 border-amber-500/30'
+          : 'bg-blue-500/10 text-blue-500 border-blue-500/30';
+
+const getPaymentIcon = (value: string): LucideIcon =>
+  value === 'In Advance'
+    ? Wallet
+    : value === 'On Delivery'
+      ? HandCoins
+      : value === 'Deferred'
+        ? CalendarClock
+        : value === 'Negotiable'
+          ? Handshake
+          : CreditCard;
 
 const getUrgencyTone = (value: string) =>
   value === 'Express'
     ? 'bg-amber-500/10 text-amber-500 border-amber-500/30'
     : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30';
+
+const getUrgencyIcon = (value: string): LucideIcon => (value === 'Express' ? Zap : Timer);
+
+const toTextTone = (tone: string) =>
+  tone
+    .split(' ')
+    .filter((cls) => cls.includes('text-'))
+    .join(' ');
 
 export const LoadsTable = ({ lang, loads, userId, onOpenDetails }: LoadsTableProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
@@ -321,25 +377,57 @@ export const LoadsTable = ({ lang, loads, userId, onOpenDetails }: LoadsTablePro
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  <span
-                    title={trGoodsType(lang, load.goodsType)}
-                    className={cn('inline-block w-44 truncate rounded-full border px-2.5 py-1 text-center text-[11px] font-bold uppercase tracking-wider', getGoodsTone(load.goodsType))}
-                  >
-                    {trGoodsType(lang, load.goodsType)}
-                  </span>
+                  {(() => {
+                    const GoodsIcon = getGoodsIcon(load.goodsType);
+                    const label = trGoodsType(lang, load.goodsType);
+                    return (
+                      <span
+                        title={label}
+                        className={cn(
+                          'inline-flex w-24 items-center justify-start gap-1.5 text-[11px] font-bold uppercase tracking-wider',
+                          toTextTone(getGoodsTone(load.goodsType))
+                        )}
+                      >
+                        <GoodsIcon className="h-3 w-3 shrink-0" />
+                        <span className="min-w-0 truncate">{label}</span>
+                      </span>
+                    );
+                  })()}
                 </td>
                 <td className="px-4 py-3">
-                  <span
-                    title={trPaymentTerms(lang, load.paymentTerms)}
-                    className={cn('inline-block w-44 truncate rounded-full border px-2.5 py-1 text-center text-[11px] font-bold uppercase tracking-wider', getPaymentTone(load.paymentTerms))}
-                  >
-                    {trPaymentTerms(lang, load.paymentTerms)}
-                  </span>
+                  {(() => {
+                    const PaymentIcon = getPaymentIcon(load.paymentTerms);
+                    const label = trPaymentTerms(lang, load.paymentTerms);
+                    return (
+                      <span
+                        title={label}
+                        className={cn(
+                          'inline-flex w-32 items-center justify-start gap-1.5 text-[11px] font-bold uppercase tracking-wider',
+                          toTextTone(getPaymentTone(load.paymentTerms))
+                        )}
+                      >
+                        <PaymentIcon className="h-3 w-3 shrink-0" />
+                        <span className="min-w-0 truncate">{label}</span>
+                      </span>
+                    );
+                  })()}
                 </td>
                 <td className="px-4 py-3">
-                  <span className={cn('inline-block w-44 truncate rounded-full border px-2.5 py-1 text-center text-[11px] font-bold uppercase tracking-wider', getUrgencyTone(load.urgency || 'Standard'))}>
-                    {load.urgency === 'Express' ? u('feed.urgency.express', 'Express') : u('feed.urgency.standard', 'Standard')}
-                  </span>
+                  {(() => {
+                    const UrgencyIcon = getUrgencyIcon(load.urgency || 'Standard');
+                    const label = load.urgency === 'Express' ? u('feed.urgency.express', 'Express') : u('feed.urgency.standard', 'Standard');
+                    return (
+                      <span
+                        className={cn(
+                          'inline-flex w-24 items-center justify-start gap-1.5 text-[11px] font-bold uppercase tracking-wider',
+                          toTextTone(getUrgencyTone(load.urgency || 'Standard'))
+                        )}
+                      >
+                        <UrgencyIcon className="h-3 w-3 shrink-0" />
+                        {label}
+                      </span>
+                    );
+                  })()}
                 </td>
                 <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{load.price}</td>
                 <td

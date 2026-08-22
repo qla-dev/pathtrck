@@ -1461,18 +1461,6 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           />
                         </div>
                       </div>
-                      <div className="flex flex-1 flex-col space-y-1.5">
-                        {fieldLabel('notes', 'postLoadModal.notes', 'Handling notes')}
-                        <Textarea
-                          value={draft.notes}
-                          onChange={(e) => setField('notes', e.target.value)}
-                          placeholder={u(
-                            'postLoadModal.notesPlaceholder',
-                            'Packaging details, loading constraints, dock rules, documents, return pallets, special care...'
-                          )}
-                          className="min-h-32 flex-1"
-                        />
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -1599,6 +1587,19 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           value={draft.externalComments}
                           onChange={(e) => setField('externalComments', e.target.value)}
                           placeholder={u('postLoadModal.externalCommentsPlaceholder', 'Visible to carriers reviewing the offer')}
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        {fieldLabel('notes', 'postLoadModal.notes', 'Handling notes')}
+                        <Textarea
+                          value={draft.notes}
+                          onChange={(e) => setField('notes', e.target.value)}
+                          placeholder={u(
+                            'postLoadModal.notesPlaceholder',
+                            'Packaging details, loading constraints, dock rules, documents, return pallets, special care...'
+                          )}
+                          className="min-h-32"
                         />
                       </div>
                     </div>
