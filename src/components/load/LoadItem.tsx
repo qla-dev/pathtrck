@@ -1,6 +1,7 @@
 import { ArrowRight, ChevronRight, Plane, Scale, Ship, Truck } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
+import { countryFlagUrl, getCountryCode } from '../../lib/loadGeo';
 import { getBidState, getOfferLabel } from '../../lib/offerBid';
 import { trGoodsType, trPaymentTerms, ui } from '../../i18n';
 import { Language, Load } from '../../types';
@@ -8,13 +9,6 @@ import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 
 export type LoadItemLayout = 'list' | 'grid' | 'map';
-
-const getCountryCode = (location: string) => {
-  const countryCode = location.split(',').at(-1)?.trim().toUpperCase() || '';
-  return /^[A-Z]{2}$/.test(countryCode) ? countryCode : '';
-};
-
-const countryFlagUrl = (countryCode: string) => `https://flagcdn.com/w40/${countryCode.toLowerCase()}.png`;
 
 type LoadItemProps = {
   key?: string;

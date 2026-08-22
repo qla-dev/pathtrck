@@ -77,7 +77,6 @@ import { HomeFeed, FeedSortMode } from './components/views/HomeFeed';
 import { FleetView } from './components/views/FleetView';
 import { FilterLoadsProps } from './components/load/FilterLoads';
 import { GLOBAL_OFFERS } from './components/frights/globalOffers';
-import { useCitySuggestions } from './components/frights/useCitySuggestions';
 import { MessagesView } from './components/views/MessagesView';
 import { MapView } from './components/views/MapView';
 import { ProfileView } from './components/views/ProfileView';
@@ -3374,26 +3373,12 @@ export default function App() {
     return () => { active = false; };
   }, []);
 
-  const feedSeedCities = useMemo(
-    () =>
-      activeFeedLoads.flatMap((load) => [
-        load.pickup.split(',')[0]?.trim() || '',
-        load.delivery.split(',')[0]?.trim() || '',
-      ]),
-    [activeFeedLoads]
-  );
-
-  const {
-    startLocation: feedStartLocation,
-    setStartLocation: setFeedStartLocation,
-    endLocation: feedEndLocation,
-    setEndLocation: setFeedEndLocation,
-    startSuggestions: feedStartSuggestions,
-    endSuggestions: feedEndSuggestions,
-    isCityApiReady: isFeedCityApiReady,
-    hasCityApiKey: hasFeedCityApiKey,
-    clearLocations: clearFeedLocations,
-  } = useCitySuggestions({ seedCities: feedSeedCities });
+  const [feedStartLocation, setFeedStartLocation] = useState('');
+  const [feedEndLocation, setFeedEndLocation] = useState('');
+  const clearFeedLocations = () => {
+    setFeedStartLocation('');
+    setFeedEndLocation('');
+  };
 
   useEffect(() => {
     if (!role) {
@@ -3728,10 +3713,6 @@ export default function App() {
     lang,
     startLocation: feedStartLocation,
     endLocation: feedEndLocation,
-    startSuggestions: feedStartSuggestions,
-    endSuggestions: feedEndSuggestions,
-    isCityApiReady: isFeedCityApiReady,
-    hasCityApiKey: hasFeedCityApiKey,
     onStartLocationChange: setFeedStartLocation,
     onEndLocationChange: setFeedEndLocation,
     onClear: clearFeedFilters,

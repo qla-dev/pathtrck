@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, MapPin, Search } from 'lucide-react';
 import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 
 import { Language } from '../../types';
 import { ui } from '../../i18n';
 import { useApiList } from '../../hooks/useApiList';
+import { useOutsideClick } from '../../hooks/useOutsideClick';
 import { api } from '../../services/api';
 import { LocationSearchResult, searchLocations } from '../../services/locationSearch';
 
@@ -23,6 +24,8 @@ export const MapView = ({ lang }: { lang: Language }) => {
   const [results, setResults] = useState<LocationSearchResult[]>([]);
   const [selected, setSelected] = useState<LocationSearchResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const searchBoxRef = useRef<HTMLDivElement>(null);
+  useOutsideClick(searchBoxRef, () => setResults([]), results.length > 0);
 
   const stops = useMemo(() => loads.items.flatMap((load) => {
     const loadStops = Array.isArray(load.stops) ? load.stops as Array<Record<string, unknown>> : [];
@@ -84,7 +87,7 @@ export const MapView = ({ lang }: { lang: Language }) => {
         ))}
       </MapContainer>
 
-      <div className="absolute left-1/2 top-5 z-[1000] w-[min(720px,calc(100%-2rem))] -translate-x-1/2">
+      <div ref={searchBoxRef} className="absolute left-1/2 top-5 z-[1000] w-[min(720px,calc(100%-2rem))] -translate-x-1/2">
         <div className="relative rounded-2xl border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900">
           <Search className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={u('map.searchAddress', 'Search city, street or address')} className="h-12 w-full rounded-xl border-0 bg-slate-50 pl-11 pr-11 text-sm font-semibold outline-none dark:bg-slate-950 dark:text-white" />

@@ -1,19 +1,26 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import L from 'leaflet';
-import { ArrowDownWideNarrow, ChevronDown, Filter, List, LayoutGrid, Map as MapIcon, Layers } from 'lucide-react';
+import { ArrowDownWideNarrow, ChevronDown, ChevronLeft, ChevronRight, Filter, List, LayoutGrid, Map as MapIcon, Layers, Table } from 'lucide-react';
 import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 
 import { ui } from '../../i18n';
 import { cn } from '../../lib/cn';
+import {
+  estimateLoadTransitDays,
+  getPlaceCoord,
+  parseLoadDateValue,
+  parseLoadPriceValue,
+  parseLoadWeightValue,
+} from '../../lib/loadGeo';
 import { MOCK_LOADS } from '../../mockData';
 import { Language, Load, Role } from '../../types';
 import { FilterLoads, FilterLoadsProps } from '../load/FilterLoads';
 import { LoadDetailsPrebook } from '../load/LoadDetailsPrebook';
 import { LoadItem } from '../load/LoadItem';
-import { Button } from '../ui/Button';
+import { LoadsTable } from '../load/LoadsTable';
 import { EmptyState } from '../ui/EmptyState';
 
-type FeedLayoutMode = 'list' | 'grid' | 'map';
+type FeedLayoutMode = 'list' | 'grid' | 'map' | 'table';
 type MapSource = 'normal' | 'vector' | 'imagery';
 export type FeedSortMode = 'price_desc' | 'price_asc' | 'date_desc' | 'date_asc';
 
@@ -87,23 +94,6 @@ type LoadMapData = {
   deliveryCoord: [number, number];
 };
 
-const CITY_COORDINATES: Record<string, [number, number]> = {
-  'Vienna, AT': [48.2082, 16.3738],
-  'Prague, CZ': [50.0755, 14.4378],
-  'Zagreb, HR': [45.815, 15.9819],
-  'Berlin, DE': [52.52, 13.405],
-  'Sarajevo, BA': [43.8563, 18.4131],
-  'Banja Luka, BA': [44.7722, 17.191],
-  'Shanghai, CN': [31.2304, 121.4737],
-  'Odesa, UA': [46.4825, 30.7233],
-  'Ningbo, CN': [29.8683, 121.544],
-  'Hamburg, DE': [53.5511, 9.9937],
-  'Shenzhen, CN': [22.5431, 114.0579],
-  'Rotterdam, NL': [51.9244, 4.4777],
-  'Qingdao, CN': [36.0671, 120.3826],
-  'Gdansk, PL': [54.352, 18.6466],
-};
-
 const MAP_SOURCE_CONFIG: Record<MapSource, { url: string; attribution: string; subdomains?: string[] }> = {
   normal: {
     url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -119,44 +109,6 @@ const MAP_SOURCE_CONFIG: Record<MapSource, { url: string; attribution: string; s
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     attribution: 'Tiles &copy; Esri',
   },
-};
-
-const getPlaceCoord = (place: string): [number, number] => {
-  if (CITY_COORDINATES[place]) return CITY_COORDINATES[place];
-  const city = place.split(',')[0]?.trim() || '';
-  const match = Object.entries(CITY_COORDINATES).find(([label]) => label.startsWith(city));
-  return match ? match[1] : [48.1351, 11.582];
-};
-
-const parseLoadPriceValue = (price: string) => {
-  const digits = price.replace(/[^0-9]/g, '');
-  const parsed = Number(digits);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
-
-const parseLoadWeightValue = (weight: string) => {
-  const digits = weight.replace(/[^0-9]/g, '');
-  const parsed = Number(digits);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
-
-const parseLoadDateValue = (date: string) => {
-  const parsed = Date.parse(date);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
-
-const estimateLoadTransitDays = (pickup: string, delivery: string) => {
-  const [lat1, lon1] = getPlaceCoord(pickup);
-  const [lat2, lon2] = getPlaceCoord(delivery);
-  const toRadians = (value: number) => (value * Math.PI) / 180;
-  const dLat = toRadians(lat2 - lat1);
-  const dLon = toRadians(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const distanceKm = 6371 * c;
-  return Math.max(1, Math.ceil(distanceKm / 700));
 };
 
 const LoadsBounds = ({ points }: { points: [number, number][] }) => {
@@ -254,7 +206,7 @@ export const HomeFeed = ({
   onEditLoad,
   onLoadChanged,
 }: HomeFeedProps) => {
-  const [layout, setLayout] = useState<FeedLayoutMode>('grid');
+  const [layout, setLayout] = useState<FeedLayoutMode>('table');
   const [mapSource, setMapSource] = useState<MapSource>('normal');
   const [selectedLoad, setSelectedLoad] = useState<Load | null>(null);
   const [isFilterBarOpen, setIsFilterBarOpen] = useState(true);
@@ -403,6 +355,7 @@ export const HomeFeed = ({
   };
 
   const layoutButtons: Array<{ id: FeedLayoutMode; icon: typeof List; title: string }> = [
+    { id: 'table', icon: Table, title: u('home.layout.table', 'Table') },
     { id: 'list', icon: List, title: u('home.layout.list', 'List') },
     { id: 'grid', icon: LayoutGrid, title: u('home.layout.grid', 'Grid') },
     { id: 'map', icon: MapIcon, title: u('home.layout.map', 'Map') },
@@ -410,28 +363,31 @@ export const HomeFeed = ({
 
   return (
     <div className="w-full min-w-0 space-y-6">
-      <div className="flex flex-wrap items-center gap-2">
-        <h1 className="mr-2 text-2xl font-bold dark:text-white">{loadsTitle}</h1>
-        {filterBar && (
-          <Button
-            variant={isFilterBarOpen ? 'primary' : 'outline'}
-            size="sm"
-            onClick={() => setIsFilterBarOpen((prev) => !prev)}
-          >
-            <Filter className="w-4 h-4 mr-2" /> {u('common.filter', 'Filter')}
-          </Button>
-        )}
-      </div>
-
-      {filterBar && isFilterBarOpen && <FilterLoads {...filterBar} />}
-
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm font-semibold text-slate-500">
-          {sortedLoads.length} {u('feed.filterBar.loadsLabel', 'loads')}
-        </p>
+        <div className="flex flex-wrap items-baseline gap-3">
+          <h1 className="text-2xl font-bold dark:text-white">{loadsTitle}</h1>
+          <p className="text-sm font-semibold text-slate-500">
+            {sortedLoads.length} {u('feed.filterBar.loadsLabel', 'loads')}
+          </p>
+        </div>
         <div className="flex items-center gap-2">
+          {filterBar && (
+            <button
+              type="button"
+              onClick={() => setIsFilterBarOpen((prev) => !prev)}
+              className={cn(
+                'inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl border px-3 text-xs font-bold transition-all',
+                isFilterBarOpen
+                  ? 'border-primary/40 bg-primary/10 text-primary'
+                  : 'border-slate-200 text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600'
+              )}
+            >
+              <Filter className="h-3.5 w-3.5" />
+              {u('common.filter', 'Filter')}
+            </button>
+          )}
           <SortDropdown lang={lang} sortMode={sortMode} onChange={onSortModeChange} />
-          <div className="inline-flex items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1">
+          <div className="inline-flex h-9 items-center gap-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-1">
             {layoutButtons.map((button) => (
               <button
                 key={button.id}
@@ -439,7 +395,7 @@ export const HomeFeed = ({
                 title={button.title}
                 aria-label={button.title}
                 className={cn(
-                  'h-8 w-8 rounded-lg flex items-center justify-center transition-all cursor-pointer',
+                  'h-7 w-7 rounded-lg flex items-center justify-center transition-all cursor-pointer',
                   layout === button.id
                     ? 'bg-primary text-white'
                     : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -451,6 +407,8 @@ export const HomeFeed = ({
           </div>
         </div>
       </div>
+
+      {filterBar && isFilterBarOpen && <FilterLoads {...filterBar} />}
 
       {sortedLoads.length === 0 ? (
         <EmptyState
@@ -491,6 +449,10 @@ export const HomeFeed = ({
             />
           ))}
         </div>
+      )}
+
+      {sortedLoads.length > 0 && layout === 'table' && (
+        <LoadsTable lang={lang} loads={sortedLoads} userId={userId} onOpenDetails={setSelectedLoad} />
       )}
 
       {sortedLoads.length > 0 && layout === 'map' && (

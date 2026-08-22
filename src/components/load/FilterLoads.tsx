@@ -1,14 +1,17 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   AlertTriangle,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   CreditCard,
   DollarSign,
   Forklift,
   Gem,
   Layers,
+  Loader2,
   MapPin,
   PackageSearch,
   RotateCcw,
@@ -24,6 +27,8 @@ import type { LucideIcon } from 'lucide-react';
 import { Language } from '../../types';
 import { ui } from '../../i18n';
 import { cn } from '../../lib/cn';
+import { useLocationAutocomplete } from '../../hooks/useLocationAutocomplete';
+import { useOutsideClick } from '../../hooks/useOutsideClick';
 import {
   ChipFilterOption,
   DimensionRangeConfig,
@@ -58,10 +63,6 @@ export type FilterLoadsProps = {
   lang: Language;
   startLocation: string;
   endLocation: string;
-  startSuggestions: string[];
-  endSuggestions: string[];
-  isCityApiReady?: boolean;
-  hasCityApiKey?: boolean;
   onStartLocationChange: (value: string) => void;
   onEndLocationChange: (value: string) => void;
   onClear: () => void;
@@ -147,8 +148,6 @@ export const FilterLoads = (props: FilterLoadsProps) => {
     lang,
     startLocation,
     endLocation,
-    startSuggestions,
-    endSuggestions,
     onStartLocationChange,
     onEndLocationChange,
     onClear,
@@ -183,6 +182,40 @@ export const FilterLoads = (props: FilterLoadsProps) => {
 
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [openPanel, setOpenPanel] = useState<PillId | null>(null);
+  const startSearch = useLocationAutocomplete(startLocation);
+  const endSearch = useLocationAutocomplete(endLocation);
+  const startFieldRef = useRef<HTMLLabelElement>(null);
+  const endFieldRef = useRef<HTMLLabelElement>(null);
+  useOutsideClick(startFieldRef, startSearch.clear, startSearch.results.length > 0);
+  useOutsideClick(endFieldRef, endSearch.clear, endSearch.results.length > 0);
+
+  const pillsScrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollPillsLeft, setCanScrollPillsLeft] = useState(false);
+  const [canScrollPillsRight, setCanScrollPillsRight] = useState(false);
+
+  const updatePillsScrollState = () => {
+    const el = pillsScrollRef.current;
+    if (!el) return;
+    setCanScrollPillsLeft(el.scrollLeft > 1);
+    setCanScrollPillsRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+  };
+
+  useEffect(() => {
+    const el = pillsScrollRef.current;
+    if (!el) return undefined;
+    updatePillsScrollState();
+    const observer = new ResizeObserver(updatePillsScrollState);
+    observer.observe(el);
+    window.addEventListener('resize', updatePillsScrollState);
+    return () => {
+      window.removeEventListener('resize', updatePillsScrollState);
+      observer.disconnect();
+    };
+  }, []);
+
+  const scrollPillsBy = (amount: number) => {
+    pillsScrollRef.current?.scrollBy({ left: amount, behavior: 'smooth' });
+  };
 
   const clearChipGroup = (selectedIds: string[], onToggle?: (id: string) => void) => {
     selectedIds.forEach((id) => onToggle?.(id));
@@ -403,58 +436,88 @@ export const FilterLoads = (props: FilterLoadsProps) => {
     });
   }
 
+  useEffect(() => {
+    updatePillsScrollState();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pills.length]);
+
   const activePill = pills.find((pill) => pill.id === openPanel) || null;
 
   return (
     <>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-        <label className="block flex-1">
+        <label ref={startFieldRef} className="relative block flex-1">
           <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">
             {u('feed.filterBar.pickup', 'Pickup')}
           </span>
-          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 transition-colors focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/30 dark:border-slate-700 dark:bg-slate-950">
+          <div className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 transition-colors focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/30 dark:border-slate-700 dark:bg-slate-950">
             <Search className="h-4 w-4 shrink-0 text-slate-400" />
             <input
               value={startLocation}
               onChange={(event) => onStartLocationChange(event.target.value)}
-              list="feed-start-cities"
               placeholder={u('feed.filterBar.searchCity', 'Search city...')}
               className="w-full border-0 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-200"
             />
+            {startSearch.loading && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />}
           </div>
+          {startSearch.results.length > 0 && (
+            <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+              {startSearch.results.map((result) => (
+                <button
+                  key={result.id}
+                  type="button"
+                  onClick={() => {
+                    onStartLocationChange(result.city || result.label);
+                    startSearch.clear();
+                  }}
+                  className="flex w-full cursor-pointer items-start gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <span className="truncate">{result.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </label>
 
-        <label className="block flex-1">
+        <label ref={endFieldRef} className="relative block flex-1">
           <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">
             {u('feed.filterBar.delivery', 'Delivery')}
           </span>
-          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 transition-colors focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/30 dark:border-slate-700 dark:bg-slate-950">
+          <div className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 transition-colors focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/30 dark:border-slate-700 dark:bg-slate-950">
             <MapPin className="h-4 w-4 shrink-0 text-slate-400" />
             <input
               value={endLocation}
               onChange={(event) => onEndLocationChange(event.target.value)}
-              list="feed-end-cities"
               placeholder={u('feed.filterBar.searchCity', 'Search city...')}
               className="w-full border-0 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-200"
             />
+            {endSearch.loading && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />}
           </div>
+          {endSearch.results.length > 0 && (
+            <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+              {endSearch.results.map((result) => (
+                <button
+                  key={result.id}
+                  type="button"
+                  onClick={() => {
+                    onEndLocationChange(result.city || result.label);
+                    endSearch.clear();
+                  }}
+                  className="flex w-full cursor-pointer items-start gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <span className="truncate">{result.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </label>
-
-        <datalist id="feed-start-cities">
-          {startSuggestions.map((city) => (
-            <option key={`start-${city}`} value={city} />
-          ))}
-        </datalist>
-        <datalist id="feed-end-cities">
-          {endSuggestions.map((city) => (
-            <option key={`end-${city}`} value={city} />
-          ))}
-        </datalist>
 
         <button
           type="button"
           onClick={(event) => event.currentTarget.blur()}
-          className="h-11 shrink-0 cursor-pointer rounded-xl bg-slate-900 px-6 text-sm font-bold text-white transition-all hover:scale-[1.02] dark:bg-white dark:text-slate-900"
+          className="h-11 shrink-0 cursor-pointer rounded-xl bg-primary px-6 text-sm font-bold text-white transition-all hover:scale-[1.02]"
         >
           {u('feed.filterBar.search', 'Search')}
         </button>
@@ -469,24 +532,56 @@ export const FilterLoads = (props: FilterLoadsProps) => {
         </button>
       </div>
 
-      <div className="mt-3 flex items-center gap-2 overflow-x-auto overflow-y-hidden pb-1 [scrollbar-width:thin] [scrollbar-color:rgb(148_163_184/0.72)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-400/70 dark:[scrollbar-color:rgb(71_85_105/0.8)_transparent] dark:[&::-webkit-scrollbar-thumb]:bg-slate-600/80">
-        {pills.map((pill) => (
-          <button
-            key={pill.id}
-            type="button"
-            onClick={() => setOpenPanel(pill.id)}
-            className={cn(
-              'inline-flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-2 text-xs font-bold transition-all',
-              pill.isActive
-                ? 'border-primary/40 bg-primary/10 text-primary'
-                : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600'
-            )}
-          >
-            <pill.icon className="h-3.5 w-3.5" />
-            {pill.label}
-            <ChevronDown className="h-3 w-3 opacity-60" />
-          </button>
-        ))}
+      <div className="relative mt-3">
+        <div
+          ref={pillsScrollRef}
+          onScroll={updatePillsScrollState}
+          className="flex items-center gap-2 overflow-x-auto py-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {pills.map((pill) => (
+            <button
+              key={pill.id}
+              type="button"
+              onClick={() => setOpenPanel(pill.id)}
+              className={cn(
+                'inline-flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-2 text-xs font-bold transition-all',
+                pill.isActive
+                  ? 'border-primary/40 bg-primary/10 text-primary'
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600'
+              )}
+            >
+              <pill.icon className="h-3.5 w-3.5" />
+              {pill.label}
+              <ChevronDown className="h-3 w-3 opacity-60" />
+            </button>
+          ))}
+        </div>
+
+        {canScrollPillsLeft && (
+          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 flex w-12 items-center bg-gradient-to-r from-slate-50 to-transparent dark:from-slate-950">
+            <button
+              type="button"
+              onClick={() => scrollPillsBy(-240)}
+              aria-label="Scroll filters left"
+              className="pointer-events-auto flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-all hover:text-primary dark:border-slate-700 dark:bg-slate-900"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
+        {canScrollPillsRight && (
+          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 flex w-12 items-center justify-end bg-gradient-to-l from-slate-50 to-transparent dark:from-slate-950">
+            <button
+              type="button"
+              onClick={() => scrollPillsBy(240)}
+              aria-label="Scroll filters right"
+              className="pointer-events-auto flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-all hover:text-primary dark:border-slate-700 dark:bg-slate-900"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        )}
       </div>
 
       <FilterItem

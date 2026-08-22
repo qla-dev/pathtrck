@@ -5230,6 +5230,13 @@ const TRIPLET_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
   'Source': { bs: 'Izvor', de: 'Quelle' },
   'loads': { bs: 'tereta', de: 'Ladungen' },
   'Sort by': { bs: 'Sortiraj po', de: 'Sortieren nach' },
+  'Table': { bs: 'Tabela', de: 'Tabelle' },
+  'Est. miles': { bs: 'Procj. milja', de: 'Geschaetzte Meilen' },
+  'Provider': { bs: 'Prevoznik', de: 'Anbieter' },
+  'Equipment': { bs: 'Oprema', de: 'Ausruestung' },
+  'Weight': { bs: 'Tezina', de: 'Gewicht' },
+  'Rate': { bs: 'Cijena', de: 'Preis' },
+  'Action': { bs: 'Akcija', de: 'Aktion' },
 };
 
 const UI_TRACKING_CAPACITY_OVERRIDES: Record<string, Partial<Record<Locale, string>>> = {
