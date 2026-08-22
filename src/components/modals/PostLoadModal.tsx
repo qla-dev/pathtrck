@@ -1,16 +1,20 @@
-import { useEffect, useMemo, useState, type InputHTMLAttributes, type MouseEvent, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
-import { motion } from 'motion/react';
+import { useEffect, useMemo, useRef, useState, type InputHTMLAttributes, type MouseEvent, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import Flatpickr from 'react-flatpickr';
 import {
+  Building2,
   CalendarDays,
   CheckCircle2,
   Clock3,
   Coins,
   FileText,
   Handshake,
+  Loader2,
+  Map as MapGlyphIcon,
   MapPin,
   Package,
   Plane,
+  PlaneLanding,
   Plus,
   Route,
   ShieldCheck,
@@ -20,12 +24,17 @@ import {
   ThermometerSnowflake,
   Truck,
   UserRound,
+  Warehouse,
   X,
+  type LucideIcon,
 } from 'lucide-react';
 import { Language } from '../../types';
 import { flatpickrI18n, ui } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { confirmAction, showSuccess } from '../../lib/swal';
+import { useLocationAutocomplete } from '../../hooks/useLocationAutocomplete';
+import { useOutsideClick } from '../../hooks/useOutsideClick';
+import { LocationSearchResult } from '../../services/locationSearch';
 import { Button } from '../ui/Button';
 import { api, ApiError, LoadScanResult } from '../../services/api';
 import { CustomerSelect, customerOptionFromRecord, type CustomerOption } from '../customer/CustomerSelect';
@@ -45,7 +54,7 @@ type PostLoadModalProps = {
   onOpenLenaAI?: () => void;
 };
 
-type StepId = 'general' | 'route' | 'cargo' | 'terms' | 'review';
+type StepId = 'cargo' | 'route' | 'terms' | 'contact' | 'review';
 type TransportType = 'road' | 'air' | 'sea';
 type ScannedDocument = { id: string; imageDataUrl: string | null; result: LoadScanResult };
 
@@ -234,10 +243,10 @@ const fromApiWeightKg = (value: unknown) => {
 const toApiWeightKg = (weightTonnes: string) => Number(weightTonnes) * 1000;
 
 const STEPS: Array<{ id: StepId; icon: typeof MapPin }> = [
-  { id: 'general', icon: UserRound },
-  { id: 'route', icon: MapPin },
   { id: 'cargo', icon: Package },
+  { id: 'route', icon: MapPin },
   { id: 'terms', icon: ShieldCheck },
+  { id: 'contact', icon: UserRound },
   { id: 'review', icon: CheckCircle2 },
 ];
 
@@ -250,19 +259,6 @@ const LOADING_EQUIPMENT_OPTIONS = ['Vehicle with ramp', 'Vehicle without ramp', 
 const AIR_SPECIAL_REQUIREMENT_OPTIONS = ['AWB required', 'Tail lift needed', 'Express onboard courier', 'Time-critical door to door'];
 const CONTACT_OPTIONS = ['Current user', 'Operations desk', 'Dispatch team'];
 const CLOSED_EXCHANGE_OPTIONS = ['', 'TIMOCOM', 'Private board'];
-
-const SectionTitle = ({
-  title,
-  subtitle,
-}: {
-  title: string;
-  subtitle: string;
-}) => (
-  <div>
-    <p className="text-sm font-black dark:text-white">{title}</p>
-    <p className="text-xs text-slate-500 mt-1">{subtitle}</p>
-  </div>
-);
 
 const FieldLabel = ({
   children,
@@ -319,6 +315,69 @@ const Select = (props: SelectHTMLAttributes<HTMLSelectElement>) => (
     )}
   />
 );
+
+const AddressAutocompleteField = ({
+  value,
+  onChange,
+  onSelectLocation,
+  placeholder,
+  onOpenMap,
+  mapButtonLabel,
+  mapButtonIcon: MapButtonIcon = MapPin,
+  accentClassName,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  onSelectLocation: (location: LocationSearchResult) => void;
+  placeholder: string;
+  onOpenMap: () => void;
+  mapButtonLabel: string;
+  mapButtonIcon?: LucideIcon;
+  accentClassName: string;
+}) => {
+  const { results, loading, isOpen, open, close, select } = useLocationAutocomplete(value);
+  const containerRef = useRef<HTMLDivElement>(null);
+  useOutsideClick(containerRef, close, isOpen);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <Input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        onFocus={open}
+        className="pr-12"
+        placeholder={placeholder}
+      />
+      <button
+        type="button"
+        onClick={onOpenMap}
+        aria-label={mapButtonLabel}
+        className={cn('absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg hover:bg-primary/10', accentClassName)}
+      >
+        <MapButtonIcon className="h-5 w-5" />
+      </button>
+      {loading && <Loader2 className="pointer-events-none absolute right-14 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />}
+      {isOpen && (
+        <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+          {results.map((result) => (
+            <button
+              key={result.id}
+              type="button"
+              onClick={() => {
+                select(result.label);
+                onSelectLocation(result);
+              }}
+              className="flex w-full cursor-pointer items-start gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+            >
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <span className="truncate">{result.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const TimeInput = ({
   value,
@@ -503,7 +562,11 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       iconSurface: 'bg-blue-500/10',
     },
   ];
-  const [step, setStep] = useState<StepId>('general');
+  const [step, setStep] = useState<StepId>('cargo');
+  const contentScrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    contentScrollRef.current?.scrollTo({ top: 0 });
+  }, [step]);
   const [draft, setDraft] = useState<LoadDraft>(INITIAL_DRAFT);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingExisting, setIsLoadingExisting] = useState(false);
@@ -515,7 +578,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   const [aiFilledPatch, setAiFilledPatch] = useState<ScanFieldPatch>({});
   useEffect(() => {
     if (!isOpen) {
-      setStep('general');
+      setStep('cargo');
       setDraft(INITIAL_DRAFT);
       setSubmitError('');
       setScannedDocuments([]);
@@ -580,7 +643,6 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   const stepIndex = STEPS.findIndex((item) => item.id === step);
   const stepCompletion = useMemo<Record<StepId, boolean>>(
     () => ({
-      general: Boolean(draft.consignee && draft.transportType),
       route: Boolean(
         draft.pickupCity &&
           draft.pickupDate &&
@@ -588,13 +650,15 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
           draft.deliveryDate
       ),
       cargo: Boolean(
-        draft.cargoTitle.trim() &&
+        draft.consignee &&
+          draft.transportType &&
+          draft.cargoTitle.trim() &&
           Number(draft.weightKg) > 0 &&
           Number(draft.lengthM) > 0
       ),
-      terms: Boolean(
-        draft.vehicleType &&
-          draft.contactName &&
+      terms: Boolean(draft.vehicleType),
+      contact: Boolean(
+        draft.contactName &&
           (draft.contactPhone || draft.contactMobile || draft.contactEmail)
       ),
       review: true,
@@ -815,10 +879,10 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
             </div>
             <div className="hidden xl:flex shrink-0 items-center gap-4 text-slate-500">
               <div className="inline-flex items-center gap-2 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs font-bold">
-                {step === 'general' && <UserRound className="w-4 h-4 text-primary" />}
                 {step === 'route' && <MapPin className="w-4 h-4 text-primary" />}
                 {step === 'cargo' && <Package className="w-4 h-4 text-primary" />}
-                {step === 'terms' && <UserRound className="w-4 h-4 text-primary" />}
+                {step === 'terms' && <ShieldCheck className="w-4 h-4 text-primary" />}
+                {step === 'contact' && <UserRound className="w-4 h-4 text-primary" />}
                 {step === 'review' && <FileText className="w-4 h-4 text-primary" />}
                 <span>
                   {u('postLoadModal.stepLabel', 'Step')} {stepIndex + 1} / {STEPS.length}
@@ -888,10 +952,10 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
           <div className="px-4 sm:px-5 md:px-6 pb-4 sm:pb-5 md:pb-6 xl:hidden">
             <div className="flex flex-wrap items-center gap-3 text-slate-500">
               <div className="inline-flex items-center gap-2 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs font-bold">
-                {step === 'general' && <UserRound className="w-4 h-4 text-primary" />}
                 {step === 'route' && <MapPin className="w-4 h-4 text-primary" />}
                 {step === 'cargo' && <Package className="w-4 h-4 text-primary" />}
-                {step === 'terms' && <UserRound className="w-4 h-4 text-primary" />}
+                {step === 'terms' && <ShieldCheck className="w-4 h-4 text-primary" />}
+                {step === 'contact' && <UserRound className="w-4 h-4 text-primary" />}
                 {step === 'review' && <FileText className="w-4 h-4 text-primary" />}
                 <span>
                   {u('postLoadModal.stepLabel', 'Step')} {stepIndex + 1} / {STEPS.length}
@@ -960,25 +1024,25 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                 const isDone = stepCompletion[item.id];
                 const isClickable = canNavigateToStep(index);
                 const title =
-                  item.id === 'general'
-                    ? u('postLoadModal.step.general', 'General')
-                    : item.id === 'route'
+                  item.id === 'route'
                     ? u('postLoadModal.step.route', 'Route & Timing')
                     : item.id === 'cargo'
                       ? u('postLoadModal.step.cargo', 'Cargo Details')
                       : item.id === 'terms'
-                        ? u('postLoadModal.step.terms', 'Terms & Contact')
-                        : u('postLoadModal.step.review', 'Review');
+                        ? u('postLoadModal.step.terms', 'Terms')
+                        : item.id === 'contact'
+                          ? u('postLoadModal.step.contact', 'Contact')
+                          : u('postLoadModal.step.review', 'Review');
                 const subtitle =
-                  item.id === 'general'
-                    ? u('postLoadModal.step.generalDesc', 'Customer and transport type')
-                    : item.id === 'route'
+                  item.id === 'route'
                     ? u('postLoadModal.step.routeDesc', 'Where and when the load moves')
                     : item.id === 'cargo'
-                      ? u('postLoadModal.step.cargoDesc', 'What is being transported')
+                      ? u('postLoadModal.step.cargoDesc', 'Customer, transport type and cargo')
                       : item.id === 'terms'
-                        ? u('postLoadModal.step.termsDesc', 'Budget, equipment and contact')
-                        : u('postLoadModal.step.reviewDesc', 'Final check before posting');
+                        ? u('postLoadModal.step.termsDesc', 'Budget and equipment requirements')
+                        : item.id === 'contact'
+                          ? u('postLoadModal.step.contactDesc', 'Who to coordinate with and publication limits')
+                          : u('postLoadModal.step.reviewDesc', 'Final check before posting');
 
                 return (
                   <button
@@ -990,7 +1054,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                     }}
                     disabled={!isClickable}
                     className={cn(
-                      'w-full rounded-2xl border p-4 text-left transition-all',
+                      'w-full min-h-[92px] rounded-2xl border p-4 text-left transition-all',
                       isActive
                         ? 'border-primary bg-primary/5'
                         : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900',
@@ -1000,7 +1064,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         : 'cursor-not-allowed opacity-60'
                     )}
                   >
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-center gap-3">
                       <div
                         className={cn(
                           'w-10 h-10 rounded-xl flex items-center justify-center shrink-0',
@@ -1013,9 +1077,9 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       >
                         {isDone ? <CheckCircle2 className="w-5 h-5" /> : <Icon className="w-5 h-5" />}
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-sm font-bold dark:text-white">{title}</p>
-                        <p className="text-xs text-slate-500 mt-1">{subtitle}</p>
+                        <p className="text-xs text-slate-500 mt-1 line-clamp-2">{subtitle}</p>
                       </div>
                     </div>
                   </button>
@@ -1026,131 +1090,74 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
           </aside>
 
           <div className="flex min-h-0 min-w-0 flex-col">
-            <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5 md:p-6">
-              {step === 'general' && (
-                <div className="space-y-6 sm:space-y-8">
-                  <SectionTitle
-                    title={u('postLoadModal.generalTitle', 'General')}
-                    subtitle={u('postLoadModal.generalSubtitle', 'Select the customer and how this shipment will move.')}
-                  />
-                  <div className="space-y-1.5">
-                    <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
-                      <UserRound className="h-4 w-4" />
-                      <span>{u('postLoadModal.consignee', 'Consignee (customer)')}</span>
-                    </div>
-                    <CustomerSelect
-                      required
-                      value={draft.consignee}
-                      onChange={(option) => setField('consignee', option)}
-                      placeholder={u('postLoadModal.consigneePlaceholder', 'Select a consignee from the global customer database')}
-                    />
-                    <p className="text-xs text-slate-500">
-                      {u('postLoadModal.consigneeHelp', 'Search by company name, tax number, city or country. More results load as you scroll.')}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {step === 'general' && (
-                <div className="mt-8 border-t border-slate-200 pt-8 dark:border-slate-800 sm:mt-10 sm:pt-10 sm:space-y-8">
-                  <SectionTitle
-                    title={u('postLoadModal.routeTypeTitle', 'Route type')}
-                    subtitle={u('postLoadModal.transportTypeDesc', 'Choose how this load will move between pickup and delivery.')}
-                  />
-                  <fieldset>
-                    <legend className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
-                      <Route className="h-4 w-4" />
-                      {u('postLoadModal.transportType', 'Transport type')}
-                    </legend>
-                    <div className="mt-4 grid sm:grid-cols-3 gap-3">
-                      {transportOptions.map((option) => {
-                        const Icon = option.icon;
-                        return (
-                          <label
-                            key={option.id}
-                            className="relative flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 pr-11 transition-all hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800/60"
-                          >
-                            <input
-                              type="radio"
-                              name="transportType"
-                              value={option.id}
-                              checked={draft.transportType === option.id}
-                              onChange={() => setDraft((prev) => ({
-                                ...prev,
-                                transportType: option.id,
-                                cargoType: option.id === 'air' ? 'Standard' : prev.cargoType === 'Standard' ? 'FTL' : prev.cargoType,
-                              }))}
-                              className="peer sr-only"
-                            />
-                            <span aria-hidden="true" className="absolute right-4 top-4 flex h-4 w-4 items-center justify-center rounded-full border-2 border-slate-300 bg-white peer-checked:border-primary dark:border-slate-600 dark:bg-slate-900">
-                              <span className={cn('h-2 w-2 rounded-full bg-primary transition-opacity', draft.transportType === option.id ? 'opacity-100' : 'opacity-0')} />
-                            </span>
-                            <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', option.iconSurface)}>
-                              <Icon className={cn('h-5 w-5', option.iconTone)} />
-                            </div>
-                            <div>
-                              <p className="text-sm font-bold text-slate-900 dark:text-white">{option.label}</p>
-                              <p className="mt-0.5 text-xs text-slate-500">{option.description}</p>
-                            </div>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </fieldset>
-                </div>
-              )}
-
+            <div ref={contentScrollRef} className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5 md:p-6">
+              <AnimatePresence mode="wait">
               {step === 'route' && (
-                <div className="space-y-6 sm:space-y-8">
-                  <SectionTitle
-                    title={u('postLoadModal.routeTitle', 'Route & timing')}
-                    subtitle={u(
-                      'postLoadModal.routeSubtitle',
-                      'Define exact pickup and delivery details so drivers can evaluate whether the route fits their lane.'
-                    )}
-                  />
+                <motion.div key="route" className="space-y-6 sm:space-y-8" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
 
                   <div className="grid lg:grid-cols-2 gap-4 sm:gap-5">
                     <div className="space-y-4 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
-                      <div className="flex items-center gap-2 text-primary">
+                      <div className="flex items-center gap-2 text-emerald-500">
                         <MapPin className="w-4 h-4" />
                         <p className="text-xs font-black uppercase tracking-wider">
                           {u('postLoadModal.pickupBlock', 'Pickup')}
                         </p>
                       </div>
-                      <div className="grid sm:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <FieldLabel>{u('postLoadModal.pickupPlaces', 'Loading place')}</FieldLabel>
-                          <Select value={draft.pickupPlaces} onChange={(e) => setField('pickupPlaces', e.target.value)}>
-                            <option value="1">1</option>
-                            <option value="2">2</option>
-                            <option value="3">3</option>
-                          </Select>
-                        </div>
-                        <div className="space-y-1.5">
-                          <FieldLabel>{u('postLoadModal.pickupPlaceType', 'Place type')}</FieldLabel>
-                          <Select value={draft.pickupPlaceType} onChange={(e) => setField('pickupPlaceType', e.target.value)}>
-                            <option value="Loading place">{u('postLoadModal.loadingPlace', 'Loading place')}</option>
-                            <option value="Warehouse">{u('postLoadModal.warehouse', 'Warehouse')}</option>
-                            <option value="Terminal">{u('postLoadModal.terminal', 'Terminal')}</option>
-                            {draft.transportType === 'air' && <option value="AOL / Airport of loading">AOL / Airport of loading</option>}
-                            {draft.transportType === 'air' && <option value="Address">{u('postLoadModal.address', 'Address')}</option>}
-                          </Select>
+                      <div className="space-y-1.5">
+                        <FieldLabel>{u('postLoadModal.pickupPlaces', 'Loading place')}</FieldLabel>
+                        <Select value={draft.pickupPlaces} onChange={(e) => setField('pickupPlaces', e.target.value)}>
+                          <option value="1">1</option>
+                          <option value="2">2</option>
+                          <option value="3">3</option>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <FieldLabel>{u('postLoadModal.pickupPlaceType', 'Place type')}</FieldLabel>
+                        <div className="grid grid-cols-3 gap-2">
+                          {(draft.transportType === 'air'
+                            ? [
+                                { value: 'Loading place', label: u('postLoadModal.loadingPlace', 'Loading place'), icon: Package },
+                                { value: 'Warehouse', label: u('postLoadModal.warehouse', 'Warehouse'), icon: Warehouse },
+                                { value: 'Terminal', label: u('postLoadModal.terminal', 'Terminal'), icon: Building2 },
+                                { value: 'AOL / Airport of loading', label: 'AOL / Airport of loading', icon: PlaneLanding },
+                                { value: 'Address', label: u('postLoadModal.address', 'Address'), icon: MapPin },
+                              ]
+                            : [
+                                { value: 'Loading place', label: u('postLoadModal.loadingPlace', 'Loading place'), icon: Package },
+                                { value: 'Warehouse', label: u('postLoadModal.warehouse', 'Warehouse'), icon: Warehouse },
+                                { value: 'Terminal', label: u('postLoadModal.terminal', 'Terminal'), icon: Building2 },
+                              ]
+                          ).map((option) => (
+                            <ChoiceCard
+                              key={option.value}
+                              compact
+                              active={draft.pickupPlaceType === option.value}
+                              title={option.label}
+                              icon={option.icon}
+                              onClick={() => setField('pickupPlaceType', option.value)}
+                            />
+                          ))}
                         </div>
                       </div>
                       <div className="space-y-1.5">
                         <FieldLabel>{u('postLoadModal.pickupAddress', 'Pickup address')}</FieldLabel>
-                        <div className="relative">
-                          <Input
-                            value={draft.pickupAddress}
-                            onChange={(event) => setField('pickupAddress', event.target.value)}
-                            className="pr-12"
-                            placeholder={u('postLoadModal.pickupAddressPlaceholder', 'Warehouse, street, reference point')}
-                          />
-                          <button type="button" onClick={() => setAddressMap('pickup')} aria-label={u('map.choosePickup', 'Choose pickup address on map')} className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg text-primary hover:bg-primary/10">
-                            <MapPin className="h-5 w-5" />
-                          </button>
-                        </div>
+                        <AddressAutocompleteField
+                          value={draft.pickupAddress}
+                          onChange={(value) => setField('pickupAddress', value)}
+                          onSelectLocation={(location) => setDraft((current) => ({
+                            ...current,
+                            pickupAddress: location.label,
+                            pickupCity: location.city || current.pickupCity,
+                            pickupCountry: location.countryCode || current.pickupCountry,
+                            pickupLatitude: String(location.latitude),
+                            pickupLongitude: String(location.longitude),
+                          }))}
+                          placeholder={u('postLoadModal.pickupAddressPlaceholder', 'Start typing or click the map to select')}
+                          onOpenMap={() => setAddressMap('pickup')}
+                          mapButtonLabel={u('map.choosePickup', 'Choose pickup address on map')}
+                          mapButtonIcon={MapGlyphIcon}
+                          accentClassName="text-emerald-500"
+                        />
                       </div>
                       <div className="grid sm:grid-cols-[240px_minmax(0,1fr)] gap-4">
                         <div className="space-y-1.5">
@@ -1207,44 +1214,66 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                     </div>
 
                     <div className="space-y-4 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
-                      <div className="flex items-center gap-2 text-primary">
+                      <div className="flex items-center gap-2 text-blue-500">
                         <Truck className="w-4 h-4" />
                         <p className="text-xs font-black uppercase tracking-wider">
                           {u('postLoadModal.deliveryBlock', 'Delivery')}
                         </p>
                       </div>
-                      <div className="grid sm:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <FieldLabel>{u('postLoadModal.deliveryPlaces', 'Unloading place')}</FieldLabel>
-                          <Select value={draft.deliveryPlaces} onChange={(e) => setField('deliveryPlaces', e.target.value)}>
-                            <option value="1">1</option>
-                            <option value="2">2</option>
-                            <option value="3">3</option>
-                          </Select>
-                        </div>
-                        <div className="space-y-1.5">
-                          <FieldLabel>{u('postLoadModal.deliveryPlaceType', 'Place type')}</FieldLabel>
-                          <Select value={draft.deliveryPlaceType} onChange={(e) => setField('deliveryPlaceType', e.target.value)}>
-                            <option value="Unloading place">{u('postLoadModal.unloadingPlace', 'Unloading place')}</option>
-                            <option value="Warehouse">{u('postLoadModal.warehouse', 'Warehouse')}</option>
-                            <option value="Terminal">{u('postLoadModal.terminal', 'Terminal')}</option>
-                            {draft.transportType === 'air' && <option value="Address">{u('postLoadModal.address', 'Address')}</option>}
-                          </Select>
+                      <div className="space-y-1.5">
+                        <FieldLabel>{u('postLoadModal.deliveryPlaces', 'Unloading place')}</FieldLabel>
+                        <Select value={draft.deliveryPlaces} onChange={(e) => setField('deliveryPlaces', e.target.value)}>
+                          <option value="1">1</option>
+                          <option value="2">2</option>
+                          <option value="3">3</option>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <FieldLabel>{u('postLoadModal.deliveryPlaceType', 'Place type')}</FieldLabel>
+                        <div className="grid grid-cols-3 gap-2">
+                          {(draft.transportType === 'air'
+                            ? [
+                                { value: 'Unloading place', label: u('postLoadModal.unloadingPlace', 'Unloading place'), icon: Package },
+                                { value: 'Warehouse', label: u('postLoadModal.warehouse', 'Warehouse'), icon: Warehouse },
+                                { value: 'Terminal', label: u('postLoadModal.terminal', 'Terminal'), icon: Building2 },
+                                { value: 'Address', label: u('postLoadModal.address', 'Address'), icon: MapPin },
+                              ]
+                            : [
+                                { value: 'Unloading place', label: u('postLoadModal.unloadingPlace', 'Unloading place'), icon: Package },
+                                { value: 'Warehouse', label: u('postLoadModal.warehouse', 'Warehouse'), icon: Warehouse },
+                                { value: 'Terminal', label: u('postLoadModal.terminal', 'Terminal'), icon: Building2 },
+                              ]
+                          ).map((option) => (
+                            <ChoiceCard
+                              key={option.value}
+                              compact
+                              active={draft.deliveryPlaceType === option.value}
+                              title={option.label}
+                              icon={option.icon}
+                              onClick={() => setField('deliveryPlaceType', option.value)}
+                            />
+                          ))}
                         </div>
                       </div>
                       <div className="space-y-1.5">
                         <FieldLabel>{u('postLoadModal.deliveryAddress', 'Delivery address')}</FieldLabel>
-                        <div className="relative">
-                          <Input
-                            value={draft.deliveryAddress}
-                            onChange={(event) => setField('deliveryAddress', event.target.value)}
-                            className="pr-12"
-                            placeholder={u('postLoadModal.deliveryAddressPlaceholder', 'Receiver location, dock or terminal')}
-                          />
-                          <button type="button" onClick={() => setAddressMap('delivery')} aria-label={u('map.chooseDelivery', 'Choose delivery address on map')} className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg text-primary hover:bg-primary/10">
-                            <MapPin className="h-5 w-5" />
-                          </button>
-                        </div>
+                        <AddressAutocompleteField
+                          value={draft.deliveryAddress}
+                          onChange={(value) => setField('deliveryAddress', value)}
+                          onSelectLocation={(location) => setDraft((current) => ({
+                            ...current,
+                            deliveryAddress: location.label,
+                            deliveryCity: location.city || current.deliveryCity,
+                            deliveryCountry: location.countryCode || current.deliveryCountry,
+                            deliveryLatitude: String(location.latitude),
+                            deliveryLongitude: String(location.longitude),
+                          }))}
+                          placeholder={u('postLoadModal.deliveryAddressPlaceholder', 'Start typing or click the map to select')}
+                          onOpenMap={() => setAddressMap('delivery')}
+                          mapButtonLabel={u('map.chooseDelivery', 'Choose delivery address on map')}
+                          mapButtonIcon={MapGlyphIcon}
+                          accentClassName="text-blue-500"
+                        />
                       </div>
                       <div className="grid sm:grid-cols-[240px_minmax(0,1fr)] gap-4">
                         <div className="space-y-1.5">
@@ -1300,20 +1329,79 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               )}
 
               {step === 'cargo' && (
-                <div className="space-y-6 sm:space-y-8">
-                  <SectionTitle
-                    title={u('postLoadModal.cargoTitle', 'Cargo details')}
-                    subtitle={u(
-                      'postLoadModal.cargoSubtitle',
-                      'Describe the shipment precisely so the driver knows what vehicle, handling and space are required.'
-                    )}
-                  />
+                <motion.div key="cargo" className="space-y-6 sm:space-y-8" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
 
                   <div className="grid lg:grid-cols-2 gap-4 sm:gap-5">
+                    <div className="space-y-4 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
+                      <div className="space-y-1.5">
+                        <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
+                          <UserRound className="h-4 w-4" />
+                          <span>{u('postLoadModal.consignee', 'Consignee (customer)')}</span>
+                        </div>
+                        <CustomerSelect
+                          required
+                          value={draft.consignee}
+                          onChange={(option) => setField('consignee', option)}
+                          placeholder={u('postLoadModal.consigneePlaceholder', 'Select a consignee from the global customer database')}
+                        />
+                        <p className="text-xs text-slate-500">
+                          {u('postLoadModal.consigneeHelp', 'Search by company name, tax number, city or country. More results load as you scroll.')}
+                        </p>
+                      </div>
+
+                      <fieldset>
+                        <legend className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
+                          <Route className="h-4 w-4" />
+                          {u('postLoadModal.transportType', 'Transport type')}
+                        </legend>
+                        <div className="mt-4 grid sm:grid-cols-3 gap-3">
+                          {transportOptions.map((option) => {
+                            const Icon = option.icon;
+                            return (
+                              <label
+                                key={option.id}
+                                className="relative flex cursor-pointer flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-4 pr-11 transition-all hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800/60"
+                              >
+                                <input
+                                  type="radio"
+                                  name="transportType"
+                                  value={option.id}
+                                  checked={draft.transportType === option.id}
+                                  onChange={() => setDraft((prev) => ({
+                                    ...prev,
+                                    transportType: option.id,
+                                    cargoType: option.id === 'air' ? 'Standard' : prev.cargoType === 'Standard' ? 'FTL' : prev.cargoType,
+                                  }))}
+                                  className="peer sr-only"
+                                />
+                                <span aria-hidden="true" className="absolute right-4 top-4 flex h-4 w-4 items-center justify-center rounded-full border-2 border-slate-300 bg-white peer-checked:border-primary dark:border-slate-600 dark:bg-slate-900">
+                                  <span className={cn('h-2 w-2 rounded-full bg-primary transition-opacity', draft.transportType === option.id ? 'opacity-100' : 'opacity-0')} />
+                                </span>
+                                <div className="flex items-center gap-3">
+                                  <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', option.iconSurface)}>
+                                    <Icon className={cn('h-5 w-5', option.iconTone)} />
+                                  </div>
+                                  <p className="text-sm font-bold text-slate-900 dark:text-white">{option.label}</p>
+                                </div>
+                                <p className="text-xs text-slate-500">{option.description}</p>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </fieldset>
+
+                      <div className="space-y-1.5">
+                        <FieldLabel>{u('postLoadModal.loadingEquipment', 'Loading equipment')}</FieldLabel>
+                        <div className="grid grid-cols-2 gap-2">
+                          {LOADING_EQUIPMENT_OPTIONS.map((option) => <ChoiceCard key={option} compact active={draft.loadingEquipment === option} title={option} icon={option.includes('Forklift') ? Package : option.includes('ramp') ? Truck : option.includes('Other') ? ShieldCheck : X} onClick={() => setField('loadingEquipment', option)} />)}
+                        </div>
+                      </div>
+                    </div>
+
                     <div className="space-y-4 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
                       <div className="space-y-1.5">
                         {fieldLabel('cargoTitle', 'postLoadModal.cargoName', 'Type of goods')}
@@ -1390,94 +1478,106 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           </div>
                         </div>
                       </div>
-                      <div className="space-y-4">
-                        <div className="space-y-1.5">
-                          <FieldLabel>{u('postLoadModal.additionalInfo', 'Additional information')}</FieldLabel>
-                          <div className="grid grid-cols-3 gap-2">
-                            {[{ value: 'Stackable', icon: Package }, { value: 'Top load only', icon: ShieldCheck }, { value: 'Non-stackable', icon: X }].map(({ value, icon }) => <ChoiceCard key={value} compact active={draft.additionalInfo === value} title={value} icon={icon} onClick={() => setField('additionalInfo', value)} />)}
-                          </div>
-                        </div>
-                        <div className="space-y-1.5">
-                          <FieldLabel>{u('postLoadModal.loadingEquipment', 'Loading equipment')}</FieldLabel>
-                          <div className="grid grid-cols-2 gap-2">
-                            {LOADING_EQUIPMENT_OPTIONS.map((option) => <ChoiceCard key={option} compact active={draft.loadingEquipment === option} title={option} icon={option.includes('Forklift') ? Package : option.includes('ramp') ? Truck : option.includes('Other') ? ShieldCheck : X} onClick={() => setField('loadingEquipment', option)} />)}
-                          </div>
+                      <div className="space-y-1.5">
+                        <FieldLabel>{u('postLoadModal.additionalInfo', 'Additional information')}</FieldLabel>
+                        <div className="grid grid-cols-3 gap-2">
+                          {[{ value: 'Stackable', icon: Package }, { value: 'Top load only', icon: ShieldCheck }, { value: 'Non-stackable', icon: X }].map(({ value, icon }) => <ChoiceCard key={value} compact active={draft.additionalInfo === value} title={value} icon={icon} onClick={() => setField('additionalInfo', value)} />)}
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex flex-col space-y-4 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
-                      <div className="grid sm:grid-cols-[minmax(0,1fr)_120px] gap-4">
-                        <div className="space-y-1.5">
-                          {fieldLabel('budget', 'postLoadModal.targetPrice', 'Your expected target price')}
-                          <Input
-                            value={draft.budget}
-                            onChange={(e) => setField('budget', e.target.value)}
-                            placeholder="1450"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          {fieldLabel('freightCurrency', 'postLoadModal.currency', 'Currency')}
-                          <Select value={draft.freightCurrency} onChange={(e) => setField('freightCurrency', e.target.value)}>
-                            <option value="EUR">EUR</option>
-                            <option value="BAM">BAM</option>
-                            <option value="USD">USD</option>
-                          </Select>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        {fieldLabel('paymentDeferred', 'postLoadModal.deferredPayment', 'Deferred payment')}
-                        <div className="grid grid-cols-2 gap-2">
-                          <ChoiceCard compact active={!draft.paymentDeferred} title={u('common.no', 'No')} description="Pay on delivery" icon={Coins} onClick={() => setField('paymentDeferred', false)} />
-                          <ChoiceCard compact active={draft.paymentDeferred} title={u('common.yes', 'Yes')} description="Set payment window" icon={Clock3} onClick={() => setField('paymentDeferred', true)} />
-                        </div>
-                        {draft.paymentDeferred && <Input type="number" min="1" value={draft.paymentDueDays} onChange={(e) => setField('paymentDueDays', e.target.value)} placeholder={u('postLoadModal.paymentDueDays', 'Number of days')} />}
-                      </div>
-                      <div className="space-y-1.5">
-                        {fieldLabel('incoterm', 'postLoadModal.incoterm', 'Incoterm')}
-                        <Select value={draft.incoterm} onChange={(event) => setField('incoterm', event.target.value)}>
-                          <option value="">{u('postLoadModal.pleaseSelect', 'Please select')}</option>
-                          {INCOTERM_OPTIONS.map((incoterm) => (
-                            <option key={incoterm} value={incoterm}>{incoterm}</option>
-                          ))}
-                        </Select>
-                      </div>
-                      <div className="space-y-1.5">
-                        <FieldLabel>{u('postLoadModal.priceTerms', 'Terms')}</FieldLabel>
-                        <div className="grid grid-cols-2 gap-3">
-                          <ChoiceCard
-                            active={draft.receivePriceProposals}
-                            title={u('postLoadModal.termsNegotiable', 'Negotiable')}
-                            description={u('postLoadModal.termsNegotiableDesc', 'Carriers can send alternative prices')}
-                            icon={Handshake}
-                            onClick={() => setField('receivePriceProposals', true)}
-                          />
-                          <ChoiceCard
-                            active={!draft.receivePriceProposals}
-                            title={u('postLoadModal.termsFixed', 'Fixed price')}
-                            description={u('postLoadModal.termsFixedDesc', 'Carriers book instantly at your price')}
-                            icon={Tag}
-                            onClick={() => setField('receivePriceProposals', false)}
-                          />
-                        </div>
-                      </div>
-                    </div>
                   </div>
-                </div>
+                </motion.div>
               )}
 
               {step === 'terms' && (
-                <div className="space-y-6 sm:space-y-8">
-                  <SectionTitle
-                    title={u('postLoadModal.termsTitle', 'Terms, equipment and contact')}
-                    subtitle={u(
-                      'postLoadModal.termsSubtitle',
-                      'Clarify payout, vehicle constraints and who the driver should coordinate with.'
-                    )}
-                  />
+                <motion.div key="terms" className="space-y-6 sm:space-y-8" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
 
                   <div className="grid lg:grid-cols-2 gap-4 sm:gap-5">
-                    <div className="space-y-5 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
+                  <div className="order-2 flex flex-col space-y-4 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
+                    <div className="grid sm:grid-cols-[minmax(0,1fr)_120px] gap-4">
+                      <div className="space-y-1.5">
+                        {fieldLabel('budget', 'postLoadModal.targetPrice', 'Your expected target price')}
+                        <Input
+                          value={draft.budget}
+                          onChange={(e) => setField('budget', e.target.value)}
+                          placeholder="1450"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        {fieldLabel('freightCurrency', 'postLoadModal.currency', 'Currency')}
+                        <Select value={draft.freightCurrency} onChange={(e) => setField('freightCurrency', e.target.value)}>
+                          <option value="EUR">EUR</option>
+                          <option value="BAM">BAM</option>
+                          <option value="USD">USD</option>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {fieldLabel('paymentDeferred', 'postLoadModal.deferredPayment', 'Deferred payment')}
+                      <div className="grid grid-cols-2 gap-2">
+                        <ChoiceCard compact active={!draft.paymentDeferred} title={u('common.no', 'No')} description="Pay on delivery" icon={Coins} onClick={() => setField('paymentDeferred', false)} />
+                        <ChoiceCard compact active={draft.paymentDeferred} title={u('common.yes', 'Yes')} description="Set payment window" icon={Clock3} onClick={() => setField('paymentDeferred', true)} />
+                      </div>
+                      {draft.paymentDeferred && <Input type="number" min="1" value={draft.paymentDueDays} onChange={(e) => setField('paymentDueDays', e.target.value)} placeholder={u('postLoadModal.paymentDueDays', 'Number of days')} />}
+                    </div>
+                    <div className="space-y-1.5">
+                      {fieldLabel('incoterm', 'postLoadModal.incoterm', 'Incoterm')}
+                      <Select value={draft.incoterm} onChange={(event) => setField('incoterm', event.target.value)}>
+                        <option value="">{u('postLoadModal.pleaseSelect', 'Please select')}</option>
+                        {INCOTERM_OPTIONS.map((incoterm) => (
+                          <option key={incoterm} value={incoterm}>{incoterm}</option>
+                        ))}
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <FieldLabel>{u('postLoadModal.priceTerms', 'Terms')}</FieldLabel>
+                      <div className="grid grid-cols-2 gap-3">
+                        <ChoiceCard
+                          active={draft.receivePriceProposals}
+                          title={u('postLoadModal.termsNegotiable', 'Negotiable')}
+                          description={u('postLoadModal.termsNegotiableDesc', 'Carriers can send alternative prices')}
+                          icon={Handshake}
+                          onClick={() => setField('receivePriceProposals', true)}
+                        />
+                        <ChoiceCard
+                          active={!draft.receivePriceProposals}
+                          title={u('postLoadModal.termsFixed', 'Fixed price')}
+                          description={u('postLoadModal.termsFixedDesc', 'Carriers book instantly at your price')}
+                          icon={Tag}
+                          onClick={() => setField('receivePriceProposals', false)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <FieldLabel>{u('postLoadModal.externalComments', 'External comments')}</FieldLabel>
+                      <Input
+                        value={draft.externalComments}
+                        onChange={(e) => setField('externalComments', e.target.value)}
+                        placeholder={u('postLoadModal.externalCommentsPlaceholder', 'Visible to carriers reviewing the offer')}
+                      />
+                    </div>
+
+                    <div className="flex flex-1 flex-col space-y-1.5">
+                      {fieldLabel('notes', 'postLoadModal.notes', 'Handling notes')}
+                      <Textarea
+                        value={draft.notes}
+                        onChange={(e) => setField('notes', e.target.value)}
+                        placeholder={u(
+                          'postLoadModal.notesPlaceholder',
+                          'Packaging details, loading constraints, dock rules, documents, return pallets, special care...'
+                        )}
+                        className="h-full min-h-24 flex-1"
+                      />
+                    </div>
+                  </div>
+
+                    <div className="order-1 space-y-5 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
+                      <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
+                        <Truck className="h-4 w-4" />
+                        <span>{u('postLoadModal.equipmentTitle', 'Equipment & requirements')}</span>
+                      </div>
                       {draft.transportType === 'air' ? (
                         <div className="space-y-4">
                           <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.transportMode', 'Transport mode')}</FieldLabel><div className="grid sm:grid-cols-2 gap-3"><ChoiceCard active={draft.transportMode === 'Airport to airport'} title="Airport to airport" description="Terminal-to-terminal air cargo" icon={Plane} onClick={() => setField('transportMode', 'Airport to airport')} /><ChoiceCard active={draft.transportMode === 'Air freight + last-mile delivery'} title="Air freight + last-mile delivery" description="Air transport plus final delivery" icon={Truck} onClick={() => setField('transportMode', 'Air freight + last-mile delivery')} /></div></div>
@@ -1580,29 +1680,13 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           description={u('postLoadModal.customsDesc', 'Customs clearance required')}
                         />
                       </div>
-
-                      <div className="space-y-1.5">
-                        <FieldLabel>{u('postLoadModal.externalComments', 'External comments')}</FieldLabel>
-                        <Input
-                          value={draft.externalComments}
-                          onChange={(e) => setField('externalComments', e.target.value)}
-                          placeholder={u('postLoadModal.externalCommentsPlaceholder', 'Visible to carriers reviewing the offer')}
-                        />
-                      </div>
-
-                      <div className="space-y-1.5">
-                        {fieldLabel('notes', 'postLoadModal.notes', 'Handling notes')}
-                        <Textarea
-                          value={draft.notes}
-                          onChange={(e) => setField('notes', e.target.value)}
-                          placeholder={u(
-                            'postLoadModal.notesPlaceholder',
-                            'Packaging details, loading constraints, dock rules, documents, return pallets, special care...'
-                          )}
-                          className="min-h-32"
-                        />
-                      </div>
                     </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {step === 'contact' && (
+                <motion.div key="contact" className="space-y-6 sm:space-y-8" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
 
                     <div className="space-y-5 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
                       <div className="space-y-1.5">
@@ -1728,20 +1812,11 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         </div>
                       </div>
                     </div>
-                  </div>
-                </div>
+                </motion.div>
               )}
 
               {step === 'review' && (
-                <div className="space-y-6 sm:space-y-8">
-                  <SectionTitle
-                    title={u('postLoadModal.reviewTitle', 'Review before posting')}
-                    subtitle={u(
-                      'postLoadModal.reviewSubtitle',
-                      'This is the summary drivers will mentally evaluate in a few seconds before deciding to accept or skip.'
-                    )}
-                  />
-
+                <motion.div key="review" className="space-y-6 sm:space-y-8" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
                   <div className="grid xl:grid-cols-[minmax(0,1fr)_300px] gap-5">
                     <div className="rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
                       <SummaryRow label={u('postLoadModal.consignee', 'Consignee (customer)')} value={draft.consignee?.text || '—'} />
@@ -1821,15 +1896,16 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               )}
+              </AnimatePresence>
             </div>
 
             <div className="p-4 sm:p-5 md:p-6 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800">
               {submitError && <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400">{submitError}</div>}
               <div className="grid w-full gap-3 sm:grid-cols-3">
-                <Button variant="outline" className="w-full min-h-[56px] sm:min-h-[60px]" onClick={step === 'general' ? onClose : goBack}>
-                  {step === 'general' ? u('common.cancel', 'Cancel') : u('common.back', 'Back')}
+                <Button variant="outline" className="w-full min-h-[56px] sm:min-h-[60px]" onClick={step === 'cargo' ? onClose : goBack}>
+                  {step === 'cargo' ? u('common.cancel', 'Cancel') : u('common.back', 'Back')}
                 </Button>
                 <Button
                   variant="secondary"

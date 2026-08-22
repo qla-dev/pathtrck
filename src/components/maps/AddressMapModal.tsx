@@ -4,7 +4,8 @@ import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-lea
 
 import { Language } from '../../types';
 import { ui } from '../../i18n';
-import { LocationSearchResult, reverseLocation, searchLocations } from '../../services/locationSearch';
+import { useLocationAutocomplete } from '../../hooks/useLocationAutocomplete';
+import { LocationSearchResult, reverseLocation } from '../../services/locationSearch';
 import { Button } from '../ui/Button';
 
 type AddressMapModalProps = {
@@ -34,63 +35,40 @@ export const AddressMapModal = ({ open, lang, title, initialQuery = '', initialP
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const defaultPosition: [number, number] = initialPosition || [43.8563, 18.4131];
   const [query, setQuery] = useState(initialQuery);
-  const [results, setResults] = useState<LocationSearchResult[]>([]);
   const [selected, setSelected] = useState<LocationSearchResult | null>(null);
   const [position, setPosition] = useState<[number, number]>(defaultPosition);
-  const [loading, setLoading] = useState(false);
+  const [mapPointLoading, setMapPointLoading] = useState(false);
+  const { results, loading, isOpen, open: openSuggestions, close, select } = useLocationAutocomplete(query);
 
   useEffect(() => {
     if (!open) return;
     setQuery(initialQuery);
-    setResults([]);
     setSelected(null);
     setPosition(initialPosition || [43.8563, 18.4131]);
   }, [initialPosition, initialQuery, open]);
-
-  useEffect(() => {
-    if (!open || query.trim().length < 2) {
-      setResults([]);
-      return undefined;
-    }
-    const controller = new AbortController();
-    const timer = window.setTimeout(() => {
-      setLoading(true);
-      void searchLocations(query, controller.signal)
-        .then(setResults)
-        .catch((error) => {
-          if ((error as Error).name !== 'AbortError') setResults([]);
-        })
-        .finally(() => {
-          if (!controller.signal.aborted) setLoading(false);
-        });
-    }, 350);
-    return () => {
-      window.clearTimeout(timer);
-      controller.abort();
-    };
-  }, [open, query]);
 
   if (!open) return null;
 
   const locationToUse = selected || results[0] || null;
 
   const selectResult = (result: LocationSearchResult) => {
+    select(result.label);
     setSelected(result);
     setPosition([result.latitude, result.longitude]);
     setQuery(result.label);
-    setResults([]);
   };
 
   const selectMapPoint = (latitude: number, longitude: number) => {
     setPosition([latitude, longitude]);
-    setLoading(true);
+    setMapPointLoading(true);
     void reverseLocation(latitude, longitude)
       .then((result) => {
+        select(result.label);
         setSelected(result);
         setQuery(result.label);
       })
       .catch(() => setSelected({ id: `${latitude}-${longitude}`, label: query || `${latitude}, ${longitude}`, latitude, longitude, city: '', countryCode: '' }))
-      .finally(() => setLoading(false));
+      .finally(() => setMapPointLoading(false));
   };
 
   return (
@@ -122,14 +100,14 @@ export const AddressMapModal = ({ open, lang, title, initialQuery = '', initialP
               onChange={(event) => {
                 setQuery(event.target.value);
                 setSelected(null);
-                setResults([]);
               }}
+              onFocus={openSuggestions}
               placeholder={u('map.searchAddress', 'Search city, street or address')}
               className="h-12 w-full rounded-xl border-0 bg-slate-50 pl-11 pr-11 text-sm font-semibold outline-none dark:bg-slate-950 dark:text-white"
             />
-            {loading && <Loader2 className="absolute right-5 top-1/2 h-5 w-5 -translate-y-1/2 animate-spin text-primary" />}
+            {(loading || mapPointLoading) && <Loader2 className="absolute right-5 top-1/2 h-5 w-5 -translate-y-1/2 animate-spin text-primary" />}
           </div>
-          {results.length > 0 && (
+          {isOpen && (
             <div className="mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900">
               {results.map((result) => (
                 <button key={result.id} type="button" onClick={() => selectResult(result)} className="flex w-full cursor-pointer items-start gap-3 rounded-xl px-3 py-3 text-left text-sm hover:bg-slate-100 dark:text-white dark:hover:bg-slate-800">
@@ -144,7 +122,7 @@ export const AddressMapModal = ({ open, lang, title, initialQuery = '', initialP
 
       <footer className="flex shrink-0 items-center justify-between gap-4 border-t border-slate-200 bg-white px-5 py-4 dark:border-slate-800 dark:bg-slate-950">
         <p className="min-w-0 truncate text-sm text-slate-500">{locationToUse?.label || u('map.clickHint', 'Search or click the map to select an exact location.')}</p>
-        <Button disabled={!locationToUse || loading} onClick={() => locationToUse && onSelect(locationToUse)} className="shrink-0 gap-2">
+        <Button disabled={!locationToUse || loading || mapPointLoading} onClick={() => locationToUse && onSelect(locationToUse)} className="shrink-0 gap-2">
           <Check className="h-4 w-4" /> {u('map.useLocation', 'Use location')}
         </Button>
       </footer>

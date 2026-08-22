@@ -186,8 +186,8 @@ export const FilterLoads = (props: FilterLoadsProps) => {
   const endSearch = useLocationAutocomplete(endLocation);
   const startFieldRef = useRef<HTMLLabelElement>(null);
   const endFieldRef = useRef<HTMLLabelElement>(null);
-  useOutsideClick(startFieldRef, startSearch.clear, startSearch.results.length > 0);
-  useOutsideClick(endFieldRef, endSearch.clear, endSearch.results.length > 0);
+  useOutsideClick(startFieldRef, startSearch.close, startSearch.isOpen);
+  useOutsideClick(endFieldRef, endSearch.close, endSearch.isOpen);
 
   const pillsScrollRef = useRef<HTMLDivElement>(null);
   const [canScrollPillsLeft, setCanScrollPillsLeft] = useState(false);
@@ -455,20 +455,22 @@ export const FilterLoads = (props: FilterLoadsProps) => {
             <input
               value={startLocation}
               onChange={(event) => onStartLocationChange(event.target.value)}
+              onFocus={startSearch.open}
               placeholder={u('feed.filterBar.searchCity', 'Search city...')}
               className="w-full border-0 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-200"
             />
             {startSearch.loading && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />}
           </div>
-          {startSearch.results.length > 0 && (
+          {startSearch.isOpen && (
             <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-900">
               {startSearch.results.map((result) => (
                 <button
                   key={result.id}
                   type="button"
                   onClick={() => {
-                    onStartLocationChange(result.city || result.label);
-                    startSearch.clear();
+                    const nextValue = result.city || result.label;
+                    startSearch.select(nextValue);
+                    onStartLocationChange(nextValue);
                   }}
                   className="flex w-full cursor-pointer items-start gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
                 >
@@ -489,20 +491,22 @@ export const FilterLoads = (props: FilterLoadsProps) => {
             <input
               value={endLocation}
               onChange={(event) => onEndLocationChange(event.target.value)}
+              onFocus={endSearch.open}
               placeholder={u('feed.filterBar.searchCity', 'Search city...')}
               className="w-full border-0 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-200"
             />
             {endSearch.loading && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />}
           </div>
-          {endSearch.results.length > 0 && (
+          {endSearch.isOpen && (
             <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-900">
               {endSearch.results.map((result) => (
                 <button
                   key={result.id}
                   type="button"
                   onClick={() => {
-                    onEndLocationChange(result.city || result.label);
-                    endSearch.clear();
+                    const nextValue = result.city || result.label;
+                    endSearch.select(nextValue);
+                    onEndLocationChange(nextValue);
                   }}
                   className="flex w-full cursor-pointer items-start gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
                 >

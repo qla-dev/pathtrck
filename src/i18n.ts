@@ -5237,6 +5237,7 @@ const TRIPLET_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
   'Weight': { bs: 'Tezina', de: 'Gewicht' },
   'Rate': { bs: 'Cijena', de: 'Preis' },
   'Action': { bs: 'Akcija', de: 'Aktion' },
+  'Start typing or click the map to select': { bs: 'Počnite kucati ili kliknite na mapu za odabir', de: 'Beginnen Sie zu tippen oder klicken Sie auf die Karte zur Auswahl' },
 };
 
 const UI_TRACKING_CAPACITY_OVERRIDES: Record<string, Partial<Record<Locale, string>>> = {
