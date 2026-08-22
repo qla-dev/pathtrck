@@ -10,7 +10,7 @@ type TypewriterTextProps = {
 
 export const TypewriterText = ({
   text,
-  speed = 15,
+  speed = 6,
   render,
   onUpdate,
   onComplete,
