@@ -1,4 +1,4 @@
-import { AlertCircle, Bot, FileImage, FileSpreadsheet, FileText, Image as ImageIcon, Loader2, Mic, Paperclip, Phone, RefreshCw, Send, Video } from 'lucide-react';
+import { AlertCircle, Bot, Check, Copy, FileImage, FileSpreadsheet, FileText, Image as ImageIcon, Loader2, Mic, Paperclip, Phone, RefreshCw, Send, Video } from 'lucide-react';
 import { useCallback, useLayoutEffect, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import { cn } from '../../lib/cn';
 import { ChatMessage, Conversation } from './types';
@@ -45,6 +45,8 @@ type ChatConversationPanelProps = {
   attachmentDropLabel?: string;
   notSentMessageLabel?: string;
   retryMessageLabel?: string;
+  copyMessageLabel?: string;
+  copiedMessageLabel?: string;
 };
 
 export const ChatConversationPanel = ({
@@ -68,6 +70,8 @@ export const ChatConversationPanel = ({
   attachmentDropLabel = 'Drop file for LenaAI',
   notSentMessageLabel = 'Not sent',
   retryMessageLabel = 'Retry',
+  copyMessageLabel = 'Copy message',
+  copiedMessageLabel = 'Copied',
 }: ChatConversationPanelProps) => {
   const primaryActionButtonClass = 'h-9 rounded-lg bg-primary text-white flex items-center justify-center cursor-pointer transition-all hover:brightness-95';
   const messageListRef = useRef<HTMLDivElement>(null);
@@ -78,8 +82,19 @@ export const ChatConversationPanel = ({
   const knownMessagesConversationIdRef = useRef<string | null>(null);
   const [typingMessageId, setTypingMessageId] = useState<string | null>(null);
   const [isDraggingAttachment, setIsDraggingAttachment] = useState(false);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const hasAttachmentHandler = activeConversation.isAiDispatch && Boolean(onAttachFile);
   const canAttach = hasAttachmentHandler && !attachmentBusy;
+
+  const copyMessage = async (id: string, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedMessageId(id);
+      window.setTimeout(() => setCopiedMessageId((current) => current === id ? null : current), 1500);
+    } catch {
+      // Clipboard permission can be denied by the browser; the message text stays selectable regardless.
+    }
+  };
 
   const handleAttachmentDragOver = (event: DragEvent<HTMLDivElement>) => {
     if (!hasAttachmentHandler || !event.dataTransfer.types.includes('Files')) return;
@@ -224,16 +239,20 @@ export const ChatConversationPanel = ({
         transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
       >
       <div ref={messageContentRef} className="space-y-3">
-      {activeConversation.messages.map((m) => (
-        <div key={m.id} className={cn('w-fit max-w-[min(85%,36rem)]', m.sender === 'me' ? 'ml-auto' : m.sender === 'system' ? 'mx-auto' : 'mr-auto')}>
+      {activeConversation.messages.map((m) => {
+        const isAiAnswer = Boolean(activeConversation.isAiDispatch) && m.sender === 'other';
+        return (
+        <div key={m.id} className={cn('group relative', isAiAnswer ? 'w-full' : 'w-fit max-w-[min(85%,36rem)]', m.sender === 'me' ? 'ml-auto' : m.sender === 'system' ? 'mx-auto' : 'mr-auto')}>
           <div
             className={cn(
-              'w-fit max-w-full rounded-2xl px-3 py-2',
+              isAiAnswer ? 'w-full' : 'w-fit max-w-full rounded-2xl px-3 py-2',
               m.sender === 'me'
                 ? 'ml-auto bg-primary text-white'
                 : m.sender === 'system'
                   ? 'mx-auto bg-amber-100 text-amber-800 text-xs'
-                  : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800'
+                  : isAiAnswer
+                    ? ''
+                    : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800'
             )}
           >
             <p
@@ -284,6 +303,17 @@ export const ChatConversationPanel = ({
               );
             })}
           </div>
+          {m.sender !== 'system' && typingMessageId !== m.id && (
+            <button
+              type="button"
+              onClick={() => void copyMessage(m.id, m.text)}
+              title={copyMessageLabel}
+              aria-label={copiedMessageId === m.id ? copiedMessageLabel : copyMessageLabel}
+              className="absolute -top-2 right-0 inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 opacity-0 shadow-sm transition-opacity hover:text-slate-600 focus-visible:opacity-100 group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500 dark:hover:text-slate-300"
+            >
+              {copiedMessageId === m.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+            </button>
+          )}
           {m.sender === 'me' && m.deliveryStatus === 'failed' && (
             <div className="mt-1 flex items-center justify-end gap-1.5 text-[11px] text-rose-500">
               <AlertCircle className="h-3 w-3" />
@@ -302,16 +332,22 @@ export const ChatConversationPanel = ({
           )}
           {typingMessageId !== m.id && renderMessageExtra?.(m)}
         </div>
-      ))}
+        );
+      })}
       {otherTyping && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="mr-auto px-0.5 py-1 text-sm text-slate-400 dark:text-slate-500"
+          className="mr-auto w-fit px-0.5 py-1 text-sm"
           role="status"
           aria-label={thinkingLabel}
         >
-          {thinkingLabel}
+          <span
+            aria-hidden="true"
+            className="animate-text-shimmer bg-[length:200%_100%] bg-[linear-gradient(90deg,#94a3b8_20%,#334155_50%,#94a3b8_80%)] bg-clip-text text-transparent dark:bg-[linear-gradient(90deg,#64748b_20%,#f8fafc_50%,#64748b_80%)]"
+          >
+            {thinkingLabel}
+          </span>
         </motion.div>
       )}
       </div>

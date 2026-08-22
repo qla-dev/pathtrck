@@ -341,6 +341,8 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
             thinkingLabel={u('Thinking', 'Thinking')}
             notSentMessageLabel={u('chat.notSent', 'Not sent')}
             retryMessageLabel={u('chat.retry', 'Retry')}
+            copyMessageLabel={u('chat.copy', 'Copy message')}
+            copiedMessageLabel={u('chat.copied', 'Copied')}
             onTitleClick={activeConversation.loadId && onOpenLoad ? () => onOpenLoad(activeConversation.loadId!) : undefined}
             renderMessageExtra={renderMessageExtra}
             extraContentVersion={`${activeConversation.id}:${extraContentVersion}`}

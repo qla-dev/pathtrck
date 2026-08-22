@@ -183,6 +183,8 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
                 attachmentDropLabel={u('Drop file for LenaAI', 'Drop file for LenaAI')}
                 notSentMessageLabel={u('chat.notSent', 'Not sent')}
                 retryMessageLabel={u('chat.retry', 'Retry')}
+                copyMessageLabel={u('chat.copy', 'Copy message')}
+                copiedMessageLabel={u('chat.copied', 'Copied')}
                 headerActions={(
                   <div className="flex items-center gap-2">
                   <button

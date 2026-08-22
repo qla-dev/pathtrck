@@ -123,6 +123,12 @@
     to { transform: translateY(-50%); }
   }
   --animate-load-scroll: load-scroll 28s linear infinite;
+
+  @keyframes text-shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+  }
+  --animate-text-shimmer: text-shimmer 2.4s linear infinite;
 }
 
 @layer base {

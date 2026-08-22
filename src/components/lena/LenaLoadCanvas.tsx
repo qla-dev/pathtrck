@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Check, FileSpreadsheet, Loader2, PackagePlus, Send } from 'lucide-react';
+import { Check, FileSpreadsheet, Loader2, PackagePlus, Send, Sparkles } from 'lucide-react';
 import { Language } from '../../types';
 import { ui } from '../../i18n';
 import { api, BulkLoadRow } from '../../services/api';
@@ -49,6 +49,17 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, onApplyPrefill, onBulk
           </p>
         </div>
       </div>
+
+      {bulkRows.length === 0 && rows.length === 0 && (
+        <div className="flex flex-1 min-h-0 flex-col items-center justify-center gap-2 px-8 text-center">
+          <Sparkles className="h-6 w-6 text-slate-300 dark:text-slate-600" />
+          <p className="text-xs text-slate-400 dark:text-slate-500">
+            {mode === 'bulk'
+              ? u('Attach a file and LenaAI will extract your loads here', 'Attach a file and LenaAI will extract your loads here')
+              : u('LenaAI will collect your load details here as you chat', 'LenaAI will collect your load details here as you chat')}
+          </p>
+        </div>
+      )}
 
       {(bulkRows.length > 0 || rows.length > 0) && (
         <div className="min-h-0 flex-1 overflow-y-auto p-3">
