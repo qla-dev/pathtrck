@@ -1,11 +1,12 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Bot, PanelRightOpen, Plus, X } from 'lucide-react';
+import { Bot, LayoutGrid, MessageCircle, PanelRightOpen, Plus, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Language } from '../../types';
 import { ui } from '../../i18n';
 import { confirmAction } from '../../lib/swal';
 import { ChatConversationPanel } from '../chat/ChatConversationPanel';
+import { ChatSidebar } from '../chat/ChatSidebar';
 import { useLenaAiChat } from '../../lib/useLenaAiChat';
 import { useLenaEmbeddedMessages } from './useLenaEmbeddedMessages';
 import { LenaLoadCanvas } from './LenaLoadCanvas';
@@ -45,7 +46,7 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [open, onClose]);
 
-  const { conversation, draft, setDraft, send, sending, startNewChat, canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment } = useLenaAiChat({
+  const { conversation, draft, setDraft, send, sending, startNewChat, selectConversation, sidebarConversations, canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment } = useLenaAiChat({
     userId,
     companyIds,
     loadId,
@@ -70,6 +71,13 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
     ...conversation,
     messages: displayMessages,
   }), [conversation, displayMessages]);
+  const [channelFilter, setChannelFilter] = useState('all');
+  const channels = [
+    { id: 'all', label: u('All', 'All'), icon: LayoutGrid },
+    { id: 'ai', label: u('LenaAI', 'LenaAI'), icon: Bot },
+    { id: 'direct', label: u('Direct messages', 'Direct messages'), icon: MessageCircle },
+  ];
+  const visibleSidebarConversations = channelFilter === 'direct' ? [] : sidebarConversations;
 
   const handleNewChat = async () => {
     const confirmed = await confirmAction({
@@ -100,7 +108,19 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
             exit={{ opacity: 0, y: 16, scale: 0.996 }}
             transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
           >
-            <div className="flex h-full min-h-0 w-full flex-col gap-4 lg:flex-row">
+            <div className="grid h-full min-h-0 w-full gap-4 lg:grid-cols-12">
+              {!loadId && !canvasEnabled && (
+                <ChatSidebar
+                  searchPlaceholder={u('Search messages...', 'Search messages...')}
+                  channels={channels}
+                  channelFilter={channelFilter}
+                  onChannelFilterChange={setChannelFilter}
+                  conversations={visibleSidebarConversations}
+                  activeConversationId={conversation.id}
+                  onSelectConversation={selectConversation}
+                />
+              )}
+              <div className={`flex min-h-0 gap-4 ${!loadId && !canvasEnabled ? 'lg:col-span-8' : 'lg:col-span-12'}`}>
               <ChatConversationPanel
                 activeConversation={displayConversation}
                 draft={draft}
@@ -163,6 +183,7 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
                   </motion.div>
                 )}
               </AnimatePresence>
+              </div>
             </div>
           </motion.div>
         </motion.div>

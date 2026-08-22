@@ -4,6 +4,7 @@ import { cn } from '../../lib/cn';
 import { ChatMessage, Conversation } from './types';
 import { TypewriterText } from './TypewriterText';
 import { formatAttachmentSize } from '../../lib/lenaLoadCanvas';
+import { motion } from 'motion/react';
 
 const URL_PATTERN = /(https?:\/\/[^\s]+)/g;
 
@@ -207,7 +208,15 @@ export const ChatConversationPanel = ({
       </div>}
     </div>
 
-    <div ref={messageListRef} className="flex-1 min-h-0 overflow-y-auto bg-slate-50/70 p-4 dark:bg-slate-950/40">
+    <div className="relative flex-1 min-h-0 overflow-hidden bg-slate-50/70 dark:bg-slate-950/40">
+      <motion.div
+        key={activeConversation.id}
+        ref={messageListRef}
+        className="absolute inset-0 overflow-y-auto p-4"
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+      >
       <div ref={messageContentRef} className="space-y-3">
       {activeConversation.messages.map((m) => (
         <div key={m.id} className={cn('w-fit max-w-[min(85%,36rem)]', m.sender === 'me' ? 'ml-auto' : m.sender === 'system' ? 'mx-auto' : 'mr-auto')}>
@@ -280,6 +289,7 @@ export const ChatConversationPanel = ({
         </div>
       )}
       </div>
+      </motion.div>
     </div>
 
     <div className="p-3 border-t border-slate-100 dark:border-slate-800">

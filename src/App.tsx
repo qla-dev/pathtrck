@@ -3958,7 +3958,7 @@ export default function App() {
           <button
             aria-label={!isSidebarOpen ? ui(lang, 'LenaAI', 'LenaAI') : undefined}
             onClick={() => { setLenaCanvasMode(null); setLenaAiOpen(true); }}
-            className="group relative w-full flex items-center justify-center gap-3 p-3 rounded-xl transition-all cursor-pointer bg-primary text-white shadow-lg shadow-primary/20"
+            className="group relative w-full flex items-center justify-center gap-3 rounded-xl bg-primary p-3 text-white shadow-lg shadow-primary/20 transition-colors hover:bg-primary-dark cursor-pointer"
           >
             <Sparkles className="w-5 h-5 shrink-0" />
             {isSidebarOpen && <span className="font-medium">{ui(lang, 'LenaAI', 'LenaAI')}</span>}

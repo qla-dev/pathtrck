@@ -32,6 +32,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welc
   // intact (visible in Messages) while the active session starts blank.
   const [startingNewChat, setStartingNewChat] = useState(false);
   const [newChatVersion, setNewChatVersion] = useState(0);
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [canvasOverride, setCanvasOverride] = useState<boolean | null>(initialCanvasMode ? true : null);
   const [canvasMode, setCanvasMode] = useState<LenaCanvasMode>(initialCanvasMode || 'new_load');
   const [processingAttachment, setProcessingAttachment] = useState(false);
@@ -42,14 +43,20 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welc
     setCanvasOverride(true);
   }, [initialCanvasMode]);
 
-  const row = useMemo(() => {
-    if (startingNewChat) return undefined;
+  const availableRows = useMemo(() => {
     const items = result.items.filter((item) => item.channel === 'inapp');
-    if (loadId) return items[0] as Record<string, unknown> | undefined;
+    if (loadId) return items;
     return items
       .filter((item) => !item.load_id && String(item.subject || '').startsWith(AI_DISPATCH_SUBJECT_PREFIX))
-      .sort((a, b) => Number(b.id) - Number(a.id))[0] as Record<string, unknown> | undefined;
-  }, [result.items, loadId, startingNewChat]);
+      .sort((a, b) => Number(b.id) - Number(a.id));
+  }, [result.items, loadId]);
+
+  const row = useMemo(() => {
+    if (startingNewChat) return undefined;
+    return (selectedConversationId
+      ? availableRows.find((item) => String(item.id) === selectedConversationId)
+      : availableRows[0]) as Record<string, unknown> | undefined;
+  }, [availableRows, selectedConversationId, startingNewChat]);
 
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
@@ -115,7 +122,32 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welc
     setStartingNewChat(true);
     setCanvasOverride(false);
     setCanvasMode('new_load');
+    setSelectedConversationId(null);
     setNewChatVersion((version) => version + 1);
+  };
+
+  const sidebarConversations = useMemo<Conversation[]>(() => availableRows.map((item) => {
+    const messages = Array.isArray(item.messages) ? item.messages as Array<Record<string, unknown>> : [];
+    const lastMessage = messages.at(-1);
+    const firstMessage = messages.find((message) => String(message.body || '').trim());
+    const title = String(firstMessage?.body || 'New LenaAI conversation').replace(/\s+/g, ' ').slice(0, 48);
+    return {
+      id: String(item.id),
+      name: title,
+      role: welcomeRole,
+      channel: 'inapp',
+      online: true,
+      unread: 0,
+      lastTime: String(lastMessage?.sent_at || lastMessage?.created_at || item.last_message_at || '').slice(11, 16),
+      messages: [],
+      isAiDispatch: true,
+    };
+  }), [availableRows, welcomeRole]);
+
+  const selectConversation = (id: string) => {
+    setStartingNewChat(false);
+    setSelectedConversationId(id);
+    setCanvasOverride(false);
   };
 
   const setCanvasEnabled = async (enabled: boolean, mode: LenaCanvasMode = canvasMode) => {
@@ -209,5 +241,5 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welc
     }
   };
 
-  return { conversation, draft, setDraft, send, sending, startNewChat, hasActiveConversation: Boolean(row), canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment };
+  return { conversation, draft, setDraft, send, sending, startNewChat, selectConversation, sidebarConversations, hasActiveConversation: Boolean(row), canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment };
 };
