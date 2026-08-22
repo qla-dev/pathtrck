@@ -26,12 +26,24 @@ export type ListParams = Record<string, string | number | boolean | undefined>;
 export const AI_DISPATCH_SUBJECT_PREFIX = 'AI Dispatch — ';
 
 export type ScanImage = { base64: string; mimeType?: string; filename?: string };
+export type HsCodeMatch = {
+  code: string;
+  description: string;
+  confidence: number;
+  headingCode?: string;
+  headingName?: string;
+  chapterCode?: string;
+  chapterName?: string;
+  version?: string;
+};
 export type LoadScanResult = {
   isDocument: boolean;
   title: string;
   transportType: string;
   cargoType: string;
   goodsType: string;
+  hsSearchTerms: string;
+  hsCodes: HsCodeMatch[];
   weightKg: number;
   pallets: number;
   bodyType: string;
@@ -100,6 +112,8 @@ export type BulkLoadRow = {
   title: string;
   cargoType: string;
   goodsType: string;
+  hsSearchTerms: string;
+  hsCodes: HsCodeMatch[];
   weightKg: number;
   pallets: number;
   bodyType: string;
@@ -276,6 +290,9 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ loads }),
     }),
+  },
+  hsCodes: {
+    search: (query: string, limit = 8) => request<HsCodeMatch[]>(`/hs-codes?${queryString({ query, limit })}`),
   },
   loadStops: resourceApi<Record<string, unknown>>('load-stops'),
   offers: {

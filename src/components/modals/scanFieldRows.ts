@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Banknote,
+  Barcode,
   CalendarClock,
   CalendarDays,
   Car,
@@ -33,6 +34,7 @@ export type ScanFieldPatch = Partial<{
   cargoTitle: string;
   transportType: 'road' | 'air' | 'sea';
   goodsType: string;
+  hsCodes: LoadScanResult['hsCodes'];
   weightKg: string;
   pallets: string;
   bodyTypes: string[];
@@ -131,6 +133,16 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
   const goodsType = result.goodsType || result.cargoType;
   if (goodsType) {
     rows.push({ key: 'goodsType', label: 'Goods type', value: goodsType, patch: { goodsType }, icon: Tag });
+  }
+
+  if (result.hsCodes?.length) {
+    rows.push({
+      key: 'hsCodes',
+      label: 'HS code',
+      value: result.hsCodes.map((item) => `${item.code} - ${item.description}`).join('\n'),
+      patch: { hsCodes: result.hsCodes },
+      icon: Barcode,
+    });
   }
 
   if (result.weightKg) {

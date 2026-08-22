@@ -77,6 +77,7 @@ export interface Load {
   status: LoadStatus;
   cargoType: string;
   goodsType: string;
+  hsCodes?: Array<{ code: string; description: string; confidence?: number }>;
   paymentTerms: string;
   paymentDueDays?: number;
   eta: string;

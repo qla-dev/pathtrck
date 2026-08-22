@@ -174,6 +174,7 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
                 messagePlaceholder={u('Write a message...', 'Write a message...')}
                 className="min-h-[320px] flex-1"
                 otherTyping={sending}
+                thinkingLabel={u('Thinking', 'Thinking')}
                 renderMessageExtra={renderMessageExtra}
                 extraContentVersion={extraContentVersion}
                 onAttachFile={attachFile}

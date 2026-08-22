@@ -3223,6 +3223,7 @@ const mapDatabaseRecordToLoad = (record: Record<string, unknown>): Load => {
     status,
     cargoType: String(record.cargo_type || ''),
     goodsType: String(record.goods_type || ''),
+    hsCodes: Array.isArray(record.hs_codes) ? record.hs_codes as Array<{ code: string; description: string; confidence?: number }> : [],
     paymentTerms,
     paymentDueDays: record.payment_due_days == null ? undefined : Number(record.payment_due_days),
     transportType: record.transport_type === 'air' ? 'air' : record.transport_type === 'sea' ? 'sea' : 'road',

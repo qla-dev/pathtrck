@@ -32,6 +32,7 @@ type ChatConversationPanelProps = {
   messagePlaceholder: string;
   className?: string;
   otherTyping?: boolean;
+  thinkingLabel?: string;
   onTitleClick?: () => void;
   headerLeading?: ReactNode;
   headerActions?: ReactNode;
@@ -54,6 +55,7 @@ export const ChatConversationPanel = ({
   messagePlaceholder,
   className,
   otherTyping = false,
+  thinkingLabel = 'Thinking',
   onTitleClick,
   headerLeading,
   headerActions,
@@ -302,11 +304,15 @@ export const ChatConversationPanel = ({
         </div>
       ))}
       {otherTyping && (
-        <div className="max-w-[85%] mr-auto rounded-2xl rounded-tl-none px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center gap-1.5 w-fit">
-          <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.3s]" />
-          <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.15s]" />
-          <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce" />
-        </div>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="mr-auto px-0.5 py-1 text-sm text-slate-400 dark:text-slate-500"
+          role="status"
+          aria-label={thinkingLabel}
+        >
+          {thinkingLabel}
+        </motion.div>
       )}
       </div>
       </motion.div>

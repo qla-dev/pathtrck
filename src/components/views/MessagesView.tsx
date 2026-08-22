@@ -338,6 +338,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
             messagePlaceholder={u('Write a message...', 'Write a message...')}
             className="flex-1 min-h-0"
             otherTyping={aiReplying}
+            thinkingLabel={u('Thinking', 'Thinking')}
             notSentMessageLabel={u('chat.notSent', 'Not sent')}
             retryMessageLabel={u('chat.retry', 'Retry')}
             onTitleClick={activeConversation.loadId && onOpenLoad ? () => onOpenLoad(activeConversation.loadId!) : undefined}

@@ -4913,6 +4913,12 @@ const VALUE_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
 };
 
 const TRIPLET_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
+  'LenaAI is thinking': { bs: 'LenaAI razmišlja', de: 'LenaAI denkt nach' },
+  'Thinking': { bs: 'Razmišlja', de: 'Denkt nach' },
+  'HS codes': { bs: 'HS kodovi', de: 'HS-Codes' },
+  'Search by product, material or HS code': { bs: 'Pretražite po proizvodu, materijalu ili HS kodu', de: 'Nach Produkt, Material oder HS-Code suchen' },
+  'Remove HS code': { bs: 'Ukloni HS kod', de: 'HS-Code entfernen' },
+  'HS catalog search failed': { bs: 'Pretraga HS kataloga nije uspjela', de: 'Die Suche im HS-Katalog ist fehlgeschlagen' },
   'Post a new load': { bs: 'Objavi novi teret', de: 'Neue Ladung veröffentlichen' },
   'Prepare load': { bs: 'Priprema tereta', de: 'Ladung vorbereiten' },
   'Hide load preparation': { bs: 'Sakrij pripremu tereta', de: 'Ladungsvorbereitung ausblenden' },

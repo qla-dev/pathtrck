@@ -21,6 +21,7 @@ import {
   BadgeCheck,
   Landmark,
   Radar,
+  Search,
   ScanEye,
   ShieldAlert,
   ShieldCheck,
@@ -43,7 +44,7 @@ import { useLocationAutocomplete } from '../../hooks/useLocationAutocomplete';
 import { useOutsideClick } from '../../hooks/useOutsideClick';
 import { LocationSearchResult } from '../../services/locationSearch';
 import { Button } from '../ui/Button';
-import { api, ApiError, LoadScanResult } from '../../services/api';
+import { api, ApiError, HsCodeMatch, LoadScanResult } from '../../services/api';
 import { CustomerSelect, customerOptionFromRecord, type CustomerOption } from '../customer/CustomerSelect';
 import { AddressMapModal } from '../maps/AddressMapModal';
 import { RouteMapModal } from '../maps/RouteMapModal';
@@ -105,6 +106,7 @@ type LoadDraft = {
   cargoTitle: string;
   cargoType: string;
   goodsType: string;
+  hsCodes: HsCodeMatch[];
   weightKg: string;
   pallets: string;
   lengthM: string;
@@ -188,6 +190,7 @@ const INITIAL_DRAFT: LoadDraft = {
   cargoTitle: '',
   cargoType: 'FTL',
   goodsType: 'General',
+  hsCodes: [],
   weightKg: '',
   pallets: '',
   lengthM: '',
@@ -613,6 +616,9 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   const [scannedDocuments, setScannedDocuments] = useState<ScannedDocument[]>([]);
   const [viewingDocId, setViewingDocId] = useState<string | null>(null);
   const [aiFilledPatch, setAiFilledPatch] = useState<ScanFieldPatch>({});
+  const [hsQuery, setHsQuery] = useState('');
+  const [hsSearching, setHsSearching] = useState(false);
+  const [hsSuggestions, setHsSuggestions] = useState<HsCodeMatch[]>([]);
   useEffect(() => {
     if (!isOpen) {
       setStep('cargo');
@@ -621,6 +627,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       setScannedDocuments([]);
       setViewingDocId(null);
       setAiFilledPatch({});
+      setHsQuery('');
+      setHsSuggestions([]);
     }
   }, [isOpen]);
 
@@ -670,7 +678,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         transportType: (record.transport_type as TransportType) || 'road',
         pickupPlaceType: String(pickup.place_type || INITIAL_DRAFT.pickupPlaceType), pickupCity: String(pickup.city || ''), pickupCountry: String(pickup.country_code || 'BA'), pickupAddress: String(pickup.address || ''), pickupLatitude: String(pickup.latitude || ''), pickupLongitude: String(pickup.longitude || ''), pickupDate: pickupStart.date, pickupDateTo: pickupEnd.date, pickupTimeFrom: pickupStart.time, pickupTimeTo: pickupEnd.time,
         deliveryPlaceType: String(delivery.place_type || INITIAL_DRAFT.deliveryPlaceType), deliveryCity: String(delivery.city || ''), deliveryCountry: String(delivery.country_code || 'BA'), deliveryAddress: String(delivery.address || ''), deliveryLatitude: String(delivery.latitude || ''), deliveryLongitude: String(delivery.longitude || ''), deliveryDate: deliveryStart.date, deliveryDateTo: deliveryEnd.date, deliveryTimeFrom: deliveryStart.time, deliveryTimeTo: deliveryEnd.time,
-        cargoTitle: String(record.title || ''), cargoType: String(record.cargo_type || 'FTL'), goodsType: String(record.goods_type || 'General'), weightKg: fromApiWeightKg(record.weight_kg), pallets: String(record.pallets || ''), lengthM: String(record.length_m || ''), widthM: String(record.width_m || ''), heightM: String(record.height_m || ''), volumeM3: String(record.volume_m3 || ''), declaredValue: String(record.declared_value || ''), budget: String(record.budget || ''), freightCurrency: String(record.currency || 'EUR'), shipmentValueCurrency: String(record.shipment_value_currency || record.currency || 'EUR'), paymentDueDays: String(record.payment_due_days || ''), paymentDeferred: terms === 'deferred', incoterm: String(record.incoterms || ''),
+        cargoTitle: String(record.title || ''), cargoType: String(record.cargo_type || 'FTL'), goodsType: String(record.goods_type || 'General'), hsCodes: Array.isArray(record.hs_codes) ? record.hs_codes as HsCodeMatch[] : [], weightKg: fromApiWeightKg(record.weight_kg), pallets: String(record.pallets || ''), lengthM: String(record.length_m || ''), widthM: String(record.width_m || ''), heightM: String(record.height_m || ''), volumeM3: String(record.volume_m3 || ''), declaredValue: String(record.declared_value || ''), budget: String(record.budget || ''), freightCurrency: String(record.currency || 'EUR'), shipmentValueCurrency: String(record.shipment_value_currency || record.currency || 'EUR'), paymentDueDays: String(record.payment_due_days || ''), paymentDeferred: terms === 'deferred', incoterm: String(record.incoterms || ''),
         loadingEquipment: Array.isArray(record.loading_methods) ? record.loading_methods.map(String) : [], vehicleType: String(record.vehicle_type || INITIAL_DRAFT.vehicleType), characteristics: String(record.characteristics || ''), specialRequirements: Array.isArray(record.special_requirements) ? record.special_requirements.map(String) : [], transportMode: String(record.transport_mode || INITIAL_DRAFT.transportMode), deliveryProof: String(record.delivery_proof || ''), temperatureControlled: record.temperature_min != null || record.temperature_max != null, temperatureMin: String(record.temperature_min ?? ''), temperatureMax: String(record.temperature_max ?? ''),
         requiresAdr: Boolean(record.requires_adr), requiresTailLift: Boolean(record.requires_tail_lift), tollRoadsIncluded: Boolean(record.toll_roads_included), ferryIncluded: Boolean(record.ferry_included), cmrRequired: record.cmr_required == null ? true : Boolean(record.cmr_required), palletExchangeRequired: Boolean(record.pallet_exchange_required), customsRequired: Boolean(record.customs_required), insuranceRequired: Boolean(record.insurance_required), certificationRequired: Boolean(record.certification_required), inspectionServicesRequired: Boolean(record.inspection_services_required), mustBeTrackable: Boolean(record.must_be_trackable), urgent: Boolean(record.is_urgent), receivePriceProposals: record.is_negotiable == null ? true : Boolean(record.is_negotiable), bodyTypes: Array.isArray(record.body_types) ? record.body_types.map(String) : [], notes: String(record.notes || ''), internalComments: String(record.internal_comments || ''), externalComments: String(record.external_comments || ''), contactName: String(contact.name || ''), contactPhone: String(contact.phone || ''), contactMobile: String(contact.mobile || ''), contactEmail: String(contact.email || ''), contactFax: String(contact.fax || ''),
       });
@@ -774,6 +782,30 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   // fields across steps out of order, so gating on completion just gets in the way.
   const canNavigateToStep = (_targetIndex: number) => true;
 
+  const searchHsCatalog = async () => {
+    const query = hsQuery.trim() || draft.cargoTitle.trim() || draft.goodsType.trim();
+    if (query.length < 2 || hsSearching) return;
+    setHsSearching(true);
+    try {
+      const response = await api.hsCodes.search(query, 8);
+      setHsSuggestions(response.data);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : u('HS catalog search failed', 'HS catalog search failed'));
+    } finally {
+      setHsSearching(false);
+    }
+  };
+
+  const addHsCode = (item: HsCodeMatch) => {
+    setDraft((current) => current.hsCodes.some((existing) => existing.code === item.code)
+      ? current
+      : { ...current, hsCodes: [...current.hsCodes, item] });
+  };
+
+  const removeHsCode = (code: string) => {
+    setDraft((current) => ({ ...current, hsCodes: current.hsCodes.filter((item) => item.code !== code) }));
+  };
+
   const submit = async () => {
     if (isSubmitting) return;
     const confirmed = await confirmAction({
@@ -794,6 +826,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         transport_type: draft.transportType,
         cargo_type: draft.cargoType,
         goods_type: draft.goodsType,
+        hs_codes: draft.hsCodes.map(({ code, description, confidence }) => ({ code, description, confidence })),
         weight_kg: toApiWeightKg(draft.weightKg),
         length_m: draft.lengthM ? Number(draft.lengthM) : null,
         width_m: draft.widthM ? Number(draft.widthM) : null,
@@ -1476,6 +1509,50 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           onChange={(e) => setField('cargoTitle', e.target.value)}
                           placeholder={u('postLoadModal.cargoNamePlaceholder', 'Electronics pallets / FMCG / temperature goods')}
                         />
+                      </div>
+                      <div className="space-y-2">
+                        <FieldLabel>{u('HS codes', 'HS codes')}</FieldLabel>
+                        <div className="flex gap-2">
+                          <Input
+                            value={hsQuery}
+                            onChange={(event) => setHsQuery(event.target.value)}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter') {
+                                event.preventDefault();
+                                void searchHsCatalog();
+                              }
+                            }}
+                            placeholder={u('Search by product, material or HS code', 'Search by product, material or HS code')}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => void searchHsCatalog()}
+                            disabled={hsSearching}
+                            className="inline-flex h-11 shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-white disabled:cursor-wait disabled:opacity-60"
+                          >
+                            {hsSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                            {u('Search', 'Search')}
+                          </button>
+                        </div>
+                        {draft.hsCodes.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {draft.hsCodes.map((item) => (
+                              <button key={item.code} type="button" onClick={() => removeHsCode(item.code)} title={u('Remove HS code', 'Remove HS code')} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary">
+                                {item.code}<X className="h-3 w-3" />
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {hsSuggestions.length > 0 && (
+                          <div className="max-h-44 space-y-1 overflow-y-auto rounded-xl border border-slate-200 p-1 dark:border-slate-700">
+                            {hsSuggestions.map((item) => (
+                              <button key={item.code} type="button" onClick={() => addHsCode(item)} className="flex w-full cursor-pointer items-start gap-3 rounded-lg px-3 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-800">
+                                <span className="shrink-0 font-mono text-xs font-black text-primary">{item.code}</span>
+                                <span className="text-xs leading-5 text-slate-600 dark:text-slate-300">{item.description}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       <div className="grid sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
