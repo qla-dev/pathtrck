@@ -17,6 +17,12 @@ import {
   PlaneLanding,
   Plus,
   Route,
+  ArrowDownToLine,
+  BadgeCheck,
+  Landmark,
+  Radar,
+  ScanEye,
+  ShieldAlert,
   ShieldCheck,
   Ship,
   Sparkles,
@@ -26,6 +32,7 @@ import {
   UserRound,
   Warehouse,
   X,
+  Zap,
   type LucideIcon,
 } from 'lucide-react';
 import { Language } from '../../types';
@@ -96,7 +103,7 @@ type LoadDraft = {
   volumeM3: string;
   declaredValue: string;
   additionalInfo: string;
-  loadingEquipment: string;
+  loadingEquipment: string[];
   vehicleType: string;
   bodyTypes: string[];
   characteristics: string;
@@ -121,6 +128,9 @@ type LoadDraft = {
   cmrRequired: boolean;
   palletExchangeRequired: boolean;
   customsRequired: boolean;
+  insuranceRequired: boolean;
+  certificationRequired: boolean;
+  inspectionServicesRequired: boolean;
   urgent: boolean;
   notes: string;
   contactName: string;
@@ -178,7 +188,7 @@ const INITIAL_DRAFT: LoadDraft = {
   volumeM3: '',
   declaredValue: '',
   additionalInfo: '',
-  loadingEquipment: 'Not specified',
+  loadingEquipment: [],
   vehicleType: 'Box Truck',
   bodyTypes: ['Curtain'],
   characteristics: '',
@@ -203,6 +213,9 @@ const INITIAL_DRAFT: LoadDraft = {
   cmrRequired: true,
   palletExchangeRequired: false,
   customsRequired: false,
+  insuranceRequired: false,
+  certificationRequired: false,
+  inspectionServicesRequired: false,
   urgent: false,
   notes: '',
   contactName: '',
@@ -460,23 +473,33 @@ const ToggleCard = ({
   active,
   title,
   description,
+  icon: Icon,
   onClick,
 }: {
   active: boolean;
   title: string;
   description: string;
+  icon?: LucideIcon;
   onClick: () => void;
 }) => (
   <button
     type="button"
     onClick={onClick}
     className={cn(
-      'cursor-pointer rounded-2xl border px-4 py-3 text-left transition-all',
+      'flex cursor-pointer flex-col items-start rounded-2xl border px-4 py-3 text-left transition-all',
       active
         ? 'border-primary bg-primary/5 shadow-sm'
         : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-primary/40'
     )}
   >
+    {Icon && (
+      <Icon
+        className={cn(
+          'mb-2 h-5 w-5',
+          active ? 'text-primary' : 'text-slate-400'
+        )}
+      />
+    )}
     <p className="text-sm font-bold dark:text-white">{title}</p>
     <p className="text-xs text-slate-500 mt-1">{description}</p>
   </button>
@@ -634,8 +657,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         pickupPlaceType: String(pickup.place_type || INITIAL_DRAFT.pickupPlaceType), pickupCity: String(pickup.city || ''), pickupCountry: String(pickup.country_code || 'BA'), pickupAddress: String(pickup.address || ''), pickupLatitude: String(pickup.latitude || ''), pickupLongitude: String(pickup.longitude || ''), pickupDate: pickupStart.date, pickupDateTo: pickupEnd.date, pickupTimeFrom: pickupStart.time, pickupTimeTo: pickupEnd.time,
         deliveryPlaceType: String(delivery.place_type || INITIAL_DRAFT.deliveryPlaceType), deliveryCity: String(delivery.city || ''), deliveryCountry: String(delivery.country_code || 'BA'), deliveryAddress: String(delivery.address || ''), deliveryLatitude: String(delivery.latitude || ''), deliveryLongitude: String(delivery.longitude || ''), deliveryDate: deliveryStart.date, deliveryDateTo: deliveryEnd.date, deliveryTimeFrom: deliveryStart.time, deliveryTimeTo: deliveryEnd.time,
         cargoTitle: String(record.title || ''), cargoType: String(record.cargo_type || 'FTL'), goodsType: String(record.goods_type || 'General'), weightKg: fromApiWeightKg(record.weight_kg), pallets: String(record.pallets || ''), lengthM: String(record.length_m || ''), widthM: String(record.width_m || ''), heightM: String(record.height_m || ''), volumeM3: String(record.volume_m3 || ''), declaredValue: String(record.declared_value || ''), budget: String(record.budget || ''), freightCurrency: String(record.currency || 'EUR'), shipmentValueCurrency: String(record.shipment_value_currency || record.currency || 'EUR'), paymentDueDays: String(record.payment_due_days || ''), paymentDeferred: terms === 'deferred', incoterm: String(record.incoterms || ''),
-        loadingEquipment: Array.isArray(record.loading_methods) ? String(record.loading_methods[0] || 'Not specified') : 'Not specified', vehicleType: String(record.vehicle_type || INITIAL_DRAFT.vehicleType), characteristics: String(record.characteristics || ''), specialRequirements: Array.isArray(record.special_requirements) ? record.special_requirements.map(String) : [], transportMode: String(record.transport_mode || INITIAL_DRAFT.transportMode), deliveryProof: String(record.delivery_proof || ''), temperatureControlled: record.temperature_min != null || record.temperature_max != null, temperatureMin: String(record.temperature_min ?? ''), temperatureMax: String(record.temperature_max ?? ''),
-        requiresAdr: Boolean(record.requires_adr), requiresTailLift: Boolean(record.requires_tail_lift), tollRoadsIncluded: Boolean(record.toll_roads_included), ferryIncluded: Boolean(record.ferry_included), cmrRequired: record.cmr_required == null ? true : Boolean(record.cmr_required), palletExchangeRequired: Boolean(record.pallet_exchange_required), customsRequired: Boolean(record.customs_required), mustBeTrackable: Boolean(record.must_be_trackable), urgent: Boolean(record.is_urgent), receivePriceProposals: record.is_negotiable == null ? true : Boolean(record.is_negotiable), bodyTypes: Array.isArray(record.body_types) ? record.body_types.map(String) : [], notes: String(record.notes || ''), internalComments: String(record.internal_comments || ''), externalComments: String(record.external_comments || ''), contactName: String(contact.name || ''), contactPhone: String(contact.phone || ''), contactMobile: String(contact.mobile || ''), contactEmail: String(contact.email || ''), contactFax: String(contact.fax || ''),
+        loadingEquipment: Array.isArray(record.loading_methods) ? record.loading_methods.map(String) : [], vehicleType: String(record.vehicle_type || INITIAL_DRAFT.vehicleType), characteristics: String(record.characteristics || ''), specialRequirements: Array.isArray(record.special_requirements) ? record.special_requirements.map(String) : [], transportMode: String(record.transport_mode || INITIAL_DRAFT.transportMode), deliveryProof: String(record.delivery_proof || ''), temperatureControlled: record.temperature_min != null || record.temperature_max != null, temperatureMin: String(record.temperature_min ?? ''), temperatureMax: String(record.temperature_max ?? ''),
+        requiresAdr: Boolean(record.requires_adr), requiresTailLift: Boolean(record.requires_tail_lift), tollRoadsIncluded: Boolean(record.toll_roads_included), ferryIncluded: Boolean(record.ferry_included), cmrRequired: record.cmr_required == null ? true : Boolean(record.cmr_required), palletExchangeRequired: Boolean(record.pallet_exchange_required), customsRequired: Boolean(record.customs_required), insuranceRequired: Boolean(record.insurance_required), certificationRequired: Boolean(record.certification_required), inspectionServicesRequired: Boolean(record.inspection_services_required), mustBeTrackable: Boolean(record.must_be_trackable), urgent: Boolean(record.is_urgent), receivePriceProposals: record.is_negotiable == null ? true : Boolean(record.is_negotiable), bodyTypes: Array.isArray(record.body_types) ? record.body_types.map(String) : [], notes: String(record.notes || ''), internalComments: String(record.internal_comments || ''), externalComments: String(record.external_comments || ''), contactName: String(contact.name || ''), contactPhone: String(contact.phone || ''), contactMobile: String(contact.mobile || ''), contactEmail: String(contact.email || ''), contactFax: String(contact.fax || ''),
       });
     }).catch((error) => setSubmitError(error instanceof Error ? error.message : u('postLoadModal.loadFetchError', 'The load could not be loaded.'))).finally(() => setIsLoadingExisting(false));
   }, [editLoadId, isOpen]);
@@ -714,6 +737,15 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     }));
   };
 
+  const toggleLoadingEquipment = (value: string) => {
+    setDraft((prev) => ({
+      ...prev,
+      loadingEquipment: prev.loadingEquipment.includes(value)
+        ? prev.loadingEquipment.filter((item) => item !== value)
+        : [...prev.loadingEquipment, value],
+    }));
+  };
+
   const goBack = () => {
     const previous = STEPS[stepIndex - 1];
     if (previous) setStep(previous.id);
@@ -759,7 +791,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         payment_due_days: draft.paymentDeferred && draft.paymentDueDays ? Number(draft.paymentDueDays) : null,
         temperature_min: draft.temperatureControlled && draft.temperatureMin ? Number(draft.temperatureMin) : null,
         temperature_max: draft.temperatureControlled && draft.temperatureMax ? Number(draft.temperatureMax) : null,
-        loading_methods: [draft.loadingEquipment],
+        loading_methods: draft.loadingEquipment,
         vehicle_type: draft.transportType === 'road' ? draft.vehicleType : null,
         transport_mode: draft.transportType === 'air' ? draft.transportMode : null,
         special_requirements: draft.transportType === 'air' ? draft.specialRequirements : [],
@@ -772,6 +804,9 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         cmr_required: draft.cmrRequired,
         pallet_exchange_required: draft.palletExchangeRequired,
         customs_required: draft.customsRequired,
+        insurance_required: draft.insuranceRequired,
+        certification_required: draft.certificationRequired,
+        inspection_services_required: draft.inspectionServicesRequired,
         must_be_trackable: draft.mustBeTrackable,
         is_urgent: draft.urgent,
         body_types: draft.bodyTypes,
@@ -1397,7 +1432,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       <div className="space-y-1.5">
                         <FieldLabel>{u('postLoadModal.loadingEquipment', 'Loading equipment')}</FieldLabel>
                         <div className="grid grid-cols-2 gap-2">
-                          {LOADING_EQUIPMENT_OPTIONS.map((option) => <ChoiceCard key={option} compact active={draft.loadingEquipment === option} title={option} icon={option.includes('Forklift') ? Package : option.includes('ramp') ? Truck : option.includes('Other') ? ShieldCheck : X} onClick={() => setField('loadingEquipment', option)} />)}
+                          {LOADING_EQUIPMENT_OPTIONS.map((option) => <ChoiceCard key={option} compact active={draft.loadingEquipment.includes(option)} title={option} icon={option.includes('Forklift') ? Package : option.includes('ramp') ? Truck : option.includes('Other') ? ShieldCheck : X} onClick={() => toggleLoadingEquipment(option)} />)}
                         </div>
                       </div>
                     </div>
@@ -1618,31 +1653,25 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
 
                       {draft.transportType === 'air' && <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.deliveryProof', 'Delivery proof')}</FieldLabel><div className="grid grid-cols-2 gap-3"><ChoiceCard compact active={draft.deliveryProof === 'POD'} title="POD" description="Proof of Delivery" icon={FileText} onClick={() => setField('deliveryProof', 'POD')} /><ChoiceCard compact active={draft.deliveryProof === 'AOD'} title="AOD" description="Arrival on Delivery" icon={CheckCircle2} onClick={() => setField('deliveryProof', 'AOD')} /></div></div>}
 
-                      <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm dark:border-slate-800 dark:bg-slate-950 dark:text-white">
-                        <input
-                          type="checkbox"
-                          checked={draft.mustBeTrackable}
-                          onChange={(e) => setField('mustBeTrackable', e.target.checked)}
-                        />
-                        <span>{u('postLoadModal.mustBeTrackable', 'Must be trackable via the Smart Logistics System')}</span>
-                      </label>
-
                       <div className="grid md:grid-cols-3 gap-3">
                         <ToggleCard
                           active={draft.requiresAdr}
                           onClick={() => setField('requiresAdr', !draft.requiresAdr)}
+                          icon={ShieldAlert}
                           title={u('postLoadModal.adr', 'ADR / certified')}
                           description={u('postLoadModal.adrDesc', 'Hazardous goods compliance required')}
                         />
                         <ToggleCard
                           active={draft.requiresTailLift}
                           onClick={() => setField('requiresTailLift', !draft.requiresTailLift)}
+                          icon={ArrowDownToLine}
                           title={u('postLoadModal.tailLift', 'Tail lift')}
                           description={u('postLoadModal.tailLiftDesc', 'Required for pickup or delivery')}
                         />
                         <ToggleCard
                           active={draft.urgent}
                           onClick={() => setField('urgent', !draft.urgent)}
+                          icon={Zap}
                           title={u('postLoadModal.urgent', 'Priority load')}
                           description={u('postLoadModal.urgentDesc', 'Higher urgency and faster acceptance')}
                         />
@@ -1652,32 +1681,65 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         <ToggleCard
                           active={draft.tollRoadsIncluded}
                           onClick={() => setField('tollRoadsIncluded', !draft.tollRoadsIncluded)}
+                          icon={Route}
                           title={u('postLoadModal.tollRoads', 'Toll roads')}
                           description={u('postLoadModal.tollRoadsDesc', 'Route includes toll roads or motorways')}
                         />
                         <ToggleCard
                           active={draft.ferryIncluded}
                           onClick={() => setField('ferryIncluded', !draft.ferryIncluded)}
+                          icon={Ship}
                           title={u('postLoadModal.ferry', 'Ferry')}
                           description={u('postLoadModal.ferryDesc', 'Route includes a ferry / RoRo crossing')}
                         />
                         <ToggleCard
                           active={draft.cmrRequired}
                           onClick={() => setField('cmrRequired', !draft.cmrRequired)}
+                          icon={FileText}
                           title={u('postLoadModal.cmr', 'CMR')}
                           description={u('postLoadModal.cmrDesc', 'CMR consignment note required')}
                         />
                         <ToggleCard
                           active={draft.palletExchangeRequired}
                           onClick={() => setField('palletExchangeRequired', !draft.palletExchangeRequired)}
+                          icon={Package}
                           title={u('postLoadModal.palletExchange', 'Pallet exchange')}
                           description={u('postLoadModal.palletExchangeDesc', 'Pallets must be swapped on delivery')}
                         />
                         <ToggleCard
                           active={draft.customsRequired}
                           onClick={() => setField('customsRequired', !draft.customsRequired)}
+                          icon={Landmark}
                           title={u('postLoadModal.customs', 'Customs')}
                           description={u('postLoadModal.customsDesc', 'Customs clearance required')}
+                        />
+                        <ToggleCard
+                          active={draft.insuranceRequired}
+                          onClick={() => setField('insuranceRequired', !draft.insuranceRequired)}
+                          icon={ShieldCheck}
+                          title={u('postLoadModal.insurance', 'Insurance')}
+                          description={u('postLoadModal.insuranceDesc', 'Cargo insurance required')}
+                        />
+                        <ToggleCard
+                          active={draft.certificationRequired}
+                          onClick={() => setField('certificationRequired', !draft.certificationRequired)}
+                          icon={BadgeCheck}
+                          title={u('postLoadModal.certification', 'Certification')}
+                          description={u('postLoadModal.certificationDesc', 'Certification documents required')}
+                        />
+                        <ToggleCard
+                          active={draft.inspectionServicesRequired}
+                          onClick={() => setField('inspectionServicesRequired', !draft.inspectionServicesRequired)}
+                          icon={ScanEye}
+                          title={u('postLoadModal.inspectionServices', 'Inspection services')}
+                          description={u('postLoadModal.inspectionServicesDesc', 'Cargo inspection required')}
+                        />
+                        <ToggleCard
+                          active={draft.mustBeTrackable}
+                          onClick={() => setField('mustBeTrackable', !draft.mustBeTrackable)}
+                          icon={Radar}
+                          title={u('postLoadModal.mustBeTrackable', 'Must be trackable')}
+                          description={u('postLoadModal.mustBeTrackableDesc', 'Must be trackable via the Smart Logistics System')}
                         />
                       </div>
                     </div>

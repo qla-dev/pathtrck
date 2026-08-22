@@ -41,7 +41,7 @@ export type ScanFieldPatch = Partial<{
   heightM: string;
   volumeM3: string;
   vehicleType: string;
-  loadingEquipment: string;
+  loadingEquipment: string[];
   characteristics: string;
   specialRequirements: string[];
   transportMode: string;
@@ -173,7 +173,7 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
       key: 'loadingEquipment',
       label: 'Loading equipment',
       value: result.loadingEquipment,
-      patch: { loadingEquipment: result.loadingEquipment },
+      patch: { loadingEquipment: [result.loadingEquipment] },
       icon: Forklift,
     });
   }
