@@ -1,4 +1,4 @@
-import { Circle, Search, type LucideIcon } from 'lucide-react';
+import { Bot, Circle, Search, type LucideIcon } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { Conversation } from './types';
 
@@ -16,6 +16,7 @@ type ChatSidebarProps = {
   conversations: Conversation[];
   activeConversationId: string;
   onSelectConversation: (id: string) => void;
+  statusText?: (conversation: Conversation) => string;
 };
 
 export const ChatSidebar = ({
@@ -26,6 +27,7 @@ export const ChatSidebar = ({
   conversations,
   activeConversationId,
   onSelectConversation,
+  statusText,
 }: ChatSidebarProps) => (
   <div className="lg:col-span-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 flex flex-col h-full min-h-0">
     <div className="relative mb-3">
@@ -72,7 +74,14 @@ export const ChatSidebar = ({
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm font-bold dark:text-white">{chat.name}</p>
-              <p className="text-[11px] text-slate-500">{chat.role}</p>
+              {chat.isAiDispatch ? (
+                <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+                  <Bot className="h-3 w-3" />
+                  {chat.role}
+                </span>
+              ) : (
+                <p className="text-[11px] text-slate-500">{chat.role}</p>
+              )}
             </div>
             <div className="text-right">
               <p className="text-[10px] text-slate-400">{chat.lastTime}</p>
@@ -85,7 +94,7 @@ export const ChatSidebar = ({
           </div>
           <div className="flex items-center gap-2 mt-2">
             <Circle className={cn('w-2.5 h-2.5', chat.online ? 'text-emerald-500 fill-current' : 'text-slate-300')} />
-            <span className="text-[11px] text-slate-500 uppercase">{chat.status || chat.channel}</span>
+            <span className="text-[11px] text-slate-500 uppercase">{statusText?.(chat) || chat.status || chat.channel}</span>
           </div>
         </button>
       ))}

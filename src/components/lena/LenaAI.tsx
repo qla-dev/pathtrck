@@ -118,6 +118,7 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
                   conversations={visibleSidebarConversations}
                   activeConversationId={conversation.id}
                   onSelectConversation={selectConversation}
+                  statusText={(chat) => chat.status === 'load-detected' ? u('Load detected', 'Load detected') : u('Draft', 'Draft')}
                 />
               )}
               <div className={`flex min-h-0 gap-4 ${!loadId && !canvasEnabled ? 'lg:col-span-8' : 'lg:col-span-12'}`}>
@@ -135,12 +136,6 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
                 attachmentAccept={LENA_LOAD_FILE_ACCEPT}
                 attachmentBusy={processingAttachment}
                 attachmentDropLabel={u('Drop file for LenaAI', 'Drop file for LenaAI')}
-                headerLeading={(
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary">
-                    <Bot className="h-3.5 w-3.5" />
-                    {u('LenaAI', 'LenaAI')}
-                  </span>
-                )}
                 headerActions={(
                   <div className="flex items-center gap-2">
                   {!loadId && <button

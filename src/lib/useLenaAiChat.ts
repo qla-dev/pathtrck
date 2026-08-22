@@ -141,6 +141,8 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welc
       lastTime: String(lastMessage?.sent_at || lastMessage?.created_at || item.last_message_at || '').slice(11, 16),
       messages: [],
       isAiDispatch: true,
+      canvas: Boolean(item.canvas),
+      status: Boolean(item.canvas) ? 'load-detected' : 'draft',
     };
   }), [availableRows, welcomeRole]);
 

@@ -51,7 +51,9 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
           origin && destination ? `${origin} → ${destination}` : null,
         ].filter(Boolean).join(' · ')
       : '';
-    const status = load ? trPackageStatus(lang, mapLoadStatus(load.status)) : undefined;
+    const status = isAiDispatch
+      ? (Boolean(row.canvas) ? u('Load detected', 'Load detected') : u('Draft', 'Draft'))
+      : load ? trPackageStatus(lang, mapLoadStatus(load.status)) : undefined;
     const loadPosted = load ? String(load.status || '').toLowerCase() === 'posted' : false;
     return {
       id: String(row.id),

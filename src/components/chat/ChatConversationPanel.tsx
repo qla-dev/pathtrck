@@ -182,19 +182,19 @@ export const ChatConversationPanel = ({
         {activeConversation.meta && (
           <p className="text-[11px] text-slate-400 truncate">{activeConversation.meta}</p>
         )}
-        {!activeConversation.isAiDispatch && (
+        {activeConversation.isAiDispatch ? (
+          <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+            <Bot className="h-3 w-3" />
+            {activeConversation.role}
+          </span>
+        ) : (
           <p className="text-[11px] text-slate-500">{activeConversation.role}</p>
         )}
       </div>}
       {headerActions ?? <div className="flex items-center gap-2">
         {headerActionsLeading}
         <div className="flex items-center gap-1">
-          {activeConversation.isAiDispatch ? (
-            <span className="inline-flex h-9 items-center gap-1.5 rounded-full bg-primary/10 px-3 text-xs font-bold text-primary">
-              <Bot className="h-3.5 w-3.5" />
-              {activeConversation.role}
-            </span>
-          ) : (
+          {!activeConversation.isAiDispatch && (
             <>
               <button className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center cursor-pointer">
                 <Phone className="w-4 h-4" />

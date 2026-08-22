@@ -74,6 +74,9 @@ export type ScanFieldPatch = Partial<{
   temperatureMax: string;
   requiresAdr: boolean;
   requiresTailLift: boolean;
+  insuranceRequired: boolean;
+  certificationRequired: boolean;
+  inspectionServicesRequired: boolean;
   urgent: boolean;
   contactName: string;
   contactPhone: string;
@@ -319,6 +322,9 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
   const requirementLabels = [
     result.requiresAdr ? 'ADR' : '',
     result.requiresTailLift ? 'Tail lift' : '',
+    result.insuranceRequired ? 'Insurance' : '',
+    result.certificationRequired ? 'Certification' : '',
+    result.inspectionServicesRequired ? 'Inspection services' : '',
     result.isUrgent ? 'Urgent' : '',
     result.requiresTracking ? 'Trackable' : '',
   ].filter(Boolean);
@@ -330,6 +336,9 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
       patch: {
         ...(result.requiresAdr ? { requiresAdr: true } : {}),
         ...(result.requiresTailLift ? { requiresTailLift: true } : {}),
+        ...(result.insuranceRequired ? { insuranceRequired: true } : {}),
+        ...(result.certificationRequired ? { certificationRequired: true } : {}),
+        ...(result.inspectionServicesRequired ? { inspectionServicesRequired: true } : {}),
         ...(result.isUrgent ? { urgent: true } : {}),
         ...(result.requiresTracking ? { mustBeTrackable: true } : {}),
       },

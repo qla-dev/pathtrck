@@ -71,6 +71,9 @@ export type LoadScanResult = {
   temperatureMax: number | null;
   requiresAdr: boolean;
   requiresTailLift: boolean;
+  insuranceRequired: boolean;
+  certificationRequired: boolean;
+  inspectionServicesRequired: boolean;
   isUrgent: boolean;
   contactName: string;
   contactPhone: string;
