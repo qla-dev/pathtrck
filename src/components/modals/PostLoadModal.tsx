@@ -46,6 +46,7 @@ import { Button } from '../ui/Button';
 import { api, ApiError, LoadScanResult } from '../../services/api';
 import { CustomerSelect, customerOptionFromRecord, type CustomerOption } from '../customer/CustomerSelect';
 import { AddressMapModal } from '../maps/AddressMapModal';
+import { RouteMapModal } from '../maps/RouteMapModal';
 import { CountrySelect } from '../location/CountrySelect';
 import { DocumentDropzone } from './DocumentDropzone';
 import { ScanResultModal } from './ScanResultModal';
@@ -250,6 +251,21 @@ const fromApiWeightKg = (value: unknown) => {
 };
 
 const toApiWeightKg = (weightTonnes: string) => Number(weightTonnes) * 1000;
+
+const routePosition = (latitude: string, longitude: string): [number, number] | null => {
+  const lat = Number(latitude);
+  const lng = Number(longitude);
+  return Number.isFinite(lat) && Number.isFinite(lng) ? [lat, lng] : null;
+};
+
+const estimatedDrivingDistanceKm = (from: [number, number], to: [number, number]) => {
+  const radians = (value: number) => (value * Math.PI) / 180;
+  const [fromLat, fromLng] = from;
+  const [toLat, toLng] = to;
+  const a = Math.sin(radians(toLat - fromLat) / 2) ** 2
+    + Math.cos(radians(fromLat)) * Math.cos(radians(toLat)) * Math.sin(radians(toLng - fromLng) / 2) ** 2;
+  return Math.round(6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 1.18);
+};
 
 const STEPS: Array<{ id: StepId; icon: typeof MapPin }> = [
   { id: 'cargo', icon: Package },
@@ -591,6 +607,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   const [isLoadingExisting, setIsLoadingExisting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [addressMap, setAddressMap] = useState<'pickup' | 'delivery' | null>(null);
+  const [routeMapOpen, setRouteMapOpen] = useState(false);
   const [dropzoneOpen, setDropzoneOpen] = useState(false);
   const [scannedDocuments, setScannedDocuments] = useState<ScannedDocument[]>([]);
   const [viewingDocId, setViewingDocId] = useState<string | null>(null);
@@ -660,6 +677,11 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   }, [editLoadId, isOpen]);
 
   const stepIndex = STEPS.findIndex((item) => item.id === step);
+  const pickupRoutePosition = routePosition(draft.pickupLatitude, draft.pickupLongitude);
+  const deliveryRoutePosition = routePosition(draft.deliveryLatitude, draft.deliveryLongitude);
+  const routeDistanceKm = pickupRoutePosition && deliveryRoutePosition
+    ? estimatedDrivingDistanceKm(pickupRoutePosition, deliveryRoutePosition)
+    : null;
   const stepCompletion = useMemo<Record<StepId, boolean>>(
     () => ({
       route: Boolean(
@@ -836,14 +858,16 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     }
   };
 
-  if (!isOpen) return null;
-  if (isLoadingExisting) return <motion.div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/70" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2, ease: 'easeOut' }}><motion.div className="rounded-2xl bg-white px-6 py-5 font-bold text-slate-700 shadow-2xl dark:bg-slate-900 dark:text-white" initial={{ opacity: 0, y: 24, scale: 0.992 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}>Loading load...</motion.div></motion.div>;
-
   return (
+    <AnimatePresence>
+      {isOpen && (isLoadingExisting ? (
+        <motion.div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/70" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2, ease: 'easeOut' }}><motion.div className="rounded-2xl bg-white px-6 py-5 font-bold text-slate-700 shadow-2xl dark:bg-slate-900 dark:text-white" initial={{ opacity: 0, y: 24, scale: 0.992 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 16, scale: 0.996 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}>Loading load...</motion.div></motion.div>
+      ) : (
     <motion.div
       className="fixed inset-0 z-[200] flex items-stretch justify-center overflow-hidden bg-slate-950/70 backdrop-blur-sm"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
     >
       <AddressMapModal
@@ -884,9 +908,19 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
           setAddressMap(null);
         }}
       />
+      {pickupRoutePosition && deliveryRoutePosition && (
+        <RouteMapModal
+          open={routeMapOpen}
+          lang={lang}
+          pickup={{ label: draft.pickupAddress || draft.pickupCity, position: pickupRoutePosition }}
+          delivery={{ label: draft.deliveryAddress || draft.deliveryCity, position: deliveryRoutePosition }}
+          onClose={() => setRouteMapOpen(false)}
+        />
+      )}
       <motion.div
         initial={{ opacity: 0, y: 24, scale: 0.992 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, y: 16, scale: 0.996 }}
         transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
         className="flex flex-col bg-white dark:bg-slate-900 shadow-2xl w-full h-[100dvh] overflow-hidden border-0 rounded-none"
       >
@@ -1124,7 +1158,27 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
             <div ref={contentScrollRef} className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5 md:p-6">
               <AnimatePresence mode="wait">
               {step === 'route' && (
-                <motion.div key="route" className="space-y-6 sm:space-y-8" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
+                <motion.div key="route" className="space-y-5 md:space-y-6" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
+
+                  <div className="relative h-14">
+                    <div className="pointer-events-none absolute left-5 right-0 top-1/2 -translate-y-1/2 border-t-2 border-dashed border-sky-300/80 dark:border-sky-700/80" />
+                    <div className="relative flex h-full flex-col gap-3 sm:grid sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] sm:items-center sm:gap-5">
+                      <div className="relative h-full min-w-0">
+                        <span className="absolute left-0 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-xl bg-primary text-white shadow-lg shadow-sky-500/20"><Route className="h-4 w-4" /></span>
+                        <p className="absolute left-12 top-0 max-w-[calc(100%-3rem)] truncate text-sm font-bold text-slate-900 dark:text-white">{draft.pickupCity || draft.pickupAddress || ''}</p>
+                      </div>
+                        <div className="relative justify-self-center rounded-2xl border border-sky-200 bg-white px-2.5 py-1 text-center shadow-sm dark:border-sky-800 dark:bg-slate-900">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">{u('landing.distance', 'Distance')}</p>
+                          <p className="text-sm font-black text-slate-900 dark:text-white">{routeDistanceKm === null ? '' : `${routeDistanceKm.toLocaleString()} km`}</p>
+                      </div>
+                      <div className="relative h-full min-w-0">
+                        <p className="absolute right-0 top-0 max-w-full truncate text-right text-sm font-bold text-slate-900 dark:text-white">{draft.deliveryCity || draft.deliveryAddress || ''}</p>
+                      </div>
+                      <div className="relative">
+                        <Button type="button" disabled={!routeDistanceKm} onClick={() => setRouteMapOpen(true)} className="shrink-0 gap-2 disabled:cursor-not-allowed disabled:bg-sky-300 disabled:text-white disabled:opacity-100 disabled:shadow-none dark:disabled:bg-sky-800"><MapGlyphIcon className="h-4 w-4" />{u('postLoadModal.showRouteMap', 'Show route')}</Button>
+                      </div>
+                    </div>
+                  </div>
 
                   <div className="grid lg:grid-cols-2 gap-4 sm:gap-5">
                     <div className="space-y-4 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
@@ -1398,7 +1452,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                                   </div>
                                   <p className="text-sm font-bold text-slate-900 dark:text-white">{option.label}</p>
                                 </div>
-                                <p className="text-xs text-slate-500">{option.description}</p>
+                                <p className="min-h-10 line-clamp-2 text-xs leading-5 text-slate-500">{option.description}</p>
                               </label>
                             );
                           })}
@@ -1970,5 +2024,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         result={viewingDocument?.result ?? null}
       />
     </motion.div>
+      ))}
+    </AnimatePresence>
   );
 };

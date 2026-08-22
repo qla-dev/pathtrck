@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { MapContainer, Marker, Polyline, TileLayer, useMap } from 'react-leaflet';
 import { Loader2, Route, X } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 
 import { Language } from '../../types';
 import { ui } from '../../i18n';
@@ -60,10 +61,9 @@ export const RouteMapModal = ({ open, lang, pickup, delivery, onClose }: RouteMa
     return () => controller.abort();
   }, [delivery.position, fallbackDistance, open, pickup.position]);
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-[300] flex h-[100dvh] flex-col bg-white dark:bg-slate-950">
+    <AnimatePresence>
+      {open && <motion.div className="fixed inset-0 z-[300] flex h-[100dvh] flex-col bg-white dark:bg-slate-950" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2, ease: 'easeOut' }}>
       <header className="flex h-16 shrink-0 items-center gap-4 border-b border-slate-200 px-5 dark:border-slate-800">
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-black uppercase tracking-wider text-primary leading-none">{u('postLoadModal.routeSummary', 'Route')}</p>
@@ -92,6 +92,7 @@ export const RouteMapModal = ({ open, lang, pickup, delivery, onClose }: RouteMa
           </div>
         </div>
       </div>
-    </div>
+      </motion.div>}
+    </AnimatePresence>
   );
 };

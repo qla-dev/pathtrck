@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Check, Loader2, MapPin, Search, X } from 'lucide-react';
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { AnimatePresence, motion } from 'motion/react';
 
 import { Language } from '../../types';
 import { ui } from '../../i18n';
@@ -47,8 +48,6 @@ export const AddressMapModal = ({ open, lang, title, initialQuery = '', initialP
     setPosition(initialPosition || [43.8563, 18.4131]);
   }, [initialPosition, initialQuery, open]);
 
-  if (!open) return null;
-
   const locationToUse = selected || results[0] || null;
 
   const selectResult = (result: LocationSearchResult) => {
@@ -72,7 +71,8 @@ export const AddressMapModal = ({ open, lang, title, initialQuery = '', initialP
   };
 
   return (
-    <div className="fixed inset-0 z-[300] flex h-[100dvh] flex-col bg-white dark:bg-slate-950">
+    <AnimatePresence>
+      {open && <motion.div className="fixed inset-0 z-[300] flex h-[100dvh] flex-col bg-white dark:bg-slate-950" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2, ease: 'easeOut' }}>
       <header className="flex h-16 shrink-0 items-center gap-4 border-b border-slate-200 px-5 dark:border-slate-800">
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-black uppercase tracking-wider text-primary leading-none">{u('map.chooseLocation', 'Choose location')}</p>
@@ -126,6 +126,7 @@ export const AddressMapModal = ({ open, lang, title, initialQuery = '', initialP
           <Check className="h-4 w-4" /> {u('map.useLocation', 'Use location')}
         </Button>
       </footer>
-    </div>
+      </motion.div>}
+    </AnimatePresence>
   );
 };
