@@ -51,6 +51,17 @@ import { CountrySelect } from '../location/CountrySelect';
 import { DocumentDropzone } from './DocumentDropzone';
 import { ScanResultModal } from './ScanResultModal';
 import { ScanFieldPatch } from './scanFieldRows';
+import {
+  AIR_CHARACTERISTIC_OPTIONS,
+  AIR_SPECIAL_REQUIREMENT_OPTIONS,
+  BODY_TYPE_OPTIONS,
+  CLOSED_EXCHANGE_OPTIONS,
+  CONTACT_OPTIONS,
+  INCOTERM_OPTIONS,
+  LOADING_EQUIPMENT_OPTIONS,
+  ROAD_CHARACTERISTIC_OPTIONS,
+  VEHICLE_OPTIONS,
+} from './loadFormOptions';
 
 type PostLoadModalProps = {
   isOpen: boolean;
@@ -274,16 +285,6 @@ const STEPS: Array<{ id: StepId; icon: typeof MapPin }> = [
   { id: 'contact', icon: UserRound },
   { id: 'review', icon: CheckCircle2 },
 ];
-
-const INCOTERM_OPTIONS = ['EXW', 'FCA', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP', 'FAS', 'FOB', 'CFR', 'CIF'];
-const VEHICLE_OPTIONS = ['Cargo Van', 'Box Truck', 'Curtainsider', 'Reefer', 'Trailer', 'Rigid Truck', 'Container truck'];
-const BODY_TYPE_OPTIONS = ['Curtain', 'Box', 'Reefer', 'Mega', 'Tautliner', 'Flatbed'];
-const ROAD_CHARACTERISTIC_OPTIONS = ['ADR', 'CMR', 'GDP', 'TIR', 'Lift', 'Express'];
-const AIR_CHARACTERISTIC_OPTIONS = ['Non-DG', 'DG', 'TCG (temperature controlled goods)', 'MED (medicine)', 'VAL (money and other valuables)'];
-const LOADING_EQUIPMENT_OPTIONS = ['Vehicle with ramp', 'Vehicle without ramp', 'Forklift: Yes', 'Forklift: No', 'Other loading/unloading equipment', 'Not specified'];
-const AIR_SPECIAL_REQUIREMENT_OPTIONS = ['AWB required', 'Tail lift needed', 'Express onboard courier', 'Time-critical door to door'];
-const CONTACT_OPTIONS = ['Current user', 'Operations desk', 'Dispatch team'];
-const CLOSED_EXCHANGE_OPTIONS = ['', 'TIMOCOM', 'Private board'];
 
 const FieldLabel = ({
   children,

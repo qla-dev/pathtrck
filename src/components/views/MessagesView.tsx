@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Bot, LayoutGrid, MessageCircle, PanelRightOpen } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Bot, LayoutGrid, MessageCircle, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Language } from '../../types';
 import { ui } from '../../i18n';
@@ -16,6 +16,7 @@ import { useLenaEmbeddedMessages } from '../lena/useLenaEmbeddedMessages';
 import { LenaLoadCanvas } from '../lena/LenaLoadCanvas';
 import { ScanFieldPatch } from '../modals/scanFieldRows';
 import { latestLoadScan, LenaAttachment } from '../../lib/lenaLoadCanvas';
+import { LenaQuickAction, lenaConversationSubjectTitle, lenaQuickActionFromMessage, lenaQuickActionMarker } from '../../lib/useLenaAiChat';
 
 type MessagesViewProps = {
   lang: Language;
@@ -25,8 +26,30 @@ type MessagesViewProps = {
   onBulkImported?: (rows: BulkLoadRow[]) => void;
 };
 
+type OptimisticMessage = {
+  id: string;
+  conversationId: string;
+  rawText: string;
+  displayText: string;
+  status: 'sending' | 'failed';
+  time: string;
+};
+
 export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill, onBulkImported }: MessagesViewProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  const quickActionLabels = useMemo<Record<LenaQuickAction, string>>(() => ({
+    add: u('Add a new load', 'Add a new load'),
+    tracking: u('Check load status', 'Check load status'),
+    booking: u('Reserve a load', 'Reserve a load'),
+    hs: u('Check HS code', 'Check HS code'),
+    free: u('Ask about Freightbook.ai', 'Ask about Freightbook.ai'),
+    upload_yes: u('Yes, I have a file', 'Yes, I have a file'),
+    upload_no: u('No, enter it manually', 'No, enter it manually'),
+    start_add_yes: u('Yes, start creating', 'Yes, start creating'),
+    start_add_no: u('No, not now', 'No, not now'),
+    continue_add_yes: u('Yes, continue', 'Yes, continue'),
+    continue_add_no: u('No, leave load creation', 'No, leave load creation'),
+  }), [lang]);
   const result = useApiList(api.conversations.list, { per_page: 100 });
   const [user, setUser] = useState<ApiUser | null>(null);
   useEffect(() => { void api.auth.me().then(setUser); }, []);
@@ -35,8 +58,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     const counterpart = participants.find((participant) => Number(participant.id) !== user?.id) || participants[0];
     const messages = Array.isArray(row.messages) ? row.messages as Array<Record<string, unknown>> : [];
     const isAiDispatch = typeof row.subject === 'string' && row.subject.startsWith(AI_DISPATCH_SUBJECT_PREFIX);
-    const generatedAiTitle = isAiDispatch ? String(row.subject).slice(AI_DISPATCH_SUBJECT_PREFIX.length).trim() : '';
-    const visibleAiTitle = generatedAiTitle && generatedAiTitle !== 'General' ? generatedAiTitle : '';
+    const visibleAiTitle = isAiDispatch ? lenaConversationSubjectTitle(row.subject) : '';
     const load = row.freight_load as Record<string, unknown> | undefined;
     const consignee = (load?.consignee || {}) as Record<string, unknown>;
     const loadName = load
@@ -63,7 +85,11 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
       role: isAiDispatch ? u('LenaAI', 'LenaAI') : String(((counterpart?.role || {}) as Record<string, unknown>).label || ''),
       channel: (String(row.channel || 'inapp') as Channel),
       online: false, unread: 0, lastTime: String(row.last_message_at || '').slice(11, 16),
-      messages: messages.map((message) => ({ id: String(message.id), sender: Number(message.sender_user_id) === user?.id ? 'me' : 'other', text: String(message.body || ''), time: String(message.sent_at || message.created_at || '').slice(11, 16), attachments: Array.isArray(message.attachments) ? message.attachments as import('../../lib/lenaLoadCanvas').LenaAttachment[] : undefined })),
+      messages: messages.map((message) => {
+        const body = String(message.body || '');
+        const action = isAiDispatch ? lenaQuickActionFromMessage(body) : undefined;
+        return { id: String(message.id), sender: Number(message.sender_user_id) === user?.id ? 'me' : 'other', text: action ? quickActionLabels[action] : body, time: String(message.sent_at || message.created_at || '').slice(11, 16), attachments: Array.isArray(message.attachments) ? message.attachments as import('../../lib/lenaLoadCanvas').LenaAttachment[] : undefined };
+      }),
       loadId: row.load_id ? String(row.load_id) : undefined,
       isAiDispatch,
       canvas: Boolean(row.canvas),
@@ -71,12 +97,13 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
       status,
       loadPosted,
     };
-  }), [result.items, user, lang]);
+  }), [result.items, user, lang, quickActionLabels]);
   const [channelFilter, setChannelFilter] = useState<'all' | 'ai' | 'direct'>('all');
   const [activeId, setActiveId] = useState('');
   const [draft, setDraft] = useState('');
   const [aiReplying, setAiReplying] = useState(false);
-  const [optimisticText, setOptimisticText] = useState<string | null>(null);
+  const [messageSending, setMessageSending] = useState(false);
+  const [optimisticMessages, setOptimisticMessages] = useState<OptimisticMessage[]>([]);
 
   const channels = [
     { id: 'all' as const, label: u('All', 'All'), icon: LayoutGrid },
@@ -95,12 +122,33 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
 
   const activeConversation = useMemo(() => {
     const base = filteredConversations.find((c) => c.id === activeId) ?? filteredConversations[0] ?? conversations[0] ?? { id: '', name: u('messages.empty', 'No conversation'), role: '', channel: 'inapp' as const, online: false, unread: 0, lastTime: '', messages: [] };
-    if (!optimisticText) return base;
-    return { ...base, messages: [...base.messages, { id: 'optimistic', sender: 'me' as const, text: optimisticText, time: '' }] };
-  }, [filteredConversations, activeId, conversations, optimisticText]);
+    const pending = optimisticMessages
+      .filter((message) => message.conversationId === base.id)
+      .map((message) => ({
+        id: message.id,
+        sender: 'me' as const,
+        text: message.displayText,
+        time: message.time,
+        deliveryStatus: message.status === 'failed' ? 'failed' as const : undefined,
+        onRetry: message.status === 'failed'
+          ? () => void sendMessageValue(message.rawText, message.displayText, message.id, message.conversationId)
+          : undefined,
+      }));
+    return pending.length ? { ...base, messages: [...base.messages, ...pending] } : base;
+  }, [filteredConversations, activeId, conversations, optimisticMessages]);
 
-  const [canvasEnabled, setCanvasEnabled] = useState(false);
-  useEffect(() => setCanvasEnabled(false), [activeConversation.id]);
+  const [canvasPanelOpen, setCanvasPanelOpen] = useState(false);
+  const previousCanvas = useRef({ conversationId: '', active: false });
+  useEffect(() => {
+    const active = Boolean(activeConversation.canvas);
+    const previous = previousCanvas.current;
+    if (previous.conversationId !== activeConversation.id || (!previous.active && active)) {
+      setCanvasPanelOpen(active);
+    } else if (!active) {
+      setCanvasPanelOpen(false);
+    }
+    previousCanvas.current = { conversationId: activeConversation.id, active };
+  }, [activeConversation.id, activeConversation.canvas]);
   const canEnterCanvas = Boolean(activeConversation.isAiDispatch) && (!activeConversation.loadId || !activeConversation.loadPosted);
   const canvasAttachments = useMemo(
     () => activeConversation.messages.flatMap((message) => message.attachments || []),
@@ -113,6 +161,11 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     fallbackLoadId: activeConversation.loadId,
     onOpenLoad,
     onBookLoad,
+    quickActionLabels,
+    onQuickAction: (action) => void sendMessageValue(lenaQuickActionMarker(action), quickActionLabels[action]),
+    onSuggestedReply: (value, displayText) => void sendMessageValue(value, displayText),
+    onSuggestedDraftChange: setDraft,
+    onLoadReady: () => setCanvasPanelOpen(true),
   });
 
   const displayConversation = useMemo(() => ({
@@ -120,15 +173,23 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     messages: displayMessages,
   }), [activeConversation, displayMessages]);
 
-  const sendMessage = async () => {
-    const text = draft.trim();
-    if (!text || !activeConversation.id || !user || aiReplying) return;
+  async function sendMessageValue(rawText: string, displayText = rawText, retryId?: string, targetConversationId?: string) {
+    const text = rawText.trim();
+    const conversationId = targetConversationId || activeConversation.id;
+    if (!text || !conversationId || !user || messageSending || aiReplying) return;
 
+    const optimisticId = retryId || `optimistic-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const optimisticTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    const isAiDispatch = Boolean(activeConversation.isAiDispatch);
     setDraft('');
-    setOptimisticText(text);
+    setOptimisticMessages((messages) => retryId
+      ? messages.map((message) => message.id === retryId ? { ...message, status: 'sending', time: optimisticTime } : message)
+      : [...messages, { id: optimisticId, conversationId, rawText: text, displayText, status: 'sending', time: optimisticTime }]);
+    setMessageSending(true);
+    if (isAiDispatch) setAiReplying(true);
     try {
       let attachments: LenaAttachment[] | undefined;
-      if (canvasEnabled && activeConversation.isAiDispatch && text.length >= 8) {
+      if (activeConversation.canvas && isAiDispatch && !lenaQuickActionFromMessage(text)) {
         try {
           const scan = await api.loads.scanText(text, latestLoadScan(canvasAttachments));
           attachments = [{ name: 'LenaAI conversation', type: 'text/plain', size: new Blob([text]).size, loadScan: scan.data }];
@@ -136,29 +197,47 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
           // The normal conversation must still be sent if structured extraction is unavailable.
         }
       }
-      await api.messages.create({ conversation_id: Number(activeConversation.id), sender_user_id: user.id, body: text, attachments, sent_at: new Date().toISOString() });
-      await result.refresh();
-      setOptimisticText(null);
-
-      if (activeConversation.isAiDispatch) {
-        setAiReplying(true);
-        try {
-          await api.dispatchChat.reply(Number(activeConversation.id));
-          await result.refresh();
-        } finally {
-          setAiReplying(false);
-        }
-      }
+      await api.messages.create({ conversation_id: Number(conversationId), sender_user_id: user.id, body: text, attachments, sent_at: new Date().toISOString() });
     } catch (error) {
-      setOptimisticText(null);
-      void showError(
-        u('messages.sendFailed', 'Message could not be sent'),
-        error instanceof Error ? error.message : undefined
-      );
+      setOptimisticMessages((messages) => messages.map((message) => message.id === optimisticId ? { ...message, status: 'failed' } : message));
+      setMessageSending(false);
+      setAiReplying(false);
+      return;
     }
+
+    try {
+      await result.refresh();
+    } catch {
+      // The create request succeeded, so a refresh problem must not turn this into an unsent message.
+    } finally {
+      setOptimisticMessages((messages) => messages.filter((message) => message.id !== optimisticId));
+    }
+
+    if (isAiDispatch) {
+      try {
+        await api.dispatchChat.reply(Number(conversationId));
+        await result.refresh();
+      } catch (error) {
+        void showError(
+          u('chat.replyFailed', 'LenaAI could not reply'),
+          error instanceof Error ? error.message : undefined
+        );
+      }
+    }
+    setAiReplying(false);
+    setMessageSending(false);
+  }
+
+  const sendMessage = () => sendMessageValue(draft);
+  const handlePrepareLoad = () => {
+    if (activeConversation.canvas) {
+      setCanvasPanelOpen((current) => !current);
+      return;
+    }
+    void sendMessageValue(lenaQuickActionMarker('add'), quickActionLabels.add);
   };
 
-  const showCanvas = canEnterCanvas && canvasEnabled;
+  const showCanvas = canEnterCanvas && Boolean(activeConversation.canvas) && canvasPanelOpen;
 
   return (
     <div className="h-full">
@@ -184,17 +263,19 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
             messagePlaceholder={u('Write a message...', 'Write a message...')}
             className="flex-1 min-h-0"
             otherTyping={aiReplying}
+            notSentMessageLabel={u('chat.notSent', 'Not sent')}
+            retryMessageLabel={u('chat.retry', 'Retry')}
             onTitleClick={activeConversation.loadId && onOpenLoad ? () => onOpenLoad(activeConversation.loadId!) : undefined}
             renderMessageExtra={renderMessageExtra}
             extraContentVersion={`${activeConversation.id}:${extraContentVersion}`}
             headerActionsLeading={canEnterCanvas && (
               <button
                 type="button"
-                onClick={() => setCanvasEnabled((current) => !current)}
-                className={`flex h-9 items-center gap-2 rounded-full border px-3 text-xs font-bold transition-all cursor-pointer ${canvasEnabled ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-slate-100 text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}
+                onClick={handlePrepareLoad}
+                className={`flex h-9 items-center gap-2 rounded-full border px-3 text-xs font-bold transition-all cursor-pointer ${showCanvas ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-slate-100 text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}
               >
-                <PanelRightOpen className="h-4 w-4" />
-                {u('Prepare load', 'Prepare load')}
+                {showCanvas ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+                {showCanvas ? u('Hide load preparation', 'Hide load preparation') : u('Prepare load', 'Prepare load')}
               </button>
             )}
           />

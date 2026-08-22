@@ -1,0 +1,12 @@
+export const INCOTERM_OPTIONS = ['EXW', 'FCA', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP', 'FAS', 'FOB', 'CFR', 'CIF'] as const;
+export const VEHICLE_OPTIONS = ['Cargo Van', 'Box Truck', 'Curtainsider', 'Reefer', 'Trailer', 'Rigid Truck', 'Container truck'] as const;
+export const BODY_TYPE_OPTIONS = ['Curtain', 'Box', 'Reefer', 'Mega', 'Tautliner', 'Flatbed'] as const;
+export const ROAD_CHARACTERISTIC_OPTIONS = ['ADR', 'CMR', 'GDP', 'TIR', 'Lift', 'Express'] as const;
+export const AIR_CHARACTERISTIC_OPTIONS = ['Non-DG', 'DG', 'TCG (temperature controlled goods)', 'MED (medicine)', 'VAL (money and other valuables)'] as const;
+export const LOADING_EQUIPMENT_OPTIONS = ['Vehicle with ramp', 'Vehicle without ramp', 'Forklift: Yes', 'Forklift: No', 'Other loading/unloading equipment', 'Not specified'] as const;
+export const AIR_SPECIAL_REQUIREMENT_OPTIONS = ['AWB required', 'Tail lift needed', 'Express onboard courier', 'Time-critical door to door'] as const;
+export const AIR_TRANSPORT_MODE_OPTIONS = ['Airport to airport', 'Air freight + last-mile delivery'] as const;
+export const DELIVERY_PROOF_OPTIONS = ['POD', 'AOD'] as const;
+export const CONTACT_OPTIONS = ['Current user', 'Operations desk', 'Dispatch team'] as const;
+export const CLOSED_EXCHANGE_OPTIONS = ['', 'TIMOCOM', 'Private board'] as const;
+export const LOAD_REQUIREMENT_OPTIONS = ['ADR', 'Tail lift', 'Priority load', 'Toll roads', 'Ferry', 'CMR', 'Pallet exchange', 'Customs', 'Insurance', 'Certification', 'Inspection services', 'Must be trackable'] as const;

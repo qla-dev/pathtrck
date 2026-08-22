@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Check, FileSpreadsheet, Loader2, PackagePlus, Pencil } from 'lucide-react';
+import { Check, FileSpreadsheet, Loader2, PackagePlus, Send } from 'lucide-react';
 import { Language } from '../../types';
 import { ui } from '../../i18n';
 import { api, BulkLoadRow } from '../../services/api';
@@ -78,8 +78,8 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, onApplyPrefill, onBulk
 
       {bulkRows.length === 0 && rows.length > 0 && (
         <div className="border-t border-slate-100 p-3 dark:border-slate-800">
-          <button type="button" onClick={() => onApplyPrefill?.(patch)} className="flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary text-xs font-black text-white transition-colors hover:bg-primary-dark">
-            <Pencil className="h-3.5 w-3.5" /> {u('Open edit mode', 'Open edit mode')}
+          <button type="button" onClick={() => onApplyPrefill?.(patch)} className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary text-xs font-black text-white transition-colors hover:bg-primary-dark">
+            <Send className="h-3.5 w-3.5" /> {u('Continue to publishing', 'Continue to publishing')}
           </button>
         </div>
       )}

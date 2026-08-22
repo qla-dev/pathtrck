@@ -1,4 +1,4 @@
-import { Bot, FileImage, FileSpreadsheet, FileText, Image as ImageIcon, Loader2, Mic, Paperclip, Phone, Send, Video } from 'lucide-react';
+import { AlertCircle, Bot, FileImage, FileSpreadsheet, FileText, Image as ImageIcon, Loader2, Mic, Paperclip, Phone, RefreshCw, Send, Video } from 'lucide-react';
 import { useCallback, useLayoutEffect, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import { cn } from '../../lib/cn';
 import { ChatMessage, Conversation } from './types';
@@ -42,6 +42,8 @@ type ChatConversationPanelProps = {
   attachmentAccept?: string;
   attachmentBusy?: boolean;
   attachmentDropLabel?: string;
+  notSentMessageLabel?: string;
+  retryMessageLabel?: string;
 };
 
 export const ChatConversationPanel = ({
@@ -62,6 +64,8 @@ export const ChatConversationPanel = ({
   attachmentAccept,
   attachmentBusy = false,
   attachmentDropLabel = 'Drop file for LenaAI',
+  notSentMessageLabel = 'Not sent',
+  retryMessageLabel = 'Retry',
 }: ChatConversationPanelProps) => {
   const primaryActionButtonClass = 'h-9 rounded-lg bg-primary text-white flex items-center justify-center cursor-pointer transition-all hover:brightness-95';
   const messageListRef = useRef<HTMLDivElement>(null);
@@ -278,6 +282,22 @@ export const ChatConversationPanel = ({
               );
             })}
           </div>
+          {m.sender === 'me' && m.deliveryStatus === 'failed' && (
+            <div className="mt-1 flex items-center justify-end gap-1.5 text-[11px] text-rose-500">
+              <AlertCircle className="h-3 w-3" />
+              <span>{notSentMessageLabel}</span>
+              {m.onRetry && (
+                <button
+                  type="button"
+                  onClick={m.onRetry}
+                  className="ml-1 inline-flex cursor-pointer items-center gap-1 font-bold text-rose-600 hover:underline dark:text-rose-400"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  {retryMessageLabel}
+                </button>
+              )}
+            </div>
+          )}
           {typingMessageId !== m.id && renderMessageExtra?.(m)}
         </div>
       ))}

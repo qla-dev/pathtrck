@@ -7,9 +7,18 @@ import { analyzeLenaAttachment, latestLoadScan, LenaAttachment, LenaCanvasMode }
 
 export const LENA_AI_GENERAL_SUBJECT = `${AI_DISPATCH_SUBJECT_PREFIX}General`;
 
-export type LenaQuickAction = 'add' | 'tracking' | 'booking' | 'hs' | 'upload_yes' | 'upload_no';
+export type LenaQuickAction = 'add' | 'tracking' | 'booking' | 'hs' | 'free' | 'upload_yes' | 'upload_no' | 'start_add_yes' | 'start_add_no' | 'continue_add_yes' | 'continue_add_no';
 export const lenaQuickActionMarker = (action: LenaQuickAction) => `[[LENA_ACTION:${action}]]`;
-const LENA_QUICK_ACTION_PATTERN = /^\[\[LENA_ACTION:(add|tracking|booking|hs|upload_yes|upload_no)\]\]$/;
+const LENA_QUICK_ACTION_PATTERN = /^\[\[LENA_ACTION:(add|tracking|booking|hs|free|upload_yes|upload_no|start_add_yes|start_add_no|continue_add_yes|continue_add_no)\]\]$/;
+export const lenaQuickActionFromMessage = (text: string): LenaQuickAction | undefined =>
+  text.match(LENA_QUICK_ACTION_PATTERN)?.[1] as LenaQuickAction | undefined;
+export const lenaConversationSubjectTitle = (subject: unknown): string => {
+  const value = String(subject || '').trim();
+  const title = value.startsWith(AI_DISPATCH_SUBJECT_PREFIX)
+    ? value.slice(AI_DISPATCH_SUBJECT_PREFIX.length).trim()
+    : value;
+  return title && title.toLowerCase() !== 'general' && !lenaQuickActionFromMessage(title) ? title : '';
+};
 
 type UseLenaAiChatOptions = {
   userId?: number;
@@ -19,14 +28,25 @@ type UseLenaAiChatOptions = {
   welcomeText: string;
   welcomeRole: string;
   sendFailedTitle: string;
+  replyFailedTitle: string;
+  newConversationLabel: string;
   initialCanvasMode?: LenaCanvasMode | null;
   quickActionLabels: Record<LenaQuickAction, string>;
+};
+
+type OptimisticLenaMessage = {
+  id: string;
+  rawText: string;
+  displayText: string;
+  status: 'sending' | 'failed';
+  time: string;
+  conversationId?: number;
 };
 
 // Shared conversation logic behind the reusable LenaAI chat (frontend/src/components/lena/LenaAI.tsx).
 // Mirrors the find-or-create/send/reply flow already proven in LoadDetailsModal.tsx's AI Dispatch
 // tab, generalized to also support a load-less "general" conversation (load_id: null).
-export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welcomeText, welcomeRole, sendFailedTitle, initialCanvasMode = null, quickActionLabels }: UseLenaAiChatOptions) => {
+export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welcomeText, welcomeRole, sendFailedTitle, replyFailedTitle, newConversationLabel, initialCanvasMode = null, quickActionLabels }: UseLenaAiChatOptions) => {
   const result = useApiList(
     api.conversations.list,
     loadId ? { load_id: Number(loadId), per_page: 50 } : { per_page: 100 }
@@ -65,20 +85,29 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welc
 
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
-  const [optimisticText, setOptimisticText] = useState<string | null>(null);
+  const [optimisticMessages, setOptimisticMessages] = useState<OptimisticLenaMessage[]>([]);
 
   const conversation = useMemo<Conversation>(() => {
     const messages: Conversation['messages'] = row
       ? (Array.isArray(row.messages) ? row.messages as Array<Record<string, unknown>> : []).map((message) => ({
           id: String(message.id),
           sender: Number(message.sender_user_id) === userId ? 'me' : 'other',
-          text: quickActionLabels[(String(message.body || '').match(LENA_QUICK_ACTION_PATTERN)?.[1] || '') as LenaQuickAction] || String(message.body || ''),
+          text: quickActionLabels[lenaQuickActionFromMessage(String(message.body || '')) as LenaQuickAction] || String(message.body || ''),
           time: String(message.sent_at || message.created_at || '').slice(11, 16),
           attachments: Array.isArray(message.attachments) ? message.attachments as LenaAttachment[] : undefined,
         }))
       : [{ id: `welcome-${newChatVersion}`, sender: 'other', text: welcomeText, time: '' }];
 
-    if (optimisticText) messages.push({ id: 'optimistic', sender: 'me', text: optimisticText, time: '' });
+    optimisticMessages.forEach((message) => messages.push({
+      id: message.id,
+      sender: 'me',
+      text: message.displayText,
+      time: message.time,
+      deliveryStatus: message.status === 'failed' ? 'failed' : undefined,
+      onRetry: message.status === 'failed'
+        ? () => void sendMessage(message.rawText, message.displayText, message.id, message.conversationId)
+        : undefined,
+    }));
 
     return {
       id: row ? String(row.id) : `new-${newChatVersion}`,
@@ -92,13 +121,22 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welc
       isAiDispatch: true,
       canvas: !loadId && (canvasOverride ?? Boolean(row?.canvas)),
     };
-  }, [row, userId, optimisticText, welcomeText, welcomeRole, newChatVersion, canvasOverride]);
+  }, [row, userId, optimisticMessages, welcomeText, welcomeRole, newChatVersion, canvasOverride]);
 
   const canvasEnabled = !loadId && (canvasOverride ?? Boolean(row?.canvas));
   const canvasAttachments = useMemo(
     () => conversation.messages.flatMap((message) => message.attachments || []),
     [conversation.messages]
   );
+  const latestGuidedAction = useMemo(() => {
+    const messages = row && Array.isArray(row.messages) ? row.messages as Array<Record<string, unknown>> : [];
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      if (Number(messages[index].sender_user_id) !== userId) continue;
+      const action = lenaQuickActionFromMessage(String(messages[index].body || ''));
+      if (action) return action;
+    }
+    return undefined;
+  }, [row, userId]);
 
   const ensureConversation = async (canvas: boolean) => {
     if (row) {
@@ -123,7 +161,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welc
 
   const startNewChat = () => {
     setDraft('');
-    setOptimisticText(null);
+    setOptimisticMessages([]);
     setStartingNewChat(true);
     setCanvasOverride(false);
     setCanvasMode('new_load');
@@ -135,7 +173,11 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welc
     const messages = Array.isArray(item.messages) ? item.messages as Array<Record<string, unknown>> : [];
     const lastMessage = messages.at(-1);
     const firstMessage = messages.find((message) => String(message.body || '').trim());
-    const title = String(firstMessage?.body || 'New LenaAI conversation').replace(/\s+/g, ' ').slice(0, 48);
+    const firstBody = String(firstMessage?.body || '').trim();
+    const firstAction = lenaQuickActionFromMessage(firstBody);
+    const title = lenaConversationSubjectTitle(item.subject)
+      || (firstAction ? quickActionLabels[firstAction] : '')
+      || newConversationLabel;
     return {
       id: String(item.id),
       name: title,
@@ -149,12 +191,13 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welc
       canvas: Boolean(item.canvas),
       status: Boolean(item.canvas) ? 'load-detected' : 'draft',
     };
-  }), [availableRows, welcomeRole]);
+  }), [availableRows, welcomeRole, quickActionLabels, newConversationLabel]);
 
   const selectConversation = (id: string) => {
+    setOptimisticMessages([]);
     setStartingNewChat(false);
     setSelectedConversationId(id);
-    setCanvasOverride(false);
+    setCanvasOverride(null);
   };
 
   const setCanvasEnabled = async (enabled: boolean, mode: LenaCanvasMode = canvasMode) => {
@@ -172,20 +215,29 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welc
     }
   };
 
-  const sendMessage = async (rawText: string, displayText = rawText) => {
+  async function sendMessage(rawText: string, displayText = rawText, retryId?: string, retryConversationId?: number) {
     const text = rawText.trim();
     if (!text || !userId || sending) return;
 
+    const optimisticId = retryId || `optimistic-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const optimisticTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
     setDraft('');
-    setOptimisticText(displayText);
+    setOptimisticMessages((messages) => retryId
+      ? messages.map((message) => message.id === retryId ? { ...message, status: 'sending', time: optimisticTime } : message)
+      : [...messages, { id: optimisticId, rawText: text, displayText, status: 'sending', time: optimisticTime }]);
     setSending(true);
+    let conversationId: number;
     try {
-      const requestsCanvas = /\b(new\s+load|post\s+(?:a\s+)?load|publish\s+(?:a\s+)?load|create\s+(?:a\s+)?load|bulk\s+import|novi?\s+teret|objav\w*\s+teret|kreir\w*\s+teret|naprav\w*\s+teret|masovni\s+uvoz|neue\s+ladung|massenimport|(open|enable|show|otvori|ukljuci|prikazi|offne|aktiviere)\w*\s+(?:the\s+)?(canvas|platno|nacrt))\b/i.test(text.normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
-      const desiredCanvas = !loadId && (canvasEnabled || requestsCanvas);
-      if (requestsCanvas && !loadId) setCanvasOverride(true);
-      const conversationId = await ensureConversation(desiredCanvas);
+      const guidedAction = lenaQuickActionFromMessage(text);
+      const entersCanvas = guidedAction === 'add' || guidedAction === 'start_add_yes';
+      const exitsCanvas = guidedAction === 'continue_add_no';
+      const desiredCanvas = !loadId && (entersCanvas || (!exitsCanvas && canvasEnabled));
+      if (!loadId && (entersCanvas || exitsCanvas)) setCanvasOverride(entersCanvas);
+      conversationId = retryConversationId || await ensureConversation(desiredCanvas);
+      setOptimisticMessages((messages) => messages.map((message) => message.id === optimisticId ? { ...message, conversationId } : message));
       let attachments: LenaAttachment[] | undefined;
-      if (desiredCanvas && text.length >= 8) {
+      const builderInputActive = !latestGuidedAction || !['tracking', 'booking', 'hs', 'free'].includes(latestGuidedAction);
+      if (desiredCanvas && builderInputActive && !guidedAction && text.length >= 1) {
         try {
           const scan = await api.loads.scanText(text, latestLoadScan(canvasAttachments));
           attachments = [{ name: 'LenaAI conversation', type: 'text/plain', size: new Blob([text]).size, loadScan: scan.data }];
@@ -201,29 +253,40 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welc
         attachments,
         sent_at: new Date().toISOString(),
       });
-      await result.refresh();
-      setOptimisticText(null);
-      setStartingNewChat(false);
+    } catch (error) {
+      setOptimisticMessages((messages) => messages.map((message) => message.id === optimisticId ? { ...message, status: 'failed' } : message));
+      setSending(false);
+      return;
+    }
 
+    setStartingNewChat(false);
+    try {
+      await result.refresh();
+    } catch {
+      // The message is already stored; a transient refresh failure must not mark it as unsent.
+    } finally {
+      setOptimisticMessages((messages) => messages.filter((message) => message.id !== optimisticId));
+    }
+
+    try {
       await api.dispatchChat.reply(conversationId);
       await result.refresh();
       setCanvasOverride(null);
     } catch (error) {
-      setOptimisticText(null);
-      void showError(sendFailedTitle, error instanceof Error ? error.message : undefined);
+      void showError(replyFailedTitle, error instanceof Error ? error.message : undefined);
     } finally {
       setSending(false);
     }
-  };
+  }
 
   const send = async () => sendMessage(draft);
   const sendQuickAction = async (action: LenaQuickAction) => sendMessage(lenaQuickActionMarker(action), quickActionLabels[action]);
+  const sendSuggestedReply = async (value: string, displayText = value) => sendMessage(value, displayText);
 
   const attachFile = async (file: File) => {
     if (!userId || sending || processingAttachment) return;
     setProcessingAttachment(true);
-    const attachmentOpensCanvas = !loadId;
-    if (attachmentOpensCanvas) setCanvasOverride(true);
+    const attachmentOpensCanvas = !loadId && canvasEnabled;
     try {
       const attachment = await analyzeLenaAttachment(file, canvasMode, latestLoadScan(canvasAttachments));
       const conversationId = await ensureConversation(attachmentOpensCanvas);
@@ -251,5 +314,5 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welc
     }
   };
 
-  return { conversation, draft, setDraft, send, sendQuickAction, sending, startNewChat, selectConversation, sidebarConversations, hasActiveConversation: Boolean(row), canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment };
+  return { conversation, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sending, startNewChat, selectConversation, sidebarConversations, hasActiveConversation: Boolean(row), canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment };
 };

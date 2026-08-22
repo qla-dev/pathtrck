@@ -49,6 +49,8 @@ export type LoadScanResult = {
   pickupCity: string;
   pickupCountryCode: string;
   pickupAddress: string;
+  pickupLatitude: number | null;
+  pickupLongitude: number | null;
   pickupDate: string;
   pickupDateTo: string;
   pickupTimeFrom: string;
@@ -56,6 +58,8 @@ export type LoadScanResult = {
   deliveryCity: string;
   deliveryCountryCode: string;
   deliveryAddress: string;
+  deliveryLatitude: number | null;
+  deliveryLongitude: number | null;
   deliveryDate: string;
   deliveryDateTo: string;
   deliveryTimeFrom: string;
@@ -71,6 +75,11 @@ export type LoadScanResult = {
   temperatureMax: number | null;
   requiresAdr: boolean;
   requiresTailLift: boolean;
+  tollRoadsIncluded: boolean;
+  ferryIncluded: boolean;
+  cmrRequired: boolean;
+  palletExchangeRequired: boolean;
+  customsRequired: boolean;
   insuranceRequired: boolean;
   certificationRequired: boolean;
   inspectionServicesRequired: boolean;

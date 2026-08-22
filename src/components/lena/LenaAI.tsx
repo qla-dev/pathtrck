@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Bot, LayoutGrid, MessageCircle, PanelRightOpen, Plus, X } from 'lucide-react';
+import { Bot, LayoutGrid, MessageCircle, PanelRightClose, PanelRightOpen, Plus, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Language } from '../../types';
 import { ui } from '../../i18n';
@@ -40,10 +40,15 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
     tracking: u('Check load status', 'Check load status'),
     booking: u('Reserve a load', 'Reserve a load'),
     hs: u('Check HS code', 'Check HS code'),
+    free: u('Ask about Freightbook.ai', 'Ask about Freightbook.ai'),
     upload_yes: u('Yes, I have a file', 'Yes, I have a file'),
     upload_no: u('No, enter it manually', 'No, enter it manually'),
+    start_add_yes: u('Yes, start creating', 'Yes, start creating'),
+    start_add_no: u('No, not now', 'No, not now'),
+    continue_add_yes: u('Yes, continue', 'Yes, continue'),
+    continue_add_no: u('No, leave load creation', 'No, leave load creation'),
   } as const;
-  const generalWelcome = `${u('Lena welcome general', 'Hello, I am LenaAI, your AI dispatcher in Freightbook.ai.\n\nYou can write to me in any language. I will reply exclusively in the language you use. How can I help you today?')}\n\n[[LENA_OPTIONS:add,tracking,booking,hs]]`;
+  const generalWelcome = `${u('Lena welcome general', 'Hello, I am LenaAI, your AI dispatcher in Freightbook.ai.\n\nYou can write to me in any language. I will reply exclusively in the language you use. How can I help you today?')}\n\n[[LENA_OPTIONS:add,tracking,booking,hs,free]]`;
 
   useEffect(() => {
     if (!open) return undefined;
@@ -54,7 +59,7 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [open, onClose]);
 
-  const { conversation, draft, setDraft, send, sendQuickAction, sending, startNewChat, selectConversation, sidebarConversations, canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment } = useLenaAiChat({
+  const { conversation, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sending, startNewChat, selectConversation, sidebarConversations, canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment } = useLenaAiChat({
     userId,
     companyIds,
     loadId,
@@ -64,9 +69,23 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
       ? u('Lena welcome load', 'Hello, I\'m LenaAI, your AI dispatcher for this load.\n\nUsing the latest data you are authorized to access, I can explain its route and stops, dates, cargo, status, booking reference, financial terms, tracking, and booking options.\n\nWrite to me in any language. I\'ll reply entirely in the language you use.')
       : generalWelcome,
     sendFailedTitle: u('Message could not be sent', 'Message could not be sent'),
+    replyFailedTitle: u('chat.replyFailed', 'LenaAI could not reply'),
+    newConversationLabel: u('New LenaAI conversation', 'New LenaAI conversation'),
     initialCanvasMode,
     quickActionLabels,
   });
+  const [canvasPanelOpen, setCanvasPanelOpen] = useState(false);
+  const previousCanvas = useRef({ conversationId: '', active: false });
+  useEffect(() => {
+    const previous = previousCanvas.current;
+    if (previous.conversationId !== conversation.id || (!previous.active && canvasEnabled)) {
+      setCanvasPanelOpen(canvasEnabled);
+    } else if (!canvasEnabled) {
+      setCanvasPanelOpen(false);
+    }
+    previousCanvas.current = { conversationId: conversation.id, active: canvasEnabled };
+  }, [conversation.id, canvasEnabled]);
+  const showCanvas = !loadId && canvasEnabled && canvasPanelOpen;
 
   const { displayMessages, renderMessageExtra, extraContentVersion } = useLenaEmbeddedMessages({
     messages: conversation.messages,
@@ -76,7 +95,12 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
     onBookLoad,
     quickActionLabels,
     onQuickAction: (action) => void sendQuickAction(action),
-    onLoadReady: () => void setCanvasEnabled(true),
+    onSuggestedReply: (value, displayText) => void sendSuggestedReply(value, displayText),
+    onSuggestedDraftChange: setDraft,
+    onLoadReady: () => {
+      void setCanvasEnabled(true);
+      setCanvasPanelOpen(true);
+    },
   });
 
   const displayConversation = useMemo(() => ({
@@ -121,7 +145,7 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
             transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
           >
             <div className="grid h-full min-h-0 w-full gap-4 lg:grid-cols-12">
-              {!loadId && !canvasEnabled && (
+              {!loadId && !showCanvas && (
                 <ChatSidebar
                   searchPlaceholder={u('Search messages...', 'Search messages...')}
                   channels={channels}
@@ -133,7 +157,7 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
                   statusText={(chat) => chat.status === 'load-detected' ? u('Load detected', 'Load detected') : u('Draft', 'Draft')}
                 />
               )}
-              <div className={`flex min-h-0 gap-4 ${!loadId && !canvasEnabled ? 'lg:col-span-8' : 'lg:col-span-12'}`}>
+              <div className={`flex min-h-0 gap-4 ${!loadId && !showCanvas ? 'lg:col-span-8' : 'lg:col-span-12'}`}>
               <ChatConversationPanel
                 activeConversation={displayConversation}
                 draft={draft}
@@ -148,15 +172,20 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
                 attachmentAccept={LENA_LOAD_FILE_ACCEPT}
                 attachmentBusy={processingAttachment}
                 attachmentDropLabel={u('Drop file for LenaAI', 'Drop file for LenaAI')}
+                notSentMessageLabel={u('chat.notSent', 'Not sent')}
+                retryMessageLabel={u('chat.retry', 'Retry')}
                 headerActions={(
                   <div className="flex items-center gap-2">
                   {!loadId && <button
                     type="button"
-                    onClick={() => void setCanvasEnabled(!canvasEnabled, initialCanvasMode || canvasMode)}
-                    className={`flex h-10 items-center gap-2 rounded-xl border px-3 text-xs font-bold transition-all cursor-pointer ${canvasEnabled ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-slate-100 text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}
+                    onClick={() => {
+                      if (canvasEnabled) setCanvasPanelOpen((current) => !current);
+                      else void sendQuickAction('add');
+                    }}
+                    className={`flex h-10 cursor-pointer items-center gap-2 rounded-xl border px-3 text-xs font-bold transition-all ${showCanvas ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-slate-100 text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}
                   >
-                    <PanelRightOpen className="h-4 w-4" />
-                    {u('Prepare load', 'Prepare load')}
+                    {showCanvas ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+                    {showCanvas ? u('Hide load preparation', 'Hide load preparation') : u('Prepare load', 'Prepare load')}
                   </button>}
                   <button
                     type="button"
@@ -178,7 +207,7 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
                 )}
               />
               <AnimatePresence initial={false}>
-                {canvasEnabled && (
+                {showCanvas && (
                   <motion.div key="load-canvas" className="h-[42%] min-h-0 shrink-0 lg:h-full" initial={{ opacity: 0, x: 24, width: 0 }} animate={{ opacity: 1, x: 0, width: 'auto' }} exit={{ opacity: 0, x: 24, width: 0 }} transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}>
                     <LenaLoadCanvas
                       lang={lang}

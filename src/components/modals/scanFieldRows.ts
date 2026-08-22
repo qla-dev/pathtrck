@@ -50,6 +50,8 @@ export type ScanFieldPatch = Partial<{
   pickupCity: string;
   pickupCountry: string;
   pickupAddress: string;
+  pickupLatitude: string;
+  pickupLongitude: string;
   pickupDate: string;
   pickupDateTo: string;
   pickupTimeFrom: string;
@@ -57,6 +59,8 @@ export type ScanFieldPatch = Partial<{
   deliveryCity: string;
   deliveryCountry: string;
   deliveryAddress: string;
+  deliveryLatitude: string;
+  deliveryLongitude: string;
   deliveryDate: string;
   deliveryDateTo: string;
   deliveryTimeFrom: string;
@@ -74,6 +78,11 @@ export type ScanFieldPatch = Partial<{
   temperatureMax: string;
   requiresAdr: boolean;
   requiresTailLift: boolean;
+  tollRoadsIncluded: boolean;
+  ferryIncluded: boolean;
+  cmrRequired: boolean;
+  palletExchangeRequired: boolean;
+  customsRequired: boolean;
   insuranceRequired: boolean;
   certificationRequired: boolean;
   inspectionServicesRequired: boolean;
@@ -213,6 +222,8 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
         ...(result.pickupCity ? { pickupCity: result.pickupCity } : {}),
         ...(result.pickupCountryCode ? { pickupCountry: result.pickupCountryCode } : {}),
         ...(result.pickupAddress ? { pickupAddress: result.pickupAddress } : {}),
+        ...(result.pickupLatitude != null ? { pickupLatitude: String(result.pickupLatitude) } : {}),
+        ...(result.pickupLongitude != null ? { pickupLongitude: String(result.pickupLongitude) } : {}),
       },
       icon: MapPin,
     });
@@ -244,6 +255,8 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
         ...(result.deliveryCity ? { deliveryCity: result.deliveryCity } : {}),
         ...(result.deliveryCountryCode ? { deliveryCountry: result.deliveryCountryCode } : {}),
         ...(result.deliveryAddress ? { deliveryAddress: result.deliveryAddress } : {}),
+        ...(result.deliveryLatitude != null ? { deliveryLatitude: String(result.deliveryLatitude) } : {}),
+        ...(result.deliveryLongitude != null ? { deliveryLongitude: String(result.deliveryLongitude) } : {}),
       },
       icon: Flag,
     });
@@ -322,6 +335,11 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
   const requirementLabels = [
     result.requiresAdr ? 'ADR' : '',
     result.requiresTailLift ? 'Tail lift' : '',
+    result.tollRoadsIncluded ? 'Toll roads' : '',
+    result.ferryIncluded ? 'Ferry' : '',
+    result.cmrRequired ? 'CMR' : '',
+    result.palletExchangeRequired ? 'Pallet exchange' : '',
+    result.customsRequired ? 'Customs' : '',
     result.insuranceRequired ? 'Insurance' : '',
     result.certificationRequired ? 'Certification' : '',
     result.inspectionServicesRequired ? 'Inspection services' : '',
@@ -336,6 +354,11 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
       patch: {
         ...(result.requiresAdr ? { requiresAdr: true } : {}),
         ...(result.requiresTailLift ? { requiresTailLift: true } : {}),
+        ...(result.tollRoadsIncluded ? { tollRoadsIncluded: true } : {}),
+        ...(result.ferryIncluded ? { ferryIncluded: true } : {}),
+        ...(result.cmrRequired ? { cmrRequired: true } : {}),
+        ...(result.palletExchangeRequired ? { palletExchangeRequired: true } : {}),
+        ...(result.customsRequired ? { customsRequired: true } : {}),
         ...(result.insuranceRequired ? { insuranceRequired: true } : {}),
         ...(result.certificationRequired ? { certificationRequired: true } : {}),
         ...(result.inspectionServicesRequired ? { inspectionServicesRequired: true } : {}),

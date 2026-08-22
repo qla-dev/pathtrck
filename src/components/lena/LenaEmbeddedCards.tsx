@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
-import { Activity, ArrowRight, Box, CalendarClock, Coins, Flag, Hash, MapPin, PackageCheck, Scale, Truck } from 'lucide-react';
+import { Activity, ArrowRight, Box, CalendarClock, Coins, Flag, Hash, MapPin, MapPinned, PackageCheck, Scale, Truck } from 'lucide-react';
 
 import { trLoadStatus, ui } from '../../i18n';
-import { searchLocations } from '../../services/locationSearch';
+import { searchLocations, type LocationSearchResult } from '../../services/locationSearch';
 import { Language } from '../../types';
+import { AddressMapModal } from '../maps/AddressMapModal';
 
 type LenaLoadDetailsCardProps = {
   lang: Language;
@@ -13,6 +14,47 @@ type LenaLoadDetailsCardProps = {
 };
 
 const flagUrl = (code: string) => `https://flagcdn.com/w40/${code.toLowerCase()}.png`;
+
+export const LenaLocationChoiceCard = ({ lang, kind, onSelect }: { lang: Language; kind: 'pickup' | 'delivery'; onSelect: (location: LocationSearchResult) => void }) => {
+  const [mapOpen, setMapOpen] = useState(false);
+  const pickup = kind === 'pickup';
+  const title = lang === 'bs'
+    ? pickup ? 'Odaberite lokaciju preuzimanja' : 'Odaberite lokaciju isporuke'
+    : lang === 'de'
+      ? pickup ? 'Abholort auswählen' : 'Lieferort auswählen'
+      : pickup ? 'Choose pickup location' : 'Choose delivery location';
+  const description = lang === 'bs'
+    ? 'Pretražite adresu ili označite tačnu lokaciju na mapi.'
+    : lang === 'de'
+      ? 'Suchen Sie eine Adresse oder markieren Sie den genauen Ort auf der Karte.'
+      : 'Search for an address or mark the exact point on the map.';
+  const buttonLabel = lang === 'bs' ? 'Otvori mapu' : lang === 'de' ? 'Karte öffnen' : 'Open map';
+
+  return (
+    <>
+      <div className="flex w-full items-center justify-between gap-4 rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/10 to-white p-4 shadow-sm dark:to-slate-900">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-white"><MapPinned className="h-5 w-5" /></span>
+          <div className="min-w-0">
+            <p className="text-sm font-black text-slate-900 dark:text-white">{title}</p>
+            <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-300">{description}</p>
+          </div>
+        </div>
+        <button type="button" onClick={() => setMapOpen(true)} className="inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-primary px-4 text-xs font-black text-white transition-all hover:brightness-95"><MapPin className="h-4 w-4" />{buttonLabel}</button>
+      </div>
+      {mapOpen && <AddressMapModal
+        open={mapOpen}
+        lang={lang}
+        title={title}
+        onClose={() => setMapOpen(false)}
+        onSelect={(location) => {
+          setMapOpen(false);
+          onSelect(location);
+        }}
+      />}
+    </>
+  );
+};
 
 export const LenaLoadStatusCard = ({ lang, load }: { lang: Language; load: Record<string, unknown> }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);

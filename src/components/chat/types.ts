@@ -6,6 +6,8 @@ export type ChatMessage = {
   text: string;
   time: string;
   attachments?: import('../../lib/lenaLoadCanvas').LenaAttachment[];
+  deliveryStatus?: 'failed';
+  onRetry?: () => void;
 };
 
 export type Conversation = {
