@@ -35,7 +35,15 @@ type LenaAIProps = {
 // Full-screen takeover with the same enter/exit animation as TrackingItemDetails.tsx.
 export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLabel, onBookLoad, onOpenLoad, initialCanvasMode = null, onApplyLoadPrefill, onBulkImported }: LenaAIProps) {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
-  const generalWelcome = `${u('Lena welcome general', 'Hello, I\'m LenaAI, Freightbook.ai\'s AI freight dispatcher.\n\nI can find loads by booking reference and help you book them, show routes and stops, check shipment statuses, explain cargo and financial terms, draft operational updates, and guide you through tracking, maps, return routes, invoices, reports, messages, and fleet management.\n\nWrite to me in any language. I\'ll reply entirely in the language you use.')}\n\n${u('Lena welcome posting', 'To post a new load, I can open a working canvas, collect details from our conversation, and prepare the form prefill. Attach an Excel, CSV, image, or PDF file; bulk import for multiple loads is supported too.')}`;
+  const quickActionLabels = {
+    add: u('Add a new load', 'Add a new load'),
+    tracking: u('Check load status', 'Check load status'),
+    booking: u('Reserve a load', 'Reserve a load'),
+    hs: u('Check HS code', 'Check HS code'),
+    upload_yes: u('Yes, I have a file', 'Yes, I have a file'),
+    upload_no: u('No, enter it manually', 'No, enter it manually'),
+  } as const;
+  const generalWelcome = `${u('Lena welcome general', 'Hello, I am LenaAI, your AI dispatcher in Freightbook.ai.\n\nYou can write to me in any language. I will reply exclusively in the language you use. How can I help you today?')}\n\n[[LENA_OPTIONS:add,tracking,booking,hs]]`;
 
   useEffect(() => {
     if (!open) return undefined;
@@ -46,7 +54,7 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [open, onClose]);
 
-  const { conversation, draft, setDraft, send, sending, startNewChat, selectConversation, sidebarConversations, canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment } = useLenaAiChat({
+  const { conversation, draft, setDraft, send, sendQuickAction, sending, startNewChat, selectConversation, sidebarConversations, canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment } = useLenaAiChat({
     userId,
     companyIds,
     loadId,
@@ -57,6 +65,7 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
       : generalWelcome,
     sendFailedTitle: u('Message could not be sent', 'Message could not be sent'),
     initialCanvasMode,
+    quickActionLabels,
   });
 
   const { displayMessages, renderMessageExtra, extraContentVersion } = useLenaEmbeddedMessages({
@@ -65,6 +74,9 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
     fallbackLoadId: loadId,
     onOpenLoad,
     onBookLoad,
+    quickActionLabels,
+    onQuickAction: (action) => void sendQuickAction(action),
+    onLoadReady: () => void setCanvasEnabled(true),
   });
 
   const displayConversation = useMemo(() => ({

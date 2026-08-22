@@ -7,6 +7,10 @@ import { analyzeLenaAttachment, latestLoadScan, LenaAttachment, LenaCanvasMode }
 
 export const LENA_AI_GENERAL_SUBJECT = `${AI_DISPATCH_SUBJECT_PREFIX}General`;
 
+export type LenaQuickAction = 'add' | 'tracking' | 'booking' | 'hs' | 'upload_yes' | 'upload_no';
+export const lenaQuickActionMarker = (action: LenaQuickAction) => `[[LENA_ACTION:${action}]]`;
+const LENA_QUICK_ACTION_PATTERN = /^\[\[LENA_ACTION:(add|tracking|booking|hs|upload_yes|upload_no)\]\]$/;
+
 type UseLenaAiChatOptions = {
   userId?: number;
   companyIds?: number[];
@@ -16,12 +20,13 @@ type UseLenaAiChatOptions = {
   welcomeRole: string;
   sendFailedTitle: string;
   initialCanvasMode?: LenaCanvasMode | null;
+  quickActionLabels: Record<LenaQuickAction, string>;
 };
 
 // Shared conversation logic behind the reusable LenaAI chat (frontend/src/components/lena/LenaAI.tsx).
 // Mirrors the find-or-create/send/reply flow already proven in LoadDetailsModal.tsx's AI Dispatch
 // tab, generalized to also support a load-less "general" conversation (load_id: null).
-export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welcomeText, welcomeRole, sendFailedTitle, initialCanvasMode = null }: UseLenaAiChatOptions) => {
+export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welcomeText, welcomeRole, sendFailedTitle, initialCanvasMode = null, quickActionLabels }: UseLenaAiChatOptions) => {
   const result = useApiList(
     api.conversations.list,
     loadId ? { load_id: Number(loadId), per_page: 50 } : { per_page: 100 }
@@ -67,7 +72,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welc
       ? (Array.isArray(row.messages) ? row.messages as Array<Record<string, unknown>> : []).map((message) => ({
           id: String(message.id),
           sender: Number(message.sender_user_id) === userId ? 'me' : 'other',
-          text: String(message.body || ''),
+          text: quickActionLabels[(String(message.body || '').match(LENA_QUICK_ACTION_PATTERN)?.[1] || '') as LenaQuickAction] || String(message.body || ''),
           time: String(message.sent_at || message.created_at || '').slice(11, 16),
           attachments: Array.isArray(message.attachments) ? message.attachments as LenaAttachment[] : undefined,
         }))
@@ -167,12 +172,12 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welc
     }
   };
 
-  const send = async () => {
-    const text = draft.trim();
+  const sendMessage = async (rawText: string, displayText = rawText) => {
+    const text = rawText.trim();
     if (!text || !userId || sending) return;
 
     setDraft('');
-    setOptimisticText(text);
+    setOptimisticText(displayText);
     setSending(true);
     try {
       const requestsCanvas = /\b(new\s+load|post\s+(?:a\s+)?load|publish\s+(?:a\s+)?load|create\s+(?:a\s+)?load|bulk\s+import|novi?\s+teret|objav\w*\s+teret|kreir\w*\s+teret|naprav\w*\s+teret|masovni\s+uvoz|neue\s+ladung|massenimport|(open|enable|show|otvori|ukljuci|prikazi|offne|aktiviere)\w*\s+(?:the\s+)?(canvas|platno|nacrt))\b/i.test(text.normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
@@ -211,6 +216,9 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welc
     }
   };
 
+  const send = async () => sendMessage(draft);
+  const sendQuickAction = async (action: LenaQuickAction) => sendMessage(lenaQuickActionMarker(action), quickActionLabels[action]);
+
   const attachFile = async (file: File) => {
     if (!userId || sending || processingAttachment) return;
     setProcessingAttachment(true);
@@ -243,5 +251,5 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welc
     }
   };
 
-  return { conversation, draft, setDraft, send, sending, startNewChat, selectConversation, sidebarConversations, hasActiveConversation: Boolean(row), canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment };
+  return { conversation, draft, setDraft, send, sendQuickAction, sending, startNewChat, selectConversation, sidebarConversations, hasActiveConversation: Boolean(row), canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment };
 };

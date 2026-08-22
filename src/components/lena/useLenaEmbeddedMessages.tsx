@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { CheckCircle2, FileSearch, FileUp, MapPinned, ReceiptText } from 'lucide-react';
 
 import { api } from '../../services/api';
 import { Language } from '../../types';
 import { ChatMessage } from '../chat/types';
 import { LenaBookingCard, LenaLoadDetailsCard, LenaLoadMapCard, LenaLoadStatusCard, LenaLocationCard } from './LenaEmbeddedCards';
+import { LenaQuickAction } from '../../lib/useLenaAiChat';
 
 const BOOKING_MARKER_PATTERN = /\[\[OFFER_BOOKING(?::(\d+))?\]\]/;
 const BOOKING_MARKER_GLOBAL_PATTERN = /\[\[OFFER_BOOKING(?::\d+)?\]\]/g;
@@ -15,6 +17,10 @@ const LOAD_MAP_MARKER_PATTERN = /\[\[LOAD_MAP(?::(\d+))?\]\]/;
 const LOAD_MAP_MARKER_GLOBAL_PATTERN = /\[\[LOAD_MAP(?::\d+)?\]\]/g;
 const LOAD_STATUS_MARKER_PATTERN = /\[\[LOAD_STATUS(?::(\d+))?\]\]/;
 const LOAD_STATUS_MARKER_GLOBAL_PATTERN = /\[\[LOAD_STATUS(?::\d+)?\]\]/g;
+const LENA_OPTIONS_PATTERN = /\[\[LENA_OPTIONS:([a-z_,]+)\]\]/;
+const LENA_OPTIONS_GLOBAL_PATTERN = /\[\[LENA_OPTIONS:[a-z_,]+\]\]/g;
+const LOAD_READY_MARKER = /\[\[LOAD_READY_TO_POST\]\]/;
+const LOAD_READY_MARKER_GLOBAL = /\[\[LOAD_READY_TO_POST\]\]/g;
 
 type UseLenaEmbeddedMessagesOptions = {
   messages: ChatMessage[];
@@ -22,6 +28,9 @@ type UseLenaEmbeddedMessagesOptions = {
   fallbackLoadId?: string;
   onOpenLoad?: (loadId: string) => void;
   onBookLoad?: (loadId?: string) => void | Promise<void>;
+  quickActionLabels?: Record<LenaQuickAction, string>;
+  onQuickAction?: (action: LenaQuickAction) => void;
+  onLoadReady?: () => void;
 };
 
 export const useLenaEmbeddedMessages = ({
@@ -30,6 +39,9 @@ export const useLenaEmbeddedMessages = ({
   fallbackLoadId,
   onOpenLoad,
   onBookLoad,
+  quickActionLabels,
+  onQuickAction,
+  onLoadReady,
 }: UseLenaEmbeddedMessagesOptions) => {
   const bookingOffers = useMemo(
     () => new Map(messages.flatMap((message) => {
@@ -110,6 +122,8 @@ export const useLenaEmbeddedMessages = ({
       .replace(LOAD_LOCATION_MARKER_GLOBAL_PATTERN, '')
       .replace(LOAD_MAP_MARKER_GLOBAL_PATTERN, '')
       .replace(LOAD_STATUS_MARKER_GLOBAL_PATTERN, '')
+      .replace(LENA_OPTIONS_GLOBAL_PATTERN, '')
+      .replace(LOAD_READY_MARKER_GLOBAL, '')
       .trim(),
   })), [messages]);
 
@@ -130,7 +144,9 @@ export const useLenaEmbeddedMessages = ({
       ? () => onBookLoad(offeredLoadId)
       : (offeredLoadId && onOpenLoad ? () => onOpenLoad(offeredLoadId) : undefined);
 
-    if (!embeddedLoad && !locationLoad && !mapLoad && !statusLoad && (!hasBooking || !handleBook)) return null;
+    const quickActions = (message.text.match(LENA_OPTIONS_PATTERN)?.[1].split(',') || []) as LenaQuickAction[];
+    const loadReady = LOAD_READY_MARKER.test(message.text);
+    if (!embeddedLoad && !locationLoad && !mapLoad && !statusLoad && (!hasBooking || !handleBook) && quickActions.length === 0 && !loadReady) return null;
 
     return (
       <div className="mt-2 flex w-full max-w-xl flex-col gap-2">
@@ -145,6 +161,21 @@ export const useLenaEmbeddedMessages = ({
         {mapLoad && <LenaLoadMapCard lang={lang} load={mapLoad} />}
         {statusLoad && <LenaLoadStatusCard lang={lang} load={statusLoad} />}
         {hasBooking && handleBook && <LenaBookingCard lang={lang} load={bookingLoad} onBook={handleBook} />}
+        {quickActions.length > 0 && quickActionLabels && onQuickAction && (
+          <div className="flex flex-wrap gap-2 pt-1">
+            {quickActions.map((action) => {
+              const Icon = action === 'add' ? FileUp : action === 'tracking' ? MapPinned : action === 'booking' ? ReceiptText : FileSearch;
+              return <button key={action} type="button" onClick={() => onQuickAction(action)} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-primary/20 bg-white px-3 py-1.5 text-xs font-bold text-primary shadow-sm transition-colors hover:border-primary hover:bg-primary hover:text-white dark:bg-slate-900">
+                <Icon className="h-3.5 w-3.5" />{quickActionLabels[action]}
+              </button>;
+            })}
+          </div>
+        )}
+        {loadReady && (
+          <button type="button" onClick={onLoadReady} className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-left transition-colors hover:border-emerald-400 dark:border-emerald-900/70 dark:bg-emerald-950/30">
+            <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-500" /><span><span className="block text-xs font-black text-emerald-800 dark:text-emerald-300">{lang === 'bs' ? 'Teret je spreman za objavu' : lang === 'de' ? 'Ladung ist zur Veröffentlichung bereit' : 'Load is ready to post'}</span><span className="block text-[11px] text-emerald-700 dark:text-emerald-400">{lang === 'bs' ? 'Otvori pregled i objavi teret.' : lang === 'de' ? 'Öffnen Sie die Prüfung und veröffentlichen Sie die Ladung.' : 'Open the review and post the load.'}</span></span></span>
+          </button>
+        )}
       </div>
     );
   }, [bookingOffers, embeddedLoads, fallbackLoadId, lang, loadDetailCards, loadLocationCards, loadMapCards, loadStatusCards, onBookLoad, onOpenLoad]);
