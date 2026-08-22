@@ -88,8 +88,9 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welc
   const [optimisticMessages, setOptimisticMessages] = useState<OptimisticLenaMessage[]>([]);
 
   const conversation = useMemo<Conversation>(() => {
+    const rowMessages = row && Array.isArray(row.messages) ? row.messages as Array<Record<string, unknown>> : [];
     const messages: Conversation['messages'] = row
-      ? (Array.isArray(row.messages) ? row.messages as Array<Record<string, unknown>> : []).map((message) => ({
+      ? rowMessages.map((message) => ({
           id: String(message.id),
           sender: Number(message.sender_user_id) === userId ? 'me' : 'other',
           text: quickActionLabels[lenaQuickActionFromMessage(String(message.body || '')) as LenaQuickAction] || String(message.body || ''),
@@ -108,10 +109,17 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welc
         ? () => void sendMessage(message.rawText, message.displayText, message.id, message.conversationId)
         : undefined,
     }));
+    const firstBody = String(rowMessages.find((message) => String(message.body || '').trim())?.body || '').trim();
+    const firstAction = lenaQuickActionFromMessage(firstBody);
+    const conversationName = row
+      ? lenaConversationSubjectTitle(row.subject)
+        || (firstAction ? quickActionLabels[firstAction] : '')
+        || newConversationLabel
+      : newConversationLabel;
 
     return {
       id: row ? String(row.id) : `new-${newChatVersion}`,
-      name: 'LenaAI',
+      name: conversationName,
       role: welcomeRole,
       channel: 'inapp',
       online: true,
@@ -121,7 +129,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welc
       isAiDispatch: true,
       canvas: !loadId && (canvasOverride ?? Boolean(row?.canvas)),
     };
-  }, [row, userId, optimisticMessages, welcomeText, welcomeRole, newChatVersion, canvasOverride]);
+  }, [row, userId, optimisticMessages, welcomeText, welcomeRole, newChatVersion, canvasOverride, newConversationLabel, quickActionLabels]);
 
   const canvasEnabled = !loadId && (canvasOverride ?? Boolean(row?.canvas));
   const canvasAttachments = useMemo(

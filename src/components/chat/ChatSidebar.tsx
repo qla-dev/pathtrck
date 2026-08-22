@@ -1,4 +1,4 @@
-import { Bot, Circle, Search, type LucideIcon } from 'lucide-react';
+import { Circle, Search, type LucideIcon } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { Conversation } from './types';
 
@@ -38,7 +38,7 @@ export const ChatSidebar = ({
       />
     </div>
 
-    <div className="grid grid-cols-3 gap-1 mb-3">
+    <div className="mb-2.5 grid grid-cols-3 gap-1">
       {channels.map((ch) => {
         const Icon = ch.icon;
         return (
@@ -46,55 +46,48 @@ export const ChatSidebar = ({
             key={ch.id}
             onClick={() => onChannelFilterChange(ch.id)}
             className={cn(
-              'flex h-9 items-center justify-center gap-1.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all',
+              'flex h-8 items-center justify-center gap-1 rounded-lg px-1.5 text-[10px] font-bold cursor-pointer transition-all',
               channelFilter === ch.id
                 ? 'bg-primary text-white'
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
             )}
           >
-            <Icon className="h-3.5 w-3.5 shrink-0" />
+            <Icon className="h-3 w-3 shrink-0" />
             <span className="truncate">{ch.label}</span>
           </button>
         );
       })}
     </div>
 
-    <div className="flex-1 min-h-0 space-y-2 overflow-y-auto pr-1">
+    <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
       {conversations.map((chat) => (
         <button
           key={chat.id}
           onClick={() => onSelectConversation(chat.id)}
           className={cn(
-            'w-full p-3 rounded-xl border text-left transition-all cursor-pointer',
+            'w-full rounded-xl border p-2.5 text-left transition-all cursor-pointer',
             activeConversationId === chat.id
               ? 'border-primary bg-primary/5'
               : 'border-slate-100 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
           )}
         >
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm font-bold dark:text-white">{chat.name}</p>
-              {chat.isAiDispatch ? (
-                <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
-                  <Bot className="h-3 w-3" />
-                  {chat.role}
-                </span>
-              ) : (
-                <p className="text-[11px] text-slate-500">{chat.role}</p>
-              )}
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold dark:text-white">{chat.name}</p>
+              {!chat.isAiDispatch && <p className="truncate text-[10px] text-slate-500">{chat.role}</p>}
             </div>
-            <div className="text-right">
-              <p className="text-[10px] text-slate-400">{chat.lastTime}</p>
-              {chat.unread > 0 && (
-                <span className="inline-flex mt-1 px-1.5 py-0.5 rounded-full bg-primary text-white text-[10px] font-bold">
-                  {chat.unread}
-                </span>
-              )}
-            </div>
+            <p className="shrink-0 text-[9px] text-slate-400">{chat.lastTime}</p>
           </div>
-          <div className="flex items-center gap-2 mt-2">
-            <Circle className={cn('w-2.5 h-2.5', chat.online ? 'text-emerald-500 fill-current' : 'text-slate-300')} />
-            <span className="text-[11px] text-slate-500 uppercase">{statusText?.(chat) || chat.status || chat.channel}</span>
+          <div className="mt-1.5 flex items-end justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <Circle className={cn('h-2 w-2 shrink-0', chat.online ? 'fill-current text-emerald-500' : 'text-slate-300')} />
+              <span className="truncate text-[10px] uppercase text-slate-500">{statusText?.(chat) || chat.status || chat.channel}</span>
+            </div>
+            {chat.unread > 0 && (
+              <span className="inline-flex shrink-0 rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold text-white">
+                {chat.unread}
+              </span>
+            )}
           </div>
         </button>
       ))}
