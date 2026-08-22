@@ -68,7 +68,6 @@ type ScannedDocument = { id: string; imageDataUrl: string | null; result: LoadSc
 type LoadDraft = {
   consignee: CustomerOption | null;
   transportType: TransportType;
-  pickupPlaces: string;
   pickupPlaceType: string;
   pickupCity: string;
   pickupCountry: string;
@@ -80,7 +79,6 @@ type LoadDraft = {
   pickupTimeFrom: string;
   pickupTimeTo: string;
   pickupWindow: string;
-  deliveryPlaces: string;
   deliveryPlaceType: string;
   deliveryCity: string;
   deliveryCountry: string;
@@ -153,8 +151,7 @@ type LoadDraft = {
 const INITIAL_DRAFT: LoadDraft = {
   consignee: null,
   transportType: 'road',
-  pickupPlaces: '1',
-  pickupPlaceType: 'Loading place',
+  pickupPlaceType: 'Warehouse',
   pickupCity: '',
   pickupCountry: 'BA',
   pickupAddress: '',
@@ -165,8 +162,7 @@ const INITIAL_DRAFT: LoadDraft = {
   pickupTimeFrom: '',
   pickupTimeTo: '',
   pickupWindow: '',
-  deliveryPlaces: '1',
-  deliveryPlaceType: 'Unloading place',
+  deliveryPlaceType: 'Warehouse',
   deliveryCity: '',
   deliveryCountry: 'BA',
   deliveryAddress: '',
@@ -500,8 +496,8 @@ const ToggleCard = ({
         )}
       />
     )}
-    <p className="text-sm font-bold dark:text-white">{title}</p>
-    <p className="text-xs text-slate-500 mt-1">{description}</p>
+    <p className="w-full truncate text-sm font-bold dark:text-white" title={title}>{title}</p>
+    <p className="mt-1 w-full overflow-hidden text-xs text-slate-500 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">{description}</p>
   </button>
 );
 
@@ -1139,26 +1135,16 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         </p>
                       </div>
                       <div className="space-y-1.5">
-                        <FieldLabel>{u('postLoadModal.pickupPlaces', 'Loading place')}</FieldLabel>
-                        <Select value={draft.pickupPlaces} onChange={(e) => setField('pickupPlaces', e.target.value)}>
-                          <option value="1">1</option>
-                          <option value="2">2</option>
-                          <option value="3">3</option>
-                        </Select>
-                      </div>
-                      <div className="space-y-1.5">
                         <FieldLabel>{u('postLoadModal.pickupPlaceType', 'Place type')}</FieldLabel>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-2 gap-2">
                           {(draft.transportType === 'air'
                             ? [
-                                { value: 'Loading place', label: u('postLoadModal.loadingPlace', 'Loading place'), icon: Package },
                                 { value: 'Warehouse', label: u('postLoadModal.warehouse', 'Warehouse'), icon: Warehouse },
                                 { value: 'Terminal', label: u('postLoadModal.terminal', 'Terminal'), icon: Building2 },
                                 { value: 'AOL / Airport of loading', label: 'AOL / Airport of loading', icon: PlaneLanding },
                                 { value: 'Address', label: u('postLoadModal.address', 'Address'), icon: MapPin },
                               ]
                             : [
-                                { value: 'Loading place', label: u('postLoadModal.loadingPlace', 'Loading place'), icon: Package },
                                 { value: 'Warehouse', label: u('postLoadModal.warehouse', 'Warehouse'), icon: Warehouse },
                                 { value: 'Terminal', label: u('postLoadModal.terminal', 'Terminal'), icon: Building2 },
                               ]
@@ -1256,25 +1242,15 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         </p>
                       </div>
                       <div className="space-y-1.5">
-                        <FieldLabel>{u('postLoadModal.deliveryPlaces', 'Unloading place')}</FieldLabel>
-                        <Select value={draft.deliveryPlaces} onChange={(e) => setField('deliveryPlaces', e.target.value)}>
-                          <option value="1">1</option>
-                          <option value="2">2</option>
-                          <option value="3">3</option>
-                        </Select>
-                      </div>
-                      <div className="space-y-1.5">
                         <FieldLabel>{u('postLoadModal.deliveryPlaceType', 'Place type')}</FieldLabel>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-2 gap-2">
                           {(draft.transportType === 'air'
                             ? [
-                                { value: 'Unloading place', label: u('postLoadModal.unloadingPlace', 'Unloading place'), icon: Package },
                                 { value: 'Warehouse', label: u('postLoadModal.warehouse', 'Warehouse'), icon: Warehouse },
                                 { value: 'Terminal', label: u('postLoadModal.terminal', 'Terminal'), icon: Building2 },
                                 { value: 'Address', label: u('postLoadModal.address', 'Address'), icon: MapPin },
                               ]
                             : [
-                                { value: 'Unloading place', label: u('postLoadModal.unloadingPlace', 'Unloading place'), icon: Package },
                                 { value: 'Warehouse', label: u('postLoadModal.warehouse', 'Warehouse'), icon: Warehouse },
                                 { value: 'Terminal', label: u('postLoadModal.terminal', 'Terminal'), icon: Building2 },
                               ]
