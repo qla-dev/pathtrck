@@ -440,7 +440,7 @@ export const LoadsTable = ({ lang, loads, userId, onOpenDetails }: LoadsTablePro
                   <Button
                     size="sm"
                     variant="primary"
-                    className="w-48 justify-center truncate rounded-md"
+                    className="w-48 justify-center truncate rounded-[8px]"
                     onClick={(event) => {
                       event.stopPropagation();
                       onOpenDetails(load);

@@ -1901,22 +1901,22 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
               </AnimatePresence>
             </div>
 
-            <div className="p-4 sm:p-5 md:p-6 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800">
-              {submitError && <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400">{submitError}</div>}
+            <div className="min-h-16 shrink-0 flex flex-col justify-center gap-2 px-5 md:px-7 py-2 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800">
+              {submitError && <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400">{submitError}</div>}
               <div className="grid w-full gap-3 sm:grid-cols-3">
-                <Button variant="outline" className="w-full min-h-[56px] sm:min-h-[60px]" onClick={step === 'cargo' ? onClose : goBack}>
+                <Button variant="outline" className="w-full h-11" onClick={step === 'cargo' ? onClose : goBack}>
                   {step === 'cargo' ? u('common.cancel', 'Cancel') : u('common.back', 'Back')}
                 </Button>
                 <Button
                   variant="secondary"
-                  className="w-full min-h-[56px] sm:min-h-[60px] gap-2 border border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 dark:bg-primary/15 dark:hover:bg-primary/20"
+                  className="w-full h-11 gap-2 border border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 dark:bg-primary/15 dark:hover:bg-primary/20"
                   onClick={onOpenLenaAI ?? (() => setDropzoneOpen(true))}
                   disabled={isSubmitting}
                 >
                   <Sparkles className="w-4 h-4" />
                   {u('postLoadModal.fillWithLenaAI', 'Fill with LenaAI')}
                 </Button>
-                <Button className="w-full min-h-[56px] sm:min-h-[60px]" onClick={submit} disabled={isSubmitting}>
+                <Button className="w-full h-11" onClick={submit} disabled={isSubmitting}>
                   {isSubmitting ? u('postLoadModal.publishing', 'Saving...') : editLoadId ? u('common.save', 'Save changes') : u('common.postLoad', 'Publish')}
                 </Button>
               </div>
