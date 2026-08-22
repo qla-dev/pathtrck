@@ -1714,10 +1714,6 @@ const LandingPage = ({
               ))}
             </div>
 
-            <button onClick={onStart} className="mt-8 inline-flex h-12 items-center gap-2 rounded-full bg-primary px-6 text-sm font-black text-white shadow-lg shadow-primary/25 transition-transform hover:scale-[1.02]">
-              {u('landing.aiDispatcher.cta', 'Start with LenaAI')}
-              <ArrowRight className="h-4 w-4" />
-            </button>
           </motion.div>
 
           <motion.div

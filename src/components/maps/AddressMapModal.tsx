@@ -73,13 +73,13 @@ export const AddressMapModal = ({ open, lang, title, initialQuery = '', initialP
 
   return (
     <div className="fixed inset-0 z-[300] flex h-[100dvh] flex-col bg-white dark:bg-slate-950">
-      <header className="flex shrink-0 items-center gap-4 border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+      <header className="flex h-16 shrink-0 items-center gap-4 border-b border-slate-200 px-5 dark:border-slate-800">
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-black uppercase tracking-wider text-primary">{u('map.chooseLocation', 'Choose location')}</p>
-          <h2 className="truncate text-xl font-black text-slate-900 dark:text-white">{title}</h2>
+          <p className="text-[10px] font-black uppercase tracking-wider text-primary leading-none">{u('map.chooseLocation', 'Choose location')}</p>
+          <h2 className="truncate text-base font-black text-slate-900 dark:text-white leading-tight mt-0.5">{title}</h2>
         </div>
-        <button type="button" onClick={onClose} className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-900">
-          <X className="h-5 w-5" />
+        <button type="button" onClick={onClose} className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-900">
+          <X className="h-4 w-4" />
         </button>
       </header>
 

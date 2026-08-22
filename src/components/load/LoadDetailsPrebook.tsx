@@ -414,12 +414,12 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
         >
-          <div className="px-5 md:px-7 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+          <div className="h-16 shrink-0 px-5 md:px-7 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-xs font-black uppercase tracking-wider text-primary">
+              <p className="text-[10px] font-black uppercase tracking-wider text-primary leading-none">
                 {u('legacy.loadDetails.loadDetails', 'Load Details')}
               </p>
-              <h2 className="text-xl md:text-2xl font-black dark:text-white truncate">{load.title}</h2>
+              <h2 className="text-base md:text-lg font-black dark:text-white truncate leading-tight mt-0.5">{load.title}</h2>
             </div>
             <div className="flex shrink-0 items-center gap-2">
               {role === 'superadmin' && (

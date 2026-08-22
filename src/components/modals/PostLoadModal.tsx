@@ -637,7 +637,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         loadingEquipment: Array.isArray(record.loading_methods) ? String(record.loading_methods[0] || 'Not specified') : 'Not specified', vehicleType: String(record.vehicle_type || INITIAL_DRAFT.vehicleType), characteristics: String(record.characteristics || ''), specialRequirements: Array.isArray(record.special_requirements) ? record.special_requirements.map(String) : [], transportMode: String(record.transport_mode || INITIAL_DRAFT.transportMode), deliveryProof: String(record.delivery_proof || ''), temperatureControlled: record.temperature_min != null || record.temperature_max != null, temperatureMin: String(record.temperature_min ?? ''), temperatureMax: String(record.temperature_max ?? ''),
         requiresAdr: Boolean(record.requires_adr), requiresTailLift: Boolean(record.requires_tail_lift), tollRoadsIncluded: Boolean(record.toll_roads_included), ferryIncluded: Boolean(record.ferry_included), cmrRequired: record.cmr_required == null ? true : Boolean(record.cmr_required), palletExchangeRequired: Boolean(record.pallet_exchange_required), customsRequired: Boolean(record.customs_required), mustBeTrackable: Boolean(record.must_be_trackable), urgent: Boolean(record.is_urgent), receivePriceProposals: record.is_negotiable == null ? true : Boolean(record.is_negotiable), bodyTypes: Array.isArray(record.body_types) ? record.body_types.map(String) : [], notes: String(record.notes || ''), internalComments: String(record.internal_comments || ''), externalComments: String(record.external_comments || ''), contactName: String(contact.name || ''), contactPhone: String(contact.phone || ''), contactMobile: String(contact.mobile || ''), contactEmail: String(contact.email || ''), contactFax: String(contact.fax || ''),
       });
-    }).catch((error) => setSubmitError(error instanceof Error ? error.message : 'The load could not be loaded.')).finally(() => setIsLoadingExisting(false));
+    }).catch((error) => setSubmitError(error instanceof Error ? error.message : u('postLoadModal.loadFetchError', 'The load could not be loaded.'))).finally(() => setIsLoadingExisting(false));
   }, [editLoadId, isOpen]);
 
   const stepIndex = STEPS.findIndex((item) => item.id === step);
@@ -678,9 +678,9 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     const aiValue = aiFilledPatch[key];
     if (aiValue === undefined) return;
     const confirmed = await confirmAction({
-      title: 'Refill this field with AI data?',
-      text: 'Your current value will be overwritten with the value LenaAI detected.',
-      confirmText: 'Refill',
+      title: u('postLoadModal.confirmRefillTitle', 'Refill this field with AI data?'),
+      text: u('postLoadModal.confirmRefillText', 'Your current value will be overwritten with the value LenaAI detected.'),
+      confirmText: u('postLoadModal.confirmRefillButton', 'Refill'),
     });
     if (!confirmed) return;
     setField(key, aiValue as LoadDraft[K]);
@@ -860,16 +860,16 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         className="flex flex-col bg-white dark:bg-slate-900 shadow-2xl w-full h-[100dvh] overflow-hidden border-0 rounded-none"
       >
         <div className="sticky top-0 z-20 border-b border-slate-100 dark:border-slate-800 bg-white/96 dark:bg-slate-900/96 backdrop-blur-sm">
-          <div className="p-4 sm:p-5 md:p-6 flex items-center justify-between gap-3 sm:gap-4">
+          <div className="h-16 px-5 md:px-7 flex items-center justify-between gap-3 sm:gap-4">
             <div className="flex flex-1 items-center gap-3 sm:gap-4 min-w-0">
-              <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0">
-                <Plus className="text-primary w-6 h-6" />
+              <div className="w-9 h-9 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0">
+                <Plus className="text-primary w-4 h-4" />
               </div>
               <div className="min-w-0">
-                <h3 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight dark:text-white">
+                <h3 className="text-base md:text-lg font-black tracking-tight dark:text-white leading-tight truncate">
                   {editLoadId ? u('postLoadModal.editTitle', 'Edit Load') : u('postLoadModal.title', 'Post New Load')}
                 </h3>
-                <p className="text-xs md:text-sm text-slate-500 mt-1 max-w-2xl pr-2">
+                <p className="hidden sm:block text-xs text-slate-500 mt-0.5 max-w-2xl truncate">
                   {u(
                     'postLoadModal.subtitle',
                     'Create a structured freight request drivers can evaluate and accept quickly'
@@ -941,11 +941,11 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
             </div>
             <button
               onClick={onClose}
-              className="shrink-0 h-11 w-11 cursor-pointer rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors"
+              className="shrink-0 h-10 w-10 cursor-pointer rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors"
               aria-label={u('common.cancel', 'Cancel')}
               title={u('common.cancel', 'Cancel')}
             >
-              <X className="w-6 h-6 text-slate-500" />
+              <X className="w-5 h-5 text-slate-500" />
             </button>
           </div>
 
