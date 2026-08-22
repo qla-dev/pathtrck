@@ -1,12 +1,13 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import L from 'leaflet';
-import { ArrowDownWideNarrow, Filter, List, LayoutGrid, Map as MapIcon, Layers } from 'lucide-react';
+import { ArrowDownWideNarrow, ChevronDown, Filter, List, LayoutGrid, Map as MapIcon, Layers } from 'lucide-react';
 import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 
 import { ui } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { MOCK_LOADS } from '../../mockData';
 import { Language, Load, Role } from '../../types';
+import { FilterLoads, FilterLoadsProps } from '../load/FilterLoads';
 import { LoadDetailsPrebook } from '../load/LoadDetailsPrebook';
 import { LoadItem } from '../load/LoadItem';
 import { Button } from '../ui/Button';
@@ -14,7 +15,71 @@ import { EmptyState } from '../ui/EmptyState';
 
 type FeedLayoutMode = 'list' | 'grid' | 'map';
 type MapSource = 'normal' | 'vector' | 'imagery';
-type FeedSortMode = 'price_desc' | 'price_asc' | 'date_desc' | 'date_asc';
+export type FeedSortMode = 'price_desc' | 'price_asc' | 'date_desc' | 'date_asc';
+
+const SORT_MODE_KEYS: Record<FeedSortMode, [string, string]> = {
+  price_asc: ['legacy.sidebarSort.priceAscending', 'Price ascending'],
+  price_desc: ['legacy.sidebarSort.priceDescending', 'Price descending'],
+  date_desc: ['legacy.sidebarSort.dateDescending', 'Date descending'],
+  date_asc: ['legacy.sidebarSort.dateAscending', 'Date ascending'],
+};
+
+const SortDropdown = ({
+  lang,
+  sortMode,
+  onChange,
+}: {
+  lang: Language;
+  sortMode: FeedSortMode;
+  onChange?: (mode: FeedSortMode) => void;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  const options = (Object.keys(SORT_MODE_KEYS) as FeedSortMode[]).map((id) => ({
+    id,
+    label: u(SORT_MODE_KEYS[id][0], SORT_MODE_KEYS[id][1]),
+  }));
+  const activeLabel = u(SORT_MODE_KEYS[sortMode][0], SORT_MODE_KEYS[sortMode][1]);
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-600 transition-all hover:border-slate-300 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600"
+      >
+        <ArrowDownWideNarrow className="h-3.5 w-3.5" />
+        {u('feed.filterBar.sortBy', 'Sort by')} {activeLabel}
+        <ChevronDown className="h-3 w-3 opacity-60" />
+      </button>
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-30" onClick={() => setIsOpen(false)} />
+          <div className="absolute right-0 z-40 mt-2 w-56 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-800 dark:bg-slate-900">
+            {options.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => {
+                  onChange?.(option.id);
+                  setIsOpen(false);
+                }}
+                className={cn(
+                  'w-full cursor-pointer rounded-lg px-3 py-2 text-left text-xs font-semibold transition-all',
+                  sortMode === option.id
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
 
 type LoadMapData = {
   load: Load;
@@ -142,10 +207,8 @@ type HomeFeedProps = {
   selectedSensitivity?: string[];
   selectedUrgency?: string[];
   selectedLoadingMethods?: string[];
-  isFilterSidebarOpen?: boolean;
-  isSortSidebarOpen?: boolean;
-  onToggleFilterSidebar?: () => void;
-  onToggleSortSidebar?: () => void;
+  filterBar?: FilterLoadsProps;
+  onSortModeChange?: (mode: FeedSortMode) => void;
   onEditLoad?: (load: Load) => void;
   onLoadChanged?: () => void;
 };
@@ -186,16 +249,15 @@ export const HomeFeed = ({
   selectedSensitivity = [],
   selectedUrgency = [],
   selectedLoadingMethods = [],
-  isFilterSidebarOpen = false,
-  isSortSidebarOpen = false,
-  onToggleFilterSidebar,
-  onToggleSortSidebar,
+  filterBar,
+  onSortModeChange,
   onEditLoad,
   onLoadChanged,
 }: HomeFeedProps) => {
   const [layout, setLayout] = useState<FeedLayoutMode>('grid');
   const [mapSource, setMapSource] = useState<MapSource>('normal');
   const [selectedLoad, setSelectedLoad] = useState<Load | null>(null);
+  const [isFilterBarOpen, setIsFilterBarOpen] = useState(true);
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const bookLoadLabel = u('common.bookLoad', 'Reserve');
   const loadsTitle =
@@ -348,41 +410,45 @@ export const HomeFeed = ({
 
   return (
     <div className="w-full min-w-0 space-y-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-bold dark:text-white mr-2">{loadsTitle}</h1>
+      <div className="flex flex-wrap items-center gap-2">
+        <h1 className="mr-2 text-2xl font-bold dark:text-white">{loadsTitle}</h1>
+        {filterBar && (
           <Button
-            variant={isFilterSidebarOpen ? 'primary' : 'outline'}
+            variant={isFilterBarOpen ? 'primary' : 'outline'}
             size="sm"
-            onClick={onToggleFilterSidebar}
+            onClick={() => setIsFilterBarOpen((prev) => !prev)}
           >
             <Filter className="w-4 h-4 mr-2" /> {u('common.filter', 'Filter')}
           </Button>
-          <Button
-            variant={isSortSidebarOpen ? 'primary' : 'outline'}
-            size="sm"
-            onClick={onToggleSortSidebar}
-          >
-            <ArrowDownWideNarrow className="w-4 h-4 mr-2" /> {u('common.sort', 'Sort')}
-          </Button>
-        </div>
-        <div className="inline-flex items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1 self-start md:self-auto">
-          {layoutButtons.map((button) => (
-            <button
-              key={button.id}
-              onClick={() => setLayout(button.id)}
-              title={button.title}
-              aria-label={button.title}
-              className={cn(
-                'h-8 w-8 rounded-lg flex items-center justify-center transition-all cursor-pointer',
-                layout === button.id
-                  ? 'bg-primary text-white'
-                  : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
-              )}
-            >
-              <button.icon className="w-4 h-4" />
-            </button>
-          ))}
+        )}
+      </div>
+
+      {filterBar && isFilterBarOpen && <FilterLoads {...filterBar} />}
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm font-semibold text-slate-500">
+          {sortedLoads.length} {u('feed.filterBar.loadsLabel', 'loads')}
+        </p>
+        <div className="flex items-center gap-2">
+          <SortDropdown lang={lang} sortMode={sortMode} onChange={onSortModeChange} />
+          <div className="inline-flex items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1">
+            {layoutButtons.map((button) => (
+              <button
+                key={button.id}
+                onClick={() => setLayout(button.id)}
+                title={button.title}
+                aria-label={button.title}
+                className={cn(
+                  'h-8 w-8 rounded-lg flex items-center justify-center transition-all cursor-pointer',
+                  layout === button.id
+                    ? 'bg-primary text-white'
+                    : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+                )}
+              >
+                <button.icon className="w-4 h-4" />
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

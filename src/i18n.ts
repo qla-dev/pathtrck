@@ -5223,6 +5223,13 @@ const TRIPLET_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
   'last 24h': { bs: 'zadnja 24h', de: 'letzte 24h', pl: 'ostatnie 24h', ro: 'ultimele 24h', nl: 'laatste 24h', fr: 'dernieres 24h', it: 'ultime 24h', zh: '过去 24 小时', es: 'ultimas 24h', sr: 'poslednja 24h', sv: 'senaste 24h', ar: 'اخر 24 ساعة', pt: 'ultimas 24h' },
   'prepared': { bs: 'spremno', de: 'vorbereitet', pl: 'gotowe', ro: 'pregatit', nl: 'voorbereid', fr: 'prepare', it: 'preparato', zh: '已准备', es: 'preparado', sr: 'pripremljeno', sv: 'forberedd', ar: 'تم التحضير', pt: 'preparado' },
   'rules active': { bs: 'aktivna pravila', de: 'aktive Regeln', pl: 'aktywne reguly', ro: 'reguli active', nl: 'regels actief', fr: 'regles actives', it: 'regole attive', zh: '规则已激活', es: 'reglas activas', sr: 'aktivna pravila', sv: 'aktiva regler', ar: 'القواعد مفعلة', pt: 'regras ativas' },
+  'Search city...': { bs: 'Pretraga grada...', de: 'Stadt suchen...' },
+  'Search': { bs: 'Pretraga', de: 'Suchen' },
+  'Done': { bs: 'Gotovo', de: 'Fertig' },
+  'Clear': { bs: 'Ocisti', de: 'Zuruecksetzen' },
+  'Source': { bs: 'Izvor', de: 'Quelle' },
+  'loads': { bs: 'tereta', de: 'Ladungen' },
+  'Sort by': { bs: 'Sortiraj po', de: 'Sortieren nach' },
 };
 
 const UI_TRACKING_CAPACITY_OVERRIDES: Record<string, Partial<Record<Locale, string>>> = {

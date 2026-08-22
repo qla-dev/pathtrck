@@ -73,11 +73,9 @@ import { LoadItem } from './components/load/LoadItem';
 import { Dashboard } from './components/views/Dashboard';
 import { NetworkView } from './components/views/NetworkView';
 import { TrackingView } from './components/views/TrackingView';
-import { HomeFeed } from './components/views/HomeFeed';
+import { HomeFeed, FeedSortMode } from './components/views/HomeFeed';
 import { FleetView } from './components/views/FleetView';
-import { SidebarFilter } from './components/frights/SidebarFilter';
-import { FeedSortMode, SidebarSort } from './components/frights/SidebarSort';
-import { ServiceFilters, ServiceItem } from './components/frights/FrightTypes';
+import { FilterLoadsProps } from './components/load/FilterLoads';
 import { GLOBAL_OFFERS } from './components/frights/globalOffers';
 import { useCitySuggestions } from './components/frights/useCitySuggestions';
 import { MessagesView } from './components/views/MessagesView';
@@ -3040,14 +3038,6 @@ const FEED_LOAD_CITY_COORDINATES: Record<string, [number, number]> = {
   'Gdansk, PL': [54.352, 18.6466],
 };
 
-const FEED_DEFAULT_SERVICE_FILTERS: ServiceFilters = {
-  place_of_loading: true,
-  port_of_origin: true,
-  ocean_freight: true,
-  port_of_discharge: true,
-  place_of_discharge: false,
-};
-
 const getFeedLoadCoord = (place: string): [number, number] => {
   if (FEED_LOAD_CITY_COORDINATES[place]) return FEED_LOAD_CITY_COORDINATES[place];
   const city = place.split(',')[0]?.trim() || '';
@@ -3305,8 +3295,6 @@ export default function App() {
   const [lenaLoadPrefill, setLenaLoadPrefill] = useState<ScanFieldPatch | null>(null);
   const [isDark, setIsDark] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => getInitialSidebarState());
-  const [isMainFilterSidebarOpen, setIsMainFilterSidebarOpen] = useState(false);
-  const [isMainSortSidebarOpen, setIsMainSortSidebarOpen] = useState(false);
   const [isPostLoadOpen, setIsPostLoadOpen] = useState(false);
   const [editLoadId, setEditLoadId] = useState<string | null>(null);
   const [loadRefreshKey, setLoadRefreshKey] = useState(0);
@@ -3317,9 +3305,6 @@ export default function App() {
   const [feedSortMode, setFeedSortMode] = useState<FeedSortMode>('price_asc');
   const [feedDataMode, setFeedDataMode] = useState<FeedDataMode>('all');
   const initializedFeedRangeModes = useRef<Set<FeedDataMode>>(new Set(['global']));
-  const [feedServiceFilters, setFeedServiceFilters] = useState<ServiceFilters>(() => ({
-    ...FEED_DEFAULT_SERVICE_FILTERS,
-  }));
   const globalFeedLoads = useMemo<Load[]>(
     () => GLOBAL_OFFERS.map((offer, index) => mapGlobalOfferToLoad(offer, index)),
     []
@@ -3519,13 +3504,6 @@ export default function App() {
     }
   }, [view]);
 
-  useEffect(() => {
-    if (view !== 'feed') {
-      setIsMainFilterSidebarOpen(false);
-      setIsMainSortSidebarOpen(false);
-    }
-  }, [view]);
-
   const handleLogout = async () => {
     try {
       await api.auth.logout();
@@ -3656,36 +3634,7 @@ export default function App() {
           ? 'bg-sky-500/10 text-sky-500 border-sky-500/30'
           : 'bg-primary/10 text-primary border-primary/30',
   }));
-  const feedServiceItems: ServiceItem[] = [
-    {
-      key: 'place_of_loading',
-      label: u('feed.service.placeOfLoading', 'Place of loading'),
-      disabled: false,
-    },
-    {
-      key: 'port_of_origin',
-      label: u('feed.service.startLocation', 'Start location'),
-      disabled: false,
-    },
-    {
-      key: 'ocean_freight',
-      label: u('feed.service.fastTransport', 'Fast transport'),
-      disabled: true,
-    },
-    {
-      key: 'port_of_discharge',
-      label: u('feed.service.destination', 'Destination'),
-      disabled: false,
-    },
-    {
-      key: 'place_of_discharge',
-      label: u('feed.service.delivery', 'Delivery'),
-      disabled: false,
-    },
-  ];
-
   const clearFeedFilters = () => {
-    setFeedServiceFilters({ ...FEED_DEFAULT_SERVICE_FILTERS });
     clearFeedLocations();
     setFeedSelectedPriceMin(feedRangeBounds.priceMin);
     setFeedSelectedPriceMax(feedRangeBounds.priceMax);
@@ -3718,7 +3667,6 @@ export default function App() {
     const nextBounds =
       nextMode === 'global' ? globalFeedRangeBounds : nextMode === 'all' ? allFeedRangeBounds : organicFeedRangeBounds;
     setFeedDataMode(nextMode);
-    setFeedServiceFilters({ ...FEED_DEFAULT_SERVICE_FILTERS });
     clearFeedLocations();
     setFeedSelectedPriceMin(nextBounds.priceMin);
     setFeedSelectedPriceMax(nextBounds.priceMax);
@@ -3751,7 +3699,6 @@ export default function App() {
     setDatabaseLoads(nextLoads);
     setFeedDataMode('organic');
     setView('feed');
-    setFeedServiceFilters({ ...FEED_DEFAULT_SERVICE_FILTERS });
     clearFeedLocations();
     setFeedSelectedPriceMin(nextBounds.priceMin);
     setFeedSelectedPriceMax(nextBounds.priceMax);
@@ -3777,9 +3724,156 @@ export default function App() {
     setSelectedFeedLoadingMethods([]);
     setLoadRefreshKey((current) => current + 1);
   };
-  const shouldShowFeedFiltersInMainSidebar = view === 'feed' && isMainFilterSidebarOpen;
-  const shouldShowFeedSortInMainSidebar = view === 'feed' && isMainSortSidebarOpen;
-  const shouldShowFeedSidebarPanel = shouldShowFeedFiltersInMainSidebar || shouldShowFeedSortInMainSidebar;
+  const feedFilterBarProps: FilterLoadsProps = {
+    lang,
+    startLocation: feedStartLocation,
+    endLocation: feedEndLocation,
+    startSuggestions: feedStartSuggestions,
+    endSuggestions: feedEndSuggestions,
+    isCityApiReady: isFeedCityApiReady,
+    hasCityApiKey: hasFeedCityApiKey,
+    onStartLocationChange: setFeedStartLocation,
+    onEndLocationChange: setFeedEndLocation,
+    onClear: clearFeedFilters,
+    modeTabs: [
+      { id: 'all', label: ui(lang, 'home.feedMode.all', 'All') },
+      { id: 'organic', label: ui(lang, 'home.feedMode.organic', 'Organic') },
+      { id: 'global', label: ui(lang, 'home.feedMode.global', 'Global') },
+    ],
+    activeModeTabId: feedDataMode,
+    onModeTabChange: handleFeedDataModeChange,
+    priceRange: {
+      min: feedRangeBounds.priceMin,
+      max: feedRangeBounds.priceMax,
+      selectedMin: feedSelectedPriceMin,
+      selectedMax: feedSelectedPriceMax,
+      onChange: (nextMin, nextMax) => {
+        setFeedSelectedPriceMin(nextMin);
+        setFeedSelectedPriceMax(nextMax);
+      },
+      prefix: feedDataMode === 'global' ? 'USD ' : feedDataMode === 'organic' ? 'EUR ' : '',
+      allowManualInput: true,
+    },
+    weightRange: {
+      min: feedRangeBounds.weightMin,
+      max: feedRangeBounds.weightMax,
+      selectedMin: feedSelectedWeightMin,
+      selectedMax: feedSelectedWeightMax,
+      onChange: (nextMin, nextMax) => {
+        setFeedSelectedWeightMin(nextMin);
+        setFeedSelectedWeightMax(nextMax);
+      },
+      suffix: ' kg',
+      step: 100,
+    },
+    dimensionRanges: {
+      length: {
+        min: feedRangeBounds.lengthMin,
+        max: feedRangeBounds.lengthMax,
+        selectedMin: feedSelectedLengthMin,
+        selectedMax: feedSelectedLengthMax,
+        onChange: (nextMin, nextMax) => {
+          setFeedSelectedLengthMin(nextMin);
+          setFeedSelectedLengthMax(nextMax);
+        },
+        suffix: ' m',
+        allowManualInput: true,
+        step: 0.1,
+      },
+      width: {
+        min: feedRangeBounds.widthMin,
+        max: feedRangeBounds.widthMax,
+        selectedMin: feedSelectedWidthMin,
+        selectedMax: feedSelectedWidthMax,
+        onChange: (nextMin, nextMax) => {
+          setFeedSelectedWidthMin(nextMin);
+          setFeedSelectedWidthMax(nextMax);
+        },
+        suffix: ' m',
+        allowManualInput: true,
+        step: 0.05,
+      },
+      height: {
+        min: feedRangeBounds.heightMin,
+        max: feedRangeBounds.heightMax,
+        selectedMin: feedSelectedHeightMin,
+        selectedMax: feedSelectedHeightMax,
+        onChange: (nextMin, nextMax) => {
+          setFeedSelectedHeightMin(nextMin);
+          setFeedSelectedHeightMax(nextMax);
+        },
+        suffix: ' m',
+        allowManualInput: true,
+        step: 0.05,
+      },
+    },
+    temperatureRange: {
+      min: feedRangeBounds.temperatureMin,
+      max: feedRangeBounds.temperatureMax,
+      selectedMin: feedSelectedTemperatureMin,
+      selectedMax: feedSelectedTemperatureMax,
+      onChange: (nextMin, nextMax) => {
+        setFeedSelectedTemperatureMin(nextMin);
+        setFeedSelectedTemperatureMax(nextMax);
+      },
+      suffix: ' °C',
+      allowManualInput: true,
+    },
+    cargoValueRange: {
+      min: feedRangeBounds.cargoValueMin,
+      max: feedRangeBounds.cargoValueMax,
+      selectedMin: feedSelectedCargoValueMin,
+      selectedMax: feedSelectedCargoValueMax,
+      onChange: (nextMin, nextMax) => {
+        setFeedSelectedCargoValueMin(nextMin);
+        setFeedSelectedCargoValueMax(nextMax);
+      },
+      prefix: 'EUR ',
+      allowManualInput: true,
+      step: 1000,
+    },
+    transitRange: {
+      min: feedRangeBounds.transitMin,
+      max: feedRangeBounds.transitMax,
+      selectedMin: feedSelectedTransitMin,
+      selectedMax: feedSelectedTransitMax,
+      onChange: (nextMin, nextMax) => {
+        setFeedSelectedTransitMin(nextMin);
+        setFeedSelectedTransitMax(nextMax);
+      },
+      suffix: ` ${u('common.days', 'days')}`,
+    },
+    goodsTypeOptions: feedGoodsTypeOptions,
+    paymentTermOptions: feedPaymentTermOptions,
+    adrClassOptions: feedAdrClassOptions,
+    sensitivityOptions: feedSensitivityOptions,
+    urgencyOptions: feedUrgencyOptions,
+    loadingMethodOptions: feedLoadingMethodOptions,
+    selectedGoodsTypeIds: selectedFeedGoodsTypes,
+    selectedPaymentTermIds: selectedFeedPaymentTerms,
+    selectedAdrClassIds: selectedFeedAdrClasses,
+    selectedSensitivityIds: selectedFeedSensitivity,
+    selectedUrgencyIds: selectedFeedUrgency,
+    selectedLoadingMethodIds: selectedFeedLoadingMethods,
+    onToggleGoodsType: (id) => {
+      setSelectedFeedGoodsTypes((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
+    },
+    onTogglePaymentTerm: (id) => {
+      setSelectedFeedPaymentTerms((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
+    },
+    onToggleAdrClass: (id) => {
+      setSelectedFeedAdrClasses((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
+    },
+    onToggleSensitivity: (id) => {
+      setSelectedFeedSensitivity((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
+    },
+    onToggleUrgency: (id) => {
+      setSelectedFeedUrgency((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
+    },
+    onToggleLoadingMethod: (id) => {
+      setSelectedFeedLoadingMethods((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
+    },
+  };
 
   const navItems = role === 'superadmin'
     ? [
@@ -3833,282 +3927,71 @@ export default function App() {
       {/* Sidebar (Desktop) */}
       <aside className={cn(
         "hidden md:flex flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-300 z-50 sticky top-0 h-screen",
-        isSidebarOpen || shouldShowFeedSidebarPanel ? "w-64" : "w-20"
+        isSidebarOpen ? "w-64" : "w-20"
       )}>
         <div className={cn(
           "flex items-center",
-          isSidebarOpen || shouldShowFeedSidebarPanel ? "justify-between py-4 pl-6 pr-3" : "justify-center p-4"
+          isSidebarOpen ? "justify-between py-4 pl-6 pr-3" : "justify-center p-4"
         )}>
-          {(isSidebarOpen || shouldShowFeedSidebarPanel) && (
+          {isSidebarOpen && (
             <div className="flex items-center">
               <BrandWordmark className="text-xl" />
             </div>
           )}
           <button
-            aria-label={shouldShowFeedSidebarPanel ? 'Close panel' : isSidebarOpen ? 'Collapse sidebar' : 'Open sidebar'}
-            title={shouldShowFeedSidebarPanel ? 'Close panel' : isSidebarOpen ? 'Collapse sidebar' : 'Open sidebar'}
-            onClick={() => {
-              if (shouldShowFeedSidebarPanel) {
-                setIsMainFilterSidebarOpen(false);
-                setIsMainSortSidebarOpen(false);
-                return;
-              }
-              setIsSidebarOpen(!isSidebarOpen);
-            }}
+            aria-label={isSidebarOpen ? 'Collapse sidebar' : 'Open sidebar'}
+            title={isSidebarOpen ? 'Collapse sidebar' : 'Open sidebar'}
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer"
           >
-            {shouldShowFeedSidebarPanel
-              ? <X className="h-4 w-4" />
-              : isSidebarOpen
-                ? <PanelLeftClose className="h-5 w-5 text-slate-400 transition-colors hover:text-primary dark:text-slate-500" />
-                : <FreightbookMark className="h-6 w-6 text-primary" />}
+            {isSidebarOpen
+              ? <PanelLeftClose className="h-5 w-5 text-slate-400 transition-colors hover:text-primary dark:text-slate-500" />
+              : <FreightbookMark className="h-6 w-6 text-primary" />}
           </button>
         </div>
 
-        <AnimatePresence mode="wait" initial={false}>
-          {shouldShowFeedSidebarPanel ? (
-            <motion.div
-              key={shouldShowFeedFiltersInMainSidebar ? 'main-sidebar-filters' : 'main-sidebar-sort'}
-              className="flex-1 px-4 pb-6 overflow-y-auto"
-              initial={{ opacity: 0, x: -16 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -16 }}
-              transition={{ duration: 0.2 }}
-            >
-              {shouldShowFeedFiltersInMainSidebar ? (
-                <SidebarFilter
-                lang={lang}
-                serviceItems={feedServiceItems}
-                serviceFilters={feedServiceFilters}
-                startLocation={feedStartLocation}
-                endLocation={feedEndLocation}
-                startSuggestions={feedStartSuggestions}
-                endSuggestions={feedEndSuggestions}
-                isCityApiReady={isFeedCityApiReady}
-                hasCityApiKey={hasFeedCityApiKey}
-                onStartLocationChange={setFeedStartLocation}
-                onEndLocationChange={setFeedEndLocation}
-                onServiceFilterChange={(key, value) => {
-                  setFeedServiceFilters((prev) => ({ ...prev, [key]: value }));
-                }}
-                onClear={clearFeedFilters}
-                onClose={() => setIsMainFilterSidebarOpen(false)}
-                modeTabs={[
-                  { id: 'all', label: ui(lang, 'home.feedMode.all', 'All') },
-                  { id: 'organic', label: ui(lang, 'home.feedMode.organic', 'Organic') },
-                  { id: 'global', label: ui(lang, 'home.feedMode.global', 'Global') },
-                ]}
-                activeModeTabId={feedDataMode}
-                onModeTabChange={handleFeedDataModeChange}
-                embeddedInSidebar
-                priceRange={{
-                  min: feedRangeBounds.priceMin,
-                  max: feedRangeBounds.priceMax,
-                  selectedMin: feedSelectedPriceMin,
-                  selectedMax: feedSelectedPriceMax,
-                  onChange: (nextMin, nextMax) => {
-                    setFeedSelectedPriceMin(nextMin);
-                    setFeedSelectedPriceMax(nextMax);
-                  },
-                  prefix: feedDataMode === 'global' ? 'USD ' : feedDataMode === 'organic' ? 'EUR ' : '',
-                  allowManualInput: true,
-                }}
-                weightRange={{
-                  min: feedRangeBounds.weightMin,
-                  max: feedRangeBounds.weightMax,
-                  selectedMin: feedSelectedWeightMin,
-                  selectedMax: feedSelectedWeightMax,
-                  onChange: (nextMin, nextMax) => {
-                    setFeedSelectedWeightMin(nextMin);
-                    setFeedSelectedWeightMax(nextMax);
-                  },
-                  suffix: ' kg',
-                  step: 100,
-                }}
-                dimensionRanges={{
-                  length: {
-                    min: feedRangeBounds.lengthMin,
-                    max: feedRangeBounds.lengthMax,
-                    selectedMin: feedSelectedLengthMin,
-                    selectedMax: feedSelectedLengthMax,
-                    onChange: (nextMin, nextMax) => {
-                      setFeedSelectedLengthMin(nextMin);
-                      setFeedSelectedLengthMax(nextMax);
-                    },
-                    suffix: ' m',
-                    allowManualInput: true,
-                    step: 0.1,
-                  },
-                  width: {
-                    min: feedRangeBounds.widthMin,
-                    max: feedRangeBounds.widthMax,
-                    selectedMin: feedSelectedWidthMin,
-                    selectedMax: feedSelectedWidthMax,
-                    onChange: (nextMin, nextMax) => {
-                      setFeedSelectedWidthMin(nextMin);
-                      setFeedSelectedWidthMax(nextMax);
-                    },
-                    suffix: ' m',
-                    allowManualInput: true,
-                    step: 0.05,
-                  },
-                  height: {
-                    min: feedRangeBounds.heightMin,
-                    max: feedRangeBounds.heightMax,
-                    selectedMin: feedSelectedHeightMin,
-                    selectedMax: feedSelectedHeightMax,
-                    onChange: (nextMin, nextMax) => {
-                      setFeedSelectedHeightMin(nextMin);
-                      setFeedSelectedHeightMax(nextMax);
-                    },
-                    suffix: ' m',
-                    allowManualInput: true,
-                    step: 0.05,
-                  },
-                }}
-                temperatureRange={{
-                  min: feedRangeBounds.temperatureMin,
-                  max: feedRangeBounds.temperatureMax,
-                  selectedMin: feedSelectedTemperatureMin,
-                  selectedMax: feedSelectedTemperatureMax,
-                  onChange: (nextMin, nextMax) => {
-                    setFeedSelectedTemperatureMin(nextMin);
-                    setFeedSelectedTemperatureMax(nextMax);
-                  },
-                  suffix: ' °C',
-                  allowManualInput: true,
-                }}
-                cargoValueRange={{
-                  min: feedRangeBounds.cargoValueMin,
-                  max: feedRangeBounds.cargoValueMax,
-                  selectedMin: feedSelectedCargoValueMin,
-                  selectedMax: feedSelectedCargoValueMax,
-                  onChange: (nextMin, nextMax) => {
-                    setFeedSelectedCargoValueMin(nextMin);
-                    setFeedSelectedCargoValueMax(nextMax);
-                  },
-                  prefix: 'EUR ',
-                  allowManualInput: true,
-                  step: 1000,
-                }}
-                transitRange={{
-                  min: feedRangeBounds.transitMin,
-                  max: feedRangeBounds.transitMax,
-                  selectedMin: feedSelectedTransitMin,
-                  selectedMax: feedSelectedTransitMax,
-                  onChange: (nextMin, nextMax) => {
-                    setFeedSelectedTransitMin(nextMin);
-                    setFeedSelectedTransitMax(nextMax);
-                  },
-                  suffix: ` ${u('common.days', 'days')}`,
-                }}
-                goodsTypeOptions={feedGoodsTypeOptions}
-                paymentTermOptions={feedPaymentTermOptions}
-                adrClassOptions={feedAdrClassOptions}
-                sensitivityOptions={feedSensitivityOptions}
-                urgencyOptions={feedUrgencyOptions}
-                loadingMethodOptions={feedLoadingMethodOptions}
-                selectedGoodsTypeIds={selectedFeedGoodsTypes}
-                selectedPaymentTermIds={selectedFeedPaymentTerms}
-                selectedAdrClassIds={selectedFeedAdrClasses}
-                selectedSensitivityIds={selectedFeedSensitivity}
-                selectedUrgencyIds={selectedFeedUrgency}
-                selectedLoadingMethodIds={selectedFeedLoadingMethods}
-                onToggleGoodsType={(id) => {
-                  setSelectedFeedGoodsTypes((prev) =>
-                    prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-                  );
-                }}
-                onTogglePaymentTerm={(id) => {
-                  setSelectedFeedPaymentTerms((prev) =>
-                    prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-                  );
-                }}
-                onToggleAdrClass={(id) => {
-                  setSelectedFeedAdrClasses((prev) =>
-                    prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-                  );
-                }}
-                onToggleSensitivity={(id) => {
-                  setSelectedFeedSensitivity((prev) =>
-                    prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-                  );
-                }}
-                onToggleUrgency={(id) => {
-                  setSelectedFeedUrgency((prev) =>
-                    prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-                  );
-                }}
-                onToggleLoadingMethod={(id) => {
-                  setSelectedFeedLoadingMethods((prev) =>
-                    prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-                  );
-                }}
-                />
-              ) : (
-                <SidebarSort
-                  lang={lang}
-                  sortMode={feedSortMode}
-                  onSortModeChange={setFeedSortMode}
-                  onReset={() => setFeedSortMode('price_asc')}
-                  embeddedInSidebar
-                />
+        <nav className={cn(
+          "mt-1 min-h-0 flex-1 space-y-2 px-4 pb-4",
+          isSidebarOpen ? "overflow-y-auto" : "overflow-visible"
+        )}>
+          {navItems.map(item => (
+            <button
+              key={item.id}
+              aria-label={!isSidebarOpen ? item.label : undefined}
+              onClick={() => setView(item.id)}
+              className={cn(
+                "group relative w-full flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer",
+                view === item.id
+                  ? "bg-primary text-white shadow-lg shadow-primary/20"
+                  : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
               )}
-            </motion.div>
-          ) : (
-            <motion.div
-              key="main-sidebar-nav"
-              className="flex-1 min-h-0 flex flex-col"
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -10 }}
-              transition={{ duration: 0.18 }}
             >
-              <nav className={cn(
-                "mt-1 min-h-0 flex-1 space-y-2 px-4 pb-4",
-                isSidebarOpen ? "overflow-y-auto" : "overflow-visible"
-              )}>
-                {navItems.map(item => (
-                  <button
-                    key={item.id}
-                    aria-label={!isSidebarOpen ? item.label : undefined}
-                    onClick={() => setView(item.id)}
-                    className={cn(
-                      "group relative w-full flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer",
-                      view === item.id
-                        ? "bg-primary text-white shadow-lg shadow-primary/20"
-                        : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
-                    )}
-                  >
-                    <item.icon className="w-5 h-5 shrink-0" />
-                    {isSidebarOpen && <span title={item.label} className="min-w-0 flex-1 truncate whitespace-nowrap text-left font-medium">{item.label}</span>}
-                    {!isSidebarOpen && (
-                      <span role="tooltip" className="pointer-events-none absolute left-full top-1/2 z-[120] ml-3 -translate-y-1/2 whitespace-nowrap rounded-lg bg-primary px-3 py-2 text-xs font-bold text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-                        {item.label}
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </nav>
+              <item.icon className="w-5 h-5 shrink-0" />
+              {isSidebarOpen && <span title={item.label} className="min-w-0 flex-1 truncate whitespace-nowrap text-left font-medium">{item.label}</span>}
+              {!isSidebarOpen && (
+                <span role="tooltip" className="pointer-events-none absolute left-full top-1/2 z-[120] ml-3 -translate-y-1/2 whitespace-nowrap rounded-lg bg-primary px-3 py-2 text-xs font-bold text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
+                  {item.label}
+                </span>
+              )}
+            </button>
+          ))}
+        </nav>
 
-              <div className="p-4 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  aria-label={!isSidebarOpen ? ui(lang, 'LenaAI', 'LenaAI') : undefined}
-                  onClick={() => { setLenaCanvasMode(null); setLenaAiOpen(true); }}
-                  className="group relative w-full flex items-center justify-center gap-3 p-3 rounded-xl transition-all cursor-pointer bg-primary text-white shadow-lg shadow-primary/20"
-                >
-                  <Sparkles className="w-5 h-5 shrink-0" />
-                  {isSidebarOpen && <span className="font-medium">{ui(lang, 'LenaAI', 'LenaAI')}</span>}
-                  {!isSidebarOpen && (
-                    <span role="tooltip" className="pointer-events-none absolute left-full top-1/2 z-[120] ml-3 -translate-y-1/2 whitespace-nowrap rounded-lg bg-primary px-3 py-2 text-xs font-bold text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-                      {ui(lang, 'LenaAI', 'LenaAI')}
-                    </span>
-                  )}
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <div className="p-4 border-t border-slate-100 dark:border-slate-800">
+          <button
+            aria-label={!isSidebarOpen ? ui(lang, 'LenaAI', 'LenaAI') : undefined}
+            onClick={() => { setLenaCanvasMode(null); setLenaAiOpen(true); }}
+            className="group relative w-full flex items-center justify-center gap-3 p-3 rounded-xl transition-all cursor-pointer bg-primary text-white shadow-lg shadow-primary/20"
+          >
+            <Sparkles className="w-5 h-5 shrink-0" />
+            {isSidebarOpen && <span className="font-medium">{ui(lang, 'LenaAI', 'LenaAI')}</span>}
+            {!isSidebarOpen && (
+              <span role="tooltip" className="pointer-events-none absolute left-full top-1/2 z-[120] ml-3 -translate-y-1/2 whitespace-nowrap rounded-lg bg-primary px-3 py-2 text-xs font-bold text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
+                {ui(lang, 'LenaAI', 'LenaAI')}
+              </span>
+            )}
+          </button>
+        </div>
       </aside>
 
       {/* Main Content */}
@@ -4252,7 +4135,7 @@ export default function App() {
           className={cn(
             "flex-1 min-h-0 mx-auto w-full",
             view === 'map' ? "max-w-none p-0" : "p-6 pb-24 md:pb-6",
-            view !== 'map' && (isSidebarOpen || shouldShowFeedSidebarPanel ? "max-w-7xl" : "max-w-none"),
+            view !== 'map' && (isSidebarOpen ? "max-w-7xl" : "max-w-none"),
             view === 'messages' || view === 'map' ? "overflow-hidden" : "overflow-y-auto"
           )}
         >
@@ -4310,18 +4193,8 @@ export default function App() {
                     selectedSensitivity={selectedFeedSensitivity}
                     selectedUrgency={selectedFeedUrgency}
                     selectedLoadingMethods={selectedFeedLoadingMethods}
-                    isFilterSidebarOpen={shouldShowFeedFiltersInMainSidebar}
-                    isSortSidebarOpen={shouldShowFeedSortInMainSidebar}
-                    onToggleFilterSidebar={() => {
-                      setIsSidebarOpen(true);
-                      setIsMainSortSidebarOpen(false);
-                      setIsMainFilterSidebarOpen((prev) => !prev);
-                    }}
-                    onToggleSortSidebar={() => {
-                      setIsSidebarOpen(true);
-                      setIsMainFilterSidebarOpen(false);
-                      setIsMainSortSidebarOpen((prev) => !prev);
-                    }}
+                    filterBar={feedFilterBarProps}
+                    onSortModeChange={setFeedSortMode}
                     onEditLoad={(load) => { setEditLoadId(load.id); setIsPostLoadOpen(true); }}
                     onLoadChanged={() => setLoadRefreshKey((current) => current + 1)}
                   />
