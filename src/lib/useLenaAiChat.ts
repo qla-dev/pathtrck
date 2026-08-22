@@ -267,6 +267,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welc
       return;
     }
 
+    setSelectedConversationId(String(conversationId));
     setStartingNewChat(false);
     try {
       await result.refresh();
@@ -310,6 +311,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welc
         attachments: [attachment],
         sent_at: new Date().toISOString(),
       });
+      setSelectedConversationId(String(conversationId));
       setStartingNewChat(false);
       await result.refresh();
       await api.dispatchChat.reply(conversationId);

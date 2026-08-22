@@ -38,6 +38,11 @@ const LENA_STEP_MARKER_PATTERN = /\[\[LENA_STEP:([a-zA-Z]+)\]\]/;
 const LENA_STEP_MARKER_GLOBAL = /\[\[LENA_STEP:[a-zA-Z]+\]\]/g;
 const LENA_SKIP_MARKER_GLOBAL = /\[\[LENA_SKIP:[a-zA-Z]+\]\]/g;
 
+const removeVisibleMarkdownAsterisks = (text: string): string => text
+  .replace(/\*\*([^*\n]+)\*\*/g, '$1')
+  .replace(/(^|\n)\s*\*\s+/g, '$1• ')
+  .replace(/\*([^*\n]+)\*/g, '$1');
+
 type SuggestedReply = { label: string; value: string; icon: LucideIcon; skip?: boolean };
 type SuggestedReplyGroup = { options: SuggestedReply[]; multiple?: boolean; exclusiveValue?: string };
 
@@ -264,9 +269,8 @@ export const useLenaEmbeddedMessages = ({
     return () => { cancelled = true; };
   }, [embeddedLoadIds, embeddedLoads]);
 
-  const displayMessages = useMemo(() => messages.map((message) => ({
-    ...message,
-    text: message.text
+  const displayMessages = useMemo(() => messages.map((message) => {
+    const markerFreeText = message.text
       .replace(BOOKING_MARKER_GLOBAL_PATTERN, '')
       .replace(LOAD_DETAILS_MARKER_GLOBAL_PATTERN, '')
       .replace(LOAD_LOCATION_MARKER_GLOBAL_PATTERN, '')
@@ -276,8 +280,12 @@ export const useLenaEmbeddedMessages = ({
       .replace(LOAD_READY_MARKER_GLOBAL, '')
       .replace(LENA_STEP_MARKER_GLOBAL, '')
       .replace(LENA_SKIP_MARKER_GLOBAL, lang === 'bs' ? 'Odaberi kasnije' : lang === 'de' ? 'Später auswählen' : 'Choose later')
-      .trim(),
-  })), [lang, messages]);
+      .trim();
+    return {
+      ...message,
+      text: message.sender === 'other' ? removeVisibleMarkdownAsterisks(markerFreeText) : markerFreeText,
+    };
+  }), [lang, messages]);
 
   const renderMessageExtra = useCallback((message: ChatMessage) => {
     const detailsLoadId = loadDetailCards.get(message.id);

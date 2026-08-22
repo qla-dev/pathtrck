@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Bot, LayoutGrid, MessageCircle, PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { Bot, LayoutGrid, MessageCircle, PanelRightClose, PanelRightOpen, Plus } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Language } from '../../types';
 import { ui } from '../../i18n';
 import { cn } from '../../lib/cn';
-import { showError } from '../../lib/swal';
+import { confirmAction, showError } from '../../lib/swal';
 import { ChatConversationPanel } from '../chat/ChatConversationPanel';
 import { ChatSidebar } from '../chat/ChatSidebar';
 import { Channel, Conversation } from '../chat/types';
@@ -16,7 +16,7 @@ import { useLenaEmbeddedMessages } from '../lena/useLenaEmbeddedMessages';
 import { LenaLoadCanvas } from '../lena/LenaLoadCanvas';
 import { ScanFieldPatch } from '../modals/scanFieldRows';
 import { latestLoadScan, LenaAttachment } from '../../lib/lenaLoadCanvas';
-import { LenaQuickAction, lenaConversationSubjectTitle, lenaQuickActionFromMessage, lenaQuickActionMarker } from '../../lib/useLenaAiChat';
+import { LENA_AI_GENERAL_SUBJECT, LenaQuickAction, lenaConversationSubjectTitle, lenaQuickActionFromMessage, lenaQuickActionMarker } from '../../lib/useLenaAiChat';
 
 type MessagesViewProps = {
   lang: Language;
@@ -50,6 +50,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     continue_add_yes: u('Yes, continue', 'Yes, continue'),
     continue_add_no: u('No, leave load creation', 'No, leave load creation'),
   }), [lang]);
+  const generalWelcome = `${u('Lena welcome general', 'Hello, I am LenaAI, your AI dispatcher in Freightbook.ai.\n\nYou can write to me in any language. I will reply exclusively in the language you use. How can I help you today?')}\n\n[[LENA_OPTIONS:add,tracking,booking,hs,free]]`;
   const result = useApiList(api.conversations.list, { per_page: 100 });
   const [user, setUser] = useState<ApiUser | null>(null);
   useEffect(() => { void api.auth.me().then(setUser); }, []);
@@ -77,19 +78,22 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
       ? (Boolean(row.canvas) ? u('Load detected', 'Load detected') : u('Draft', 'Draft'))
       : load ? trPackageStatus(lang, mapLoadStatus(load.status)) : undefined;
     const loadPosted = load ? String(load.status || '').toLowerCase() === 'posted' : false;
+    const mappedMessages = messages.map((message) => {
+      const body = String(message.body || '');
+      const action = isAiDispatch ? lenaQuickActionFromMessage(body) : undefined;
+      return { id: String(message.id), sender: Number(message.sender_user_id) === user?.id ? 'me' as const : 'other' as const, text: action ? quickActionLabels[action] : body, time: String(message.sent_at || message.created_at || '').slice(11, 16), attachments: Array.isArray(message.attachments) ? message.attachments as import('../../lib/lenaLoadCanvas').LenaAttachment[] : undefined };
+    });
     return {
       id: String(row.id),
       name: isAiDispatch
-        ? String(loadName || visibleAiTitle || (row.load_id ? `Load #${row.load_id}` : `Conversation ${row.id}`))
+        ? String(loadName || visibleAiTitle || (row.load_id ? `Load #${row.load_id}` : u('New LenaAI conversation', 'New LenaAI conversation')))
         : String(row.subject || counterpart?.name || `Conversation ${row.id}`),
       role: isAiDispatch ? u('LenaAI', 'LenaAI') : String(((counterpart?.role || {}) as Record<string, unknown>).label || ''),
       channel: (String(row.channel || 'inapp') as Channel),
       online: false, unread: 0, lastTime: String(row.last_message_at || '').slice(11, 16),
-      messages: messages.map((message) => {
-        const body = String(message.body || '');
-        const action = isAiDispatch ? lenaQuickActionFromMessage(body) : undefined;
-        return { id: String(message.id), sender: Number(message.sender_user_id) === user?.id ? 'me' : 'other', text: action ? quickActionLabels[action] : body, time: String(message.sent_at || message.created_at || '').slice(11, 16), attachments: Array.isArray(message.attachments) ? message.attachments as import('../../lib/lenaLoadCanvas').LenaAttachment[] : undefined };
-      }),
+      messages: isAiDispatch && !row.load_id && mappedMessages.length === 0
+        ? [{ id: `welcome-${row.id}`, sender: 'other' as const, text: generalWelcome, time: '' }]
+        : mappedMessages,
       loadId: row.load_id ? String(row.load_id) : undefined,
       isAiDispatch,
       canvas: Boolean(row.canvas),
@@ -97,13 +101,28 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
       status,
       loadPosted,
     };
-  }), [result.items, user, lang, quickActionLabels]);
+  }), [result.items, user, lang, quickActionLabels, generalWelcome]);
   const [channelFilter, setChannelFilter] = useState<'all' | 'ai' | 'direct'>('all');
   const [activeId, setActiveId] = useState('');
   const [draft, setDraft] = useState('');
   const [aiReplying, setAiReplying] = useState(false);
   const [messageSending, setMessageSending] = useState(false);
   const [optimisticMessages, setOptimisticMessages] = useState<OptimisticMessage[]>([]);
+  const [creatingNewConversation, setCreatingNewConversation] = useState(false);
+  const [pendingNewConversation, setPendingNewConversation] = useState<Conversation | null>(null);
+
+  useEffect(() => {
+    if (pendingNewConversation && conversations.some((conversation) => conversation.id === pendingNewConversation.id)) {
+      setPendingNewConversation(null);
+    }
+  }, [conversations, pendingNewConversation]);
+
+  const displayedConversations = useMemo(
+    () => pendingNewConversation && !conversations.some((conversation) => conversation.id === pendingNewConversation.id)
+      ? [pendingNewConversation, ...conversations]
+      : conversations,
+    [conversations, pendingNewConversation]
+  );
 
   const channels = [
     { id: 'all' as const, label: u('All', 'All'), icon: LayoutGrid },
@@ -112,16 +131,16 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
   ];
 
   const filteredConversations = useMemo(
-    () => conversations.filter((c) => {
+    () => displayedConversations.filter((c) => {
       if (channelFilter === 'ai') return c.isAiDispatch;
       if (channelFilter === 'direct') return !c.isAiDispatch;
       return true;
     }),
-    [channelFilter, conversations]
+    [channelFilter, displayedConversations]
   );
 
   const activeConversation = useMemo(() => {
-    const base = filteredConversations.find((c) => c.id === activeId) ?? filteredConversations[0] ?? conversations[0] ?? { id: '', name: u('messages.empty', 'No conversation'), role: '', channel: 'inapp' as const, online: false, unread: 0, lastTime: '', messages: [] };
+    const base = filteredConversations.find((c) => c.id === activeId) ?? filteredConversations[0] ?? displayedConversations[0] ?? { id: '', name: u('messages.empty', 'No conversation'), role: '', channel: 'inapp' as const, online: false, unread: 0, lastTime: '', messages: [] };
     const pending = optimisticMessages
       .filter((message) => message.conversationId === base.id)
       .map((message) => ({
@@ -129,13 +148,14 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
         sender: 'me' as const,
         text: message.displayText,
         time: message.time,
+        attachments: undefined,
         deliveryStatus: message.status === 'failed' ? 'failed' as const : undefined,
         onRetry: message.status === 'failed'
           ? () => void sendMessageValue(message.rawText, message.displayText, message.id, message.conversationId)
           : undefined,
       }));
     return pending.length ? { ...base, messages: [...base.messages, ...pending] } : base;
-  }, [filteredConversations, activeId, conversations, optimisticMessages]);
+  }, [filteredConversations, activeId, displayedConversations, optimisticMessages]);
 
   const [canvasPanelOpen, setCanvasPanelOpen] = useState(false);
   const previousCanvas = useRef({ conversationId: '', active: false });
@@ -229,6 +249,61 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
   }
 
   const sendMessage = () => sendMessageValue(draft);
+  const handleNewConversation = async () => {
+    if (!user || creatingNewConversation) return;
+
+    const confirmed = await confirmAction({
+      title: u('Start a new chat?', 'Start a new chat?'),
+      text: u(
+        'This starts a fresh conversation with LenaAI. Your current chat is kept and still visible in Messages.',
+        'This starts a fresh conversation with LenaAI. Your current chat is kept and still visible in Messages.'
+      ),
+      confirmText: u('New chat', 'New chat'),
+    });
+    if (!confirmed) return;
+
+    setCreatingNewConversation(true);
+    try {
+      const companyId = Number(user.companies?.[0]?.id);
+      const created = await api.conversations.create({
+        company_id: Number.isFinite(companyId) ? companyId : undefined,
+        created_by_user_id: user.id,
+        channel: 'inapp',
+        subject: LENA_AI_GENERAL_SUBJECT,
+        canvas: false,
+        last_message_at: new Date().toISOString(),
+        participant_ids: [user.id],
+      });
+      const conversationId = String(created.data.id);
+      setPendingNewConversation({
+        id: conversationId,
+        name: u('New LenaAI conversation', 'New LenaAI conversation'),
+        role: u('LenaAI', 'LenaAI'),
+        channel: 'inapp',
+        online: false,
+        unread: 0,
+        lastTime: '',
+        messages: [{ id: `welcome-${conversationId}`, sender: 'other', text: generalWelcome, time: '' }],
+        isAiDispatch: true,
+        canvas: false,
+        status: u('Draft', 'Draft'),
+      });
+      setDraft('');
+      setOptimisticMessages([]);
+      setChannelFilter('ai');
+      setActiveId(conversationId);
+      setCanvasPanelOpen(false);
+      await result.refresh();
+    } catch (error) {
+      void showError(
+        u('chat.sendFailed', 'Message could not be sent'),
+        error instanceof Error ? error.message : undefined
+      );
+    } finally {
+      setCreatingNewConversation(false);
+    }
+  };
+
   const handlePrepareLoad = () => {
     if (activeConversation.canvas) {
       setCanvasPanelOpen((current) => !current);
@@ -268,15 +343,28 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
             onTitleClick={activeConversation.loadId && onOpenLoad ? () => onOpenLoad(activeConversation.loadId!) : undefined}
             renderMessageExtra={renderMessageExtra}
             extraContentVersion={`${activeConversation.id}:${extraContentVersion}`}
-            headerActionsLeading={canEnterCanvas && (
-              <button
-                type="button"
-                onClick={handlePrepareLoad}
-                className={`flex h-9 items-center gap-2 rounded-full border px-3 text-xs font-bold transition-all cursor-pointer ${showCanvas ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-slate-100 text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}
-              >
-                {showCanvas ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
-                {showCanvas ? u('Hide load preparation', 'Hide load preparation') : u('Prepare load', 'Prepare load')}
-              </button>
+            headerActionsLeading={(
+              <>
+                <button
+                  type="button"
+                  onClick={() => void handleNewConversation()}
+                  disabled={!user || creatingNewConversation}
+                  className="flex h-9 cursor-pointer items-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-3 text-xs font-bold text-slate-600 transition-all hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                >
+                  <Plus className="h-4 w-4" />
+                  {u('New chat', 'New chat')}
+                </button>
+                {canEnterCanvas && (
+                  <button
+                    type="button"
+                    onClick={handlePrepareLoad}
+                    className={`flex h-9 items-center gap-2 rounded-full border px-3 text-xs font-bold transition-all cursor-pointer ${showCanvas ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-slate-100 text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}
+                  >
+                    {showCanvas ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+                    {showCanvas ? u('Hide load preparation', 'Hide load preparation') : u('Prepare load', 'Prepare load')}
+                  </button>
+                )}
+              </>
             )}
           />
           <AnimatePresence initial={false}>

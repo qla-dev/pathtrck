@@ -137,6 +137,14 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2, ease: 'easeOut' }}
         >
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={u('login.close', 'Close')}
+            className="absolute right-0 top-0 z-50 flex h-10 w-10 cursor-pointer items-center justify-center rounded-bl-xl border-b border-l border-slate-200 bg-slate-100 text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+          >
+            <X className="h-5 w-5" />
+          </button>
           <motion.div
             className="flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-white dark:bg-slate-950 p-4 md:p-7"
             initial={{ opacity: 0, y: 24, scale: 0.992 }}
@@ -176,6 +184,14 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
                 retryMessageLabel={u('chat.retry', 'Retry')}
                 headerActions={(
                   <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void handleNewChat()}
+                    className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-3 text-xs font-bold text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 cursor-pointer"
+                  >
+                    <Plus className="h-4 w-4" />
+                    {u('New chat', 'New chat')}
+                  </button>
                   {!loadId && <button
                     type="button"
                     onClick={() => {
@@ -187,22 +203,6 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
                     {showCanvas ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
                     {showCanvas ? u('Hide load preparation', 'Hide load preparation') : u('Prepare load', 'Prepare load')}
                   </button>}
-                  <button
-                    type="button"
-                    onClick={() => void handleNewChat()}
-                    className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-3 text-xs font-bold text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 cursor-pointer"
-                  >
-                    <Plus className="h-4 w-4" />
-                    {u('New chat', 'New chat')}
-                  </button>
-                    <button
-                      type="button"
-                      onClick={onClose}
-                      aria-label={u('login.close', 'Close')}
-                      className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-slate-100 text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
-                    >
-                      <X className="h-5 w-5" />
-                    </button>
                   </div>
                 )}
               />
