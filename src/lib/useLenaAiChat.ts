@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Conversation } from '../components/chat/types';
+import { Language } from '../types';
 import { AI_DISPATCH_SUBJECT_PREFIX, api } from '../services/api';
 import { useApiList } from '../hooks/useApiList';
 import { showError } from './swal';
@@ -25,6 +26,7 @@ type UseLenaAiChatOptions = {
   companyIds?: number[];
   loadId?: string;
   loadLabel?: string;
+  lang?: Language;
   welcomeText: string;
   welcomeRole: string;
   sendFailedTitle: string;
@@ -44,12 +46,15 @@ type OptimisticLenaMessage = {
   attachments?: LenaAttachment[];
   // Kept so a failed attachment upload can retry with the exact same file, not just re-send text.
   file?: File;
+  // Present only for a questionnaire pill answer, so a failed retry replays through
+  // sendGuidedAnswer (the deterministic path) instead of sendMessage (the AI path).
+  step?: string;
 };
 
 // Shared conversation logic behind the reusable LenaAI chat (frontend/src/components/lena/LenaAI.tsx).
 // Mirrors the find-or-create/send/reply flow already proven in LoadDetailsModal.tsx's AI Dispatch
 // tab, generalized to also support a load-less "general" conversation (load_id: null).
-export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welcomeText, welcomeRole, sendFailedTitle, replyFailedTitle, newConversationLabel, initialCanvasMode = null, quickActionLabels }: UseLenaAiChatOptions) => {
+export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang, welcomeText, welcomeRole, sendFailedTitle, replyFailedTitle, newConversationLabel, initialCanvasMode = null, quickActionLabels }: UseLenaAiChatOptions) => {
   const result = useApiList(
     api.conversations.list,
     loadId ? { load_id: Number(loadId), per_page: 50 } : { per_page: 100 }
@@ -112,7 +117,9 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welc
       onRetry: message.status === 'failed'
         ? (message.file
             ? () => void attachFileValue(message.file!, message.id)
-            : () => void sendMessage(message.rawText, message.displayText, message.id, message.conversationId))
+            : message.step
+              ? () => void sendGuidedAnswer(message.step!, message.rawText, message.displayText, message.id)
+              : () => void sendMessage(message.rawText, message.displayText, message.id, message.conversationId))
         : undefined,
     }));
     const firstBody = String(rowMessages.find((message) => String(message.body || '').trim())?.body || '').trim();
@@ -298,6 +305,41 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welc
   const sendQuickAction = async (action: LenaQuickAction) => sendMessage(lenaQuickActionMarker(action), quickActionLabels[action]);
   const sendSuggestedReply = async (value: string, displayText = value) => sendMessage(value, displayText);
 
+  // Questionnaire pill answers (including "later"/"none") are already known-valid values, so this
+  // skips the dispatch-chat + load-scan AI round trip entirely and resolves the draft update and
+  // confirmation text deterministically server-side (see LenaGuidedAnswerController). Only free-text
+  // answers still go through sendMessage's AI pipeline.
+  const sendGuidedAnswer = async (step: string, value: string, displayText: string, retryId?: string) => {
+    if (!userId || sending) return;
+    const skip = value.startsWith('[[LENA_SKIP:');
+
+    const optimisticId = retryId || `optimistic-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const optimisticTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    setOptimisticMessages((messages) => retryId
+      ? messages.map((message) => message.id === retryId ? { ...message, status: 'sending', time: optimisticTime } : message)
+      : [...messages, { id: optimisticId, rawText: value, displayText, status: 'sending', time: optimisticTime, step }]);
+    setSending(true);
+    try {
+      const conversationId = await ensureConversation(canvasEnabled);
+      setOptimisticMessages((messages) => messages.map((message) => message.id === optimisticId ? { ...message, conversationId } : message));
+      await api.dispatchChat.answerStep(conversationId, step, skip ? null : value, displayText, skip, lang || 'en');
+      setSelectedConversationId(String(conversationId));
+      setStartingNewChat(false);
+      try {
+        await result.refresh();
+      } catch {
+        // The answer is already stored server-side; a transient refresh failure isn't a send failure.
+      }
+      setCanvasOverride(null);
+    } catch (error) {
+      setOptimisticMessages((messages) => messages.map((message) => message.id === optimisticId ? { ...message, status: 'failed' } : message));
+      setSending(false);
+      return;
+    }
+    setOptimisticMessages((messages) => messages.filter((message) => message.id !== optimisticId));
+    setSending(false);
+  };
+
   const attachFileValue = async (file: File, retryId?: string) => {
     if (!userId || sending || (processingAttachment && !retryId)) return;
 
@@ -366,5 +408,5 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welc
 
   const loadDraftId = row?.load_draft_id ? String(row.load_draft_id) : null;
 
-  return { conversation, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sending, startNewChat, selectConversation, sidebarConversations, hasActiveConversation: Boolean(row), canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId };
+  return { conversation, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, hasActiveConversation: Boolean(row), canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId };
 };

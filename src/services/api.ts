@@ -372,6 +372,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ conversation_id: conversationId }),
     })).data,
+    answerStep: async (conversationId: number, step: string, value: string | null, displayText: string, skip: boolean, lang: string) =>
+      (await request<Record<string, unknown>>('/lena-guided-answer', {
+        method: 'POST',
+        body: JSON.stringify({ conversation_id: conversationId, step, value, display_text: displayText, skip, lang }),
+      })).data,
   },
   notes: resourceApi<Record<string, unknown>>('load-notes'),
   documents: resourceApi<Record<string, unknown>>('documents'),

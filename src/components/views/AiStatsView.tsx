@@ -23,6 +23,7 @@ const SERVICE_LABELS: Record<string, string> = {
   load_scan_text: "Load scan (text)",
   bulk_scan: "Bulk scan (file)",
   bulk_scan_text: "Bulk scan (text)",
+  guided_answer: "Guided answer (no AI)",
 };
 
 const serviceLabel = (value: unknown) =>

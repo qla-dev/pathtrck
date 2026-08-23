@@ -59,11 +59,12 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [open, onClose]);
 
-  const { conversation, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sending, startNewChat, selectConversation, sidebarConversations, canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId } = useLenaAiChat({
+  const { conversation, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId } = useLenaAiChat({
     userId,
     companyIds,
     loadId,
     loadLabel,
+    lang,
     welcomeRole: u('LenaAI', 'LenaAI'),
     welcomeText: loadId
       ? u('Lena welcome load', 'Hello, I\'m LenaAI, your AI dispatcher for this load.\n\nUsing the latest data you are authorized to access, I can explain its route and stops, dates, cargo, status, booking reference, financial terms, tracking, and booking options.\n\nWrite to me in any language. I\'ll reply entirely in the language you use.')
@@ -100,6 +101,7 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
     quickActionLabels,
     onQuickAction: (action) => void sendQuickAction(action),
     onSuggestedReply: (value, displayText) => void sendSuggestedReply(value, displayText),
+    onStepAnswer: (step, value, displayText) => void sendGuidedAnswer(step, value, displayText),
     onSuggestedDraftChange: setDraft,
     onLoadReady: () => {
       void setCanvasEnabled(true);

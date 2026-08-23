@@ -39,6 +39,9 @@ type OptimisticMessage = {
   attachments?: LenaAttachment[];
   // Kept so a failed attachment upload can retry with the exact same file, not just re-send text.
   file?: File;
+  // Present only for a questionnaire pill answer, so a failed retry replays through
+  // sendGuidedAnswerValue (the deterministic path) instead of sendMessageValue (the AI path).
+  step?: string;
 };
 
 export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill, onBulkImported, refreshSignal }: MessagesViewProps) => {
@@ -169,7 +172,9 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
         onRetry: message.status === 'failed'
           ? (message.file
               ? () => void attachFileValue(message.file!, message.id)
-              : () => void sendMessageValue(message.rawText, message.displayText, message.id, message.conversationId))
+              : message.step
+                ? () => void sendGuidedAnswerValue(message.step!, message.rawText, message.displayText, message.id, message.conversationId)
+                : () => void sendMessageValue(message.rawText, message.displayText, message.id, message.conversationId))
           : undefined,
       }));
     return pending.length ? { ...base, messages: [...base.messages, ...pending] } : base;
@@ -206,6 +211,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     quickActionLabels,
     onQuickAction: (action) => void sendMessageValue(lenaQuickActionMarker(action), quickActionLabels[action]),
     onSuggestedReply: (value, displayText) => void sendMessageValue(value, displayText),
+    onStepAnswer: (step, value, displayText) => void sendGuidedAnswerValue(step, value, displayText),
     onSuggestedDraftChange: setDraft,
     onLoadReady: () => setCanvasPanelOpen(true),
   });
@@ -266,6 +272,35 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
         );
       }
     }
+    setAiReplying(false);
+    setMessageSending(false);
+  }
+
+  // Mirrors sendMessageValue but for a questionnaire pill answer: the value is already known and
+  // valid, so this skips the load-scan + dispatch-chat AI round trip entirely (see
+  // LenaGuidedAnswerController) instead of sending it as free text for the AI to normalize.
+  async function sendGuidedAnswerValue(step: string, rawText: string, displayText = rawText, retryId?: string, targetConversationId?: string) {
+    const conversationId = targetConversationId || activeConversation.id;
+    if (!conversationId || !user || messageSending || aiReplying) return;
+    const skip = rawText.startsWith('[[LENA_SKIP:');
+
+    const optimisticId = retryId || `optimistic-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const optimisticTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    setOptimisticMessages((messages) => retryId
+      ? messages.map((message) => message.id === retryId ? { ...message, status: 'sending', time: optimisticTime } : message)
+      : [...messages, { id: optimisticId, conversationId, rawText, displayText, status: 'sending', time: optimisticTime, step }]);
+    setMessageSending(true);
+    setAiReplying(true);
+    try {
+      await api.dispatchChat.answerStep(Number(conversationId), step, skip ? null : rawText, displayText, skip, lang || 'en');
+      await result.refresh();
+    } catch (error) {
+      setOptimisticMessages((messages) => messages.map((message) => message.id === optimisticId ? { ...message, status: 'failed' } : message));
+      setMessageSending(false);
+      setAiReplying(false);
+      return;
+    }
+    setOptimisticMessages((messages) => messages.filter((message) => message.id !== optimisticId));
     setAiReplying(false);
     setMessageSending(false);
   }

@@ -82,37 +82,41 @@ const questionnaireSuggestions = (step: string, lang: Language): SuggestedReplyG
     : lang === 'de'
       ? { road: 'Straße', air: 'Luft', sea: 'See', fixed: 'Festpreis', negotiable: 'Offen für Angebote', none: 'Nicht erforderlich', unknown: 'Unbekannt', noPreference: 'Keine Präferenz' }
       : { road: 'Road', air: 'Air', sea: 'Sea', fixed: 'Fixed price', negotiable: 'Open to offers', none: 'Not needed', unknown: 'Unknown', noPreference: 'No preference' };
-  const option = (value: string, icon = questionnaireOptionIcon(step, value)): SuggestedReply => ({ label: value, value, icon });
+  const option = (label: string, value: string = label, icon = questionnaireOptionIcon(step, value)): SuggestedReply => ({ label, value, icon });
   const laterLabel = lang === 'bs' ? 'Odaberi kasnije' : lang === 'de' ? 'Später auswählen' : 'Choose later';
-  const later: SuggestedReply = { label: laterLabel, value: `[[LENA_SKIP:${step}]]`, icon: Clock3, skip: true };
+  const skipValue = `[[LENA_SKIP:${step}]]`;
+  const later: SuggestedReply = { label: laterLabel, value: skipValue, icon: Clock3, skip: true };
+  // "None / not needed / no preference" reads to the user like a real answer, but the server treats
+  // it exactly like clicking "later" (LenaLoadQuestionnaire::isNegativeOrEmptyAnswer / the literal
+  // LENA_SKIP marker) rather than as a value worth writing into the draft - so it must carry the
+  // same skip marker as `later`, just with a different label, and render as an immediate action
+  // rather than a togglable multi-select choice.
+  const noneOption = (label: string, icon: LucideIcon = CircleOff): SuggestedReply => ({ label, value: skipValue, icon, skip: true });
   const withLater = (options: SuggestedReply[], settings: Omit<SuggestedReplyGroup, 'options'> = {}): SuggestedReplyGroup => ({ options: [...options, later], ...settings });
 
   switch (step) {
     case 'transportType': return withLater([
-      option(labels.road, Truck),
-      option(labels.air, Plane),
-      option(labels.sea, Ship),
+      option(labels.road, 'road', Truck),
+      option(labels.air, 'air', Plane),
+      option(labels.sea, 'sea', Ship),
     ]);
-    case 'bodyType': return withLater([...BODY_TYPE_OPTIONS, labels.none].map((value) => option(value)));
-    case 'vehicleType': return withLater([...VEHICLE_OPTIONS, labels.noPreference].map((value) => option(value)));
+    case 'bodyType': return withLater([...BODY_TYPE_OPTIONS.map((value) => option(value)), noneOption(labels.none)]);
+    case 'vehicleType': return withLater([...VEHICLE_OPTIONS.map((value) => option(value)), noneOption(labels.noPreference)]);
     case 'loadingEquipment': return withLater(LOADING_EQUIPMENT_OPTIONS.map((value) => option(value)));
-    case 'characteristics': return withLater([...ROAD_CHARACTERISTIC_OPTIONS, ...AIR_CHARACTERISTIC_OPTIONS, labels.none].map((value) => option(value)));
-    case 'specialRequirements': return withLater([...AIR_SPECIAL_REQUIREMENT_OPTIONS, labels.none].map((value) => option(value)), { multiple: true, exclusiveValue: labels.none });
-    case 'transportMode': return withLater([...AIR_TRANSPORT_MODE_OPTIONS, labels.none].map((value) => option(value)));
-    case 'deliveryProof': return withLater([...DELIVERY_PROOF_OPTIONS, labels.none].map((value) => option(value)));
+    case 'characteristics': return withLater([...ROAD_CHARACTERISTIC_OPTIONS, ...AIR_CHARACTERISTIC_OPTIONS].map((value) => option(value)).concat(noneOption(labels.none)));
+    case 'specialRequirements': return withLater([...AIR_SPECIAL_REQUIREMENT_OPTIONS.map((value) => option(value)), noneOption(labels.none)], { multiple: true });
+    case 'transportMode': return withLater([...AIR_TRANSPORT_MODE_OPTIONS.map((value) => option(value)), noneOption(labels.none)]);
+    case 'deliveryProof': return withLater([...DELIVERY_PROOF_OPTIONS.map((value) => option(value)), noneOption(labels.none)]);
     case 'priceTerms': return withLater([
-      option(labels.fixed),
-      option(labels.negotiable),
+      option(labels.fixed, 'fixed'),
+      option(labels.negotiable, 'negotiable'),
     ]);
-    case 'terms': return withLater([...INCOTERM_OPTIONS, labels.none].map((value) => option(value)));
-    case 'requirements': return withLater([...LOAD_REQUIREMENT_OPTIONS, labels.none].map((value) => option(value)), { multiple: true, exclusiveValue: labels.none });
-    case 'contact': return withLater([...CONTACT_OPTIONS, labels.none].map((value) => option(value)));
-    case 'dimensions': return withLater([option(labels.unknown), option(labels.none)]);
-    case 'declaredValue':
-    case 'temperature':
-    case 'notes':
-      return withLater([option(labels.none)]);
-    default: return withLater([]);
+    case 'terms': return withLater([...INCOTERM_OPTIONS.map((value) => option(value)), noneOption(labels.none)]);
+    case 'requirements': return withLater([...LOAD_REQUIREMENT_OPTIONS.map((value) => option(value)), noneOption(labels.none)], { multiple: true });
+    case 'contact': return withLater([...CONTACT_OPTIONS.map((value) => option(value)), noneOption(labels.none)]);
+    // Every other step is answered by typing (LenaLoadQuestionnaire hasOptions:false) - no pills at
+    // all, not even a stray "later" button, so the visible question always matches what's offered.
+    default: return { options: [] };
   }
 };
 
@@ -153,6 +157,9 @@ type UseLenaEmbeddedMessagesOptions = {
   onSuggestedReply?: (value: string, displayText?: string) => void;
   onSuggestedDraftChange?: (value: string) => void;
   onLoadReady?: () => void;
+  // Fired for a questionnaire pill click (including "later"/"none"), resolved deterministically -
+  // never sent through onSuggestedReply/the AI path, since the value is already known and valid.
+  onStepAnswer?: (step: string, value: string, displayText: string) => void;
 };
 
 export const useLenaEmbeddedMessages = ({
@@ -166,6 +173,7 @@ export const useLenaEmbeddedMessages = ({
   onSuggestedReply,
   onSuggestedDraftChange,
   onLoadReady,
+  onStepAnswer,
 }: UseLenaEmbeddedMessagesOptions) => {
   const bookingOffers = useMemo(
     () => new Map(messages.flatMap((message) => {
@@ -228,10 +236,12 @@ export const useLenaEmbeddedMessages = ({
   );
   const questionnaireSuggestionsByMessage = useMemo(() => {
     const latestMessage = messages.at(-1);
-    if (!latestMessage || latestMessage.sender !== 'other') return new Map<string, SuggestedReplyGroup>();
+    if (!latestMessage || latestMessage.sender !== 'other') return new Map<string, { step: string; group: SuggestedReplyGroup }>();
     const step = latestMessage.text.match(LENA_STEP_MARKER_PATTERN)?.[1];
     const suggestions = step ? questionnaireSuggestions(step, lang) : { options: [] };
-    return suggestions.options.length ? new Map([[latestMessage.id, suggestions]]) : new Map<string, SuggestedReplyGroup>();
+    return suggestions.options.length && step
+      ? new Map([[latestMessage.id, { step, group: suggestions }]])
+      : new Map<string, { step: string; group: SuggestedReplyGroup }>();
   }, [lang, messages]);
   const locationChoiceByMessage = useMemo(() => {
     const latestMessage = messages.at(-1);
@@ -337,7 +347,7 @@ export const useLenaEmbeddedMessages = ({
             })}
           </div>
         )}
-        {suggestedReplies && onSuggestedReply && <QuestionnaireSuggestionPills group={suggestedReplies} lang={lang} onSubmit={onSuggestedReply} onSelectionChange={onSuggestedDraftChange} />}
+        {suggestedReplies && onStepAnswer && <QuestionnaireSuggestionPills group={suggestedReplies.group} lang={lang} onSubmit={(value, displayText) => onStepAnswer(suggestedReplies.step, value, displayText ?? value)} onSelectionChange={onSuggestedDraftChange} />}
         {locationChoice && onSuggestedReply && (
           <LenaLocationChoiceCard
             lang={lang}
@@ -361,7 +371,7 @@ export const useLenaEmbeddedMessages = ({
         )}
       </div>
     );
-  }, [bookingOffers, embeddedLoads, fallbackLoadId, lang, loadDetailCards, loadLocationCards, loadMapCards, loadReadyMessageIds, loadStatusCards, locationChoiceByMessage, onBookLoad, onLoadReady, onOpenLoad, onQuickAction, onSuggestedDraftChange, onSuggestedReply, questionnaireSuggestionsByMessage, quickActionLabels, quickActionsByMessage]);
+  }, [bookingOffers, embeddedLoads, fallbackLoadId, lang, loadDetailCards, loadLocationCards, loadMapCards, loadReadyMessageIds, loadStatusCards, locationChoiceByMessage, onBookLoad, onLoadReady, onOpenLoad, onQuickAction, onStepAnswer, onSuggestedDraftChange, onSuggestedReply, questionnaireSuggestionsByMessage, quickActionLabels, quickActionsByMessage]);
 
   const extraContentVersion = `${embeddedLoadIds.join(',')}:${Object.keys(embeddedLoads).sort().join(',')}:${[...quickActionsByMessage.keys()].join(',')}:${[...questionnaireSuggestionsByMessage.keys()].join(',')}:${[...locationChoiceByMessage.keys()].join(',')}:${[...loadReadyMessageIds].join(',')}`;
 
