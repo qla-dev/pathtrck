@@ -40,6 +40,17 @@ const formatCost = (value: unknown) => {
   return Number.isFinite(n) && value !== null ? `$${n.toFixed(4)}` : "—";
 };
 
+const LENA_ALPHA_MODEL = "freightbook/lena-1.0-alpha";
+const LENA_ALPHA_DISPLAY_TOKENS = "1280";
+
+// Superadmin gets a simplified token figure: a fixed placeholder for the free guided-answer
+// service (never its real, always-0 token count) and the plain total elsewhere - only master sees
+// the real prompt/completion/total breakdown.
+const displayTokenTotal = (row: Record<string, unknown>, role?: Role): string =>
+  role !== "master" && row.model === LENA_ALPHA_MODEL
+    ? LENA_ALPHA_DISPLAY_TOKENS
+    : String(row.total_tokens ?? "—");
+
 const formatTime = (value: unknown) =>
   String(value || "").slice(0, 19).replace("T", " ") || "—";
 
@@ -393,10 +404,24 @@ export const AiStatsView = ({ lang: _lang, role }: { lang: Language; role?: Role
   const [viewMode, setViewMode] = useState<"calls" | "conversations">("calls");
   const [openConversationId, setOpenConversationId] = useState<string | null>(null);
 
-  // A separate, larger unfiltered fetch just for the summary cards, so the totals always reflect
-  // everything logged (never hidden, per the "show $0/generic calls too" requirement) regardless
-  // of whatever filters are currently applied to the table below.
-  const stats = useApiList(api.aiCallLogs.list, { limit: 500 });
+  const params = useMemo(
+    () => ({
+      ...(serviceFilter ? { service: serviceFilter } : {}),
+      ...(modelFilter ? { model: modelFilter } : {}),
+      ...(attachmentFilter ? { has_attachment: attachmentFilter } : {}),
+      ...(statusFilter ? { is_success: statusFilter } : {}),
+    }),
+    [serviceFilter, modelFilter, attachmentFilter, statusFilter],
+  );
+
+  // Everything logged is included by default (never hidden, per the "show $0/generic calls too"
+  // requirement) - but once a filter is actively chosen, the summary cards follow it too, so
+  // "filter by model" actually means the cost/calls/conversations/tokens totals shown match that
+  // model, not just the table rows.
+  const stats = useApiList(api.aiCallLogs.list, useMemo(() => ({ limit: 500, ...params }), [params]));
+  // A separate, always-unfiltered sample purely to populate the "All models" dropdown, so picking
+  // one model doesn't narrow the dropdown's own option list down to just that one model.
+  const modelDirectory = useApiList(api.aiCallLogs.list, { limit: 500 });
   const totalCost = stats.items.reduce((sum, row) => sum + Number(row.cost_usd || 0), 0);
   const totalTokens = stats.items.reduce((sum, row) => sum + Number(row.total_tokens || 0), 0);
   const withAttachmentRows = stats.items.filter((row) => row.has_attachment);
@@ -474,18 +499,8 @@ export const AiStatsView = ({ lang: _lang, role }: { lang: Language; role?: Role
   );
 
   const modelOptions = useMemo(
-    () => [...new Set(stats.items.map((row) => String(row.model || "")).filter(Boolean))].sort(),
-    [stats.items],
-  );
-
-  const params = useMemo(
-    () => ({
-      ...(serviceFilter ? { service: serviceFilter } : {}),
-      ...(modelFilter ? { model: modelFilter } : {}),
-      ...(attachmentFilter ? { has_attachment: attachmentFilter } : {}),
-      ...(statusFilter ? { is_success: statusFilter } : {}),
-    }),
-    [serviceFilter, modelFilter, attachmentFilter, statusFilter],
+    () => [...new Set(modelDirectory.items.map((row) => String(row.model || "")).filter(Boolean))].sort(),
+    [modelDirectory.items],
   );
 
   // Master-only permanent purge, separate from the normal (soft) conversation delete elsewhere in
@@ -517,8 +532,8 @@ export const AiStatsView = ({ lang: _lang, role }: { lang: Language; role?: Role
       {
         key: "number",
         header: "#",
-        render: (_row, index) => index + 1,
-        exportValue: (_row, index) => index + 1,
+        render: (row) => String(row.id ?? "—"),
+        exportValue: (row) => String(row.id ?? ""),
       },
       {
         key: "time",
@@ -563,14 +578,17 @@ export const AiStatsView = ({ lang: _lang, role }: { lang: Language; role?: Role
       {
         key: "tokens",
         header: "Tokens",
-        render: (row) => (
-          <div className="flex flex-col gap-0.5 text-xs text-slate-500">
-            <span><span className="text-slate-400">Prompt</span> {String(row.prompt_tokens ?? "—")}</span>
-            <span><span className="text-slate-400">Completion</span> {String(row.completion_tokens ?? "—")}</span>
-            <span><span className="text-slate-400">Total</span> {String(row.total_tokens ?? "—")}</span>
-          </div>
-        ),
-        exportValue: (row) => String(row.total_tokens ?? ""),
+        render: (row) =>
+          role === "master" ? (
+            <div className="flex flex-col gap-0.5 text-xs text-slate-500">
+              <span><span className="text-slate-400">Prompt</span> {String(row.prompt_tokens ?? "—")}</span>
+              <span><span className="text-slate-400">Completion</span> {String(row.completion_tokens ?? "—")}</span>
+              <span><span className="text-slate-400">Total</span> {String(row.total_tokens ?? "—")}</span>
+            </div>
+          ) : (
+            <span className="text-xs text-slate-500">{displayTokenTotal(row, role)}</span>
+          ),
+        exportValue: (row) => (role === "master" ? String(row.total_tokens ?? "") : displayTokenTotal(row, role)),
       },
       {
         key: "cost",
@@ -632,7 +650,7 @@ export const AiStatsView = ({ lang: _lang, role }: { lang: Language; role?: Role
         ),
       },
     ],
-    [],
+    [role],
   );
 
   const conversationColumns = useMemo<ServerDataTableColumn<Record<string, unknown>>[]>(
@@ -664,13 +682,16 @@ export const AiStatsView = ({ lang: _lang, role }: { lang: Language; role?: Role
       {
         key: "calls",
         header: "Calls",
-        render: (row) => (
-          <div className="flex flex-col gap-0.5 text-xs">
-            <span className="text-slate-500"><span className="text-slate-400">Paid</span> {String(row.paid_calls ?? "—")}</span>
-            <span className="text-slate-500"><span className="text-slate-400">Free</span> {String(row.free_calls ?? "—")}</span>
-            <span className="font-bold dark:text-white"><span className="text-slate-400">Total</span> {String(row.calls ?? "—")}</span>
-          </div>
-        ),
+        render: (row) =>
+          role === "master" ? (
+            <div className="flex flex-col gap-0.5 text-xs">
+              <span className="text-slate-500"><span className="text-slate-400">Paid</span> {String(row.paid_calls ?? "—")}</span>
+              <span className="text-slate-500"><span className="text-slate-400">Free</span> {String(row.free_calls ?? "—")}</span>
+              <span className="font-bold dark:text-white"><span className="text-slate-400">Total</span> {String(row.calls ?? "—")}</span>
+            </div>
+          ) : (
+            <span className="text-xs font-bold dark:text-white">{String(row.calls ?? "—")}</span>
+          ),
         exportValue: (row) => String(row.calls ?? ""),
       },
       {

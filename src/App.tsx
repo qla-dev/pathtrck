@@ -4016,7 +4016,7 @@ export default function App() {
               {roleMeta.label} • {roleMeta.status}
             </span>
 
-            {role === 'master' && (
+            {isElevatedAdmin && (
               <button
                 onClick={() => setView('ai-stats')}
                 title={u('nav.aiStats', 'AI Stats')}
@@ -4225,7 +4225,7 @@ export default function App() {
 	              {view === 'admin-customers' && <AdminCustomersView lang={lang} onOpenEmailStudio={() => setView('email-studio')} />}
 	              {view === 'admin-companies' && <AdminCompaniesView lang={lang} onOpenEmailStudio={() => setView('email-studio')} />}
 	              {view === 'admin-drivers' && <AdminDriversView lang={lang} />}
-	              {view === 'ai-stats' && role === 'master' && <AiStatsView lang={lang} role={role} />}
+	              {view === 'ai-stats' && isElevatedAdmin && <AiStatsView lang={lang} role={role} />}
 	              {view === 'email-studio' && <EmailStudioView lang={lang} />}
 	              {view === 'company' && <CompanyWorkspaceView lang={lang} />}
 	              {view === 'company-team' && <CompanyTeamView lang={lang} />}

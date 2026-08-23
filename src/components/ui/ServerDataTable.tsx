@@ -93,6 +93,13 @@ export const ServerDataTable = <T extends Record<string, unknown>>({
     return () => window.clearTimeout(timeout);
   }, [query]);
 
+  // Switching a filter (e.g. picking a different model) jumps back to page 1 too, the same way a
+  // new search does - otherwise, still being on page 3 from before would keep showing whatever
+  // landed there rather than the newest rows matching the new filter.
+  useEffect(() => {
+    setPage(1);
+  }, [serializedParams]);
+
   useEffect(() => {
     let current = true;
     setLoading(true);
