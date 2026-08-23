@@ -324,5 +324,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welc
     }
   };
 
-  return { conversation, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sending, startNewChat, selectConversation, sidebarConversations, hasActiveConversation: Boolean(row), canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment };
+  const loadDraftId = row?.load_draft_id ? String(row.load_draft_id) : null;
+
+  return { conversation, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sending, startNewChat, selectConversation, sidebarConversations, hasActiveConversation: Boolean(row), canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId };
 };

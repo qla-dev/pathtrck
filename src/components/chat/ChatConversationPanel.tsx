@@ -303,7 +303,7 @@ export const ChatConversationPanel = ({
               );
             })}
           </div>
-          {m.sender !== 'system' && typingMessageId !== m.id && (
+          {m.sender === 'other' && typingMessageId !== m.id && (
             <button
               type="button"
               onClick={() => void copyMessage(m.id, m.text)}

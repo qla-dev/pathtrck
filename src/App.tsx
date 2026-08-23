@@ -3289,6 +3289,8 @@ export default function App() {
   const [lenaAiOpen, setLenaAiOpen] = useState(false);
   const [lenaCanvasMode, setLenaCanvasMode] = useState<LenaCanvasMode | null>(null);
   const [lenaLoadPrefill, setLenaLoadPrefill] = useState<ScanFieldPatch | null>(null);
+  const [lenaSourceConversationId, setLenaSourceConversationId] = useState<string | null>(null);
+  const [lenaSourceDraftId, setLenaSourceDraftId] = useState<string | null>(null);
   const [isDark, setIsDark] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => getInitialSidebarState());
   const [isPostLoadOpen, setIsPostLoadOpen] = useState(false);
@@ -3987,7 +3989,7 @@ export default function App() {
           <div className="flex items-center gap-4">
             {role === 'user' || role === 'superadmin' ? (
               <button
-                onClick={() => { setLenaLoadPrefill(null); setEditLoadId(null); setIsPostLoadOpen(true); }}
+                onClick={() => { setLenaLoadPrefill(null); setLenaSourceConversationId(null); setLenaSourceDraftId(null); setEditLoadId(null); setIsPostLoadOpen(true); }}
                 className="h-10 px-4 rounded-full bg-primary text-white inline-flex items-center gap-2 text-xs font-bold hover:scale-[1.02] transition-all cursor-pointer whitespace-nowrap"
               >
                 <Plus className="w-4 h-4" />
@@ -4183,8 +4185,10 @@ export default function App() {
 	                  lang={lang}
 	                  onOpenLoad={(loadId) => setOpenLoadDetailsId(loadId)}
 	                  onBookLoad={handleBookLoad}
-	                  onApplyLoadPrefill={(patch) => {
+	                  onApplyLoadPrefill={(patch, conversationId, draftId) => {
 	                    setLenaLoadPrefill(patch);
+	                    setLenaSourceConversationId(conversationId);
+	                    setLenaSourceDraftId(draftId ?? null);
 	                    setEditLoadId(null);
 	                    setIsPostLoadOpen(true);
 	                  }}
@@ -4242,8 +4246,10 @@ export default function App() {
           userId={currentUser?.id}
           companyIds={trackingCompanyIds}
           initialCanvasMode={lenaCanvasMode}
-          onApplyLoadPrefill={(patch) => {
+          onApplyLoadPrefill={(patch, conversationId, draftId) => {
             setLenaLoadPrefill(patch);
+            setLenaSourceConversationId(conversationId);
+            setLenaSourceDraftId(draftId ?? null);
             setLenaAiOpen(false);
             setLenaCanvasMode(null);
             setEditLoadId(null);
@@ -4263,14 +4269,27 @@ export default function App() {
           isOpen={isPostLoadOpen}
           editLoadId={editLoadId}
           initialPrefill={lenaLoadPrefill}
+          sourceConversationId={lenaSourceConversationId}
+          initialDraftId={lenaSourceDraftId}
           onOpenLenaAI={() => {
             setIsPostLoadOpen(false);
             setEditLoadId(null);
             setLenaCanvasMode('new_load');
             setLenaAiOpen(true);
           }}
-          onClose={() => { setIsPostLoadOpen(false); setEditLoadId(null); setLenaLoadPrefill(null); }}
-          onSaved={(load) => { setLenaLoadPrefill(null); handleLoadSaved(load); }}
+          onClose={() => {
+            setIsPostLoadOpen(false);
+            setEditLoadId(null);
+            setLenaLoadPrefill(null);
+            setLenaSourceConversationId(null);
+            setLenaSourceDraftId(null);
+          }}
+          onSaved={(load) => {
+            setLenaLoadPrefill(null);
+            setLenaSourceConversationId(null);
+            setLenaSourceDraftId(null);
+            handleLoadSaved(load);
+          }}
           lang={lang}
         />
 

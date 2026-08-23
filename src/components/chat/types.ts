@@ -20,6 +20,7 @@ export type Conversation = {
   lastTime: string;
   messages: ChatMessage[];
   loadId?: string;
+  loadDraftId?: string;
   isAiDispatch?: boolean;
   canvas?: boolean;
   meta?: string;

@@ -22,7 +22,7 @@ type MessagesViewProps = {
   lang: Language;
   onOpenLoad?: (loadId: string) => void;
   onBookLoad?: (loadId?: string) => void | Promise<void>;
-  onApplyLoadPrefill?: (patch: ScanFieldPatch) => void;
+  onApplyLoadPrefill?: (patch: ScanFieldPatch, conversationId: string, draftId?: string | null) => void;
   onBulkImported?: (rows: BulkLoadRow[]) => void;
 };
 
@@ -95,6 +95,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
         ? [{ id: `welcome-${row.id}`, sender: 'other' as const, text: generalWelcome, time: '' }]
         : mappedMessages,
       loadId: row.load_id ? String(row.load_id) : undefined,
+      loadDraftId: row.load_draft_id ? String(row.load_draft_id) : undefined,
       isAiDispatch,
       canvas: Boolean(row.canvas),
       meta: meta || undefined,
@@ -140,7 +141,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
   );
 
   const activeConversation = useMemo(() => {
-    const base = filteredConversations.find((c) => c.id === activeId) ?? filteredConversations[0] ?? displayedConversations[0] ?? { id: '', name: u('messages.empty', 'No conversation'), role: '', channel: 'inapp' as const, online: false, unread: 0, lastTime: '', messages: [] };
+    const base = filteredConversations.find((c) => c.id === activeId) ?? filteredConversations[0] ?? displayedConversations[0] ?? { id: '', name: u('messages.empty', 'No conversation'), role: '', channel: 'inapp' as const, online: false, unread: 0, lastTime: '', messages: [], loadDraftId: undefined };
     const pending = optimisticMessages
       .filter((message) => message.conversationId === base.id)
       .map((message) => ({
@@ -384,6 +385,8 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
                   lang={lang}
                   mode="new_load"
                   attachments={canvasAttachments}
+                  conversationId={activeConversation.id}
+                  draftId={activeConversation.loadDraftId}
                   onApplyPrefill={onApplyLoadPrefill}
                   onBulkImported={onBulkImported}
                 />

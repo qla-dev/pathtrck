@@ -311,6 +311,7 @@ export const api = {
   trackingEvents: resourceApi<Record<string, unknown>>('tracking-events'),
   conversations: resourceApi<Record<string, unknown>>('conversations'),
   messages: resourceApi<Record<string, unknown>>('messages'),
+  loadDrafts: resourceApi<Record<string, unknown>>('load-drafts'),
   dispatchChat: {
     reply: async (conversationId: number) => (await request<Record<string, unknown>>('/dispatch-chat', {
       method: 'POST',

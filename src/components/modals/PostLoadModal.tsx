@@ -29,13 +29,16 @@ import {
   PlaneLanding,
   Plus,
   Recycle,
+  RotateCcw,
   Route,
   ArrowDownToLine,
   BadgeCheck,
   Landmark,
   Radar,
+  Save,
   Scissors,
   ScanEye,
+  Send,
   Shirt,
   ShieldAlert,
   ShieldCheck,
@@ -60,7 +63,7 @@ import { cn } from '../../lib/cn';
 import { confirmAction, showSuccess } from '../../lib/swal';
 import { useLocationAutocomplete } from '../../hooks/useLocationAutocomplete';
 import { useOutsideClick } from '../../hooks/useOutsideClick';
-import { LocationSearchResult } from '../../services/locationSearch';
+import { LocationSearchResult, searchLocations } from '../../services/locationSearch';
 import { Button } from '../ui/Button';
 import { api, ApiError, HsCodeMatch, LoadScanResult } from '../../services/api';
 import { CustomerSelect, customerOptionFromRecord, type CustomerOption } from '../customer/CustomerSelect';
@@ -90,6 +93,10 @@ type PostLoadModalProps = {
   onSaved?: (load: Record<string, unknown>) => void;
   initialPrefill?: ScanFieldPatch | null;
   onOpenLenaAI?: () => void;
+  // The conversation this draft came from (if opened via the LenaAI canvas's "Spasi kao draft i
+  // nastavi sa objavom" button) and its already-persisted load_drafts row id, if any.
+  sourceConversationId?: string | number | null;
+  initialDraftId?: string | number | null;
 };
 
 type StepId = 'cargo' | 'route' | 'terms' | 'contact' | 'review';
@@ -269,6 +276,11 @@ const toApiDateTime = (date: string, time = '00:00') => {
   return match ? `${match[3]}-${match[2]}-${match[1]}T${time || '00:00'}:00` : null;
 };
 
+const toApiDate = (date: string) => {
+  const match = date.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  return match ? `${match[3]}-${match[2]}-${match[1]}` : null;
+};
+
 const fromApiDateTime = (value: unknown) => {
   if (!value) return { date: '', time: '' };
   const parsed = new Date(String(value));
@@ -284,7 +296,92 @@ const fromApiWeightKg = (value: unknown) => {
 
 const toApiWeightKg = (weightTonnes: string) => Number(weightTonnes) * 1000;
 
+// Shared by the real /loads payload (submit) and the /load-drafts payload (save draft) — every
+// field except the route, which the two resources store differently (loads uses a separate
+// load_stops table, load_drafts flattens pickup_*/delivery_* columns onto itself).
+const buildLoadFieldsPayload = (draft: LoadDraft) => ({
+  consignee_customer_id: draft.consignee?.id || null,
+  title: draft.cargoTitle,
+  transport_type: draft.transportType,
+  cargo_type: draft.cargoType,
+  goods_type: draft.goodsType,
+  hs_codes: draft.hsCodes,
+  weight_kg: toApiWeightKg(draft.weightKg),
+  length_m: draft.lengthM ? Number(draft.lengthM) : null,
+  width_m: draft.widthM ? Number(draft.widthM) : null,
+  height_m: draft.heightM ? Number(draft.heightM) : null,
+  volume_m3: draft.volumeM3 ? Number(draft.volumeM3) : null,
+  pallets: draft.pallets ? Number(draft.pallets) : null,
+  declared_value: draft.declaredValue ? Number(draft.declaredValue) : null,
+  shipment_value_currency: draft.shipmentValueCurrency,
+  budget: draft.budget ? Number(draft.budget) : null,
+  is_negotiable: draft.receivePriceProposals,
+  currency: draft.freightCurrency,
+  payment_terms: draft.paymentDeferred ? 'deferred' : 'on_delivery',
+  incoterms: draft.incoterm || null,
+  payment_due_days: draft.paymentDeferred && draft.paymentDueDays ? Number(draft.paymentDueDays) : null,
+  temperature_min: draft.temperatureControlled && draft.temperatureMin ? Number(draft.temperatureMin) : null,
+  temperature_max: draft.temperatureControlled && draft.temperatureMax ? Number(draft.temperatureMax) : null,
+  loading_methods: draft.loadingEquipment,
+  vehicle_type: draft.transportType === 'road' ? draft.vehicleType : null,
+  transport_mode: draft.transportType === 'air' ? draft.transportMode : null,
+  special_requirements: draft.transportType === 'air' ? draft.specialRequirements : [],
+  characteristics: draft.characteristics || null,
+  delivery_proof: draft.transportType === 'air' ? draft.deliveryProof || null : null,
+  requires_adr: draft.requiresAdr,
+  requires_tail_lift: draft.requiresTailLift,
+  toll_roads_included: draft.tollRoadsIncluded,
+  ferry_included: draft.ferryIncluded,
+  cmr_required: draft.cmrRequired,
+  pallet_exchange_required: draft.palletExchangeRequired,
+  customs_required: draft.customsRequired,
+  insurance_required: draft.insuranceRequired,
+  certification_required: draft.certificationRequired,
+  inspection_services_required: draft.inspectionServicesRequired,
+  must_be_trackable: draft.mustBeTrackable,
+  is_urgent: draft.urgent,
+  body_types: draft.bodyTypes,
+  contact: { name: draft.contactName, phone: draft.contactPhone, mobile: draft.contactMobile, email: draft.contactEmail, fax: draft.contactFax },
+  notes: draft.notes || draft.additionalInfo || null,
+  internal_comments: draft.internalComments || null,
+  external_comments: draft.externalComments || null,
+});
+
+const buildLoadStopsPayload = (draft: LoadDraft) => [
+  { type: 'pickup', position: 1, place_type: draft.pickupPlaceType, city: draft.pickupCity, country_code: draft.pickupCountry, address: draft.pickupAddress || null, latitude: draft.pickupLatitude ? Number(draft.pickupLatitude) : null, longitude: draft.pickupLongitude ? Number(draft.pickupLongitude) : null, window_starts_at: toApiDateTime(draft.pickupDate, draft.pickupTimeFrom), window_ends_at: toApiDateTime(draft.pickupDateTo || draft.pickupDate, draft.pickupTimeTo || draft.pickupTimeFrom) },
+  { type: 'delivery', position: 2, place_type: draft.deliveryPlaceType, city: draft.deliveryCity, country_code: draft.deliveryCountry, address: draft.deliveryAddress || null, latitude: draft.deliveryLatitude ? Number(draft.deliveryLatitude) : null, longitude: draft.deliveryLongitude ? Number(draft.deliveryLongitude) : null, window_starts_at: toApiDateTime(draft.deliveryDate, draft.deliveryTimeFrom), window_ends_at: toApiDateTime(draft.deliveryDateTo || draft.deliveryDate, draft.deliveryTimeTo || draft.deliveryTimeFrom) },
+];
+
+const buildLoadPayload = (draft: LoadDraft) => ({ ...buildLoadFieldsPayload(draft), stops: buildLoadStopsPayload(draft) });
+
+const buildDraftPayload = (draft: LoadDraft) => ({
+  ...buildLoadFieldsPayload(draft),
+  pickup_place_type: draft.pickupPlaceType || null,
+  pickup_city: draft.pickupCity || null,
+  pickup_country_code: draft.pickupCountry || null,
+  pickup_address: draft.pickupAddress || null,
+  pickup_latitude: draft.pickupLatitude ? Number(draft.pickupLatitude) : null,
+  pickup_longitude: draft.pickupLongitude ? Number(draft.pickupLongitude) : null,
+  pickup_date: toApiDate(draft.pickupDate),
+  pickup_date_to: toApiDate(draft.pickupDateTo || draft.pickupDate),
+  pickup_time_from: draft.pickupTimeFrom || null,
+  pickup_time_to: draft.pickupTimeTo || draft.pickupTimeFrom || null,
+  delivery_place_type: draft.deliveryPlaceType || null,
+  delivery_city: draft.deliveryCity || null,
+  delivery_country_code: draft.deliveryCountry || null,
+  delivery_address: draft.deliveryAddress || null,
+  delivery_latitude: draft.deliveryLatitude ? Number(draft.deliveryLatitude) : null,
+  delivery_longitude: draft.deliveryLongitude ? Number(draft.deliveryLongitude) : null,
+  delivery_date: toApiDate(draft.deliveryDate),
+  delivery_date_to: toApiDate(draft.deliveryDateTo || draft.deliveryDate),
+  delivery_time_from: draft.deliveryTimeFrom || null,
+  delivery_time_to: draft.deliveryTimeTo || draft.deliveryTimeFrom || null,
+});
+
 const routePosition = (latitude: string, longitude: string): [number, number] | null => {
+  // Number('') is 0, not NaN - without this guard a missing coordinate silently becomes a "valid"
+  // (0, 0) position instead of no position, which showed up as a bogus "0 km" route distance.
+  if (!latitude.trim() || !longitude.trim()) return null;
   const lat = Number(latitude);
   const lng = Number(longitude);
   return Number.isFinite(lat) && Number.isFinite(lng) ? [lat, lng] : null;
@@ -633,7 +730,7 @@ const SummaryRow = ({
   </div>
 );
 
-export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSaved, initialPrefill = null, onOpenLenaAI }: PostLoadModalProps) => {
+export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSaved, initialPrefill = null, onOpenLenaAI, sourceConversationId = null, initialDraftId = null }: PostLoadModalProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const transportOptions = [
     {
@@ -678,17 +775,29 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   const [aiFilledPatch, setAiFilledPatch] = useState<ScanFieldPatch>({});
   const [hsSearching, setHsSearching] = useState(false);
   const [hsSuggestions, setHsSuggestions] = useState<HsCodeMatch[]>([]);
+  const [draftId, setDraftId] = useState<string | number | null>(initialDraftId);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [draftSavedAt, setDraftSavedAt] = useState<Date | null>(null);
   const hsSearchRef = useRef<HTMLDivElement>(null);
   useOutsideClick(hsSearchRef, () => setHsSuggestions([]), hsSuggestions.length > 0);
+
+  const resetDraftState = () => {
+    setStep('cargo');
+    setDraft(INITIAL_DRAFT);
+    setSubmitError('');
+    setScannedDocuments([]);
+    setViewingDocId(null);
+    setAiFilledPatch({});
+    setHsSuggestions([]);
+  };
+
   useEffect(() => {
     if (!isOpen) {
-      setStep('cargo');
-      setDraft(INITIAL_DRAFT);
-      setSubmitError('');
-      setScannedDocuments([]);
-      setViewingDocId(null);
-      setAiFilledPatch({});
-      setHsSuggestions([]);
+      resetDraftState();
+      setDraftId(null);
+      setDraftSavedAt(null);
+    } else {
+      setDraftId(initialDraftId);
     }
   }, [isOpen]);
 
@@ -751,6 +860,45 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   const routeDistanceKm = pickupRoutePosition && deliveryRoutePosition
     ? estimatedDrivingDistanceKm(pickupRoutePosition, deliveryRoutePosition)
     : null;
+
+  // AI prefill often only gives city/address text, not coordinates, so the distance stripe has
+  // nothing to compute from. Geocode the missing side(s) once when the Route step is opened -
+  // never when a real coordinate is already present, and not on every keystroke while editing.
+  const [recalculatingRoute, setRecalculatingRoute] = useState(false);
+  useEffect(() => {
+    if (step !== 'route') return;
+    const needsPickup = !pickupRoutePosition && draft.pickupCity.trim() !== '';
+    const needsDelivery = !deliveryRoutePosition && draft.deliveryCity.trim() !== '';
+    if (!needsPickup && !needsDelivery) return;
+
+    let cancelled = false;
+    setRecalculatingRoute(true);
+    (async () => {
+      try {
+        if (needsPickup) {
+          const query = [draft.pickupAddress, draft.pickupCity, draft.pickupCountry].filter(Boolean).join(', ');
+          const [result] = await searchLocations(query).catch(() => []);
+          if (result && !cancelled) {
+            setDraft((current) => ({ ...current, pickupLatitude: String(result.latitude), pickupLongitude: String(result.longitude) }));
+          }
+        }
+        if (needsDelivery && !cancelled) {
+          const query = [draft.deliveryAddress, draft.deliveryCity, draft.deliveryCountry].filter(Boolean).join(', ');
+          const [result] = await searchLocations(query).catch(() => []);
+          if (result && !cancelled) {
+            setDraft((current) => ({ ...current, deliveryLatitude: String(result.latitude), deliveryLongitude: String(result.longitude) }));
+          }
+        }
+      } finally {
+        if (!cancelled) setRecalculatingRoute(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // Only re-run when the step is (re-)opened, not on every keystroke in pickup/delivery fields.
+  }, [step]);
   const stepCompletion = useMemo<Record<StepId, boolean>>(
     () => ({
       route: Boolean(
@@ -766,7 +914,9 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
           Number(draft.weightKg) > 0 &&
           Number(draft.lengthM) > 0
       ),
-      terms: Boolean(draft.vehicleType),
+      // vehicleType alone is never a useful signal here - it defaults to 'Box Truck' in
+      // INITIAL_DRAFT, so it's already truthy before the user has touched this step at all.
+      terms: Boolean(draft.budget && draft.incoterm && draft.vehicleType),
       contact: Boolean(
         draft.contactName &&
           (draft.contactPhone || draft.contactMobile || draft.contactEmail)
@@ -840,14 +990,52 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     }));
   };
 
-  const goBack = () => {
-    const previous = STEPS[stepIndex - 1];
-    if (previous) setStep(previous.id);
-  };
-
   // Sidebar navigation is intentionally unrestricted - AI-fill can populate
   // fields across steps out of order, so gating on completion just gets in the way.
   const canNavigateToStep = (_targetIndex: number) => true;
+
+  const startOver = async () => {
+    const confirmed = await confirmAction({
+      title: u('postLoadModal.restartTitle', 'Start over?'),
+      text: u('postLoadModal.restartText', 'This discards your current progress and any saved draft.'),
+      confirmText: u('postLoadModal.restartConfirm', 'Započni ponovo'),
+    });
+    if (!confirmed) return;
+    if (draftId) {
+      try {
+        await api.loadDrafts.remove(draftId);
+      } catch {
+        // The draft may already be gone; starting over must not get stuck on this.
+      }
+    }
+    setDraftId(null);
+    setDraftSavedAt(null);
+    resetDraftState();
+  };
+
+  const saveDraft = async () => {
+    if (savingDraft) return;
+    setSavingDraft(true);
+    try {
+      const payload = buildDraftPayload(draft);
+      if (draftId) {
+        await api.loadDrafts.update(draftId, payload);
+      } else {
+        const response = await api.loadDrafts.create(payload);
+        setDraftId(response.data.id as string | number);
+      }
+      setDraftSavedAt(new Date());
+      void showSuccess(u('postLoadModal.draftSavedTitle', 'Draft saved'), u('postLoadModal.draftSavedText', 'Your progress has been saved.'));
+    } catch (error) {
+      setSubmitError(
+        error instanceof ApiError
+          ? Object.values(error.errors).flat().find(Boolean) || error.message
+          : u('postLoadModal.draftSaveError', 'The draft could not be saved.')
+      );
+    } finally {
+      setSavingDraft(false);
+    }
+  };
 
   const searchHsCatalog = async () => {
     const query = draft.cargoTitle.trim() || draft.goodsType.trim();
@@ -890,79 +1078,40 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   const submit = async () => {
     if (isSubmitting) return;
     const confirmed = await confirmAction({
-      title: editLoadId ? 'Save load changes?' : 'Publish this load?',
+      title: editLoadId ? u('postLoadModal.saveChangesTitle', 'Save load changes?') : u('postLoadModal.publishTitle', 'Objava na berzu tereta?'),
       text: editLoadId
-        ? 'The updated load details will be visible in the freight exchange.'
-        : 'This load will be published and visible in the freight exchange.',
-      confirmText: editLoadId ? 'Save changes' : 'Publish load',
+        ? u('postLoadModal.saveChangesText', 'The updated load details will be visible in the freight exchange.')
+        : u('postLoadModal.publishText', 'Are you sure you want to post this load to the freight exchange? It will become visible to carriers.'),
+      confirmText: editLoadId ? u('common.save', 'Save changes') : u('postLoadModal.publishConfirm', 'Objavi'),
     });
     if (!confirmed) return;
 
     setIsSubmitting(true);
     setSubmitError('');
     try {
-      const payload = {
-        consignee_customer_id: draft.consignee?.id || null,
-        title: draft.cargoTitle,
-        transport_type: draft.transportType,
-        cargo_type: draft.cargoType,
-        goods_type: draft.goodsType,
-        // Keep chapterCode/chapterName (and heading) alongside code/description/confidence so the
-        // category icon shown on a pill stays correct after the load is saved and reloaded for
-        // editing, instead of falling back to the generic icon once that context is stripped.
-        hs_codes: draft.hsCodes,
-        weight_kg: toApiWeightKg(draft.weightKg),
-        length_m: draft.lengthM ? Number(draft.lengthM) : null,
-        width_m: draft.widthM ? Number(draft.widthM) : null,
-        height_m: draft.heightM ? Number(draft.heightM) : null,
-        volume_m3: draft.volumeM3 ? Number(draft.volumeM3) : null,
-        pallets: draft.pallets ? Number(draft.pallets) : null,
-        declared_value: draft.declaredValue ? Number(draft.declaredValue) : null,
-        shipment_value_currency: draft.shipmentValueCurrency,
-        budget: draft.budget ? Number(draft.budget) : null,
-        is_negotiable: draft.receivePriceProposals,
-        currency: draft.freightCurrency,
-        payment_terms: draft.paymentDeferred ? 'deferred' : 'on_delivery',
-        incoterms: draft.incoterm || null,
-        payment_due_days: draft.paymentDeferred && draft.paymentDueDays ? Number(draft.paymentDueDays) : null,
-        temperature_min: draft.temperatureControlled && draft.temperatureMin ? Number(draft.temperatureMin) : null,
-        temperature_max: draft.temperatureControlled && draft.temperatureMax ? Number(draft.temperatureMax) : null,
-        loading_methods: draft.loadingEquipment,
-        vehicle_type: draft.transportType === 'road' ? draft.vehicleType : null,
-        transport_mode: draft.transportType === 'air' ? draft.transportMode : null,
-        special_requirements: draft.transportType === 'air' ? draft.specialRequirements : [],
-        characteristics: draft.characteristics || null,
-        delivery_proof: draft.transportType === 'air' ? draft.deliveryProof || null : null,
-        requires_adr: draft.requiresAdr,
-        requires_tail_lift: draft.requiresTailLift,
-        toll_roads_included: draft.tollRoadsIncluded,
-        ferry_included: draft.ferryIncluded,
-        cmr_required: draft.cmrRequired,
-        pallet_exchange_required: draft.palletExchangeRequired,
-        customs_required: draft.customsRequired,
-        insurance_required: draft.insuranceRequired,
-        certification_required: draft.certificationRequired,
-        inspection_services_required: draft.inspectionServicesRequired,
-        must_be_trackable: draft.mustBeTrackable,
-        is_urgent: draft.urgent,
-        body_types: draft.bodyTypes,
-        contact: { name: draft.contactName, phone: draft.contactPhone, mobile: draft.contactMobile, email: draft.contactEmail, fax: draft.contactFax },
-        notes: draft.notes || draft.additionalInfo || null,
-        internal_comments: draft.internalComments || null,
-        external_comments: draft.externalComments || null,
-        stops: [
-          { type: 'pickup', position: 1, place_type: draft.pickupPlaceType, city: draft.pickupCity, country_code: draft.pickupCountry, address: draft.pickupAddress || null, latitude: draft.pickupLatitude ? Number(draft.pickupLatitude) : null, longitude: draft.pickupLongitude ? Number(draft.pickupLongitude) : null, window_starts_at: toApiDateTime(draft.pickupDate, draft.pickupTimeFrom), window_ends_at: toApiDateTime(draft.pickupDateTo || draft.pickupDate, draft.pickupTimeTo || draft.pickupTimeFrom) },
-          { type: 'delivery', position: 2, place_type: draft.deliveryPlaceType, city: draft.deliveryCity, country_code: draft.deliveryCountry, address: draft.deliveryAddress || null, latitude: draft.deliveryLatitude ? Number(draft.deliveryLatitude) : null, longitude: draft.deliveryLongitude ? Number(draft.deliveryLongitude) : null, window_starts_at: toApiDateTime(draft.deliveryDate, draft.deliveryTimeFrom), window_ends_at: toApiDateTime(draft.deliveryDateTo || draft.deliveryDate, draft.deliveryTimeTo || draft.deliveryTimeFrom) },
-        ],
-      };
+      // Keep chapterCode/chapterName (and heading) alongside code/description/confidence so the
+      // category icon shown on a pill stays correct after the load is saved and reloaded for
+      // editing, instead of falling back to the generic icon once that context is stripped.
+      const payload = buildLoadPayload(draft);
       const response = editLoadId
         ? await api.loads.update(editLoadId, payload)
         : await api.loads.create({ ...payload, status: 'posted', published_at: new Date().toISOString() });
+      // Publishing a load built through the LenaAI canvas finally links the conversation that
+      // built it to the real load record, and turns canvas mode off — the next message in that
+      // conversation then automatically gets full load-scoped Q&A (DispatchChatController branches
+      // its whole prompt on conversation.freightLoad), so the user can keep asking about the route.
+      if (!editLoadId && sourceConversationId) {
+        try {
+          await api.conversations.update(sourceConversationId, { load_id: response.data.id, canvas: false });
+        } catch {
+          // The load is already published; a failed link-back must not surface as a publish error.
+        }
+      }
       onSaved?.(response.data);
       onClose();
       void showSuccess(
-        editLoadId ? 'Load updated' : 'Load published',
-        editLoadId ? 'Your changes are now live.' : 'The load is now available in the freight exchange.',
+        editLoadId ? u('postLoadModal.updatedTitle', 'Load updated') : u('postLoadModal.publishedTitle', 'Load published'),
+        editLoadId ? u('postLoadModal.updatedText', 'Your changes are now live.') : u('postLoadModal.publishedText', 'The load is now available in the freight exchange.'),
       );
     } catch (error) {
       if (error instanceof ApiError) {
@@ -1198,9 +1347,9 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
           </div>
         </div>
 
-        <div className="grid flex-1 min-h-0 xl:grid-cols-[250px_minmax(0,1fr)]">
-          <aside className="hidden xl:block border-r border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60 p-5 overflow-y-auto">
-            <div className="space-y-3">
+        <div className="grid flex-1 min-h-0 xl:grid-cols-[250px_minmax(0,1fr)] xl:gap-3">
+          <aside className="hidden xl:flex xl:flex-col border-r border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60">
+            <div className="flex min-h-0 flex-1 flex-col justify-between gap-3 overflow-y-auto p-3">
               {STEPS.map((item, index) => {
                 const Icon = item.icon;
                 const isActive = item.id === step;
@@ -1278,7 +1427,6 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                 );
               })}
             </div>
-
           </aside>
 
           <div className="flex min-h-0 min-w-0 flex-col">
@@ -1296,7 +1444,11 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
                         <div className="relative justify-self-center rounded-2xl border border-sky-200 bg-white px-2.5 py-1 text-center shadow-sm dark:border-sky-800 dark:bg-slate-900">
                         <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">{u('landing.distance', 'Distance')}</p>
-                          <p className="text-sm font-black text-slate-900 dark:text-white">{routeDistanceKm === null ? '' : `${routeDistanceKm.toLocaleString()} km`}</p>
+                          <p className="flex items-center justify-center gap-1 text-sm font-black text-slate-900 dark:text-white">
+                          {recalculatingRoute
+                            ? <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                            : routeDistanceKm === null ? '' : `${routeDistanceKm.toLocaleString()} km`}
+                        </p>
                       </div>
                       <div className="relative h-full min-w-0">
                         <p className="absolute right-0 top-0 max-w-full truncate text-right text-sm font-bold text-slate-900 dark:text-white">{draft.deliveryCity || draft.deliveryAddress || ''}</p>
@@ -2163,26 +2315,57 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
               )}
               </AnimatePresence>
             </div>
+          </div>
+        </div>
 
-            <div className="min-h-16 shrink-0 flex flex-col justify-center gap-2 px-5 md:px-7 py-2 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800">
-              {submitError && <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400">{submitError}</div>}
-              <div className="grid w-full gap-3 sm:grid-cols-3">
-                <Button variant="outline" className="w-full h-11" onClick={step === 'cargo' ? onClose : goBack}>
-                  {step === 'cargo' ? u('common.cancel', 'Cancel') : u('common.back', 'Back')}
-                </Button>
-                <Button
-                  variant="secondary"
-                  className="w-full h-11 gap-2 border border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 dark:bg-primary/15 dark:hover:bg-primary/20"
-                  onClick={onOpenLenaAI ?? (() => setDropzoneOpen(true))}
-                  disabled={isSubmitting}
-                >
-                  <Sparkles className="w-4 h-4" />
-                  {u('postLoadModal.fillWithLenaAI', 'Fill with LenaAI')}
-                </Button>
-                <Button className="w-full h-11" onClick={submit} disabled={isSubmitting}>
-                  {isSubmitting ? u('postLoadModal.publishing', 'Saving...') : editLoadId ? u('common.save', 'Save changes') : u('common.postLoad', 'Publish')}
-                </Button>
-              </div>
+        <div className="shrink-0 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800">
+          {submitError && <div className="mx-5 mt-3 md:mx-7 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400">{submitError}</div>}
+          <div className="grid xl:grid-cols-[250px_minmax(0,1fr)] xl:gap-3">
+            {/* p-3 matches the sidebar's own inset so this button's edges land exactly under the
+                step cards' edges instead of the header's wider px-5/md:px-7. Right padding drops
+                to 0 only at xl+ (where this sits beside the button grid), so the grid's own
+                xl:gap-3 becomes the sole gap there, matching the gap-3 between the three buttons. */}
+            <div className="p-3 xl:pr-0">
+              <Button
+                variant="secondary"
+                className="w-full h-11 gap-2 border border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 dark:bg-primary/15 dark:hover:bg-primary/20"
+                onClick={onOpenLenaAI ?? (() => setDropzoneOpen(true))}
+                disabled={isSubmitting}
+              >
+                <Sparkles className="w-4 h-4 shrink-0" />
+                <span className="truncate">{u('postLoadModal.fillWithLenaAI', 'Popuni pomoću LenaAI')}</span>
+              </Button>
+            </div>
+            <div className="grid gap-3 px-5 md:px-7 py-3 xl:pl-0 sm:grid-cols-3">
+              <Button variant="outline" className="w-full h-11 gap-2" onClick={() => void startOver()} disabled={isSubmitting}>
+                <RotateCcw className="w-4 h-4 shrink-0" />
+                <span className="truncate">{u('postLoadModal.startOver', 'Započni ponovo')}</span>
+              </Button>
+              <Button
+                variant="secondary"
+                className="w-full h-11 gap-2 border border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 dark:bg-primary/15 dark:hover:bg-primary/20"
+                onClick={() => void saveDraft()}
+                disabled={isSubmitting || savingDraft}
+              >
+                <Save className="w-4 h-4 shrink-0" />
+                <span className="truncate">
+                  {savingDraft
+                    ? u('postLoadModal.savingDraft', 'Spašavanje...')
+                    : draftSavedAt
+                      ? `${u('postLoadModal.saveDraft', 'Spasi draft')} · ${draftSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                      : u('postLoadModal.saveDraft', 'Spasi draft')}
+                </span>
+              </Button>
+              <Button className="w-full h-11 gap-2" onClick={submit} disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="w-4 h-4 shrink-0 animate-spin" /> : <Send className="w-4 h-4 shrink-0" />}
+                <span className="truncate">
+                  {isSubmitting
+                    ? u('postLoadModal.publishing', 'Saving...')
+                    : editLoadId
+                      ? u('common.save', 'Save changes')
+                      : u('common.postLoad', 'Objava na berzu tereta')}
+                </span>
+              </Button>
             </div>
           </div>
         </div>

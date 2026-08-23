@@ -25,7 +25,7 @@ type LenaAIProps = {
   onBookLoad?: (loadId?: string) => void | Promise<void>;
   onOpenLoad?: (loadId: string) => void;
   initialCanvasMode?: LenaCanvasMode | null;
-  onApplyLoadPrefill?: (patch: ScanFieldPatch) => void;
+  onApplyLoadPrefill?: (patch: ScanFieldPatch, conversationId: string, draftId?: string | null) => void;
   onBulkImported?: (rows: BulkLoadRow[]) => void;
 };
 
@@ -59,7 +59,7 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [open, onClose]);
 
-  const { conversation, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sending, startNewChat, selectConversation, sidebarConversations, canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment } = useLenaAiChat({
+  const { conversation, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sending, startNewChat, selectConversation, sidebarConversations, canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId } = useLenaAiChat({
     userId,
     companyIds,
     loadId,
@@ -216,6 +216,8 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
                       lang={lang}
                       mode={canvasMode}
                       attachments={canvasAttachments}
+                      conversationId={conversation.id}
+                      draftId={loadDraftId}
                       onApplyPrefill={onApplyLoadPrefill}
                       onBulkImported={onBulkImported}
                     />

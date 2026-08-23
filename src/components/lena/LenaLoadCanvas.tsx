@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import { Check, FileSpreadsheet, Loader2, PackagePlus, Send, Sparkles } from 'lucide-react';
+import { Check, FileSpreadsheet, Loader2, PackagePlus, Save, Send, Sparkles } from 'lucide-react';
 import { Language } from '../../types';
 import { ui } from '../../i18n';
 import { api, BulkLoadRow } from '../../services/api';
-import { latestLoadScan, LenaAttachment, LenaCanvasMode } from '../../lib/lenaLoadCanvas';
+import { latestLoadScan, LenaAttachment, LenaCanvasMode, scanPatchToDraftPayload } from '../../lib/lenaLoadCanvas';
 import { buildScanFieldRows, ScanFieldPatch } from '../modals/scanFieldRows';
 import { buildBulkLoadPayload } from '../modals/bulkLoadRows';
 import { BulkLoadRowsTable } from '../modals/BulkLoadRowsTable';
@@ -12,13 +12,18 @@ type LenaLoadCanvasProps = {
   lang: Language;
   mode: LenaCanvasMode;
   attachments: LenaAttachment[];
-  onApplyPrefill?: (patch: ScanFieldPatch) => void;
+  conversationId: string;
+  draftId?: string | null;
+  onApplyPrefill?: (patch: ScanFieldPatch, conversationId: string, draftId?: string | null) => void;
   onBulkImported?: (rows: BulkLoadRow[]) => void;
 };
 
-export const LenaLoadCanvas = ({ lang, mode, attachments, onApplyPrefill, onBulkImported }: LenaLoadCanvasProps) => {
+export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftId, onApplyPrefill, onBulkImported }: LenaLoadCanvasProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [importing, setImporting] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [quickSaving, setQuickSaving] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const bulkRows = attachments.flatMap((attachment) => attachment.bulkRows || []);
   // The backend carries the draft forward on every scan, so the most recently scanned
   // attachment already reflects the full, up-to-date state of the load (see latestLoadScan).
@@ -37,9 +42,40 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, onApplyPrefill, onBulk
     }
   };
 
+  const saveDraftNow = async () => {
+    if (quickSaving || !draftId) return;
+    setQuickSaving(true);
+    try {
+      await api.loadDrafts.update(draftId, scanPatchToDraftPayload(patch));
+      setLastSavedAt(new Date());
+    } catch {
+      // This is just a lightweight status indicator, not a blocking action.
+    } finally {
+      setQuickSaving(false);
+    }
+  };
+
+  const saveDraftAndContinue = async () => {
+    if (savingDraft) return;
+    setSavingDraft(true);
+    try {
+      if (draftId) {
+        try {
+          await api.loadDrafts.update(draftId, scanPatchToDraftPayload(patch));
+        } catch {
+          // A stale/removed draft must not block handing the already-collected data to
+          // PostLoadModal, which can still save a fresh draft from there.
+        }
+      }
+      onApplyPrefill?.(patch, conversationId, draftId);
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
   return (
     <aside className="flex h-full min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white lg:w-[420px] dark:border-slate-800 dark:bg-slate-900">
-      <div className="flex items-center border-b border-slate-100 p-4 dark:border-slate-800">
+      <div className="flex items-center justify-between gap-2 border-b border-slate-100 p-4 dark:border-slate-800">
         <div className="flex items-center gap-3">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
             {mode === 'bulk' ? <FileSpreadsheet className="h-5 w-5" /> : <PackagePlus className="h-5 w-5" />}
@@ -48,6 +84,21 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, onApplyPrefill, onBulk
             {mode === 'bulk' ? u('LenaAI bulk canvas', 'Bulk load canvas') : u('LenaAI new load canvas', 'New load canvas')}
           </p>
         </div>
+        {mode !== 'bulk' && draftId && (
+          <button
+            type="button"
+            onClick={() => void saveDraftNow()}
+            disabled={quickSaving}
+            title={u('postLoadModal.draftAutosaved', 'Draft autosaved')}
+            className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-[11px] font-bold text-orange-600 transition-colors hover:bg-orange-100 disabled:cursor-wait disabled:opacity-70 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-400 dark:hover:bg-orange-500/20"
+          >
+            {quickSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+            <span className="whitespace-nowrap">
+              {u('postLoadModal.draftAutosaved', 'Draft autosaved')}
+              {lastSavedAt ? ` · ${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
+            </span>
+          </button>
+        )}
       </div>
 
       {bulkRows.length === 0 && rows.length === 0 && (
@@ -89,8 +140,11 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, onApplyPrefill, onBulk
 
       {bulkRows.length === 0 && rows.length > 0 && (
         <div className="border-t border-slate-100 p-3 dark:border-slate-800">
-          <button type="button" onClick={() => onApplyPrefill?.(patch)} className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary text-xs font-black text-white transition-colors hover:bg-primary-dark">
-            <Send className="h-3.5 w-3.5" /> {u('Continue to publishing', 'Continue to publishing')}
+          <button type="button" onClick={() => void saveDraftAndContinue()} disabled={savingDraft} className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary text-xs font-black text-white transition-colors hover:bg-primary-dark disabled:opacity-60">
+            {savingDraft ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+            {draftId
+              ? u('postLoadModal.continueEditing', 'Nastavi uređivati draft')
+              : u('postLoadModal.saveDraftAndContinue', 'Spasi kao draft i nastavi uređivati')}
           </button>
         </div>
       )}
