@@ -10,8 +10,8 @@ import { ChatSidebar } from '../chat/ChatSidebar';
 import { useLenaAiChat } from '../../lib/useLenaAiChat';
 import { useLenaEmbeddedMessages } from './useLenaEmbeddedMessages';
 import { LenaLoadCanvas } from './LenaLoadCanvas';
-import { LENA_LOAD_FILE_ACCEPT, LenaCanvasMode } from '../../lib/lenaLoadCanvas';
-import { ScanFieldPatch } from '../modals/scanFieldRows';
+import { LENA_LOAD_FILE_ACCEPT, LenaCanvasMode, latestLoadScan } from '../../lib/lenaLoadCanvas';
+import { buildScanFieldRows, ScanFieldPatch } from '../modals/scanFieldRows';
 import { BulkLoadRow } from '../../services/api';
 
 type LenaAIProps = {
@@ -86,6 +86,10 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
     previousCanvas.current = { conversationId: conversation.id, active: canvasEnabled };
   }, [conversation.id, canvasEnabled]);
   const showCanvas = !loadId && canvasEnabled && canvasPanelOpen;
+  const collectedFieldCount = useMemo(() => {
+    const scan = latestLoadScan(canvasAttachments);
+    return scan ? buildScanFieldRows(scan).length : 0;
+  }, [canvasAttachments]);
 
   const { displayMessages, renderMessageExtra, extraContentVersion } = useLenaEmbeddedMessages({
     messages: conversation.messages,
@@ -152,10 +156,12 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
             exit={{ opacity: 0, y: 16, scale: 0.996 }}
             transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
           >
-            <div className="grid h-full min-h-0 w-full gap-4 lg:grid-cols-12">
-              {!loadId && !showCanvas && (
+            <div className="flex h-full min-h-0 w-full flex-col gap-4 lg:flex-row">
+              {!loadId && (
                 <ChatSidebar
+                  compact={showCanvas}
                   searchPlaceholder={u('Search messages...', 'Search messages...')}
+                  compactSearchPlaceholder={u('Search', 'Search')}
                   channels={channels}
                   channelFilter={channelFilter}
                   onChannelFilterChange={setChannelFilter}
@@ -165,14 +171,14 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
                   statusText={(chat) => chat.status === 'load-detected' ? u('Load detected', 'Load detected') : u('Draft', 'Draft')}
                 />
               )}
-              <div className={`flex min-h-0 gap-4 ${!loadId && !showCanvas ? 'lg:col-span-8' : 'lg:col-span-12'}`}>
+              <div className="flex min-h-0 flex-1 gap-4">
               <ChatConversationPanel
                 activeConversation={displayConversation}
                 draft={draft}
                 onDraftChange={setDraft}
                 onSend={() => void send()}
                 messagePlaceholder={u('Write a message...', 'Write a message...')}
-                className="min-h-[320px] flex-1"
+                className="min-h-[320px] min-w-0 flex-1"
                 otherTyping={sending}
                 thinkingLabel={u('Thinking', 'Thinking')}
                 renderMessageExtra={renderMessageExtra}
@@ -190,7 +196,7 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
                   <button
                     type="button"
                     onClick={() => void handleNewChat()}
-                    className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-3 text-xs font-bold text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 cursor-pointer"
+                    className="flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-3 text-xs font-bold text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 cursor-pointer"
                   >
                     <Plus className="h-4 w-4" />
                     {u('New chat', 'New chat')}
@@ -201,17 +207,20 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
                       if (canvasEnabled) setCanvasPanelOpen((current) => !current);
                       else void sendQuickAction('add');
                     }}
-                    className={`flex h-10 cursor-pointer items-center gap-2 rounded-xl border px-3 text-xs font-bold transition-all ${showCanvas ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-slate-100 text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}
+                    className={`relative flex h-10 cursor-pointer items-center gap-2 rounded-full border px-3 text-xs font-bold transition-all ${showCanvas ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-slate-100 text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}
                   >
                     <Sparkles className="h-4 w-4" />
                     {showCanvas ? u('Hide draft panel', 'Hide draft panel') : u('Draft panel', 'Draft panel')}
+                    <span className="absolute -top-2 -right-2 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-primary px-1 text-[10px] font-black text-white dark:border-slate-950">
+                      {collectedFieldCount}
+                    </span>
                   </button>}
                   </div>
                 )}
               />
               <AnimatePresence initial={false}>
                 {showCanvas && (
-                  <motion.div key="load-canvas" className="h-[42%] min-h-0 shrink-0 lg:h-full" initial={{ opacity: 0, x: 24, width: 0 }} animate={{ opacity: 1, x: 0, width: 'auto' }} exit={{ opacity: 0, x: 24, width: 0 }} transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}>
+                  <motion.div key="load-canvas" className="h-[42%] min-h-0 min-w-0 flex-1 lg:h-full" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 24 }} transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}>
                     <LenaLoadCanvas
                       lang={lang}
                       mode={canvasMode}

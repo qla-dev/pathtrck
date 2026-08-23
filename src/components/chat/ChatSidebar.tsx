@@ -12,6 +12,7 @@ type ChannelTab = {
 
 type ChatSidebarProps = {
   searchPlaceholder: string;
+  compactSearchPlaceholder?: string;
   channels: ChannelTab[];
   channelFilter: string;
   onChannelFilterChange: (filter: string) => void;
@@ -27,10 +28,15 @@ type ChatSidebarProps = {
   onDeleteConversation?: (id: string) => void;
   deleteConversationLabel?: string;
   cancelLabel?: string;
+  // Shrinks to a narrow fixed-width rail instead of disappearing, so the conversation list
+  // stays reachable while the draft panel is open. Search stays; channel filters drop their
+  // labels down to icon-only; each row keeps its subtitle/timestamp and just crops harder.
+  compact?: boolean;
 };
 
 export const ChatSidebar = ({
   searchPlaceholder,
+  compactSearchPlaceholder = 'Search',
   channels,
   channelFilter,
   onChannelFilterChange,
@@ -46,6 +52,7 @@ export const ChatSidebar = ({
   onDeleteConversation,
   deleteConversationLabel = 'Delete conversation',
   cancelLabel = 'Cancel',
+  compact = false,
 }: ChatSidebarProps) => {
   const [contextMenu, setContextMenu] = useState<{ id: string; x: number; y: number } | null>(null);
 
@@ -85,11 +92,11 @@ export const ChatSidebar = ({
 
   return (
   <>
-  <div className="lg:col-span-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 flex flex-col h-full min-h-0">
+  <div className={cn('shrink-0 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 flex flex-col h-full min-h-0', compact ? 'w-full lg:w-40' : 'w-full lg:w-80')}>
     <div className="relative mb-3">
       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
       <input
-        placeholder={searchPlaceholder}
+        placeholder={compact ? compactSearchPlaceholder : searchPlaceholder}
         className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none"
       />
     </div>
@@ -101,6 +108,7 @@ export const ChatSidebar = ({
           <button
             key={ch.id}
             onClick={() => onChannelFilterChange(ch.id)}
+            title={compact ? ch.label : undefined}
             className={cn(
               'flex h-8 items-center justify-center gap-1 rounded-lg px-1.5 text-[10px] font-bold cursor-pointer transition-all',
               channelFilter === ch.id
@@ -109,7 +117,7 @@ export const ChatSidebar = ({
             )}
           >
             <Icon className="h-3 w-3 shrink-0" />
-            <span className="truncate">{ch.label}</span>
+            {!compact && <span className="truncate">{ch.label}</span>}
           </button>
         );
       })}
@@ -147,7 +155,8 @@ export const ChatSidebar = ({
             setContextMenu({ id: chat.id, x: event.clientX, y: event.clientY });
           }}
           className={cn(
-            'w-full rounded-xl border p-2.5 text-left transition-all cursor-pointer',
+            'w-full rounded-xl border text-left transition-all cursor-pointer',
+            compact ? 'p-2' : 'p-2.5',
             activeConversationId === chat.id
               ? 'border-primary bg-primary/5'
               : 'border-slate-100 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
@@ -155,7 +164,7 @@ export const ChatSidebar = ({
         >
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <p className="truncate text-sm font-bold dark:text-white">{chat.name}</p>
+              <p className={cn('truncate font-bold dark:text-white', compact ? 'text-xs' : 'text-sm')}>{chat.name}</p>
               {!chat.isAiDispatch && <p className="truncate text-[10px] text-slate-500">{chat.role}</p>}
             </div>
             <p className="shrink-0 text-[9px] text-slate-400">{chat.lastTime}</p>

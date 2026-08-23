@@ -3,7 +3,6 @@ import { Bot, LayoutGrid, MessageCircle, Plus, Sparkles } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Language } from '../../types';
 import { ui } from '../../i18n';
-import { cn } from '../../lib/cn';
 import { confirmAction, showError } from '../../lib/swal';
 import { ChatConversationPanel } from '../chat/ChatConversationPanel';
 import { ChatSidebar } from '../chat/ChatSidebar';
@@ -14,7 +13,7 @@ import { mapLoadStatus } from '../../lib/loadDetails';
 import { trPackageStatus } from '../../i18n';
 import { useLenaEmbeddedMessages } from '../lena/useLenaEmbeddedMessages';
 import { LenaLoadCanvas } from '../lena/LenaLoadCanvas';
-import { ScanFieldPatch } from '../modals/scanFieldRows';
+import { buildScanFieldRows, ScanFieldPatch } from '../modals/scanFieldRows';
 import { analyzeLenaAttachment, latestLoadScan, LenaAttachment } from '../../lib/lenaLoadCanvas';
 import { LENA_AI_GENERAL_SUBJECT, LenaQuickAction, lenaConversationSubjectTitle, lenaQuickActionFromMessage, lenaQuickActionMarker } from '../../lib/useLenaAiChat';
 
@@ -188,6 +187,10 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     () => activeConversation.messages.flatMap((message) => message.attachments || []),
     [activeConversation.messages]
   );
+  const collectedFieldCount = useMemo(() => {
+    const scan = latestLoadScan(canvasAttachments);
+    return scan ? buildScanFieldRows(scan).length : 0;
+  }, [canvasAttachments]);
 
   const { displayMessages, renderMessageExtra, extraContentVersion } = useLenaEmbeddedMessages({
     messages: activeConversation.messages,
@@ -390,31 +393,31 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
 
   return (
     <div className="h-full">
-      <div className="h-full grid lg:grid-cols-12 gap-4">
-        {!showCanvas && (
-          <ChatSidebar
-            searchPlaceholder={u('Search messages...', 'Search messages...')}
-            channels={channels}
-            channelFilter={channelFilter}
-            onChannelFilterChange={(id) => setChannelFilter(id as 'all' | 'ai' | 'direct')}
-            conversations={filteredConversations}
-            activeConversationId={activeConversation.id}
-            onSelectConversation={setActiveId}
-            emptyStateTitle={u('No conversations yet', 'No conversations yet')}
-            emptyStateDescription={u(
-              'To start a new conversation, start a chat with LenaAI',
-              'To start a new conversation, start a chat with LenaAI'
-            )}
-            emptyStateActionLabel={u('New chat', 'New chat')}
-            onEmptyStateAction={() => void handleNewConversation()}
-            emptyStateActionDisabled={!user || creatingNewConversation}
-            onDeleteConversation={(id) => void handleDeleteConversation(id)}
-            deleteConversationLabel={u('Delete conversation', 'Delete conversation')}
-            cancelLabel={u('Cancel', 'Cancel')}
-          />
-        )}
+      <div className="h-full flex flex-col gap-4 lg:flex-row">
+        <ChatSidebar
+          compact={showCanvas}
+          searchPlaceholder={u('Search messages...', 'Search messages...')}
+          compactSearchPlaceholder={u('Search', 'Search')}
+          channels={channels}
+          channelFilter={channelFilter}
+          onChannelFilterChange={(id) => setChannelFilter(id as 'all' | 'ai' | 'direct')}
+          conversations={filteredConversations}
+          activeConversationId={activeConversation.id}
+          onSelectConversation={setActiveId}
+          emptyStateTitle={u('No conversations yet', 'No conversations yet')}
+          emptyStateDescription={u(
+            'To start a new conversation, start a chat with LenaAI',
+            'To start a new conversation, start a chat with LenaAI'
+          )}
+          emptyStateActionLabel={u('New chat', 'New chat')}
+          onEmptyStateAction={() => void handleNewConversation()}
+          emptyStateActionDisabled={!user || creatingNewConversation}
+          onDeleteConversation={(id) => void handleDeleteConversation(id)}
+          deleteConversationLabel={u('Delete conversation', 'Delete conversation')}
+          cancelLabel={u('Cancel', 'Cancel')}
+        />
 
-        <div className={cn('flex min-h-0 gap-4', showCanvas ? 'lg:col-span-12' : 'lg:col-span-8')}>
+        <div className="flex min-h-0 flex-1 gap-4">
           <ChatConversationPanel
             activeConversation={displayConversation}
             draft={draft}
@@ -423,7 +426,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
             onAttachFile={attachFile}
             attachmentBusy={processingAttachment}
             messagePlaceholder={u('Write a message...', 'Write a message...')}
-            className="flex-1 min-h-0"
+            className="min-h-0 min-w-0 flex-1"
             otherTyping={aiReplying}
             thinkingLabel={u('Thinking', 'Thinking')}
             notSentMessageLabel={u('chat.notSent', 'Not sent')}
@@ -448,10 +451,13 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
                   <button
                     type="button"
                     onClick={handlePrepareLoad}
-                    className={`flex h-9 items-center gap-2 rounded-full border px-3 text-xs font-bold transition-all cursor-pointer ${showCanvas ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-slate-100 text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}
+                    className={`relative flex h-9 items-center gap-2 rounded-full border px-3 text-xs font-bold transition-all cursor-pointer ${showCanvas ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-slate-100 text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}
                   >
                     <Sparkles className="h-4 w-4" />
                     {showCanvas ? u('Hide draft panel', 'Hide draft panel') : u('Draft panel', 'Draft panel')}
+                    <span className="absolute -top-2 -right-2 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-primary px-1 text-[10px] font-black text-white dark:border-slate-900">
+                      {collectedFieldCount}
+                    </span>
                   </button>
                 )}
               </>
@@ -461,10 +467,10 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
             {showCanvas && (
               <motion.div
                 key="load-canvas"
-                className="hidden h-full shrink-0 md:block"
-                initial={{ opacity: 0, x: 24, width: 0 }}
-                animate={{ opacity: 1, x: 0, width: 'auto' }}
-                exit={{ opacity: 0, x: 24, width: 0 }}
+                className="hidden h-full min-w-0 flex-1 md:block"
+                initial={{ opacity: 0, x: 24 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 24 }}
                 transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
               >
                 <LenaLoadCanvas

@@ -95,7 +95,7 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftI
   };
 
   return (
-    <aside className="flex h-full min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white lg:w-[420px] dark:border-slate-800 dark:bg-slate-900">
+    <aside className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
       <div className="flex items-center justify-between gap-2 border-b border-slate-100 p-4 dark:border-slate-800">
         <div className="flex items-center gap-3">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
