@@ -329,6 +329,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
   const sendGuidedAnswer = async (step: string, value: string, displayText: string, retryId?: string) => {
     if (!userId || sending) return;
     const skip = value.startsWith('[[LENA_SKIP:');
+    setDraft('');
 
     const optimisticId = retryId || `optimistic-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const optimisticTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });

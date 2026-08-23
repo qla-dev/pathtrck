@@ -5809,8 +5809,13 @@ const UI_FROM_TRIPLET: Record<string, string> = {
   'setup.close': 'Close setup',
 };
 
+// Most TRIPLET_TRANSLATIONS entries key themselves by their own literal English text (e.g.
+// 'Safety Score': {...}), so using the key as the English value is correct for those. But a few
+// entries (e.g. 'Lena welcome general') use a short semantic key instead, with the real English
+// text only in their `en` field - defaulting to the key for those would silently overwrite the
+// correct English value with the raw key name. Prefer the explicit `en` field when present.
 for (const [englishValue, translations] of Object.entries(TRIPLET_TRANSLATIONS)) {
-  UI.en[englishValue] = englishValue;
+  UI.en[englishValue] = translations.en ?? englishValue;
   for (const localeKey of Object.keys(UI) as Locale[]) {
     if (localeKey === 'en') continue;
     const translated = translations[localeKey];

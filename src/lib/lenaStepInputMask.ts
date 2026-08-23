@@ -33,10 +33,25 @@ export const formatDimensionsInput = (value: string): string => {
   return formatted.join('x');
 };
 
+// "05" + a 3rd character -> auto-inserts "." after the day and month segments (2 digits each),
+// so typing "05122026" naturally becomes "05.12.2026" - a manually typed "." at any point already
+// closes that segment itself, so it is never double-inserted. Day/month are capped at 2 characters
+// and the year at 4, so there's no way to keep typing past the year into a runaway string.
+export const formatDateInput = (value: string): string => {
+  const cleaned = value.replace(/[^0-9.]/g, '');
+  const segments = cleaned.split('.').slice(0, 3).map((segment, index) => segment.slice(0, index === 2 ? 4 : 2));
+  const formatted = segments.map((segment, index) => {
+    const isLastSegment = index === segments.length - 1;
+    const canAutoClose = index < 2 && isLastSegment && /^\d{2}$/.test(segment);
+    return canAutoClose ? `${segment}.` : segment;
+  });
+  return formatted.join('.');
+};
+
 // These free-text steps are regex-constrained by the masks below, so a typed answer is already an
 // unambiguous value by the time it's submitted - sendMessage()'s callers route them through the
 // deterministic guided-answer endpoint (see LenaGuidedAnswerController) instead of the AI path.
-export const MASKABLE_GUIDED_STEPS = ['weight', 'pallets', 'dimensions', 'budget', 'declaredValue'];
+export const MASKABLE_GUIDED_STEPS = ['weight', 'pallets', 'dimensions', 'budget', 'declaredValue', 'pickupDate', 'deliveryDate'];
 
 type StepInputMaskConfig = { unit: (lang: Language) => string; format: (value: string) => string };
 
@@ -46,6 +61,8 @@ const STEP_INPUT_MASKS: Record<string, StepInputMaskConfig> = {
   dimensions: { unit: () => 'm', format: formatDimensionsInput },
   budget: { unit: () => '', format: decimalValue },
   declaredValue: { unit: () => '', format: decimalValue },
+  pickupDate: { unit: () => '', format: formatDateInput },
+  deliveryDate: { unit: () => '', format: formatDateInput },
 };
 
 export const lenaStepInputMask = (step: string | null | undefined, lang: Language): { unit?: string; format: (value: string) => string } | null => {

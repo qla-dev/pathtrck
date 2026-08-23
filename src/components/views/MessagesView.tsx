@@ -285,6 +285,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     const conversationId = targetConversationId || activeConversation.id;
     if (!conversationId || !user || messageSending || aiReplying) return;
     const skip = rawText.startsWith('[[LENA_SKIP:');
+    setDraft('');
 
     const optimisticId = retryId || `optimistic-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const optimisticTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });

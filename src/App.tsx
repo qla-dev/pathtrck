@@ -3969,7 +3969,7 @@ export default function App() {
         <div className="p-4 border-t border-slate-100 dark:border-slate-800">
           <button
             aria-label={!isSidebarOpen ? ui(lang, 'LenaAI', 'LenaAI') : undefined}
-            onClick={() => { setLenaCanvasMode(null); setLenaAiOpen(true); }}
+            onClick={() => setView('messages')}
             className="group relative w-full flex items-center justify-center gap-3 rounded-xl bg-primary p-3 text-white shadow-lg shadow-primary/20 transition-colors hover:bg-primary-dark cursor-pointer"
           >
             <Sparkles className="w-5 h-5 shrink-0" />
