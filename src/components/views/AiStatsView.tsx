@@ -51,6 +51,13 @@ const displayTokenTotal = (row: Record<string, unknown>, role?: Role): string =>
     ? LENA_ALPHA_DISPLAY_TOKENS
     : String(row.total_tokens ?? "—");
 
+// Superadmin sees "Super Admin" wherever the actual user is the master account, so nothing in
+// this screen reveals that a role above superadmin exists.
+const displayUserName = (rowUser: Record<string, unknown> | undefined, role?: Role): string => {
+  const name = String(rowUser?.name || rowUser?.username || "—");
+  return role !== "master" && name === "Master Admin" ? "Super Admin" : name;
+};
+
 const formatTime = (value: unknown) =>
   String(value || "").slice(0, 19).replace("T", " ") || "—";
 
@@ -218,9 +225,11 @@ const JsonPanel = ({ title, data }: { title: string; data: unknown }) => {
 
 const AiCallLogDetail = ({
   log,
+  role,
   onClose,
 }: {
   log: Record<string, unknown> | null;
+  role?: Role;
   onClose: () => void;
 }) => {
   if (!log) return null;
@@ -253,7 +262,7 @@ const AiCallLogDetail = ({
             <div className="space-y-2.5 overflow-y-auto lg:pr-4 lg:border-r lg:border-slate-200 lg:dark:border-slate-800">
               <p className="truncate text-xs"><span className="block font-black uppercase tracking-wider text-slate-400">Model</span><span className="font-bold text-slate-800 dark:text-slate-100">{String(log.model || "—")}</span></p>
               <p className="text-xs"><span className="block font-black uppercase tracking-wider text-slate-400">Conversation</span><span className="font-bold text-slate-800 dark:text-slate-100">{log.conversation_id ? `#${String(log.conversation_id)}` : "—"}</span></p>
-              <p className="truncate text-xs"><span className="block font-black uppercase tracking-wider text-slate-400">User</span><span className="font-bold text-slate-800 dark:text-slate-100">{String((log.user as Record<string, unknown> | undefined)?.name || (log.user as Record<string, unknown> | undefined)?.username || "—")}</span></p>
+              <p className="truncate text-xs"><span className="block font-black uppercase tracking-wider text-slate-400">User</span><span className="font-bold text-slate-800 dark:text-slate-100">{displayUserName(log.user as Record<string, unknown> | undefined, role)}</span></p>
               <p className="text-xs"><span className="block font-black uppercase tracking-wider text-slate-400">Duration</span><span className="font-bold text-slate-800 dark:text-slate-100">{log.duration_ms ? `${String(log.duration_ms)} ms` : "—"}</span></p>
               <p className="text-xs">
                 <span className="block font-black uppercase tracking-wider text-slate-400">Tokens (p/c/t)</span>
@@ -566,14 +575,10 @@ export const AiStatsView = ({ lang: _lang, role }: { lang: Language; role?: Role
       {
         key: "user",
         header: "User",
-        render: (row) => {
-          const rowUser = row.user as Record<string, unknown> | undefined;
-          return <span className="text-xs text-slate-500">{String(rowUser?.name || rowUser?.username || "—")}</span>;
-        },
-        exportValue: (row) => {
-          const rowUser = row.user as Record<string, unknown> | undefined;
-          return String(rowUser?.name || rowUser?.username || "");
-        },
+        render: (row) => (
+          <span className="text-xs text-slate-500">{displayUserName(row.user as Record<string, unknown> | undefined, role)}</span>
+        ),
+        exportValue: (row) => displayUserName(row.user as Record<string, unknown> | undefined, role),
       },
       {
         key: "tokens",
@@ -670,14 +675,10 @@ export const AiStatsView = ({ lang: _lang, role }: { lang: Language; role?: Role
       {
         key: "user",
         header: "User",
-        render: (row) => {
-          const rowUser = row.user as Record<string, unknown> | undefined;
-          return <span className="text-xs text-slate-500">{String(rowUser?.name || rowUser?.username || "—")}</span>;
-        },
-        exportValue: (row) => {
-          const rowUser = row.user as Record<string, unknown> | undefined;
-          return String(rowUser?.name || rowUser?.username || "");
-        },
+        render: (row) => (
+          <span className="text-xs text-slate-500">{displayUserName(row.user as Record<string, unknown> | undefined, role)}</span>
+        ),
+        exportValue: (row) => displayUserName(row.user as Record<string, unknown> | undefined, role),
       },
       {
         key: "calls",
@@ -926,7 +927,7 @@ export const AiStatsView = ({ lang: _lang, role }: { lang: Language; role?: Role
           )}
         </Card>
       </div>
-      <AiCallLogDetail log={selected} onClose={() => setSelected(null)} />
+      <AiCallLogDetail log={selected} role={role} onClose={() => setSelected(null)} />
       <ConversationCallsModal
         conversationId={openConversationId}
         columns={columns}
