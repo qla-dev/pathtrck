@@ -129,14 +129,14 @@ const QuestionnaireSuggestionPills = ({ group, lang, onSubmit, onSelectionChange
   if (!group.multiple) {
     return <div className="flex flex-wrap gap-2">{group.options.map((suggestion) => {
       const Icon = suggestion.icon;
-      return <button key={suggestion.value} type="button" onClick={() => onSubmit(suggestion.value, suggestion.label)} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-primary/20 bg-white px-3 py-1.5 text-xs font-bold text-primary shadow-sm transition-colors hover:border-primary hover:bg-primary hover:text-white dark:bg-slate-900"><Icon className="h-3.5 w-3.5" />{suggestion.label}</button>;
+      return <button key={`${suggestion.value}:${suggestion.label}`} type="button" onClick={() => onSubmit(suggestion.value, suggestion.label)} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-primary/20 bg-white px-3 py-1.5 text-xs font-bold text-primary shadow-sm transition-colors hover:border-primary hover:bg-primary hover:text-white dark:bg-slate-900"><Icon className="h-3.5 w-3.5" />{suggestion.label}</button>;
     })}</div>;
   }
   return <div><p className="mb-2 text-[11px] font-medium text-slate-500 dark:text-slate-400">{multipleHint}</p><div className="flex flex-wrap gap-2">{group.options.map((suggestion) => {
     const active = selected.includes(suggestion.value);
     const Icon = suggestion.icon;
-    if (suggestion.skip) return <button key={suggestion.value} type="button" onClick={() => onSubmit(suggestion.value, suggestion.label)} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-primary/20 bg-white px-3 py-1.5 text-xs font-bold text-primary shadow-sm transition-colors hover:border-primary hover:bg-primary hover:text-white dark:bg-slate-900"><Icon className="h-3.5 w-3.5" />{suggestion.label}</button>;
-    return <button key={suggestion.value} type="button" onClick={() => setSelected((current) => {
+    if (suggestion.skip) return <button key={`${suggestion.value}:${suggestion.label}`} type="button" onClick={() => onSubmit(suggestion.value, suggestion.label)} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-primary/20 bg-white px-3 py-1.5 text-xs font-bold text-primary shadow-sm transition-colors hover:border-primary hover:bg-primary hover:text-white dark:bg-slate-900"><Icon className="h-3.5 w-3.5" />{suggestion.label}</button>;
+    return <button key={`${suggestion.value}:${suggestion.label}`} type="button" onClick={() => setSelected((current) => {
       const next = active
         ? current.filter((value) => value !== suggestion.value)
         : suggestion.value === group.exclusiveValue
