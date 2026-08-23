@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import {
   AlertTriangle,
+  Calculator,
   CheckCircle2,
   Coins,
   Copy,
@@ -137,12 +138,85 @@ const AiCallLogDetail = ({
   );
 };
 
+const AvgCostBreakdown = ({
+  open,
+  onClose,
+  avgOverall,
+  avgText,
+  avgImage,
+  countOverall,
+  countText,
+  countImage,
+}: {
+  open: boolean;
+  onClose: () => void;
+  avgOverall: number;
+  avgText: number;
+  avgImage: number;
+  countOverall: number;
+  countText: number;
+  countImage: number;
+}) => {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-[220] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
+      <button
+        type="button"
+        className="absolute inset-0 cursor-pointer"
+        aria-label="Close"
+        onClick={onClose}
+      />
+      <div className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex items-start justify-between border-b border-slate-200 p-5 dark:border-slate-800">
+          <h2 className="text-lg font-black dark:text-white">Average cost per call</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="cursor-pointer rounded-xl bg-slate-100 p-2 text-slate-500 dark:bg-slate-800"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="space-y-3 p-5">
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-950">
+            <div>
+              <p className="text-sm font-bold text-slate-600 dark:text-slate-300">Overall</p>
+              <p className="text-[11px] text-slate-400">{countOverall} call{countOverall === 1 ? "" : "s"}</p>
+            </div>
+            <p className="text-lg font-black text-emerald-500">{formatCost(avgOverall)}</p>
+          </div>
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-950">
+            <div>
+              <p className="text-sm font-bold text-slate-600 dark:text-slate-300">Average (text only)</p>
+              <p className="text-[11px] text-slate-400">{countText} call{countText === 1 ? "" : "s"}</p>
+            </div>
+            <p className="text-lg font-black text-emerald-500">{formatCost(avgText)}</p>
+          </div>
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-950">
+            <div>
+              <p className="text-sm font-bold text-slate-600 dark:text-slate-300">Average (with image)</p>
+              <p className="text-[11px] text-slate-400">{countImage} call{countImage === 1 ? "" : "s"}</p>
+            </div>
+            <p className="text-lg font-black text-emerald-500">{formatCost(avgImage)}</p>
+          </div>
+          {(countImage > 0 && countImage < 5) && (
+            <p className="text-[11px] leading-relaxed text-slate-400">
+              Only {countImage} call{countImage === 1 ? "" : "s"} with an attachment logged so far - this average is not yet statistically reliable and will settle as more calls come in.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const AiStatsView = ({ lang: _lang }: { lang: Language }) => {
   const [tableRefreshKey] = useState(0);
   const [serviceFilter, setServiceFilter] = useState("");
   const [attachmentFilter, setAttachmentFilter] = useState<"" | "1" | "0">("");
   const [statusFilter, setStatusFilter] = useState<"" | "1" | "0">("");
   const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
+  const [showAvgModal, setShowAvgModal] = useState(false);
 
   // A separate, larger unfiltered fetch just for the summary cards, so the totals always reflect
   // everything logged (never hidden, per the "show $0/generic calls too" requirement) regardless
@@ -150,7 +224,16 @@ export const AiStatsView = ({ lang: _lang }: { lang: Language }) => {
   const stats = useApiList(api.aiCallLogs.list, { limit: 500 });
   const totalCost = stats.items.reduce((sum, row) => sum + Number(row.cost_usd || 0), 0);
   const totalTokens = stats.items.reduce((sum, row) => sum + Number(row.total_tokens || 0), 0);
-  const withAttachment = stats.items.filter((row) => row.has_attachment).length;
+  const withAttachmentRows = stats.items.filter((row) => row.has_attachment);
+  const textOnlyRows = stats.items.filter((row) => !row.has_attachment);
+  const withAttachment = withAttachmentRows.length;
+  const avgCostOverall = stats.items.length ? totalCost / stats.items.length : 0;
+  const avgCostText = textOnlyRows.length
+    ? textOnlyRows.reduce((sum, row) => sum + Number(row.cost_usd || 0), 0) / textOnlyRows.length
+    : 0;
+  const avgCostImage = withAttachmentRows.length
+    ? withAttachmentRows.reduce((sum, row) => sum + Number(row.cost_usd || 0), 0) / withAttachmentRows.length
+    : 0;
 
   const params = useMemo(
     () => ({
@@ -196,6 +279,18 @@ export const AiStatsView = ({ lang: _lang }: { lang: Language }) => {
           </span>
         ),
         exportValue: (row) => (row.conversation_id ? String(row.conversation_id) : ""),
+      },
+      {
+        key: "user",
+        header: "User",
+        render: (row) => {
+          const rowUser = row.user as Record<string, unknown> | undefined;
+          return <span className="text-xs text-slate-500">{String(rowUser?.name || rowUser?.username || "—")}</span>;
+        },
+        exportValue: (row) => {
+          const rowUser = row.user as Record<string, unknown> | undefined;
+          return String(rowUser?.name || rowUser?.username || "");
+        },
       },
       {
         key: "tokens",
@@ -244,7 +339,7 @@ export const AiStatsView = ({ lang: _lang }: { lang: Language }) => {
       {
         key: "actions",
         header: "Actions",
-        className: "text-right",
+        className: "w-px text-right whitespace-nowrap",
         exportable: false,
         render: (row) => (
           <button
@@ -276,7 +371,7 @@ export const AiStatsView = ({ lang: _lang }: { lang: Language }) => {
             </div>
           </div>
         </section>
-        <div className="grid gap-3 sm:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <Card className="shadow-none" contentClassName="flex items-center justify-between gap-3 px-5 py-3">
             <div>
               <p className="text-xs uppercase text-slate-500">Total cost</p>
@@ -313,6 +408,21 @@ export const AiStatsView = ({ lang: _lang }: { lang: Language }) => {
               <Paperclip className="h-6 w-6" />
             </div>
           </Card>
+          <button
+            type="button"
+            onClick={() => setShowAvgModal(true)}
+            className="cursor-pointer text-left"
+          >
+            <Card className="shadow-none transition-transform hover:scale-[1.02]" contentClassName="flex items-center justify-between gap-3 px-5 py-3">
+              <div>
+                <p className="text-xs uppercase text-slate-500">Avg cost / call</p>
+                <p className="mt-1 text-2xl font-black text-rose-500">{formatCost(avgCostOverall)}</p>
+              </div>
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-500">
+                <Calculator className="h-6 w-6" />
+              </div>
+            </Card>
+          </button>
         </div>
         <Card className="shadow-none">
           <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -357,6 +467,16 @@ export const AiStatsView = ({ lang: _lang }: { lang: Language }) => {
         </Card>
       </div>
       <AiCallLogDetail log={selected} onClose={() => setSelected(null)} />
+      <AvgCostBreakdown
+        open={showAvgModal}
+        onClose={() => setShowAvgModal(false)}
+        avgOverall={avgCostOverall}
+        avgText={avgCostText}
+        avgImage={avgCostImage}
+        countOverall={stats.items.length}
+        countText={textOnlyRows.length}
+        countImage={withAttachmentRows.length}
+      />
     </>
   );
 };
