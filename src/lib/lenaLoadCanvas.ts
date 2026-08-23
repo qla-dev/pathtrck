@@ -2,7 +2,7 @@ import * as XLSX from 'xlsx';
 import { api, BulkLoadRow, LoadScanResult } from '../services/api';
 import { ScanFieldPatch } from '../components/modals/scanFieldRows';
 
-export const LENA_LOAD_FILE_ACCEPT = 'image/*,application/pdf,.pdf,.xlsx,.xls,.csv,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+export const LENA_LOAD_FILE_ACCEPT = 'image/*,.heic,.heif,application/pdf,.pdf,.xlsx,.xls,.csv,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
 export type LenaCanvasMode = 'new_load' | 'bulk';
 
@@ -12,6 +12,9 @@ export type LenaAttachment = {
   size: number;
   loadScan?: LoadScanResult;
   bulkRows?: BulkLoadRow[];
+  // Where the original file actually lives in server storage (see MessageAttachmentController),
+  // used to build the click-to-open/download link. Undefined while the upload is still in flight.
+  path?: string;
 };
 
 const spreadsheetExtensions = ['.xlsx', '.xls', '.csv'];
@@ -22,10 +25,31 @@ export const isLenaSpreadsheet = (file: File) =>
   || file.type === 'application/vnd.ms-excel'
   || file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
-export const isSupportedLenaFile = (file: File) =>
-  file.type.startsWith('image/') || file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf') || isLenaSpreadsheet(file);
+// Extension fallback matters because some browsers/OSes (notably iPhone HEIC photos on Windows)
+// report an empty or unrecognized File.type, which would otherwise fail the MIME-only check below.
+const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic', '.heif', '.tif', '.tiff', '.svg'];
+// Subset a browser can actually decode and render inline (e.g. in a new tab) - HEIC/HEIF/TIFF
+// mostly still can't, even though they're images, so those are treated as downloads instead.
+const inlineViewableImageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'];
 
-const readAsDataUrl = (file: File): Promise<string> => new Promise((resolve, reject) => {
+export const isLenaImageName = (name: string, type = '') => {
+  const lowerName = name.toLowerCase();
+  return type.startsWith('image/') || imageExtensions.some((extension) => lowerName.endsWith(extension));
+};
+
+export const isInlineViewableLenaAttachment = (name: string, type = '') => {
+  if (type === 'application/pdf' || name.toLowerCase().endsWith('.pdf')) return true;
+  const lowerName = name.toLowerCase();
+  const looksLikeImage = type.startsWith('image/') || imageExtensions.some((extension) => lowerName.endsWith(extension));
+  if (!looksLikeImage) return false;
+  return inlineViewableImageExtensions.some((extension) => lowerName.endsWith(extension))
+    || (type.startsWith('image/') && !type.includes('heic') && !type.includes('heif') && !type.includes('tiff'));
+};
+
+export const isSupportedLenaFile = (file: File) =>
+  isLenaImageName(file.name, file.type) || file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf') || isLenaSpreadsheet(file);
+
+export const readAsDataUrl = (file: File): Promise<string> => new Promise((resolve, reject) => {
   const reader = new FileReader();
   reader.onload = () => resolve(String(reader.result || ''));
   reader.onerror = () => reject(reader.error || new Error('Could not read the file.'));
@@ -47,7 +71,7 @@ const spreadsheetToText = async (file: File): Promise<string> => {
   }).join('\n\n').trim();
 };
 
-export const analyzeLenaAttachment = async (file: File, mode: LenaCanvasMode, current?: LoadScanResult): Promise<LenaAttachment> => {
+export const analyzeLenaAttachment = async (file: File, mode: LenaCanvasMode, conversationId: number, current?: LoadScanResult): Promise<LenaAttachment> => {
   if (!isSupportedLenaFile(file)) {
     throw new Error('Use an Excel, CSV, image, or PDF file.');
   }
@@ -55,23 +79,29 @@ export const analyzeLenaAttachment = async (file: File, mode: LenaCanvasMode, cu
     throw new Error('The file is larger than 15 MB. Please use a smaller file.');
   }
 
-  const base = { name: file.name, type: file.type || 'application/octet-stream', size: file.size };
+  // Persist the actual file to server storage in parallel with the (much slower) AI extraction,
+  // so the click-to-open/download link is ready close to when the message itself finishes sending.
+  const uploadPromise = api.messageAttachments.upload(conversationId, file);
+  const withUpload = (extra: Partial<LenaAttachment>) => uploadPromise.then(({ data: uploaded }) => ({
+    name: uploaded.name, type: uploaded.type, size: uploaded.size, path: uploaded.path, ...extra,
+  }));
+
   if (isLenaSpreadsheet(file)) {
     const text = await spreadsheetToText(file);
     if (text.length < 8) throw new Error('This spreadsheet appears to be empty.');
     const response = await api.loads.scanBulkText(text);
-    return { ...base, bulkRows: response.data.rows };
+    return withUpload({ bulkRows: response.data.rows });
   }
 
   const dataUrl = await readAsDataUrl(file);
   const encoded = { base64: dataUrl.split(',')[1] || '', mimeType: file.type || (file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : undefined), filename: file.name };
   if (mode === 'bulk') {
     const response = await api.loads.scanBulk([encoded]);
-    return { ...base, bulkRows: response.data.rows };
+    return withUpload({ bulkRows: response.data.rows });
   }
 
   const response = await api.loads.scan([encoded], current);
-  return { ...base, loadScan: response.data };
+  return withUpload({ loadScan: response.data });
 };
 
 // The backend now returns the full accumulated draft on every scan (not just the fields the

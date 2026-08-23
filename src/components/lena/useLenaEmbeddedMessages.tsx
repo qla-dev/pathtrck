@@ -310,8 +310,12 @@ export const useLenaEmbeddedMessages = ({
     const loadReady = loadReadyMessageIds.has(message.id);
     if (!embeddedLoad && !locationLoad && !mapLoad && !statusLoad && (!hasBooking || !handleBook) && quickActions.length === 0 && !suggestedReplies && !locationChoice && !loadReady) return null;
 
+    // Messages that show a timestamp get its (invisible-until-hover, but still laid out) line as
+    // extra breathing room above this block for free; messages without one (e.g. the welcome
+    // message, which never carries a time) need a bigger top margin here to land at the same
+    // visual distance from the text instead of looking cramped.
     return (
-      <div className="mt-2 flex w-full max-w-xl flex-col gap-2">
+      <div className={`flex w-full max-w-xl flex-col gap-2 ${message.time ? 'mt-2' : 'mt-[27px]'}`}>
         {embeddedLoad && (
           <LenaLoadDetailsCard
             lang={lang}

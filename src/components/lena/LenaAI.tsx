@@ -186,11 +186,14 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
                 onAttachFile={attachFile}
                 attachmentAccept={LENA_LOAD_FILE_ACCEPT}
                 attachmentBusy={processingAttachment}
+                sendBusy={sending || processingAttachment}
                 attachmentDropLabel={u('Drop file for LenaAI', 'Drop file for LenaAI')}
                 notSentMessageLabel={u('chat.notSent', 'Not sent')}
                 retryMessageLabel={u('chat.retry', 'Retry')}
                 copyMessageLabel={u('chat.copy', 'Copy message')}
                 copiedMessageLabel={u('chat.copied', 'Copied')}
+                uploadingMessageLabel={u('Uploading...', 'Uploading...')}
+                attachmentOpenFailedLabel={u('The file could not be opened', 'The file could not be opened')}
                 headerActions={(
                   <div className="flex items-center gap-2">
                   <button

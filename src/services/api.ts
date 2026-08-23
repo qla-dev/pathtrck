@@ -195,6 +195,48 @@ const openDocument = async (path: string): Promise<void> => {
   }
 };
 
+// Chat attachment files require the Bearer token (they're not publicly reachable), so a plain
+// <a href> can't authenticate the request - fetch the bytes ourselves and hand the browser a blob:
+// URL instead, either in a freshly-opened tab (inline types) or via a synthetic download click.
+const fetchAttachmentBlob = async (path: string, name: string): Promise<Blob> => {
+  const headers = new Headers();
+  const token = getToken();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+
+  const response = await fetch(`${API_BASE_URL}/message-attachments/${path}?name=${encodeURIComponent(name)}`, {
+    credentials: 'omit', headers,
+  });
+  if (!response.ok) throw new ApiError(`The file could not be loaded (${response.status}).`, response.status);
+  return response.blob();
+};
+
+const openMessageAttachment = async (path: string, name: string, inline: boolean): Promise<void> => {
+  if (!inline) {
+    const blob = await fetchAttachmentBlob(path, name);
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+    return;
+  }
+
+  const popup = window.open('', '_blank');
+  if (!popup) throw new ApiError('Allow pop-ups to open this file.', 0);
+  popup.document.write('<!doctype html><title>Loading…</title><p style="font-family:sans-serif;padding:24px">Loading file…</p>');
+
+  try {
+    const blob = await fetchAttachmentBlob(path, name);
+    popup.location.href = URL.createObjectURL(blob);
+  } catch (error) {
+    popup.close();
+    throw error;
+  }
+};
+
 const queryString = (params: ListParams = {}) => {
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => { if (value !== undefined) query.set(key, String(value)); });
@@ -312,6 +354,18 @@ export const api = {
   conversations: resourceApi<Record<string, unknown>>('conversations'),
   messages: resourceApi<Record<string, unknown>>('messages'),
   loadDrafts: resourceApi<Record<string, unknown>>('load-drafts'),
+  messageAttachments: {
+    upload: async (conversationId: number, file: File) => {
+      const form = new FormData();
+      form.append('conversation_id', String(conversationId));
+      form.append('file', file);
+      return request<{ path: string; name: string; type: string; size: number }>('/message-attachments', {
+        method: 'POST',
+        body: form,
+      });
+    },
+    open: openMessageAttachment,
+  },
   dispatchChat: {
     reply: async (conversationId: number) => (await request<Record<string, unknown>>('/dispatch-chat', {
       method: 'POST',

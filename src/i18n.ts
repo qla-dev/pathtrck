@@ -5106,6 +5106,8 @@ const TRIPLET_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
     de: 'Dadurch werden die Unterhaltung und alle ihre Nachrichten dauerhaft gelöscht. Dies kann nicht rückgängig gemacht werden.'
   },
   'Delete': { bs: 'Izbriši', de: 'Löschen' },
+  'Uploading...': { bs: 'Slanje...', de: 'Wird hochgeladen...' },
+  'The file could not be opened': { bs: 'Datoteku nije moguće otvoriti', de: 'Die Datei konnte nicht geöffnet werden' },
   'This conversation could not be deleted': { bs: 'Razgovor nije moguće izbrisati', de: 'Diese Unterhaltung konnte nicht gelöscht werden' },
   'This starts a fresh conversation with LenaAI. Your current chat is kept and still visible in Messages.': {
     bs: 'Ovim započinjete novi razgovor s LenaAI. Trenutni razgovor ostaje sačuvan i dostupan u Porukama.',

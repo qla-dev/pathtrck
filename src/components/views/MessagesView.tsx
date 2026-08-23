@@ -14,7 +14,7 @@ import { trPackageStatus } from '../../i18n';
 import { useLenaEmbeddedMessages } from '../lena/useLenaEmbeddedMessages';
 import { LenaLoadCanvas } from '../lena/LenaLoadCanvas';
 import { buildScanFieldRows, ScanFieldPatch } from '../modals/scanFieldRows';
-import { analyzeLenaAttachment, latestLoadScan, LenaAttachment } from '../../lib/lenaLoadCanvas';
+import { analyzeLenaAttachment, latestLoadScan, LENA_LOAD_FILE_ACCEPT, LenaAttachment } from '../../lib/lenaLoadCanvas';
 import { LENA_AI_GENERAL_SUBJECT, LenaQuickAction, lenaConversationSubjectTitle, lenaQuickActionFromMessage, lenaQuickActionMarker } from '../../lib/useLenaAiChat';
 
 type MessagesViewProps = {
@@ -34,8 +34,11 @@ type OptimisticMessage = {
   conversationId: string;
   rawText: string;
   displayText: string;
-  status: 'sending' | 'failed';
+  status: 'sending' | 'failed' | 'uploading';
   time: string;
+  attachments?: LenaAttachment[];
+  // Kept so a failed attachment upload can retry with the exact same file, not just re-send text.
+  file?: File;
 };
 
 export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill, onBulkImported, refreshSignal }: MessagesViewProps) => {
@@ -161,10 +164,12 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
         sender: 'me' as const,
         text: message.displayText,
         time: message.time,
-        attachments: undefined,
-        deliveryStatus: message.status === 'failed' ? 'failed' as const : undefined,
+        attachments: message.attachments,
+        deliveryStatus: message.status === 'failed' ? 'failed' as const : message.status === 'uploading' ? 'uploading' as const : undefined,
         onRetry: message.status === 'failed'
-          ? () => void sendMessageValue(message.rawText, message.displayText, message.id, message.conversationId)
+          ? (message.file
+              ? () => void attachFileValue(message.file!, message.id)
+              : () => void sendMessageValue(message.rawText, message.displayText, message.id, message.conversationId))
           : undefined,
       }));
     return pending.length ? { ...base, messages: [...base.messages, ...pending] } : base;
@@ -267,17 +272,30 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
 
   const sendMessage = () => sendMessageValue(draft);
 
-  const attachFile = async (file: File) => {
+  async function attachFileValue(file: File, retryId?: string) {
     const conversationId = activeConversation.id;
     const isAiDispatch = Boolean(activeConversation.isAiDispatch);
-    if (!user || !conversationId || !isAiDispatch || messageSending || aiReplying || processingAttachment) return;
+    if (!user || !conversationId || !isAiDispatch || messageSending || aiReplying || (processingAttachment && !retryId)) return;
+
+    const optimisticId = retryId || `optimistic-attachment-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const optimisticTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    const body = activeConversation.canvas
+      ? `Attached ${file.name} to prepare a new load posting.`
+      : `Attached ${file.name}.`;
+
+    // The bubble shows immediately with just the file's local metadata, the same way a typed
+    // message shows optimistically before it's saved; the card becomes clickable once the real
+    // upload (see analyzeLenaAttachment) hands back a storage path.
+    const previewAttachment: LenaAttachment = { name: file.name, type: file.type || 'application/octet-stream', size: file.size };
+
+    setOptimisticMessages((messages) => retryId
+      ? messages.map((message) => message.id === retryId ? { ...message, status: 'uploading', time: optimisticTime } : message)
+      : [...messages, { id: optimisticId, conversationId, rawText: body, displayText: body, status: 'uploading', time: optimisticTime, attachments: [previewAttachment], file }]);
+
     setProcessingAttachment(true);
     setAiReplying(true);
     try {
-      const attachment = await analyzeLenaAttachment(file, 'new_load', latestLoadScan(canvasAttachments));
-      const body = activeConversation.canvas
-        ? `Attached ${file.name} to prepare a new load posting.`
-        : `Attached ${file.name}.`;
+      const attachment = await analyzeLenaAttachment(file, 'new_load', Number(conversationId), latestLoadScan(canvasAttachments));
       await api.messages.create({
         conversation_id: Number(conversationId),
         sender_user_id: user.id,
@@ -285,19 +303,36 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
         attachments: [attachment],
         sent_at: new Date().toISOString(),
       });
+    } catch (error) {
+      setOptimisticMessages((messages) => messages.map((message) => message.id === optimisticId ? { ...message, status: 'failed' } : message));
+      setProcessingAttachment(false);
+      setAiReplying(false);
+      return;
+    }
+
+    try {
       await result.refresh();
+    } catch {
+      // The attachment is already stored; a transient refresh failure must not mark it as unsent.
+    } finally {
+      setOptimisticMessages((messages) => messages.filter((message) => message.id !== optimisticId));
+    }
+
+    try {
       await api.dispatchChat.reply(Number(conversationId));
       await result.refresh();
     } catch (error) {
       void showError(
-        u('chat.sendFailed', 'The message could not be sent'),
+        u('chat.replyFailed', 'LenaAI could not reply'),
         error instanceof Error ? error.message : undefined
       );
     } finally {
       setProcessingAttachment(false);
       setAiReplying(false);
     }
-  };
+  }
+
+  const attachFile = (file: File) => attachFileValue(file);
 
   const handleNewConversation = async () => {
     if (!user || creatingNewConversation) return;
@@ -424,7 +459,9 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
             onDraftChange={setDraft}
             onSend={sendMessage}
             onAttachFile={attachFile}
+            attachmentAccept={LENA_LOAD_FILE_ACCEPT}
             attachmentBusy={processingAttachment}
+            sendBusy={messageSending || aiReplying || processingAttachment}
             messagePlaceholder={u('Write a message...', 'Write a message...')}
             className="min-h-0 min-w-0 flex-1"
             otherTyping={aiReplying}
@@ -433,6 +470,8 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
             retryMessageLabel={u('chat.retry', 'Retry')}
             copyMessageLabel={u('chat.copy', 'Copy message')}
             copiedMessageLabel={u('chat.copied', 'Copied')}
+            uploadingMessageLabel={u('Uploading...', 'Uploading...')}
+            attachmentOpenFailedLabel={u('The file could not be opened', 'The file could not be opened')}
             onTitleClick={activeConversation.loadId && onOpenLoad ? () => onOpenLoad(activeConversation.loadId!) : undefined}
             renderMessageExtra={renderMessageExtra}
             extraContentVersion={`${activeConversation.id}:${extraContentVersion}`}

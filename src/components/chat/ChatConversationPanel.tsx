@@ -1,12 +1,20 @@
-import { AlertCircle, Bot, Check, Copy, FileImage, FileSpreadsheet, FileText, Image as ImageIcon, Loader2, Mic, Paperclip, Phone, RefreshCw, Send, Video } from 'lucide-react';
+import { AlertCircle, Bot, Check, Copy, Image as ImageIcon, Loader2, Mic, Paperclip, Phone, RefreshCw, Send, Video } from 'lucide-react';
 import { useCallback, useLayoutEffect, useRef, useState, type DragEvent, type ReactNode } from 'react';
+import { defaultStyles, FileIcon } from 'react-file-icon';
 import { cn } from '../../lib/cn';
 import { ChatMessage, Conversation } from './types';
 import { TypewriterText } from './TypewriterText';
-import { formatAttachmentSize } from '../../lib/lenaLoadCanvas';
+import { formatAttachmentSize, isInlineViewableLenaAttachment } from '../../lib/lenaLoadCanvas';
+import { api } from '../../services/api';
+import { showError } from '../../lib/swal';
 import { motion } from 'motion/react';
 
 const URL_PATTERN = /(https?:\/\/[^\s]+)/g;
+
+// Renders a real per-format badge (PDF/XLSX/CSV/JPG/...) instead of a generic file glyph -
+// lucide-react has no such icons, so this reads the extension straight off the file name.
+const attachmentExtension = (name: string): string => name.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1] || '';
+const attachmentIconStyle = (extension: string) => (defaultStyles as Record<string, object>)[extension] || {};
 
 const renderMessageText = (text: string) =>
   text.split(URL_PATTERN).map((part, index) => {
@@ -43,10 +51,15 @@ type ChatConversationPanelProps = {
   attachmentAccept?: string;
   attachmentBusy?: boolean;
   attachmentDropLabel?: string;
+  // Covers both a text message in flight and an attachment upload/scan in flight, so the send
+  // button can't be double-clicked into firing a second request while the first is still pending.
+  sendBusy?: boolean;
   notSentMessageLabel?: string;
   retryMessageLabel?: string;
   copyMessageLabel?: string;
   copiedMessageLabel?: string;
+  uploadingMessageLabel?: string;
+  attachmentOpenFailedLabel?: string;
 };
 
 export const ChatConversationPanel = ({
@@ -67,11 +80,14 @@ export const ChatConversationPanel = ({
   onAttachFile,
   attachmentAccept,
   attachmentBusy = false,
+  sendBusy = false,
   attachmentDropLabel = 'Drop file for LenaAI',
   notSentMessageLabel = 'Not sent',
   retryMessageLabel = 'Retry',
   copyMessageLabel = 'Copy message',
   copiedMessageLabel = 'Copied',
+  uploadingMessageLabel = 'Uploading...',
+  attachmentOpenFailedLabel = 'The file could not be opened',
 }: ChatConversationPanelProps) => {
   const primaryActionButtonClass = 'h-9 rounded-lg bg-primary text-white flex items-center justify-center cursor-pointer transition-all hover:brightness-95';
   const messageListRef = useRef<HTMLDivElement>(null);
@@ -187,18 +203,18 @@ export const ChatConversationPanel = ({
         {attachmentDropLabel}
       </div>
     )}
-    <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-      {headerLeading ?? <div>
+    <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+      {headerLeading ?? <div className="min-w-0 flex-1">
         {onTitleClick ? (
           <button
             type="button"
             onClick={onTitleClick}
-            className="text-sm font-bold text-primary hover:underline cursor-pointer text-left"
+            className="block max-w-full truncate text-sm font-bold text-primary hover:underline cursor-pointer text-left"
           >
             {activeConversation.name}
           </button>
         ) : (
-          <p className="text-sm font-bold dark:text-white">{activeConversation.name}</p>
+          <p className="truncate text-sm font-bold dark:text-white">{activeConversation.name}</p>
         )}
         {activeConversation.meta && (
           <p className="text-[11px] text-slate-400 truncate">{activeConversation.meta}</p>
@@ -212,7 +228,7 @@ export const ChatConversationPanel = ({
           <p className="text-[11px] text-slate-500">{activeConversation.role}</p>
         )}
       </div>}
-      {headerActions ?? <div className="flex items-center gap-2">
+      {headerActions ?? <div className="flex shrink-0 items-center gap-2">
         {headerActionsLeading}
         <div className="flex items-center gap-1">
           {!activeConversation.isAiDispatch && (
@@ -245,7 +261,7 @@ export const ChatConversationPanel = ({
         const turnChanged = index > 0 && previousSender !== undefined && previousSender !== m.sender;
         return (
         <div key={m.id} className={cn('group relative', index > 0 && (turnChanged ? 'mt-14' : 'mt-3'), isAiAnswer ? 'w-full' : 'w-fit max-w-[min(85%,36rem)]', m.sender === 'me' ? 'ml-auto' : m.sender === 'system' ? 'mx-auto' : 'mr-auto')}>
-          {m.sender === 'other' && typingMessageId !== m.id && (
+          {m.sender === 'other' && typingMessageId !== m.id && !m.id.startsWith('welcome-') && (
             <button
               type="button"
               onClick={() => void copyMessage(m.id, m.text)}
@@ -270,7 +286,9 @@ export const ChatConversationPanel = ({
           >
             <p
               className={cn(
-                'whitespace-pre-wrap text-base',
+                // text-base's line-height leaves visible dead space above the glyphs themselves;
+                // this pulls the text back up to sit flush with the top of the bubble/row.
+                'whitespace-pre-wrap text-base -mt-[3px]',
                 m.sender === 'me'
                   ? 'text-right text-white'
                   : m.sender === 'system'
@@ -300,20 +318,55 @@ export const ChatConversationPanel = ({
                 {m.time}
               </p>
             )}
-            {m.attachments?.filter((attachment) => attachment.name !== 'LenaAI conversation').map((attachment, index) => {
-              const AttachmentIcon = attachment.type.includes('spreadsheet') || /\.(xlsx?|csv)$/i.test(attachment.name)
-                ? FileSpreadsheet
-                : attachment.type.startsWith('image/')
-                  ? FileImage
-                  : FileText;
-              return (
-                <div key={`${attachment.name}-${index}`} className={cn('mt-2 flex items-center gap-2 rounded-xl border px-2.5 py-2 text-left', m.sender === 'me' ? 'border-white/25 bg-white/10' : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800')}>
-                  <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', m.sender === 'me' ? 'bg-white/15 text-white' : 'bg-primary/10 text-primary')}><AttachmentIcon className="h-4 w-4" /></span>
-                  <span className="min-w-0"><span className="block max-w-52 truncate text-xs font-bold">{attachment.name}</span><span className={cn('block text-[10px]', m.sender === 'me' ? 'text-white/70' : 'text-slate-400')}>{attachment.type.split('/').at(-1)?.toUpperCase()} · {formatAttachmentSize(attachment.size)}</span></span>
-                </div>
-              );
-            })}
           </div>
+          {m.attachments?.filter((attachment) => attachment.name !== 'LenaAI conversation').map((attachment, index) => {
+            const extension = attachmentExtension(attachment.name);
+            const uploading = m.sender === 'me' && m.deliveryStatus === 'uploading';
+            const cardClassName = cn(
+              'relative mt-2 flex w-fit max-w-full items-center gap-2 overflow-hidden rounded-xl border px-2.5 py-2 text-left transition-colors',
+              'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900',
+              m.sender === 'me' ? 'ml-auto' : 'mr-auto',
+              attachment.path && 'cursor-pointer hover:border-primary/40 hover:bg-primary/5 dark:hover:bg-primary/10'
+            );
+            const cardContent = (
+              <>
+                <span className="w-5 shrink-0">
+                  <FileIcon extension={extension} {...attachmentIconStyle(extension)} />
+                </span>
+                <span className="min-w-0">
+                  <span className="block max-w-52 truncate text-xs font-bold text-slate-900 dark:text-white">{attachment.name}</span>
+                  <span className="block text-[10px] text-slate-400">{extension ? extension.toUpperCase() : attachment.type.split('/').at(-1)?.toUpperCase()} · {formatAttachmentSize(attachment.size)}</span>
+                </span>
+                {uploading && (
+                  <span
+                    role="progressbar"
+                    aria-label={uploadingMessageLabel}
+                    className="absolute inset-x-0 bottom-0 h-0.5 overflow-hidden bg-slate-100 dark:bg-slate-800"
+                  >
+                    <span className="absolute inset-y-0 w-1/3 animate-upload-progress rounded-full bg-primary" />
+                  </span>
+                )}
+              </>
+            );
+            return attachment.path ? (
+              <button
+                key={`${attachment.name}-${index}`}
+                type="button"
+                onClick={() => void api.messageAttachments.open(
+                  attachment.path!,
+                  attachment.name,
+                  isInlineViewableLenaAttachment(attachment.name, attachment.type)
+                ).catch((error) => void showError(attachmentOpenFailedLabel, error instanceof Error ? error.message : undefined))}
+                className={cardClassName}
+              >
+                {cardContent}
+              </button>
+            ) : (
+              <div key={`${attachment.name}-${index}`} className={cardClassName}>
+                {cardContent}
+              </div>
+            );
+          })}
           {m.time && m.sender === 'me' && (
             <p className="mt-1 text-right text-[10px] text-slate-400 opacity-0 transition-opacity group-hover:opacity-100">
               {m.time}
@@ -379,13 +432,13 @@ export const ChatConversationPanel = ({
         <input
           value={draft}
           onChange={(e) => onDraftChange(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && onSend()}
+          onKeyDown={(e) => e.key === 'Enter' && !sendBusy && onSend()}
           placeholder={messagePlaceholder}
           className="flex-1 h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 dark:text-white outline-none"
         />
         {!activeConversation.isAiDispatch && <button className="h-9 w-9 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 flex items-center justify-center cursor-pointer transition-all"><Mic className="w-4 h-4" /></button>}
-        <button onClick={onSend} className={cn(primaryActionButtonClass, 'w-9')}>
-          <Send className="w-4 h-4" />
+        <button type="button" onClick={onSend} disabled={sendBusy} className={cn(primaryActionButtonClass, 'w-9 disabled:cursor-not-allowed disabled:opacity-60')}>
+          {sendBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
         </button>
       </div>
     </div>
