@@ -253,7 +253,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, welc
       const builderInputActive = !latestGuidedAction || !['tracking', 'booking', 'hs', 'free'].includes(latestGuidedAction);
       if (desiredCanvas && builderInputActive && !guidedAction && text.length >= 1) {
         try {
-          const scan = await api.loads.scanText(text, latestLoadScan(canvasAttachments));
+          const scan = await api.loads.scanText(text, latestLoadScan(canvasAttachments), conversationId);
           attachments = [{ name: 'LenaAI conversation', type: 'text/plain', size: new Blob([text]).size, loadScan: scan.data }];
         } catch {
           // The normal conversation must still be sent if structured extraction is unavailable.

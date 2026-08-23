@@ -96,6 +96,7 @@ import { AdminOverviewView } from './components/views/AdminOverviewView';
 import { AdminCompaniesView } from './components/views/AdminCompaniesView';
 import { AdminCustomersView } from './components/views/AdminCustomersView';
 import { AdminDriversView } from './components/views/AdminDriversView';
+import { AiStatsView } from './components/views/AiStatsView';
 import { EmailStudioView } from './components/views/EmailStudioView';
 import { SetupProcess } from './components/auth/SetupProcess';
 import { LoginProcess } from './components/auth/LoginProcess';
@@ -3260,7 +3261,7 @@ const getDefaultViewForRole = (role: Exclude<Role, null>) =>
       ? 'company'
       : role === 'finance'
         ? 'finance'
-        : role === 'superadmin'
+        : role === 'superadmin' || role === 'master'
           ? 'admin'
           : 'tracking';
 
@@ -3544,14 +3545,18 @@ export default function App() {
   const t = translations[lang || 'en'];
   const currentLang = languages.find(l => l.id === (lang || 'en')) || languages[0];
   const analyticsLabel = u('common.analytics', 'Analytics');
+  // 'master' sits above 'superadmin' - identical permissions everywhere, plus exclusive access to
+  // the AI Stats screen (see the nav-items/view-render branches below). Kept as one flag so every
+  // site that used to gate on 'superadmin' alone stays in sync.
+  const isElevatedAdmin = role === 'superadmin' || role === 'master';
   const roleMeta = role === 'driver'
     ? { label: u('common.driverLicense', 'Driver License'), status: u('common.verified', 'Verified'), icon: Truck, tone: 'bg-primary/10 text-primary' }
     : role === 'company'
       ? { label: u('common.logisticsCompany', 'Logistics Company'), status: u('common.admin', 'Admin'), icon: Building2, tone: 'bg-violet-500/10 text-violet-600 dark:text-violet-400' }
       : role === 'finance'
         ? { label: u('common.financeAdministration', 'Finance & Administration'), status: u('common.restrictedAccess', 'Controlled Access'), icon: Banknote, tone: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' }
-        : role === 'superadmin'
-          ? { label: u('common.superadmin', 'Superadmin'), status: u('common.godMode', 'God Mode'), icon: Crown, tone: 'bg-rose-500/10 text-rose-600 dark:text-rose-400' }
+        : isElevatedAdmin
+          ? { label: role === 'master' ? u('common.master', 'Master') : u('common.superadmin', 'Superadmin'), status: u('common.godMode', 'God Mode'), icon: Crown, tone: 'bg-rose-500/10 text-rose-600 dark:text-rose-400' }
           : { label: u('common.customerLicense', 'Customer License'), status: u('common.active', 'Active'), icon: User, tone: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' };
   const RoleStatusIcon = roleMeta.icon;
   const getGoodsChipTone = (value: string) =>
@@ -3859,7 +3864,7 @@ export default function App() {
     },
   };
 
-  const navItems = role === 'superadmin'
+  const navItems = isElevatedAdmin
     ? [
         { id: 'admin', label: u('nav.commandCenter', 'Command Center'), icon: Crown },
         { id: 'admin-customers', label: u('nav.allCustomers', 'Customers'), icon: UserRound },
@@ -3874,6 +3879,8 @@ export default function App() {
         { id: 'notes', label: ui(lang, 'notes.navLabel', 'Notes'), icon: NotebookPen },
         { id: 'dashboard', label: analyticsLabel, icon: BarChart3 },
         { id: 'network', label: t.network, icon: Globe },
+        // Master-exclusive: superadmin gets everything else above but not this screen.
+        ...(role === 'master' ? [{ id: 'ai-stats', label: u('nav.aiStats', 'AI Stats'), icon: Sparkles }] : []),
         { id: 'settings', label: t.settings, icon: Settings },
       ]
     : role === 'finance'
@@ -3991,7 +3998,7 @@ export default function App() {
             </p>
           </div>
           <div className="flex items-center gap-4">
-            {role === 'user' || role === 'superadmin' ? (
+            {role === 'user' || isElevatedAdmin ? (
               <button
                 onClick={() => { setLenaLoadPrefill(null); setLenaSourceConversationId(null); setLenaSourceDraftId(null); setEditLoadId(null); setIsPostLoadOpen(true); }}
                 className="h-10 px-4 rounded-full bg-primary text-white inline-flex items-center gap-2 text-xs font-bold hover:scale-[1.02] transition-all cursor-pointer whitespace-nowrap"
@@ -4086,7 +4093,7 @@ export default function App() {
                   <p className="text-[10px] text-slate-500 uppercase tracking-wider">{roleMeta.label}</p>
                 </div>
                 <button
-                  onClick={() => setView(role === 'company' || role === 'finance' || role === 'superadmin' ? 'settings' : 'profile')}
+                  onClick={() => setView(role === 'company' || role === 'finance' || isElevatedAdmin ? 'settings' : 'profile')}
                   className="w-full flex items-center gap-3 p-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
                 >
                   <User className="w-4 h-4" />
@@ -4205,6 +4212,7 @@ export default function App() {
 	              {view === 'admin-customers' && <AdminCustomersView lang={lang} onOpenEmailStudio={() => setView('email-studio')} />}
 	              {view === 'admin-companies' && <AdminCompaniesView lang={lang} onOpenEmailStudio={() => setView('email-studio')} />}
 	              {view === 'admin-drivers' && <AdminDriversView lang={lang} />}
+	              {view === 'ai-stats' && role === 'master' && <AiStatsView lang={lang} />}
 	              {view === 'email-studio' && <EmailStudioView lang={lang} />}
 	              {view === 'company' && <CompanyWorkspaceView lang={lang} />}
 	              {view === 'company-team' && <CompanyTeamView lang={lang} />}

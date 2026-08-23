@@ -100,7 +100,7 @@ export const analyzeLenaAttachment = async (file: File, mode: LenaCanvasMode, co
     return withUpload({ bulkRows: response.data.rows });
   }
 
-  const response = await api.loads.scan([encoded], current);
+  const response = await api.loads.scan([encoded], current, conversationId);
   return withUpload({ loadScan: response.data });
 };
 

@@ -312,17 +312,17 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ company_id: options?.companyId, driver_user_id: options?.driverUserId }),
     }),
-    scan: (images: ScanImage[], current?: LoadScanResult) => request<LoadScanResult>('/load-scans', {
+    scan: (images: ScanImage[], current?: LoadScanResult, conversationId?: number) => request<LoadScanResult>('/load-scans', {
       method: 'POST',
-      body: JSON.stringify({ images, current }),
+      body: JSON.stringify({ images, current, conversation_id: conversationId }),
     }),
     scanBulk: (images: ScanImage[]) => request<BulkLoadScanResult>('/load-scans/bulk', {
       method: 'POST',
       body: JSON.stringify({ images }),
     }),
-    scanText: (description: string, current?: LoadScanResult) => request<LoadScanResult>('/load-scans/text', {
+    scanText: (description: string, current?: LoadScanResult, conversationId?: number) => request<LoadScanResult>('/load-scans/text', {
       method: 'POST',
-      body: JSON.stringify({ description, current }),
+      body: JSON.stringify({ description, current, conversation_id: conversationId }),
     }),
     scanBulkText: (text: string) => request<BulkLoadScanResult>('/load-scans/bulk/text', {
       method: 'POST',
@@ -354,6 +354,7 @@ export const api = {
   conversations: resourceApi<Record<string, unknown>>('conversations'),
   messages: resourceApi<Record<string, unknown>>('messages'),
   loadDrafts: resourceApi<Record<string, unknown>>('load-drafts'),
+  aiCallLogs: resourceApi<Record<string, unknown>>('ai-call-logs'),
   messageAttachments: {
     upload: async (conversationId: number, file: File) => {
       const form = new FormData();

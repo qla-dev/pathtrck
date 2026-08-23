@@ -233,7 +233,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
       let attachments: LenaAttachment[] | undefined;
       if (activeConversation.canvas && isAiDispatch && !lenaQuickActionFromMessage(text)) {
         try {
-          const scan = await api.loads.scanText(text, latestLoadScan(canvasAttachments));
+          const scan = await api.loads.scanText(text, latestLoadScan(canvasAttachments), Number(conversationId));
           attachments = [{ name: 'LenaAI conversation', type: 'text/plain', size: new Blob([text]).size, loadScan: scan.data }];
         } catch {
           // The normal conversation must still be sent if structured extraction is unavailable.
