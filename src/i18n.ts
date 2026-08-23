@@ -4920,7 +4920,7 @@ const VALUE_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
 
 const TRIPLET_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
   'LenaAI is thinking': { bs: 'LenaAI razmišlja', de: 'LenaAI denkt nach' },
-  'Thinking': { bs: 'LenaAI razmišlja', de: 'Denkt nach' },
+  'Thinking': { en: 'LenaAI is thinking', bs: 'LenaAI razmišlja', de: 'LenaAI denkt nach' },
   'LenaAI will collect your load details here as you chat': { bs: 'LenaAI će ovdje prikupiti detalje o teretu dok razgovarate', de: 'LenaAI sammelt hier Ihre Ladungsdetails während des Chats' },
   'Attach a file and LenaAI will extract your loads here': { bs: 'Priložite fajl i LenaAI će ovdje izdvojiti vaše terete', de: 'Fügen Sie eine Datei an und LenaAI extrahiert hier Ihre Ladungen' },
   'HS codes': { bs: 'HS kodovi', de: 'HS-Codes' },

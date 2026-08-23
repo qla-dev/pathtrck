@@ -29,6 +29,9 @@ type MessagesViewProps = {
   // overlay) may have added messages elsewhere - this view stays mounted while other overlays
   // are open on top of it, so it has no other way to know its data went stale in the background.
   refreshSignal?: number;
+  // Bumped by the parent's sidebar "LenaAI" button when the user clicks it while already on this
+  // view - there's nowhere else for that click to navigate to, so it starts a new chat instead.
+  newChatSignal?: number;
 };
 
 type OptimisticMessage = {
@@ -46,7 +49,7 @@ type OptimisticMessage = {
   step?: string;
 };
 
-export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill, onBulkImported, refreshSignal }: MessagesViewProps) => {
+export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill, onBulkImported, refreshSignal, newChatSignal }: MessagesViewProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const quickActionLabels = useMemo<Record<LenaQuickAction, string>>(() => ({
     add: u('Add a new load', 'Add a new load'),
@@ -432,6 +435,15 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
       setCreatingNewConversation(false);
     }
   };
+
+  const isInitialNewChatSignal = useRef(true);
+  useEffect(() => {
+    if (isInitialNewChatSignal.current) {
+      isInitialNewChatSignal.current = false;
+      return;
+    }
+    void handleNewConversation();
+  }, [newChatSignal]);
 
   const handleDeleteConversation = async (conversationId: string) => {
     const confirmed = await confirmAction({

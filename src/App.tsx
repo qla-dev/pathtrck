@@ -3296,6 +3296,9 @@ export default function App() {
   // underneath it the whole time) knows to refetch instead of showing whatever it had cached
   // before LenaAI possibly added messages elsewhere.
   const [messagesRefreshSignal, setMessagesRefreshSignal] = useState(0);
+  // Bumped when the sidebar "LenaAI" button is clicked while already on Messages - there's
+  // nowhere else for that click to navigate to, so it starts a new chat instead.
+  const [messagesNewChatSignal, setMessagesNewChatSignal] = useState(0);
   const [isDark, setIsDark] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => getInitialSidebarState());
   const [isPostLoadOpen, setIsPostLoadOpen] = useState(false);
@@ -3969,7 +3972,7 @@ export default function App() {
         <div className="p-4 border-t border-slate-100 dark:border-slate-800">
           <button
             aria-label={!isSidebarOpen ? ui(lang, 'LenaAI', 'LenaAI') : undefined}
-            onClick={() => setView('messages')}
+            onClick={() => { if (view === 'messages') setMessagesNewChatSignal((current) => current + 1); else setView('messages'); }}
             className="group relative w-full flex items-center justify-center gap-3 rounded-xl bg-primary p-3 text-white shadow-lg shadow-primary/20 transition-colors hover:bg-primary-dark cursor-pointer"
           >
             <Sparkles className="w-5 h-5 shrink-0" />
@@ -4218,6 +4221,7 @@ export default function App() {
 	                  }}
 	                  onBulkImported={() => setLoadRefreshKey((current) => current + 1)}
 	                  refreshSignal={messagesRefreshSignal}
+	                  newChatSignal={messagesNewChatSignal}
 	                />
 	              )}
 	              {view === 'map' && <MapView lang={lang} />}
