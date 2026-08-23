@@ -15,7 +15,7 @@ import { trPackageStatus } from '../../i18n';
 import { useLenaEmbeddedMessages } from '../lena/useLenaEmbeddedMessages';
 import { LenaLoadCanvas } from '../lena/LenaLoadCanvas';
 import { ScanFieldPatch } from '../modals/scanFieldRows';
-import { latestLoadScan, LenaAttachment } from '../../lib/lenaLoadCanvas';
+import { analyzeLenaAttachment, latestLoadScan, LenaAttachment } from '../../lib/lenaLoadCanvas';
 import { LENA_AI_GENERAL_SUBJECT, LenaQuickAction, lenaConversationSubjectTitle, lenaQuickActionFromMessage, lenaQuickActionMarker } from '../../lib/useLenaAiChat';
 
 type MessagesViewProps = {
@@ -121,6 +121,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
   const [aiReplying, setAiReplying] = useState(false);
   const [messageSending, setMessageSending] = useState(false);
   const [optimisticMessages, setOptimisticMessages] = useState<OptimisticMessage[]>([]);
+  const [processingAttachment, setProcessingAttachment] = useState(false);
   const [creatingNewConversation, setCreatingNewConversation] = useState(false);
   const [pendingNewConversation, setPendingNewConversation] = useState<Conversation | null>(null);
 
@@ -262,6 +263,39 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
   }
 
   const sendMessage = () => sendMessageValue(draft);
+
+  const attachFile = async (file: File) => {
+    const conversationId = activeConversation.id;
+    const isAiDispatch = Boolean(activeConversation.isAiDispatch);
+    if (!user || !conversationId || !isAiDispatch || messageSending || aiReplying || processingAttachment) return;
+    setProcessingAttachment(true);
+    setAiReplying(true);
+    try {
+      const attachment = await analyzeLenaAttachment(file, 'new_load', latestLoadScan(canvasAttachments));
+      const body = activeConversation.canvas
+        ? `Attached ${file.name} to prepare a new load posting.`
+        : `Attached ${file.name}.`;
+      await api.messages.create({
+        conversation_id: Number(conversationId),
+        sender_user_id: user.id,
+        body,
+        attachments: [attachment],
+        sent_at: new Date().toISOString(),
+      });
+      await result.refresh();
+      await api.dispatchChat.reply(Number(conversationId));
+      await result.refresh();
+    } catch (error) {
+      void showError(
+        u('chat.sendFailed', 'The message could not be sent'),
+        error instanceof Error ? error.message : undefined
+      );
+    } finally {
+      setProcessingAttachment(false);
+      setAiReplying(false);
+    }
+  };
+
   const handleNewConversation = async () => {
     if (!user || creatingNewConversation) return;
 
@@ -348,6 +382,8 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
             draft={draft}
             onDraftChange={setDraft}
             onSend={sendMessage}
+            onAttachFile={attachFile}
+            attachmentBusy={processingAttachment}
             messagePlaceholder={u('Write a message...', 'Write a message...')}
             className="flex-1 min-h-0"
             otherTyping={aiReplying}
