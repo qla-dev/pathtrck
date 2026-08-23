@@ -2,36 +2,54 @@ import { useEffect, useMemo, useRef, useState, type InputHTMLAttributes, type Mo
 import { AnimatePresence, motion } from 'motion/react';
 import Flatpickr from 'react-flatpickr';
 import {
+  Apple,
+  Boxes,
   Building2,
   CalendarDays,
+  Camera,
   CheckCircle2,
   Clock3,
   Coins,
+  Cpu,
+  Diamond,
+  Droplet,
   FileText,
+  FlaskConical,
+  Footprints,
+  Gem,
   Handshake,
+  Layers,
   Loader2,
   Map as MapGlyphIcon,
   MapPin,
   Package,
+  PawPrint,
+  Palette,
   Plane,
   PlaneLanding,
   Plus,
+  Recycle,
   Route,
   ArrowDownToLine,
   BadgeCheck,
   Landmark,
   Radar,
-  Search,
+  Scissors,
   ScanEye,
+  Shirt,
   ShieldAlert,
   ShieldCheck,
   Ship,
   Sparkles,
+  Sprout,
+  Sword,
   Tag,
   ThermometerSnowflake,
+  TreePine,
   Truck,
   UserRound,
   Warehouse,
+  Wrench,
   X,
   Zap,
   type LucideIcon,
@@ -281,6 +299,38 @@ const estimatedDrivingDistanceKm = (from: [number, number], to: [number, number]
   return Math.round(6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 1.18);
 };
 
+// The standard 21 WCO HS sections, in chapter order, each mapped to a representative icon so an
+// HS match's chapterCode ("01".."99") can be shown with a quick visual category cue.
+const HS_SECTION_ICONS: Array<{ toChapter: number; icon: LucideIcon }> = [
+  { toChapter: 5, icon: PawPrint }, // I: live animals, animal products
+  { toChapter: 14, icon: Sprout }, // II: vegetable products
+  { toChapter: 15, icon: Droplet }, // III: animal/vegetable fats and oils
+  { toChapter: 24, icon: Apple }, // IV: foodstuffs, beverages, tobacco
+  { toChapter: 27, icon: Gem }, // V: mineral products
+  { toChapter: 38, icon: FlaskConical }, // VI: chemicals
+  { toChapter: 40, icon: Recycle }, // VII: plastics and rubber
+  { toChapter: 43, icon: Scissors }, // VIII: hides, skins, leather, furskins
+  { toChapter: 46, icon: TreePine }, // IX: wood and articles of wood
+  { toChapter: 49, icon: FileText }, // X: pulp, paper
+  { toChapter: 63, icon: Shirt }, // XI: textiles
+  { toChapter: 67, icon: Footprints }, // XII: footwear, headgear
+  { toChapter: 70, icon: Layers }, // XIII: stone, plaster, ceramic, glass
+  { toChapter: 71, icon: Diamond }, // XIV: pearls, precious stones, jewelry
+  { toChapter: 83, icon: Wrench }, // XV: base metals
+  { toChapter: 85, icon: Cpu }, // XVI: machinery, electrical equipment
+  { toChapter: 89, icon: Truck }, // XVII: vehicles, aircraft, vessels
+  { toChapter: 92, icon: Camera }, // XVIII: optical, medical, instruments
+  { toChapter: 93, icon: Sword }, // XIX: arms and ammunition
+  { toChapter: 96, icon: Boxes }, // XX: miscellaneous manufactured articles
+  { toChapter: 99, icon: Palette }, // XXI: art, antiques
+];
+
+const hsSectionIcon = (chapterCode?: string): LucideIcon => {
+  const chapter = Number(chapterCode);
+  if (!Number.isFinite(chapter)) return Package;
+  return HS_SECTION_ICONS.find((section) => chapter <= section.toChapter)?.icon ?? Package;
+};
+
 const STEPS: Array<{ id: StepId; icon: typeof MapPin }> = [
   { id: 'cargo', icon: Package },
   { id: 'route', icon: MapPin },
@@ -288,6 +338,16 @@ const STEPS: Array<{ id: StepId; icon: typeof MapPin }> = [
   { id: 'contact', icon: UserRound },
   { id: 'review', icon: CheckCircle2 },
 ];
+
+// Which AI-refillable fields (the ones wrapped in fieldLabel(...) below) live under each step, so
+// the sidebar can show a per-step count instead of only the one global aiFieldCount badge.
+const STEP_AI_FIELDS: Record<StepId, Array<keyof ScanFieldPatch & keyof LoadDraft>> = {
+  route: ['pickupCountry', 'pickupCity', 'pickupDate', 'deliveryCountry', 'deliveryCity', 'deliveryDate'],
+  cargo: ['cargoTitle', 'lengthM', 'weightKg', 'widthM', 'heightM'],
+  terms: ['budget', 'freightCurrency', 'paymentDeferred', 'incoterm', 'notes', 'vehicleType', 'bodyTypes', 'temperatureControlled'],
+  contact: ['contactName', 'contactEmail', 'contactPhone'],
+  review: [],
+};
 
 const FieldLabel = ({
   children,
@@ -616,9 +676,10 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   const [scannedDocuments, setScannedDocuments] = useState<ScannedDocument[]>([]);
   const [viewingDocId, setViewingDocId] = useState<string | null>(null);
   const [aiFilledPatch, setAiFilledPatch] = useState<ScanFieldPatch>({});
-  const [hsQuery, setHsQuery] = useState('');
   const [hsSearching, setHsSearching] = useState(false);
   const [hsSuggestions, setHsSuggestions] = useState<HsCodeMatch[]>([]);
+  const hsSearchRef = useRef<HTMLDivElement>(null);
+  useOutsideClick(hsSearchRef, () => setHsSuggestions([]), hsSuggestions.length > 0);
   useEffect(() => {
     if (!isOpen) {
       setStep('cargo');
@@ -627,7 +688,6 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       setScannedDocuments([]);
       setViewingDocId(null);
       setAiFilledPatch({});
-      setHsQuery('');
       setHsSuggestions([]);
     }
   }, [isOpen]);
@@ -724,6 +784,13 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
 
   const isAiField = (key: keyof ScanFieldPatch) => aiFilledPatch[key] !== undefined;
 
+  const aiFieldCountByStep = useMemo(() => Object.fromEntries(
+    (Object.keys(STEP_AI_FIELDS) as StepId[]).map((id) => [
+      id,
+      STEP_AI_FIELDS[id].filter((key) => isAiField(key)).length,
+    ])
+  ) as Record<StepId, number>, [aiFilledPatch]);
+
   const reprefillField = async <K extends keyof ScanFieldPatch & keyof LoadDraft>(key: K) => {
     const aiValue = aiFilledPatch[key];
     if (aiValue === undefined) return;
@@ -783,7 +850,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   const canNavigateToStep = (_targetIndex: number) => true;
 
   const searchHsCatalog = async () => {
-    const query = hsQuery.trim() || draft.cargoTitle.trim() || draft.goodsType.trim();
+    const query = draft.cargoTitle.trim() || draft.goodsType.trim();
     if (query.length < 2 || hsSearching) return;
     setHsSearching(true);
     try {
@@ -796,10 +863,24 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     }
   };
 
+  // Vrsta robe (cargoTitle) and HS Kodovi are now the same field: whatever is typed there both
+  // stays the load title and drives a live HS catalog search, mirroring the debounce timing used
+  // for location suggestions elsewhere in the app (useLocationAutocomplete).
+  useEffect(() => {
+    if (draft.cargoTitle.trim().length < 2) return undefined;
+    const timer = window.setTimeout(() => void searchHsCatalog(), 350);
+    return () => window.clearTimeout(timer);
+  }, [draft.cargoTitle]);
+
   const addHsCode = (item: HsCodeMatch) => {
-    setDraft((current) => current.hsCodes.some((existing) => existing.code === item.code)
-      ? current
-      : { ...current, hsCodes: [...current.hsCodes, item] });
+    setDraft((current) => ({
+      ...current,
+      hsCodes: current.hsCodes.some((existing) => existing.code === item.code)
+        ? current.hsCodes
+        : [...current.hsCodes, item],
+      cargoTitle: '',
+    }));
+    setHsSuggestions([]);
   };
 
   const removeHsCode = (code: string) => {
@@ -826,7 +907,10 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         transport_type: draft.transportType,
         cargo_type: draft.cargoType,
         goods_type: draft.goodsType,
-        hs_codes: draft.hsCodes.map(({ code, description, confidence }) => ({ code, description, confidence })),
+        // Keep chapterCode/chapterName (and heading) alongside code/description/confidence so the
+        // category icon shown on a pill stays correct after the load is saved and reloaded for
+        // editing, instead of falling back to the generic icon once that context is stripped.
+        hs_codes: draft.hsCodes,
         weight_kg: toApiWeightKg(draft.weightKg),
         length_m: draft.lengthM ? Number(draft.lengthM) : null,
         width_m: draft.widthM ? Number(draft.widthM) : null,
@@ -1176,10 +1260,19 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       >
                         {isDone ? <CheckCircle2 className="w-5 h-5" /> : <Icon className="w-5 h-5" />}
                       </div>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="text-sm font-bold dark:text-white">{title}</p>
                         <p className="text-xs text-slate-500 mt-1 line-clamp-2">{subtitle}</p>
                       </div>
+                      {aiFieldCountByStep[item.id] > 0 && (
+                        <div
+                          title={u('postLoadModal.aiFilledCount', 'fields from AI')}
+                          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[11px] font-bold text-primary"
+                        >
+                          <Sparkles className="h-3 w-3" />
+                          {aiFieldCountByStep[item.id]}
+                        </div>
+                      )}
                     </div>
                   </button>
                 );
@@ -1503,56 +1596,56 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
 
                     <div className="space-y-4 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
                       <div className="space-y-1.5">
-                        {fieldLabel('cargoTitle', 'postLoadModal.cargoName', 'Type of goods')}
-                        <Input
-                          value={draft.cargoTitle}
-                          onChange={(e) => setField('cargoTitle', e.target.value)}
-                          placeholder={u('postLoadModal.cargoNamePlaceholder', 'Electronics pallets / FMCG / temperature goods')}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <FieldLabel>{u('HS codes', 'HS codes')}</FieldLabel>
-                        <div className="flex gap-2">
-                          <Input
-                            value={hsQuery}
-                            onChange={(event) => setHsQuery(event.target.value)}
-                            onKeyDown={(event) => {
-                              if (event.key === 'Enter') {
-                                event.preventDefault();
-                                void searchHsCatalog();
-                              }
-                            }}
-                            placeholder={u('Search by product, material or HS code', 'Search by product, material or HS code')}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => void searchHsCatalog()}
-                            disabled={hsSearching}
-                            className="inline-flex h-11 shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-white disabled:cursor-wait disabled:opacity-60"
-                          >
-                            {hsSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                            {u('Search', 'Search')}
-                          </button>
+                        {fieldLabel('cargoTitle', 'postLoadModal.cargoName', 'Type of goods and HS codes')}
+                        <div ref={hsSearchRef} className="relative">
+                          <div className="flex w-full flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 focus-within:ring-2 focus-within:ring-primary dark:border-slate-800 dark:bg-slate-950">
+                            {draft.hsCodes.map((item) => {
+                              const SectionIcon = hsSectionIcon(item.chapterCode);
+                              const category = item.headingName || item.chapterName;
+                              return (
+                                <span key={item.code} className="inline-flex max-w-[240px] shrink-0 items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">
+                                  <SectionIcon className="h-3.5 w-3.5 shrink-0" />
+                                  <span className="truncate">
+                                    {item.code}
+                                    {category && <span className="font-normal opacity-75"> · {category}</span>}
+                                  </span>
+                                  <button type="button" onClick={() => removeHsCode(item.code)} title={u('Remove HS code', 'Remove HS code')} className="shrink-0 cursor-pointer">
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </span>
+                              );
+                            })}
+                            <input
+                              value={draft.cargoTitle}
+                              onChange={(e) => setField('cargoTitle', e.target.value)}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                  event.preventDefault();
+                                  void searchHsCatalog();
+                                } else if (event.key === 'Backspace' && draft.cargoTitle === '' && draft.hsCodes.length > 0) {
+                                  removeHsCode(draft.hsCodes[draft.hsCodes.length - 1].code);
+                                }
+                              }}
+                              placeholder={draft.hsCodes.length > 0 ? '' : u('postLoadModal.cargoNamePlaceholder', 'Search by goods category, name or HS code')}
+                              className="min-w-[140px] flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400 dark:text-white"
+                            />
+                            {hsSearching && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />}
+                          </div>
+                          {hsSuggestions.length > 0 && (
+                            <div className="absolute z-10 mt-1 max-h-44 w-full space-y-1 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-lg dark:border-slate-700 dark:bg-slate-900">
+                              {hsSuggestions.map((item) => {
+                                const SectionIcon = hsSectionIcon(item.chapterCode);
+                                return (
+                                  <button key={item.code} type="button" onClick={() => addHsCode(item)} className="flex w-full cursor-pointer items-start gap-3 rounded-lg px-3 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-800">
+                                    <SectionIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                                    <span className="shrink-0 font-mono text-xs font-black text-primary">{item.code}</span>
+                                    <span className="text-xs leading-5 text-slate-600 dark:text-slate-300">{item.description}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
-                        {draft.hsCodes.length > 0 && (
-                          <div className="flex flex-wrap gap-2">
-                            {draft.hsCodes.map((item) => (
-                              <button key={item.code} type="button" onClick={() => removeHsCode(item.code)} title={u('Remove HS code', 'Remove HS code')} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary">
-                                {item.code}<X className="h-3 w-3" />
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                        {hsSuggestions.length > 0 && (
-                          <div className="max-h-44 space-y-1 overflow-y-auto rounded-xl border border-slate-200 p-1 dark:border-slate-700">
-                            {hsSuggestions.map((item) => (
-                              <button key={item.code} type="button" onClick={() => addHsCode(item)} className="flex w-full cursor-pointer items-start gap-3 rounded-lg px-3 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-800">
-                                <span className="shrink-0 font-mono text-xs font-black text-primary">{item.code}</span>
-                                <span className="text-xs leading-5 text-slate-600 dark:text-slate-300">{item.description}</span>
-                              </button>
-                            ))}
-                          </div>
-                        )}
                       </div>
                       <div className="grid sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
