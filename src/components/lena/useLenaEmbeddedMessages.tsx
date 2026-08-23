@@ -357,7 +357,6 @@ export const useLenaEmbeddedMessages = ({
             })}
           </div>
         )}
-        {suggestedReplies && onStepAnswer && <QuestionnaireSuggestionPills group={suggestedReplies.group} lang={lang} onSubmit={(value, displayText) => onStepAnswer(suggestedReplies.step, value, displayText ?? value)} onSelectionChange={onSuggestedDraftChange} />}
         {locationChoice && onSuggestedReply && (
           <LenaLocationChoiceCard
             lang={lang}
@@ -374,6 +373,7 @@ export const useLenaEmbeddedMessages = ({
             }}
           />
         )}
+        {suggestedReplies && onStepAnswer && <QuestionnaireSuggestionPills group={suggestedReplies.group} lang={lang} onSubmit={(value, displayText) => onStepAnswer(suggestedReplies.step, value, displayText ?? value)} onSelectionChange={onSuggestedDraftChange} />}
         {loadReady && (
           <button type="button" onClick={onLoadReady} className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-left transition-colors hover:border-emerald-400 dark:border-emerald-900/70 dark:bg-emerald-950/30">
             <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-500" /><span><span className="block text-xs font-black text-emerald-800 dark:text-emerald-300">{lang === 'bs' ? 'Teret je spreman za objavu' : lang === 'de' ? 'Ladung ist zur Veröffentlichung bereit' : 'Load is ready to post'}</span><span className="block text-[11px] text-emerald-700 dark:text-emerald-400">{lang === 'bs' ? 'Otvori pregled i objavi teret.' : lang === 'de' ? 'Öffnen Sie die Prüfung und veröffentlichen Sie die Ladung.' : 'Open the review and post the load.'}</span></span></span>

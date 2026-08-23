@@ -84,7 +84,10 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
     if (loadId) return items;
     return items
       .filter((item) => !item.load_id && String(item.subject || '').startsWith(AI_DISPATCH_SUBJECT_PREFIX))
-      .sort((a, b) => Number(b.id) - Number(a.id));
+      .sort((a, b) => {
+        const byLastMessage = Date.parse(String(b.last_message_at || '')) - Date.parse(String(a.last_message_at || ''));
+        return Number.isNaN(byLastMessage) ? Number(b.id) - Number(a.id) : byLastMessage;
+      });
   }, [result.items, loadId]);
 
   const row = useMemo(() => {
