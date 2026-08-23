@@ -5,8 +5,10 @@ import { AI_DISPATCH_SUBJECT_PREFIX, api } from '../services/api';
 import { useApiList } from '../hooks/useApiList';
 import { showError } from './swal';
 import { analyzeLenaAttachment, latestLoadScan, LenaAttachment, LenaCanvasMode } from './lenaLoadCanvas';
+import { withMinDelay } from './timing';
 
 export const LENA_AI_GENERAL_SUBJECT = `${AI_DISPATCH_SUBJECT_PREFIX}General`;
+const LENA_STEP_MARKER_PATTERN = /\[\[LENA_STEP:([a-zA-Z]+)\]\]/;
 
 export type LenaQuickAction = 'add' | 'tracking' | 'booking' | 'hs' | 'free' | 'upload_yes' | 'upload_no' | 'start_add_yes' | 'start_add_no' | 'continue_add_yes' | 'continue_add_no';
 export const lenaQuickActionMarker = (action: LenaQuickAction) => `[[LENA_ACTION:${action}]]`;
@@ -149,6 +151,14 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
     () => conversation.messages.flatMap((message) => message.attachments || []),
     [conversation.messages]
   );
+  // Which questionnaire field a free-text answer is currently expected to fill - passed into the
+  // scan call so the AI extracts a bare value (e.g. "50") into that exact field instead of
+  // guessing it into a different one (see OpenRouterLoadScanner::STEP_FIELD_HINTS).
+  const pendingStep = useMemo(() => {
+    const lastMessage = conversation.messages.at(-1);
+    if (!lastMessage || lastMessage.sender !== 'other') return null;
+    return lastMessage.text.match(LENA_STEP_MARKER_PATTERN)?.[1] ?? null;
+  }, [conversation.messages]);
   const latestGuidedAction = useMemo(() => {
     const messages = row && Array.isArray(row.messages) ? row.messages as Array<Record<string, unknown>> : [];
     for (let index = messages.length - 1; index >= 0; index -= 1) {
@@ -260,7 +270,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
       const builderInputActive = !latestGuidedAction || !['tracking', 'booking', 'hs', 'free'].includes(latestGuidedAction);
       if (desiredCanvas && builderInputActive && !guidedAction && text.length >= 1) {
         try {
-          const scan = await api.loads.scanText(text, latestLoadScan(canvasAttachments), conversationId);
+          const scan = await api.loads.scanText(text, latestLoadScan(canvasAttachments), conversationId, pendingStep);
           attachments = [{ name: 'LenaAI conversation', type: 'text/plain', size: new Blob([text]).size, loadScan: scan.data }];
         } catch {
           // The normal conversation must still be sent if structured extraction is unavailable.
@@ -291,7 +301,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
     }
 
     try {
-      await api.dispatchChat.reply(conversationId);
+      await withMinDelay(api.dispatchChat.reply(conversationId));
       await result.refresh();
       setCanvasOverride(null);
     } catch (error) {
@@ -322,7 +332,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
     try {
       const conversationId = await ensureConversation(canvasEnabled);
       setOptimisticMessages((messages) => messages.map((message) => message.id === optimisticId ? { ...message, conversationId } : message));
-      await api.dispatchChat.answerStep(conversationId, step, skip ? null : value, displayText, skip, lang || 'en');
+      await withMinDelay(api.dispatchChat.answerStep(conversationId, step, skip ? null : value, displayText, skip, lang || 'en'));
       setSelectedConversationId(String(conversationId));
       setStartingNewChat(false);
       try {
@@ -394,7 +404,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
     }
 
     try {
-      await api.dispatchChat.reply(conversationId);
+      await withMinDelay(api.dispatchChat.reply(conversationId));
       await result.refresh();
       setCanvasOverride(null);
     } catch (error) {

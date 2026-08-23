@@ -9,6 +9,7 @@ import { ChatConversationPanel } from '../chat/ChatConversationPanel';
 import { ChatSidebar } from '../chat/ChatSidebar';
 import { useLenaAiChat } from '../../lib/useLenaAiChat';
 import { useLenaEmbeddedMessages } from './useLenaEmbeddedMessages';
+import { lenaStepInputMask } from '../../lib/lenaStepInputMask';
 import { LenaLoadCanvas } from './LenaLoadCanvas';
 import { LENA_LOAD_FILE_ACCEPT, LenaCanvasMode, latestLoadScan } from '../../lib/lenaLoadCanvas';
 import { buildScanFieldRows, ScanFieldPatch } from '../modals/scanFieldRows';
@@ -92,7 +93,7 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
     return scan ? buildScanFieldRows(scan).length : 0;
   }, [canvasAttachments]);
 
-  const { displayMessages, renderMessageExtra, extraContentVersion } = useLenaEmbeddedMessages({
+  const { displayMessages, renderMessageExtra, extraContentVersion, pendingStep } = useLenaEmbeddedMessages({
     messages: conversation.messages,
     lang,
     fallbackLoadId: loadId,
@@ -185,6 +186,7 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
                 thinkingLabel={u('Thinking', 'Thinking')}
                 renderMessageExtra={renderMessageExtra}
                 extraContentVersion={extraContentVersion}
+                inputMask={lenaStepInputMask(pendingStep, lang)}
                 onAttachFile={attachFile}
                 attachmentAccept={LENA_LOAD_FILE_ACCEPT}
                 attachmentBusy={processingAttachment}

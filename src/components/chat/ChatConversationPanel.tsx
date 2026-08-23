@@ -60,6 +60,9 @@ type ChatConversationPanelProps = {
   copiedMessageLabel?: string;
   uploadingMessageLabel?: string;
   attachmentOpenFailedLabel?: string;
+  // Drives an inline unit hint and live input formatting for the draft field, keyed to whatever
+  // structured questionnaire step LenaAI is currently waiting on (see lenaStepInputMask.ts).
+  inputMask?: { unit?: string; format: (value: string) => string } | null;
 };
 
 export const ChatConversationPanel = ({
@@ -88,6 +91,7 @@ export const ChatConversationPanel = ({
   copiedMessageLabel = 'Copied',
   uploadingMessageLabel = 'Uploading...',
   attachmentOpenFailedLabel = 'The file could not be opened',
+  inputMask = null,
 }: ChatConversationPanelProps) => {
   const primaryActionButtonClass = 'h-9 rounded-lg bg-primary text-white flex items-center justify-center cursor-pointer transition-all hover:brightness-95';
   const messageListRef = useRef<HTMLDivElement>(null);
@@ -429,13 +433,23 @@ export const ChatConversationPanel = ({
           {attachmentBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
         </button>
         {!activeConversation.isAiDispatch && <button className="h-9 w-9 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center cursor-pointer"><ImageIcon className="w-4 h-4" /></button>}
-        <input
-          value={draft}
-          onChange={(e) => onDraftChange(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && !sendBusy && onSend()}
-          placeholder={messagePlaceholder}
-          className="flex-1 h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 dark:text-white outline-none"
-        />
+        <div className="relative flex-1">
+          <input
+            value={draft}
+            onChange={(e) => onDraftChange(inputMask ? inputMask.format(e.target.value) : e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && !sendBusy && onSend()}
+            placeholder={messagePlaceholder}
+            className={cn(
+              'h-9 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 dark:text-white outline-none pl-3',
+              inputMask?.unit ? 'pr-10' : 'pr-3'
+            )}
+          />
+          {inputMask?.unit && (
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+              {inputMask.unit}
+            </span>
+          )}
+        </div>
         {!activeConversation.isAiDispatch && <button className="h-9 w-9 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 flex items-center justify-center cursor-pointer transition-all"><Mic className="w-4 h-4" /></button>}
         <button type="button" onClick={onSend} disabled={sendBusy} className={cn(primaryActionButtonClass, 'w-9 disabled:cursor-not-allowed disabled:opacity-60')}>
           {sendBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}

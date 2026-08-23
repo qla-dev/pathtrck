@@ -243,6 +243,14 @@ export const useLenaEmbeddedMessages = ({
       ? new Map([[latestMessage.id, { step, group: suggestions }]])
       : new Map<string, { step: string; group: SuggestedReplyGroup }>();
   }, [lang, messages]);
+  // The step LenaAI is currently waiting on, regardless of whether it has pills - drives the chat
+  // input's live formatting/unit hint (see lenaStepInputMask.ts) for free-text steps like weight
+  // or dimensions, not just the pill-driven ones above.
+  const pendingStep = useMemo(() => {
+    const latestMessage = messages.at(-1);
+    if (!latestMessage || latestMessage.sender !== 'other') return null;
+    return latestMessage.text.match(LENA_STEP_MARKER_PATTERN)?.[1] ?? null;
+  }, [messages]);
   const locationChoiceByMessage = useMemo(() => {
     const latestMessage = messages.at(-1);
     if (!latestMessage || latestMessage.sender !== 'other') return new Map<string, 'pickup' | 'delivery'>();
@@ -375,5 +383,5 @@ export const useLenaEmbeddedMessages = ({
 
   const extraContentVersion = `${embeddedLoadIds.join(',')}:${Object.keys(embeddedLoads).sort().join(',')}:${[...quickActionsByMessage.keys()].join(',')}:${[...questionnaireSuggestionsByMessage.keys()].join(',')}:${[...locationChoiceByMessage.keys()].join(',')}:${[...loadReadyMessageIds].join(',')}`;
 
-  return { displayMessages, renderMessageExtra, extraContentVersion };
+  return { displayMessages, renderMessageExtra, extraContentVersion, pendingStep };
 };

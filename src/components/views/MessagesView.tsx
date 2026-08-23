@@ -16,6 +16,8 @@ import { LenaLoadCanvas } from '../lena/LenaLoadCanvas';
 import { buildScanFieldRows, ScanFieldPatch } from '../modals/scanFieldRows';
 import { analyzeLenaAttachment, latestLoadScan, LENA_LOAD_FILE_ACCEPT, LenaAttachment } from '../../lib/lenaLoadCanvas';
 import { LENA_AI_GENERAL_SUBJECT, LenaQuickAction, lenaConversationSubjectTitle, lenaQuickActionFromMessage, lenaQuickActionMarker } from '../../lib/useLenaAiChat';
+import { withMinDelay } from '../../lib/timing';
+import { lenaStepInputMask } from '../../lib/lenaStepInputMask';
 
 type MessagesViewProps = {
   lang: Language;
@@ -202,7 +204,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     return scan ? buildScanFieldRows(scan).length : 0;
   }, [canvasAttachments]);
 
-  const { displayMessages, renderMessageExtra, extraContentVersion } = useLenaEmbeddedMessages({
+  const { displayMessages, renderMessageExtra, extraContentVersion, pendingStep } = useLenaEmbeddedMessages({
     messages: activeConversation.messages,
     lang,
     fallbackLoadId: activeConversation.loadId,
@@ -239,7 +241,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
       let attachments: LenaAttachment[] | undefined;
       if (activeConversation.canvas && isAiDispatch && !lenaQuickActionFromMessage(text)) {
         try {
-          const scan = await api.loads.scanText(text, latestLoadScan(canvasAttachments), Number(conversationId));
+          const scan = await api.loads.scanText(text, latestLoadScan(canvasAttachments), Number(conversationId), pendingStep);
           attachments = [{ name: 'LenaAI conversation', type: 'text/plain', size: new Blob([text]).size, loadScan: scan.data }];
         } catch {
           // The normal conversation must still be sent if structured extraction is unavailable.
@@ -263,7 +265,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
 
     if (isAiDispatch) {
       try {
-        await api.dispatchChat.reply(Number(conversationId));
+        await withMinDelay(api.dispatchChat.reply(Number(conversationId)));
         await result.refresh();
       } catch (error) {
         void showError(
@@ -292,7 +294,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     setMessageSending(true);
     setAiReplying(true);
     try {
-      await api.dispatchChat.answerStep(Number(conversationId), step, skip ? null : rawText, displayText, skip, lang || 'en');
+      await withMinDelay(api.dispatchChat.answerStep(Number(conversationId), step, skip ? null : rawText, displayText, skip, lang || 'en'));
       await result.refresh();
     } catch (error) {
       setOptimisticMessages((messages) => messages.map((message) => message.id === optimisticId ? { ...message, status: 'failed' } : message));
@@ -510,6 +512,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
             onTitleClick={activeConversation.loadId && onOpenLoad ? () => onOpenLoad(activeConversation.loadId!) : undefined}
             renderMessageExtra={renderMessageExtra}
             extraContentVersion={`${activeConversation.id}:${extraContentVersion}`}
+            inputMask={lenaStepInputMask(pendingStep, lang)}
             headerActionsLeading={(
               <>
                 <button

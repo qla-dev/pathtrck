@@ -34,6 +34,10 @@ type ServerDataTableProps<T extends Record<string, unknown>> = {
   pageSizes?: number[];
   rowKey?: (row: T) => string;
   emptyMessage?: string;
+  // Makes the whole row clickable (cursor-pointer + hover highlight), not just an actions-column
+  // button - clicks on an interactive element inside the row (a button, a link) don't bubble into
+  // this since those stop propagation themselves.
+  onRowClick?: (row: T, index: number) => void;
 };
 
 const csvCell = (value: unknown) =>
@@ -64,6 +68,7 @@ export const ServerDataTable = <T extends Record<string, unknown>>({
   pageSizes = [10, 25, 50, 100],
   rowKey = (row) => String(row.id),
   emptyMessage = "No results found.",
+  onRowClick,
 }: ServerDataTableProps<T>) => {
   const [rows, setRows] = useState<T[]>([]);
   const [page, setPage] = useState(1);
@@ -204,7 +209,7 @@ export const ServerDataTable = <T extends Record<string, unknown>>({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search..."
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-10 text-sm outline-none focus:ring-2 focus:ring-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-10 text-sm outline-none focus:ring-2 focus:ring-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white"
           />
           {query && (
             <button
@@ -326,7 +331,11 @@ export const ServerDataTable = <T extends Record<string, unknown>>({
             {rows.map((row, rowIndex) => (
               <tr
                 key={rowKey(row)}
-                className="border-b border-slate-100 dark:border-slate-800"
+                onClick={onRowClick ? () => onRowClick(row, (page - 1) * pageSize + rowIndex) : undefined}
+                className={cn(
+                  "border-b border-slate-100 dark:border-slate-800",
+                  onRowClick && "cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                )}
               >
                 {visibleColumns.map((column) => (
                   <td key={column.key} className={cn("p-3", column.className)}>

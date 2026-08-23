@@ -320,9 +320,9 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ images }),
     }),
-    scanText: (description: string, current?: LoadScanResult, conversationId?: number) => request<LoadScanResult>('/load-scans/text', {
+    scanText: (description: string, current?: LoadScanResult, conversationId?: number, pendingStep?: string | null) => request<LoadScanResult>('/load-scans/text', {
       method: 'POST',
-      body: JSON.stringify({ description, current, conversation_id: conversationId }),
+      body: JSON.stringify({ description, current, conversation_id: conversationId, pending_step: pendingStep }),
     }),
     scanBulkText: (text: string) => request<BulkLoadScanResult>('/load-scans/bulk/text', {
       method: 'POST',

@@ -72,6 +72,7 @@ export const mapLoadToPackage = (load: Record<string, unknown>, lang: Language):
       { key: 'consignee_customer_id', label: 'Consignee', value: detailValue(consignee.company_name || consignee.name), rawValue: String(consignee.id || ''), input: 'customer' },
       { key: 'subdepartment', label: 'Subdepartment', value: detailValue(load.subdepartment), rawValue: String(load.subdepartment || ''), input: 'text' },
       { key: 'weight_kg', label: 'KGS', value: load.weight_kg ? `${Number(load.weight_kg).toLocaleString()} kg` : '—', rawValue: String(load.weight_kg || ''), input: 'number' },
+      { key: 'pallets', label: 'Pallets/Units', value: load.pallets ? Number(load.pallets).toLocaleString() : '—', rawValue: String(load.pallets || ''), input: 'number' },
       { key: 'quantity_measure', label: 'QTY/G.W./MEAs', value: detailValue(load.quantity_measure), rawValue: String(load.quantity_measure || ''), input: 'text' },
       { key: 'volume_m3', label: 'CBM', value: detailValue(load.volume_m3), rawValue: String(load.volume_m3 || ''), input: 'number' },
       { key: 'teu', label: 'TEU', value: detailValue(load.teu), rawValue: String(load.teu || ''), input: 'text' },
