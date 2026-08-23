@@ -5,6 +5,7 @@ import { AI_DISPATCH_SUBJECT_PREFIX, api } from '../services/api';
 import { useApiList } from '../hooks/useApiList';
 import { showError } from './swal';
 import { analyzeLenaAttachment, latestLoadScan, LenaAttachment, LenaCanvasMode } from './lenaLoadCanvas';
+import { MASKABLE_GUIDED_STEPS } from './lenaStepInputMask';
 import { withMinDelay } from './timing';
 
 export const LENA_AI_GENERAL_SUBJECT = `${AI_DISPATCH_SUBJECT_PREFIX}General`;
@@ -311,7 +312,13 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
     }
   }
 
-  const send = async () => sendMessage(draft);
+  const send = async () => {
+    const trimmed = draft.trim();
+    if (canvasEnabled && pendingStep && MASKABLE_GUIDED_STEPS.includes(pendingStep) && trimmed) {
+      return sendGuidedAnswer(pendingStep, trimmed, trimmed);
+    }
+    return sendMessage(draft);
+  };
   const sendQuickAction = async (action: LenaQuickAction) => sendMessage(lenaQuickActionMarker(action), quickActionLabels[action]);
   const sendSuggestedReply = async (value: string, displayText = value) => sendMessage(value, displayText);
 

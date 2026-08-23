@@ -4225,7 +4225,7 @@ export default function App() {
 	              {view === 'admin-customers' && <AdminCustomersView lang={lang} onOpenEmailStudio={() => setView('email-studio')} />}
 	              {view === 'admin-companies' && <AdminCompaniesView lang={lang} onOpenEmailStudio={() => setView('email-studio')} />}
 	              {view === 'admin-drivers' && <AdminDriversView lang={lang} />}
-	              {view === 'ai-stats' && role === 'master' && <AiStatsView lang={lang} />}
+	              {view === 'ai-stats' && role === 'master' && <AiStatsView lang={lang} role={role} />}
 	              {view === 'email-studio' && <EmailStudioView lang={lang} />}
 	              {view === 'company' && <CompanyWorkspaceView lang={lang} />}
 	              {view === 'company-team' && <CompanyTeamView lang={lang} />}

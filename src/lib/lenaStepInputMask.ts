@@ -19,10 +19,12 @@ const decimalValue = (value: string): string => {
 
 // "200" + a 4th character -> auto-inserts "x" after every plain 3-digit segment (length, then
 // width), so typing "2001501 8" naturally becomes "200x150x18" - a manually typed "x" at any
-// point already closes that segment itself, so it is never double-inserted.
+// point already closes that segment itself, so it is never double-inserted. Each segment is also
+// capped at 3 characters (whichever of digits/decimal point it holds), so there's no way to keep
+// typing past the third digit into an ever-growing string like "520x000x0000000000000".
 export const formatDimensionsInput = (value: string): string => {
   const cleaned = value.replace(/[^0-9x.]/gi, '').toLowerCase();
-  const segments = cleaned.split('x').slice(0, 3);
+  const segments = cleaned.split('x').slice(0, 3).map((segment) => segment.slice(0, 3));
   const formatted = segments.map((segment, index) => {
     const isLastSegment = index === segments.length - 1;
     const canAutoClose = index < 2 && isLastSegment && /^\d{3}$/.test(segment);
@@ -30,6 +32,11 @@ export const formatDimensionsInput = (value: string): string => {
   });
   return formatted.join('x');
 };
+
+// These free-text steps are regex-constrained by the masks below, so a typed answer is already an
+// unambiguous value by the time it's submitted - sendMessage()'s callers route them through the
+// deterministic guided-answer endpoint (see LenaGuidedAnswerController) instead of the AI path.
+export const MASKABLE_GUIDED_STEPS = ['weight', 'pallets', 'dimensions', 'budget', 'declaredValue'];
 
 type StepInputMaskConfig = { unit: (lang: Language) => string; format: (value: string) => string };
 

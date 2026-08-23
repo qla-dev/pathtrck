@@ -114,9 +114,11 @@ const questionnaireSuggestions = (step: string, lang: Language): SuggestedReplyG
     case 'terms': return withLater([...INCOTERM_OPTIONS.map((value) => option(value)), noneOption(labels.none)]);
     case 'requirements': return withLater([...LOAD_REQUIREMENT_OPTIONS.map((value) => option(value)), noneOption(labels.none)], { multiple: true });
     case 'contact': return withLater([...CONTACT_OPTIONS.map((value) => option(value)), noneOption(labels.none)]);
-    // Every other step is answered by typing (LenaLoadQuestionnaire hasOptions:false) - no pills at
-    // all, not even a stray "later" button, so the visible question always matches what's offered.
-    default: return { options: [] };
+    // Every other step is answered by typing (LenaLoadQuestionnaire hasOptions:false), so it never
+    // gets a full option set - but it still gets the single "later" pill, including the
+    // regex-masked numeric steps (weight, pallets, dimensions, budget, declaredValue), so a step
+    // with no clean answer is never a dead end just because there's no button for its real values.
+    default: return withLater([]);
   }
 };
 

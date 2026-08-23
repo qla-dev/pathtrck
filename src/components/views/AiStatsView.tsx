@@ -13,10 +13,12 @@ import {
   MessageSquare,
   Paperclip,
   Send,
+  Trash2,
   X,
 } from "lucide-react";
 import { api } from "../../services/api";
-import { Language } from "../../types";
+import { Language, Role } from "../../types";
+import { confirmAction, showError } from "../../lib/swal";
 import { useApiList } from "../../hooks/useApiList";
 import { Card } from "../ui/Card";
 import { ServerDataTable, ServerDataTableColumn } from "../ui/ServerDataTable";
@@ -380,7 +382,7 @@ const ConversationCallsModal = ({
   );
 };
 
-export const AiStatsView = ({ lang: _lang }: { lang: Language }) => {
+export const AiStatsView = ({ lang: _lang, role }: { lang: Language; role?: Role }) => {
   const [tableRefreshKey] = useState(0);
   const [serviceFilter, setServiceFilter] = useState("");
   const [modelFilter, setModelFilter] = useState("");
@@ -485,6 +487,30 @@ export const AiStatsView = ({ lang: _lang }: { lang: Language }) => {
     }),
     [serviceFilter, modelFilter, attachmentFilter, statusFilter],
   );
+
+  // Master-only permanent purge, separate from the normal (soft) conversation delete elsewhere in
+  // the app - removes both the conversation and its ai_call_logs rows for real, for cleaning up
+  // test/junk conversations directly from AI Stats.
+  const deleteConversation = async (conversationId: string) => {
+    const confirmed = await confirmAction({
+      title: "Permanently delete this conversation?",
+      text: `This deletes conversation #${conversationId} and all of its AI call logs for good. This cannot be undone.`,
+      confirmText: "Delete permanently",
+      icon: "warning",
+    });
+    if (!confirmed) return;
+    try {
+      await api.aiCallLogs.purgeConversation(conversationId);
+    } catch (error) {
+      void showError(
+        "The conversation could not be deleted",
+        error instanceof Error ? error.message : undefined,
+      );
+      return;
+    }
+    if (openConversationId === conversationId) setOpenConversationId(null);
+    await stats.refresh();
+  };
 
   const columns = useMemo<ServerDataTableColumn<Record<string, unknown>>[]>(
     () => [
@@ -693,16 +719,27 @@ export const AiStatsView = ({ lang: _lang }: { lang: Language }) => {
         className: "w-px text-right whitespace-nowrap",
         exportable: false,
         render: (row) => (
-          <button
-            onClick={(event) => { event.stopPropagation(); setOpenConversationId(row.conversation_id ? String(row.conversation_id) : null); }}
-            className="cursor-pointer rounded-lg bg-slate-100 p-2 dark:bg-slate-800"
-          >
-            <Eye className="h-4 w-4" />
-          </button>
+          <div className="flex items-center justify-end gap-2">
+            <button
+              onClick={(event) => { event.stopPropagation(); setOpenConversationId(row.conversation_id ? String(row.conversation_id) : null); }}
+              className="cursor-pointer rounded-lg bg-slate-100 p-2 dark:bg-slate-800"
+            >
+              <Eye className="h-4 w-4" />
+            </button>
+            {role === "master" && (
+              <button
+                onClick={(event) => { event.stopPropagation(); if (row.conversation_id) void deleteConversation(String(row.conversation_id)); }}
+                className="cursor-pointer rounded-lg bg-rose-50 p-2 text-rose-600 hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400"
+                title="Permanently delete this conversation and its AI logs"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         ),
       },
     ],
-    [],
+    [role],
   );
 
   return (
@@ -723,27 +760,27 @@ export const AiStatsView = ({ lang: _lang }: { lang: Language }) => {
           </div>
         </section>
         <div className="grid items-stretch gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          <Card className="h-full shadow-none" contentClassName="flex h-full items-center justify-between gap-3 px-5 py-3">
-            <div className="min-w-0">
-              <p className="whitespace-nowrap text-xs uppercase text-slate-500">Total cost</p>
-              <p className="mt-1 text-2xl font-black text-emerald-500">{formatCost(totalCost)}</p>
-            </div>
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500">
-              <Coins className="h-6 w-6" />
-            </div>
-          </Card>
-          <Card className="h-full shadow-none" contentClassName="flex h-full items-center justify-between gap-3 px-5 py-3">
-            <div className="min-w-0">
-              <p className="whitespace-nowrap text-xs uppercase text-slate-500">Calls</p>
-              <p className="mt-1 text-2xl font-black dark:text-white">{stats.total}</p>
-            </div>
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-500">
-              <Gauge className="h-6 w-6" />
-            </div>
-          </Card>
           <button
             type="button"
-            onClick={() => setViewMode((current) => (current === "conversations" ? "calls" : "conversations"))}
+            onClick={() => setViewMode("calls")}
+            className="h-full cursor-pointer text-left"
+          >
+            <Card
+              className={`h-full shadow-none transition-transform hover:scale-[1.02] ${viewMode === "calls" ? "ring-2 ring-sky-500" : ""}`}
+              contentClassName="flex h-full items-center justify-between gap-3 px-5 py-3"
+            >
+              <div className="min-w-0">
+                <p className="whitespace-nowrap text-xs uppercase text-slate-500">Calls</p>
+                <p className="mt-1 text-2xl font-black dark:text-white">{stats.total}</p>
+              </div>
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-500">
+                <Gauge className="h-6 w-6" />
+              </div>
+            </Card>
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("conversations")}
             className="h-full cursor-pointer text-left"
           >
             <Card
@@ -759,6 +796,15 @@ export const AiStatsView = ({ lang: _lang }: { lang: Language }) => {
               </div>
             </Card>
           </button>
+          <Card className="h-full shadow-none" contentClassName="flex h-full items-center justify-between gap-3 px-5 py-3">
+            <div className="min-w-0">
+              <p className="whitespace-nowrap text-xs uppercase text-slate-500">Total cost</p>
+              <p className="mt-1 text-2xl font-black text-emerald-500">{formatCost(totalCost)}</p>
+            </div>
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500">
+              <Coins className="h-6 w-6" />
+            </div>
+          </Card>
           <Card className="h-full shadow-none" contentClassName="flex h-full items-center justify-between gap-3 px-5 py-3">
             <div className="min-w-0">
               <p className="whitespace-nowrap text-xs uppercase text-slate-500">Total tokens</p>

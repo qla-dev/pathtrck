@@ -436,7 +436,16 @@ export const ChatConversationPanel = ({
         <div className="relative flex-1">
           <input
             value={draft}
-            onChange={(e) => onDraftChange(inputMask ? inputMask.format(e.target.value) : e.target.value)}
+            onChange={(e) => {
+              const nextValue = inputMask ? inputMask.format(e.target.value) : e.target.value;
+              // When the masked/capped result is identical to the previous value (e.g. typing
+              // past a mask's character cap), React sees no state change and skips writing back
+              // to the DOM - the browser's own uncommitted keystroke would otherwise linger on
+              // screen even though state is correctly capped underneath. Setting it here forces
+              // the input to reflect the real, capped value every time.
+              e.target.value = nextValue;
+              onDraftChange(nextValue);
+            }}
             onKeyDown={(e) => e.key === 'Enter' && !sendBusy && onSend()}
             placeholder={messagePlaceholder}
             className={cn(

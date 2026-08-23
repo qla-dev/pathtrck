@@ -354,7 +354,14 @@ export const api = {
   conversations: resourceApi<Record<string, unknown>>('conversations'),
   messages: resourceApi<Record<string, unknown>>('messages'),
   loadDrafts: resourceApi<Record<string, unknown>>('load-drafts'),
-  aiCallLogs: resourceApi<Record<string, unknown>>('ai-call-logs'),
+  aiCallLogs: {
+    ...resourceApi<Record<string, unknown>>('ai-call-logs'),
+    // Master-only: permanently deletes a conversation's ai_call_logs rows AND the conversation
+    // itself. Separate from api.conversations.remove, which is a normal (soft) delete that never
+    // touches the audit trail.
+    purgeConversation: async (conversationId: number | string) =>
+      (await request<null>(`/ai-call-logs/conversation/${conversationId}`, { method: 'DELETE' })).data,
+  },
   messageAttachments: {
     upload: async (conversationId: number, file: File) => {
       const form = new FormData();

@@ -17,7 +17,7 @@ import { buildScanFieldRows, ScanFieldPatch } from '../modals/scanFieldRows';
 import { analyzeLenaAttachment, latestLoadScan, LENA_LOAD_FILE_ACCEPT, LenaAttachment } from '../../lib/lenaLoadCanvas';
 import { LENA_AI_GENERAL_SUBJECT, LenaQuickAction, lenaConversationSubjectTitle, lenaQuickActionFromMessage, lenaQuickActionMarker } from '../../lib/useLenaAiChat';
 import { withMinDelay } from '../../lib/timing';
-import { lenaStepInputMask } from '../../lib/lenaStepInputMask';
+import { lenaStepInputMask, MASKABLE_GUIDED_STEPS } from '../../lib/lenaStepInputMask';
 
 type MessagesViewProps = {
   lang: Language;
@@ -307,7 +307,13 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     setMessageSending(false);
   }
 
-  const sendMessage = () => sendMessageValue(draft);
+  const sendMessage = () => {
+    const trimmed = draft.trim();
+    if (activeConversation.canvas && pendingStep && MASKABLE_GUIDED_STEPS.includes(pendingStep) && trimmed) {
+      return sendGuidedAnswerValue(pendingStep, trimmed, trimmed);
+    }
+    return sendMessageValue(draft);
+  };
 
   async function attachFileValue(file: File, retryId?: string) {
     const conversationId = activeConversation.id;
