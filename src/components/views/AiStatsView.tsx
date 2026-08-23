@@ -50,8 +50,8 @@ const JsonPanel = ({ title, data }: { title: string; data: unknown }) => {
     }
   };
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/70">
-      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5 dark:border-slate-800">
+    <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/70">
+      <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-2.5 dark:border-slate-800">
         <p className="text-xs font-black uppercase tracking-wider text-slate-500">
           {title}
         </p>
@@ -64,7 +64,7 @@ const JsonPanel = ({ title, data }: { title: string; data: unknown }) => {
           {copied ? "Copied" : "Copy"}
         </button>
       </div>
-      <pre className="max-h-96 overflow-auto whitespace-pre-wrap break-words p-4 text-[11px] leading-relaxed text-slate-700 dark:text-slate-300">
+      <pre className="flex-1 overflow-auto whitespace-pre-wrap break-words p-4 text-[11px] leading-relaxed text-slate-700 dark:text-slate-300">
         {text}
       </pre>
     </div>
@@ -80,68 +80,58 @@ const AiCallLogDetail = ({
 }) => {
   if (!log) return null;
   return (
-    <div className="fixed inset-0 z-[220] flex items-center justify-center overflow-y-auto bg-slate-950/70 p-4 backdrop-blur-sm">
-      <button
-        type="button"
-        className="absolute inset-0 cursor-pointer"
-        aria-label="Close"
-        onClick={onClose}
-      />
-      <div className="relative my-auto max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex items-start justify-between border-b border-slate-200 p-5 dark:border-slate-800">
-          <div>
-            <h2 className="text-xl font-black dark:text-white">
-              {serviceLabel(log.service)} · #{String(log.id)}
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              {formatTime(log.created_at)}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="cursor-pointer rounded-xl bg-slate-100 p-2 text-slate-500 dark:bg-slate-800"
-          >
-            <X className="h-5 w-5" />
-          </button>
+    <div className="fixed inset-0 z-[220] flex flex-col bg-white dark:bg-slate-900">
+      <div className="flex items-start justify-between border-b border-slate-200 p-5 dark:border-slate-800">
+        <div>
+          <h2 className="text-xl font-black dark:text-white">
+            {serviceLabel(log.service)} · #{String(log.id)}
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            {formatTime(log.created_at)}
+          </p>
         </div>
-        <div className="max-h-[calc(90vh-88px)] overflow-y-auto p-5">
-          <div className="mb-5 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950">
-              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Model</p>
-              <p className="mt-1 truncate text-sm font-bold text-slate-800 dark:text-slate-100">{String(log.model || "—")}</p>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950">
-              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Conversation</p>
-              <p className="mt-1 text-sm font-bold text-slate-800 dark:text-slate-100">{log.conversation_id ? `#${String(log.conversation_id)}` : "—"}</p>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950">
-              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">User</p>
-              <p className="mt-1 truncate text-sm font-bold text-slate-800 dark:text-slate-100">{String((log.user as Record<string, unknown> | undefined)?.name || (log.user as Record<string, unknown> | undefined)?.username || "—")}</p>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950">
-              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Duration</p>
-              <p className="mt-1 text-sm font-bold text-slate-800 dark:text-slate-100">{log.duration_ms ? `${String(log.duration_ms)} ms` : "—"}</p>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950">
-              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Tokens (prompt / completion / total)</p>
-              <p className="mt-1 text-sm font-bold text-slate-800 dark:text-slate-100">{String(log.prompt_tokens ?? "—")} / {String(log.completion_tokens ?? "—")} / {String(log.total_tokens ?? "—")}</p>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950">
-              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Cost</p>
-              <p className="mt-1 text-sm font-bold text-emerald-600 dark:text-emerald-400">{formatCost(log.cost_usd)}</p>
-            </div>
-          </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="cursor-pointer rounded-xl bg-slate-100 p-2 text-slate-500 dark:bg-slate-800"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+      <div className="flex flex-1 flex-col overflow-hidden p-5">
           {!log.is_success && (
-            <div className="mb-5 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400">
+            <div className="mb-4 shrink-0 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400">
               {String(log.error_message || "This call failed.")}
             </div>
           )}
-          <div className="space-y-4">
+          <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[220px_1fr_1fr]">
+            <div className="space-y-2.5 overflow-y-auto lg:pr-4 lg:border-r lg:border-slate-200 lg:dark:border-slate-800">
+              <p className="truncate text-xs"><span className="block font-black uppercase tracking-wider text-slate-400">Model</span><span className="font-bold text-slate-800 dark:text-slate-100">{String(log.model || "—")}</span></p>
+              <p className="text-xs"><span className="block font-black uppercase tracking-wider text-slate-400">Conversation</span><span className="font-bold text-slate-800 dark:text-slate-100">{log.conversation_id ? `#${String(log.conversation_id)}` : "—"}</span></p>
+              <p className="truncate text-xs"><span className="block font-black uppercase tracking-wider text-slate-400">User</span><span className="font-bold text-slate-800 dark:text-slate-100">{String((log.user as Record<string, unknown> | undefined)?.name || (log.user as Record<string, unknown> | undefined)?.username || "—")}</span></p>
+              <p className="text-xs"><span className="block font-black uppercase tracking-wider text-slate-400">Duration</span><span className="font-bold text-slate-800 dark:text-slate-100">{log.duration_ms ? `${String(log.duration_ms)} ms` : "—"}</span></p>
+              <p className="text-xs">
+                <span className="block font-black uppercase tracking-wider text-slate-400">Tokens (p/c/t)</span>
+                <span className="font-bold text-slate-800 dark:text-slate-100">{String(log.prompt_tokens ?? "—")}/{String(log.completion_tokens ?? "—")}/{String(log.total_tokens ?? "—")}</span>
+                {(log.cached_tokens != null || log.reasoning_tokens != null) && (
+                  <span className="ml-1 font-medium text-slate-400">
+                    ({log.cached_tokens != null && `${String(log.cached_tokens)}c`}
+                    {log.cached_tokens != null && log.reasoning_tokens != null && "/"}
+                    {log.reasoning_tokens != null && `${String(log.reasoning_tokens)}r`})
+                  </span>
+                )}
+              </p>
+              <p className="text-xs"><span className="block font-black uppercase tracking-wider text-slate-400">Cost</span><span className="font-bold text-emerald-600 dark:text-emerald-400">{formatCost(log.cost_usd)}</span></p>
+              <p className="truncate text-xs"><span className="block font-black uppercase tracking-wider text-slate-400">Provider</span><span className="font-bold text-slate-800 dark:text-slate-100">{String(log.provider || "—")}</span></p>
+              <p className="truncate text-xs"><span className="block font-black uppercase tracking-wider text-slate-400">Finish reason</span><span className="font-bold text-slate-800 dark:text-slate-100">{String(log.finish_reason || "—")}</span></p>
+              <p className="text-xs"><span className="block font-black uppercase tracking-wider text-slate-400">Temperature</span><span className="font-bold text-slate-800 dark:text-slate-100">{String(log.temperature ?? "—")}</span></p>
+              <p className="text-xs"><span className="block font-black uppercase tracking-wider text-slate-400">HTTP status</span><span className="font-bold text-slate-800 dark:text-slate-100">{String(log.http_status ?? "—")}</span></p>
+              <p className="text-xs"><span className="block font-black uppercase tracking-wider text-slate-400">Attempts</span><span className="font-bold text-slate-800 dark:text-slate-100">{String(log.attempt_count ?? "—")}</span></p>
+              <p className="truncate text-xs" title={String(log.generation_id || "")}><span className="block font-black uppercase tracking-wider text-slate-400">Generation ID</span><span className="font-bold text-slate-800 dark:text-slate-100">{String(log.generation_id || "—")}</span></p>
+            </div>
             <JsonPanel title="Request" data={log.request_payload} />
             <JsonPanel title="Response" data={log.response_payload} />
           </div>
-        </div>
       </div>
     </div>
   );

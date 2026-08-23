@@ -3879,8 +3879,6 @@ export default function App() {
         { id: 'notes', label: ui(lang, 'notes.navLabel', 'Notes'), icon: NotebookPen },
         { id: 'dashboard', label: analyticsLabel, icon: BarChart3 },
         { id: 'network', label: t.network, icon: Globe },
-        // Master-exclusive: superadmin gets everything else above but not this screen.
-        ...(role === 'master' ? [{ id: 'ai-stats', label: u('nav.aiStats', 'AI Stats'), icon: Sparkles }] : []),
         { id: 'settings', label: t.settings, icon: Settings },
       ]
     : role === 'finance'
@@ -4017,6 +4015,21 @@ export default function App() {
               <RoleStatusIcon className="w-4 h-4" />
               {roleMeta.label} • {roleMeta.status}
             </span>
+
+            {role === 'master' && (
+              <button
+                onClick={() => setView('ai-stats')}
+                title={u('nav.aiStats', 'AI Stats')}
+                className={cn(
+                  "h-10 w-10 rounded-full transition-all cursor-pointer flex items-center justify-center",
+                  view === 'ai-stats'
+                    ? "bg-primary text-white shadow-lg shadow-primary/30"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary hover:scale-105"
+                )}
+              >
+                <Sparkles className="w-5 h-5" />
+              </button>
+            )}
 
             {/* Language Switcher */}
             <div className="relative group">
