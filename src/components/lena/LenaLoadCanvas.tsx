@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, FileSpreadsheet, Loader2, PackagePlus, Save, Send, Sparkles } from 'lucide-react';
+import { Check, ChevronRight, FileSpreadsheet, Loader2, PackagePlus, Save, Sparkles } from 'lucide-react';
 import { Language } from '../../types';
 import { ui } from '../../i18n';
 import { api, BulkLoadRow } from '../../services/api';
@@ -162,10 +162,10 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftI
       {bulkRows.length === 0 && rows.length > 0 && (
         <div className="border-t border-slate-100 p-3 dark:border-slate-800">
           <button type="button" onClick={() => void saveDraftAndContinue()} disabled={savingDraft} className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary text-xs font-black text-white transition-colors hover:bg-primary-dark disabled:opacity-60">
-            {savingDraft ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
             {draftId
-              ? u('postLoadModal.continueEditing', 'Nastavi uređivati draft')
-              : u('postLoadModal.saveDraftAndContinue', 'Spasi kao draft i nastavi uređivati')}
+              ? u('postLoadModal.continueEditing', 'Nastavi sa provjerom')
+              : u('postLoadModal.saveDraftAndContinue', 'Spasi draft i provjeri')}
+            {savingDraft ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ChevronRight className="h-3.5 w-3.5" />}
           </button>
         </div>
       )}

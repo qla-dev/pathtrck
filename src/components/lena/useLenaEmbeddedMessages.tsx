@@ -78,7 +78,7 @@ const questionnaireOptionIcon = (step: string, value: string): LucideIcon => {
 
 const questionnaireSuggestions = (step: string, lang: Language): SuggestedReplyGroup => {
   const labels = lang === 'bs'
-    ? { road: 'Cestovni', air: 'Zracni', sea: 'Pomorski', fixed: 'Fiksna cijena', negotiable: 'Otvoreno za ponude', none: 'Nije potrebno', unknown: 'Nije poznato', noPreference: 'Bez preferencije' }
+    ? { road: 'Cestovni', air: 'Zračni', sea: 'Pomorski', fixed: 'Fiksna cijena', negotiable: 'Otvoreno za ponude', none: 'Nije potrebno', unknown: 'Nije poznato', noPreference: 'Bez preferencije' }
     : lang === 'de'
       ? { road: 'Straße', air: 'Luft', sea: 'See', fixed: 'Festpreis', negotiable: 'Offen für Angebote', none: 'Nicht erforderlich', unknown: 'Unbekannt', noPreference: 'Keine Präferenz' }
       : { road: 'Road', air: 'Air', sea: 'Sea', fixed: 'Fixed price', negotiable: 'Open to offers', none: 'Not needed', unknown: 'Unknown', noPreference: 'No preference' };
