@@ -97,6 +97,9 @@ type PostLoadModalProps = {
   // nastavi sa objavom" button) and its already-persisted load_drafts row id, if any.
   sourceConversationId?: string | number | null;
   initialDraftId?: string | number | null;
+  // Fired the first time a manually-started draft (no sourceConversationId) is saved and a fresh
+  // LenaAI conversation gets created for it, so the app behind the modal can jump to Messages.
+  onDraftConversationCreated?: (conversationId: string) => void;
 };
 
 type StepId = 'cargo' | 'route' | 'terms' | 'contact' | 'review';
@@ -730,7 +733,7 @@ const SummaryRow = ({
   </div>
 );
 
-export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSaved, initialPrefill = null, onOpenLenaAI, sourceConversationId = null, initialDraftId = null }: PostLoadModalProps) => {
+export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSaved, initialPrefill = null, onOpenLenaAI, sourceConversationId = null, initialDraftId = null, onDraftConversationCreated }: PostLoadModalProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const transportOptions = [
     {
@@ -778,6 +781,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   const [draftId, setDraftId] = useState<string | number | null>(initialDraftId);
   const [savingDraft, setSavingDraft] = useState(false);
   const [draftSavedAt, setDraftSavedAt] = useState<Date | null>(null);
+  const [currentUser, setCurrentUser] = useState<ApiUser | null>(null);
+  useEffect(() => { void api.auth.me().then(setCurrentUser); }, []);
   const hsSearchRef = useRef<HTMLDivElement>(null);
   useOutsideClick(hsSearchRef, () => setHsSuggestions([]), hsSuggestions.length > 0);
 
@@ -1042,7 +1047,28 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         await api.loadDrafts.update(draftId, payload);
       } else {
         const response = await api.loadDrafts.create(payload);
-        setDraftId(response.data.id as string | number);
+        const newDraftId = response.data.id as string | number;
+        setDraftId(newDraftId);
+        // First manual save of a draft that was never opened from an existing LenaAI
+        // conversation - give it one now so the user can keep chatting about it afterward.
+        if (!sourceConversationId && currentUser) {
+          try {
+            const companyId = Number((currentUser.companies?.[0] as { id?: number } | undefined)?.id);
+            const created = await api.conversations.create({
+              company_id: Number.isFinite(companyId) ? companyId : undefined,
+              created_by_user_id: currentUser.id,
+              channel: 'inapp',
+              subject: `${AI_DISPATCH_SUBJECT_PREFIX}${draft.cargoTitle || u('postLoadModal.draftFallbackTitle', 'Draft')}`,
+              canvas: false,
+              load_draft_id: newDraftId,
+              last_message_at: new Date().toISOString(),
+              participant_ids: [currentUser.id],
+            });
+            onDraftConversationCreated?.(String(created.data.id));
+          } catch {
+            // Non-critical - the draft itself is already safely saved either way.
+          }
+        }
       }
       setDraftSavedAt(new Date());
       void showSuccess(u('postLoadModal.draftSavedTitle', 'Draft saved'), u('postLoadModal.draftSavedText', 'Your progress has been saved.'));

@@ -4276,6 +4276,7 @@ export default function App() {
           initialPrefill={lenaLoadPrefill}
           sourceConversationId={lenaSourceConversationId}
           initialDraftId={lenaSourceDraftId}
+          onDraftConversationCreated={() => setView('messages')}
           onOpenLenaAI={() => {
             // PostLoadModal stays open (mounted) behind LenaAI instead of being closed - LenaAI
             // now renders at a higher z-index (300) so it visually covers it, and closing LenaAI
