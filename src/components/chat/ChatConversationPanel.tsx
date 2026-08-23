@@ -238,11 +238,24 @@ export const ChatConversationPanel = ({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
       >
-      <div ref={messageContentRef} className="space-y-3">
-      {activeConversation.messages.map((m) => {
+      <div ref={messageContentRef}>
+      {activeConversation.messages.map((m, index) => {
         const isAiAnswer = Boolean(activeConversation.isAiDispatch) && m.sender === 'other';
+        const previousSender = activeConversation.messages[index - 1]?.sender;
+        const turnChanged = index > 0 && previousSender !== undefined && previousSender !== m.sender;
         return (
-        <div key={m.id} className={cn('group relative', isAiAnswer ? 'w-full' : 'w-fit max-w-[min(85%,36rem)]', m.sender === 'me' ? 'ml-auto' : m.sender === 'system' ? 'mx-auto' : 'mr-auto')}>
+        <div key={m.id} className={cn('group relative', index > 0 && (turnChanged ? 'mt-14' : 'mt-3'), isAiAnswer ? 'w-full' : 'w-fit max-w-[min(85%,36rem)]', m.sender === 'me' ? 'ml-auto' : m.sender === 'system' ? 'mx-auto' : 'mr-auto')}>
+          {m.sender === 'other' && typingMessageId !== m.id && (
+            <button
+              type="button"
+              onClick={() => void copyMessage(m.id, m.text)}
+              title={copyMessageLabel}
+              aria-label={copiedMessageId === m.id ? copiedMessageLabel : copyMessageLabel}
+              className="absolute -top-7 left-0 inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 opacity-0 shadow-sm transition-opacity hover:text-slate-600 focus-visible:opacity-100 group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500 dark:hover:text-slate-300"
+            >
+              {copiedMessageId === m.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+            </button>
+          )}
           <div
             className={cn(
               isAiAnswer ? 'w-full' : 'w-fit max-w-full rounded-2xl px-3 py-2',
@@ -257,7 +270,7 @@ export const ChatConversationPanel = ({
           >
             <p
               className={cn(
-                'whitespace-pre-wrap text-sm',
+                'whitespace-pre-wrap text-base',
                 m.sender === 'me'
                   ? 'text-right text-white'
                   : m.sender === 'system'
@@ -277,18 +290,16 @@ export const ChatConversationPanel = ({
                 />
               ) : renderMessageText(m.text)}
             </p>
-            <p
-              className={cn(
-                'text-[10px] mt-1',
-                m.sender === 'me'
-                  ? 'text-right text-white/70'
-                  : m.sender === 'system'
-                    ? 'text-amber-700'
-                    : 'text-slate-400'
-              )}
-            >
-              {m.time}
-            </p>
+            {m.time && m.sender !== 'me' && (
+              <p
+                className={cn(
+                  'text-[10px] mt-1 opacity-0 transition-opacity group-hover:opacity-100',
+                  m.sender === 'system' ? 'text-amber-700' : 'text-slate-400'
+                )}
+              >
+                {m.time}
+              </p>
+            )}
             {m.attachments?.filter((attachment) => attachment.name !== 'LenaAI conversation').map((attachment, index) => {
               const AttachmentIcon = attachment.type.includes('spreadsheet') || /\.(xlsx?|csv)$/i.test(attachment.name)
                 ? FileSpreadsheet
@@ -303,16 +314,10 @@ export const ChatConversationPanel = ({
               );
             })}
           </div>
-          {m.sender === 'other' && typingMessageId !== m.id && (
-            <button
-              type="button"
-              onClick={() => void copyMessage(m.id, m.text)}
-              title={copyMessageLabel}
-              aria-label={copiedMessageId === m.id ? copiedMessageLabel : copyMessageLabel}
-              className="absolute -top-2 right-0 inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 opacity-0 shadow-sm transition-opacity hover:text-slate-600 focus-visible:opacity-100 group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500 dark:hover:text-slate-300"
-            >
-              {copiedMessageId === m.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-            </button>
+          {m.time && m.sender === 'me' && (
+            <p className="mt-1 text-right text-[10px] text-slate-400 opacity-0 transition-opacity group-hover:opacity-100">
+              {m.time}
+            </p>
           )}
           {m.sender === 'me' && m.deliveryStatus === 'failed' && (
             <div className="mt-1 flex items-center justify-end gap-1.5 text-[11px] text-rose-500">
@@ -338,7 +343,7 @@ export const ChatConversationPanel = ({
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="mr-auto w-fit px-0.5 py-1 text-sm"
+          className="mr-auto mt-14 w-fit px-0.5 py-1 text-base"
           role="status"
           aria-label={thinkingLabel}
         >

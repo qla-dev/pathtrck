@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Bot, LayoutGrid, MessageCircle, PanelRightClose, PanelRightOpen, Plus, X } from 'lucide-react';
+import { Bot, LayoutGrid, MessageCircle, Plus, Sparkles, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Language } from '../../types';
 import { ui } from '../../i18n';
@@ -203,8 +203,8 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
                     }}
                     className={`flex h-10 cursor-pointer items-center gap-2 rounded-xl border px-3 text-xs font-bold transition-all ${showCanvas ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-slate-100 text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}
                   >
-                    {showCanvas ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
-                    {showCanvas ? u('Hide load preparation', 'Hide load preparation') : u('Prepare load', 'Prepare load')}
+                    <Sparkles className="h-4 w-4" />
+                    {showCanvas ? u('Hide draft panel', 'Hide draft panel') : u('Draft panel', 'Draft panel')}
                   </button>}
                   </div>
                 )}

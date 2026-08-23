@@ -121,12 +121,12 @@ const QuestionnaireSuggestionPills = ({ group, lang, onSubmit, onSelectionChange
   const confirmLabel = lang === 'bs' ? 'Potvrdi izbor' : lang === 'de' ? 'Auswahl bestätigen' : 'Confirm selection';
   const multipleHint = lang === 'bs' ? 'Možete odabrati više opcija.' : lang === 'de' ? 'Sie können mehrere Optionen auswählen.' : 'You can select multiple options.';
   if (!group.multiple) {
-    return <div className="flex flex-wrap gap-2 pt-1">{group.options.map((suggestion) => {
+    return <div className="flex flex-wrap gap-2">{group.options.map((suggestion) => {
       const Icon = suggestion.icon;
       return <button key={suggestion.value} type="button" onClick={() => onSubmit(suggestion.value, suggestion.label)} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-primary/20 bg-white px-3 py-1.5 text-xs font-bold text-primary shadow-sm transition-colors hover:border-primary hover:bg-primary hover:text-white dark:bg-slate-900"><Icon className="h-3.5 w-3.5" />{suggestion.label}</button>;
     })}</div>;
   }
-  return <div className="pt-1"><p className="mb-2 text-[11px] font-medium text-slate-500 dark:text-slate-400">{multipleHint}</p><div className="flex flex-wrap gap-2">{group.options.map((suggestion) => {
+  return <div><p className="mb-2 text-[11px] font-medium text-slate-500 dark:text-slate-400">{multipleHint}</p><div className="flex flex-wrap gap-2">{group.options.map((suggestion) => {
     const active = selected.includes(suggestion.value);
     const Icon = suggestion.icon;
     if (suggestion.skip) return <button key={suggestion.value} type="button" onClick={() => onSubmit(suggestion.value, suggestion.label)} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-primary/20 bg-white px-3 py-1.5 text-xs font-bold text-primary shadow-sm transition-colors hover:border-primary hover:bg-primary hover:text-white dark:bg-slate-900"><Icon className="h-3.5 w-3.5" />{suggestion.label}</button>;
@@ -324,7 +324,7 @@ export const useLenaEmbeddedMessages = ({
         {statusLoad && <LenaLoadStatusCard lang={lang} load={statusLoad} />}
         {hasBooking && handleBook && <LenaBookingCard lang={lang} load={bookingLoad} onBook={handleBook} />}
         {quickActions.length > 0 && quickActionLabels && onQuickAction && (
-          <div className="flex flex-wrap gap-2 pt-1">
+          <div className="flex flex-wrap gap-2">
             {quickActions.map((action) => {
               const Icon = action === 'add' ? FileUp : action === 'tracking' ? MapPinned : action === 'booking' ? ReceiptText : action === 'free' ? MessageCircle : FileSearch;
               return <button key={action} type="button" onClick={() => onQuickAction(action)} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-primary/20 bg-white px-3 py-1.5 text-xs font-bold text-primary shadow-sm transition-colors hover:border-primary hover:bg-primary hover:text-white dark:bg-slate-900">

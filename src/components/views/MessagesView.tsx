@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Bot, LayoutGrid, MessageCircle, PanelRightClose, PanelRightOpen, Plus } from 'lucide-react';
+import { Bot, LayoutGrid, MessageCircle, Plus, Sparkles } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Language } from '../../types';
 import { ui } from '../../i18n';
@@ -351,6 +351,33 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     }
   };
 
+  const handleDeleteConversation = async (conversationId: string) => {
+    const confirmed = await confirmAction({
+      title: u('Delete this conversation?', 'Delete this conversation?'),
+      text: u(
+        'This permanently deletes the conversation and all its messages. This cannot be undone.',
+        'This permanently deletes the conversation and all its messages. This cannot be undone.'
+      ),
+      confirmText: u('Delete', 'Delete'),
+      icon: 'warning',
+    });
+    if (!confirmed) return;
+
+    try {
+      await api.conversations.remove(conversationId);
+    } catch (error) {
+      void showError(
+        u('This conversation could not be deleted', 'This conversation could not be deleted'),
+        error instanceof Error ? error.message : undefined
+      );
+      return;
+    }
+
+    if (pendingNewConversation?.id === conversationId) setPendingNewConversation(null);
+    if (activeId === conversationId) setActiveId('');
+    await result.refresh();
+  };
+
   const handlePrepareLoad = () => {
     if (activeConversation.canvas) {
       setCanvasPanelOpen((current) => !current);
@@ -373,6 +400,17 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
             conversations={filteredConversations}
             activeConversationId={activeConversation.id}
             onSelectConversation={setActiveId}
+            emptyStateTitle={u('No conversations yet', 'No conversations yet')}
+            emptyStateDescription={u(
+              'To start a new conversation, start a chat with LenaAI',
+              'To start a new conversation, start a chat with LenaAI'
+            )}
+            emptyStateActionLabel={u('New chat', 'New chat')}
+            onEmptyStateAction={() => void handleNewConversation()}
+            emptyStateActionDisabled={!user || creatingNewConversation}
+            onDeleteConversation={(id) => void handleDeleteConversation(id)}
+            deleteConversationLabel={u('Delete conversation', 'Delete conversation')}
+            cancelLabel={u('Cancel', 'Cancel')}
           />
         )}
 
@@ -412,8 +450,8 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
                     onClick={handlePrepareLoad}
                     className={`flex h-9 items-center gap-2 rounded-full border px-3 text-xs font-bold transition-all cursor-pointer ${showCanvas ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-slate-100 text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}
                   >
-                    {showCanvas ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
-                    {showCanvas ? u('Hide load preparation', 'Hide load preparation') : u('Prepare load', 'Prepare load')}
+                    <Sparkles className="h-4 w-4" />
+                    {showCanvas ? u('Hide draft panel', 'Hide draft panel') : u('Draft panel', 'Draft panel')}
                   </button>
                 )}
               </>

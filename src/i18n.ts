@@ -4929,8 +4929,8 @@ const TRIPLET_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
   'Remove HS code': { bs: 'Ukloni HS kod', de: 'HS-Code entfernen' },
   'HS catalog search failed': { bs: 'Pretraga HS kataloga nije uspjela', de: 'Die Suche im HS-Katalog ist fehlgeschlagen' },
   'Post a new load': { bs: 'Objavi novi teret', de: 'Neue Ladung veröffentlichen' },
-  'Prepare load': { bs: 'Priprema tereta', de: 'Ladung vorbereiten' },
-  'Hide load preparation': { bs: 'Sakrij pripremu tereta', de: 'Ladungsvorbereitung ausblenden' },
+  'Draft panel': { bs: 'Draft Panel', de: 'Entwurfsbereich' },
+  'Hide draft panel': { bs: 'Sakrij Draft Panel', de: 'Entwurfsbereich ausblenden' },
   'New LenaAI conversation': { bs: 'Novi LenaAI razgovor', de: 'Neue LenaAI-Unterhaltung' },
   'Drop file for LenaAI': { bs: 'Ispustite datoteku za LenaAI', de: 'Datei für LenaAI hier ablegen' },
   'New load canvas': { bs: 'Priprema novog tereta', de: 'Arbeitsbereich für neue Ladung' },
@@ -5096,6 +5096,17 @@ const TRIPLET_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
   'Pickup location': { bs: 'Lokacija preuzimanja', de: 'Abholort' },
   'Location could not be mapped': { bs: 'Lokaciju nije moguće prikazati na mapi', de: 'Der Standort konnte nicht auf der Karte angezeigt werden' },
   'Start a new chat?': { bs: 'Započeti novi razgovor?', de: 'Neuen Chat starten?' },
+  'No conversations yet': { bs: 'Još nema razgovora', de: 'Noch keine Unterhaltungen' },
+  'To start a new conversation, start a chat with LenaAI': { bs: 'Za početak nove konverzacije, pokrenite razgovor s LenaAI', de: 'Um eine neue Unterhaltung zu beginnen, starten Sie einen Chat mit LenaAI' },
+  'Delete conversation': { bs: 'Izbriši konverzaciju', de: 'Unterhaltung löschen' },
+  'Cancel': { bs: 'Odustani', de: 'Abbrechen' },
+  'Delete this conversation?': { bs: 'Izbrisati ovaj razgovor?', de: 'Diese Unterhaltung löschen?' },
+  'This permanently deletes the conversation and all its messages. This cannot be undone.': {
+    bs: 'Ovim se trajno briše razgovor i sve njegove poruke. Ova radnja se ne može poništiti.',
+    de: 'Dadurch werden die Unterhaltung und alle ihre Nachrichten dauerhaft gelöscht. Dies kann nicht rückgängig gemacht werden.'
+  },
+  'Delete': { bs: 'Izbriši', de: 'Löschen' },
+  'This conversation could not be deleted': { bs: 'Razgovor nije moguće izbrisati', de: 'Diese Unterhaltung konnte nicht gelöscht werden' },
   'This starts a fresh conversation with LenaAI. Your current chat is kept and still visible in Messages.': {
     bs: 'Ovim započinjete novi razgovor s LenaAI. Trenutni razgovor ostaje sačuvan i dostupan u Porukama.',
     de: 'Damit starten Sie einen neuen Chat mit LenaAI. Der aktuelle Chat bleibt gespeichert und ist weiterhin unter Nachrichten verfügbar.'
