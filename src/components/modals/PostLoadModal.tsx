@@ -65,7 +65,7 @@ import { useLocationAutocomplete } from '../../hooks/useLocationAutocomplete';
 import { useOutsideClick } from '../../hooks/useOutsideClick';
 import { LocationSearchResult, searchLocations } from '../../services/locationSearch';
 import { Button } from '../ui/Button';
-import { api, ApiError, HsCodeMatch, LoadScanResult } from '../../services/api';
+import { AI_DISPATCH_SUBJECT_PREFIX, api, ApiError, ApiUser, HsCodeMatch, LoadScanResult } from '../../services/api';
 import { CustomerSelect, customerOptionFromRecord, type CustomerOption } from '../customer/CustomerSelect';
 import { AddressMapModal } from '../maps/AddressMapModal';
 import { RouteMapModal } from '../maps/RouteMapModal';
@@ -800,6 +800,26 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       setDraftId(initialDraftId);
     }
   }, [isOpen]);
+
+  // Show when the draft was actually last saved as soon as the modal opens with an existing
+  // draft, not just after the user manually saves in this session - mirrors LenaLoadCanvas.tsx.
+  useEffect(() => {
+    if (!draftId) return undefined;
+    let cancelled = false;
+    void api.loadDrafts.get(draftId).then((response) => {
+      if (cancelled) return;
+      const updatedAt = response.data.updated_at;
+      if (typeof updatedAt === 'string') {
+        const parsed = new Date(updatedAt);
+        if (!Number.isNaN(parsed.getTime())) setDraftSavedAt(parsed);
+      }
+    }).catch(() => {
+      // Non-critical - the button just won't show an initial timestamp.
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [draftId]);
 
   useEffect(() => {
     if (!isOpen || editLoadId || !initialPrefill) return;
@@ -2320,12 +2340,13 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
 
         <div className="shrink-0 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800">
           {submitError && <div className="mx-5 mt-3 md:mx-7 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400">{submitError}</div>}
-          <div className="grid xl:grid-cols-[250px_minmax(0,1fr)] xl:gap-3">
-            {/* p-3 matches the sidebar's own inset so this button's edges land exactly under the
-                step cards' edges instead of the header's wider px-5/md:px-7. Right padding drops
-                to 0 only at xl+ (where this sits beside the button grid), so the grid's own
-                xl:gap-3 becomes the sole gap there, matching the gap-3 between the three buttons. */}
-            <div className="p-3 xl:pr-0">
+          <div className="grid xl:grid-cols-[250px_minmax(0,1fr)]">
+            {/* p-3 on every side matches the sidebar's own inset exactly, so this button is the
+                same width as the step cards and both its edges land directly under theirs - not
+                just its left edge. No grid gap here: this cell's own right padding is already the
+                12px gap to the next cell, matching the gap-3 used between the three buttons (which
+                is why that cell drops its left padding at xl+ instead of adding a second gap). */}
+            <div className="p-3">
               <Button
                 variant="secondary"
                 className="w-full h-11 gap-2 border border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 dark:bg-primary/15 dark:hover:bg-primary/20"

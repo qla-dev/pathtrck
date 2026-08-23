@@ -3291,6 +3291,10 @@ export default function App() {
   const [lenaLoadPrefill, setLenaLoadPrefill] = useState<ScanFieldPatch | null>(null);
   const [lenaSourceConversationId, setLenaSourceConversationId] = useState<string | null>(null);
   const [lenaSourceDraftId, setLenaSourceDraftId] = useState<string | null>(null);
+  // Bumped whenever the standalone LenaAI overlay closes, so MessagesView (which stays mounted
+  // underneath it the whole time) knows to refetch instead of showing whatever it had cached
+  // before LenaAI possibly added messages elsewhere.
+  const [messagesRefreshSignal, setMessagesRefreshSignal] = useState(0);
   const [isDark, setIsDark] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => getInitialSidebarState());
   const [isPostLoadOpen, setIsPostLoadOpen] = useState(false);
@@ -4193,6 +4197,7 @@ export default function App() {
 	                    setIsPostLoadOpen(true);
 	                  }}
 	                  onBulkImported={() => setLoadRefreshKey((current) => current + 1)}
+	                  refreshSignal={messagesRefreshSignal}
 	                />
 	              )}
 	              {view === 'map' && <MapView lang={lang} />}
@@ -4241,7 +4246,7 @@ export default function App() {
         />
         <LenaAI
           open={lenaAiOpen}
-          onClose={() => { setLenaAiOpen(false); setLenaCanvasMode(null); }}
+          onClose={() => { setLenaAiOpen(false); setLenaCanvasMode(null); setMessagesRefreshSignal((current) => current + 1); }}
           lang={lang}
           userId={currentUser?.id}
           companyIds={trackingCompanyIds}
@@ -4272,8 +4277,10 @@ export default function App() {
           sourceConversationId={lenaSourceConversationId}
           initialDraftId={lenaSourceDraftId}
           onOpenLenaAI={() => {
-            setIsPostLoadOpen(false);
-            setEditLoadId(null);
+            // PostLoadModal stays open (mounted) behind LenaAI instead of being closed - LenaAI
+            // now renders at a higher z-index (300) so it visually covers it, and closing LenaAI
+            // reveals PostLoadModal again in its exact previous state instead of falling back to
+            // the app underneath.
             setLenaCanvasMode('new_load');
             setLenaAiOpen(true);
           }}

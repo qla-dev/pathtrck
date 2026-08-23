@@ -24,6 +24,10 @@ type MessagesViewProps = {
   onBookLoad?: (loadId?: string) => void | Promise<void>;
   onApplyLoadPrefill?: (patch: ScanFieldPatch, conversationId: string, draftId?: string | null) => void;
   onBulkImported?: (rows: BulkLoadRow[]) => void;
+  // Bumped by the parent whenever something outside this view (e.g. the standalone LenaAI
+  // overlay) may have added messages elsewhere - this view stays mounted while other overlays
+  // are open on top of it, so it has no other way to know its data went stale in the background.
+  refreshSignal?: number;
 };
 
 type OptimisticMessage = {
@@ -35,7 +39,7 @@ type OptimisticMessage = {
   time: string;
 };
 
-export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill, onBulkImported }: MessagesViewProps) => {
+export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill, onBulkImported, refreshSignal }: MessagesViewProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const quickActionLabels = useMemo<Record<LenaQuickAction, string>>(() => ({
     add: u('Add a new load', 'Add a new load'),
@@ -52,6 +56,14 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
   }), [lang]);
   const generalWelcome = `${u('Lena welcome general', 'Hello, I am LenaAI, your AI dispatcher in Freightbook.ai.\n\nYou can write to me in any language. I will reply exclusively in the language you use. How can I help you today?')}\n\n[[LENA_OPTIONS:add,tracking,booking,hs,free]]`;
   const result = useApiList(api.conversations.list, { per_page: 100 });
+  const isInitialRefreshSignal = useRef(true);
+  useEffect(() => {
+    if (isInitialRefreshSignal.current) {
+      isInitialRefreshSignal.current = false;
+      return;
+    }
+    void result.refresh();
+  }, [refreshSignal]);
   const [user, setUser] = useState<ApiUser | null>(null);
   useEffect(() => { void api.auth.me().then(setUser); }, []);
   const conversations = useMemo<Conversation[]>(() => result.items.map((row) => {

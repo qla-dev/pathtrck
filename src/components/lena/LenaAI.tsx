@@ -131,7 +131,7 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-150 bg-white dark:bg-slate-950"
+          className="fixed inset-0 z-[300] bg-white dark:bg-slate-950"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

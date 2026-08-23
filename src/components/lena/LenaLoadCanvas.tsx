@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Check, FileSpreadsheet, Loader2, PackagePlus, Save, Send, Sparkles } from 'lucide-react';
 import { Language } from '../../types';
 import { ui } from '../../i18n';
@@ -31,6 +31,26 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftI
   const rows = mergedScan ? buildScanFieldRows(mergedScan) : [];
   const patch = rows.reduce<ScanFieldPatch>((result, row) => ({ ...result, ...row.patch }), {});
 
+  // Show when the draft was actually last saved as soon as the canvas opens, not just after the
+  // user manually saves in this session - fetch its real updated_at from the server.
+  useEffect(() => {
+    if (!draftId) return undefined;
+    let cancelled = false;
+    void api.loadDrafts.get(draftId).then((response) => {
+      if (cancelled) return;
+      const updatedAt = response.data.updated_at;
+      if (typeof updatedAt === 'string') {
+        const parsed = new Date(updatedAt);
+        if (!Number.isNaN(parsed.getTime())) setLastSavedAt(parsed);
+      }
+    }).catch(() => {
+      // Non-critical - the badge just won't show an initial timestamp.
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [draftId]);
+
   const importRows = async () => {
     if (bulkRows.length === 0 || importing) return;
     setImporting(true);
@@ -62,6 +82,7 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftI
       if (draftId) {
         try {
           await api.loadDrafts.update(draftId, scanPatchToDraftPayload(patch));
+          setLastSavedAt(new Date());
         } catch {
           // A stale/removed draft must not block handing the already-collected data to
           // PostLoadModal, which can still save a fresh draft from there.
@@ -89,12 +110,12 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftI
             type="button"
             onClick={() => void saveDraftNow()}
             disabled={quickSaving}
-            title={u('postLoadModal.draftAutosaved', 'Draft autosaved')}
-            className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-[11px] font-bold text-orange-600 transition-colors hover:bg-orange-100 disabled:cursor-wait disabled:opacity-70 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-400 dark:hover:bg-orange-500/20"
+            title={u('postLoadModal.draftAutosaved', 'Autosaved')}
+            className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary transition-colors hover:bg-primary/15 disabled:cursor-wait disabled:opacity-70 dark:border-primary/30 dark:bg-primary/15 dark:hover:bg-primary/20"
           >
             {quickSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
             <span className="whitespace-nowrap">
-              {u('postLoadModal.draftAutosaved', 'Draft autosaved')}
+              {u('postLoadModal.draftAutosaved', 'Autosaved')}
               {lastSavedAt ? ` · ${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
             </span>
           </button>
