@@ -136,15 +136,15 @@ const QuestionnaireSuggestionPills = ({ group, lang, onSubmit, onSelectionChange
     const active = selected.includes(suggestion.value);
     const Icon = suggestion.icon;
     if (suggestion.skip) return <button key={`${suggestion.value}:${suggestion.label}`} type="button" onClick={() => onSubmit(suggestion.value, suggestion.label)} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-primary/20 bg-white px-3 py-1.5 text-xs font-bold text-primary shadow-sm transition-colors hover:border-primary hover:bg-primary hover:text-white dark:bg-slate-900"><Icon className="h-3.5 w-3.5" />{suggestion.label}</button>;
-    return <button key={`${suggestion.value}:${suggestion.label}`} type="button" onClick={() => setSelected((current) => {
+    return <button key={`${suggestion.value}:${suggestion.label}`} type="button" onClick={() => {
       const next = active
-        ? current.filter((value) => value !== suggestion.value)
+        ? selected.filter((value) => value !== suggestion.value)
         : suggestion.value === group.exclusiveValue
           ? [suggestion.value]
-          : [...current.filter((value) => value !== group.exclusiveValue), suggestion.value];
+          : [...selected.filter((value) => value !== group.exclusiveValue), suggestion.value];
+      setSelected(next);
       onSelectionChange?.(next.join(', '));
-      return next;
-    })} className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold shadow-sm transition-colors ${active ? 'border-primary bg-primary text-white' : 'border-primary/20 bg-white text-primary hover:border-primary dark:bg-slate-900'}`}><Icon className="h-3.5 w-3.5" />{suggestion.label}</button>;
+    }} className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold shadow-sm transition-colors ${active ? 'border-primary bg-primary text-white' : 'border-primary/20 bg-white text-primary hover:border-primary dark:bg-slate-900'}`}><Icon className="h-3.5 w-3.5" />{suggestion.label}</button>;
   })}<button type="button" disabled={selected.length === 0} onClick={() => onSubmit(selected.join(', '), selected.join(', '))} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"><CheckCircle2 className="h-3.5 w-3.5" />{confirmLabel}</button></div></div>;
 };
 
