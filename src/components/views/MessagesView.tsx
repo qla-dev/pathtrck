@@ -268,7 +268,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
 
     if (isAiDispatch) {
       try {
-        await withMinDelay(api.dispatchChat.reply(Number(conversationId)));
+        await withMinDelay(api.dispatchChat.reply(Number(conversationId), lang));
         await result.refresh();
       } catch (error) {
         void showError(
@@ -366,7 +366,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     }
 
     try {
-      await api.dispatchChat.reply(Number(conversationId));
+      await api.dispatchChat.reply(Number(conversationId), lang);
       await result.refresh();
     } catch (error) {
       void showError(

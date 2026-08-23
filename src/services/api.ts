@@ -375,9 +375,9 @@ export const api = {
     open: openMessageAttachment,
   },
   dispatchChat: {
-    reply: async (conversationId: number) => (await request<Record<string, unknown>>('/dispatch-chat', {
+    reply: async (conversationId: number, lang?: string) => (await request<Record<string, unknown>>('/dispatch-chat', {
       method: 'POST',
-      body: JSON.stringify({ conversation_id: conversationId }),
+      body: JSON.stringify({ conversation_id: conversationId, lang }),
     })).data,
     answerStep: async (conversationId: number, step: string, value: string | null, displayText: string, skip: boolean, lang: string) =>
       (await request<Record<string, unknown>>('/lena-guided-answer', {

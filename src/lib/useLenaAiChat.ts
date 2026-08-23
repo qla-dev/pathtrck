@@ -302,7 +302,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
     }
 
     try {
-      await withMinDelay(api.dispatchChat.reply(conversationId));
+      await withMinDelay(api.dispatchChat.reply(conversationId, lang));
       await result.refresh();
       setCanvasOverride(null);
     } catch (error) {
@@ -412,7 +412,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
     }
 
     try {
-      await withMinDelay(api.dispatchChat.reply(conversationId));
+      await withMinDelay(api.dispatchChat.reply(conversationId, lang));
       await result.refresh();
       setCanvasOverride(null);
     } catch (error) {
