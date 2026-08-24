@@ -74,7 +74,6 @@ import { Button } from './components/ui/Button';
 import { Card } from './components/ui/Card';
 import { LoadItem } from './components/load/LoadItem';
 import { Dashboard } from './components/views/Dashboard';
-import { NetworkView } from './components/views/NetworkView';
 import { TrackingView } from './components/views/TrackingView';
 import { HomeFeed, FeedSortMode } from './components/views/HomeFeed';
 import { FleetView } from './components/views/FleetView';
@@ -3821,7 +3820,6 @@ export default function App() {
         { id: 'email-studio', label: u('nav.emailStudio', 'Email Studio'), icon: Mail },
         { id: 'notes', label: ui(lang, 'notes.navLabel', 'Notes'), icon: NotebookPen },
         { id: 'dashboard', label: analyticsLabel, icon: BarChart3 },
-        { id: 'network', label: t.network, icon: Globe },
         { id: 'settings', label: t.settings, icon: Settings },
       ]
     : role === 'finance'
@@ -3838,7 +3836,6 @@ export default function App() {
           { id: 'fleet', label: t.myFleet, icon: Truck },
           { id: 'company-team', label: u('nav.teamPermissions', 'Team & Permissions'), icon: Users },
           { id: 'dashboard', label: analyticsLabel, icon: BarChart3 },
-          { id: 'network', label: t.network, icon: Globe },
           { id: 'settings', label: t.settings, icon: Settings },
         ]
       : [
@@ -3849,7 +3846,6 @@ export default function App() {
             { id: 'fleet', label: t.myFleet, icon: Truck },
           ] : []),
           { id: 'dashboard', label: analyticsLabel, icon: BarChart3 },
-          { id: 'network', label: t.network, icon: Globe },
           ...(role === 'driver' ? [{ id: 'notes', label: ui(lang, 'notes.navLabel', 'Notes'), icon: NotebookPen }] : []),
           { id: 'settings', label: t.settings, icon: Settings },
         ];
@@ -4215,7 +4211,6 @@ export default function App() {
 	              {view === 'company' && <CompanyWorkspaceView lang={lang} />}
 	              {view === 'company-team' && <CompanyTeamView lang={lang} />}
 	              {view === 'finance' && <FinanceView lang={lang} />}
-	              {view === 'network' && <NetworkView lang={lang} />}
 	              {view === 'automations' && <AutomationsView lang={lang} />}
 	              {view === 'fleet' && <FleetView lang={lang} role={role} userId={currentUser?.id} companyIds={trackingCompanyIds} />}
 	              {view === 'pricing' && (
