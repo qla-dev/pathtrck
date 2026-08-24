@@ -933,7 +933,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       ),
       // vehicleType alone is never a useful signal here - it defaults to 'Box Truck' in
       // INITIAL_DRAFT, so it's already truthy before the user has touched this step at all.
-      terms: Boolean(draft.budget && draft.incoterm && draft.vehicleType),
+      terms: Boolean((draft.receivePriceProposals || draft.budget) && draft.incoterm && draft.vehicleType),
       contact: Boolean(
         draft.contactName &&
           (draft.contactPhone || draft.contactMobile || draft.contactEmail)
@@ -1790,6 +1790,10 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                     </div>
 
                     <div className="space-y-4 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
+                      <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
+                        <Package className="h-4 w-4" />
+                        <span>{u('postLoadModal.goodsSpecifications', 'Goods specifications')}</span>
+                      </div>
                       <div className="space-y-1.5">
                         {fieldLabel('goodsType', 'postLoadModal.cargoName', 'Type of goods and HS codes')}
                         <div ref={hsSearchRef} className="relative">
@@ -1942,23 +1946,9 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
 
                   <div className="grid lg:grid-cols-2 gap-4 sm:gap-5">
                   <div className="order-2 flex flex-col space-y-4 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
-                    <div className="grid sm:grid-cols-[minmax(0,1fr)_120px] gap-4">
-                      <div className="space-y-1.5">
-                        {fieldLabel('budget', 'postLoadModal.targetPrice', 'Your expected target price')}
-                        <Input
-                          value={draft.budget}
-                          onChange={(e) => setField('budget', e.target.value)}
-                          placeholder="1450"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        {fieldLabel('freightCurrency', 'postLoadModal.currency', 'Currency')}
-                        <Select value={draft.freightCurrency} onChange={(e) => setField('freightCurrency', e.target.value)}>
-                          <option value="EUR">EUR</option>
-                          <option value="BAM">BAM</option>
-                          <option value="USD">USD</option>
-                        </Select>
-                      </div>
+                    <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
+                      <Coins className="h-4 w-4" />
+                      <span>{u('postLoadModal.paymentTitle', 'Payment')}</span>
                     </div>
                     <div className="space-y-2">
                       {fieldLabel('paymentDeferred', 'postLoadModal.deferredPayment', 'Deferred payment')}
@@ -1994,6 +1984,32 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           icon={Tag}
                           onClick={() => setField('receivePriceProposals', false)}
                         />
+                      </div>
+                    </div>
+
+                    <div className="grid sm:grid-cols-[minmax(0,1fr)_120px] gap-4">
+                      <div className="space-y-1.5">
+                        {fieldLabel(
+                          'budget',
+                          draft.receivePriceProposals ? 'postLoadModal.targetPrice' : 'postLoadModal.termsFixed',
+                          draft.receivePriceProposals ? 'Expected price (optional)' : 'Fixed price'
+                        )}
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={draft.budget}
+                          onChange={(e) => setField('budget', e.target.value)}
+                          placeholder="1450"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        {fieldLabel('freightCurrency', 'postLoadModal.currency', 'Currency')}
+                        <Select value={draft.freightCurrency} onChange={(e) => setField('freightCurrency', e.target.value)}>
+                          <option value="EUR">EUR</option>
+                          <option value="BAM">BAM</option>
+                          <option value="USD">USD</option>
+                        </Select>
                       </div>
                     </div>
 
@@ -2163,6 +2179,10 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                 <motion.div key="contact" className="space-y-6 sm:space-y-8" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
 
                     <div className="space-y-5 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
+                      <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
+                        <UserRound className="h-4 w-4" />
+                        <span>{u('postLoadModal.contactTitle', 'Contact')}</span>
+                      </div>
                       <div className="space-y-1.5">
                         {fieldLabel('contactName', 'postLoadModal.contactName', 'Contact in your company')}
                         <Select
@@ -2342,7 +2362,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                               draft.deliveryDate,
                               draft.loadTitle,
                               draft.weightKg,
-                              draft.budget,
+                              draft.budget || (draft.receivePriceProposals ? 'negotiable' : ''),
                               draft.contactName,
                               draft.contactPhone,
                             ].filter(Boolean).length * 11

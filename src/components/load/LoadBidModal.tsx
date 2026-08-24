@@ -478,9 +478,9 @@ export const LoadBidModal = ({
                         onClick={() => setAddVehicleOpen(true)}
                         aria-label={u('Add vehicle', 'Add vehicle')}
                         title={u('Add vehicle', 'Add vehicle')}
-                        className="absolute right-0 top-0 flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center rounded-full border border-primary text-primary transition-colors hover:bg-primary/10 disabled:cursor-default"
+                        className="absolute -top-1 right-0 z-10 flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full bg-primary text-white shadow-sm transition-colors hover:bg-primary/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 disabled:cursor-default disabled:opacity-50"
                       >
-                        <Plus className="h-2.5 w-2.5" />
+                        <Plus className="h-3.5 w-3.5" strokeWidth={3} />
                       </button>
                       <select
                         value={draft.vehicleId ? `v:${draft.vehicleId}` : 'none'}
