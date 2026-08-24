@@ -67,6 +67,7 @@ import { LocationSearchResult, searchLocations } from '../../services/locationSe
 import { Button } from '../ui/Button';
 import { AI_DISPATCH_SUBJECT_PREFIX, api, ApiError, ApiUser, HsCodeMatch, LoadScanResult } from '../../services/api';
 import { CustomerSelect, customerOptionFromRecord, type CustomerOption } from '../customer/CustomerSelect';
+import { HsCodeChip } from '../hs/HsCodeChip';
 import { AddressMapModal } from '../maps/AddressMapModal';
 import { RouteMapModal } from '../maps/RouteMapModal';
 import { CountrySelect } from '../location/CountrySelect';
@@ -1776,35 +1777,14 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         {fieldLabel('goodsType', 'postLoadModal.cargoName', 'Type of goods and HS codes')}
                         <div ref={hsSearchRef} className="relative">
                           <div className="flex w-full flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 focus-within:ring-2 focus-within:ring-primary dark:border-slate-800 dark:bg-slate-950">
-                            {draft.hsCodes.map((item) => {
-                              const SectionIcon = hsSectionIcon(item.chapterCode);
-                              const category = item.headingName || item.chapterName;
-                              const parentCategory = item.chapterName && item.chapterName !== category ? item.chapterName : '';
-                              return (
-                                <span key={item.code} className="group relative inline-flex max-w-[240px] shrink-0 items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">
-                                  <SectionIcon className="h-3.5 w-3.5 shrink-0" />
-                                  <span className="truncate">
-                                    {item.code}
-                                    {category && <span className="font-normal opacity-75"> · {category}</span>}
-                                  </span>
-                                  <button type="button" onClick={() => removeHsCode(item.code)} title={u('Remove HS code', 'Remove HS code')} className="shrink-0 cursor-pointer">
-                                    <X className="h-3 w-3" />
-                                  </button>
-                                  {(item.description || category) && (
-                                    <span
-                                      role="tooltip"
-                                      className="pointer-events-none invisible absolute bottom-full left-1/2 z-30 mb-2 w-72 -translate-x-1/2 rounded-xl bg-slate-950 px-3 py-2.5 text-left text-white opacity-0 shadow-xl transition-opacity group-hover:visible group-hover:opacity-100 dark:border dark:border-slate-700 dark:bg-slate-800"
-                                    >
-                                      <span className="block text-[10px] font-black uppercase tracking-wider text-sky-300">HS {item.code}</span>
-                                      {item.description && <span className="mt-1 block text-xs font-semibold leading-5">{item.description}</span>}
-                                      {category && category !== item.description && <span className="mt-1 block text-[11px] font-medium leading-4 text-slate-300">{category}</span>}
-                                      {parentCategory && <span className="mt-0.5 block text-[10px] leading-4 text-slate-400">{parentCategory}</span>}
-                                      <span className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-slate-950 dark:border-t-slate-800" />
-                                    </span>
-                                  )}
-                                </span>
-                              );
-                            })}
+                            {draft.hsCodes.map((item) => (
+                              <HsCodeChip
+                                key={item.code}
+                                item={item}
+                                onRemove={() => removeHsCode(item.code)}
+                                removeTitle={u('Remove HS code', 'Remove HS code')}
+                              />
+                            ))}
                             <input
                               value={hsQuery}
                               onChange={(e) => setHsQuery(e.target.value)}

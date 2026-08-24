@@ -36,8 +36,18 @@ export type HsCodeMatch = {
   chapterName?: string;
   version?: string;
 };
+export type LoadPartyMatch = {
+  role: string;
+  name: string;
+  taxNumber: string;
+  city: string;
+  countryCode: string;
+};
 export type LoadScanResult = {
   isDocument: boolean;
+  sender?: LoadPartyMatch;
+  receiver?: LoadPartyMatch;
+  customerCandidates?: LoadPartyMatch[];
   consigneeName: string;
   consigneeTaxNumber: string;
   consigneeCity: string;
