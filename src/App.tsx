@@ -41,7 +41,8 @@ import {
   RefreshCw,
   ScanSearch,
   Gem,
-  History
+  History,
+  Zap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
