@@ -131,7 +131,7 @@ type LoadDraft = {
   deliveryTimeFrom: string;
   deliveryTimeTo: string;
   deliveryWindow: string;
-  cargoTitle: string;
+  loadTitle: string;
   cargoType: string;
   goodsType: string;
   hsCodes: HsCodeMatch[];
@@ -215,7 +215,7 @@ const INITIAL_DRAFT: LoadDraft = {
   deliveryTimeFrom: '',
   deliveryTimeTo: '',
   deliveryWindow: '',
-  cargoTitle: '',
+  loadTitle: '',
   cargoType: 'FTL',
   goodsType: 'General',
   hsCodes: [],
@@ -304,7 +304,7 @@ const toApiWeightKg = (weightTonnes: string) => Number(weightTonnes) * 1000;
 // load_stops table, load_drafts flattens pickup_*/delivery_* columns onto itself).
 const buildLoadFieldsPayload = (draft: LoadDraft) => ({
   consignee_customer_id: draft.consignee?.id || null,
-  title: draft.cargoTitle,
+  title: draft.loadTitle,
   transport_type: draft.transportType,
   cargo_type: draft.cargoType,
   goods_type: draft.goodsType,
@@ -443,7 +443,7 @@ const STEPS: Array<{ id: StepId; icon: typeof MapPin }> = [
 // the sidebar can show a per-step count instead of only the one global aiFieldCount badge.
 const STEP_AI_FIELDS: Record<StepId, Array<keyof ScanFieldPatch & keyof LoadDraft>> = {
   route: ['pickupCountry', 'pickupCity', 'pickupDate', 'deliveryCountry', 'deliveryCity', 'deliveryDate'],
-  cargo: ['cargoTitle', 'lengthM', 'weightKg', 'widthM', 'heightM'],
+  cargo: ['loadTitle', 'lengthM', 'weightKg', 'widthM', 'heightM'],
   terms: ['budget', 'freightCurrency', 'paymentDeferred', 'incoterm', 'notes', 'vehicleType', 'bodyTypes', 'temperatureControlled'],
   contact: ['contactName', 'contactEmail', 'contactPhone'],
   review: [],
@@ -778,6 +778,9 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   const [aiFilledPatch, setAiFilledPatch] = useState<ScanFieldPatch>({});
   const [hsSearching, setHsSearching] = useState(false);
   const [hsSuggestions, setHsSuggestions] = useState<HsCodeMatch[]>([]);
+  // Purely a live search query for the "Vrsta robe" HS-code box, cleared after every pick - it
+  // never gets submitted or saved anywhere, so it has no business living in draft/ScanFieldPatch.
+  const [hsQuery, setHsQuery] = useState('');
   const [draftId, setDraftId] = useState<string | number | null>(initialDraftId);
   const [savingDraft, setSavingDraft] = useState(false);
   const [draftSavedAt, setDraftSavedAt] = useState<Date | null>(null);
@@ -867,12 +870,13 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         ? customerOptionFromRecord(record.consignee as Record<string, unknown>)
         : null;
       const terms = String(record.payment_terms || '');
+      setHsQuery('');
       setDraft({ ...INITIAL_DRAFT,
         consignee,
         transportType: (record.transport_type as TransportType) || 'road',
         pickupPlaceType: String(pickup.place_type || INITIAL_DRAFT.pickupPlaceType), pickupCity: String(pickup.city || ''), pickupCountry: String(pickup.country_code || 'BA'), pickupAddress: String(pickup.address || ''), pickupLatitude: String(pickup.latitude || ''), pickupLongitude: String(pickup.longitude || ''), pickupDate: pickupStart.date, pickupDateTo: pickupEnd.date, pickupTimeFrom: pickupStart.time, pickupTimeTo: pickupEnd.time,
         deliveryPlaceType: String(delivery.place_type || INITIAL_DRAFT.deliveryPlaceType), deliveryCity: String(delivery.city || ''), deliveryCountry: String(delivery.country_code || 'BA'), deliveryAddress: String(delivery.address || ''), deliveryLatitude: String(delivery.latitude || ''), deliveryLongitude: String(delivery.longitude || ''), deliveryDate: deliveryStart.date, deliveryDateTo: deliveryEnd.date, deliveryTimeFrom: deliveryStart.time, deliveryTimeTo: deliveryEnd.time,
-        cargoTitle: String(record.title || ''), cargoType: String(record.cargo_type || 'FTL'), goodsType: String(record.goods_type || 'General'), hsCodes: Array.isArray(record.hs_codes) ? record.hs_codes as HsCodeMatch[] : [], weightKg: fromApiWeightKg(record.weight_kg), pallets: String(record.pallets || ''), lengthM: String(record.length_m || ''), widthM: String(record.width_m || ''), heightM: String(record.height_m || ''), volumeM3: String(record.volume_m3 || ''), declaredValue: String(record.declared_value || ''), budget: String(record.budget || ''), freightCurrency: String(record.currency || 'EUR'), shipmentValueCurrency: String(record.shipment_value_currency || record.currency || 'EUR'), paymentDueDays: String(record.payment_due_days || ''), paymentDeferred: terms === 'deferred', incoterm: String(record.incoterms || ''),
+        loadTitle: String(record.title || ''), cargoType: String(record.cargo_type || 'FTL'), goodsType: String(record.goods_type || 'General'), hsCodes: Array.isArray(record.hs_codes) ? record.hs_codes as HsCodeMatch[] : [], weightKg: fromApiWeightKg(record.weight_kg), pallets: String(record.pallets || ''), lengthM: String(record.length_m || ''), widthM: String(record.width_m || ''), heightM: String(record.height_m || ''), volumeM3: String(record.volume_m3 || ''), declaredValue: String(record.declared_value || ''), budget: String(record.budget || ''), freightCurrency: String(record.currency || 'EUR'), shipmentValueCurrency: String(record.shipment_value_currency || record.currency || 'EUR'), paymentDueDays: String(record.payment_due_days || ''), paymentDeferred: terms === 'deferred', incoterm: String(record.incoterms || ''),
         loadingEquipment: Array.isArray(record.loading_methods) ? record.loading_methods.map(String) : [], vehicleType: String(record.vehicle_type || INITIAL_DRAFT.vehicleType), characteristics: String(record.characteristics || ''), specialRequirements: Array.isArray(record.special_requirements) ? record.special_requirements.map(String) : [], transportMode: String(record.transport_mode || INITIAL_DRAFT.transportMode), deliveryProof: String(record.delivery_proof || ''), temperatureControlled: record.temperature_min != null || record.temperature_max != null, temperatureMin: String(record.temperature_min ?? ''), temperatureMax: String(record.temperature_max ?? ''),
         requiresAdr: Boolean(record.requires_adr), requiresTailLift: Boolean(record.requires_tail_lift), tollRoadsIncluded: Boolean(record.toll_roads_included), ferryIncluded: Boolean(record.ferry_included), cmrRequired: record.cmr_required == null ? true : Boolean(record.cmr_required), palletExchangeRequired: Boolean(record.pallet_exchange_required), customsRequired: Boolean(record.customs_required), insuranceRequired: Boolean(record.insurance_required), certificationRequired: Boolean(record.certification_required), inspectionServicesRequired: Boolean(record.inspection_services_required), mustBeTrackable: Boolean(record.must_be_trackable), urgent: Boolean(record.is_urgent), receivePriceProposals: record.is_negotiable == null ? true : Boolean(record.is_negotiable), bodyTypes: Array.isArray(record.body_types) ? record.body_types.map(String) : [], notes: String(record.notes || ''), internalComments: String(record.internal_comments || ''), externalComments: String(record.external_comments || ''), contactName: String(contact.name || ''), contactPhone: String(contact.phone || ''), contactMobile: String(contact.mobile || ''), contactEmail: String(contact.email || ''), contactFax: String(contact.fax || ''),
       });
@@ -935,7 +939,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       cargo: Boolean(
         draft.consignee &&
           draft.transportType &&
-          draft.cargoTitle.trim() &&
+          draft.loadTitle.trim() &&
           Number(draft.weightKg) > 0 &&
           Number(draft.lengthM) > 0
       ),
@@ -1058,7 +1062,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
               company_id: Number.isFinite(companyId) ? companyId : undefined,
               created_by_user_id: currentUser.id,
               channel: 'inapp',
-              subject: `${AI_DISPATCH_SUBJECT_PREFIX}${draft.cargoTitle || u('postLoadModal.draftFallbackTitle', 'Draft')}`,
+              subject: `${AI_DISPATCH_SUBJECT_PREFIX}${draft.loadTitle || u('postLoadModal.draftFallbackTitle', 'Draft')}`,
               canvas: false,
               load_draft_id: newDraftId,
               last_message_at: new Date().toISOString(),
@@ -1084,7 +1088,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   };
 
   const searchHsCatalog = async () => {
-    const query = draft.cargoTitle.trim() || draft.goodsType.trim();
+    const query = hsQuery.trim() || draft.goodsType.trim();
     if (query.length < 2 || hsSearching) return;
     setHsSearching(true);
     try {
@@ -1097,14 +1101,13 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     }
   };
 
-  // Vrsta robe (cargoTitle) and HS Kodovi are now the same field: whatever is typed there both
-  // stays the load title and drives a live HS catalog search, mirroring the debounce timing used
-  // for location suggestions elsewhere in the app (useLocationAutocomplete).
+  // Debounce mirrors the timing used for location suggestions elsewhere in the app
+  // (useLocationAutocomplete).
   useEffect(() => {
-    if (draft.cargoTitle.trim().length < 2) return undefined;
+    if (hsQuery.trim().length < 2) return undefined;
     const timer = window.setTimeout(() => void searchHsCatalog(), 350);
     return () => window.clearTimeout(timer);
-  }, [draft.cargoTitle]);
+  }, [hsQuery]);
 
   const addHsCode = (item: HsCodeMatch) => {
     setDraft((current) => ({
@@ -1112,8 +1115,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       hsCodes: current.hsCodes.some((existing) => existing.code === item.code)
         ? current.hsCodes
         : [...current.hsCodes, item],
-      cargoTitle: '',
     }));
+    setHsQuery('');
     setHsSuggestions([]);
   };
 
@@ -1243,10 +1246,13 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
               <div className="w-9 h-9 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0">
                 <Plus className="text-primary w-4 h-4" />
               </div>
-              <div className="min-w-0">
-                <h3 className="text-base md:text-lg font-black tracking-tight dark:text-white leading-tight truncate">
-                  {editLoadId ? u('postLoadModal.editTitle', 'Edit Load') : u('postLoadModal.title', 'Post New Load')}
-                </h3>
+              <div className="min-w-0 flex-1">
+                <input
+                  value={draft.loadTitle}
+                  onChange={(e) => setField('loadTitle', e.target.value)}
+                  placeholder={editLoadId ? u('postLoadModal.editTitle', 'Edit Load') : u('postLoadModal.title', 'Post New Load')}
+                  className="w-full max-w-md bg-transparent text-base md:text-lg font-black tracking-tight dark:text-white leading-tight truncate outline-none cursor-text rounded-md focus:ring-2 focus:ring-primary/40 -mx-1 px-1"
+                />
                 <p className="hidden sm:block text-xs text-slate-500 mt-0.5 max-w-2xl truncate">
                   {u(
                     'postLoadModal.subtitle',
@@ -1794,7 +1800,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
 
                     <div className="space-y-4 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
                       <div className="space-y-1.5">
-                        {fieldLabel('cargoTitle', 'postLoadModal.cargoName', 'Type of goods and HS codes')}
+                        {fieldLabel('goodsType', 'postLoadModal.cargoName', 'Type of goods and HS codes')}
                         <div ref={hsSearchRef} className="relative">
                           <div className="flex w-full flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 focus-within:ring-2 focus-within:ring-primary dark:border-slate-800 dark:bg-slate-950">
                             {draft.hsCodes.map((item) => {
@@ -1814,13 +1820,13 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                               );
                             })}
                             <input
-                              value={draft.cargoTitle}
-                              onChange={(e) => setField('cargoTitle', e.target.value)}
+                              value={hsQuery}
+                              onChange={(e) => setHsQuery(e.target.value)}
                               onKeyDown={(event) => {
                                 if (event.key === 'Enter') {
                                   event.preventDefault();
                                   void searchHsCatalog();
-                                } else if (event.key === 'Backspace' && draft.cargoTitle === '' && draft.hsCodes.length > 0) {
+                                } else if (event.key === 'Backspace' && hsQuery === '' && draft.hsCodes.length > 0) {
                                   removeHsCode(draft.hsCodes[draft.hsCodes.length - 1].code);
                                 }
                               }}
@@ -2294,7 +2300,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         label={u('postLoadModal.deliverySummary', 'Delivery')}
                         value={`${draft.deliveryCountry} · ${draft.deliveryDate || '—'}${draft.deliveryDateTo ? ` - ${draft.deliveryDateTo}` : ''}${draft.deliveryTimeFrom ? ` · ${draft.deliveryTimeFrom}` : ''}${draft.deliveryTimeTo ? ` - ${draft.deliveryTimeTo}` : ''}`}
                       />
-                      <SummaryRow label={u('postLoadModal.cargoSummary', 'Cargo')} value={draft.cargoTitle} />
+                      <SummaryRow label={u('postLoadModal.titleSummary', 'Title')} value={draft.loadTitle || '—'} />
+                      <SummaryRow label={u('postLoadModal.cargoSummary', 'Cargo')} value={draft.goodsType || '—'} />
                       <SummaryRow label={u('postLoadModal.specsSummary', 'Specs')} value={`${draft.lengthM || '—'} × ${draft.widthM || '—'} × ${draft.heightM || '—'} m · ${draft.weightKg || '—'} t · ${draft.additionalInfo || u('postLoadModal.none', 'None')}`} />
                       <SummaryRow label={u('postLoadModal.vehicleSummary', 'Vehicle')} value={`${draft.vehicleType} · ${draft.bodyTypes.join(', ') || u('postLoadModal.none', 'None')}`} />
                       <SummaryRow label={u('postLoadModal.paymentSummary', 'Payout')} value={`${draft.budget || '—'} ${draft.freightCurrency} · ${draft.paymentDueDays || '—'} ${u('postLoadModal.days', 'days')}`} />
@@ -2325,7 +2332,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                               draft.deliveryCity,
                               draft.pickupDate,
                               draft.deliveryDate,
-                              draft.cargoTitle,
+                              draft.loadTitle,
                               draft.weightKg,
                               draft.budget,
                               draft.contactName,

@@ -3,7 +3,7 @@ import { Role } from '../types';
 export type ApiEnvelope<T> = {
   message: string;
   data: T;
-  meta?: { current_page?: number; page_no?: number; last_page?: number; per_page?: number; limit?: number; total?: number; email_sent?: boolean; has_more?: boolean };
+  meta?: { current_page?: number; page_no?: number; last_page?: number; per_page?: number; limit?: number; total?: number; email_sent?: boolean; has_more?: boolean; unlimited?: boolean };
   errors?: Record<string, string[]>;
 };
 
@@ -391,4 +391,20 @@ export const api = {
   invoiceItems: resourceApi<Record<string, unknown>>('invoice-items'),
   emailTemplates: resourceApi<Record<string, unknown>>('email-templates'),
   emailCampaigns: resourceApi<Record<string, unknown>>('email-campaigns'),
+  usage: {
+    mine: () => request<Record<string, unknown>>('/my-usage'),
+  },
+  subscriptionPackages: {
+    ...resourceApi<Record<string, unknown>>('subscription-packages'),
+    publicList: () => request<Record<string, unknown>[]>('/public-subscription-packages'),
+  },
+  subscriptions: {
+    mine: () => request<Record<string, unknown> | null>('/my-subscription'),
+    select: (subscriptionPackageId: number) =>
+      request<Record<string, unknown>>('/my-subscription', { method: 'POST', body: JSON.stringify({ subscription_package_id: subscriptionPackageId }) }),
+    assign: (userId: number | string, data: Record<string, unknown>) =>
+      request<Record<string, unknown>>(`/user-subscriptions/${userId}`, { method: 'POST', body: JSON.stringify(data) }),
+    list: () => request<Record<string, unknown>[]>('/user-subscriptions'),
+    remove: (id: number | string) => request<null>(`/user-subscriptions/${id}`, { method: 'DELETE' }),
+  },
 };

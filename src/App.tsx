@@ -39,7 +39,8 @@ import {
   Database,
   Sparkles,
   RefreshCw,
-  ScanSearch
+  ScanSearch,
+  Gem
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
@@ -62,7 +63,7 @@ import {
 } from 'recharts';
 
 // Types & Services
-import { Role, Language, Load } from './types';
+import { Role, Language, Load, SubscriptionPackage } from './types';
 import { ApiUser, api } from './services/api';
 import { MOCK_PACKAGES, MOCK_ROUTES } from './mockData';
 import { ui, trLoadStatus, trPackageStatus, trFuelType, trGoodsType, trPaymentTerms } from './i18n';
@@ -98,6 +99,9 @@ import { AdminCustomersView } from './components/views/AdminCustomersView';
 import { AdminDriversView } from './components/views/AdminDriversView';
 import { AiStatsView } from './components/views/AiStatsView';
 import { EmailStudioView } from './components/views/EmailStudioView';
+import { PricingView } from './components/views/PricingView';
+import { UsageView } from './components/views/UsageView';
+import { PricingPlanCard } from './components/pricing/PricingPlanCard';
 import { SetupProcess } from './components/auth/SetupProcess';
 import { LoginProcess } from './components/auth/LoginProcess';
 import { AiRouteCalculatorCard } from './components/ai_automattions/AiRouteCalculatorCard';
@@ -1193,20 +1197,24 @@ const myCargoLabels: Record<Exclude<Language, null>, string> = {
   pt: 'Minha carga',
 };
 
-const LandingPage = ({ 
-  onStart, 
+const LandingPage = ({
+  onStart,
   onLogin,
-  isDark, 
-  setIsDark, 
-  lang, 
-  setLang 
-}: { 
-  onStart: () => void, 
+  isDark,
+  setIsDark,
+  lang,
+  setLang,
+  scrollTarget,
+  onScrolled,
+}: {
+  onStart: () => void,
   onLogin: () => void,
-  isDark: boolean, 
-  setIsDark: (v: boolean) => void, 
-  lang: Language, 
-  setLang: (l: Language) => void 
+  isDark: boolean,
+  setIsDark: (v: boolean) => void,
+  lang: Language,
+  setLang: (l: Language) => void,
+  scrollTarget?: string | null,
+  onScrolled?: () => void,
 }) => {
   const [formType, setFormType] = useState<'track' | 'load'>('track');
   const [selectedWaypoint, setSelectedWaypoint] = useState<FeatureRouteStop['id']>('zagreb');
@@ -1214,6 +1222,7 @@ const LandingPage = ({
   const [typedMessage, setTypedMessage] = useState('');
   const [isDeletingMessage, setIsDeletingMessage] = useState(false);
   const [landingLoads, setLandingLoads] = useState<Load[]>([]);
+  const [landingPackages, setLandingPackages] = useState<SubscriptionPackage[]>([]);
   const SECTION_PADDING = "py-20 sm:py-24 lg:py-32";
   const t = translations[lang || 'en'];
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
@@ -1231,8 +1240,22 @@ const LandingPage = ({
         if (active) setLandingLoads([]);
       });
 
+    void api.subscriptionPackages.publicList()
+      .then((response) => {
+        if (active) setLandingPackages(response.data as unknown as SubscriptionPackage[]);
+      })
+      .catch(() => {
+        if (active) setLandingPackages([]);
+      });
+
     return () => { active = false; };
   }, []);
+  useEffect(() => {
+    if (!scrollTarget) return;
+    const element = document.getElementById(scrollTarget);
+    element?.scrollIntoView({ behavior: 'smooth' });
+    onScrolled?.();
+  }, [scrollTarget, onScrolled]);
   const activeMessageConfig = titleMessages[messageIndex % titleMessages.length];
   const activeKeyword = activeMessageConfig?.keyword ?? '';
   const activeMessageText = activeMessageConfig?.text ?? '';
@@ -2133,72 +2156,16 @@ const LandingPage = ({
               {u('landing.pricingDesc', 'Choose the plan that fits your business needs. No hidden fees.')}
             </p>
           </div>
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              {
-                name: u('landing.pricing.starter.name', 'Starter'),
-                price: '€0',
-                desc: u('landing.pricing.starter.desc', 'Perfect for individuals and small shops.'),
-                features: [
-                  u('landing.pricing.starter.feature1', 'Up to 50 tracks/mo'),
-                  u('landing.pricing.starter.feature2', 'Basic AI updates'),
-                  u('landing.pricing.starter.feature3', 'Mobile App access'),
-                  u('landing.pricing.starter.feature4', 'Email support'),
-                ]
-              },
-              {
-                name: u('landing.pricing.pro.name', 'Professional'),
-                price: '€49',
-                desc: u('landing.pricing.pro.desc', 'Best for growing logistics companies.'),
-                features: [
-                  u('landing.pricing.pro.feature1', 'Unlimited tracking'),
-                  u('landing.pricing.pro.feature2', 'Advanced AI Insights'),
-                  u('landing.pricing.pro.feature3', 'Route Optimization'),
-                  u('landing.pricing.pro.feature4', 'Priority support'),
-                ],
-                popular: true
-              },
-              {
-                name: u('landing.pricing.enterprise.name', 'Enterprise'),
-                price: u('landing.pricing.enterprise.price', 'Custom'),
-                desc: u('landing.pricing.enterprise.desc', 'For global fleets and large enterprises.'),
-                features: [
-                  u('landing.pricing.enterprise.feature1', 'Custom integrations'),
-                  u('landing.pricing.enterprise.feature2', 'Dedicated account manager'),
-                  u('landing.pricing.enterprise.feature3', 'SLA guarantees'),
-                  u('landing.pricing.enterprise.feature4', 'White-label options'),
-                ]
-              }
-            ].map((plan, i) => (
-              <div key={i} className={cn(
-                "p-10 rounded-[2.5rem] border flex flex-col justify-between transition-all",
-                plan.popular 
-                  ? "border-primary bg-primary text-white scale-105 z-10" 
-                  : "border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-primary/50"
-              )}>
-                <div>
-                  {plan.popular && <span className="px-4 py-1 rounded-full bg-white text-primary text-[10px] font-black uppercase tracking-widest mb-6 inline-block">{u('landing.mostPopular', 'Most Popular')}</span>}
-                  <h4 className="text-2xl font-bold mb-2">{plan.name}</h4>
-                  <p className={cn("text-sm mb-8", plan.popular ? "text-white/70" : "text-slate-500")}>{plan.desc}</p>
-                  <div className="flex items-baseline gap-1 mb-8">
-                    <span className="text-5xl font-black">{plan.price}</span>
-                    {plan.price !== u('landing.pricing.enterprise.price', 'Custom') && <span className="text-sm opacity-70">{u('landing.perMonth', '/month')}</span>}
-                  </div>
-                  <ul className="space-y-4">
-                    {plan.features.map((f, j) => (
-                      <li key={j} className="flex items-center gap-3 text-sm font-medium">
-                        <CheckCircle2 className={cn("w-5 h-5", plan.popular ? "text-white" : "text-primary")} />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <Button variant={plan.popular ? "secondary" : "primary"} className={cn("w-full mt-10 h-14 rounded-full font-bold", plan.popular ? "bg-white text-primary hover:bg-slate-100" : "")}>
-                  {plan.price === "Custom"
-                    ? u('common.contactSales', 'Contact Sales')
-                    : u('landing.getStarted', 'Get Started')}
-                </Button>
-              </div>
+          <div className="grid md:grid-cols-3 gap-8 items-stretch">
+            {landingPackages.slice().sort((a, b) => a.sort_order - b.sort_order).map((pkg) => (
+              <PricingPlanCard
+                key={pkg.id}
+                pkg={pkg}
+                lang={lang}
+                onSelect={onStart}
+                onLearnMoreLenaAI={() => document.getElementById('lena-ai')?.scrollIntoView({ behavior: 'smooth' })}
+                ctaLabel={u('landing.getStarted', 'Get Started')}
+              />
             ))}
           </div>
         </div>
@@ -3267,6 +3234,7 @@ const getDefaultViewForRole = (role: Exclude<Role, null>) =>
 
 export default function App() {
   const [isLanding, setIsLanding] = useState(true);
+  const [landingScrollTarget, setLandingScrollTarget] = useState<string | null>(null);
   const [isAuthRestoring, setIsAuthRestoring] = useState(true);
   const [authMode, setAuthMode] = useState<'setup' | 'login'>('setup');
   const [role, setRole] = useState<Role>(null);
@@ -3520,10 +3488,12 @@ export default function App() {
     <LandingPage 
       onStart={() => { setAuthMode('setup'); setIsLanding(false); }}
       onLogin={() => { setAuthMode('login'); setIsLanding(false); }}
-      isDark={isDark} 
-      setIsDark={setIsDark} 
-      lang={lang} 
-      setLang={setLang} 
+      isDark={isDark}
+      setIsDark={setIsDark}
+      lang={lang}
+      setLang={setLang}
+      scrollTarget={landingScrollTarget}
+      onScrolled={() => setLandingScrollTarget(null)}
     />
   );
   if (!role) return (
@@ -4019,6 +3989,19 @@ export default function App() {
               {roleMeta.label} • {roleMeta.status}
             </span>
 
+            <button
+              onClick={() => setView('pricing')}
+              title={u('nav.pricing', 'Pricing')}
+              className={cn(
+                "h-10 w-10 rounded-full transition-all cursor-pointer flex items-center justify-center",
+                view === 'pricing'
+                  ? "bg-primary text-white shadow-lg shadow-primary/30"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary hover:scale-105"
+              )}
+            >
+              <Gem className="w-5 h-5" />
+            </button>
+
             {isElevatedAdmin && (
               <button
                 onClick={() => setView('ai-stats')}
@@ -4114,6 +4097,13 @@ export default function App() {
                 >
                   <User className="w-4 h-4" />
                   {t.accountSettings}
+                </button>
+                <button
+                  onClick={() => setView('usage')}
+                  className="w-full flex items-center gap-3 p-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  {u('pricing.seeUsage', 'See Usage')}
                 </button>
                 <button className="w-full flex items-center gap-3 p-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer">
                   <Globe className="w-4 h-4" />
@@ -4237,6 +4227,14 @@ export default function App() {
 	              {view === 'network' && <NetworkView lang={lang} />}
 	              {view === 'automations' && <AutomationsView lang={lang} />}
 	              {view === 'fleet' && <FleetView lang={lang} role={role} userId={currentUser?.id} companyIds={trackingCompanyIds} />}
+	              {view === 'pricing' && (
+	                <PricingView
+	                  lang={lang}
+	                  onOpenUsage={() => setView('usage')}
+	                  onLearnMoreLenaAI={() => { setLandingScrollTarget('lena-ai'); setIsLanding(true); }}
+	                />
+	              )}
+	              {view === 'usage' && <UsageView lang={lang} onUpgrade={() => setView('pricing')} />}
 	              {view === 'profile' && <ProfileView role={role} lang={lang} />}
 	              {view === 'settings' && (
                   <SettingsView

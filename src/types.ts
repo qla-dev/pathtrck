@@ -144,6 +144,41 @@ export interface Offer {
   confirmedTerms: boolean;
 }
 
+export type SubscriptionFeature = {
+  key: string;
+  title: string;
+  description?: string;
+  icon?: string;
+  roles: string[];
+};
+
+export interface SubscriptionPackage {
+  id: number;
+  name: string;
+  slug: string;
+  tagline?: string;
+  price_monthly: string | number;
+  currency: string;
+  lena_ai_tokens: number;
+  icon: string;
+  color: string;
+  features: SubscriptionFeature[];
+  is_popular: boolean;
+  sort_order: number;
+  is_active: boolean;
+}
+
+export interface UserSubscription {
+  id: number;
+  user_id: number;
+  subscription_package_id: number;
+  active: boolean;
+  started_at?: string | null;
+  expires_at?: string | null;
+  remaining_tokens: number;
+  subscription_package?: SubscriptionPackage;
+}
+
 export interface RouteLog {
   id: string;
   date: string;

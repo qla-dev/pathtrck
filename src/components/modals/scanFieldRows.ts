@@ -31,7 +31,7 @@ import {
 import { LoadScanResult } from '../../services/api';
 
 export type ScanFieldPatch = Partial<{
-  cargoTitle: string;
+  loadTitle: string;
   transportType: 'road' | 'air' | 'sea';
   goodsType: string;
   hsCodes: LoadScanResult['hsCodes'];
@@ -117,7 +117,7 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
   const rows: ScanFieldRow[] = [];
 
   if (result.title) {
-    rows.push({ key: 'title', label: 'Title', value: result.title, patch: { cargoTitle: result.title }, icon: Hash });
+    rows.push({ key: 'title', label: 'Title', value: result.title, patch: { loadTitle: result.title }, icon: Hash });
   }
 
   if (result.transportType === 'road' || result.transportType === 'air' || result.transportType === 'sea') {

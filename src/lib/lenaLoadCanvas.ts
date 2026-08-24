@@ -128,7 +128,7 @@ const toApiDate = (date?: string) => {
 // objavom" save, rather than a true field-by-field diff.
 export const scanPatchToDraftPayload = (patch: ScanFieldPatch): Record<string, unknown> => {
   const payload: Record<string, unknown> = {};
-  if (patch.cargoTitle !== undefined) payload.title = patch.cargoTitle;
+  if (patch.loadTitle !== undefined) payload.title = patch.loadTitle;
   if (patch.transportType !== undefined) payload.transport_type = patch.transportType;
   if (patch.goodsType !== undefined) payload.goods_type = patch.goodsType;
   if (patch.hsCodes !== undefined) payload.hs_codes = patch.hsCodes;
