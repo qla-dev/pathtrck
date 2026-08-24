@@ -8,10 +8,11 @@ type TrackingItemDetailsProps = {
   headerAction?: ReactNode;
   bodyClassName?: string;
   onClose: () => void;
+  onExitComplete?: () => void;
   children: ReactNode;
 };
 
-export const TrackingItemDetails = ({ open, headerAction, bodyClassName, onClose, children }: TrackingItemDetailsProps) => {
+export const TrackingItemDetails = ({ open, headerAction, bodyClassName, onClose, onExitComplete, children }: TrackingItemDetailsProps) => {
   const [headerNavigation, ...bodyContent] = Children.toArray(children);
 
   useEffect(() => {
@@ -24,7 +25,7 @@ export const TrackingItemDetails = ({ open, headerAction, bodyClassName, onClose
   }, [onClose, open]);
 
   return (
-    <AnimatePresence>
+    <AnimatePresence onExitComplete={onExitComplete}>
       {open && (
         <motion.div
           className="fixed inset-0 z-140 bg-white dark:bg-slate-950"

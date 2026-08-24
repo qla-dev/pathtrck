@@ -45,6 +45,7 @@ type LoadDetailsModalProps = {
 export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], onClose, onChanged }: LoadDetailsModalProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [selectedPackage, setSelectedPackage] = useState<PackageData>(emptyPackage);
+  const [detailsOpen, setDetailsOpen] = useState(true);
 
   const refreshPackage = async () => {
     const response = await api.loads.get(loadId);
@@ -53,6 +54,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
 
   useEffect(() => {
     let cancelled = false;
+    setDetailsOpen(true);
     api.loads.get(loadId).then((response) => {
       if (!cancelled) setSelectedPackage(mapLoadToPackage(response.data, lang));
     });
@@ -335,8 +337,9 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
   return (
     <>
     <TrackingItemDetails
-      open={Boolean(selectedPackage.id)}
-      onClose={onClose}
+      open={Boolean(selectedPackage.id) && detailsOpen}
+      onClose={() => setDetailsOpen(false)}
+      onExitComplete={onClose}
       bodyClassName={
         rightTab === 'map'
           ? 'overflow-hidden p-0 md:p-0'

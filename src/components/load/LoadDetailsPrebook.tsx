@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import {
   AlertTriangle,
   Box,
@@ -143,9 +143,13 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
   const [bookingCompanyId, setBookingCompanyId] = useState('');
   const [assignmentOpen, setAssignmentOpen] = useState(false);
   const [bodyView, setBodyView] = useState<'details' | 'offers'>('details');
+  const [isClosing, setIsClosing] = useState(false);
+
+  const requestClose = () => setIsClosing(true);
 
   useEffect(() => {
     setShowOfferForm(false);
+    if (open) setIsClosing(false);
   }, [open, load?.id]);
 
   useEffect(() => {
@@ -155,11 +159,11 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
   useEffect(() => {
     if (!open) return undefined;
     const handleEsc = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') requestClose();
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [open, onClose]);
+  }, [open]);
 
   useEffect(() => {
     setAssignDriverNow(false);
@@ -286,7 +290,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
       setCurrentStatus('Sent');
       void showSuccess(u('legacy.loadDetails.bookedTitle', 'Load booked'), u('legacy.loadDetails.bookedText', 'You have been assigned to this load.'));
       onChanged?.();
-      onClose();
+      requestClose();
     } catch (error) {
       void showError(
         u('legacy.loadDetails.bookFailedTitle', 'Could not book this load'),
@@ -347,7 +351,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
     }
   };
 
-  if (!open || !load) return null;
+  if (!load) return null;
 
   const goodsNote = getGoodsNote(load.goodsType, u);
   const pickupLabel = load.pickup || 'Nije definisano';
@@ -401,10 +405,13 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
   };
 
   return (
+    <AnimatePresence onExitComplete={() => { if (isClosing) onClose(); }}>
+    {open && !isClosing && (
     <motion.div
       className="fixed inset-0 z-140 bg-white dark:bg-slate-950"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
     >
       <div className="absolute inset-0">
@@ -412,6 +419,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
           className="flex h-[100dvh] w-full min-h-0 flex-col overflow-hidden bg-white dark:bg-slate-950"
           initial={{ opacity: 0, y: 24, scale: 0.992 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 16, scale: 0.996 }}
           transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
         >
           <div className="h-16 shrink-0 px-5 md:px-7 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
@@ -497,7 +505,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
               )}
               <button
                 type="button"
-                onClick={onClose}
+                onClick={requestClose}
                 className="h-10 w-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-300 flex items-center justify-center hover:border-primary hover:text-primary transition-all cursor-pointer"
               >
                 <X className="w-5 h-5" />
@@ -833,5 +841,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
         onBookLoad={currentStatus === 'Posted' ? () => bookLoad() : undefined}
       />
     </motion.div>
+    )}
+    </AnimatePresence>
   );
 };
