@@ -171,7 +171,13 @@ export const ChatSidebar = ({
           </div>
           <div className="mt-1.5 flex items-end justify-between gap-2">
             <div className="flex min-w-0 items-center gap-1.5">
-              <Circle className={cn('h-2 w-2 shrink-0', chat.online ? 'fill-current text-emerald-500' : 'text-slate-300')} />
+              {typeof chat.detectedFieldCount === 'number' ? (
+                <span className="inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/10 px-1 text-[9px] font-black leading-none text-primary">
+                  {chat.detectedFieldCount}
+                </span>
+              ) : (
+                <Circle className={cn('h-2 w-2 shrink-0', chat.online ? 'fill-current text-emerald-500' : 'text-slate-300')} />
+              )}
               <span className="truncate text-[10px] uppercase text-slate-500">{statusText?.(chat) || chat.status || chat.channel}</span>
             </div>
             {chat.unread > 0 && (

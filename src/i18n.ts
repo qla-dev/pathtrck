@@ -38,6 +38,7 @@ const UI_EN: Record<string, string> = {
   'chat.notSent': 'Not sent',
   'chat.retry': 'Retry',
   'chat.replyFailed': 'LenaAI could not reply',
+  'chat.conversationText': 'Conversation text',
   'chat.chooseOptionAbove': 'Choose an option above',
   'chat.copy': 'Copy message',
   'chat.copied': 'Copied',
@@ -651,6 +652,7 @@ const UI: Record<Locale, Record<string, string>> = {
     'payments.type.package': 'Kupovina paketa',
 
     'chat.notSent': 'Nije poslano',
+    'chat.conversationText': 'Tekst konverzacije',
     'chat.retry': 'Pokušaj ponovo',
     'chat.replyFailed': 'LenaAI nije mogla odgovoriti',
     'chat.chooseOptionAbove': 'Odaberite jednu od ponuđenih opcija',
@@ -1160,6 +1162,7 @@ const UI: Record<Locale, Record<string, string>> = {
     'payments.type.package': 'Tarifkauf',
 
     'chat.notSent': 'Nicht gesendet',
+    'chat.conversationText': 'Konversationstext',
     'chat.retry': 'Erneut versuchen',
     'chat.replyFailed': 'LenaAI konnte nicht antworten',
     'chat.chooseOptionAbove': 'Wählen Sie eine der obigen Optionen',

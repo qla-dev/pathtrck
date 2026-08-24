@@ -25,6 +25,7 @@ export type Conversation = {
   canvas?: boolean;
   meta?: string;
   status?: string;
+  detectedFieldCount?: number;
   loadPosted?: boolean;
 };
 

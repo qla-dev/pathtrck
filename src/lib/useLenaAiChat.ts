@@ -7,6 +7,8 @@ import { showError } from './swal';
 import { analyzeLenaAttachment, latestLoadScan, LenaAttachment, LenaCanvasMode, loadDraftRecordToScan } from './lenaLoadCanvas';
 import { MASKABLE_GUIDED_STEPS } from './lenaStepInputMask';
 import { withMinDelay } from './timing';
+import { ui } from '../i18n';
+import { buildScanFieldRows } from '../components/modals/scanFieldRows';
 
 export const LENA_AI_GENERAL_SUBJECT = `${AI_DISPATCH_SUBJECT_PREFIX}General`;
 const LENA_STEP_MARKER_PATTERN = /\[\[LENA_STEP:([a-zA-Z]+)\]\]/;
@@ -154,10 +156,10 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
   const canvasAttachments = useMemo(() => {
     const savedDraft = loadDraftRecordToScan(row?.freight_load_draft);
     return [
-      ...(savedDraft ? [{ name: 'Saved load draft', type: 'application/json', size: 0, loadScan: savedDraft }] : []),
+      ...(savedDraft ? [{ name: ui(lang ?? 'en', 'chat.conversationText', 'Conversation text'), type: 'application/json', size: 0, loadScan: savedDraft }] : []),
       ...conversation.messages.flatMap((message) => message.attachments || []),
     ];
-  }, [conversation.messages, row?.freight_load_draft]);
+  }, [conversation.messages, lang, row?.freight_load_draft]);
   // Which questionnaire field a free-text answer is currently expected to fill - passed into the
   // scan call so the AI extracts a bare value (e.g. "50") into that exact field instead of
   // guessing it into a different one (see OpenRouterLoadScanner::STEP_FIELD_HINTS).
@@ -216,6 +218,11 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
     const title = lenaConversationSubjectTitle(item.subject)
       || (firstAction ? quickActionLabels[firstAction] : '')
       || newConversationLabel;
+    const savedDraft = loadDraftRecordToScan(item.freight_load_draft);
+    const detectedScan = latestLoadScan([
+      ...(savedDraft ? [{ name: 'draft', type: 'application/json', size: 0, loadScan: savedDraft }] : []),
+      ...messages.flatMap((message) => Array.isArray(message.attachments) ? message.attachments as LenaAttachment[] : []),
+    ]);
     return {
       id: String(item.id),
       name: title,
@@ -228,6 +235,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
       isAiDispatch: true,
       canvas: Boolean(item.canvas),
       status: Boolean(item.canvas) ? 'load-detected' : 'draft',
+      detectedFieldCount: Boolean(item.canvas) ? (detectedScan ? buildScanFieldRows(detectedScan).length : 0) : undefined,
     };
   }), [availableRows, welcomeRole, quickActionLabels, newConversationLabel]);
 

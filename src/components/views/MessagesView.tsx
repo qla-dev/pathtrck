@@ -49,6 +49,8 @@ type OptimisticMessage = {
   step?: string;
 };
 
+const EMPTY_LENA_CONVERSATION_ID = '__new_lena_conversation__';
+
 export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill, onBulkImported, refreshSignal, newChatSignal }: MessagesViewProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const quickActionLabels = useMemo<Record<LenaQuickAction, string>>(() => ({
@@ -110,11 +112,15 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
       mappedMessages[0] = {
         ...mappedMessages[0],
         attachments: [
-          { name: 'Saved load draft', type: 'application/json', size: 0, loadScan: savedDraftScan },
+          { name: u('chat.conversationText', 'Conversation text'), type: 'application/json', size: 0, loadScan: savedDraftScan },
           ...(mappedMessages[0].attachments || []),
         ],
       };
     }
+    const detectedScan = latestLoadScan([
+      ...(savedDraftScan ? [{ name: 'draft', type: 'application/json', size: 0, loadScan: savedDraftScan }] : []),
+      ...mappedMessages.flatMap((message) => message.attachments || []),
+    ]);
     return {
       id: String(row.id),
       name: isAiDispatch
@@ -132,11 +138,12 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
       canvas: Boolean(row.canvas),
       meta: meta || undefined,
       status,
+      detectedFieldCount: isAiDispatch && Boolean(row.canvas) ? (detectedScan ? buildScanFieldRows(detectedScan).length : 0) : undefined,
       loadPosted,
     };
   }), [result.items, user, lang, quickActionLabels, generalWelcome]);
   const [channelFilter, setChannelFilter] = useState<'all' | 'ai' | 'direct'>('all');
-  const [activeId, setActiveId] = useState('');
+  const [activeId, setActiveId] = useState(EMPTY_LENA_CONVERSATION_ID);
   const [draft, setDraft] = useState('');
   const [aiReplying, setAiReplying] = useState(false);
   const [messageSending, setMessageSending] = useState(false);
@@ -180,7 +187,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     // The welcome message is shown purely client-side (id stays '' so sendMessage/attachFile still
     // know to create the real conversation on first interaction) - nothing is written to the
     // database just from viewing this empty state, only from actually sending or attaching.
-    const base = filteredConversations.find((c) => c.id === activeId) ?? filteredConversations[0] ?? displayedConversations[0] ?? {
+    const emptyConversation: Conversation = {
       id: '',
       name: u('New chat', 'New chat'),
       role: '',
@@ -192,6 +199,9 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
       loadDraftId: undefined,
       isAiDispatch: true,
     };
+    const base = activeId === EMPTY_LENA_CONVERSATION_ID
+      ? emptyConversation
+      : filteredConversations.find((c) => c.id === activeId) ?? displayedConversations.find((c) => c.id === activeId) ?? emptyConversation;
     const pending = optimisticMessages
       .filter((message) => message.conversationId === base.id)
       .map((message) => ({
@@ -500,13 +510,16 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     await createNewConversation();
   };
 
-  const isInitialNewChatSignal = useRef(true);
+  const previousNewChatSignal = useRef(newChatSignal);
   useEffect(() => {
-    if (isInitialNewChatSignal.current) {
-      isInitialNewChatSignal.current = false;
-      return;
-    }
-    void handleNewConversation();
+    if (previousNewChatSignal.current === newChatSignal) return;
+    previousNewChatSignal.current = newChatSignal;
+    setDraft('');
+    setOptimisticMessages([]);
+    setPendingNewConversation(null);
+    setCanvasPanelOpen(false);
+    setChannelFilter('ai');
+    setActiveId(EMPTY_LENA_CONVERSATION_ID);
   }, [newChatSignal]);
 
   const handleDeleteConversation = async (conversationId: string) => {
@@ -532,7 +545,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     }
 
     if (pendingNewConversation?.id === conversationId) setPendingNewConversation(null);
-    if (activeId === conversationId) setActiveId('');
+    if (activeId === conversationId) setActiveId(EMPTY_LENA_CONVERSATION_ID);
     await result.refresh();
   };
 
