@@ -48,8 +48,10 @@ import {
   Wrench,
 } from 'lucide-react';
 import { api, HsCodeMatch, LoadScanResult } from '../../services/api';
+import { customerOptionFromRecord, type CustomerOption } from '../customer/CustomerSelect';
 
 export type ScanFieldPatch = Partial<{
+  consignee: CustomerOption;
   loadTitle: string;
   transportType: 'road' | 'air' | 'sea';
   goodsType: string;
@@ -211,6 +213,17 @@ const PRICE_TERMS_LABELS: Record<string, string> = { fixed: 'Fixed price', negot
 
 export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
   const rows: ScanFieldRow[] = [];
+
+  if (result.consignee?.id) {
+    const consignee = customerOptionFromRecord(result.consignee);
+    rows.push({
+      key: 'consignee',
+      label: 'Consignee',
+      value: consignee.text,
+      patch: { consignee },
+      icon: UsersRound,
+    });
+  }
 
   if (result.title) {
     rows.push({ key: 'title', label: 'Title', value: result.title, patch: { loadTitle: result.title }, icon: Hash });

@@ -385,10 +385,13 @@ export const useLenaEmbeddedMessages = ({
 
   const extraContentVersion = `${embeddedLoadIds.join(',')}:${Object.keys(embeddedLoads).sort().join(',')}:${[...quickActionsByMessage.keys()].join(',')}:${[...questionnaireSuggestionsByMessage.keys()].join(',')}:${[...locationChoiceByMessage.keys()].join(',')}:${[...loadReadyMessageIds].join(',')}`;
 
-  // True while LenaAI is waiting on a pill-driven step (single or multi-select, always with a
-  // "later"/"none" escape pill) rather than a free-text one like weight or dimensions - drives
-  // locking the chat's typed input so users answer through the pills instead of typing over them.
-  const pendingStepHasOptions = questionnaireSuggestionsByMessage.size > 0;
+  // Lock typing only when the current step has a real selectable answer. Free-text steps also
+  // render a lone "choose later" escape pill, but that skip action must never make weight,
+  // dimensions, budget, etc. look like option-only questions. Pickup/delivery remain locked while
+  // their dedicated location picker is active.
+  const pendingStepHasOptions = [...questionnaireSuggestionsByMessage.values()]
+    .some(({ group }) => group.options.some((option) => !option.skip))
+    || locationChoiceByMessage.size > 0;
 
   return { displayMessages, renderMessageExtra, extraContentVersion, pendingStep, pendingStepHasOptions };
 };

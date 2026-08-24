@@ -38,6 +38,11 @@ export type HsCodeMatch = {
 };
 export type LoadScanResult = {
   isDocument: boolean;
+  consigneeName: string;
+  consigneeTaxNumber: string;
+  consigneeCity: string;
+  consigneeCountryCode: string;
+  consignee: Record<string, unknown> | null;
   title: string;
   transportType: string;
   cargoType: string;
@@ -350,6 +355,8 @@ export const api = {
     openDocument(`/shipments/${shipmentId}/invoice/${document}`),
   loadInvoice: (loadId: number | string, document: 'predracun' | 'a4-faktura') =>
     openDocument(`/loads/${loadId}/invoice/${document}`),
+  paymentInvoice: (paymentId: number | string) =>
+    openDocument(`/payments/${paymentId}/invoice`),
   routes: resourceApi<Record<string, unknown>>('routes'),
   trackingEvents: resourceApi<Record<string, unknown>>('tracking-events'),
   conversations: resourceApi<Record<string, unknown>>('conversations'),

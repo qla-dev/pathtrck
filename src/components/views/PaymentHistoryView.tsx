@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Sparkles, Zap } from 'lucide-react';
+import { FileText, Loader2, Sparkles, Zap } from 'lucide-react';
 import { Language, SubscriptionPackage } from '../../types';
 import { ui, flatpickrI18n } from '../../i18n';
 import { Card } from '../ui/Card';
@@ -18,12 +18,14 @@ type PaymentRow = {
   subscription_package?: { id: number; slug: string; name: string } | null;
 };
 
-export const PaymentHistoryView = ({ lang, onBack }: { lang: Language; onBack: () => void }) => {
+export const PaymentHistoryView = ({ lang }: { lang: Language }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
 
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [invoiceLoading, setInvoiceLoading] = useState<number | null>(null);
+  const [invoiceError, setInvoiceError] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -52,21 +54,27 @@ export const PaymentHistoryView = ({ lang, onBack }: { lang: Language; onBack: (
 
   const typeLabel = (type: string) => u(`payments.type.${type}`, type === 'topup' ? 'Top-up' : 'Plan purchase');
 
+  const generateInvoice = async (paymentId: number) => {
+    if (invoiceLoading !== null) return;
+    setInvoiceLoading(paymentId);
+    setInvoiceError('');
+    try {
+      await api.paymentInvoice(paymentId);
+    } catch (caught) {
+      setInvoiceError(caught instanceof Error ? caught.message : u('payments.history.invoiceError', 'The invoice could not be generated.'));
+    } finally {
+      setInvoiceLoading(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <button
-        type="button"
-        onClick={onBack}
-        className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-primary cursor-pointer"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        {u('common.back', 'Back')}
-      </button>
-
       <div>
         <h1 className="text-3xl font-display font-black dark:text-white">{u('payments.paymentHistory', 'Payment History')}</h1>
         <p className="text-slate-500">{u('payments.history.subtitle', 'Every top-up and plan purchase on your account.')}</p>
       </div>
+
+      {invoiceError && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 dark:bg-rose-950/30 dark:text-rose-300">{invoiceError}</p>}
 
       <Card contentClassName="p-0">
         {loading || error || payments.length === 0 ? (
@@ -75,7 +83,7 @@ export const PaymentHistoryView = ({ lang, onBack }: { lang: Language; onBack: (
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-left">
+            <table className="w-full min-w-[840px] text-left">
               <thead>
                 <tr className="border-b border-slate-200 text-xs uppercase text-slate-500 dark:border-slate-800">
                   <th className="p-4">{u('payments.history.date', 'Date')}</th>
@@ -83,6 +91,7 @@ export const PaymentHistoryView = ({ lang, onBack }: { lang: Language; onBack: (
                   <th className="p-4">{u('payments.history.plan', 'Plan')}</th>
                   <th className="p-4">{u('payments.history.amount', 'Amount')}</th>
                   <th className="p-4">{u('payments.history.tokens', 'Messages')}</th>
+                  <th className="p-4 text-right">{u('payments.history.invoice', 'Invoice')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -102,6 +111,17 @@ export const PaymentHistoryView = ({ lang, onBack }: { lang: Language; onBack: (
                       {Number(payment.amount).toLocaleString()} {payment.currency === 'BAM' ? 'KM' : payment.currency}
                     </td>
                     <td className="p-4 text-sm text-primary font-bold">+{payment.tokens.toLocaleString()}</td>
+                    <td className="p-4 text-right">
+                      <button
+                        type="button"
+                        onClick={() => void generateInvoice(payment.id)}
+                        disabled={invoiceLoading !== null}
+                        className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 transition hover:border-primary/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-300"
+                      >
+                        {invoiceLoading === payment.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+                        {u('payments.history.generateInvoice', 'Generate invoice')}
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -4235,7 +4235,7 @@ export default function App() {
 	                  onUpgrade={() => setView('pricing')}
 	                />
 	              )}
-	              {view === 'payment-history' && <PaymentHistoryView lang={lang} onBack={() => setView('pricing')} />}
+	              {view === 'payment-history' && <PaymentHistoryView lang={lang} />}
 	              {view === 'profile' && <ProfileView role={role} lang={lang} />}
 	              {view === 'settings' && (
                   <SettingsView

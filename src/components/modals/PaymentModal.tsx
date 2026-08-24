@@ -6,7 +6,6 @@ import { ui } from '../../i18n';
 import { api } from '../../services/api';
 import { planName, planTagline, FEATURE_ICONS } from '../pricing/PricingPlanCard';
 import { BrandWordmark } from '../ui/BrandWordmark';
-import { PaymentPanelArt } from './PaymentPanelArt';
 
 type PaymentModalProps = {
   open: boolean;
@@ -133,18 +132,8 @@ export const PaymentModal = ({ open, lang, packageId, onClose, onSuccess }: Paym
           >
             <div className="sticky top-0 z-20 border-b border-slate-100 dark:border-slate-800 bg-white/96 dark:bg-slate-900/96 backdrop-blur-sm">
               <div className="h-16 px-5 md:px-7 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0">
-                    <CreditCard className="text-primary w-4 h-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-base md:text-lg font-black tracking-tight dark:text-white leading-tight truncate">
-                      {u('payments.title', 'Checkout')}
-                    </p>
-                    <p className="hidden sm:block text-xs text-slate-500 truncate">
-                      {packageId ? u('payments.subtitlePlan', 'Confirm your plan to activate it.') : u('payments.subtitleTopup', 'Add more LenaAI messages to your account at any time.')}
-                    </p>
-                  </div>
+                <div className="min-w-0">
+                  <BrandWordmark className="text-xl md:text-2xl" />
                 </div>
                 <button
                   onClick={() => { if (!submitting) onClose(); }}
@@ -183,32 +172,35 @@ export const PaymentModal = ({ open, lang, packageId, onClose, onSuccess }: Paym
                 </div>
               ) : (
                 <div className="grid lg:grid-cols-2 min-h-full">
-                  <div className="hidden lg:flex relative flex-col justify-between overflow-hidden bg-[#03142f] text-white p-10 xl:p-14">
-                    <PaymentPanelArt className="absolute inset-0 h-full w-full" />
-                    <div className="absolute inset-0 bg-gradient-to-br from-primary/85 via-sky-700/75 to-indigo-900/90" />
+                  <div className="hidden lg:flex relative flex-col overflow-hidden bg-[#03142f] text-white p-8 xl:p-10">
+                    <img
+                      src="/payment-panel-logistics-plane-v2.jpg"
+                      alt=""
+                      className="absolute inset-0 h-full w-full object-cover object-center"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-br from-sky-600/85 via-blue-800/80 to-slate-950/90" />
 
                     <div className="relative z-10">
-                      <BrandWordmark className="text-lg text-white" />
-                      <div className="mt-10 flex h-16 w-16 items-center justify-center rounded-3xl bg-white/15 shadow-2xl backdrop-blur-sm">
-                        {packageId ? <Sparkles className="h-8 w-8" /> : <Zap className="h-8 w-8" />}
+                      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 shadow-xl ring-1 ring-white/10 backdrop-blur-sm">
+                        {packageId ? <Sparkles className="h-7 w-7" /> : <Zap className="h-7 w-7" />}
                       </div>
-                      <h1 className="mt-6 text-4xl font-black tracking-tight">{title}</h1>
+                      <h1 className="mt-4 text-4xl font-black tracking-tight">{title}</h1>
                       {packageId && pkg ? (
-                        <p className="mt-3 max-w-sm text-white/80">{planTagline(u, pkg)}</p>
+                        <p className="mt-2 max-w-sm text-white/85">{planTagline(u, pkg)}</p>
                       ) : (
-                        <p className="mt-3 max-w-sm text-white/80">{u('payments.quickTopupDesc', 'Enter any amount you want to add to your balance.')}</p>
+                        <p className="mt-2 max-w-sm text-white/85">{u('payments.quickTopupDesc', 'Enter any amount you want to add to your balance.')}</p>
                       )}
                       {packageId && pkg && (
-                        <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-bold">
+                        <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-bold backdrop-blur-sm">
                           <Sparkles className="h-4 w-4" />
                           {pkg.lena_ai_tokens.toLocaleString()} {u('pricing.lenaTokens', 'LenaAI messages / mo')}
                         </div>
                       )}
                     </div>
 
-                    <div className="relative z-10 space-y-4">
+                    <div className="relative z-10 mt-8 grid grid-cols-2 gap-x-5 gap-y-3">
                       {packageId && pkg ? (
-                        pkg.features.slice(0, 5).map((feature) => {
+                        pkg.features.map((feature) => {
                           const FeatureIcon = FEATURE_ICONS[feature.icon || ''] || CheckCircle2;
                           return (
                             <div key={feature.key} className="flex items-center gap-3">

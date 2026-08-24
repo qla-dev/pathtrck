@@ -412,7 +412,7 @@ const STEPS: Array<{ id: StepId; icon: typeof MapPin }> = [
 // the sidebar can show a per-step count instead of only the one global aiFieldCount badge.
 const STEP_AI_FIELDS: Record<StepId, Array<keyof ScanFieldPatch & keyof LoadDraft>> = {
   route: ['pickupCountry', 'pickupCity', 'pickupDate', 'deliveryCountry', 'deliveryCity', 'deliveryDate'],
-  cargo: ['loadTitle', 'lengthM', 'weightKg', 'widthM', 'heightM'],
+  cargo: ['consignee', 'loadTitle', 'lengthM', 'weightKg', 'widthM', 'heightM'],
   terms: ['budget', 'freightCurrency', 'paymentDeferred', 'incoterm', 'notes', 'vehicleType', 'bodyTypes', 'temperatureControlled'],
   contact: ['contactName', 'contactEmail', 'contactPhone'],
   review: [],
