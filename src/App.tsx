@@ -45,6 +45,7 @@ import {
   Zap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useScrollDownReveal } from './hooks/useScrollDownReveal';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { 
@@ -109,6 +110,7 @@ import { PricingPlanCard } from './components/pricing/PricingPlanCard';
 import { SetupProcess } from './components/auth/SetupProcess';
 import { LoginProcess } from './components/auth/LoginProcess';
 import { AiRouteCalculatorCard } from './components/ai_automattions/AiRouteCalculatorCard';
+import { LenaScenarioSections } from './components/landing/LenaScenarioSections';
 
 const LANGUAGE_STORAGE_KEY = 'pathtrck.language';
 const SIDEBAR_STORAGE_KEY = 'freightbook.sidebar';
@@ -1163,6 +1165,20 @@ const myCargoLabels: Record<Exclude<Language, null>, string> = {
   pt: 'Minha carga',
 };
 
+const StatCard = ({ label, value, sub, icon: Icon, delay }: { label: string; value: string; sub: string; icon: React.ComponentType<{ className?: string }>; delay: number }) => {
+  const { ref, controls } = useScrollDownReveal({ opacity: 0, scale: 0.5 }, { opacity: 1, scale: 1 }, 0.3);
+  return (
+    <motion.div ref={ref} initial={{ opacity: 0, scale: 0.5 }} animate={controls} transition={{ duration: 0.5, delay }} className="group">
+      <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-primary group-hover:text-white transition-all">
+        <Icon className="w-6 h-6" />
+      </div>
+      <p className="text-sm font-bold text-primary uppercase tracking-[0.2em] mb-4">{label}</p>
+      <p className="text-5xl md:text-7xl font-display font-black text-slate-900 dark:text-white mb-2 group-hover:text-primary transition-colors">{value}</p>
+      <p className="text-slate-500 dark:text-slate-400 font-medium">{sub}</p>
+    </motion.div>
+  );
+};
+
 const LandingPage = ({
   onStart,
   onLogin,
@@ -1675,7 +1691,7 @@ const LandingPage = ({
       {/* AI Dispatcher */}
       <section id="lena-ai" className={cn("scroll-mt-20 relative overflow-hidden bg-white dark:bg-slate-950", SECTION_PADDING)}>
         <div className="absolute left-1/2 top-1/2 h-[34rem] w-[34rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-[120px] dark:bg-primary/15" />
-        <div className="relative z-10 mx-auto max-w-7xl space-y-8 px-4 sm:px-6">
+        <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6">
           <motion.div
             initial={{ opacity: 0, x: -24 }}
             whileInView={{ opacity: 1, x: 0 }}
@@ -1711,7 +1727,55 @@ const LandingPage = ({
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.2 }}
             transition={{ duration: 0.75 }}
-            className="relative min-w-0 rounded-[2.5rem] border border-slate-200 bg-slate-50/90 p-4 shadow-2xl shadow-sky-500/10 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/80 sm:p-7 lg:p-10"
+            className="relative mt-8"
+          >
+            <div className="pointer-events-none absolute inset-0 opacity-40 [background-image:radial-gradient(rgb(14_165_233/0.28)_1px,transparent_1px)] [background-size:22px_22px] dark:opacity-20" />
+            <div className="relative grid min-w-0 gap-4 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-stretch">
+              <div className="min-w-0 space-y-3">
+                <div className="rounded-2xl border border-sky-100 bg-sky-50/70 p-4 dark:border-sky-500/15 dark:bg-sky-500/5">
+                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-sky-500"><ScanSearch className="h-4 w-4" />{u('landing.aiDispatcher.app', 'Freightbook.ai app')}</div>
+                  <p className="mt-3 font-black text-slate-900 dark:text-white">{u('landing.aiDispatcher.loadLabel', 'Load SF-2048')}</p>
+                  <p className="mt-1 text-xs text-slate-500">Sarajevo → Vienna · {u('landing.aiDispatcher.loadMeta', 'Pharma · 11,200 kg · Ambient')}</p>
+                </div>
+                <div className="rounded-2xl border border-violet-100 bg-violet-50/70 p-4 dark:border-violet-500/15 dark:bg-violet-500/5">
+                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-violet-500"><Database className="h-4 w-4" />{u('landing.aiDispatcher.database', 'Authorized operations database')}</div>
+                  <p className="mt-3 text-sm font-black text-slate-900 dark:text-white">{u('landing.aiDispatcher.signalCount', 'Current operational record')}</p>
+                  <div className="mt-3 grid grid-cols-3 gap-2"><span className="h-2 rounded-full bg-sky-400" /><span className="h-2 rounded-full bg-violet-400" /><span className="h-2 rounded-full bg-emerald-400" /></div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-center py-2 md:px-3 md:py-0">
+                <div className="hidden h-px w-8 bg-linear-to-r from-primary/20 to-primary md:block" />
+                <div className="flex flex-col items-center gap-2">
+                  <div className="relative flex h-28 w-28 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-white shadow-[0_0_55px_rgba(14,165,233,0.24)] dark:bg-slate-950">
+                    <div className="absolute inset-2 animate-pulse rounded-full bg-primary/10" />
+                    <BrainCircuit className="relative h-12 w-12 text-primary" />
+                  </div>
+                  <span className="text-xs font-black tracking-wider text-primary">LenaAI</span>
+                </div>
+                <div className="hidden h-px w-8 bg-linear-to-r from-primary to-violet-400/20 md:block" />
+              </div>
+
+              <div className="flex min-w-0 flex-col justify-center rounded-2xl border border-primary/20 bg-slate-50 p-5 dark:bg-slate-900">
+                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-primary"><RefreshCw className="h-4 w-4 animate-spin [animation-duration:4s]" />{u('landing.aiDispatcher.contextRefresh', 'LenaAI refreshes the load context')}</div>
+                <p className="mt-3 text-sm font-black text-slate-900 dark:text-white">{u('landing.aiDispatcher.contextReady', 'Grounded answer ready')}</p>
+                <div className="mt-4 flex flex-wrap gap-2 text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                  {lenaLoadFacts.map((fact) => <span key={fact} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 dark:border-slate-700 dark:bg-slate-950">{fact}</span>)}
+                </div>
+                <div className="mt-5 flex items-center gap-2 rounded-xl bg-emerald-500/10 p-3 text-xs font-bold text-emerald-600 dark:text-emerald-400"><CheckCircle2 className="h-4 w-4 shrink-0" />{u('landing.aiDispatcher.loadContext', 'Current load context')}</div>
+              </div>
+            </div>
+            <div className="mt-20 border-t border-slate-200 sm:mt-24 dark:border-slate-700" />
+          </motion.div>
+
+          <LenaScenarioSections lang={activeLang} />
+
+          <motion.div
+            initial={{ opacity: 0, y: 28 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.75 }}
+            className="hidden"
           >
             <div className="pointer-events-none absolute inset-0 opacity-40 [background-image:radial-gradient(rgb(14_165_233/0.28)_1px,transparent_1px)] [background-size:22px_22px] dark:opacity-20" />
             <div className="relative mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -1791,20 +1855,7 @@ const LandingPage = ({
               { label: u('landing.stats.countriesCovered', 'Countries Covered'), value: "192", sub: u('landing.stats.globalReach', 'Global reach'), icon: Globe },
               { label: u('landing.stats.uptimeSla', 'Uptime SLA'), value: "99.99%", sub: u('landing.stats.enterpriseGrade', 'Enterprise grade'), icon: ShieldCheck }
             ].map((stat, i) => (
-              <motion.div 
-                key={i}
-                initial={{ opacity: 0, scale: 0.5 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5, delay: i * 0.1 }}
-                className="group"
-              >
-                <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-primary group-hover:text-white transition-all">
-                  <stat.icon className="w-6 h-6" />
-                </div>
-                <p className="text-sm font-bold text-primary uppercase tracking-[0.2em] mb-4">{stat.label}</p>
-                <p className="text-5xl md:text-7xl font-display font-black text-slate-900 dark:text-white mb-2 group-hover:text-primary transition-colors">{stat.value}</p>
-                <p className="text-slate-500 dark:text-slate-400 font-medium">{stat.sub}</p>
-              </motion.div>
+              <StatCard key={i} label={stat.label} value={stat.value} sub={stat.sub} icon={stat.icon} delay={i * 0.1} />
             ))}
           </div>
         </div>
