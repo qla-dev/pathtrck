@@ -1216,7 +1216,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, y: 16, scale: 0.996 }}
         transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-        className="flex flex-col bg-white dark:bg-slate-900 shadow-2xl w-full h-[100dvh] overflow-hidden border-0 rounded-none"
+        className="flex h-[100dvh] max-h-[100dvh] w-full flex-col overflow-hidden rounded-none border-0 bg-white shadow-2xl dark:bg-slate-900"
       >
         <div className="sticky top-0 z-20 border-b border-slate-100 dark:border-slate-800 bg-white/96 dark:bg-slate-900/96 backdrop-blur-sm">
           <div className="h-16 px-5 md:px-7 flex items-center justify-between gap-3 sm:gap-4">
@@ -1377,7 +1377,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
           </div>
         </div>
 
-        <div className="grid flex-1 min-h-0 xl:grid-cols-[250px_minmax(0,1fr)] xl:gap-3">
+        <div className="grid min-h-0 min-w-0 flex-1 grid-rows-[minmax(0,1fr)] overflow-hidden xl:grid-cols-[250px_minmax(0,1fr)] xl:gap-3">
           <aside className="hidden xl:flex xl:flex-col border-r border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60">
             <div className="flex min-h-0 flex-1 flex-col justify-between gap-3 overflow-y-auto p-3">
               {STEPS.map((item, index) => {
@@ -1459,8 +1459,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
             </div>
           </aside>
 
-          <div className="flex min-h-0 min-w-0 flex-col">
-            <div ref={contentScrollRef} className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5 md:p-6">
+          <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
+            <div ref={contentScrollRef} className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain p-4 pb-8 sm:p-5 sm:pb-8 md:p-6 md:pb-10">
               <AnimatePresence mode="wait">
               {step === 'route' && (
                 <motion.div key="route" className="space-y-5 md:space-y-6" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
@@ -2341,7 +2341,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
           </div>
         </div>
 
-        <div className="shrink-0 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800">
+        <div className="relative z-20 shrink-0 border-t border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-800">
           {submitError && <div className="mx-5 mt-3 md:mx-7 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400">{submitError}</div>}
           <div className="grid xl:grid-cols-[250px_minmax(0,1fr)]">
             {/* p-3 on every side matches the sidebar's own inset exactly, so this button is the
