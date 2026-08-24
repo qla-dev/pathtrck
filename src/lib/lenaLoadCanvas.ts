@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import { api, BulkLoadRow, LoadScanResult } from '../services/api';
-import { ScanFieldPatch } from '../components/modals/scanFieldRows';
+import { ScanFieldPatch, deriveGoodsTypeCode, stripHsCodesForPayload } from '../components/modals/scanFieldRows';
 
 export const LENA_LOAD_FILE_ACCEPT = 'image/*,.heic,.heif,application/pdf,.pdf,.xlsx,.xls,.csv,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
@@ -130,8 +130,10 @@ export const scanPatchToDraftPayload = (patch: ScanFieldPatch): Record<string, u
   const payload: Record<string, unknown> = {};
   if (patch.loadTitle !== undefined) payload.title = patch.loadTitle;
   if (patch.transportType !== undefined) payload.transport_type = patch.transportType;
-  if (patch.goodsType !== undefined) payload.goods_type = patch.goodsType;
-  if (patch.hsCodes !== undefined) payload.hs_codes = patch.hsCodes;
+  if (patch.goodsType !== undefined || patch.hsCodes !== undefined) {
+    payload.goods_type = deriveGoodsTypeCode(patch.hsCodes, patch.goodsType || 'General');
+  }
+  if (patch.hsCodes !== undefined) payload.hs_codes = stripHsCodesForPayload(patch.hsCodes);
   if (patch.weightKg !== undefined) payload.weight_kg = Number(patch.weightKg) * 1000;
   if (patch.pallets !== undefined) payload.pallets = Number(patch.pallets);
   if (patch.bodyTypes !== undefined) payload.body_types = patch.bodyTypes;

@@ -164,7 +164,24 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
   );
 
   const activeConversation = useMemo(() => {
-    const base = filteredConversations.find((c) => c.id === activeId) ?? filteredConversations[0] ?? displayedConversations[0] ?? { id: '', name: u('messages.empty', 'No conversation'), role: '', channel: 'inapp' as const, online: false, unread: 0, lastTime: '', messages: [], loadDraftId: undefined };
+    // isAiDispatch: true so the attach-file control isn't structurally hidden while there's no
+    // conversation yet - typing or dropping a file here always starts a fresh LenaAI chat (see
+    // sendMessage/attachFile below), so it's accurate to treat this placeholder as one already.
+    // The welcome message is shown purely client-side (id stays '' so sendMessage/attachFile still
+    // know to create the real conversation on first interaction) - nothing is written to the
+    // database just from viewing this empty state, only from actually sending or attaching.
+    const base = filteredConversations.find((c) => c.id === activeId) ?? filteredConversations[0] ?? displayedConversations[0] ?? {
+      id: '',
+      name: u('New chat', 'New chat'),
+      role: '',
+      channel: 'inapp' as const,
+      online: false,
+      unread: 0,
+      lastTime: '',
+      messages: [{ id: 'welcome-empty', sender: 'other' as const, text: generalWelcome, time: '' }],
+      loadDraftId: undefined,
+      isAiDispatch: true,
+    };
     const pending = optimisticMessages
       .filter((message) => message.conversationId === base.id)
       .map((message) => ({
@@ -183,7 +200,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
           : undefined,
       }));
     return pending.length ? { ...base, messages: [...base.messages, ...pending] } : base;
-  }, [filteredConversations, activeId, displayedConversations, optimisticMessages]);
+  }, [filteredConversations, activeId, displayedConversations, optimisticMessages, generalWelcome, u]);
 
   const [canvasPanelOpen, setCanvasPanelOpen] = useState(false);
   const previousCanvas = useRef({ conversationId: '', active: false });
@@ -207,15 +224,15 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     return scan ? buildScanFieldRows(scan).length : 0;
   }, [canvasAttachments]);
 
-  const { displayMessages, renderMessageExtra, extraContentVersion, pendingStep } = useLenaEmbeddedMessages({
+  const { displayMessages, renderMessageExtra, extraContentVersion, pendingStep, pendingStepHasOptions } = useLenaEmbeddedMessages({
     messages: activeConversation.messages,
     lang,
     fallbackLoadId: activeConversation.loadId,
     onOpenLoad,
     onBookLoad,
     quickActionLabels,
-    onQuickAction: (action) => void sendMessageValue(lenaQuickActionMarker(action), quickActionLabels[action]),
-    onSuggestedReply: (value, displayText) => void sendMessageValue(value, displayText),
+    onQuickAction: (action) => void sendQuickMessage(lenaQuickActionMarker(action), quickActionLabels[action]),
+    onSuggestedReply: (value, displayText) => void sendQuickMessage(value, displayText),
     onStepAnswer: (step, value, displayText) => void sendGuidedAnswerValue(step, value, displayText),
     onSuggestedDraftChange: setDraft,
     onLoadReady: () => setCanvasPanelOpen(true),
@@ -311,17 +328,36 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     setMessageSending(false);
   }
 
-  const sendMessage = () => {
-    const trimmed = draft.trim();
-    if (activeConversation.canvas && pendingStep && MASKABLE_GUIDED_STEPS.includes(pendingStep) && trimmed) {
-      return sendGuidedAnswerValue(pendingStep, trimmed, trimmed);
-    }
-    return sendMessageValue(draft);
+  // Shared by every entry point that can fire with no conversation open yet (the text input, a
+  // quick-action/suggested-reply button on the virtual welcome message, a dropped file) - creates
+  // the real conversation on first use, or reuses the already-active one.
+  const ensureConversationId = async (): Promise<string | null> =>
+    activeConversation.id || createNewConversation();
+
+  // Quick-action and suggested-reply buttons (including the ones on the client-only welcome
+  // message shown before any real conversation exists - see activeConversation above) go through
+  // this instead of calling sendMessageValue directly, so clicking one with no conversation open
+  // starts it first instead of silently doing nothing.
+  const sendQuickMessage = async (rawText: string, displayText = rawText) => {
+    const conversationId = await ensureConversationId();
+    if (!conversationId) return;
+    return sendMessageValue(rawText, displayText, undefined, conversationId);
   };
 
-  async function attachFileValue(file: File, retryId?: string) {
-    const conversationId = activeConversation.id;
-    const isAiDispatch = Boolean(activeConversation.isAiDispatch);
+  const sendMessage = async () => {
+    const trimmed = draft.trim();
+    if (!trimmed) return;
+    const conversationId = await ensureConversationId();
+    if (!conversationId) return;
+    if (activeConversation.canvas && pendingStep && MASKABLE_GUIDED_STEPS.includes(pendingStep)) {
+      return sendGuidedAnswerValue(pendingStep, trimmed, trimmed, undefined, conversationId);
+    }
+    return sendMessageValue(draft, draft, undefined, conversationId);
+  };
+
+  async function attachFileValue(file: File, retryId?: string, targetConversationId?: string) {
+    const conversationId = targetConversationId || activeConversation.id;
+    const isAiDispatch = targetConversationId ? true : Boolean(activeConversation.isAiDispatch);
     if (!user || !conversationId || !isAiDispatch || messageSending || aiReplying || (processingAttachment && !retryId)) return;
 
     const optimisticId = retryId || `optimistic-attachment-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -379,21 +415,11 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     }
   }
 
-  const attachFile = (file: File) => attachFileValue(file);
-
-  const handleNewConversation = async () => {
-    if (!user || creatingNewConversation) return;
-
-    const confirmed = await confirmAction({
-      title: u('Start a new chat?', 'Start a new chat?'),
-      text: u(
-        'This starts a fresh conversation with LenaAI. Your current chat is kept and still visible in Messages.',
-        'This starts a fresh conversation with LenaAI. Your current chat is kept and still visible in Messages.'
-      ),
-      confirmText: u('New chat', 'New chat'),
-    });
-    if (!confirmed) return;
-
+  // Shared by the explicit "New chat" action and by sendMessage/attachFile silently starting one
+  // the moment the user types or drops a file with no conversation open - no confirmation here
+  // since there's nothing to lose (no existing chat is being interrupted).
+  const createNewConversation = async (): Promise<string | null> => {
+    if (!user) return null;
     setCreatingNewConversation(true);
     try {
       const companyId = Number(user.companies?.[0]?.id);
@@ -420,20 +446,48 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
         canvas: false,
         status: u('Draft', 'Draft'),
       });
-      setDraft('');
       setOptimisticMessages([]);
       setChannelFilter('ai');
       setActiveId(conversationId);
       setCanvasPanelOpen(false);
       await result.refresh();
+      return conversationId;
     } catch (error) {
       void showError(
         u('chat.sendFailed', 'Message could not be sent'),
         error instanceof Error ? error.message : undefined
       );
+      return null;
     } finally {
       setCreatingNewConversation(false);
     }
+  };
+
+  const attachFile = async (file: File) => {
+    let conversationId = activeConversation.id;
+    if (!conversationId) {
+      const created = await createNewConversation();
+      if (!created) return;
+      conversationId = created;
+    }
+    return attachFileValue(file, undefined, conversationId);
+  };
+
+  const handleNewConversation = async () => {
+    if (!user || creatingNewConversation) return;
+
+    const confirmed = await confirmAction({
+      title: u('Start a new chat?', 'Start a new chat?'),
+      text: u(
+        'This starts a fresh conversation with LenaAI. Your current chat is kept and still visible in Messages.',
+        'This starts a fresh conversation with LenaAI. Your current chat is kept and still visible in Messages.'
+      ),
+      confirmText: u('New chat', 'New chat'),
+    });
+    if (!confirmed) return;
+
+    setDraft('');
+    await createNewConversation();
   };
 
   const isInitialNewChatSignal = useRef(true);
@@ -497,12 +551,9 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
           onSelectConversation={setActiveId}
           emptyStateTitle={u('No conversations yet', 'No conversations yet')}
           emptyStateDescription={u(
-            'To start a new conversation, start a chat with LenaAI',
-            'To start a new conversation, start a chat with LenaAI'
+            'Just type a message or drop a file on the right to start chatting with LenaAI',
+            'Just type a message or drop a file on the right to start chatting with LenaAI'
           )}
-          emptyStateActionLabel={u('New chat', 'New chat')}
-          onEmptyStateAction={() => void handleNewConversation()}
-          emptyStateActionDisabled={!user || creatingNewConversation}
           onDeleteConversation={(id) => void handleDeleteConversation(id)}
           deleteConversationLabel={u('Delete conversation', 'Delete conversation')}
           cancelLabel={u('Cancel', 'Cancel')}
@@ -532,6 +583,8 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
             renderMessageExtra={renderMessageExtra}
             extraContentVersion={`${activeConversation.id}:${extraContentVersion}`}
             inputMask={lenaStepInputMask(pendingStep, lang)}
+            inputLocked={pendingStepHasOptions}
+            inputLockedPlaceholder={u('chat.chooseOptionAbove', 'Choose an option above')}
             headerActionsLeading={(
               <>
                 <button

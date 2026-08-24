@@ -11,7 +11,19 @@ import { PricingPlanCard, planName } from '../pricing/PricingPlanCard';
 
 type MySubscriptionPayload = { subscription_package_id: number; remaining_tokens: number; expires_at?: string | null } | null;
 
-export const PricingView = ({ lang, onOpenUsage, onLearnMoreLenaAI }: { lang: Language; onOpenUsage: () => void; onLearnMoreLenaAI: () => void }) => {
+export const PricingView = ({
+  lang,
+  onOpenUsage,
+  onLearnMoreLenaAI,
+  onOpenCheckout,
+  refreshSignal,
+}: {
+  lang: Language;
+  onOpenUsage: () => void;
+  onLearnMoreLenaAI: () => void;
+  onOpenCheckout: (packageId?: number) => void;
+  refreshSignal?: number;
+}) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const packagesResult = useApiList(api.subscriptionPackages.list, { per_page: 20 });
   const packages = (packagesResult.items as unknown as SubscriptionPackage[]).slice().sort((a, b) => a.sort_order - b.sort_order);
@@ -19,7 +31,6 @@ export const PricingView = ({ lang, onOpenUsage, onLearnMoreLenaAI }: { lang: La
   const [mySubscription, setMySubscription] = useState<MySubscriptionPayload>(null);
   const [isUnlimited, setIsUnlimited] = useState(false);
   const [loadingMine, setLoadingMine] = useState(true);
-  const [selectingId, setSelectingId] = useState<number | null>(null);
 
   const refreshMine = async () => {
     setLoadingMine(true);
@@ -34,17 +45,7 @@ export const PricingView = ({ lang, onOpenUsage, onLearnMoreLenaAI }: { lang: La
     }
   };
 
-  useEffect(() => { void refreshMine(); }, []);
-
-  const handleSelect = async (packageId: number) => {
-    setSelectingId(packageId);
-    try {
-      await api.subscriptions.select(packageId);
-      await refreshMine();
-    } finally {
-      setSelectingId(null);
-    }
-  };
+  useEffect(() => { void refreshMine(); }, [refreshSignal]);
 
   const currentPackage = mySubscription ? packages.find((pkg) => pkg.id === mySubscription.subscription_package_id) : undefined;
 
@@ -56,14 +57,20 @@ export const PricingView = ({ lang, onOpenUsage, onLearnMoreLenaAI }: { lang: La
       </div>
 
       {isUnlimited && (
-        <Card contentClassName="p-5 flex items-center gap-4">
-          <div className="p-3 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400">
-            <Crown className="w-6 h-6" />
+        <Card contentClassName="p-5 flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400">
+              <Crown className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="font-bold dark:text-white">{u('pricing.godMode', 'God Mode - Unlimited Access')}</p>
+              <p className="text-sm text-slate-500">{u('pricing.godModeSubtitle', 'Your role has unlimited access to every feature and LenaAI message, no plan required.')}</p>
+            </div>
           </div>
-          <div>
-            <p className="font-bold dark:text-white">{u('pricing.godMode', 'God Mode - Unlimited Access')}</p>
-            <p className="text-sm text-slate-500">{u('pricing.godModeSubtitle', 'Your role has unlimited access to every feature and LenaAI message, no plan required.')}</p>
-          </div>
+          <Button variant="outline" size="sm" onClick={onOpenUsage}>
+            <Sparkles className="w-4 h-4 mr-2" />
+            {u('pricing.seeUsage', 'See Usage')}
+          </Button>
         </Card>
       )}
 
@@ -80,10 +87,16 @@ export const PricingView = ({ lang, onOpenUsage, onLearnMoreLenaAI }: { lang: La
               {mySubscription.remaining_tokens.toLocaleString()} {u('pricing.tokensLeft', 'LenaAI messages left')}
             </span>
           </div>
-          <Button variant="outline" size="sm" onClick={onOpenUsage}>
-            <Sparkles className="w-4 h-4 mr-2" />
-            {u('pricing.seeUsage', 'See Usage')}
-          </Button>
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <Button variant="outline" size="sm" onClick={() => onOpenCheckout()}>
+              <Zap className="w-4 h-4 mr-2" />
+              {u('payments.quickTopup', 'Quick Top-up')}
+            </Button>
+            <Button variant="outline" size="sm" onClick={onOpenUsage}>
+              <Sparkles className="w-4 h-4 mr-2" />
+              {u('pricing.seeUsage', 'See Usage')}
+            </Button>
+          </div>
         </Card>
       )}
 
@@ -103,8 +116,7 @@ export const PricingView = ({ lang, onOpenUsage, onLearnMoreLenaAI }: { lang: La
               lang={lang}
               isCurrent={!isUnlimited && mySubscription?.subscription_package_id === pkg.id}
               isUnlimited={isUnlimited}
-              isSelecting={selectingId === pkg.id}
-              onSelect={() => void handleSelect(pkg.id)}
+              onSelect={() => onOpenCheckout(pkg.id)}
               onLearnMoreLenaAI={onLearnMoreLenaAI}
             />
           ))}

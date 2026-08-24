@@ -385,5 +385,10 @@ export const useLenaEmbeddedMessages = ({
 
   const extraContentVersion = `${embeddedLoadIds.join(',')}:${Object.keys(embeddedLoads).sort().join(',')}:${[...quickActionsByMessage.keys()].join(',')}:${[...questionnaireSuggestionsByMessage.keys()].join(',')}:${[...locationChoiceByMessage.keys()].join(',')}:${[...loadReadyMessageIds].join(',')}`;
 
-  return { displayMessages, renderMessageExtra, extraContentVersion, pendingStep };
+  // True while LenaAI is waiting on a pill-driven step (single or multi-select, always with a
+  // "later"/"none" escape pill) rather than a free-text one like weight or dimensions - drives
+  // locking the chat's typed input so users answer through the pills instead of typing over them.
+  const pendingStepHasOptions = questionnaireSuggestionsByMessage.size > 0;
+
+  return { displayMessages, renderMessageExtra, extraContentVersion, pendingStep, pendingStepHasOptions };
 };

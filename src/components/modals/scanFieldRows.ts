@@ -1,16 +1,25 @@
 import type { LucideIcon } from 'lucide-react';
 import {
+  Apple,
   Banknote,
   Barcode,
+  Boxes,
   CalendarClock,
   CalendarDays,
+  Camera,
   Car,
   ClipboardList,
   Coins,
+  Cpu,
+  Diamond,
+  Droplet,
   FileCheck2,
   Flag,
   FileText,
+  FlaskConical,
+  Footprints,
   Forklift,
+  Gem,
   Handshake,
   Hash,
   Layers,
@@ -18,17 +27,27 @@ import {
   ListPlus,
   MapPin,
   Milestone,
+  Package,
+  Palette,
+  PawPrint,
+  Recycle,
   Route,
   Ruler,
   Scale,
+  Scissors,
   ShieldCheck,
+  Shirt,
+  Sprout,
   StickyNote,
+  Sword,
   Tag,
   Thermometer,
+  TreePine,
   Truck,
   UsersRound,
+  Wrench,
 } from 'lucide-react';
-import { HsCodeMatch, LoadScanResult } from '../../services/api';
+import { api, HsCodeMatch, LoadScanResult } from '../../services/api';
 
 export type ScanFieldPatch = Partial<{
   loadTitle: string;
@@ -111,17 +130,80 @@ const toDisplayDate = (isoDate: string): string => {
 };
 
 // hs_codes (each entry carrying its own catalog-sourced description/category) is the source of
-// truth for what a load is carrying. goods_type is only a compact, human-readable summary derived
-// from the chosen codes' categories, not a value the AI scan or the user should type/store
-// independently - falls back to the given fallback (e.g. the AI's general category guess, or
-// 'General') only while no HS code has been picked yet. Shared by the single-load and bulk-import
-// payload builders so both derive it identically.
-export const deriveGoodsType = (hsCodes: HsCodeMatch[] | undefined, fallback: string): string => {
+// truth for what a load is carrying - goods_type (backend column, max 100 chars) only needs to
+// hold the codes themselves, never the catalog's full category names (those can run well past 100
+// chars combined and blow the column's validation, which is exactly the bug this replaced). Falls
+// back to the given fallback (e.g. the AI's general category guess, or 'General') only while no HS
+// code has been picked yet. Shared by the single-load and bulk-import payload builders.
+export const deriveGoodsTypeCode = (hsCodes: HsCodeMatch[] | undefined, fallback: string): string => {
+  if (!hsCodes || hsCodes.length === 0) return fallback;
+  const codes = Array.from(new Set(hsCodes.map((item) => item.code).filter(Boolean)));
+  return codes.join(', ').slice(0, 100);
+};
+
+// The human-readable counterpart to deriveGoodsTypeCode, for on-screen display only (e.g. the
+// review step's "Cargo" summary row) - resolves each chosen code's catalog name on the frontend.
+// Never write this back into goods_type; it's not length-bounded like the DB column is.
+export const deriveGoodsTypeName = (hsCodes: HsCodeMatch[] | undefined, fallback: string): string => {
   if (!hsCodes || hsCodes.length === 0) return fallback;
   const categories = Array.from(new Set(
     hsCodes.map((item) => item.headingName || item.chapterName || item.description).filter(Boolean)
   ));
   return categories.join(', ');
+};
+
+// The standard 21 WCO HS sections, in chapter order, each mapped to a representative icon so an
+// HS match's chapterCode ("01".."99") can be shown with a quick visual category cue.
+const HS_SECTION_ICONS: Array<{ toChapter: number; icon: LucideIcon }> = [
+  { toChapter: 5, icon: PawPrint }, // I: live animals, animal products
+  { toChapter: 14, icon: Sprout }, // II: vegetable products
+  { toChapter: 15, icon: Droplet }, // III: animal/vegetable fats and oils
+  { toChapter: 24, icon: Apple }, // IV: foodstuffs, beverages, tobacco
+  { toChapter: 27, icon: Gem }, // V: mineral products
+  { toChapter: 38, icon: FlaskConical }, // VI: chemicals
+  { toChapter: 40, icon: Recycle }, // VII: plastics and rubber
+  { toChapter: 43, icon: Scissors }, // VIII: hides, skins, leather, furskins
+  { toChapter: 46, icon: TreePine }, // IX: wood and articles of wood
+  { toChapter: 49, icon: FileText }, // X: pulp, paper
+  { toChapter: 63, icon: Shirt }, // XI: textiles
+  { toChapter: 67, icon: Footprints }, // XII: footwear, headgear
+  { toChapter: 70, icon: Layers }, // XIII: stone, plaster, ceramic, glass
+  { toChapter: 71, icon: Diamond }, // XIV: pearls, precious stones, jewelry
+  { toChapter: 83, icon: Wrench }, // XV: base metals
+  { toChapter: 85, icon: Cpu }, // XVI: machinery, electrical equipment
+  { toChapter: 89, icon: Truck }, // XVII: vehicles, aircraft, vessels
+  { toChapter: 92, icon: Camera }, // XVIII: optical, medical, instruments
+  { toChapter: 93, icon: Sword }, // XIX: arms and ammunition
+  { toChapter: 96, icon: Boxes }, // XX: miscellaneous manufactured articles
+  { toChapter: 99, icon: Palette }, // XXI: art, antiques
+];
+
+// Shared between the post-load form's editable HS chips and the LenaAI canvas's read-only preview
+// chips, so a code shows the same category icon everywhere it's rendered.
+export const hsSectionIcon = (chapterCode?: string): LucideIcon => {
+  const chapter = Number(chapterCode);
+  if (!Number.isFinite(chapter)) return Package;
+  return HS_SECTION_ICONS.find((section) => chapter <= section.toChapter)?.icon ?? Package;
+};
+
+// Only the bare code needs to be persisted per HS entry - description/confidence/category names
+// are all resolvable from the hs_code_catalog table (the "šifranik") on demand, so storing them
+// too would just duplicate reference data across every load that shares a code.
+export const stripHsCodesForPayload = (hsCodes: HsCodeMatch[]): Array<{ code: string }> =>
+  hsCodes.map((item) => ({ code: item.code }));
+
+// The read-side counterpart to stripHsCodesForPayload: re-resolves a set of bare (or already-full)
+// HS code entries back to their full catalog details in one batched request, for entries missing a
+// description - used when opening an existing load for editing, so the chip UI can show category
+// names/icons without those ever having been stored on the load itself.
+export const resolveHsCodes = async (hsCodes: HsCodeMatch[]): Promise<HsCodeMatch[]> => {
+  const needsResolve = hsCodes.filter((item) => !item.description && item.code);
+  if (needsResolve.length === 0) return hsCodes;
+
+  const resolved = await api.hsCodes.bulk(needsResolve.map((item) => item.code));
+  const byCode = new Map(resolved.data.map((item) => [item.code, item]));
+
+  return hsCodes.map((item) => byCode.get(item.code) || item);
 };
 
 const TRANSPORT_TYPE_LABELS: Record<string, string> = { road: 'Road', air: 'Air', sea: 'Sea' };

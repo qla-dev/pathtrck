@@ -63,6 +63,11 @@ type ChatConversationPanelProps = {
   // Drives an inline unit hint and live input formatting for the draft field, keyed to whatever
   // structured questionnaire step LenaAI is currently waiting on (see lenaStepInputMask.ts).
   inputMask?: { unit?: string; format: (value: string) => string } | null;
+  // True while LenaAI is waiting on a pill-driven single/multi-select questionnaire step - the
+  // typed field is disabled so the answer can only come from the pills (which always include a
+  // "later"/"none" escape option), never from free text that the pills wouldn't expect.
+  inputLocked?: boolean;
+  inputLockedPlaceholder?: string;
 };
 
 export const ChatConversationPanel = ({
@@ -92,6 +97,8 @@ export const ChatConversationPanel = ({
   uploadingMessageLabel = 'Uploading...',
   attachmentOpenFailedLabel = 'The file could not be opened',
   inputMask = null,
+  inputLocked = false,
+  inputLockedPlaceholder,
 }: ChatConversationPanelProps) => {
   const primaryActionButtonClass = 'h-9 rounded-lg bg-primary text-white flex items-center justify-center cursor-pointer transition-all hover:brightness-95';
   const messageListRef = useRef<HTMLDivElement>(null);
@@ -436,6 +443,7 @@ export const ChatConversationPanel = ({
         <div className="relative flex-1">
           <input
             value={draft}
+            disabled={inputLocked}
             onChange={(e) => {
               const nextValue = inputMask ? inputMask.format(e.target.value) : e.target.value;
               // When the masked/capped result is identical to the previous value (e.g. typing
@@ -446,21 +454,21 @@ export const ChatConversationPanel = ({
               e.target.value = nextValue;
               onDraftChange(nextValue);
             }}
-            onKeyDown={(e) => e.key === 'Enter' && !sendBusy && onSend()}
-            placeholder={messagePlaceholder}
+            onKeyDown={(e) => e.key === 'Enter' && !sendBusy && !inputLocked && onSend()}
+            placeholder={inputLocked ? (inputLockedPlaceholder ?? messagePlaceholder) : messagePlaceholder}
             className={cn(
-              'h-9 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 dark:text-white outline-none pl-3',
+              'h-9 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 dark:text-white outline-none pl-3 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 dark:disabled:bg-slate-900',
               inputMask?.unit ? 'pr-10' : 'pr-3'
             )}
           />
-          {inputMask?.unit && (
+          {inputMask?.unit && !inputLocked && (
             <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
               {inputMask.unit}
             </span>
           )}
         </div>
         {!activeConversation.isAiDispatch && <button className="h-9 w-9 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 flex items-center justify-center cursor-pointer transition-all"><Mic className="w-4 h-4" /></button>}
-        <button type="button" onClick={onSend} disabled={sendBusy} className={cn(primaryActionButtonClass, 'w-9 disabled:cursor-not-allowed disabled:opacity-60')}>
+        <button type="button" onClick={onSend} disabled={sendBusy || inputLocked} className={cn(primaryActionButtonClass, 'w-9 disabled:cursor-not-allowed disabled:opacity-60')}>
           {sendBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
         </button>
       </div>

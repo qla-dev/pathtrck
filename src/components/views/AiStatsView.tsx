@@ -410,7 +410,7 @@ export const AiStatsView = ({ lang: _lang, role }: { lang: Language; role?: Role
   const [statusFilter, setStatusFilter] = useState<"" | "1" | "0">("");
   const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
   const [showAvgModal, setShowAvgModal] = useState(false);
-  const [viewMode, setViewMode] = useState<"calls" | "conversations">("calls");
+  const [viewMode, setViewMode] = useState<"calls" | "conversations">("conversations");
   const [openConversationId, setOpenConversationId] = useState<string | null>(null);
 
   const params = useMemo(
@@ -784,24 +784,6 @@ export const AiStatsView = ({ lang: _lang, role }: { lang: Language; role?: Role
         <div className="grid items-stretch gap-3 sm:grid-cols-3 lg:grid-cols-6">
           <button
             type="button"
-            onClick={() => setViewMode("calls")}
-            className="h-full cursor-pointer text-left"
-          >
-            <Card
-              className={`h-full shadow-none transition-transform hover:scale-[1.02] ${viewMode === "calls" ? "ring-2 ring-sky-500" : ""}`}
-              contentClassName="flex h-full items-center justify-between gap-3 px-5 py-3"
-            >
-              <div className="min-w-0">
-                <p className="whitespace-nowrap text-xs uppercase text-slate-500">Calls</p>
-                <p className="mt-1 text-2xl font-black dark:text-white">{stats.total}</p>
-              </div>
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-500">
-                <Gauge className="h-6 w-6" />
-              </div>
-            </Card>
-          </button>
-          <button
-            type="button"
             onClick={() => setViewMode("conversations")}
             className="h-full cursor-pointer text-left"
           >
@@ -815,6 +797,24 @@ export const AiStatsView = ({ lang: _lang, role }: { lang: Language; role?: Role
               </div>
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-500">
                 <MessageSquare className="h-6 w-6" />
+              </div>
+            </Card>
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("calls")}
+            className="h-full cursor-pointer text-left"
+          >
+            <Card
+              className={`h-full shadow-none transition-transform hover:scale-[1.02] ${viewMode === "calls" ? "ring-2 ring-sky-500" : ""}`}
+              contentClassName="flex h-full items-center justify-between gap-3 px-5 py-3"
+            >
+              <div className="min-w-0">
+                <p className="whitespace-nowrap text-xs uppercase text-slate-500">Calls</p>
+                <p className="mt-1 text-2xl font-black dark:text-white">{stats.total}</p>
+              </div>
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-500">
+                <Gauge className="h-6 w-6" />
               </div>
             </Card>
           </button>

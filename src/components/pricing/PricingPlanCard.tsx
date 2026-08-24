@@ -13,6 +13,10 @@ import {
   Globe,
   Banknote,
   Users,
+  Smartphone,
+  Navigation,
+  Navigation2,
+  Bell,
   Check,
   ArrowRight,
 } from 'lucide-react';
@@ -22,12 +26,13 @@ import { cn } from '../../lib/cn';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 
-type IconComponent = ComponentType<{ className?: string }>;
+export type IconComponent = ComponentType<{ className?: string }>;
 
-const PACKAGE_ICONS: Record<string, IconComponent> = { Rocket, Gem, Building2 };
+export const PACKAGE_ICONS: Record<string, IconComponent> = { Rocket, Gem, Building2 };
 
-const FEATURE_ICONS: Record<string, IconComponent> = {
+export const FEATURE_ICONS: Record<string, IconComponent> = {
   Boxes, Package: PackageIcon, Map: MapIcon, Truck, Sparkles, MessageSquare, BarChart3, Globe, Banknote, Users,
+  Smartphone, Navigation, Navigation2, Bell,
 };
 
 const ROLE_LABELS: Record<string, string> = {
@@ -46,7 +51,6 @@ export const PricingPlanCard = ({
   lang,
   isCurrent = false,
   isUnlimited = false,
-  isSelecting = false,
   onSelect,
   onLearnMoreLenaAI,
   ctaLabel,
@@ -55,7 +59,6 @@ export const PricingPlanCard = ({
   lang: Language;
   isCurrent?: boolean;
   isUnlimited?: boolean;
-  isSelecting?: boolean;
   onSelect: () => void;
   onLearnMoreLenaAI: () => void;
   ctaLabel?: string;
@@ -63,10 +66,14 @@ export const PricingPlanCard = ({
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const PkgIcon = PACKAGE_ICONS[pkg.icon] || Rocket;
 
-  const roleLabel = (role: string) => u(`pricing.role.${role === 'superadmin' || role === 'master' ? 'admin' : role}`, ROLE_LABELS[role] || role);
+  const roleLabel = (role: string) => u(`pricing.role.${role}`, ROLE_LABELS[role] || role);
   const formatRoles = (roles: string[]): string => {
     if (!roles || roles.includes('*')) return u('pricing.allRoles', 'Available to all roles');
-    const labels = Array.from(new Set(roles.map(roleLabel)));
+    // Superadmin/master have unlimited God Mode access regardless of plan - listing them here would
+    // just be noise, since every plan is implicitly available to them.
+    const visibleRoles = roles.filter((role) => role !== 'superadmin' && role !== 'master');
+    if (visibleRoles.length === 0) return u('pricing.allRoles', 'Available to all roles');
+    const labels = Array.from(new Set(visibleRoles.map(roleLabel)));
     return `${u('pricing.availableTo', 'Available to')}: ${labels.join(', ')}`;
   };
   const featureTitle = (feature: SubscriptionFeature) => u(`pricing.feature.${feature.key}.title`, feature.title);
@@ -76,9 +83,7 @@ export const PricingPlanCard = ({
       ? u('pricing.included', 'Included in God Mode')
       : isCurrent
         ? u('pricing.currentPlanButton', 'Current Plan')
-        : isSelecting
-          ? u('common.loading', 'Loading…')
-          : u('pricing.choosePlan', 'Choose Plan')
+        : u('pricing.choosePlan', 'Choose Plan')
   );
 
   return (
@@ -150,7 +155,7 @@ export const PricingPlanCard = ({
 
         <Button
           variant={isCurrent ? 'secondary' : pkg.is_popular ? 'primary' : 'outline'}
-          disabled={isCurrent || isSelecting || isUnlimited}
+          disabled={isCurrent || isUnlimited}
           onClick={onSelect}
           className="w-full justify-center"
         >

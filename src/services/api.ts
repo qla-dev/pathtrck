@@ -335,6 +335,7 @@ export const api = {
   },
   hsCodes: {
     search: (query: string, limit = 8) => request<HsCodeMatch[]>(`/hs-codes?${queryString({ query, limit })}`),
+    bulk: (codes: string[]) => request<HsCodeMatch[]>('/hs-codes/bulk', { method: 'POST', body: JSON.stringify({ codes }) }),
   },
   loadStops: resourceApi<Record<string, unknown>>('load-stops'),
   offers: {
@@ -406,5 +407,10 @@ export const api = {
       request<Record<string, unknown>>(`/user-subscriptions/${userId}`, { method: 'POST', body: JSON.stringify(data) }),
     list: () => request<Record<string, unknown>[]>('/user-subscriptions'),
     remove: (id: number | string) => request<null>(`/user-subscriptions/${id}`, { method: 'DELETE' }),
+  },
+  payments: {
+    list: () => request<Record<string, unknown>[]>('/payments'),
+    checkout: (payload: { amount: number } | { subscription_package_id: number }) =>
+      request<Record<string, unknown>>('/payments', { method: 'POST', body: JSON.stringify(payload) }),
   },
 };

@@ -13,7 +13,7 @@ import {
   ArrowUpCircle,
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Language } from '../../types';
+import { Language, Role } from '../../types';
 import { ui, flatpickrI18n } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { Button } from '../ui/Button';
@@ -44,8 +44,25 @@ const SERVICE_ICONS: Record<string, typeof MessageSquare> = {
   bulk_scan_text: Layers,
 };
 
-export const UsageView = ({ lang, onUpgrade }: { lang: Language; onUpgrade: () => void }) => {
+// guided_answer replies are free/deterministic and always log 0 real tokens - superadmin sees a
+// fixed placeholder per message instead (never the real, always-0 figure) so this row doesn't read
+// as broken, mirroring AiStatsView's LENA_ALPHA_DISPLAY_TOKENS convention. Only master sees the
+// true 0.
+const GUIDED_ANSWER_DISPLAY_TOKENS = 1280;
+
+export const UsageView = ({
+  lang,
+  role,
+  onTopUp,
+  onUpgrade,
+}: {
+  lang: Language;
+  role: Role;
+  onTopUp: () => void;
+  onUpgrade: () => void;
+}) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  const isMaster = role === 'master';
 
   const [subscription, setSubscription] = useState<MySubscriptionPayload>(null);
   const [isUnlimited, setIsUnlimited] = useState(false);
@@ -93,7 +110,9 @@ export const UsageView = ({ lang, onUpgrade }: { lang: Language; onUpgrade: () =
   const plan = subscription?.subscription_package;
   const totalTokens = plan?.lena_ai_tokens || 0;
   const remainingTokens = subscription?.remaining_tokens ?? 0;
-  const percentRemaining = totalTokens > 0 ? Math.max(0, Math.min(100, Math.round((remainingTokens / totalTokens) * 100))) : 0;
+  // Floor, not round: 4,993/5,000 must read as 99%, never 100% - that figure is reserved for a
+  // genuinely untouched balance, so a partial value can never round up into looking full.
+  const percentRemaining = totalTokens > 0 ? Math.max(0, Math.min(100, Math.floor((remainingTokens / totalTokens) * 100))) : 0;
   const barTone = percentRemaining <= 15 ? 'bg-rose-500' : percentRemaining <= 40 ? 'bg-amber-500' : 'bg-emerald-500';
 
   const daysUntil = (value?: string | null) => {
@@ -117,6 +136,7 @@ export const UsageView = ({ lang, onUpgrade }: { lang: Language; onUpgrade: () =
     u('usage.tip2', 'Scanning a document to auto-fill a load'),
     u('usage.tip3', 'Parsing a load from pasted text'),
     u('usage.tip4', 'Bulk-importing multiple loads at once'),
+    u('usage.tip5', 'Looking up HS codes for your cargo'),
   ];
 
   return (
@@ -126,10 +146,16 @@ export const UsageView = ({ lang, onUpgrade }: { lang: Language; onUpgrade: () =
           <h1 className="text-3xl font-display font-black dark:text-white">{u('usage.title', 'Usage')}</h1>
           <p className="text-slate-500">{u('usage.subtitle', 'Track how your LenaAI messages are being used this month.')}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={onUpgrade}>
-          <ArrowUpCircle className="w-4 h-4 mr-2" />
-          {u('usage.upgradePlan', 'Upgrade Plan')}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={onTopUp}>
+            <Zap className="w-4 h-4 mr-2" />
+            {u('payments.quickTopup', 'Quick Top-up')}
+          </Button>
+          <Button variant="outline" size="sm" onClick={onUpgrade}>
+            <ArrowUpCircle className="w-4 h-4 mr-2" />
+            {u('usage.upgradePlan', 'Upgrade Plan')}
+          </Button>
+        </div>
       </div>
 
       {loading || error ? (
@@ -234,8 +260,10 @@ export const UsageView = ({ lang, onUpgrade }: { lang: Language; onUpgrade: () =
                 <div className="space-y-4">
                   {(usage?.by_service || []).map((row) => {
                     const Icon = SERVICE_ICONS[row.service] || Zap;
-                    const tokens = Number(row.tokens);
                     const calls = Number(row.calls);
+                    const tokens = row.service === 'guided_answer' && !isMaster
+                      ? calls * GUIDED_ANSWER_DISPLAY_TOKENS
+                      : Number(row.tokens);
                     return (
                       <div key={row.service} className="flex items-center gap-3">
                         <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0">

@@ -40,7 +40,8 @@ import {
   Sparkles,
   RefreshCw,
   ScanSearch,
-  Gem
+  Gem,
+  History
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
@@ -101,6 +102,9 @@ import { AiStatsView } from './components/views/AiStatsView';
 import { EmailStudioView } from './components/views/EmailStudioView';
 import { PricingView } from './components/views/PricingView';
 import { UsageView } from './components/views/UsageView';
+import { PaymentHistoryView } from './components/views/PaymentHistoryView';
+import { PaymentModal } from './components/modals/PaymentModal';
+import { BrandWordmark, FreightbookMark } from './components/ui/BrandWordmark';
 import { PricingPlanCard } from './components/pricing/PricingPlanCard';
 import { SetupProcess } from './components/auth/SetupProcess';
 import { LoginProcess } from './components/auth/LoginProcess';
@@ -515,44 +519,6 @@ const getFlagUrl = (language: Language, width = 20) => {
   const code = flagCodeByLanguage[(language || 'en') as Exclude<Language, null>];
   return `https://flagcdn.com/w${width}/${code}.png`;
 };
-
-const FreightbookMark = ({ className }: { className?: string }) => {
-  const uid = React.useId();
-  const gradientId = `gemini-spark-gradient-${uid}`;
-  const glowId = `gemini-spark-glow-${uid}`;
-  return (
-    <svg viewBox="0 0 24 24" className={cn('shrink-0', className)} aria-hidden="true">
-      <defs>
-        <linearGradient id={gradientId} x1="3" y1="20" x2="21" y2="4" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#FACC15" />
-          <stop offset="0.28" stopColor="#22C55E" />
-          <stop offset="0.56" stopColor="#3B82F6" />
-          <stop offset="0.82" stopColor="#EF4444" />
-          <stop offset="1" stopColor="#F97316" />
-        </linearGradient>
-        <radialGradient id={glowId} cx="12" cy="11" r="8.5" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#FFFFFF" stopOpacity="0.45" />
-          <stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-      <path
-        d="M12 1.75C13.35 6.65 17.35 10.65 22.25 12C17.35 13.35 13.35 17.35 12 22.25C10.65 17.35 6.65 13.35 1.75 12C6.65 10.65 10.65 6.65 12 1.75Z"
-        fill={`url(#${gradientId})`}
-      />
-      <path
-        d="M12 1.75C13.35 6.65 17.35 10.65 22.25 12C17.35 13.35 13.35 17.35 12 22.25C10.65 17.35 6.65 13.35 1.75 12C6.65 10.65 10.65 6.65 12 1.75Z"
-        fill={`url(#${glowId})`}
-      />
-    </svg>
-  );
-};
-
-const BrandWordmark = ({ className }: { className?: string }) => (
-  <span className={cn('inline-flex items-center gap-2 font-brand font-bold leading-none tracking-tight text-slate-900 dark:text-white', className)}>
-    <FreightbookMark className="h-[1.4em] w-[1.4em] shrink-0" />
-    <span className="leading-none translate-y-[0.09em]">Freightbook<span className="text-primary">.ai</span></span>
-  </span>
-);
 
 type HeroTypedMessage = {
   text: string;
@@ -3244,6 +3210,9 @@ export default function App() {
   const [lang, setLang] = useState<Language>(() => getInitialLanguage());
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [view, setView] = useState('tracking');
+  const [checkoutPackageId, setCheckoutPackageId] = useState<number | null>(null);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [pricingRefreshSignal, setPricingRefreshSignal] = useState(0);
   const viewContentRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     viewContentRef.current?.scrollTo({ top: 0 });
@@ -4105,6 +4074,27 @@ export default function App() {
                   <Sparkles className="w-4 h-4" />
                   {u('pricing.seeUsage', 'See Usage')}
                 </button>
+                <button
+                  onClick={() => setView('payment-history')}
+                  className="w-full flex items-center gap-3 p-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                >
+                  <History className="w-4 h-4" />
+                  {u('payments.paymentHistory', 'Payment History')}
+                </button>
+                <button
+                  onClick={() => { setCheckoutPackageId(null); setPaymentModalOpen(true); }}
+                  className="w-full flex items-center gap-3 p-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                >
+                  <Zap className="w-4 h-4" />
+                  {u('payments.quickTopup', 'Quick Top-up')}
+                </button>
+                <button
+                  onClick={() => setView('pricing')}
+                  className="w-full flex items-center gap-3 p-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                >
+                  <Gem className="w-4 h-4" />
+                  {u('usage.upgradePlan', 'Upgrade Plan')}
+                </button>
                 <button className="w-full flex items-center gap-3 p-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer">
                   <Globe className="w-4 h-4" />
                   {t.support}
@@ -4232,9 +4222,19 @@ export default function App() {
 	                  lang={lang}
 	                  onOpenUsage={() => setView('usage')}
 	                  onLearnMoreLenaAI={() => { setLandingScrollTarget('lena-ai'); setIsLanding(true); }}
+	                  onOpenCheckout={(packageId) => { setCheckoutPackageId(packageId ?? null); setPaymentModalOpen(true); }}
+	                  refreshSignal={pricingRefreshSignal}
 	                />
 	              )}
-	              {view === 'usage' && <UsageView lang={lang} onUpgrade={() => setView('pricing')} />}
+	              {view === 'usage' && (
+	                <UsageView
+	                  lang={lang}
+	                  role={role}
+	                  onTopUp={() => { setCheckoutPackageId(null); setPaymentModalOpen(true); }}
+	                  onUpgrade={() => setView('pricing')}
+	                />
+	              )}
+	              {view === 'payment-history' && <PaymentHistoryView lang={lang} onBack={() => setView('pricing')} />}
 	              {view === 'profile' && <ProfileView role={role} lang={lang} />}
 	              {view === 'settings' && (
                   <SettingsView
@@ -4256,6 +4256,13 @@ export default function App() {
             onClose={() => setOpenLoadDetailsId(null)}
           />
         )}
+        <PaymentModal
+          open={paymentModalOpen}
+          lang={lang}
+          packageId={checkoutPackageId}
+          onClose={() => { setPaymentModalOpen(false); setCheckoutPackageId(null); }}
+          onSuccess={() => setPricingRefreshSignal((current) => current + 1)}
+        />
         <LoadDetailsPrebook
           open={Boolean(bookingLoad)}
           load={bookingLoad}

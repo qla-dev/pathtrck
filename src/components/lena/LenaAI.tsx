@@ -93,7 +93,7 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
     return scan ? buildScanFieldRows(scan).length : 0;
   }, [canvasAttachments]);
 
-  const { displayMessages, renderMessageExtra, extraContentVersion, pendingStep } = useLenaEmbeddedMessages({
+  const { displayMessages, renderMessageExtra, extraContentVersion, pendingStep, pendingStepHasOptions } = useLenaEmbeddedMessages({
     messages: conversation.messages,
     lang,
     fallbackLoadId: loadId,
@@ -187,6 +187,8 @@ export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLa
                 renderMessageExtra={renderMessageExtra}
                 extraContentVersion={extraContentVersion}
                 inputMask={lenaStepInputMask(pendingStep, lang)}
+                inputLocked={pendingStepHasOptions}
+                inputLockedPlaceholder={u('chat.chooseOptionAbove', 'Choose an option above')}
                 onAttachFile={attachFile}
                 attachmentAccept={LENA_LOAD_FILE_ACCEPT}
                 attachmentBusy={processingAttachment}

@@ -4,7 +4,7 @@ import { Language } from '../../types';
 import { ui } from '../../i18n';
 import { api, BulkLoadRow } from '../../services/api';
 import { latestLoadScan, LenaAttachment, LenaCanvasMode, scanPatchToDraftPayload } from '../../lib/lenaLoadCanvas';
-import { buildScanFieldRows, ScanFieldPatch } from '../modals/scanFieldRows';
+import { buildScanFieldRows, hsSectionIcon, ScanFieldPatch } from '../modals/scanFieldRows';
 import { buildBulkLoadPayload } from '../modals/bulkLoadRows';
 import { BulkLoadRowsTable } from '../modals/BulkLoadRowsTable';
 
@@ -148,9 +148,30 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftI
                   className="flex w-full items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/70"
                 >
                   <row.icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">{row.label}</p>
-                    <p className="mt-0.5 text-xs font-bold leading-snug text-slate-900 dark:text-white">{row.value}</p>
+                    {row.key === 'hsCodes' && mergedScan?.hsCodes?.length ? (
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {mergedScan.hsCodes.map((item) => {
+                          const SectionIcon = hsSectionIcon(item.chapterCode);
+                          const category = item.headingName || item.chapterName;
+                          return (
+                            <span
+                              key={item.code}
+                              className="inline-flex max-w-[240px] items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary"
+                            >
+                              <SectionIcon className="h-3.5 w-3.5 shrink-0" />
+                              <span className="truncate">
+                                {item.code}
+                                {category && <span className="font-normal opacity-75"> · {category}</span>}
+                              </span>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="mt-0.5 text-xs font-bold leading-snug text-slate-900 dark:text-white">{row.value}</p>
+                    )}
                   </div>
                 </div>
               ))}
