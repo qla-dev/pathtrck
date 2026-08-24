@@ -71,6 +71,7 @@ import { HsCodeChip } from '../hs/HsCodeChip';
 import { AddressMapModal } from '../maps/AddressMapModal';
 import { RouteMapModal } from '../maps/RouteMapModal';
 import { CountrySelect } from '../location/CountrySelect';
+import { PACKAGE_TYPES } from '../../data/packageTypes';
 import { DocumentDropzone } from './DocumentDropzone';
 import { ScanResultModal } from './ScanResultModal';
 import { ScanFieldPatch, deriveGoodsTypeCode, deriveGoodsTypeName, stripHsCodesForPayload, resolveHsCodes, hsSectionIcon } from './scanFieldRows';
@@ -139,6 +140,7 @@ type LoadDraft = {
   hsCodes: HsCodeMatch[];
   weightKg: string;
   pallets: string;
+  quantityMeasure: string;
   lengthM: string;
   widthM: string;
   heightM: string;
@@ -224,6 +226,7 @@ const INITIAL_DRAFT: LoadDraft = {
   hsCodes: [],
   weightKg: '',
   pallets: '',
+  quantityMeasure: '',
   lengthM: '',
   widthM: '',
   heightM: '',
@@ -319,6 +322,7 @@ const buildLoadFieldsPayload = (draft: LoadDraft) => ({
   height_m: draft.heightM ? Number(draft.heightM) : null,
   volume_m3: draft.volumeM3 ? Number(draft.volumeM3) : null,
   pallets: draft.pallets ? Number(draft.pallets) : null,
+  quantity_measure: draft.quantityMeasure || null,
   declared_value: draft.declaredValue ? Number(draft.declaredValue) : null,
   shipment_value_currency: draft.shipmentValueCurrency,
   budget: draft.budget ? Number(draft.budget) : null,
@@ -416,7 +420,7 @@ const STEPS: Array<{ id: StepId; icon: typeof MapPin }> = [
 // the sidebar can show a per-step count instead of only the one global aiFieldCount badge.
 const STEP_AI_FIELDS: Record<StepId, Array<keyof ScanFieldPatch & keyof LoadDraft>> = {
   route: ['pickupCountry', 'pickupCity', 'pickupDate', 'deliveryCountry', 'deliveryCity', 'deliveryDate'],
-  cargo: ['consignee', 'bookingReference', 'loadTitle', 'lengthM', 'weightKg', 'widthM', 'heightM'],
+  cargo: ['consignee', 'bookingReference', 'loadTitle', 'lengthM', 'weightKg', 'pallets', 'volumeM3', 'widthM', 'heightM'],
   terms: ['budget', 'freightCurrency', 'paymentDeferred', 'incoterm', 'notes', 'vehicleType', 'bodyTypes', 'temperatureControlled'],
   contact: ['contactName', 'contactEmail', 'contactPhone'],
   review: [],
@@ -734,12 +738,18 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       iconSurface: 'bg-blue-500/10',
     },
   ];
+  const shipmentTypeOptions: Record<TransportType, string[]> = {
+    road: ['FTL', 'LTL', 'Express', 'Dedicated'],
+    air: ['Standard', 'Express', 'Priority', 'Economy', 'Charter'],
+    sea: ['FCL', 'LCL'],
+  };
   const [step, setStep] = useState<StepId>('cargo');
   const contentScrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     contentScrollRef.current?.scrollTo({ top: 0 });
   }, [step]);
   const [draft, setDraft] = useState<LoadDraft>(INITIAL_DRAFT);
+  const selectedPackageType = PACKAGE_TYPES.find((option) => option.value === draft.quantityMeasure);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingExisting, setIsLoadingExisting] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -854,7 +864,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         transportType: (record.transport_type as TransportType) || 'road',
         pickupPlaceType: String(pickup.place_type || INITIAL_DRAFT.pickupPlaceType), pickupCity: String(pickup.city || ''), pickupCountry: String(pickup.country_code || 'BA'), pickupAddress: String(pickup.address || ''), pickupLatitude: String(pickup.latitude || ''), pickupLongitude: String(pickup.longitude || ''), pickupDate: pickupStart.date, pickupDateTo: pickupEnd.date, pickupTimeFrom: pickupStart.time, pickupTimeTo: pickupEnd.time,
         deliveryPlaceType: String(delivery.place_type || INITIAL_DRAFT.deliveryPlaceType), deliveryCity: String(delivery.city || ''), deliveryCountry: String(delivery.country_code || 'BA'), deliveryAddress: String(delivery.address || ''), deliveryLatitude: String(delivery.latitude || ''), deliveryLongitude: String(delivery.longitude || ''), deliveryDate: deliveryStart.date, deliveryDateTo: deliveryEnd.date, deliveryTimeFrom: deliveryStart.time, deliveryTimeTo: deliveryEnd.time,
-        loadTitle: String(record.title || ''), cargoType: String(record.cargo_type || 'FTL'), goodsType: String(record.goods_type || 'General'), hsCodes, weightKg: fromApiWeightKg(record.weight_kg), pallets: String(record.pallets || ''), lengthM: String(record.length_m || ''), widthM: String(record.width_m || ''), heightM: String(record.height_m || ''), volumeM3: String(record.volume_m3 || ''), declaredValue: String(record.declared_value || ''), budget: String(record.budget || ''), freightCurrency: String(record.currency || 'EUR'), shipmentValueCurrency: String(record.shipment_value_currency || record.currency || 'EUR'), paymentDueDays: String(record.payment_due_days || ''), paymentDeferred: terms === 'deferred', incoterm: String(record.incoterms || ''),
+        loadTitle: String(record.title || ''), cargoType: String(record.cargo_type || 'FTL'), goodsType: String(record.goods_type || 'General'), hsCodes, weightKg: fromApiWeightKg(record.weight_kg), pallets: String(record.pallets || ''), quantityMeasure: String(record.quantity_measure || ''), lengthM: String(record.length_m || ''), widthM: String(record.width_m || ''), heightM: String(record.height_m || ''), volumeM3: String(record.volume_m3 || ''), declaredValue: String(record.declared_value || ''), budget: String(record.budget || ''), freightCurrency: String(record.currency || 'EUR'), shipmentValueCurrency: String(record.shipment_value_currency || record.currency || 'EUR'), paymentDueDays: String(record.payment_due_days || ''), paymentDeferred: terms === 'deferred', incoterm: String(record.incoterms || ''),
         loadingEquipment: Array.isArray(record.loading_methods) ? record.loading_methods.map(String) : [], vehicleType: String(record.vehicle_type || INITIAL_DRAFT.vehicleType), characteristics: String(record.characteristics || ''), specialRequirements: Array.isArray(record.special_requirements) ? record.special_requirements.map(String) : [], transportMode: String(record.transport_mode || INITIAL_DRAFT.transportMode), deliveryProof: String(record.delivery_proof || ''), temperatureControlled: record.temperature_min != null || record.temperature_max != null, temperatureMin: String(record.temperature_min ?? ''), temperatureMax: String(record.temperature_max ?? ''),
         requiresAdr: Boolean(record.requires_adr), requiresTailLift: Boolean(record.requires_tail_lift), tollRoadsIncluded: Boolean(record.toll_roads_included), ferryIncluded: Boolean(record.ferry_included), cmrRequired: record.cmr_required == null ? true : Boolean(record.cmr_required), palletExchangeRequired: Boolean(record.pallet_exchange_required), customsRequired: Boolean(record.customs_required), insuranceRequired: Boolean(record.insurance_required), certificationRequired: Boolean(record.certification_required), inspectionServicesRequired: Boolean(record.inspection_services_required), mustBeTrackable: Boolean(record.must_be_trackable), urgent: Boolean(record.is_urgent), receivePriceProposals: record.is_negotiable == null ? true : Boolean(record.is_negotiable), bodyTypes: Array.isArray(record.body_types) ? record.body_types.map(String) : [], notes: String(record.notes || ''), internalComments: String(record.internal_comments || ''), externalComments: String(record.external_comments || ''), contactName: String(contact.name || ''), contactPhone: String(contact.phone || ''), contactMobile: String(contact.mobile || ''), contactEmail: String(contact.email || ''), contactFax: String(contact.fax || ''),
       });
@@ -1745,11 +1755,14 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                                   name="transportType"
                                   value={option.id}
                                   checked={draft.transportType === option.id}
-                                  onChange={() => setDraft((prev) => ({
-                                    ...prev,
-                                    transportType: option.id,
-                                    cargoType: option.id === 'air' ? 'Standard' : prev.cargoType === 'Standard' ? 'FTL' : prev.cargoType,
-                                  }))}
+                                  onChange={() => setDraft((prev) => {
+                                    const validCargoTypes = shipmentTypeOptions[option.id];
+                                    return {
+                                      ...prev,
+                                      transportType: option.id,
+                                      cargoType: validCargoTypes.includes(prev.cargoType) ? prev.cargoType : validCargoTypes[0],
+                                    };
+                                  })}
                                   className="peer sr-only"
                                 />
                                 <span aria-hidden="true" className="absolute right-4 top-4 flex h-4 w-4 items-center justify-center rounded-full border-2 border-slate-300 bg-white peer-checked:border-primary dark:border-slate-600 dark:bg-slate-900">
@@ -1821,18 +1834,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           )}
                         </div>
                       </div>
-                      <div className="grid sm:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          {fieldLabel('lengthM', 'postLoadModal.length', 'Length (m)')}
-                          <Input
-                            type="number"
-                            step="0.1"
-                            min="0.1"
-                            value={draft.lengthM}
-                            onChange={(e) => setField('lengthM', e.target.value)}
-                            placeholder="13.6"
-                          />
-                        </div>
+                      <div className={cn('grid gap-4', draft.transportType !== 'road' && 'sm:grid-cols-2')}>
                         <div className="space-y-1.5">
                           {fieldLabel('weightKg', 'postLoadModal.weight', 'Weight (t)')}
                           <Input
@@ -1844,8 +1846,43 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             placeholder="24.0"
                           />
                         </div>
+                        {draft.transportType !== 'road' && (
+                          <div className="space-y-1.5">
+                            {fieldLabel('volumeM3', 'postLoadModal.volume', 'CBM (m³)')}
+                            <Input type="number" step="0.1" min="0" value={draft.volumeM3} onChange={(e) => setField('volumeM3', e.target.value)} placeholder="33.2" />
+                          </div>
+                        )}
                       </div>
+                      {draft.transportType !== 'road' && (
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="space-y-1.5">
+                            {fieldLabel('pallets', 'postLoadModal.unitCount', 'Number of pieces / units')}
+                            <Input
+                              type="number"
+                              step="1"
+                              min="0"
+                              value={draft.pallets}
+                              onChange={(event) => setField('pallets', event.target.value)}
+                              placeholder="24"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <FieldLabel>{u('postLoadModal.packagingMethod', 'Packaging method')}</FieldLabel>
+                            <Select value={draft.quantityMeasure} onChange={(event) => setField('quantityMeasure', event.target.value)}>
+                              <option value="">{u('postLoadModal.selectPackagingMethod', 'Select packaging method')}</option>
+                              {draft.quantityMeasure && !selectedPackageType && <option value={draft.quantityMeasure}>{draft.quantityMeasure}</option>}
+                              {PACKAGE_TYPES.map((option) => (
+                                <option key={`${option.value}-${option.label}`} value={option.value}>{option.value} - {option.label}</option>
+                              ))}
+                            </Select>
+                          </div>
+                        </div>
+                      )}
                       <div className="grid sm:grid-cols-3 gap-4">
+                        <div className="space-y-1.5">
+                          {fieldLabel('lengthM', 'postLoadModal.length', 'Length (m)')}
+                          <Input type="number" step="0.1" min="0.1" value={draft.lengthM} onChange={(e) => setField('lengthM', e.target.value)} placeholder="13.6" />
+                        </div>
                         <div className="space-y-1.5">
                           {fieldLabel('widthM', 'postLoadModal.width', 'Width (m)')}
                           <Input
@@ -1868,21 +1905,21 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             placeholder="2.70"
                           />
                         </div>
-                        <div className="space-y-1.5">
-                          <FieldLabel>{u('postLoadModal.declaredValue', 'Value of shipment')}</FieldLabel>
-                          <div className="grid grid-cols-[minmax(0,1fr)_90px] gap-2">
-                            <Input type="number" step="100" min="0" value={draft.declaredValue} onChange={(e) => setField('declaredValue', e.target.value)} placeholder="50000" />
-                            <Select value={draft.shipmentValueCurrency} onChange={(e) => setField('shipmentValueCurrency', e.target.value)}>
-                              <option value="EUR">EUR</option><option value="BAM">BAM</option><option value="USD">USD</option>
-                            </Select>
-                          </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <FieldLabel>{u('postLoadModal.declaredValue', 'Value of shipment')}</FieldLabel>
+                        <div className="grid w-full grid-cols-[minmax(0,1fr)_110px] gap-2">
+                          <Input type="number" step="100" min="0" value={draft.declaredValue} onChange={(e) => setField('declaredValue', e.target.value)} placeholder="50000" />
+                          <Select value={draft.shipmentValueCurrency} onChange={(e) => setField('shipmentValueCurrency', e.target.value)}>
+                            <option value="EUR">EUR</option><option value="BAM">BAM</option><option value="USD">USD</option>
+                          </Select>
                         </div>
                       </div>
                       <div className="space-y-1.5">
                         <FieldLabel>{u('postLoadModal.cargoModel', 'Shipment type')}</FieldLabel>
                         <div className="-mx-1 overflow-x-auto px-1 pb-2 [scrollbar-width:thin] snap-x snap-mandatory">
                           <div className="flex w-max gap-2">
-                          {(draft.transportType === 'air' ? ['Standard', 'Express', 'Priority', 'Economy', 'Charter'] : ['FTL', 'LTL', 'Express', 'Dedicated']).map((option) => (
+                          {shipmentTypeOptions[draft.transportType].map((option) => (
                             <ChoiceCard key={option} compact nowrap className="w-auto snap-start shrink-0 justify-start pl-3 pr-7 text-left" active={draft.cargoType === option} title={option} icon={option === 'Charter' ? Plane : option === 'Express' || option === 'Priority' ? Clock3 : Package} onClick={(event) => { setField('cargoType', option); event.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' }); }} />
                           ))}
                           </div>
@@ -2272,7 +2309,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       />
                       <SummaryRow label={u('postLoadModal.titleSummary', 'Title')} value={draft.loadTitle || '—'} />
                       <SummaryRow label={u('postLoadModal.cargoSummary', 'Cargo')} value={deriveGoodsTypeName(draft.hsCodes, draft.goodsType) || '—'} />
-                      <SummaryRow label={u('postLoadModal.specsSummary', 'Specs')} value={`${draft.lengthM || '—'} × ${draft.widthM || '—'} × ${draft.heightM || '—'} m · ${draft.weightKg || '—'} t · ${draft.additionalInfo || u('postLoadModal.none', 'None')}`} />
+                      <SummaryRow label={u('postLoadModal.specsSummary', 'Specs')} value={`${draft.lengthM || '—'} × ${draft.widthM || '—'} × ${draft.heightM || '—'} m · ${draft.weightKg || '—'} t${draft.transportType !== 'road' ? ` · ${draft.volumeM3 || '—'} CBM` : ''} · ${draft.additionalInfo || u('postLoadModal.none', 'None')}`} />
+                      {draft.transportType !== 'road' && <SummaryRow label={u('postLoadModal.packagingMethod', 'Packaging method')} value={`${selectedPackageType ? `${selectedPackageType.value} - ${selectedPackageType.label}` : draft.quantityMeasure || '—'} · ${draft.pallets || '—'} ${u('postLoadModal.unitsShort', 'units')}`} />}
                       <SummaryRow label={u('postLoadModal.vehicleSummary', 'Vehicle')} value={`${draft.vehicleType} · ${draft.bodyTypes.join(', ') || u('postLoadModal.none', 'None')}`} />
                       <SummaryRow label={u('postLoadModal.paymentSummary', 'Payout')} value={`${draft.budget || '—'} ${draft.freightCurrency} · ${draft.paymentDueDays || '—'} ${u('postLoadModal.days', 'days')}`} />
                       <SummaryRow label={u('postLoadModal.incoterm', 'Incoterm')} value={draft.incoterm || '—'} />
