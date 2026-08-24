@@ -19,6 +19,7 @@ export const STANDARD_CHARGE_ITEMS: ChargeItem[] = [
 
 export const PRICE_BASIS_OPTIONS: Array<{ value: string; label: string }> = [
   { value: 'fixed_total', label: 'Fixed Total Price' },
+  { value: 'best_bid', label: 'Best bid' },
   { value: 'per_km', label: 'Price per km' },
   { value: 'per_ton', label: 'Price per ton' },
   { value: 'per_pallet', label: 'Price per pallet' },
@@ -189,6 +190,9 @@ export const validateOfferDraft = (
   u: (key: string, fallback: string) => string
 ): string | null => {
   if (!draft.priceBasis) return u('Select a price basis.', 'Select a price basis.');
+  if (draft.priceBasis === 'best_bid' && draft.paymentTerms !== 'immediate') {
+    return u('offer.bestBidImmediateOnly', 'Best bid requires immediate payment.');
+  }
   if (!draft.vat) return u('Select whether VAT is included or excluded.', 'Select whether VAT is included or excluded.');
   if (!draft.paymentTerms) return u('Select payment terms.', 'Select payment terms.');
   if (!draft.validUntil) return u('Set how long your offer is valid.', 'Set how long your offer is valid.');

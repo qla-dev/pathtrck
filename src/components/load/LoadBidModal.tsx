@@ -408,8 +408,21 @@ export const LoadBidModal = ({
                       </select>
                     </label>
                     <label className="block"><FieldLabel required>{u('Price basis', 'Price basis')}</FieldLabel>
-                      <select value={draft.priceBasis} onChange={(e) => onDraftChange({ priceBasis: e.target.value })} className={cn(fieldInputClass, 'cursor-pointer')}>
-                        {PRICE_BASIS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                      <select
+                        value={draft.priceBasis}
+                        onChange={(e) => {
+                          const priceBasis = e.target.value;
+                          onDraftChange(priceBasis === 'best_bid'
+                            ? { priceBasis, paymentTerms: 'immediate' }
+                            : { priceBasis });
+                        }}
+                        className={cn(fieldInputClass, 'cursor-pointer')}
+                      >
+                        {PRICE_BASIS_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.value === 'best_bid' ? u('offer.bestBid', 'Best bid') : option.label}
+                          </option>
+                        ))}
                       </select>
                     </label>
                     <label className="block"><FieldLabel required>{u('VAT', 'VAT')}</FieldLabel>
@@ -418,7 +431,16 @@ export const LoadBidModal = ({
                       </select>
                     </label>
                     <label className="block"><FieldLabel required>{u('Payment terms', 'Payment terms')}</FieldLabel>
-                      <select value={draft.paymentTerms} onChange={(e) => onDraftChange({ paymentTerms: e.target.value })} className={cn(fieldInputClass, 'cursor-pointer')}>
+                      <select
+                        value={draft.paymentTerms}
+                        onChange={(e) => {
+                          const paymentTerms = e.target.value;
+                          onDraftChange(paymentTerms !== 'immediate' && draft.priceBasis === 'best_bid'
+                            ? { paymentTerms, priceBasis: 'fixed_total' }
+                            : { paymentTerms });
+                        }}
+                        className={cn(fieldInputClass, 'cursor-pointer')}
+                      >
                         {PAYMENT_TERMS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                       </select>
                     </label>
