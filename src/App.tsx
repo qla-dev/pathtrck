@@ -294,9 +294,10 @@ const HeroMoleculeBackground = () => {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_14%_18%,rgba(56,189,248,0.16),transparent_38%),radial-gradient(circle_at_86%_24%,rgba(14,165,233,0.14),transparent_42%),radial-gradient(circle_at_58%_84%,rgba(59,130,246,0.12),transparent_48%)] dark:bg-[radial-gradient(circle_at_15%_20%,rgba(14,165,233,0.22),transparent_40%),radial-gradient(circle_at_86%_24%,rgba(34,211,238,0.16),transparent_44%),radial-gradient(circle_at_58%_84%,rgba(30,64,175,0.28),transparent_52%)]" />
+      <div className="absolute inset-y-0 left-0 w-1/2 opacity-70 [background-image:radial-gradient(rgb(14_165_233/0.35)_1px,transparent_1px)] [background-size:24px_24px] [mask-image:linear-gradient(to_right,black,transparent)] [-webkit-mask-image:linear-gradient(to_right,black,transparent)] dark:opacity-35" />
       <motion.div
-        className="absolute -top-24 -left-16 h-72 w-72 rounded-full bg-cyan-300/20 blur-[100px] dark:bg-cyan-500/20"
-        animate={{ x: [0, 30, -12, 0], y: [0, 18, -10, 0] }}
+        className="absolute -top-32 -left-24 h-72 w-72 rounded-full bg-cyan-300/20 blur-[100px] dark:bg-cyan-500/20"
+        animate={{ x: [0, 8, -4, 0], y: [0, 6, -4, 0] }}
         transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }}
       />
       <motion.div
@@ -1432,7 +1433,7 @@ const LandingPage = ({
       {/* Hero Section - Editorial Style */}
       <section className="relative min-h-[calc(100vh-64px)] sm:min-h-[calc(100vh-80px)] flex items-start pt-24 pb-16 sm:py-24 lg:py-32">
         <HeroMoleculeBackground />
-        <div className="max-w-7xl min-w-0 mx-auto px-4 sm:px-6 grid lg:grid-cols-2 gap-8 lg:gap-16 items-start w-full relative z-10">
+        <div className="max-w-7xl min-w-0 mx-auto px-4 sm:px-6 grid lg:grid-cols-[3fr_2fr] gap-8 lg:gap-16 items-start w-full relative z-10">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1443,7 +1444,7 @@ const LandingPage = ({
               <Globe className="w-3 h-3" />
               {u('landing.globalStandard', 'Global Logistics Standard')}
             </div>
-            <h1 className="text-[clamp(2.25rem,10vw,3.5rem)] sm:text-6xl md:text-8xl font-display text-slate-900 dark:text-white leading-[1.02] sm:leading-[0.9] mb-6 sm:mb-8 h-[3.1em] sm:h-[2.7em] overflow-hidden [overflow-wrap:anywhere]">
+            <h1 className="text-[clamp(2.25rem,10vw,3.5rem)] sm:text-6xl md:text-8xl font-display font-black text-slate-900 dark:text-white leading-[1.02] sm:leading-[0.9] mb-6 sm:mb-8 h-[3.1em] sm:h-[2.7em] overflow-hidden [overflow-wrap:anywhere]">
               <span>{typedBeforeKeyword}</span>
               <span className="text-primary">{typedKeyword}</span>
               <span>{typedAfterKeyword}</span>
@@ -1597,8 +1598,8 @@ const LandingPage = ({
             transition={{ duration: 1, delay: 0.2 }}
             className="relative min-w-0 max-w-full lg:sticky lg:top-32"
           >
-            <div className="relative z-10 max-w-full bg-slate-100 dark:bg-slate-900 rounded-[1.75rem] sm:rounded-[2.5rem] p-3 sm:p-4 border border-slate-200 dark:border-slate-800">
-              <div className="aspect-[4/3] min-w-0 rounded-[1.4rem] sm:rounded-[2rem] overflow-hidden relative group">
+            <div className="relative z-10 max-w-full bg-slate-100 dark:bg-slate-900 rounded-[1.25rem] sm:rounded-[1.75rem] p-1.5 sm:p-2 border border-slate-200 dark:border-slate-800">
+              <div className="aspect-[4/3] min-w-0 rounded-[1rem] sm:rounded-[1.4rem] overflow-hidden relative group">
                 {/* Hero Route Map */}
                 <MapContainer
                   center={[48.8, 14]}
@@ -1662,6 +1663,10 @@ const LandingPage = ({
 	                  </div>
                 </div>
               </div>
+            </div>
+            <div className="relative z-10 mt-4 flex items-center gap-2 rounded-2xl bg-primary px-5 py-4 text-sm font-black text-white shadow-lg shadow-primary/20">
+              <CheckCircle2 className="h-4 w-4 shrink-0" />
+              {u('landing.routeConfirmed', 'Route Confirmed')}
             </div>
             {/* Decorative Blobs */}
             <div className="absolute -top-20 -right-20 w-80 h-80 bg-primary/20 rounded-full blur-[100px] animate-pulse" />
@@ -1866,7 +1871,7 @@ const LandingPage = ({
       <section id="features" className={cn("scroll-mt-28 bg-white dark:bg-slate-950", SECTION_PADDING)}>
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-20">
-            <h2 className="text-4xl md:text-6xl font-display font-bold mb-6 dark:text-white tracking-tight">
+            <h2 className="text-4xl md:text-6xl font-display font-black mb-6 dark:text-white tracking-tight">
               {u('landing.builtFor', 'Built for the')} <br /> <span className="text-primary">{u('landing.modernFleet', 'Modern Fleet.')}</span>
             </h2>
             <p className="text-slate-500 dark:text-slate-400 max-w-2xl mx-auto text-lg">
@@ -2049,7 +2054,7 @@ const LandingPage = ({
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-20">
             <div>
-              <h2 className="text-4xl md:text-6xl font-display font-bold mb-8 dark:text-white leading-tight">
+              <h2 className="text-4xl md:text-6xl font-display font-black mb-8 dark:text-white leading-tight">
                 {u('landing.howItWorksTitle1', 'How Smartfreight.ai')} <br /> <span className="text-primary">{u('landing.howItWorksTitle2', 'Works.')}</span>
               </h2>
               <p className="text-slate-500 dark:text-slate-400 text-lg mb-12">
@@ -2128,7 +2133,7 @@ const LandingPage = ({
                <div className="absolute -top-10 -left-10 w-40 h-40 bg-primary rounded-full blur-[80px] opacity-30" />
             </div>
             <div className="order-1 lg:order-2">
-              <h2 className="text-4xl md:text-6xl font-display font-bold text-white mb-8 leading-tight">
+              <h2 className="text-4xl md:text-6xl font-display font-black text-white mb-8 leading-tight">
                 {u('landing.controlOperationTitle1', 'Control your entire')} <br /> <span className="text-primary">{u('landing.controlOperationTitle2', 'Operation.')}</span>
               </h2>
               <div className="space-y-8">
@@ -2166,7 +2171,7 @@ const LandingPage = ({
       <section id="pricing" className={cn("scroll-mt-28 bg-slate-50 dark:bg-slate-900/50", SECTION_PADDING)}>
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-20">
-            <h2 className="text-4xl md:text-6xl font-display font-bold mb-6 dark:text-white tracking-tight">
+            <h2 className="text-4xl md:text-6xl font-display font-black mb-6 dark:text-white tracking-tight">
               {u('landing.pricingTitle1', 'Simple, Transparent')} <br /> <span className="text-primary">{u('landing.pricingTitle2', 'Pricing.')}</span>
             </h2>
             <p className="text-slate-500 dark:text-slate-400 max-w-2xl mx-auto text-lg">
@@ -2192,7 +2197,7 @@ const LandingPage = ({
       <section className={cn("bg-white dark:bg-slate-950", SECTION_PADDING)}>
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-20">
-            <h2 className="text-4xl md:text-6xl font-display font-bold mb-6 dark:text-white tracking-tight">
+            <h2 className="text-4xl md:text-6xl font-display font-black mb-6 dark:text-white tracking-tight">
               {t.trustedBy.split(' ').map((word, i) => (
                 <React.Fragment key={i}>
                   {i === 2 ? <><br /> <span className="text-primary">{word}</span></> : word + ' '}

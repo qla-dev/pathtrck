@@ -1,14 +1,20 @@
+import { useState } from 'react';
 import {
   ArrowRight,
   BrainCircuit,
+  CalendarClock,
   CheckCircle2,
   Clock,
+  Coins,
   Database,
   FileText,
   MapPin,
   Package,
+  PackageCheck,
+  Plane,
   Route,
   Search,
+  Ship,
   Sparkles,
   Tags,
   Truck,
@@ -27,9 +33,13 @@ const copy = {
     loadTitle: 'Turn a conversation into a complete load draft',
     loadDescription: 'Start naturally in chat. LenaAI asks only for missing information while the connected canvas collects every confirmed field in real time.',
     loadBullets: ['Upload an order or begin manually', 'Confirm route, cargo, dates and requirements', 'Review one structured canvas before publishing'],
-    loadUser: 'Create a new road load from this order.',
+    loadUser: 'Create a new load from this order.',
     loadFile: 'Purchase-order-2048.pdf attached',
-    loadAi: 'I found the pickup, delivery, cargo and dates. I only need the transport requirements.',
+    loadAi: 'I found the pickup, delivery, cargo and dates. Just choose the transport mode.',
+    loadTransportRoad: 'Road',
+    loadTransportAir: 'Air',
+    loadTransportSea: 'Sea',
+    loadTransportPending: 'Select mode',
     loadCanvas: 'Load canvas',
     loadProgress: '14 fields collected',
     loadReady: 'Draft ready for review',
@@ -52,15 +62,33 @@ const copy = {
     hsDocument: 'Commercial invoice',
     hsDetected: 'HS suggestions detected',
     hsApply: 'Apply to load',
+    bookEyebrow: 'LenaAI scenario 04',
+    bookTitle: 'Reserve a load straight from the answer',
+    bookDescription: 'When a load is open for booking, LenaAI shows the price and terms right in the conversation, so a driver or dispatcher can reserve it without leaving the chat.',
+    bookBullets: ['Confirm price and payment terms at a glance', 'Reserve the load with a single tap', 'Get an immediate booking confirmation'],
+    bookUser: 'Can I book load FB-2048?',
+    bookAi: 'Yes, this load is open for direct booking. Price and payment terms are confirmed below.',
+    bookCardTitle: 'Direct booking',
+    bookCardSubtitle: 'Load FB-2048 · Sarajevo → Vienna',
+    bookPriceLabel: 'Price',
+    bookPrice: 'EUR 1,250',
+    bookTermsLabel: 'Terms',
+    bookTerms: 'Deferred · 30 days',
+    bookAction: 'Reserve this load',
+    bookConfirmed: 'Load booked — you are assigned',
   },
   bs: {
     loadEyebrow: 'LenaAI scenario 01',
     loadTitle: 'Pretvorite razgovor u potpun nacrt tereta',
     loadDescription: 'Započnite prirodno kroz chat. LenaAI pita samo za podatke koji nedostaju, dok povezani canvas u stvarnom vremenu prikuplja svako potvrđeno polje.',
     loadBullets: ['Učitajte narudžbu ili počnite ručno', 'Potvrdite rutu, robu, termine i zahtjeve', 'Pregledajte strukturirani canvas prije objave'],
-    loadUser: 'Napravi novi cestovni teret iz ove narudžbe.',
+    loadUser: 'Napravi novi teret iz ove narudžbe.',
     loadFile: 'Narudzba-2048.pdf je priložena',
-    loadAi: 'Pronašla sam preuzimanje, isporuku, robu i termine. Nedostaju još samo transportni zahtjevi.',
+    loadAi: 'Pronašla sam preuzimanje, isporuku, robu i termine. Samo odaberite način transporta.',
+    loadTransportRoad: 'Cestovni',
+    loadTransportAir: 'Zračni',
+    loadTransportSea: 'Pomorski',
+    loadTransportPending: 'Odaberite način',
     loadCanvas: 'Draft tereta',
     loadProgress: '14 polja prikupljeno',
     loadReady: 'Nacrt je spreman za pregled',
@@ -83,15 +111,33 @@ const copy = {
     hsDocument: 'Komercijalna faktura',
     hsDetected: 'HS prijedlozi su pronađeni',
     hsApply: 'Dodaj u teret',
+    bookEyebrow: 'LenaAI scenario 04',
+    bookTitle: 'Rezervišite teret direktno iz odgovora',
+    bookDescription: 'Kada je teret otvoren za rezervaciju, LenaAI prikazuje cijenu i uslove direktno u razgovoru, tako da vozač ili dispečer može rezervisati bez napuštanja chata.',
+    bookBullets: ['Provjerite cijenu i uslove plaćanja na prvi pogled', 'Rezervišite teret jednim klikom', 'Odmah dobijte potvrdu rezervacije'],
+    bookUser: 'Mogu li rezervisati teret FB-2048?',
+    bookAi: 'Da, ovaj teret je otvoren za direktnu rezervaciju. Cijena i uslovi plaćanja su potvrđeni ispod.',
+    bookCardTitle: 'Direktna rezervacija',
+    bookCardSubtitle: 'Teret FB-2048 · Sarajevo → Vienna',
+    bookPriceLabel: 'Cijena',
+    bookPrice: 'EUR 1.250',
+    bookTermsLabel: 'Uslovi',
+    bookTerms: 'Odgođeno · 30 dana',
+    bookAction: 'Rezerviši ovaj teret',
+    bookConfirmed: 'Teret rezervisan — dodijeljeni ste',
   },
   de: {
     loadEyebrow: 'LenaAI Szenario 01',
     loadTitle: 'Vom Gespräch zum vollständigen Ladungsentwurf',
     loadDescription: 'Starten Sie einfach im Chat. LenaAI fragt nur fehlende Angaben ab, während der verbundene Canvas alle bestätigten Felder in Echtzeit sammelt.',
     loadBullets: ['Auftrag hochladen oder manuell beginnen', 'Route, Ware, Termine und Anforderungen bestätigen', 'Strukturierten Canvas vor der Veröffentlichung prüfen'],
-    loadUser: 'Erstelle aus diesem Auftrag eine neue Straßenfracht.',
+    loadUser: 'Erstelle aus diesem Auftrag eine neue Ladung.',
     loadFile: 'Bestellung-2048.pdf wurde angehängt',
-    loadAi: 'Abholung, Zustellung, Ware und Termine wurden erkannt. Es fehlen nur noch die Transportanforderungen.',
+    loadAi: 'Abholung, Zustellung, Ware und Termine wurden erkannt. Wählen Sie nur noch die Transportart.',
+    loadTransportRoad: 'Straße',
+    loadTransportAir: 'Luft',
+    loadTransportSea: 'See',
+    loadTransportPending: 'Modus wählen',
     loadCanvas: 'Ladungs-Canvas',
     loadProgress: '14 Felder erfasst',
     loadReady: 'Entwurf zur Prüfung bereit',
@@ -114,6 +160,20 @@ const copy = {
     hsDocument: 'Handelsrechnung',
     hsDetected: 'HS-Vorschläge erkannt',
     hsApply: 'Zur Ladung hinzufügen',
+    bookEyebrow: 'LenaAI Szenario 04',
+    bookTitle: 'Ladung direkt aus der Antwort reservieren',
+    bookDescription: 'Wenn eine Ladung zur Buchung offen ist, zeigt LenaAI Preis und Zahlungsbedingungen direkt im Gespräch, damit Fahrer oder Disponent buchen können, ohne den Chat zu verlassen.',
+    bookBullets: ['Preis und Zahlungsbedingungen auf einen Blick prüfen', 'Ladung mit einem Klick reservieren', 'Sofortige Buchungsbestätigung erhalten'],
+    bookUser: 'Kann ich die Ladung FB-2048 buchen?',
+    bookAi: 'Ja, diese Ladung ist zur Direktbuchung offen. Preis und Zahlungsbedingungen sind unten bestätigt.',
+    bookCardTitle: 'Direktbuchung',
+    bookCardSubtitle: 'Ladung FB-2048 · Sarajevo → Vienna',
+    bookPriceLabel: 'Preis',
+    bookPrice: 'EUR 1.250',
+    bookTermsLabel: 'Konditionen',
+    bookTerms: 'Gestundet · 30 Tage',
+    bookAction: 'Diese Ladung reservieren',
+    bookConfirmed: 'Ladung gebucht — Sie sind zugewiesen',
   },
 } as const;
 
@@ -124,20 +184,29 @@ const messageVariants = {
   visible: (index: number) => ({ opacity: 1, y: 0, scale: 1, transition: { duration: 0.5, delay: index * 0.16 } }),
 };
 
-const ScenarioCopy = ({ eyebrow, title, description, bullets, tone }: { eyebrow: string; title: string; description: string; bullets: readonly string[]; tone: 'sky' | 'emerald' | 'violet' }) => {
+const ScenarioCopy = ({ eyebrow, title, description, bullets, tone }: { eyebrow: string; title: string; description: string; bullets: readonly string[]; tone: 'sky' | 'orange' | 'violet' | 'green' }) => {
   const { ref, controls } = useScrollDownReveal({ opacity: 0, x: -28 }, { opacity: 1, x: 0 }, 0.28);
   return (
   <motion.div ref={ref} initial={{ opacity: 0, x: -28 }} animate={controls} transition={{ duration: 0.65 }} className="self-center">
-    <div className={cn('inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em]', tone === 'sky' && 'bg-sky-500/10 text-sky-600', tone === 'emerald' && 'bg-emerald-500/10 text-emerald-600', tone === 'violet' && 'bg-violet-500/10 text-violet-600')}><Sparkles className="h-3.5 w-3.5" />{eyebrow}</div>
+    <div className={cn('inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em]', tone === 'sky' && 'bg-sky-500/10 text-sky-600', tone === 'orange' && 'bg-orange-500/10 text-orange-600', tone === 'violet' && 'bg-violet-500/10 text-violet-600', tone === 'green' && 'bg-green-500/10 text-green-600')}><Sparkles className="h-3.5 w-3.5" />{eyebrow}</div>
     <h3 className="mt-5 text-3xl font-black leading-tight tracking-tight text-slate-900 dark:text-white sm:text-4xl lg:text-5xl">{title}</h3>
     <p className="mt-5 text-base leading-7 text-slate-600 dark:text-slate-300 sm:text-lg">{description}</p>
-    <div className="mt-7 space-y-3">{bullets.map((item) => <div key={item} className="flex items-start gap-3 text-sm font-semibold text-slate-700 dark:text-slate-200"><span className={cn('mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-white', tone === 'sky' && 'bg-sky-500', tone === 'emerald' && 'bg-emerald-500', tone === 'violet' && 'bg-violet-500')}><CheckCircle2 className="h-3.5 w-3.5" /></span>{item}</div>)}</div>
+    <div className="mt-7 space-y-3">{bullets.map((item) => <div key={item} className="flex items-start gap-3 text-sm font-semibold text-slate-700 dark:text-slate-200"><span className={cn('mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-white', tone === 'sky' && 'bg-sky-500', tone === 'orange' && 'bg-orange-500', tone === 'violet' && 'bg-violet-500', tone === 'green' && 'bg-green-500')}><CheckCircle2 className="h-3.5 w-3.5" /></span>{item}</div>)}</div>
   </motion.div>
   );
 };
 
+type TransportType = 'road' | 'air' | 'sea';
+
 const LoadCreationVisual = ({ text }: { text: ScenarioText }) => {
   const { ref, controls } = useScrollDownReveal('hidden', 'visible', 0.32);
+  const [selectedTransport, setSelectedTransport] = useState<TransportType | null>(null);
+  const transportOptions: { key: TransportType; label: string; Icon: typeof Truck }[] = [
+    { key: 'road', label: text.loadTransportRoad, Icon: Truck },
+    { key: 'air', label: text.loadTransportAir, Icon: Plane },
+    { key: 'sea', label: text.loadTransportSea, Icon: Ship },
+  ];
+  const selectedOption = transportOptions.find((option) => option.key === selectedTransport);
   return (
   <motion.div ref={ref} initial="hidden" animate={controls} className="relative grid gap-4 lg:grid-cols-[minmax(0,7fr)_minmax(0,3fr)]">
     <div className="space-y-6">
@@ -147,13 +216,41 @@ const LoadCreationVisual = ({ text }: { text: ScenarioText }) => {
         <span className="mb-1.5 flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-primary"><BrainCircuit className="h-4 w-4" />LenaAI</span>
         <div className="rounded-2xl rounded-bl-md border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-slate-700 shadow-lg shadow-sky-500/10 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-slate-200">{text.loadAi}</div>
       </motion.div>
+      <motion.div custom={3} variants={messageVariants} className="flex flex-wrap gap-2">
+        {transportOptions.map(({ key, label, Icon }) => {
+          const selected = selectedTransport === key;
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setSelectedTransport(key)}
+              className={cn('inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors', selected ? 'border-primary bg-primary text-white' : 'border-primary/20 bg-white text-primary hover:bg-primary/5 dark:bg-slate-950')}
+            >
+              <Icon className="h-3.5 w-3.5" />{label}
+            </button>
+          );
+        })}
+      </motion.div>
     </div>
-    <motion.div custom={3} variants={messageVariants} className="flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 shadow-2xl shadow-sky-500/10 dark:border-slate-700 dark:bg-slate-900">
+    <motion.div custom={4} variants={messageVariants} className="flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 shadow-2xl shadow-sky-500/10 dark:border-slate-700 dark:bg-slate-900">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-950"><div className="flex min-w-0 items-center gap-1.5 text-xs font-black text-slate-900 dark:text-white"><Package className="h-4 w-4 shrink-0 text-primary" /><span className="truncate">{text.loadCanvas}</span></div><span className="shrink-0 rounded-full bg-primary/10 px-2 py-1 text-[9px] font-black text-primary">{text.loadProgress}</span></div>
       <div className="grid grid-cols-2 gap-2 p-4">
-        {[{ label: 'Sarajevo, BA', Icon: MapPin }, { label: 'Vienna, AT', Icon: MapPin }, { label: '11,200 kg', Icon: Package }, { label: 'Road · FTL', Icon: Truck }].map(({ label, Icon }, index) => <motion.div key={label} custom={4 + index} variants={messageVariants} className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-950"><Icon className="h-3.5 w-3.5 shrink-0 text-primary" /><p className="truncate text-[11px] font-black text-slate-800 dark:text-white">{label}</p></motion.div>)}
+        {[
+          { label: 'Sarajevo, BA', Icon: MapPin },
+          { label: 'Vienna, AT', Icon: MapPin },
+          { label: '11,200 kg', Icon: Package },
+        ].map(({ label, Icon }, index) => (
+          <motion.div key={label} custom={5 + index} variants={messageVariants} className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-950">
+            <Icon className="h-3.5 w-3.5 shrink-0 text-primary" />
+            <p className="min-w-0 flex-1 truncate text-[11px] font-black text-slate-800 dark:text-white">{label}</p>
+          </motion.div>
+        ))}
+        <motion.div custom={8} variants={messageVariants} className={cn('flex items-center gap-1.5 rounded-lg border p-2 transition-colors', selectedOption ? 'border-primary/40 bg-primary/5 dark:bg-primary/10' : 'border-dashed border-slate-300 dark:border-slate-600')}>
+          {selectedOption ? <selectedOption.Icon className="h-3.5 w-3.5 shrink-0 text-primary" /> : <Truck className="h-3.5 w-3.5 shrink-0 text-slate-400" />}
+          <p className={cn('min-w-0 flex-1 truncate text-[11px] font-black', selectedOption ? 'text-slate-800 dark:text-white' : 'text-slate-400')}>{selectedOption ? `${selectedOption.label} · FTL` : text.loadTransportPending}</p>
+        </motion.div>
       </div>
-      <motion.div custom={8} variants={messageVariants} className="mx-4 mb-4 mt-auto flex items-center gap-1.5 rounded-lg bg-emerald-500/10 p-2 text-[11px] font-black text-emerald-600"><CheckCircle2 className="h-3.5 w-3.5 shrink-0" />{text.loadReady}</motion.div>
+      <motion.div custom={9} variants={messageVariants} className="mx-4 mb-4 mt-auto flex items-center gap-1.5 rounded-lg bg-emerald-500/10 p-2 text-[11px] font-black text-emerald-600"><CheckCircle2 className="h-3.5 w-3.5 shrink-0" />{text.loadReady}</motion.div>
     </motion.div>
   </motion.div>
   );
@@ -172,11 +269,11 @@ const TrackingVisual = ({ text }: { text: ScenarioText }) => {
   <motion.div ref={ref} initial="hidden" animate={controls} className="relative space-y-6">
     <motion.div custom={0} variants={messageVariants} className="ml-auto w-fit rounded-2xl rounded-br-md bg-primary px-4 py-3 text-sm font-bold text-white shadow-lg shadow-primary/15">{text.trackingUser}</motion.div>
     <motion.div custom={1} variants={messageVariants} className="w-fit max-w-[60%]">
-      <span className="mb-1.5 flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-emerald-600"><BrainCircuit className="h-4 w-4" />LenaAI</span>
-      <div className="rounded-2xl rounded-bl-md border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-slate-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-slate-200">{text.trackingAi}</div>
+      <span className="mb-1.5 flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-orange-600"><BrainCircuit className="h-4 w-4" />LenaAI</span>
+      <div className="rounded-2xl rounded-bl-md border border-orange-200 bg-orange-50 p-4 text-sm leading-6 text-slate-700 dark:border-orange-500/20 dark:bg-orange-500/10 dark:text-slate-200">{text.trackingAi}</div>
     </motion.div>
-    <motion.div custom={2} variants={messageVariants} className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-950 text-white shadow-2xl shadow-emerald-500/10">
-      <div className="relative flex h-32 flex-col justify-center gap-6 overflow-hidden bg-[radial-gradient(circle_at_30%_40%,rgba(16,185,129,0.3),transparent_24%),linear-gradient(135deg,#0f172a,#164e63)] p-5">
+    <motion.div custom={2} variants={messageVariants} className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-950 text-white shadow-2xl shadow-orange-500/10">
+      <div className="relative flex h-32 flex-col justify-center gap-6 overflow-hidden bg-[radial-gradient(circle_at_30%_40%,rgba(249,115,22,0.3),transparent_24%),linear-gradient(135deg,#0f172a,#431407)] p-5">
         <div className="relative flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-white/70"><span>Sarajevo</span><span>Vienna</span></div>
         <div className="relative h-11">
           <TrackingProgressBar />
@@ -213,6 +310,43 @@ const HsVisual = ({ text }: { text: ScenarioText }) => {
   );
 };
 
+const BookingVisual = ({ text }: { text: ScenarioText }) => {
+  const { ref, controls } = useScrollDownReveal('hidden', 'visible', 0.3);
+  return (
+  <motion.div ref={ref} initial="hidden" animate={controls} className="relative space-y-6">
+    <motion.div custom={0} variants={messageVariants} className="ml-auto w-fit rounded-2xl rounded-br-md bg-primary px-4 py-3 text-sm font-bold text-white">{text.bookUser}</motion.div>
+    <motion.div custom={1} variants={messageVariants} className="w-fit max-w-[60%]">
+      <span className="mb-1.5 flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-green-600"><BrainCircuit className="h-4 w-4" />LenaAI</span>
+      <div className="rounded-2xl rounded-bl-md border border-green-200 bg-green-50 p-4 text-sm leading-6 text-slate-700 dark:border-green-500/20 dark:bg-green-500/10 dark:text-slate-200">{text.bookAi}</div>
+    </motion.div>
+    <motion.div custom={2} variants={messageVariants} className="rounded-3xl border border-slate-200 bg-slate-50 p-5 shadow-2xl shadow-green-500/10 dark:border-slate-700 dark:bg-slate-900">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600"><PackageCheck className="h-5 w-5" /></span>
+          <div className="min-w-0">
+            <p className="truncate font-black text-slate-900 dark:text-white">{text.bookCardTitle}</p>
+            <p className="truncate text-xs text-slate-500">{text.bookCardSubtitle}</p>
+          </div>
+        </div>
+        <span className="shrink-0 rounded-full bg-emerald-500/10 px-3 py-1.5 text-xs font-black text-emerald-600">{text.bookPrice}</span>
+      </div>
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <motion.div custom={3} variants={messageVariants} className="flex items-center gap-2 rounded-xl border border-primary/15 bg-primary/5 p-3">
+          <Coins className="h-4 w-4 shrink-0 text-primary" />
+          <div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-wider text-primary">{text.bookPriceLabel}</p><p className="truncate text-sm font-black text-slate-900 dark:text-white">{text.bookPrice}</p></div>
+        </motion.div>
+        <motion.div custom={4} variants={messageVariants} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-950">
+          <CalendarClock className="h-4 w-4 shrink-0 text-slate-500" />
+          <div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-wider text-slate-500">{text.bookTermsLabel}</p><p className="truncate text-sm font-black text-slate-900 dark:text-white">{text.bookTerms}</p></div>
+        </motion.div>
+      </div>
+      <motion.button custom={5} variants={messageVariants} type="button" className="mt-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-emerald-500/20"><PackageCheck className="h-4 w-4" />{text.bookAction}<ArrowRight className="h-4 w-4" /></motion.button>
+      <motion.div custom={6} variants={messageVariants} className="mt-3 flex items-center gap-1.5 rounded-lg bg-emerald-500/10 p-2 text-[11px] font-black text-emerald-600"><CheckCircle2 className="h-3.5 w-3.5 shrink-0" />{text.bookConfirmed}</motion.div>
+    </motion.div>
+  </motion.div>
+  );
+};
+
 export const LenaScenarioSections = ({ lang }: { lang: Language }) => {
   const locale: ScenarioLocale = lang === 'bs' || lang === 'de' ? lang : 'en';
   const text = copy[locale];
@@ -228,18 +362,26 @@ export const LenaScenarioSections = ({ lang }: { lang: Language }) => {
       </section>
 
       <section className="relative py-20 sm:py-24">
-        <div className="pointer-events-none absolute left-0 top-1/3 h-72 w-72 rounded-full bg-emerald-400/10 blur-3xl" />
+        <div className="pointer-events-none absolute left-0 top-1/3 h-72 w-72 rounded-full bg-orange-400/10 blur-3xl" />
         <div className="relative grid gap-12 lg:grid-cols-[1.18fr_0.82fr] lg:items-center">
-          <div className="lg:order-2"><ScenarioCopy eyebrow={text.trackingEyebrow} title={text.trackingTitle} description={text.trackingDescription} bullets={text.trackingBullets} tone="emerald" /></div>
+          <div className="lg:order-2"><ScenarioCopy eyebrow={text.trackingEyebrow} title={text.trackingTitle} description={text.trackingDescription} bullets={text.trackingBullets} tone="orange" /></div>
           <div className="lg:order-1"><TrackingVisual text={text} /></div>
         </div>
       </section>
 
-      <section className="relative pt-20 sm:pt-24">
+      <section className="relative py-20 sm:py-24">
         <div className="pointer-events-none absolute right-0 top-1/3 h-72 w-72 rounded-full bg-violet-400/10 blur-3xl" />
         <div className="relative grid gap-12 lg:grid-cols-[0.82fr_1.18fr] lg:items-center">
           <ScenarioCopy eyebrow={text.hsEyebrow} title={text.hsTitle} description={text.hsDescription} bullets={text.hsBullets} tone="violet" />
           <HsVisual text={text} />
+        </div>
+      </section>
+
+      <section className="relative pt-20 sm:pt-24">
+        <div className="pointer-events-none absolute left-0 top-1/3 h-72 w-72 rounded-full bg-green-400/10 blur-3xl" />
+        <div className="relative grid gap-12 lg:grid-cols-[1.18fr_0.82fr] lg:items-center">
+          <div className="lg:order-2"><ScenarioCopy eyebrow={text.bookEyebrow} title={text.bookTitle} description={text.bookDescription} bullets={text.bookBullets} tone="green" /></div>
+          <div className="lg:order-1"><BookingVisual text={text} /></div>
         </div>
       </section>
     </div>
