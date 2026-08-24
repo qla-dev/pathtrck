@@ -155,16 +155,29 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftI
                         {mergedScan.hsCodes.map((item) => {
                           const SectionIcon = hsSectionIcon(item.chapterCode);
                           const category = item.headingName || item.chapterName;
+                          const parentCategory = item.chapterName && item.chapterName !== category ? item.chapterName : '';
                           return (
                             <span
                               key={item.code}
-                              className="inline-flex max-w-[240px] items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary"
+                              className="group relative inline-flex max-w-[240px] items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary"
                             >
                               <SectionIcon className="h-3.5 w-3.5 shrink-0" />
                               <span className="truncate">
                                 {item.code}
                                 {category && <span className="font-normal opacity-75"> · {category}</span>}
                               </span>
+                              {(item.description || category) && (
+                                <span
+                                  role="tooltip"
+                                  className="pointer-events-none invisible absolute left-1/2 top-full z-40 mt-2 w-72 -translate-x-1/2 rounded-xl bg-slate-950 px-3 py-2.5 text-left text-white opacity-0 shadow-xl transition-opacity group-hover:visible group-hover:opacity-100 dark:border dark:border-slate-700 dark:bg-slate-800"
+                                >
+                                  <span className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-950 dark:border-b-slate-800" />
+                                  <span className="block text-[10px] font-black uppercase tracking-wider text-sky-300">HS {item.code}</span>
+                                  {item.description && <span className="mt-1 block text-xs font-semibold leading-5">{item.description}</span>}
+                                  {category && category !== item.description && <span className="mt-1 block text-[11px] font-medium leading-4 text-slate-300">{category}</span>}
+                                  {parentCategory && <span className="mt-0.5 block text-[10px] leading-4 text-slate-400">{parentCategory}</span>}
+                                </span>
+                              )}
                             </span>
                           );
                         })}
