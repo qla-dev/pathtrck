@@ -109,6 +109,7 @@ type ScannedDocument = { id: string; imageDataUrl: string | null; result: LoadSc
 
 type LoadDraft = {
   consignee: CustomerOption | null;
+  bookingReference: string;
   transportType: TransportType;
   pickupPlaceType: string;
   pickupCity: string;
@@ -193,6 +194,7 @@ type LoadDraft = {
 
 const INITIAL_DRAFT: LoadDraft = {
   consignee: null,
+  bookingReference: '',
   transportType: 'road',
   pickupPlaceType: 'Warehouse',
   pickupCity: '',
@@ -305,6 +307,7 @@ const toApiWeightKg = (weightTonnes: string) => Number(weightTonnes) * 1000;
 // load_stops table, load_drafts flattens pickup_*/delivery_* columns onto itself).
 const buildLoadFieldsPayload = (draft: LoadDraft) => ({
   consignee_customer_id: draft.consignee?.id || null,
+  booking_reference: draft.bookingReference || null,
   title: draft.loadTitle,
   transport_type: draft.transportType,
   cargo_type: draft.cargoType,
@@ -413,7 +416,7 @@ const STEPS: Array<{ id: StepId; icon: typeof MapPin }> = [
 // the sidebar can show a per-step count instead of only the one global aiFieldCount badge.
 const STEP_AI_FIELDS: Record<StepId, Array<keyof ScanFieldPatch & keyof LoadDraft>> = {
   route: ['pickupCountry', 'pickupCity', 'pickupDate', 'deliveryCountry', 'deliveryCity', 'deliveryDate'],
-  cargo: ['consignee', 'loadTitle', 'lengthM', 'weightKg', 'widthM', 'heightM'],
+  cargo: ['consignee', 'bookingReference', 'loadTitle', 'lengthM', 'weightKg', 'widthM', 'heightM'],
   terms: ['budget', 'freightCurrency', 'paymentDeferred', 'incoterm', 'notes', 'vehicleType', 'bodyTypes', 'temperatureControlled'],
   contact: ['contactName', 'contactEmail', 'contactPhone'],
   review: [],
@@ -847,6 +850,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       setHsQuery('');
       setDraft({ ...INITIAL_DRAFT,
         consignee,
+        bookingReference: String(record.booking_reference || ''),
         transportType: (record.transport_type as TransportType) || 'road',
         pickupPlaceType: String(pickup.place_type || INITIAL_DRAFT.pickupPlaceType), pickupCity: String(pickup.city || ''), pickupCountry: String(pickup.country_code || 'BA'), pickupAddress: String(pickup.address || ''), pickupLatitude: String(pickup.latitude || ''), pickupLongitude: String(pickup.longitude || ''), pickupDate: pickupStart.date, pickupDateTo: pickupEnd.date, pickupTimeFrom: pickupStart.time, pickupTimeTo: pickupEnd.time,
         deliveryPlaceType: String(delivery.place_type || INITIAL_DRAFT.deliveryPlaceType), deliveryCity: String(delivery.city || ''), deliveryCountry: String(delivery.country_code || 'BA'), deliveryAddress: String(delivery.address || ''), deliveryLatitude: String(delivery.latitude || ''), deliveryLongitude: String(delivery.longitude || ''), deliveryDate: deliveryStart.date, deliveryDateTo: deliveryEnd.date, deliveryTimeFrom: deliveryStart.time, deliveryTimeTo: deliveryEnd.time,
@@ -1037,7 +1041,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
               created_by_user_id: currentUser.id,
               channel: 'inapp',
               subject: `${AI_DISPATCH_SUBJECT_PREFIX}${draft.loadTitle || u('postLoadModal.draftFallbackTitle', 'Draft')}`,
-              canvas: false,
+              canvas: true,
               load_draft_id: newDraftId,
               last_message_at: new Date().toISOString(),
               participant_ids: [currentUser.id],
@@ -1224,7 +1228,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                 <input
                   value={draft.loadTitle}
                   onChange={(e) => setField('loadTitle', e.target.value)}
-                  placeholder={editLoadId ? u('postLoadModal.editTitle', 'Edit Load') : u('postLoadModal.title', 'Post New Load')}
+                  placeholder={editLoadId ? u('postLoadModal.editTitle', 'Edit Load') : u('postLoadModal.titlePlaceholder', 'Enter load title')}
                   className="w-full max-w-md bg-transparent text-base md:text-lg font-black tracking-tight dark:text-white leading-tight truncate outline-none cursor-text rounded-md focus:ring-2 focus:ring-primary/40 -mx-1 px-1"
                 />
                 <p className="hidden sm:block text-xs text-slate-500 mt-0.5 max-w-2xl truncate">

@@ -114,6 +114,100 @@ export const latestLoadScan = (attachments: LenaAttachment[]): LoadScanResult | 
   return undefined;
 };
 
+const draftString = (value: unknown) => value == null ? '' : String(value);
+const draftNumber = (value: unknown) => value == null || value === '' ? 0 : Number(value);
+const draftNullableNumber = (value: unknown) => value == null || value === '' ? null : Number(value);
+const draftDate = (value: unknown) => draftString(value).slice(0, 10);
+
+// A manually saved PostLoadModal draft has no scan attachment of its own. Convert the persisted
+// load_drafts row into the same shape used by Lena scans so chat, questionnaire and Draft Panel
+// all start from the saved values instead of an empty canvas.
+export const loadDraftRecordToScan = (record: unknown): LoadScanResult | undefined => {
+  if (!record || typeof record !== 'object') return undefined;
+  const draft = record as Record<string, unknown>;
+  const contact = draft.contact && typeof draft.contact === 'object' ? draft.contact as Record<string, unknown> : {};
+  const consignee = draft.consignee && typeof draft.consignee === 'object' ? draft.consignee as Record<string, unknown> : null;
+  const bodyTypes = Array.isArray(draft.body_types) ? draft.body_types : [];
+  const loadingMethods = Array.isArray(draft.loading_methods) ? draft.loading_methods : [];
+
+  return {
+    isDocument: true,
+    consigneeName: draftString(consignee?.company_name || consignee?.name),
+    consigneeTaxNumber: draftString(consignee?.tax_number),
+    consigneeCity: draftString(consignee?.city),
+    consigneeCountryCode: draftString(consignee?.country_code),
+    consignee,
+    title: draftString(draft.title),
+    transportType: draftString(draft.transport_type),
+    cargoType: draftString(draft.cargo_type),
+    goodsType: draftString(draft.goods_type),
+    hsSearchTerms: '',
+    hsCodes: Array.isArray(draft.hs_codes) ? draft.hs_codes as LoadScanResult['hsCodes'] : [],
+    weightKg: draftNumber(draft.weight_kg),
+    pallets: draftNumber(draft.pallets),
+    bodyType: draftString(bodyTypes[0]),
+    lengthM: draftNumber(draft.length_m),
+    widthM: draftNumber(draft.width_m),
+    heightM: draftNumber(draft.height_m),
+    volumeM3: draftNumber(draft.volume_m3),
+    vehicleType: draftString(draft.vehicle_type),
+    loadingEquipment: draftString(loadingMethods[0]),
+    characteristics: draftString(draft.characteristics),
+    specialRequirements: Array.isArray(draft.special_requirements) ? draft.special_requirements.map(String) : [],
+    transportMode: draftString(draft.transport_mode),
+    deliveryProof: draftString(draft.delivery_proof),
+    requiresTracking: Boolean(draft.must_be_trackable),
+    pickupCity: draftString(draft.pickup_city),
+    pickupCountryCode: draftString(draft.pickup_country_code),
+    pickupAddress: draftString(draft.pickup_address),
+    pickupLatitude: draftNullableNumber(draft.pickup_latitude),
+    pickupLongitude: draftNullableNumber(draft.pickup_longitude),
+    pickupDate: draftDate(draft.pickup_date),
+    pickupDateTo: draftDate(draft.pickup_date_to),
+    pickupTimeFrom: draftString(draft.pickup_time_from).slice(0, 5),
+    pickupTimeTo: draftString(draft.pickup_time_to).slice(0, 5),
+    deliveryCity: draftString(draft.delivery_city),
+    deliveryCountryCode: draftString(draft.delivery_country_code),
+    deliveryAddress: draftString(draft.delivery_address),
+    deliveryLatitude: draftNullableNumber(draft.delivery_latitude),
+    deliveryLongitude: draftNullableNumber(draft.delivery_longitude),
+    deliveryDate: draftDate(draft.delivery_date),
+    deliveryDateTo: draftDate(draft.delivery_date_to),
+    deliveryTimeFrom: draftString(draft.delivery_time_from).slice(0, 5),
+    deliveryTimeTo: draftString(draft.delivery_time_to).slice(0, 5),
+    currency: draftString(draft.currency),
+    budget: draftNumber(draft.budget),
+    priceTerms: draft.is_negotiable == null ? '' : (draft.is_negotiable ? 'negotiable' : 'fixed'),
+    declaredValue: draftNumber(draft.declared_value),
+    declaredValueCurrency: draftString(draft.shipment_value_currency),
+    incoterm: draftString(draft.incoterms),
+    paymentDueDays: draftNumber(draft.payment_due_days),
+    temperatureMin: draftNullableNumber(draft.temperature_min),
+    temperatureMax: draftNullableNumber(draft.temperature_max),
+    requiresAdr: Boolean(draft.requires_adr),
+    requiresTailLift: Boolean(draft.requires_tail_lift),
+    tollRoadsIncluded: Boolean(draft.toll_roads_included),
+    ferryIncluded: Boolean(draft.ferry_included),
+    cmrRequired: Boolean(draft.cmr_required),
+    palletExchangeRequired: Boolean(draft.pallet_exchange_required),
+    customsRequired: Boolean(draft.customs_required),
+    insuranceRequired: Boolean(draft.insurance_required),
+    certificationRequired: Boolean(draft.certification_required),
+    inspectionServicesRequired: Boolean(draft.inspection_services_required),
+    isUrgent: Boolean(draft.is_urgent),
+    contactName: draftString(contact.name),
+    contactPhone: draftString(contact.phone),
+    contactMobile: draftString(contact.mobile),
+    contactFax: draftString(contact.fax),
+    contactEmail: draftString(contact.email),
+    bookingReference: draftString(draft.booking_reference),
+    notes: draftString(draft.notes),
+    customFields: [],
+    confidence: 1,
+    warnings: [],
+  };
+};
+
 export const formatAttachmentSize = (size: number) => size >= 1024 * 1024
   ? `${(size / (1024 * 1024)).toFixed(1)} MB`
   : `${Math.max(1, Math.round(size / 1024))} KB`;
@@ -129,6 +223,7 @@ const toApiDate = (date?: string) => {
 export const scanPatchToDraftPayload = (patch: ScanFieldPatch): Record<string, unknown> => {
   const payload: Record<string, unknown> = {};
   if (patch.consignee !== undefined) payload.consignee_customer_id = patch.consignee.id;
+  if (patch.bookingReference !== undefined) payload.booking_reference = patch.bookingReference;
   if (patch.loadTitle !== undefined) payload.title = patch.loadTitle;
   if (patch.transportType !== undefined) payload.transport_type = patch.transportType;
   if (patch.goodsType !== undefined || patch.hsCodes !== undefined) {

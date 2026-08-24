@@ -14,7 +14,7 @@ import { trPackageStatus } from '../../i18n';
 import { useLenaEmbeddedMessages } from '../lena/useLenaEmbeddedMessages';
 import { LenaLoadCanvas } from '../lena/LenaLoadCanvas';
 import { buildScanFieldRows, ScanFieldPatch } from '../modals/scanFieldRows';
-import { analyzeLenaAttachment, latestLoadScan, LENA_LOAD_FILE_ACCEPT, LenaAttachment } from '../../lib/lenaLoadCanvas';
+import { analyzeLenaAttachment, latestLoadScan, LENA_LOAD_FILE_ACCEPT, LenaAttachment, loadDraftRecordToScan } from '../../lib/lenaLoadCanvas';
 import { LENA_AI_GENERAL_SUBJECT, LenaQuickAction, lenaConversationSubjectTitle, lenaQuickActionFromMessage, lenaQuickActionMarker } from '../../lib/useLenaAiChat';
 import { withMinDelay } from '../../lib/timing';
 import { lenaStepInputMask, MASKABLE_GUIDED_STEPS } from '../../lib/lenaStepInputMask';
@@ -105,6 +105,16 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
       const action = isAiDispatch ? lenaQuickActionFromMessage(body) : undefined;
       return { id: String(message.id), sender: Number(message.sender_user_id) === user?.id ? 'me' as const : 'other' as const, text: action ? quickActionLabels[action] : body, time: String(message.sent_at || message.created_at || '').slice(11, 16), attachments: Array.isArray(message.attachments) ? message.attachments as import('../../lib/lenaLoadCanvas').LenaAttachment[] : undefined };
     });
+    const savedDraftScan = loadDraftRecordToScan(row.freight_load_draft);
+    if (savedDraftScan && mappedMessages.length > 0) {
+      mappedMessages[0] = {
+        ...mappedMessages[0],
+        attachments: [
+          { name: 'Saved load draft', type: 'application/json', size: 0, loadScan: savedDraftScan },
+          ...(mappedMessages[0].attachments || []),
+        ],
+      };
+    }
     return {
       id: String(row.id),
       name: isAiDispatch

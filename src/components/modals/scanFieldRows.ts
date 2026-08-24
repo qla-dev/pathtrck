@@ -52,6 +52,7 @@ import { customerOptionFromRecord, type CustomerOption } from '../customer/Custo
 
 export type ScanFieldPatch = Partial<{
   consignee: CustomerOption;
+  bookingReference: string;
   loadTitle: string;
   transportType: 'road' | 'air' | 'sea';
   goodsType: string;
@@ -529,7 +530,16 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
 
   const displayNotes = [result.notes, bookingNote].filter(Boolean).join(' ').trim();
   if (displayNotes) {
-    rows.push({ key: 'notes', label: 'Notes', value: displayNotes, patch: { notes: combinedNotes }, icon: StickyNote });
+    rows.push({
+      key: 'notes',
+      label: 'Notes',
+      value: displayNotes,
+      patch: {
+        notes: combinedNotes,
+        ...(result.bookingReference ? { bookingReference: result.bookingReference } : {}),
+      },
+      icon: StickyNote,
+    });
   }
 
   return rows;

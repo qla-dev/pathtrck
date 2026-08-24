@@ -4,7 +4,7 @@ import { Language } from '../types';
 import { AI_DISPATCH_SUBJECT_PREFIX, api } from '../services/api';
 import { useApiList } from '../hooks/useApiList';
 import { showError } from './swal';
-import { analyzeLenaAttachment, latestLoadScan, LenaAttachment, LenaCanvasMode } from './lenaLoadCanvas';
+import { analyzeLenaAttachment, latestLoadScan, LenaAttachment, LenaCanvasMode, loadDraftRecordToScan } from './lenaLoadCanvas';
 import { MASKABLE_GUIDED_STEPS } from './lenaStepInputMask';
 import { withMinDelay } from './timing';
 
@@ -151,10 +151,13 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
   }, [row, userId, optimisticMessages, welcomeText, welcomeRole, newChatVersion, canvasOverride, newConversationLabel, quickActionLabels]);
 
   const canvasEnabled = !loadId && (canvasOverride ?? Boolean(row?.canvas));
-  const canvasAttachments = useMemo(
-    () => conversation.messages.flatMap((message) => message.attachments || []),
-    [conversation.messages]
-  );
+  const canvasAttachments = useMemo(() => {
+    const savedDraft = loadDraftRecordToScan(row?.freight_load_draft);
+    return [
+      ...(savedDraft ? [{ name: 'Saved load draft', type: 'application/json', size: 0, loadScan: savedDraft }] : []),
+      ...conversation.messages.flatMap((message) => message.attachments || []),
+    ];
+  }, [conversation.messages, row?.freight_load_draft]);
   // Which questionnaire field a free-text answer is currently expected to fill - passed into the
   // scan call so the AI extracts a bare value (e.g. "50") into that exact field instead of
   // guessing it into a different one (see OpenRouterLoadScanner::STEP_FIELD_HINTS).

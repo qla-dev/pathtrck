@@ -8,6 +8,7 @@ const UI_EN: Record<string, string> = {
   'common.sort': 'Sort',
   'common.postLoad': 'Post Load',
   'common.postNewLoad': 'Post New Load',
+  'postLoadModal.titlePlaceholder': 'Enter load title',
   'common.newRoute': 'New Route',
   'common.cancel': 'Cancel',
   'common.continue': 'Continue',
@@ -1023,6 +1024,7 @@ const UI: Record<Locale, Record<string, string>> = {
     'postLoadModal.termsFixedDesc': 'Prevoznici odmah rezervišu po vašoj cijeni',
   }),
   de: makeLocale({
+    'postLoadModal.titlePlaceholder': 'Ladungstitel eingeben',
     'nav.pricing': 'Preise',
     'pricing.title': 'Tarife & Preise',
     'pricing.subtitle': 'Wählen Sie den Tarif, der zu Ihrem Sendungsvolumen passt - jeder Tarif schaltet alle Freightbook-Funktionen frei.',
@@ -1981,6 +1983,7 @@ Object.assign(UI.bs, {
   'common.yes': 'Da',
   'common.save': 'Sačuvaj izmjene',
   'postLoadModal.title': 'Objavi novi teret',
+  'postLoadModal.titlePlaceholder': 'Unesi naziv tereta',
   'postLoadModal.editTitle': 'Uredi teret',
   'postLoadModal.subtitle': 'Kreirajte strukturiran zahtjev za prevoz koji vozači mogu brzo pregledati i prihvatiti',
   'postLoadModal.step.route': 'Ruta i termini',
