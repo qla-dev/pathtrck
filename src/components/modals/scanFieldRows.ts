@@ -28,7 +28,7 @@ import {
   Truck,
   UsersRound,
 } from 'lucide-react';
-import { LoadScanResult } from '../../services/api';
+import { HsCodeMatch, LoadScanResult } from '../../services/api';
 
 export type ScanFieldPatch = Partial<{
   loadTitle: string;
@@ -108,6 +108,20 @@ export type ScanFieldRow = {
 const toDisplayDate = (isoDate: string): string => {
   const match = isoDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   return match ? `${match[3]}.${match[2]}.${match[1]}` : isoDate;
+};
+
+// hs_codes (each entry carrying its own catalog-sourced description/category) is the source of
+// truth for what a load is carrying. goods_type is only a compact, human-readable summary derived
+// from the chosen codes' categories, not a value the AI scan or the user should type/store
+// independently - falls back to the given fallback (e.g. the AI's general category guess, or
+// 'General') only while no HS code has been picked yet. Shared by the single-load and bulk-import
+// payload builders so both derive it identically.
+export const deriveGoodsType = (hsCodes: HsCodeMatch[] | undefined, fallback: string): string => {
+  if (!hsCodes || hsCodes.length === 0) return fallback;
+  const categories = Array.from(new Set(
+    hsCodes.map((item) => item.headingName || item.chapterName || item.description).filter(Boolean)
+  ));
+  return categories.join(', ');
 };
 
 const TRANSPORT_TYPE_LABELS: Record<string, string> = { road: 'Road', air: 'Air', sea: 'Sea' };

@@ -72,7 +72,7 @@ import { RouteMapModal } from '../maps/RouteMapModal';
 import { CountrySelect } from '../location/CountrySelect';
 import { DocumentDropzone } from './DocumentDropzone';
 import { ScanResultModal } from './ScanResultModal';
-import { ScanFieldPatch } from './scanFieldRows';
+import { ScanFieldPatch, deriveGoodsType } from './scanFieldRows';
 import {
   AIR_CHARACTERISTIC_OPTIONS,
   AIR_SPECIAL_REQUIREMENT_OPTIONS,
@@ -307,7 +307,7 @@ const buildLoadFieldsPayload = (draft: LoadDraft) => ({
   title: draft.loadTitle,
   transport_type: draft.transportType,
   cargo_type: draft.cargoType,
-  goods_type: draft.goodsType,
+  goods_type: deriveGoodsType(draft.hsCodes, draft.goodsType),
   hs_codes: draft.hsCodes,
   weight_kg: toApiWeightKg(draft.weightKg),
   length_m: draft.lengthM ? Number(draft.lengthM) : null,
@@ -2301,7 +2301,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         value={`${draft.deliveryCountry} · ${draft.deliveryDate || '—'}${draft.deliveryDateTo ? ` - ${draft.deliveryDateTo}` : ''}${draft.deliveryTimeFrom ? ` · ${draft.deliveryTimeFrom}` : ''}${draft.deliveryTimeTo ? ` - ${draft.deliveryTimeTo}` : ''}`}
                       />
                       <SummaryRow label={u('postLoadModal.titleSummary', 'Title')} value={draft.loadTitle || '—'} />
-                      <SummaryRow label={u('postLoadModal.cargoSummary', 'Cargo')} value={draft.goodsType || '—'} />
+                      <SummaryRow label={u('postLoadModal.cargoSummary', 'Cargo')} value={deriveGoodsType(draft.hsCodes, draft.goodsType) || '—'} />
                       <SummaryRow label={u('postLoadModal.specsSummary', 'Specs')} value={`${draft.lengthM || '—'} × ${draft.widthM || '—'} × ${draft.heightM || '—'} m · ${draft.weightKg || '—'} t · ${draft.additionalInfo || u('postLoadModal.none', 'None')}`} />
                       <SummaryRow label={u('postLoadModal.vehicleSummary', 'Vehicle')} value={`${draft.vehicleType} · ${draft.bodyTypes.join(', ') || u('postLoadModal.none', 'None')}`} />
                       <SummaryRow label={u('postLoadModal.paymentSummary', 'Payout')} value={`${draft.budget || '—'} ${draft.freightCurrency} · ${draft.paymentDueDays || '—'} ${u('postLoadModal.days', 'days')}`} />

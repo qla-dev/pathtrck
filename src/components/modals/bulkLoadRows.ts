@@ -1,4 +1,5 @@
 import { BulkLoadRow } from '../../services/api';
+import { deriveGoodsType } from './scanFieldRows';
 
 export const bulkRowSummary = (row: BulkLoadRow) => {
   const route = [
@@ -16,7 +17,7 @@ export const bulkRowIsUsable = (row: BulkLoadRow) =>
 export const buildBulkLoadPayload = (row: BulkLoadRow): Record<string, unknown> => ({
   title: row.title || 'New load',
   cargo_type: row.cargoType || 'FTL',
-  goods_type: row.goodsType || undefined,
+  goods_type: deriveGoodsType(row.hsCodes, row.goodsType || 'General'),
   hs_codes: row.hsCodes?.map(({ code, description, confidence }) => ({ code, description, confidence })),
   weight_kg: row.weightKg > 0 ? row.weightKg : 0.01,
   pallets: row.pallets || undefined,
