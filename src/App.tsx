@@ -3292,6 +3292,9 @@ export default function App() {
   // Bumped when the sidebar "LenaAI" button is clicked while already on Messages - there's
   // nowhere else for that click to navigate to, so it starts a new chat instead.
   const [messagesNewChatSignal, setMessagesNewChatSignal] = useState(0);
+  // Set right after a first manual "Save as draft" creates its own LenaAI conversation, so
+  // MessagesView opens that specific conversation instead of landing on the generic chat list.
+  const [openMessagesConversationId, setOpenMessagesConversationId] = useState<string | null>(null);
   const [isDark, setIsDark] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => getInitialSidebarState());
   const [isPostLoadOpen, setIsPostLoadOpen] = useState(false);
@@ -4266,6 +4269,8 @@ export default function App() {
 	                  onBulkImported={() => setLoadRefreshKey((current) => current + 1)}
 	                  refreshSignal={messagesRefreshSignal}
 	                  newChatSignal={messagesNewChatSignal}
+	                  openConversationId={openMessagesConversationId}
+	                  onConversationOpened={() => setOpenMessagesConversationId(null)}
 	                />
 	              )}
 	              {view === 'map' && <MapView lang={lang} />}
@@ -4374,7 +4379,8 @@ export default function App() {
           initialPrefill={lenaLoadPrefill}
           sourceConversationId={lenaSourceConversationId}
           initialDraftId={lenaSourceDraftId}
-          onDraftConversationCreated={() => {
+          onDraftConversationCreated={(conversationId) => {
+            setOpenMessagesConversationId(conversationId);
             setView('messages');
             setIsPostLoadOpen(false);
             setEditLoadId(null);
