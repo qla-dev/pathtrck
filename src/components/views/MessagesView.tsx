@@ -66,7 +66,7 @@ const DRAFT_CREATED_MESSAGE_PREFIXES = [
 const isDraftCreatedMessageBody = (body: string): boolean =>
   DRAFT_CREATED_MESSAGE_PREFIXES.some((prefix) => body.startsWith(prefix));
 
-export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill, onBulkImported, refreshSignal, newChatSignal }: MessagesViewProps) => {
+export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill, onBulkImported, refreshSignal, newChatSignal, openConversationId, onConversationOpened }: MessagesViewProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const quickActionLabels = useMemo<Record<LenaQuickAction, string>>(() => ({
     add: u('Add a new load', 'Add a new load'),
