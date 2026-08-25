@@ -80,6 +80,7 @@ export const createEmptyOfferDraft = (overrides: Partial<Offer> = {}): Offer => 
   canPerformAsRequired: true,
   additionalCharges: [],
   hasExceptions: false,
+  isCounter: false,
   message: '',
   confirmedAuthorized: false,
   confirmedDetailsMatch: false,
@@ -151,6 +152,7 @@ export const offerDraftFromRecord = (record: Record<string, unknown> | null, bas
     canPerformAsRequired: record.can_perform_as_required == null ? empty.canPerformAsRequired : Boolean(record.can_perform_as_required),
     additionalCharges: additionalCharges(record.additional_charges),
     hasExceptions: Boolean(record.has_exceptions),
+    isCounter: Boolean(record.is_counter),
     message: str(record.message, empty.message),
     confirmedAuthorized: Boolean(record.confirmed_authorized),
     confirmedDetailsMatch: Boolean(record.confirmed_details_match),
@@ -179,6 +181,7 @@ export const offerDraftToPayload = (draft: Offer): Record<string, unknown> => ({
     .filter((row) => row.type.trim() || row.condition.trim() || row.rate.trim() || row.unit.trim())
     .map((row) => ({ ...row, rate: row.rate.trim() === '' ? null : Number(row.rate) })),
   has_exceptions: draft.hasExceptions,
+  is_counter: draft.isCounter,
   message: draft.message.trim() || undefined,
   confirmed_authorized: draft.confirmedAuthorized,
   confirmed_details_match: draft.confirmedDetailsMatch,

@@ -3337,6 +3337,7 @@ export default function App() {
   const [feedSelectedTransitMin, setFeedSelectedTransitMin] = useState(() => allFeedRangeBounds.transitMin);
   const [feedSelectedTransitMax, setFeedSelectedTransitMax] = useState(() => allFeedRangeBounds.transitMax);
   const [selectedFeedGoodsTypes, setSelectedFeedGoodsTypes] = useState<string[]>([]);
+  const [selectedFeedPriceTerms, setSelectedFeedPriceTerms] = useState<string[]>([]);
   const [selectedFeedPaymentTerms, setSelectedFeedPaymentTerms] = useState<string[]>([]);
   const [selectedFeedAdrClasses, setSelectedFeedAdrClasses] = useState<string[]>([]);
   const [selectedFeedSensitivity, setSelectedFeedSensitivity] = useState<string[]>([]);
@@ -3585,6 +3586,10 @@ export default function App() {
     label: trPaymentTerms(lang, value),
     toneClass: getPaymentChipTone(value),
   }));
+  const feedPriceTermOptions = [
+    { id: 'negotiable', label: u('postLoadModal.termsNegotiable', 'Negotiable'), toneClass: 'bg-amber-500/10 text-amber-500 border-amber-500/30' },
+    { id: 'fixed', label: u('postLoadModal.termsFixed', 'Fixed price'), toneClass: 'bg-sky-500/10 text-sky-500 border-sky-500/30' },
+  ];
   const feedAdrClassOptions = Array.from(
     new Set<string>(activeFeedLoads.map((load) => load.adrClass || 'None'))
   ).map((value) => ({
@@ -3831,12 +3836,14 @@ export default function App() {
       suffix: ` ${u('common.days', 'days')}`,
     },
     goodsTypeOptions: feedGoodsTypeOptions,
+    priceTermOptions: feedPriceTermOptions,
     paymentTermOptions: feedPaymentTermOptions,
     adrClassOptions: feedAdrClassOptions,
     sensitivityOptions: feedSensitivityOptions,
     urgencyOptions: feedUrgencyOptions,
     loadingMethodOptions: feedLoadingMethodOptions,
     selectedGoodsTypeIds: selectedFeedGoodsTypes,
+    selectedPriceTermIds: selectedFeedPriceTerms,
     selectedPaymentTermIds: selectedFeedPaymentTerms,
     selectedAdrClassIds: selectedFeedAdrClasses,
     selectedSensitivityIds: selectedFeedSensitivity,
@@ -3844,6 +3851,9 @@ export default function App() {
     selectedLoadingMethodIds: selectedFeedLoadingMethods,
     onToggleGoodsType: (id) => {
       setSelectedFeedGoodsTypes((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
+    },
+    onTogglePriceTerm: (id) => {
+      setSelectedFeedPriceTerms((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
     },
     onTogglePaymentTerm: (id) => {
       setSelectedFeedPaymentTerms((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
@@ -4228,6 +4238,7 @@ export default function App() {
                     minTransitDaysFilter={feedSelectedTransitMin}
                     maxTransitDaysFilter={feedSelectedTransitMax}
                     selectedGoodsTypes={selectedFeedGoodsTypes}
+                    selectedPriceTerms={selectedFeedPriceTerms}
                     selectedPaymentTerms={selectedFeedPaymentTerms}
                     selectedAdrClasses={selectedFeedAdrClasses}
                     selectedSensitivity={selectedFeedSensitivity}

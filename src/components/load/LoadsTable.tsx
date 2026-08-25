@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 
 import { trGoodsType, trPaymentTerms, ui } from '../../i18n';
-import { countryFlagUrl, estimateLoadDistanceMiles, getCountryCode, parseLoadPriceValue, parseLoadWeightValue } from '../../lib/loadGeo';
+import { countryFlagUrl, estimateLoadDistanceKm, getCountryCode, parseLoadPriceValue, parseLoadWeightValue } from '../../lib/loadGeo';
 import { getBidState, getOfferLabel } from '../../lib/offerBid';
 import { cn } from '../../lib/cn';
 import { Language, Load } from '../../types';
@@ -63,7 +63,7 @@ const getSortValue = (load: Load, key: TableSortKey): string | number => {
     case 'pickup':
       return load.pickup.toLowerCase();
     case 'miles':
-      return estimateLoadDistanceMiles(load.pickup, load.delivery);
+      return estimateLoadDistanceKm(load.pickup, load.delivery);
     case 'delivery':
       return load.delivery.toLowerCase();
     case 'provider':
@@ -156,7 +156,7 @@ export const LoadsTable = ({ lang, loads, userId, onOpenDetails }: LoadsTablePro
 
   const columns: Array<{ key: TableSortKey; label: string; icon: LucideIcon }> = [
     { key: 'pickup', label: u('home.table.pickup', 'Pickup'), icon: MapPin },
-    { key: 'miles', label: u('home.table.distance', 'Est. miles'), icon: Route },
+    { key: 'miles', label: u('home.table.distance', 'Km'), icon: Route },
     { key: 'delivery', label: u('home.table.delivery', 'Delivery'), icon: Flag },
     { key: 'provider', label: u('home.table.provider', 'Provider'), icon: Building2 },
     { key: 'equipment', label: u('home.table.equipment', 'Equipment'), icon: Truck },
@@ -350,7 +350,7 @@ export const LoadsTable = ({ lang, loads, userId, onOpenDetails }: LoadsTablePro
                   </div>
                 </td>
                 <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
-                  {estimateLoadDistanceMiles(load.pickup, load.delivery)} mi
+                  {estimateLoadDistanceKm(load.pickup, load.delivery)} km
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">

@@ -138,6 +138,7 @@ export interface Offer {
   canPerformAsRequired: boolean;
   additionalCharges: AdditionalChargeRow[];
   hasExceptions: boolean;
+  isCounter: boolean;
   message: string;
   confirmedAuthorized: boolean;
   confirmedDetailsMatch: boolean;

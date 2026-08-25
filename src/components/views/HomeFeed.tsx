@@ -155,6 +155,7 @@ type HomeFeedProps = {
   minTransitDaysFilter?: number;
   maxTransitDaysFilter?: number;
   selectedGoodsTypes?: string[];
+  selectedPriceTerms?: string[];
   selectedPaymentTerms?: string[];
   selectedAdrClasses?: string[];
   selectedSensitivity?: string[];
@@ -197,6 +198,7 @@ export const HomeFeed = ({
   minTransitDaysFilter = Number.NEGATIVE_INFINITY,
   maxTransitDaysFilter = Number.POSITIVE_INFINITY,
   selectedGoodsTypes = [],
+  selectedPriceTerms = [],
   selectedPaymentTerms = [],
   selectedAdrClasses = [],
   selectedSensitivity = [],
@@ -258,6 +260,7 @@ export const HomeFeed = ({
         : cargoValue >= minCargoValueFilter && cargoValue <= maxCargoValueFilter;
       const transitMatch = transitDays >= minTransitDaysFilter && transitDays <= maxTransitDaysFilter;
       const goodsMatch = !selectedGoodsTypes.length || selectedGoodsTypes.includes(load.goodsType);
+      const priceTermsMatch = !selectedPriceTerms.length || selectedPriceTerms.includes(load.isNegotiable ? 'negotiable' : 'fixed');
       const paymentMatch = !selectedPaymentTerms.length || selectedPaymentTerms.includes(load.paymentTerms);
       const adrMatch = !selectedAdrClasses.length || selectedAdrClasses.includes(load.adrClass || 'None');
       const sensitivityMatch =
@@ -279,6 +282,7 @@ export const HomeFeed = ({
         cargoValueMatch &&
         transitMatch &&
         goodsMatch &&
+        priceTermsMatch &&
         paymentMatch &&
         adrMatch &&
         sensitivityMatch &&
@@ -314,6 +318,7 @@ export const HomeFeed = ({
     minTransitDaysFilter,
     maxTransitDaysFilter,
     selectedGoodsTypes,
+    selectedPriceTerms,
     selectedPaymentTerms,
     selectedAdrClasses,
     selectedSensitivity,

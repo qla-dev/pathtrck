@@ -10,6 +10,7 @@ import {
   DollarSign,
   Forklift,
   Gem,
+  Handshake,
   Layers,
   Loader2,
   MapPin,
@@ -47,6 +48,7 @@ type ModeTab = {
 type PillId =
   | 'mode'
   | 'goodsType'
+  | 'priceTerms'
   | 'paymentTerms'
   | 'weight'
   | 'dimensions'
@@ -76,18 +78,21 @@ export type FilterLoadsProps = {
   cargoValueRange?: RangeFilterConfig;
   transitRange?: RangeFilterConfig;
   goodsTypeOptions?: ChipFilterOption[];
+  priceTermOptions?: ChipFilterOption[];
   paymentTermOptions?: ChipFilterOption[];
   adrClassOptions?: ChipFilterOption[];
   sensitivityOptions?: ChipFilterOption[];
   urgencyOptions?: ChipFilterOption[];
   loadingMethodOptions?: ChipFilterOption[];
   selectedGoodsTypeIds?: string[];
+  selectedPriceTermIds?: string[];
   selectedPaymentTermIds?: string[];
   selectedAdrClassIds?: string[];
   selectedSensitivityIds?: string[];
   selectedUrgencyIds?: string[];
   selectedLoadingMethodIds?: string[];
   onToggleGoodsType?: (id: string) => void;
+  onTogglePriceTerm?: (id: string) => void;
   onTogglePaymentTerm?: (id: string) => void;
   onToggleAdrClass?: (id: string) => void;
   onToggleSensitivity?: (id: string) => void;
@@ -161,18 +166,21 @@ export const FilterLoads = (props: FilterLoadsProps) => {
     cargoValueRange,
     transitRange,
     goodsTypeOptions = [],
+    priceTermOptions = [],
     paymentTermOptions = [],
     adrClassOptions = [],
     sensitivityOptions = [],
     urgencyOptions = [],
     loadingMethodOptions = [],
     selectedGoodsTypeIds = [],
+    selectedPriceTermIds = [],
     selectedPaymentTermIds = [],
     selectedAdrClassIds = [],
     selectedSensitivityIds = [],
     selectedUrgencyIds = [],
     selectedLoadingMethodIds = [],
     onToggleGoodsType,
+    onTogglePriceTerm,
     onTogglePaymentTerm,
     onToggleAdrClass,
     onToggleSensitivity,
@@ -262,6 +270,18 @@ export const FilterLoads = (props: FilterLoadsProps) => {
       isActive: selectedGoodsTypeIds.length > 0,
       content: <ChipGroup options={goodsTypeOptions} selectedIds={selectedGoodsTypeIds} onToggle={onToggleGoodsType} />,
       onClear: () => clearChipGroup(selectedGoodsTypeIds, onToggleGoodsType),
+    });
+  }
+
+  if (priceTermOptions.length > 0) {
+    pills.push({
+      id: 'priceTerms',
+      label: `${u('legacy.sidebarFilter.priceTerms', 'Uslovi cijene')}${selectedPriceTermIds.length ? ` (${selectedPriceTermIds.length})` : ''}`,
+      title: u('legacy.sidebarFilter.priceTerms', 'Uslovi cijene'),
+      icon: Handshake,
+      isActive: selectedPriceTermIds.length > 0,
+      content: <ChipGroup options={priceTermOptions} selectedIds={selectedPriceTermIds} onToggle={onTogglePriceTerm} />,
+      onClear: () => clearChipGroup(selectedPriceTermIds, onTogglePriceTerm),
     });
   }
 

@@ -1,8 +1,25 @@
 import { useState } from 'react';
-import { CheckCircle2, Eye, Inbox, UserCheck, UsersRound, XCircle } from 'lucide-react';
+import {
+  AlertTriangle,
+  Ban,
+  CalendarClock,
+  CheckCircle2,
+  Clock,
+  Coins,
+  CreditCard,
+  Eye,
+  Inbox,
+  Percent,
+  Repeat,
+  Route,
+  Truck,
+  UserCheck,
+  XCircle,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { Language, Load } from '../../types';
 import { ui } from '../../i18n';
-import { offerDraftFromRecord } from '../../lib/offerBid';
+import { PAYMENT_TERMS_OPTIONS, PRICE_BASIS_OPTIONS, chargeLabel, offerDraftFromRecord } from '../../lib/offerBid';
 import { Button } from '../ui/Button';
 import { LoadBidModal } from './LoadBidModal';
 
@@ -10,6 +27,27 @@ type DriverOption = {
   id: number;
   label: string;
 };
+
+const formatShortDate = (value: unknown): string => {
+  if (!value) return '—';
+  const date = new Date(String(value));
+  return Number.isNaN(date.getTime())
+    ? String(value)
+    : new Intl.DateTimeFormat(undefined, { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
+};
+
+const optionLabel = (options: Array<{ value: string; label: string }>, value: unknown): string =>
+  options.find((option) => option.value === value)?.label || String(value || '—');
+
+const StatChip = ({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) => (
+  <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-900">
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><Icon className="h-4 w-4" /></span>
+    <div className="min-w-0">
+      <p className="truncate text-[9px] font-black uppercase tracking-wider text-slate-400">{label}</p>
+      <p className="truncate text-xs font-bold text-slate-800 dark:text-white">{value}</p>
+    </div>
+  </div>
+);
 
 type LoadOffersPanelProps = {
   lang: Language;
@@ -41,21 +79,6 @@ export const LoadOffersPanel = ({
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <UsersRound className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-primary">
-              {u('Offers & driver assignment', 'Offers & driver assignment')}
-            </p>
-            <p className="mt-0.5 text-sm text-slate-500">{offers.length} {u('Offers', 'Offers').toLowerCase()}</p>
-          </div>
-        </div>
-        <span className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-black text-primary">{offers.length}</span>
-      </div>
-
       {actionMessage && (
         <div className="mb-4 rounded-xl border border-primary/15 bg-primary/5 px-4 py-3 text-sm font-semibold text-slate-600 dark:text-slate-300">
           {actionMessage}
@@ -82,22 +105,64 @@ export const LoadOffersPanel = ({
             const accepted = status === 'accepted';
             const rejected = status === 'rejected';
             const decided = accepted || rejected;
+            const isCounter = Boolean(offer.is_counter);
+            const hasExceptions = Boolean(offer.has_exceptions);
+            const canPerform = offer.can_perform_as_required !== false;
+            const includedCharges = Array.isArray(offer.included_charges) ? (offer.included_charges as string[]) : [];
+            const excludedCharges = Array.isArray(offer.excluded_charges) ? (offer.excluded_charges as string[]) : [];
 
             return (
-              <article key={offerId} className="grid gap-5 rounded-2xl border border-slate-200 bg-slate-50/60 p-5 dark:border-slate-800 dark:bg-slate-950/40 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-center">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="truncate text-lg font-black text-slate-900 dark:text-white">{company?.name || creator?.name || u('Independent offer', 'Independent offer')}</p>
-                    <span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${accepted ? 'bg-emerald-500/10 text-emerald-600' : rejected ? 'bg-red-500/10 text-red-600' : 'bg-amber-500/10 text-amber-600'}`}>{status}</span>
+              <article key={offerId} className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-950/40 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-stretch">
+                <div className="flex min-w-0 flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="truncate text-lg font-black text-slate-900 dark:text-white">{company?.name || creator?.name || u('Independent offer', 'Independent offer')}</p>
+                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${accepted ? 'bg-emerald-500/10 text-emerald-600' : rejected ? 'bg-red-500/10 text-red-600' : 'bg-amber-500/10 text-amber-600'}`}>{status}</span>
+                        {isCounter && (
+                          <span className="flex shrink-0 items-center gap-1 rounded-full bg-violet-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-violet-600">
+                            <Repeat className="h-3 w-3" />{u('Counter offer', 'Counter offer')}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-sm text-slate-500">{u('Offered by', 'Offered by')} {creator?.name || creator?.email || '—'}</p>
+                    </div>
+
+                    <p className="shrink-0 text-2xl font-black text-primary">{String(offer.currency || 'EUR')} {Number(offer.amount || 0).toLocaleString()}</p>
                   </div>
-                  <p className="mt-1 text-sm text-slate-500">{u('Offered by', 'Offered by')} {creator?.name || creator?.email || '—'}</p>
-                  <p className="mt-4 text-2xl font-black text-primary">{String(offer.currency || 'EUR')} {Number(offer.amount || 0).toLocaleString()}</p>
-                  {offer.message && <p className="mt-3 rounded-xl bg-white p-3 text-sm text-slate-600 dark:bg-slate-900 dark:text-slate-300">{String(offer.message)}</p>}
+
+                  <div className="grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 dark:border-slate-800 sm:grid-cols-3 xl:grid-cols-6">
+                    <StatChip icon={CreditCard} label={u('Payment', 'Payment')} value={optionLabel(PAYMENT_TERMS_OPTIONS, offer.payment_terms)} />
+                    <StatChip icon={Clock} label={u('Valid until', 'Valid until')} value={formatShortDate(offer.valid_until)} />
+                    <StatChip icon={Truck} label={u('Equipment', 'Equipment')} value={offer.equipment_type ? String(offer.equipment_type) : '—'} />
+                    <StatChip icon={Route} label={u('Transit', 'Transit')} value={offer.estimated_transit_days != null ? `${offer.estimated_transit_days} ${u('common.days', 'days')}` : '—'} />
+                    <StatChip icon={CalendarClock} label={u('Delivery ETA', 'Delivery ETA')} value={formatShortDate(offer.estimated_delivery_date)} />
+                    <StatChip icon={canPerform ? CheckCircle2 : Ban} label={u('Can perform', 'Can perform')} value={canPerform ? u('common.yes', 'Yes') : u('common.no', 'No')} />
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-3 dark:border-slate-800">
+                    <span className="flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-bold text-primary"><Coins className="h-3 w-3" />{optionLabel(PRICE_BASIS_OPTIONS, offer.price_basis)}</span>
+                    <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400"><Percent className="h-3 w-3" />VAT {offer.vat ? String(offer.vat) : '—'}</span>
+                    {includedCharges.map((key) => (
+                      <span key={`inc-${key}`} className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold text-emerald-600">+ {chargeLabel(key)}</span>
+                    ))}
+                    {excludedCharges.map((key) => (
+                      <span key={`exc-${key}`} className="rounded-full bg-red-500/10 px-2.5 py-1 text-[10px] font-bold text-red-600">− {chargeLabel(key)}</span>
+                    ))}
+                  </div>
+
+                  {hasExceptions && (
+                    <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700 dark:border-amber-900/40 dark:bg-amber-500/10 dark:text-amber-400">
+                      <AlertTriangle className="h-4 w-4 shrink-0" />{u('Submitted with exceptions', 'Submitted with exceptions')}
+                    </div>
+                  )}
+
+                  {Boolean(offer.message) && <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600 dark:bg-slate-950 dark:text-slate-300">{String(offer.message)}</p>}
                 </div>
 
-                <div className="space-y-3">
+                <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
                   {driver?.id ? (
-                    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950">
                       <span className="mb-1 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-slate-500"><UserCheck className="h-3.5 w-3.5 text-primary" />{u('Driver', 'Driver')}</span>
                       <span className="text-sm font-bold text-slate-800 dark:text-white">{driver.name || `Driver #${driver.id}`}</span>
                     </div>
@@ -108,7 +173,7 @@ export const LoadOffersPanel = ({
                         value={selectedDrivers[offerId] || ''}
                         onChange={(event) => onDriverChange(offerId, Number(event.target.value))}
                         disabled={decided}
-                        className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-primary disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-primary disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                       >
                         <option value="">{u('legacy.loadDetails.selectDriver', 'Select a driver')}</option>
                         {drivers.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
@@ -122,7 +187,7 @@ export const LoadOffersPanel = ({
                   >
                     <Eye className="h-4 w-4" /> {u('See full bid', 'See full bid')}
                   </button>
-                  <div className="flex items-center gap-2">
+                  <div className="mt-auto flex items-center gap-2">
                     <Button className="h-11 flex-1 shadow-lg shadow-primary/20" disabled={decided} onClick={() => onApprove(offer)}>
                       {accepted ? <><CheckCircle2 className="mr-2 h-4 w-4" />{u('Approved', 'Approved')}</> : u('Approve', 'Approve')}
                     </Button>
