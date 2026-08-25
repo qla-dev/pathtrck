@@ -538,6 +538,15 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     setActiveId(EMPTY_LENA_CONVERSATION_ID);
   }, [newChatSignal]);
 
+  useEffect(() => {
+    if (!openConversationId) return;
+    setChannelFilter('ai');
+    setActiveId(openConversationId);
+    setPendingNewConversation(null);
+    void result.refresh();
+    onConversationOpened?.();
+  }, [openConversationId]);
+
   const handleDeleteConversation = async (conversationId: string) => {
     const confirmed = await confirmAction({
       title: u('Delete this conversation?', 'Delete this conversation?'),
