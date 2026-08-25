@@ -74,6 +74,7 @@ export type LoadScanResult = {
   deliveryProof: string;
   requiresTracking: boolean;
   pickupCity: string;
+  pickupPostalCode: string;
   pickupCountryCode: string;
   pickupAddress: string;
   pickupLatitude: number | null;
@@ -83,6 +84,7 @@ export type LoadScanResult = {
   pickupTimeFrom: string;
   pickupTimeTo: string;
   deliveryCity: string;
+  deliveryPostalCode: string;
   deliveryCountryCode: string;
   deliveryAddress: string;
   deliveryLatitude: number | null;

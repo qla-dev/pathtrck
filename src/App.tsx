@@ -4387,6 +4387,7 @@ export default function App() {
             setLenaLoadPrefill(null);
             setLenaSourceConversationId(null);
             setLenaSourceDraftId(null);
+            setMessagesRefreshSignal((current) => current + 1);
           }}
           onOpenLenaAI={() => {
             // PostLoadModal stays open (mounted) behind LenaAI instead of being closed - LenaAI

@@ -31,6 +31,7 @@ export type LoadDraft = {
   transportType: TransportType;
   pickupPlaceType: string;
   pickupCity: string;
+  pickupPostalCode: string;
   pickupCountry: string;
   pickupAddress: string;
   // Sea only - the selected port of loading (POL), kept separate from pickupAddress so a sea
@@ -45,6 +46,7 @@ export type LoadDraft = {
   pickupWindow: string;
   deliveryPlaceType: string;
   deliveryCity: string;
+  deliveryPostalCode: string;
   deliveryCountry: string;
   deliveryAddress: string;
   // Sea only - the selected port of discharge (POD), kept separate from deliveryAddress so a sea
@@ -126,6 +128,7 @@ export const INITIAL_DRAFT: LoadDraft = {
   transportType: 'road',
   pickupPlaceType: 'Warehouse',
   pickupCity: '',
+  pickupPostalCode: '',
   pickupCountry: 'BA',
   pickupAddress: '',
   pickupPort: '',
@@ -138,6 +141,7 @@ export const INITIAL_DRAFT: LoadDraft = {
   pickupWindow: '',
   deliveryPlaceType: 'Warehouse',
   deliveryCity: '',
+  deliveryPostalCode: '',
   deliveryCountry: 'BA',
   deliveryAddress: '',
   deliveryPort: '',

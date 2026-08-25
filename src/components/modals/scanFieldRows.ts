@@ -72,6 +72,7 @@ export type ScanFieldPatch = Partial<{
   deliveryProof: string;
   mustBeTrackable: boolean;
   pickupCity: string;
+  pickupPostalCode: string;
   pickupCountry: string;
   pickupAddress: string;
   pickupLatitude: string;
@@ -81,6 +82,7 @@ export type ScanFieldPatch = Partial<{
   pickupTimeFrom: string;
   pickupTimeTo: string;
   deliveryCity: string;
+  deliveryPostalCode: string;
   deliveryCountry: string;
   deliveryAddress: string;
   deliveryLatitude: string;
@@ -335,13 +337,14 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
     rows.push({ key: 'deliveryProof', label: 'Delivery proof', value: result.deliveryProof, patch: { deliveryProof: result.deliveryProof }, icon: FileCheck2 });
   }
 
-  if (result.pickupCity || result.pickupCountryCode || result.pickupAddress) {
+  if (result.pickupCity || result.pickupPostalCode || result.pickupCountryCode || result.pickupAddress) {
     rows.push({
       key: 'pickup',
       label: 'Pickup',
-      value: [result.pickupAddress, result.pickupCity, result.pickupCountryCode].filter(Boolean).join(', '),
+      value: [result.pickupAddress, result.pickupPostalCode, result.pickupCity, result.pickupCountryCode].filter(Boolean).join(', '),
       patch: {
         ...(result.pickupCity ? { pickupCity: result.pickupCity } : {}),
+        ...(result.pickupPostalCode ? { pickupPostalCode: result.pickupPostalCode } : {}),
         ...(result.pickupCountryCode ? { pickupCountry: result.pickupCountryCode } : {}),
         ...(result.pickupAddress ? { pickupAddress: result.pickupAddress } : {}),
         ...(result.pickupLatitude != null ? { pickupLatitude: String(result.pickupLatitude) } : {}),
@@ -368,13 +371,14 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
     });
   }
 
-  if (result.deliveryCity || result.deliveryCountryCode || result.deliveryAddress) {
+  if (result.deliveryCity || result.deliveryPostalCode || result.deliveryCountryCode || result.deliveryAddress) {
     rows.push({
       key: 'delivery',
       label: 'Delivery',
-      value: [result.deliveryAddress, result.deliveryCity, result.deliveryCountryCode].filter(Boolean).join(', '),
+      value: [result.deliveryAddress, result.deliveryPostalCode, result.deliveryCity, result.deliveryCountryCode].filter(Boolean).join(', '),
       patch: {
         ...(result.deliveryCity ? { deliveryCity: result.deliveryCity } : {}),
+        ...(result.deliveryPostalCode ? { deliveryPostalCode: result.deliveryPostalCode } : {}),
         ...(result.deliveryCountryCode ? { deliveryCountry: result.deliveryCountryCode } : {}),
         ...(result.deliveryAddress ? { deliveryAddress: result.deliveryAddress } : {}),
         ...(result.deliveryLatitude != null ? { deliveryLatitude: String(result.deliveryLatitude) } : {}),

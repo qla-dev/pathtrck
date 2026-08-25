@@ -157,7 +157,7 @@ const AIR_SPECIAL_REQUIREMENT_ICONS: Record<string, LucideIcon> = {
 // Which AI-refillable fields (the ones wrapped in fieldLabel(...) below) live under each step, so
 // the sidebar can show a per-step count instead of only the one global aiFieldCount badge.
 const STEP_AI_FIELDS: Record<StepId, Array<keyof ScanFieldPatch & keyof LoadDraft>> = {
-  route: ['pickupCountry', 'pickupCity', 'pickupDate', 'deliveryCountry', 'deliveryCity', 'deliveryDate'],
+  route: ['pickupCountry', 'pickupCity', 'pickupPostalCode', 'pickupDate', 'deliveryCountry', 'deliveryCity', 'deliveryPostalCode', 'deliveryDate'],
   cargo: ['consignee', 'bookingReference', 'loadTitle', 'lengthM', 'weightKg', 'pallets', 'volumeM3', 'widthM', 'heightM'],
   terms: ['budget', 'freightCurrency', 'paymentDeferred', 'incoterm', 'notes', 'vehicleType', 'bodyTypes', 'temperatureControlled'],
   contact: ['contactName', 'contactEmail', 'contactPhone'],
@@ -323,8 +323,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         consignee,
         bookingReference: String(record.booking_reference || ''),
         transportType: (record.transport_type as TransportType) || 'road',
-        pickupPlaceType: String(pickup.place_type || INITIAL_DRAFT.pickupPlaceType), pickupCity: String(pickup.city || ''), pickupCountry: String(pickup.country_code || 'BA'), pickupAddress: String(pickup.address || ''), pickupPort: String(pickup.port || ''), pickupLatitude: String(pickup.latitude || ''), pickupLongitude: String(pickup.longitude || ''), pickupDate: pickupStart.date, pickupDateTo: pickupEnd.date, pickupTimeFrom: pickupStart.time, pickupTimeTo: pickupEnd.time,
-        deliveryPlaceType: String(delivery.place_type || INITIAL_DRAFT.deliveryPlaceType), deliveryCity: String(delivery.city || ''), deliveryCountry: String(delivery.country_code || 'BA'), deliveryAddress: String(delivery.address || ''), deliveryPort: String(delivery.port || ''), deliveryLatitude: String(delivery.latitude || ''), deliveryLongitude: String(delivery.longitude || ''), deliveryDate: deliveryStart.date, deliveryDateTo: deliveryEnd.date, deliveryTimeFrom: deliveryStart.time, deliveryTimeTo: deliveryEnd.time,
+        pickupPlaceType: String(pickup.place_type || INITIAL_DRAFT.pickupPlaceType), pickupCity: String(pickup.city || ''), pickupPostalCode: String(pickup.postal_code || ''), pickupCountry: String(pickup.country_code || 'BA'), pickupAddress: String(pickup.address || ''), pickupPort: String(pickup.port || ''), pickupLatitude: String(pickup.latitude || ''), pickupLongitude: String(pickup.longitude || ''), pickupDate: pickupStart.date, pickupDateTo: pickupEnd.date, pickupTimeFrom: pickupStart.time, pickupTimeTo: pickupEnd.time,
+        deliveryPlaceType: String(delivery.place_type || INITIAL_DRAFT.deliveryPlaceType), deliveryCity: String(delivery.city || ''), deliveryPostalCode: String(delivery.postal_code || ''), deliveryCountry: String(delivery.country_code || 'BA'), deliveryAddress: String(delivery.address || ''), deliveryPort: String(delivery.port || ''), deliveryLatitude: String(delivery.latitude || ''), deliveryLongitude: String(delivery.longitude || ''), deliveryDate: deliveryStart.date, deliveryDateTo: deliveryEnd.date, deliveryTimeFrom: deliveryStart.time, deliveryTimeTo: deliveryEnd.time,
         transitDays: String(record.transit_days || ''),
         loadTitle: String(record.title || ''), cargoType: String(record.cargo_type || 'FTL'), goodsType: String(record.goods_type || 'General'), hsCodes, weightKg: fromApiWeightKg(record.weight_kg), pallets: String(record.pallets || ''), quantityMeasure: String(record.quantity_measure || ''), lengthM: String(record.length_m || ''), widthM: String(record.width_m || ''), heightM: String(record.height_m || ''), volumeM3: String(record.volume_m3 || ''), declaredValue: String(record.declared_value || ''), budget: String(record.budget || ''), freightCurrency: String(record.currency || 'EUR'), shipmentValueCurrency: String(record.shipment_value_currency || record.currency || 'EUR'), paymentDueDays: String(record.payment_due_days || ''), paymentDeferred: terms === 'deferred', incoterm: String(record.incoterms || ''),
         loadingEquipment: Array.isArray(record.loading_methods) ? record.loading_methods.map(String) : [], vehicleType: String(record.vehicle_type || INITIAL_DRAFT.vehicleType), characteristics: Array.isArray(record.characteristics) ? record.characteristics.map(String) : [], specialRequirements: Array.isArray(record.special_requirements) ? record.special_requirements.map(String) : [], deliveryProof: String(record.delivery_proof || ''), temperatureControlled: record.temperature_min != null || record.temperature_max != null, temperatureMin: String(record.temperature_min ?? ''), temperatureMax: String(record.temperature_max ?? ''),
@@ -596,17 +596,10 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     setDraft((current) => ({ ...current, hsCodes: current.hsCodes.filter((item) => item.code !== code) }));
   };
 
-  const submit = async () => {
-    if (isSubmitting) return;
-    const confirmed = await confirmAction({
-      title: editLoadId ? u('postLoadModal.saveChangesTitle', 'Save load changes?') : u('postLoadModal.publishTitle', 'Objava na berzu tereta?'),
-      text: editLoadId
-        ? u('postLoadModal.saveChangesText', 'The updated load details will be visible in the freight exchange.')
-        : u('postLoadModal.publishText', 'Are you sure you want to post this load to the freight exchange? It will become visible to carriers.'),
-      confirmText: editLoadId ? u('common.save', 'Save changes') : u('postLoadModal.publishConfirm', 'Objavi'),
-    });
-    if (!confirmed) return;
-
+  // Shared by the plain "Objavi" button and the "Objavi + Last Mile Delivery" flow below - the
+  // latter needs to know whether the publish actually succeeded before it goes on to create a
+  // second draft/conversation, without showing its own duplicate confirm prompt.
+  const publishLoad = async (): Promise<boolean> => {
     setIsSubmitting(true);
     setSubmitError('');
     try {
@@ -634,6 +627,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         editLoadId ? u('postLoadModal.updatedTitle', 'Load updated') : u('postLoadModal.publishedTitle', 'Load published'),
         editLoadId ? u('postLoadModal.updatedText', 'Your changes are now live.') : u('postLoadModal.publishedText', 'The load is now available in the freight exchange.'),
       );
+      return true;
     } catch (error) {
       if (error instanceof ApiError) {
         const validationMessage = Object.values(error.errors).flat().find(Boolean);
@@ -641,8 +635,101 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       } else {
         setSubmitError(u('postLoadModal.apiError', 'The load could not be published.'));
       }
+      return false;
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const submit = async () => {
+    if (isSubmitting) return;
+    const confirmed = await confirmAction({
+      title: editLoadId ? u('postLoadModal.saveChangesTitle', 'Save load changes?') : u('postLoadModal.publishTitle', 'Objava na berzu tereta?'),
+      text: editLoadId
+        ? u('postLoadModal.saveChangesText', 'The updated load details will be visible in the freight exchange.')
+        : u('postLoadModal.publishText', 'Are you sure you want to post this load to the freight exchange? It will become visible to carriers.'),
+      confirmText: editLoadId ? u('common.save', 'Save changes') : u('postLoadModal.publishConfirm', 'Objavi'),
+    });
+    if (!confirmed) return;
+    await publishLoad();
+  };
+
+  // Air/Sea loads whose delivery is a straight door address can also spin up a pre-filled road
+  // draft for the airport/port-to-door leg in the same click, instead of the user having to
+  // publish, then separately start a whole new Post Load flow and re-type the same address.
+  const isLastMileEligible = (draft.transportType === 'air' && draft.deliveryPlaceType === 'Address + Last Mile Delivery')
+    || (draft.transportType === 'sea' && draft.deliveryPlaceType === 'Port to Door');
+
+  const submitWithLastMile = async () => {
+    if (isSubmitting) return;
+    const confirmed = await confirmAction({
+      title: u('postLoadModal.publishLastMileTitle', 'Post load and start door delivery?'),
+      text: u('postLoadModal.publishLastMileText', 'This will post the load to the freight exchange and create a new road draft for delivery from the terminal to your address.'),
+      confirmText: u('postLoadModal.publishLastMileConfirm', 'Post + Last Mile'),
+    });
+    if (!confirmed) return;
+
+    const published = await publishLoad();
+    if (!published || !currentUser) return;
+
+    try {
+      const lastMileDraft: LoadDraft = {
+        ...INITIAL_DRAFT,
+        transportType: 'road',
+        loadTitle: `${draft.loadTitle || u('postLoadModal.draftFallbackTitle', 'Draft')} - Last Mile Delivery`,
+        pickupPlaceType: 'Terminal',
+        pickupCity: draft.deliveryCity,
+        pickupCountry: draft.deliveryCountry,
+        // deliveryPlaceType stays at INITIAL_DRAFT's 'Warehouse' default - road only offers
+        // Warehouse/Terminal as place types, and the address field itself is collected either way.
+        deliveryAddress: draft.deliveryAddress,
+        deliveryCity: draft.deliveryCity,
+        deliveryPostalCode: draft.deliveryPostalCode,
+        deliveryCountry: draft.deliveryCountry,
+        deliveryLatitude: draft.deliveryLatitude,
+        deliveryLongitude: draft.deliveryLongitude,
+      };
+      const draftResponse = await api.loadDrafts.create(buildDraftPayload(lastMileDraft));
+      const newDraftId = draftResponse.data.id as string | number;
+
+      const companyId = Number((currentUser.companies?.[0] as { id?: number } | undefined)?.id);
+      const initialMessage = u(
+        'postLoadModal.lastMileWelcomeMessage',
+        'Congratulations, you successfully posted the load and chose the last-mile delivery option! I can now help you create additional road transport for the cargo to your home door.'
+      );
+      const conversationResponse = await api.conversations.create({
+        company_id: Number.isFinite(companyId) ? companyId : undefined,
+        created_by_user_id: currentUser.id,
+        channel: 'inapp',
+        subject: `${AI_DISPATCH_SUBJECT_PREFIX}${u('postLoadModal.lastMileSubjectPrefix', 'Last Mile Delivery')} - ${draft.loadTitle || u('postLoadModal.draftFallbackTitle', 'Draft')}`,
+        canvas: true,
+        load_draft_id: newDraftId,
+        last_message_at: new Date().toISOString(),
+        participant_ids: [currentUser.id],
+        initial_message: initialMessage,
+      });
+      const newConversationId = String(conversationResponse.data.id);
+
+      // Auto-advance the guide past the "continue?" prompt so the user lands directly on the
+      // first real missing-field question instead of having to click "Yes" themselves - mirrors
+      // what useLenaAiChat's sendQuickAction('continue_add_yes') does under the hood.
+      try {
+        await api.messages.create({
+          conversation_id: newConversationId,
+          sender_user_id: currentUser.id,
+          body: '[[LENA_ACTION:continue_add_yes]]',
+          sent_at: new Date().toISOString(),
+        });
+        await api.dispatchChat.reply(Number(newConversationId), lang);
+      } catch {
+        // The draft and conversation already exist either way - the user can still tap "Yes"
+        // themselves if the auto-advance turn failed.
+      }
+
+      onDraftConversationCreated?.(newConversationId);
+    } catch {
+      // The load itself already published successfully; a failed last-mile draft/conversation
+      // must not be reported as if the whole action failed.
     }
   };
 
@@ -1110,14 +1197,18 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           </div>
                         )}
                       </div>
-                      <div className="grid sm:grid-cols-[240px_minmax(0,1fr)] gap-4">
+                      <div className="grid sm:grid-cols-[200px_minmax(0,1fr)_140px] gap-4">
                         <div className="space-y-1.5">
                           {fieldLabel('pickupCountry', 'postLoadModal.pickupCountryShort', 'Country')}
                           <CountrySelect value={draft.pickupCountry} onChange={(value) => setField('pickupCountry', value)} placeholder={u('postLoadModal.selectCountry', 'Select country')} />
                         </div>
                         <div className="space-y-1.5">
-                          {fieldLabel('pickupCity', 'postLoadModal.pickupCity', 'Post code, place')}
-                          <Input value={draft.pickupCity} onChange={(event) => setField('pickupCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', 'City or postcode')} />
+                          {fieldLabel('pickupCity', 'postLoadModal.pickupCity', 'City')}
+                          <Input value={draft.pickupCity} onChange={(event) => setField('pickupCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', 'City')} />
+                        </div>
+                        <div className="space-y-1.5">
+                          {fieldLabel('pickupPostalCode', 'postLoadModal.pickupPostalCode', 'Postal code')}
+                          <Input value={draft.pickupPostalCode} onChange={(event) => setField('pickupPostalCode', event.target.value)} placeholder={u('postLoadModal.postalCodePlaceholder', 'Postal code')} />
                         </div>
                       </div>
                       {draft.transportType !== 'air' && (
@@ -1244,14 +1335,18 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           </div>
                         )}
                       </div>
-                      <div className="grid sm:grid-cols-[240px_minmax(0,1fr)] gap-4">
+                      <div className="grid sm:grid-cols-[200px_minmax(0,1fr)_140px] gap-4">
                         <div className="space-y-1.5">
                           {fieldLabel('deliveryCountry', 'postLoadModal.deliveryCountryShort', 'Country')}
                           <CountrySelect value={draft.deliveryCountry} onChange={(value) => setField('deliveryCountry', value)} placeholder={u('postLoadModal.selectCountry', 'Select country')} />
                         </div>
                         <div className="space-y-1.5">
-                          {fieldLabel('deliveryCity', 'postLoadModal.deliveryCity', 'Post code, place')}
-                          <Input value={draft.deliveryCity} onChange={(event) => setField('deliveryCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', 'City or postcode')} />
+                          {fieldLabel('deliveryCity', 'postLoadModal.deliveryCity', 'City')}
+                          <Input value={draft.deliveryCity} onChange={(event) => setField('deliveryCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', 'City')} />
+                        </div>
+                        <div className="space-y-1.5">
+                          {fieldLabel('deliveryPostalCode', 'postLoadModal.deliveryPostalCode', 'Postal code')}
+                          <Input value={draft.deliveryPostalCode} onChange={(event) => setField('deliveryPostalCode', event.target.value)} placeholder={u('postLoadModal.postalCodePlaceholder', 'Postal code')} />
                         </div>
                       </div>
                       {draft.transportType !== 'air' && (
@@ -2107,16 +2202,29 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       : u('postLoadModal.saveDraft', 'Spasi draft')}
                 </span>
               </Button>
-              <Button className="w-full h-11 gap-2" onClick={submit} disabled={isSubmitting}>
-                {isSubmitting ? <Loader2 className="w-4 h-4 shrink-0 animate-spin" /> : <Send className="w-4 h-4 shrink-0" />}
-                <span className="truncate">
-                  {isSubmitting
-                    ? u('postLoadModal.publishing', 'Saving...')
-                    : editLoadId
-                      ? u('common.save', 'Save changes')
-                      : u('common.postLoad', 'Objava na berzu tereta')}
-                </span>
-              </Button>
+              {isLastMileEligible && !editLoadId ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <Button className="w-full h-11 gap-2" onClick={() => void submit()} disabled={isSubmitting}>
+                    {isSubmitting ? <Loader2 className="w-4 h-4 shrink-0 animate-spin" /> : <Send className="w-4 h-4 shrink-0" />}
+                    <span className="truncate">{isSubmitting ? u('postLoadModal.publishing', 'Saving...') : u('common.postLoad', 'Objava na berzu tereta')}</span>
+                  </Button>
+                  <Button className="w-full h-11 gap-2" onClick={() => void submitWithLastMile()} disabled={isSubmitting}>
+                    {isSubmitting ? <Loader2 className="w-4 h-4 shrink-0 animate-spin" /> : <Truck className="w-4 h-4 shrink-0" />}
+                    <span className="truncate">{isSubmitting ? u('postLoadModal.publishing', 'Saving...') : u('postLoadModal.publishLastMileButton', 'Post + Last Mile')}</span>
+                  </Button>
+                </div>
+              ) : (
+                <Button className="w-full h-11 gap-2" onClick={submit} disabled={isSubmitting}>
+                  {isSubmitting ? <Loader2 className="w-4 h-4 shrink-0 animate-spin" /> : <Send className="w-4 h-4 shrink-0" />}
+                  <span className="truncate">
+                    {isSubmitting
+                      ? u('postLoadModal.publishing', 'Saving...')
+                      : editLoadId
+                        ? u('common.save', 'Save changes')
+                        : u('common.postLoad', 'Objava na berzu tereta')}
+                  </span>
+                </Button>
+              )}
             </div>
           </div>
         </div>
