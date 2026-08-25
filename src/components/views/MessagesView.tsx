@@ -62,6 +62,11 @@ const DRAFT_CREATED_MESSAGE_PREFIXES = [
   'Čestitamo, kreirali ste draft tereta!',
   'Ihr Ladungsentwurf wurde erstellt.',
   'Your load draft was created.',
+  // Last-mile delivery draft's custom celebratory welcome message (PostLoadModal.tsx's
+  // submitWithLastMile) - same "no copy button" treatment as the generic draft-created message.
+  'Čestitamo, uspješno ste objavili teret',
+  'Herzlichen Glückwunsch, Sie haben die Fracht erfolgreich veröffentlicht',
+  'Congratulations, you successfully posted the load',
 ];
 const isDraftCreatedMessageBody = (body: string): boolean =>
   DRAFT_CREATED_MESSAGE_PREFIXES.some((prefix) => body.startsWith(prefix));
