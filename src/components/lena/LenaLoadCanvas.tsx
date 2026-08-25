@@ -170,7 +170,7 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftI
         <div className="border-t border-slate-100 p-3 dark:border-slate-800">
           <button type="button" onClick={() => void saveDraftAndContinue()} disabled={savingDraft} className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary text-xs font-black text-white transition-colors hover:bg-primary-dark disabled:opacity-60">
             {draftId
-              ? u('postLoadModal.continueEditing', 'Nastavi sa provjerom')
+              ? u('postLoadModal.continueEditing', 'Nastavi sa draftom')
               : u('postLoadModal.saveDraftAndContinue', 'Spasi draft i provjeri')}
             {savingDraft ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ChevronRight className="h-3.5 w-3.5" />}
           </button>

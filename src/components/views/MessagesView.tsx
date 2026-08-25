@@ -51,6 +51,17 @@ type OptimisticMessage = {
 
 const EMPTY_LENA_CONVERSATION_ID = '__new_lena_conversation__';
 
+// Exact openings of the auto-sent "your draft was created, continue the guided form?" message from
+// ConversationController::sendDraftFollowUp (one per locale) - matched so it can be treated like the
+// synthetic welcome message (no copy button) even though it's a real, server-created Message row.
+const DRAFT_CREATED_MESSAGE_PREFIXES = [
+  'Čestitamo, kreirali ste draft tereta!',
+  'Ihr Ladungsentwurf wurde erstellt.',
+  'Your load draft was created.',
+];
+const isDraftCreatedMessageBody = (body: string): boolean =>
+  DRAFT_CREATED_MESSAGE_PREFIXES.some((prefix) => body.startsWith(prefix));
+
 export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill, onBulkImported, refreshSignal, newChatSignal }: MessagesViewProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const quickActionLabels = useMemo<Record<LenaQuickAction, string>>(() => ({
@@ -105,7 +116,8 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     const mappedMessages = messages.map((message) => {
       const body = String(message.body || '');
       const action = isAiDispatch ? lenaQuickActionFromMessage(body) : undefined;
-      return { id: String(message.id), sender: Number(message.sender_user_id) === user?.id ? 'me' as const : 'other' as const, text: action ? quickActionLabels[action] : body, time: String(message.sent_at || message.created_at || '').slice(11, 16), attachments: Array.isArray(message.attachments) ? message.attachments as import('../../lib/lenaLoadCanvas').LenaAttachment[] : undefined };
+      const id = isDraftCreatedMessageBody(body) ? `welcome-draft-${message.id}` : String(message.id);
+      return { id, sender: Number(message.sender_user_id) === user?.id ? 'me' as const : 'other' as const, text: action ? quickActionLabels[action] : body, time: String(message.sent_at || message.created_at || '').slice(11, 16), attachments: Array.isArray(message.attachments) ? message.attachments as import('../../lib/lenaLoadCanvas').LenaAttachment[] : undefined };
     });
     const savedDraftScan = loadDraftRecordToScan(row.freight_load_draft);
     if (savedDraftScan && mappedMessages.length > 0) {
