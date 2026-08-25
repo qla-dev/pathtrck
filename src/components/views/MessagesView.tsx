@@ -32,6 +32,10 @@ type MessagesViewProps = {
   // Bumped by the parent's sidebar "LenaAI" button when the user clicks it while already on this
   // view - there's nowhere else for that click to navigate to, so it starts a new chat instead.
   newChatSignal?: number;
+  // Set by the parent right after some other flow (e.g. a first manual "Save as draft") creates a
+  // conversation of its own - selects it instead of leaving the generic chat list showing.
+  openConversationId?: string | null;
+  onConversationOpened?: () => void;
 };
 
 type OptimisticMessage = {
