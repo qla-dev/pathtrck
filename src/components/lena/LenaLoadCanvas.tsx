@@ -15,11 +15,15 @@ type LenaLoadCanvasProps = {
   attachments: LenaAttachment[];
   conversationId: string;
   draftId?: string | null;
+  // Set once the conversation is already linked to a real, created load (as opposed to just a
+  // LoadDraft) - in that case the panel below switches from "continue the draft" to "edit load".
+  loadId?: string;
+  onOpenLoad?: (loadId: string) => void;
   onApplyPrefill?: (patch: ScanFieldPatch, conversationId: string, draftId?: string | null) => void;
   onBulkImported?: (rows: BulkLoadRow[]) => void;
 };
 
-export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftId, onApplyPrefill, onBulkImported }: LenaLoadCanvasProps) => {
+export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftId, loadId, onOpenLoad, onApplyPrefill, onBulkImported }: LenaLoadCanvasProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [importing, setImporting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
@@ -168,12 +172,19 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftI
 
       {bulkRows.length === 0 && rows.length > 0 && (
         <div className="border-t border-slate-100 p-3 dark:border-slate-800">
-          <button type="button" onClick={() => void saveDraftAndContinue()} disabled={savingDraft} className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary text-xs font-black text-white transition-colors hover:bg-primary-dark disabled:opacity-60">
-            {draftId
-              ? u('postLoadModal.continueEditing', 'Nastavi sa draftom')
-              : u('postLoadModal.saveDraftAndContinue', 'Spasi draft i provjeri')}
-            {savingDraft ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ChevronRight className="h-3.5 w-3.5" />}
-          </button>
+          {loadId ? (
+            <button type="button" onClick={() => onOpenLoad?.(loadId)} className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary text-xs font-black text-white transition-colors hover:bg-primary-dark">
+              {u('Edit load', 'Edit load')}
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          ) : (
+            <button type="button" onClick={() => void saveDraftAndContinue()} disabled={savingDraft} className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary text-xs font-black text-white transition-colors hover:bg-primary-dark disabled:opacity-60">
+              {draftId
+                ? u('postLoadModal.continueEditing', 'Nastavi sa draftom')
+                : u('postLoadModal.saveDraftAndContinue', 'Spasi draft i provjeri')}
+              {savingDraft ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ChevronRight className="h-3.5 w-3.5" />}
+            </button>
+          )}
         </div>
       )}
 

@@ -114,7 +114,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
         ].filter(Boolean).join(' · ')
       : '';
     const status = isAiDispatch
-      ? (Boolean(row.canvas) ? u('Load detected', 'Load detected') : u('Draft', 'Draft'))
+      ? (row.load_id ? u('Load created', 'Load created') : Boolean(row.canvas) ? u('Load detected', 'Load detected') : u('Draft', 'Draft'))
       : load ? trPackageStatus(lang, mapLoadStatus(load.status)) : undefined;
     const loadPosted = load ? String(load.status || '').toLowerCase() === 'posted' : false;
     const mappedMessages = messages.map((message) => {
@@ -676,6 +676,8 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
                   attachments={canvasAttachments}
                   conversationId={activeConversation.id}
                   draftId={activeConversation.loadDraftId}
+                  loadId={activeConversation.loadId}
+                  onOpenLoad={onOpenLoad}
                   onApplyPrefill={onApplyLoadPrefill}
                   onBulkImported={onBulkImported}
                 />
