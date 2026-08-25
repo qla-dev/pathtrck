@@ -4001,7 +4001,7 @@ export default function App() {
             </p>
           </div>
           <div className="flex items-center gap-4">
-            {role === 'user' || role === 'driver' || isElevatedAdmin ? (
+            {role === 'user' || role === 'driver' || role === 'company' || isElevatedAdmin ? (
               <button
                 onClick={() => { setLenaLoadPrefill(null); setLenaSourceConversationId(null); setLenaSourceDraftId(null); setEditLoadId(null); setIsPostLoadOpen(true); }}
                 className="h-10 px-4 rounded-full bg-primary text-white inline-flex items-center gap-2 text-xs font-bold hover:scale-[1.02] transition-all cursor-pointer whitespace-nowrap"
