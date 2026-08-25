@@ -1983,6 +1983,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                                     const validLoadingEquipment = loadingEquipmentOptions[option.id];
                                     const enteringSea = option.id === 'sea' && prev.transportType !== 'sea';
                                     const leavingSea = option.id !== 'sea' && prev.transportType === 'sea';
+                                    const enteringAir = option.id === 'air' && prev.transportType !== 'air';
                                     return {
                                       ...prev,
                                       transportType: option.id,
@@ -1993,6 +1994,13 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                                       // for the other transport types, so reset it on the way in and out of sea.
                                       pickupPlaceType: enteringSea ? 'Port to Port' : leavingSea ? INITIAL_DRAFT.pickupPlaceType : prev.pickupPlaceType,
                                       deliveryPlaceType: enteringSea ? 'Port to Port' : leavingSea ? INITIAL_DRAFT.deliveryPlaceType : prev.deliveryPlaceType,
+                                      // Toll roads/ferry/CMR/pallet exchange are road-only concepts and hidden
+                                      // from the requirements grid for air - clear them so a stale true carried
+                                      // over from road doesn't silently submit on an air load.
+                                      tollRoadsIncluded: enteringAir ? false : prev.tollRoadsIncluded,
+                                      ferryIncluded: enteringAir ? false : prev.ferryIncluded,
+                                      cmrRequired: enteringAir ? false : prev.cmrRequired,
+                                      palletExchangeRequired: enteringAir ? false : prev.palletExchangeRequired,
                                     };
                                   })}
                                   className="peer sr-only"
@@ -2319,7 +2327,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           active={draft.requiresAdr}
                           onClick={() => setField('requiresAdr', !draft.requiresAdr)}
                           icon={ShieldAlert}
-                          title={u('postLoadModal.adr', 'ADR / certified')}
+                          title={draft.transportType === 'air' ? u('postLoadModal.dgr', 'DGR / certified') : u('postLoadModal.adr', 'ADR / certified')}
                           description={u('postLoadModal.adrDesc', 'Hazardous goods compliance required')}
                         />
                         <ToggleCard
@@ -2339,34 +2347,38 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
 
                       <div className="grid md:grid-cols-3 gap-3">
-                        <ToggleCard
-                          active={draft.tollRoadsIncluded}
-                          onClick={() => setField('tollRoadsIncluded', !draft.tollRoadsIncluded)}
-                          icon={Route}
-                          title={u('postLoadModal.tollRoads', 'Toll roads')}
-                          description={u('postLoadModal.tollRoadsDesc', 'Route includes toll roads or motorways')}
-                        />
-                        <ToggleCard
-                          active={draft.ferryIncluded}
-                          onClick={() => setField('ferryIncluded', !draft.ferryIncluded)}
-                          icon={Ship}
-                          title={u('postLoadModal.ferry', 'Ferry')}
-                          description={u('postLoadModal.ferryDesc', 'Route includes a ferry / RoRo crossing')}
-                        />
-                        <ToggleCard
-                          active={draft.cmrRequired}
-                          onClick={() => setField('cmrRequired', !draft.cmrRequired)}
-                          icon={FileText}
-                          title={u('postLoadModal.cmr', 'CMR')}
-                          description={u('postLoadModal.cmrDesc', 'CMR consignment note required')}
-                        />
-                        <ToggleCard
-                          active={draft.palletExchangeRequired}
-                          onClick={() => setField('palletExchangeRequired', !draft.palletExchangeRequired)}
-                          icon={Package}
-                          title={u('postLoadModal.palletExchange', 'Pallet exchange')}
-                          description={u('postLoadModal.palletExchangeDesc', 'Pallets must be swapped on delivery')}
-                        />
+                        {draft.transportType !== 'air' && (
+                          <>
+                            <ToggleCard
+                              active={draft.tollRoadsIncluded}
+                              onClick={() => setField('tollRoadsIncluded', !draft.tollRoadsIncluded)}
+                              icon={Route}
+                              title={u('postLoadModal.tollRoads', 'Toll roads')}
+                              description={u('postLoadModal.tollRoadsDesc', 'Route includes toll roads or motorways')}
+                            />
+                            <ToggleCard
+                              active={draft.ferryIncluded}
+                              onClick={() => setField('ferryIncluded', !draft.ferryIncluded)}
+                              icon={Ship}
+                              title={u('postLoadModal.ferry', 'Ferry')}
+                              description={u('postLoadModal.ferryDesc', 'Route includes a ferry / RoRo crossing')}
+                            />
+                            <ToggleCard
+                              active={draft.cmrRequired}
+                              onClick={() => setField('cmrRequired', !draft.cmrRequired)}
+                              icon={FileText}
+                              title={u('postLoadModal.cmr', 'CMR')}
+                              description={u('postLoadModal.cmrDesc', 'CMR consignment note required')}
+                            />
+                            <ToggleCard
+                              active={draft.palletExchangeRequired}
+                              onClick={() => setField('palletExchangeRequired', !draft.palletExchangeRequired)}
+                              icon={Package}
+                              title={u('postLoadModal.palletExchange', 'Pallet exchange')}
+                              description={u('postLoadModal.palletExchangeDesc', 'Pallets must be swapped on delivery')}
+                            />
+                          </>
+                        )}
                         <ToggleCard
                           active={draft.customsRequired}
                           onClick={() => setField('customsRequired', !draft.customsRequired)}
@@ -2580,7 +2592,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       <SummaryRow
                         label={u('postLoadModal.flagsSummary', 'Special requirements')}
                         value={[
-                          draft.requiresAdr ? u('postLoadModal.adr', 'ADR / certified') : null,
+                          draft.requiresAdr ? (draft.transportType === 'air' ? u('postLoadModal.dgr', 'DGR / certified') : u('postLoadModal.adr', 'ADR / certified')) : null,
                           draft.requiresTailLift ? u('postLoadModal.tailLift', 'Tail lift') : null,
                           draft.urgent ? u('postLoadModal.urgent', 'Priority load') : null,
                           draft.mustBeTrackable ? u('postLoadModal.mustBeTrackableShort', 'Trackable') : null,

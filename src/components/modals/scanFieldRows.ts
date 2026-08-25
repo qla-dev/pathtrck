@@ -455,7 +455,7 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
   }
 
   const requirementLabels = [
-    result.requiresAdr ? 'ADR' : '',
+    result.requiresAdr ? (result.transportType === 'air' ? 'DGR' : 'ADR') : '',
     result.requiresTailLift ? 'Tail lift' : '',
     result.tollRoadsIncluded ? 'Toll roads' : '',
     result.ferryIncluded ? 'Ferry' : '',

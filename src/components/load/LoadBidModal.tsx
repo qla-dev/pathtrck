@@ -389,7 +389,7 @@ export const LoadBidModal = ({
                   <div className="flex items-center justify-between gap-2"><dt className="text-slate-500">{u('Volume', 'Volume')}</dt><dd className="font-bold text-slate-800 dark:text-white">{load.volume != null ? `${load.volume} m³` : '—'}</dd></div>
                   <div className="flex items-center justify-between gap-2"><dt className="text-slate-500">{u('Pallets', 'Pallets')}</dt><dd className="font-bold text-slate-800 dark:text-white">{load.pallets ?? '—'}</dd></div>
                   <div className="flex items-center justify-between gap-2"><dt className="text-slate-500">{u('Commodity', 'Commodity')}</dt><dd className="font-bold text-slate-800 dark:text-white">{load.goodsType || '—'}</dd></div>
-                  <div className="flex items-center justify-between gap-2"><dt className="text-slate-500">{u('ADR', 'ADR')}</dt><dd className="font-bold text-slate-800 dark:text-white">{load.requiresAdr ? u('common.yes', 'Yes') : u('common.no', 'No')}</dd></div>
+                  <div className="flex items-center justify-between gap-2"><dt className="text-slate-500">{load.transportType === 'air' ? u('DGR', 'DGR') : u('ADR', 'ADR')}</dt><dd className="font-bold text-slate-800 dark:text-white">{load.requiresAdr ? u('common.yes', 'Yes') : u('common.no', 'No')}</dd></div>
                   <div className="flex items-center justify-between gap-2"><dt className="text-slate-500">{u('Temperature', 'Temperature')}</dt><dd className="font-bold text-slate-800 dark:text-white">{load.temperatureMin != null || load.temperatureMax != null ? `${load.temperatureMin ?? '—'}° / ${load.temperatureMax ?? '—'}°C` : '—'}</dd></div>
                 </dl>
 

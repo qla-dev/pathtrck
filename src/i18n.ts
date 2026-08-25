@@ -2175,6 +2175,7 @@ Object.assign(UI.bs, {
   'postLoadModal.mustBeTrackableShort': 'Moguće praćenje',
   'postLoadModal.adr': 'ADR / certifikovano',
   'postLoadModal.adrDesc': 'Potrebna usklađenost za opasne materije',
+  'postLoadModal.dgr': 'DGR / certifikovano',
   'postLoadModal.tailLift': 'Rampa za utovar',
   'postLoadModal.tailLiftDesc': 'Potrebna prilikom preuzimanja ili isporuke',
   'postLoadModal.urgent': 'Prioritetni teret',
