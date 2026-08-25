@@ -543,7 +543,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                   </div>
                 </div>
 
-                <div className="xl:col-span-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-3">
+                <div className="self-start xl:col-span-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-3">
                   <div className="flex items-center gap-2 text-primary">
                     <CheckCircle2 className="w-5 h-5" />
                     <p className="text-xs font-black uppercase tracking-wider">

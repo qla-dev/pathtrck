@@ -5,6 +5,7 @@ import Flatpickr from 'react-flatpickr';
 import {
   Ban,
   CalendarDays,
+  Check,
   CheckCircle2,
   ChevronDown,
   Gavel,
@@ -47,6 +48,30 @@ type LoadBidModalProps = {
   onClose: () => void;
   onSubmit: () => void;
 };
+
+const Checkbox = ({ checked, onChange, className }: { checked: boolean; onChange: () => void; className?: string }) => (
+  <span className={cn('relative inline-flex h-4 w-4 shrink-0 items-center justify-center', className)}>
+    <input
+      type="checkbox"
+      checked={checked}
+      onChange={onChange}
+      className="peer h-4 w-4 shrink-0 cursor-pointer appearance-none rounded border-2 border-slate-300 bg-white outline-none checked:border-primary checked:bg-primary focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1 dark:border-slate-600 dark:bg-slate-950"
+    />
+    <Check className="pointer-events-none absolute h-3 w-3 text-white opacity-0 peer-checked:opacity-100" strokeWidth={3} />
+  </span>
+);
+
+const RadioDot = ({ checked, onChange }: { checked: boolean; onChange: () => void }) => (
+  <span className="relative inline-flex h-4 w-4 shrink-0 items-center justify-center">
+    <input
+      type="radio"
+      checked={checked}
+      onChange={onChange}
+      className="peer h-4 w-4 shrink-0 cursor-pointer appearance-none rounded-full border-2 border-slate-300 bg-white outline-none checked:border-primary checked:bg-primary focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1 dark:border-slate-600 dark:bg-slate-950"
+    />
+    <span className="pointer-events-none absolute h-1.5 w-1.5 rounded-full bg-white opacity-0 peer-checked:opacity-100" />
+  </span>
+);
 
 const getCountryCode = (location: string) => {
   const countryCode = location.split(',').at(-1)?.trim().toUpperCase() || '';
@@ -181,12 +206,7 @@ const ChargesPickerModal = ({ mode, selected, onApply, onClose }: ChargesPickerM
                 key={item.key}
                 className="flex cursor-pointer items-start gap-3 rounded-xl px-2 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/60"
               >
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={() => toggle(item.key)}
-                  className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
-                />
+                <Checkbox checked={checked} onChange={() => toggle(item.key)} className="mt-0.5" />
                 <span className="min-w-0">
                   <span className="block text-sm font-semibold text-slate-800 dark:text-slate-100">{item.label}</span>
                   <span className="block text-xs text-slate-500">{item.description}</span>
@@ -305,10 +325,10 @@ export const LoadBidModal = ({
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2, ease: 'easeOut' }}
         >
-          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-slate-800 md:px-7">
+          <div className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-5 dark:border-slate-800 md:px-7">
             <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-white shadow-lg shadow-primary/20">
-                <Gavel className="h-5 w-5" />
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-primary text-white shadow-lg shadow-primary/20">
+                <Gavel className="h-4 w-4" />
               </div>
               <div className="min-w-0">
                 <p className="truncate font-black text-slate-900 dark:text-white">
@@ -323,15 +343,16 @@ export const LoadBidModal = ({
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-slate-100 text-slate-500 transition-colors hover:text-primary disabled:cursor-not-allowed dark:bg-slate-800"
+              className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-slate-100 text-slate-500 transition-colors hover:text-primary disabled:cursor-not-allowed dark:bg-slate-800"
             >
-              <X className="h-5 w-5" />
+              <X className="h-4 w-4" />
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-5 md:p-7 lg:overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-5 md:p-7 lg:overflow-hidden lg:p-0">
             <div className="grid gap-6 lg:h-full lg:grid-cols-[300px_1fr]">
-              <div className="space-y-4 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900 lg:h-full lg:min-h-0">
+              <div className="lg:h-full lg:min-h-0 lg:pl-7 lg:py-7">
+                <div className="space-y-4 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900 lg:h-full lg:min-h-0">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">{u('Load summary', 'Load summary')}</p>
@@ -393,9 +414,10 @@ export const LoadBidModal = ({
                 >
                   {u('View full load details', 'View full load details')}
                 </button>
+                </div>
               </div>
 
-              <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0 space-y-6 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:px-2 lg:-mx-2">
+              <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0 space-y-6 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:px-2 lg:-mx-2 lg:mr-7 lg:py-7">
                 <section className="space-y-3">
                   <p className="text-xs font-black uppercase tracking-wider text-primary">1. {u('Your commercial offer', 'Your commercial offer')}</p>
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -478,9 +500,9 @@ export const LoadBidModal = ({
                         onClick={() => setAddVehicleOpen(true)}
                         aria-label={u('Add vehicle', 'Add vehicle')}
                         title={u('Add vehicle', 'Add vehicle')}
-                        className="absolute -top-1 right-0 z-10 flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full bg-primary text-white shadow-sm transition-colors hover:bg-primary/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 disabled:cursor-default disabled:opacity-50"
+                        className="absolute -top-1 right-0 z-10 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-full bg-primary text-white shadow-sm transition-colors hover:bg-primary/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 disabled:cursor-default disabled:opacity-50"
                       >
-                        <Plus className="h-3.5 w-3.5" strokeWidth={3} />
+                        <Plus className="h-3 w-3" strokeWidth={3} />
                       </button>
                       <select
                         value={draft.vehicleId ? `v:${draft.vehicleId}` : 'none'}
@@ -524,11 +546,11 @@ export const LoadBidModal = ({
                     </div>
                     <div className="flex shrink-0 items-center gap-4 text-sm font-semibold text-slate-700 dark:text-slate-200">
                       <label className="flex cursor-pointer items-center gap-1.5 has-[:disabled]:cursor-default">
-                        <input type="radio" checked={draft.canPerformAsRequired} onChange={() => onDraftChange({ canPerformAsRequired: true })} className="h-4 w-4 accent-primary" />
+                        <RadioDot checked={draft.canPerformAsRequired} onChange={() => onDraftChange({ canPerformAsRequired: true })} />
                         {u('common.yes', 'Yes')}
                       </label>
                       <label className="flex cursor-pointer items-center gap-1.5 has-[:disabled]:cursor-default">
-                        <input type="radio" checked={!draft.canPerformAsRequired} onChange={() => onDraftChange({ canPerformAsRequired: false })} className="h-4 w-4 accent-primary" />
+                        <RadioDot checked={!draft.canPerformAsRequired} onChange={() => onDraftChange({ canPerformAsRequired: false })} />
                         {u('No, I need to propose changes', 'No, I need to propose changes')}
                       </label>
                     </div>
@@ -541,12 +563,7 @@ export const LoadBidModal = ({
                   <div className="grid grid-cols-2 gap-x-6 gap-y-2.5 sm:grid-cols-3 sm:grid-flow-col sm:grid-rows-4">
                     {STANDARD_CHARGE_ITEMS.map((item) => (
                       <label key={item.key} className="flex cursor-pointer items-center gap-2 text-sm has-[:disabled]:cursor-default">
-                        <input
-                          type="checkbox"
-                          checked={draft.includedCharges.includes(item.key)}
-                          onChange={() => toggleIncludedCharge(item.key)}
-                          className="h-4 w-4 shrink-0 accent-primary"
-                        />
+                        <Checkbox checked={draft.includedCharges.includes(item.key)} onChange={() => toggleIncludedCharge(item.key)} />
                         <span className="text-slate-700 dark:text-slate-200">{item.label}</span>
                       </label>
                     ))}
@@ -583,11 +600,11 @@ export const LoadBidModal = ({
                   <p className="text-xs font-black uppercase tracking-wider text-primary">5. {u('Exceptions / Comments', 'Exceptions / Comments')}</p>
                   <div className="flex flex-wrap items-center gap-5 text-sm font-semibold text-slate-700 dark:text-slate-200">
                     <label className="flex cursor-pointer items-center gap-1.5 has-[:disabled]:cursor-default">
-                      <input type="radio" checked={!draft.hasExceptions} onChange={() => onDraftChange({ hasExceptions: false })} className="h-4 w-4 accent-primary" />
+                      <RadioDot checked={!draft.hasExceptions} onChange={() => onDraftChange({ hasExceptions: false })} />
                       {u('No exceptions', 'No exceptions')}
                     </label>
                     <label className="flex cursor-pointer items-center gap-1.5 has-[:disabled]:cursor-default">
-                      <input type="radio" checked={draft.hasExceptions} onChange={() => onDraftChange({ hasExceptions: true })} className="h-4 w-4 accent-primary" />
+                      <RadioDot checked={draft.hasExceptions} onChange={() => onDraftChange({ hasExceptions: true })} />
                       {u('I am submitting this offer with exceptions', 'I am submitting this offer with exceptions')}
                     </label>
                   </div>
@@ -611,12 +628,7 @@ export const LoadBidModal = ({
                       ['confirmedTerms', u('I confirm that the price and conditions above are those on which I am submitting the offer.', 'I confirm that the price and conditions above are those on which I am submitting the offer.')],
                     ] as const).map(([field, label]) => (
                       <label key={field} className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-slate-200 p-3 text-sm has-[:disabled]:cursor-default dark:border-slate-800">
-                        <input
-                          type="checkbox"
-                          checked={draft[field]}
-                          onChange={(e) => onDraftChange({ [field]: e.target.checked })}
-                          className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
-                        />
+                        <Checkbox checked={draft[field]} onChange={() => onDraftChange({ [field]: !draft[field] })} className="mt-0.5" />
                         <span className="text-slate-700 dark:text-slate-200">{label}</span>
                       </label>
                     ))}
@@ -627,7 +639,7 @@ export const LoadBidModal = ({
             </div>
           </div>
 
-          <div className="flex shrink-0 flex-col-reverse items-stretch gap-3 border-t border-slate-100 px-5 py-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between md:px-7">
+          <div className="flex shrink-0 flex-col-reverse items-stretch gap-3 border-t border-slate-100 px-5 py-3 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between md:px-7">
             <span className="flex items-center gap-1.5 text-xs text-slate-500">
               <Lock className="h-3.5 w-3.5 shrink-0" />
               {u('Your bid is secure and visible only to the load poster.', 'Your bid is secure and visible only to the load poster.')}

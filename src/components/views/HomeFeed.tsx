@@ -1,10 +1,11 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import L from 'leaflet';
-import { ArrowDownWideNarrow, ChevronDown, ChevronLeft, ChevronRight, Filter, List, LayoutGrid, Map as MapIcon, Layers, Table } from 'lucide-react';
+import { ArrowDownWideNarrow, ChevronDown, ChevronLeft, ChevronRight, Filter, Gavel, List, LayoutGrid, Map as MapIcon, Layers, Table } from 'lucide-react';
 import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 
 import { ui } from '../../i18n';
 import { cn } from '../../lib/cn';
+import { getBidState } from '../../lib/offerBid';
 import {
   estimateLoadTransitDays,
   getPlaceCoord,
@@ -210,6 +211,7 @@ export const HomeFeed = ({
   const [mapSource, setMapSource] = useState<MapSource>('normal');
   const [selectedLoad, setSelectedLoad] = useState<Load | null>(null);
   const [isFilterBarOpen, setIsFilterBarOpen] = useState(true);
+  const [myBidsOnly, setMyBidsOnly] = useState(false);
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const bookLoadLabel = u('common.bookLoad', 'Reserve');
   const loadsTitle =
@@ -264,6 +266,7 @@ export const HomeFeed = ({
       const loadingMethodMatch =
         !selectedLoadingMethods.length ||
         selectedLoadingMethods.some((method) => (load.loadingMethods || []).includes(method as 'Forklift' | 'Crane' | 'Manual'));
+      const myBidsMatch = !myBidsOnly || Boolean(getBidState(load.offers, userId, load.budget).myOffer);
       return (
         startMatch &&
         endMatch &&
@@ -280,13 +283,16 @@ export const HomeFeed = ({
         adrMatch &&
         sensitivityMatch &&
         urgencyMatch &&
-        loadingMethodMatch
+        loadingMethodMatch &&
+        myBidsMatch
       );
     });
   }, [
     loads,
     startLocation,
     endLocation,
+    myBidsOnly,
+    userId,
     minPriceFilter,
     maxPriceFilter,
     minWeightFilter,
@@ -386,6 +392,19 @@ export const HomeFeed = ({
               {u('common.filter', 'Filter')}
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => setMyBidsOnly((prev) => !prev)}
+            className={cn(
+              'inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl border px-3 text-xs font-bold transition-all',
+              myBidsOnly
+                ? 'border-primary/40 bg-primary/10 text-primary'
+                : 'border-slate-200 text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600'
+            )}
+          >
+            <Gavel className="h-3.5 w-3.5" />
+            {u('feed.filterBar.myBids', 'Moje ponude')}
+          </button>
           <SortDropdown lang={lang} sortMode={sortMode} onChange={onSortModeChange} />
           <div className="inline-flex h-9 items-center gap-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-1">
             {layoutButtons.map((button) => (
