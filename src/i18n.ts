@@ -1954,14 +1954,14 @@ Object.assign(UI.zh, {
   'postLoadModal.pickupCity': '提货城市 / 国家',
   'postLoadModal.cityCountry': '城市，国家',
   'postLoadModal.pickupAddress': '提货地址',
-  'postLoadModal.pickupAddressPlaceholder': '仓库、街道、参考点',
+  'postLoadModal.pickupAddressPlaceholder': '搜索地点或点击地图',
   'postLoadModal.pickupDate': '提货日期',
   'postLoadModal.pickupWindow': '提货时间段',
   'postLoadModal.windowPlaceholder': '08:00 - 12:00',
   'postLoadModal.deliveryBlock': '交付',
   'postLoadModal.deliveryCity': '交付城市 / 国家',
   'postLoadModal.deliveryAddress': '交付地址',
-  'postLoadModal.deliveryAddressPlaceholder': '收货地点、月台或终端',
+  'postLoadModal.deliveryAddressPlaceholder': '搜索地点或点击地图',
   'postLoadModal.deliveryDate': '交付截止日期',
   'postLoadModal.deliveryWindow': '交付时间段',
   'postLoadModal.cargoTitle': '货物详情',
@@ -2083,7 +2083,7 @@ Object.assign(UI.bs, {
   'postLoadModal.address': 'Adresa',
   'postLoadModal.addressLastMile': 'Adresa + dostava do vrata',
   'postLoadModal.pickupAddress': 'Adresa preuzimanja',
-  'postLoadModal.pickupAddressPlaceholder': 'Počnite kucati ili odaberite na mapi',
+  'postLoadModal.pickupAddressPlaceholder': 'Pretraži mjesta ili klikni na mapu',
   'postLoadModal.selectCountry': 'Odaberite državu',
   'postLoadModal.pickupCountryShort': 'Država',
   'postLoadModal.pickupCity': 'Poštanski broj, mjesto',
@@ -2097,7 +2097,7 @@ Object.assign(UI.bs, {
   'postLoadModal.deliveryPlaceType': 'Vrsta mjesta',
   'postLoadModal.unloadingPlace': 'Mjesto istovara',
   'postLoadModal.deliveryAddress': 'Adresa isporuke',
-  'postLoadModal.deliveryAddressPlaceholder': 'Počnite kucati ili odaberite na mapi',
+  'postLoadModal.deliveryAddressPlaceholder': 'Pretraži mjesta ili klikni na mapu',
   'postLoadModal.deliveryCountryShort': 'Država',
   'postLoadModal.deliveryCity': 'Poštanski broj, mjesto',
   'postLoadModal.deliveryDate': 'Datum od',
@@ -2108,16 +2108,20 @@ Object.assign(UI.bs, {
   'postLoadModal.destinationBlock': 'Odredište',
   'postLoadModal.seaOriginType': 'Tip polazišta',
   'postLoadModal.seaDestinationType': 'Tip odredišta',
-  'postLoadModal.portToPort': 'Luka do luke',
-  'postLoadModal.doorToPort': 'Vrata do luke',
-  'postLoadModal.portToDoor': 'Luka do vrata',
+  'postLoadModal.portToPort': 'Luka',
+  'postLoadModal.doorToPort': 'Adresa',
+  'postLoadModal.portToDoor': 'Adresa',
   'postLoadModal.pol': 'Luka utovara (POL)',
   'postLoadModal.pod': 'Luka istovara (POD)',
-  'postLoadModal.portSearchPlaceholder': 'Pretraga luke, grada, države ili UN/LOCODE',
+  'postLoadModal.portSearchPlaceholder': 'Pretraži luke',
   'postLoadModal.noResults': 'Nema rezultata',
   'postLoadModal.doorAddress': 'Adresa preuzimanja/isporuke (vrata)',
   'postLoadModal.transitTime': 'ETA - tranzitno vrijeme (POL-POD)',
   'postLoadModal.transitDays': 'dana',
+  'postLoadModal.transportModeAirportToAirport': 'Aerodrom do aerodroma',
+  'postLoadModal.transportModeAddressToAirport': 'Adresa do aerodroma',
+  'postLoadModal.transportModeAirportToAddress': 'Aerodrom do adrese',
+  'postLoadModal.transportModeAirFreightLastMile': 'Zračni prevoz + dostava do vrata',
   'postLoadModal.consignee': 'Primalac (kupac)',
   'postLoadModal.consigneePlaceholder': 'Odaberite primaoca iz globalne baze kupaca',
   'postLoadModal.consigneeHelp': 'Pretražujte po nazivu firme, poreznom broju, gradu ili državi. Dodatni rezultati se učitavaju pomicanjem.',
@@ -5635,7 +5639,22 @@ const TRIPLET_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
   'Financial Terms': { bs: 'Finansijski uslovi', de: 'Finanzbedingungen', pl: 'Warunki finansowe', ro: 'Termeni financiari', nl: 'Financiele voorwaarden', fr: 'Conditions financieres', it: 'Condizioni finanziarie', zh: '财务条款', es: 'Terminos financieros', sr: 'Finansijski uslovi', sv: 'Finansiella villkor', ar: 'الشروط المالية', pt: 'Termos financeiros' },
   'Highest offer': { bs: 'Najviša ponuda', de: 'Höchstes Angebot', pl: 'Najwyższa oferta', ro: 'Cea mai mare ofertă', nl: 'Hoogste bod', fr: 'Offre la plus élevée', it: 'Offerta più alta', zh: '最高报价', es: 'Oferta más alta', sr: 'Najviša ponuda', sv: 'Högsta bud', ar: 'أعلى عرض', pt: 'Oferta mais alta' },
   'Edit load': { bs: 'Uredi teret', de: 'Fracht bearbeiten', pl: 'Edytuj ładunek', ro: 'Editează încărcătura', nl: 'Lading bewerken', fr: 'Modifier le chargement', it: 'Modifica carico', zh: '编辑货物', es: 'Editar carga', sr: 'Uredi teret', sv: 'Redigera last', ar: 'تعديل الحمولة', pt: 'Editar carga' },
-  'postLoadModal.addressLastMile': { bs: 'Adresa + dostava do vrata', de: 'Adresse + Zustellung auf der letzten Meile', pl: 'Adres + dostawa ostatniej mili', ro: 'Adresă + livrare pe ultima milă', nl: 'Adres + laatste-mijl bezorging', fr: 'Adresse + livraison du dernier kilomètre', it: "Indirizzo + consegna dell'ultimo miglio", zh: '地址 + 最后一公里配送', es: 'Dirección + entrega de última milla', sr: 'Adresa + dostava do vrata', sv: 'Adress + leverans sista milen', ar: 'العنوان + التوصيل للميل الأخير', pt: 'Endereço + entrega da última milha' },
+  'postLoadModal.addressLastMile': { en: 'Address + Last Mile Delivery', bs: 'Adresa + dostava do vrata', de: 'Adresse + Zustellung auf der letzten Meile', pl: 'Adres + dostawa ostatniej mili', ro: 'Adresă + livrare pe ultima milă', nl: 'Adres + laatste-mijl bezorging', fr: 'Adresse + livraison du dernier kilomètre', it: "Indirizzo + consegna dell'ultimo miglio", zh: '地址 + 最后一公里配送', es: 'Dirección + entrega de última milla', sr: 'Adresa + dostava do vrata', sv: 'Adress + leverans sista milen', ar: 'العنوان + التوصيل للميل الأخير', pt: 'Endereço + entrega da última milha' },
+  'postLoadModal.portToPort': { en: 'Port', bs: 'Luka', de: 'Hafen', pl: 'Port', ro: 'Port', nl: 'Haven', fr: 'Port', it: 'Porto', zh: '港口', es: 'Puerto', sr: 'Luka', sv: 'Hamn', ar: 'ميناء', pt: 'Porto' },
+  'postLoadModal.doorToPort': { en: 'Address', bs: 'Adresa', de: 'Adresse', pl: 'Adres', ro: 'Adresă', nl: 'Adres', fr: 'Adresse', it: 'Indirizzo', zh: '地址', es: 'Dirección', sr: 'Adresa', sv: 'Adress', ar: 'العنوان', pt: 'Endereço' },
+  'postLoadModal.portToDoor': { en: 'Address', bs: 'Adresa', de: 'Adresse', pl: 'Adres', ro: 'Adresă', nl: 'Adres', fr: 'Adresse', it: 'Indirizzo', zh: '地址', es: 'Dirección', sr: 'Adresa', sv: 'Adress', ar: 'العنوان', pt: 'Endereço' },
+  'postLoadModal.portSearchPlaceholder': { en: 'Search ports', bs: 'Pretraži luke', de: 'Häfen suchen', pl: 'Szukaj portów', ro: 'Caută porturi', nl: 'Zoek havens', fr: 'Rechercher des ports', it: 'Cerca porti', zh: '搜索港口', es: 'Buscar puertos', sr: 'Pretraži luke', sv: 'Sök hamnar', ar: 'البحث عن الموانئ', pt: 'Pesquisar portos' },
+  'postLoadModal.pickupAddressPlaceholder': { en: 'Search places or click the map', bs: 'Pretraži mjesta ili klikni na mapu', de: 'Orte suchen oder auf die Karte klicken', pl: 'Szukaj miejsc lub kliknij mapę', ro: 'Caută locuri sau apasă pe hartă', nl: 'Zoek plaatsen of klik op de kaart', fr: 'Rechercher des lieux ou cliquer sur la carte', it: 'Cerca luoghi o clicca sulla mappa', zh: '搜索地点或点击地图', es: 'Buscar lugares o hacer clic en el mapa', sr: 'Pretraži mjesta ili klikni na mapu', sv: 'Sök platser eller klicka på kartan', ar: 'البحث عن الأماكن أو النقر على الخريطة', pt: 'Pesquisar locais ou clicar no mapa' },
+  'postLoadModal.deliveryAddressPlaceholder': { en: 'Search places or click the map', bs: 'Pretraži mjesta ili klikni na mapu', de: 'Orte suchen oder auf die Karte klicken', pl: 'Szukaj miejsc lub kliknij mapę', ro: 'Caută locuri sau apasă pe hartă', nl: 'Zoek plaatsen of klik op de kaart', fr: 'Rechercher des lieux ou cliquer sur la carte', it: 'Cerca luoghi o clicca sulla mappa', zh: '搜索地点或点击地图', es: 'Buscar lugares o hacer clic en el mapa', sr: 'Pretraži mjesta ili klikni na mapu', sv: 'Sök platser eller klicka på kartan', ar: 'البحث عن الأماكن أو النقر على الخريطة', pt: 'Pesquisar locais ou clicar no mapa' },
+  'postLoadModal.dgr': { en: 'DGR / certified', bs: 'DGR / certifikovano', de: 'DGR / zertifiziert', pl: 'DGR / certyfikowane', ro: 'DGR / certificat', nl: 'DGR / gecertificeerd', fr: 'DGR / certifié', it: 'DGR / certificato', zh: 'DGR / 认证', es: 'DGR / certificado', sr: 'DGR / certifikovano', sv: 'DGR / certifierad', ar: 'DGR / معتمد', pt: 'DGR / certificado' },
+  'postLoadModal.pol': { en: 'Loading Port (POL)', bs: 'Luka utovara (POL)', de: 'Verladehafen (POL)', pl: 'Port załadunku (POL)', ro: 'Port de încărcare (POL)', nl: 'Laadhaven (POL)', fr: 'Port de chargement (POL)', it: 'Porto di carico (POL)', zh: '装货港 (POL)', es: 'Puerto de carga (POL)', sr: 'Luka utovara (POL)', sv: 'Lastningshamn (POL)', ar: 'ميناء التحميل (POL)', pt: 'Porto de carregamento (POL)' },
+  'postLoadModal.pod': { en: 'Discharge Port (POD)', bs: 'Luka istovara (POD)', de: 'Löschhafen (POD)', pl: 'Port rozładunku (POD)', ro: 'Port de descărcare (POD)', nl: 'Loshaven (POD)', fr: 'Port de déchargement (POD)', it: 'Porto di scarico (POD)', zh: '卸货港 (POD)', es: 'Puerto de descarga (POD)', sr: 'Luka istovara (POD)', sv: 'Lossningshamn (POD)', ar: 'ميناء التفريغ (POD)', pt: 'Porto de descarga (POD)' },
+  'postLoadModal.doorAddress': { en: 'Pickup/Delivery Address (Door)', bs: 'Adresa preuzimanja/isporuke (vrata)', de: 'Abhol-/Lieferadresse (Tür)', pl: 'Adres odbioru/dostawy (drzwi)', ro: 'Adresă de ridicare/livrare (ușă)', nl: 'Ophaal-/afleveradres (deur)', fr: "Adresse d'enlèvement/livraison (porte)", it: 'Indirizzo di ritiro/consegna (porta)', zh: '取货/送货地址（门到门）', es: 'Dirección de recogida/entrega (puerta)', sr: 'Adresa preuzimanja/isporuke (vrata)', sv: 'Upphämtnings-/leveransadress (dörr)', ar: 'عنوان الاستلام/التسليم (الباب)', pt: 'Endereço de recolha/entrega (porta)' },
+  'postLoadModal.seaOriginType': { en: 'Origin type', bs: 'Tip polazišta', de: 'Ausgangstyp', pl: 'Typ miejsca początkowego', ro: 'Tip origine', nl: 'Type herkomst', fr: "Type d'origine", it: 'Tipo di origine', zh: '起运类型', es: 'Tipo de origen', sr: 'Tip polazišta', sv: 'Ursprungstyp', ar: 'نوع نقطة الانطلاق', pt: 'Tipo de origem' },
+  'postLoadModal.seaDestinationType': { en: 'Destination type', bs: 'Tip odredišta', de: 'Zieltyp', pl: 'Typ miejsca docelowego', ro: 'Tip destinație', nl: 'Type bestemming', fr: 'Type de destination', it: 'Tipo di destinazione', zh: '目的地类型', es: 'Tipo de destino', sr: 'Tip odredišta', sv: 'Destinationstyp', ar: 'نوع الوجهة', pt: 'Tipo de destino' },
+  'postLoadModal.address': { en: 'Address', bs: 'Adresa', de: 'Adresse', pl: 'Adres', ro: 'Adresă', nl: 'Adres', fr: 'Adresse', it: 'Indirizzo', zh: '地址', es: 'Dirección', sr: 'Adresa', sv: 'Adress', ar: 'العنوان', pt: 'Endereço' },
+  'postLoadModal.transitDays': { en: 'days', bs: 'dana', de: 'Tage', pl: 'dni', ro: 'zile', nl: 'dagen', fr: 'jours', it: 'giorni', zh: '天', es: 'días', sr: 'dana', sv: 'dagar', ar: 'أيام', pt: 'dias' },
+  'postLoadModal.transitTime': { en: 'ETA - transit time (POL-POD)', bs: 'ETA - tranzitno vrijeme (POL-POD)', de: 'ETA - Transitzeit (POL-POD)', pl: 'ETA - czas tranzytu (POL-POD)', ro: 'ETA - timp de tranzit (POL-POD)', nl: 'ETA - transittijd (POL-POD)', fr: 'ETA - temps de transit (POL-POD)', it: 'ETA - tempo di transito (POL-POD)', zh: 'ETA - 运输时间 (POL-POD)', es: 'ETA - tiempo de tránsito (POL-POD)', sr: 'ETA - tranzitno vreme (POL-POD)', sv: 'ETA - transittid (POL-POD)', ar: 'الوقت المقدر للوصول - وقت العبور (POL-POD)', pt: 'ETA - tempo de trânsito (POL-POD)' },
   'Track no.': { bs: 'Track no.', de: 'Tracking-Nr.', pl: 'Nr śledzenia', ro: 'Nr. urmărire', nl: 'Trackingnr.', fr: 'N° de suivi', it: 'N. tracking', zh: '追踪编号', es: 'N.º seguimiento', sr: 'Track no.', sv: 'Spårningsnr.', ar: 'رقم التتبع', pt: 'N.º de rastreio' },
   'Amount': { bs: 'Iznos', de: 'Betrag', pl: 'Kwota', ro: 'Sumă', nl: 'Bedrag', fr: 'Montant', it: 'Importo', zh: '金额', es: 'Importe', sr: 'Iznos', sv: 'Belopp', ar: 'المبلغ', pt: 'Montante' },
   'Draft': { bs: 'Nacrt', de: 'Entwurf' },
@@ -6343,10 +6362,12 @@ export const ui = (lang: Language, key: string, fallback: string) => {
 
   const reverseUiKey = REVERSE_UI_KEY_BY_EN[fallback];
   if (reverseUiKey) {
-    return replaceBrand(locale(lang)[reverseUiKey] || UI.en[reverseUiKey] || fallback);
+    const result = locale(lang)[reverseUiKey] || UI.en[reverseUiKey] || fallback;
+    return replaceBrand(result);
   }
 
-  return replaceBrand(TRIPLET_TRANSLATIONS[fallback]?.[active] || TRIPLET_TRANSLATIONS[key]?.[active] || fallback);
+  const result = TRIPLET_TRANSLATIONS[fallback]?.[active] || TRIPLET_TRANSLATIONS[key]?.[active] || fallback;
+  return replaceBrand(result);
 };
 
 export const flatpickrI18n = (lang: Language) =>

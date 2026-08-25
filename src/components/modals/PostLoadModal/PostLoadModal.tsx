@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type InputHTMLAttributes, type MouseEvent, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import Flatpickr from 'react-flatpickr';
 import {
   Apple,
   Boxes,
@@ -58,25 +57,24 @@ import {
   Zap,
   type LucideIcon,
 } from 'lucide-react';
-import { Language } from '../../types';
-import { flatpickrI18n, ui } from '../../i18n';
-import { cn } from '../../lib/cn';
-import { confirmAction, showSuccess } from '../../lib/swal';
-import { useLocationAutocomplete } from '../../hooks/useLocationAutocomplete';
-import { useOutsideClick } from '../../hooks/useOutsideClick';
-import { LocationSearchResult, searchLocations } from '../../services/locationSearch';
-import { Button } from '../ui/Button';
-import { AI_DISPATCH_SUBJECT_PREFIX, api, ApiError, ApiUser, HsCodeMatch, LoadScanResult } from '../../services/api';
-import { CustomerSelect, customerOptionFromRecord, type CustomerOption } from '../customer/CustomerSelect';
-import { HsCodeChip } from '../hs/HsCodeChip';
-import { AddressMapModal } from '../maps/AddressMapModal';
-import { RouteMapModal } from '../maps/RouteMapModal';
-import { CountrySelect } from '../location/CountrySelect';
-import { PACKAGE_TYPES } from '../../data/packageTypes';
-import { SEA_PORTS, SeaPort } from '../../data/seaPorts';
-import { DocumentDropzone } from './DocumentDropzone';
-import { ScanResultModal } from './ScanResultModal';
-import { ScanFieldPatch, deriveGoodsTypeCode, deriveGoodsTypeName, stripHsCodesForPayload, resolveHsCodes, hsSectionIcon } from './scanFieldRows';
+import { Language } from '../../../types';
+import { ui } from '../../../i18n';
+import { cn } from '../../../lib/cn';
+import { confirmAction, showSuccess } from '../../../lib/swal';
+import { useOutsideClick } from '../../../hooks/useOutsideClick';
+import { searchLocations } from '../../../services/locationSearch';
+import { Button } from '../../ui/Button';
+import { AI_DISPATCH_SUBJECT_PREFIX, api, ApiError, ApiUser, HsCodeMatch, LoadScanResult } from '../../../services/api';
+import { CustomerSelect, customerOptionFromRecord, type CustomerOption } from '../../customer/CustomerSelect';
+import { HsCodeChip } from '../../hs/HsCodeChip';
+import { AddressMapModal } from '../../maps/AddressMapModal';
+import { RouteMapModal } from '../../maps/RouteMapModal';
+import { CountrySelect } from '../../location/CountrySelect';
+import { PACKAGE_TYPES } from '../../../data/packageTypes';
+import { SEA_PORTS, SeaPort } from '../../../data/seaPorts';
+import { DocumentDropzone } from '../DocumentDropzone';
+import { ScanResultModal } from '../ScanResultModal';
+import { ScanFieldPatch, deriveGoodsTypeCode, deriveGoodsTypeName, stripHsCodesForPayload, resolveHsCodes, hsSectionIcon } from '../scanFieldRows';
 import {
   AIR_CHARACTERISTIC_OPTIONS,
   AIR_LOADING_EQUIPMENT_OPTIONS,
@@ -90,343 +88,34 @@ import {
   ROAD_CHARACTERISTIC_OPTIONS,
   SEA_LOADING_EQUIPMENT_OPTIONS,
   VEHICLE_OPTIONS,
-} from './loadFormOptions';
-
-type PostLoadModalProps = {
-  isOpen: boolean;
-  onClose: () => void;
-  lang: Language;
-  editLoadId?: number | string | null;
-  onSaved?: (load: Record<string, unknown>) => void;
-  initialPrefill?: ScanFieldPatch | null;
-  onOpenLenaAI?: () => void;
-  // The conversation this draft came from (if opened via the LenaAI canvas's "Spasi kao draft i
-  // nastavi sa objavom" button) and its already-persisted load_drafts row id, if any.
-  sourceConversationId?: string | number | null;
-  initialDraftId?: string | number | null;
-  // Fired the first time a manually-started draft (no sourceConversationId) is saved and a fresh
-  // LenaAI conversation gets created for it, so the app behind the modal can jump to Messages.
-  onDraftConversationCreated?: (conversationId: string) => void;
-};
-
-type StepId = 'cargo' | 'route' | 'terms' | 'contact' | 'review';
-type TransportType = 'road' | 'air' | 'sea';
-type ScannedDocument = { id: string; imageDataUrl: string | null; result: LoadScanResult };
-
-type LoadDraft = {
-  consignee: CustomerOption | null;
-  bookingReference: string;
-  transportType: TransportType;
-  pickupPlaceType: string;
-  pickupCity: string;
-  pickupCountry: string;
-  pickupAddress: string;
-  // Sea only - the selected port of loading (POL), kept separate from pickupAddress so a sea
-  // shipment can carry both the port AND a door pickup address (Door to Port) at once.
-  pickupPort: string;
-  pickupLatitude: string;
-  pickupLongitude: string;
-  pickupDate: string;
-  pickupDateTo: string;
-  pickupTimeFrom: string;
-  pickupTimeTo: string;
-  pickupWindow: string;
-  deliveryPlaceType: string;
-  deliveryCity: string;
-  deliveryCountry: string;
-  deliveryAddress: string;
-  // Sea only - the selected port of discharge (POD), kept separate from deliveryAddress so a sea
-  // shipment can carry both the port AND a door delivery address (Port to Door) at once.
-  deliveryPort: string;
-  deliveryLatitude: string;
-  deliveryLongitude: string;
-  deliveryDate: string;
-  deliveryDateTo: string;
-  deliveryTimeFrom: string;
-  deliveryTimeTo: string;
-  deliveryWindow: string;
-  // Sea only - expected transit time between the port of loading (POL) and port of discharge
-  // (POD), shown instead of a road-style driving distance.
-  transitDays: string;
-  loadTitle: string;
-  cargoType: string;
-  goodsType: string;
-  hsCodes: HsCodeMatch[];
-  weightKg: string;
-  pallets: string;
-  quantityMeasure: string;
-  lengthM: string;
-  widthM: string;
-  heightM: string;
-  volumeM3: string;
-  declaredValue: string;
-  additionalInfo: string;
-  loadingEquipment: string[];
-  vehicleType: string;
-  bodyTypes: string[];
-  characteristics: string[];
-  specialRequirements: string[];
-  transportMode: string;
-  deliveryProof: string;
-  mustBeTrackable: boolean;
-  paymentDeferred: boolean;
-  incoterm: string;
-  budget: string;
-  freightCurrency: string;
-  shipmentValueCurrency: string;
-  paymentDueDays: string;
-  receivePriceProposals: boolean;
-  temperatureControlled: boolean;
-  temperatureMin: string;
-  temperatureMax: string;
-  requiresAdr: boolean;
-  requiresTailLift: boolean;
-  tollRoadsIncluded: boolean;
-  ferryIncluded: boolean;
-  cmrRequired: boolean;
-  palletExchangeRequired: boolean;
-  customsRequired: boolean;
-  insuranceRequired: boolean;
-  certificationRequired: boolean;
-  inspectionServicesRequired: boolean;
-  urgent: boolean;
-  notes: string;
-  contactName: string;
-  contactPhone: string;
-  contactEmail: string;
-  contactFax: string;
-  contactMobile: string;
-  showEmail: boolean;
-  showPhone: boolean;
-  showFax: boolean;
-  showMobile: boolean;
-  internalComments: string;
-  externalComments: string;
-  closedFreightExchange: string;
-  closedFreightComments: string;
-  publishToAllAfterMinutes: boolean;
-  publishDelayMinutes: string;
-};
-
-const INITIAL_DRAFT: LoadDraft = {
-  consignee: null,
-  bookingReference: '',
-  transportType: 'road',
-  pickupPlaceType: 'Warehouse',
-  pickupCity: '',
-  pickupCountry: 'BA',
-  pickupAddress: '',
-  pickupPort: '',
-  pickupLatitude: '',
-  pickupLongitude: '',
-  pickupDate: '',
-  pickupDateTo: '',
-  pickupTimeFrom: '',
-  pickupTimeTo: '',
-  pickupWindow: '',
-  deliveryPlaceType: 'Warehouse',
-  deliveryCity: '',
-  deliveryCountry: 'BA',
-  deliveryAddress: '',
-  deliveryPort: '',
-  deliveryLatitude: '',
-  deliveryLongitude: '',
-  deliveryDate: '',
-  deliveryDateTo: '',
-  deliveryTimeFrom: '',
-  deliveryTimeTo: '',
-  deliveryWindow: '',
-  transitDays: '',
-  loadTitle: '',
-  cargoType: 'FTL',
-  goodsType: 'General',
-  hsCodes: [],
-  weightKg: '',
-  pallets: '',
-  quantityMeasure: '',
-  lengthM: '',
-  widthM: '',
-  heightM: '',
-  volumeM3: '',
-  declaredValue: '',
-  additionalInfo: '',
-  loadingEquipment: [],
-  vehicleType: 'Box Truck',
-  bodyTypes: ['Curtain'],
-  characteristics: [],
-  specialRequirements: [],
-  transportMode: 'Airport to airport',
-  deliveryProof: '',
-  mustBeTrackable: false,
-  paymentDeferred: false,
-  incoterm: '',
-  budget: '',
-  freightCurrency: 'EUR',
-  shipmentValueCurrency: 'EUR',
-  paymentDueDays: '',
-  receivePriceProposals: true,
-  temperatureControlled: false,
-  temperatureMin: '',
-  temperatureMax: '',
-  requiresAdr: false,
-  requiresTailLift: false,
-  tollRoadsIncluded: false,
-  ferryIncluded: false,
-  cmrRequired: true,
-  palletExchangeRequired: false,
-  customsRequired: false,
-  insuranceRequired: false,
-  certificationRequired: false,
-  inspectionServicesRequired: false,
-  urgent: false,
-  notes: '',
-  contactName: '',
-  contactPhone: '',
-  contactEmail: '',
-  contactFax: '',
-  contactMobile: '',
-  showEmail: true,
-  showPhone: true,
-  showFax: false,
-  showMobile: true,
-  internalComments: '',
-  externalComments: '',
-  closedFreightExchange: '',
-  closedFreightComments: '',
-  publishToAllAfterMinutes: false,
-  publishDelayMinutes: '5',
-};
-
-const toApiDateTime = (date: string, time = '00:00') => {
-  const match = date.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
-  return match ? `${match[3]}-${match[2]}-${match[1]}T${time || '00:00'}:00` : null;
-};
-
-const toApiDate = (date: string) => {
-  const match = date.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
-  return match ? `${match[3]}-${match[2]}-${match[1]}` : null;
-};
-
-const fromApiDateTime = (value: unknown) => {
-  if (!value) return { date: '', time: '' };
-  const parsed = new Date(String(value));
-  if (Number.isNaN(parsed.getTime())) return { date: '', time: '' };
-  return { date: `${String(parsed.getDate()).padStart(2, '0')}.${String(parsed.getMonth() + 1).padStart(2, '0')}.${parsed.getFullYear()}`, time: `${String(parsed.getHours()).padStart(2, '0')}:${String(parsed.getMinutes()).padStart(2, '0')}` };
-};
-
-const fromApiWeightKg = (value: unknown) => {
-  const weightKg = Number(value);
-  if (!Number.isFinite(weightKg) || weightKg <= 0) return '';
-  return String(weightKg / 1000);
-};
-
-const toApiWeightKg = (weightTonnes: string) => Number(weightTonnes) * 1000;
-
-// Shared by the real /loads payload (submit) and the /load-drafts payload (save draft) — every
-// field except the route, which the two resources store differently (loads uses a separate
-// load_stops table, load_drafts flattens pickup_*/delivery_* columns onto itself).
-const buildLoadFieldsPayload = (draft: LoadDraft) => ({
-  consignee_customer_id: draft.consignee?.id || null,
-  booking_reference: draft.bookingReference || null,
-  title: draft.loadTitle,
-  transport_type: draft.transportType,
-  cargo_type: draft.cargoType,
-  goods_type: deriveGoodsTypeCode(draft.hsCodes, draft.goodsType),
-  hs_codes: stripHsCodesForPayload(draft.hsCodes),
-  weight_kg: toApiWeightKg(draft.weightKg),
-  length_m: draft.lengthM ? Number(draft.lengthM) : null,
-  width_m: draft.widthM ? Number(draft.widthM) : null,
-  height_m: draft.heightM ? Number(draft.heightM) : null,
-  volume_m3: draft.volumeM3 ? Number(draft.volumeM3) : null,
-  pallets: draft.pallets ? Number(draft.pallets) : null,
-  quantity_measure: draft.quantityMeasure || null,
-  declared_value: draft.declaredValue ? Number(draft.declaredValue) : null,
-  shipment_value_currency: draft.shipmentValueCurrency,
-  budget: draft.budget ? Number(draft.budget) : null,
-  is_negotiable: draft.receivePriceProposals,
-  currency: draft.freightCurrency,
-  payment_terms: draft.paymentDeferred ? 'deferred' : 'on_delivery',
-  incoterms: draft.incoterm || null,
-  payment_due_days: draft.paymentDeferred && draft.paymentDueDays ? Number(draft.paymentDueDays) : null,
-  temperature_min: draft.temperatureControlled && draft.temperatureMin ? Number(draft.temperatureMin) : null,
-  temperature_max: draft.temperatureControlled && draft.temperatureMax ? Number(draft.temperatureMax) : null,
-  loading_methods: draft.loadingEquipment,
-  vehicle_type: draft.transportType === 'road' ? draft.vehicleType : null,
-  transport_mode: draft.transportType === 'air' ? draft.transportMode : null,
-  special_requirements: draft.transportType === 'air' ? draft.specialRequirements : [],
-  characteristics: draft.characteristics,
-  delivery_proof: draft.transportType === 'air' ? draft.deliveryProof || null : null,
-  transit_days: draft.transportType === 'sea' && draft.transitDays ? Number(draft.transitDays) : null,
-  requires_adr: draft.requiresAdr,
-  requires_tail_lift: draft.requiresTailLift,
-  toll_roads_included: draft.tollRoadsIncluded,
-  ferry_included: draft.ferryIncluded,
-  cmr_required: draft.cmrRequired,
-  pallet_exchange_required: draft.palletExchangeRequired,
-  customs_required: draft.customsRequired,
-  insurance_required: draft.insuranceRequired,
-  certification_required: draft.certificationRequired,
-  inspection_services_required: draft.inspectionServicesRequired,
-  must_be_trackable: draft.mustBeTrackable,
-  is_urgent: draft.urgent,
-  body_types: draft.bodyTypes,
-  contact: { name: draft.contactName, phone: draft.contactPhone, mobile: draft.contactMobile, email: draft.contactEmail, fax: draft.contactFax },
-  notes: draft.notes || draft.additionalInfo || null,
-  internal_comments: draft.internalComments || null,
-  external_comments: draft.externalComments || null,
-});
-
-const buildLoadStopsPayload = (draft: LoadDraft) => [
-  { type: 'pickup', position: 1, place_type: draft.pickupPlaceType, city: draft.pickupCity, country_code: draft.pickupCountry, address: draft.pickupAddress || null, port: draft.transportType === 'sea' ? draft.pickupPort || null : null, latitude: draft.pickupLatitude ? Number(draft.pickupLatitude) : null, longitude: draft.pickupLongitude ? Number(draft.pickupLongitude) : null, window_starts_at: toApiDateTime(draft.pickupDate, draft.pickupTimeFrom), window_ends_at: toApiDateTime(draft.pickupDateTo || draft.pickupDate, draft.pickupTimeTo || draft.pickupTimeFrom) },
-  { type: 'delivery', position: 2, place_type: draft.deliveryPlaceType, city: draft.deliveryCity, country_code: draft.deliveryCountry, address: draft.deliveryAddress || null, port: draft.transportType === 'sea' ? draft.deliveryPort || null : null, latitude: draft.deliveryLatitude ? Number(draft.deliveryLatitude) : null, longitude: draft.deliveryLongitude ? Number(draft.deliveryLongitude) : null, window_starts_at: toApiDateTime(draft.deliveryDate, draft.deliveryTimeFrom), window_ends_at: toApiDateTime(draft.deliveryDateTo || draft.deliveryDate, draft.deliveryTimeTo || draft.deliveryTimeFrom) },
-];
-
-const buildLoadPayload = (draft: LoadDraft) => ({ ...buildLoadFieldsPayload(draft), stops: buildLoadStopsPayload(draft) });
-
-const buildDraftPayload = (draft: LoadDraft) => ({
-  ...buildLoadFieldsPayload(draft),
-  pickup_place_type: draft.pickupPlaceType || null,
-  pickup_city: draft.pickupCity || null,
-  pickup_country_code: draft.pickupCountry || null,
-  pickup_address: draft.pickupAddress || null,
-  pickup_port: draft.transportType === 'sea' ? draft.pickupPort || null : null,
-  pickup_latitude: draft.pickupLatitude ? Number(draft.pickupLatitude) : null,
-  pickup_longitude: draft.pickupLongitude ? Number(draft.pickupLongitude) : null,
-  pickup_date: toApiDate(draft.pickupDate),
-  pickup_date_to: toApiDate(draft.pickupDateTo || draft.pickupDate),
-  pickup_time_from: draft.pickupTimeFrom || null,
-  pickup_time_to: draft.pickupTimeTo || draft.pickupTimeFrom || null,
-  delivery_place_type: draft.deliveryPlaceType || null,
-  delivery_city: draft.deliveryCity || null,
-  delivery_country_code: draft.deliveryCountry || null,
-  delivery_address: draft.deliveryAddress || null,
-  delivery_port: draft.transportType === 'sea' ? draft.deliveryPort || null : null,
-  delivery_latitude: draft.deliveryLatitude ? Number(draft.deliveryLatitude) : null,
-  delivery_longitude: draft.deliveryLongitude ? Number(draft.deliveryLongitude) : null,
-  delivery_date: toApiDate(draft.deliveryDate),
-  delivery_date_to: toApiDate(draft.deliveryDateTo || draft.deliveryDate),
-  delivery_time_from: draft.deliveryTimeFrom || null,
-  delivery_time_to: draft.deliveryTimeTo || draft.deliveryTimeFrom || null,
-});
-
-const routePosition = (latitude: string, longitude: string): [number, number] | null => {
-  // Number('') is 0, not NaN - without this guard a missing coordinate silently becomes a "valid"
-  // (0, 0) position instead of no position, which showed up as a bogus "0 km" route distance.
-  if (!latitude.trim() || !longitude.trim()) return null;
-  const lat = Number(latitude);
-  const lng = Number(longitude);
-  return Number.isFinite(lat) && Number.isFinite(lng) ? [lat, lng] : null;
-};
-
-const estimatedDrivingDistanceKm = (from: [number, number], to: [number, number]) => {
-  const radians = (value: number) => (value * Math.PI) / 180;
-  const [fromLat, fromLng] = from;
-  const [toLat, toLng] = to;
-  const a = Math.sin(radians(toLat - fromLat) / 2) ** 2
-    + Math.cos(radians(fromLat)) * Math.cos(radians(toLat)) * Math.sin(radians(toLng - fromLng) / 2) ** 2;
-  return Math.round(6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 1.18);
-};
-
+} from '../loadFormOptions';
+import type { PostLoadModalProps, StepId, TransportType, ScannedDocument, LoadDraft } from './types';
+import { INITIAL_DRAFT } from './types';
+import {
+  toApiDateTime,
+  toApiDate,
+  fromApiDateTime,
+  fromApiWeightKg,
+  toApiWeightKg,
+  buildLoadFieldsPayload,
+  buildLoadStopsPayload,
+  buildLoadPayload,
+  buildDraftPayload,
+  routePosition,
+  estimatedDrivingDistanceKm,
+  deriveAirTransportMode,
+} from './payload';
+import { ScrollableRow } from './ScrollableRow';
+import { FieldLabel } from './FieldLabel';
+import { Input, Textarea, Select } from './FormFields';
+import { AddressAutocompleteField } from './AddressAutocompleteField';
+import { PortAutocompleteField } from './PortAutocompleteField';
+import { RoutePoint } from './RoutePoint';
+import { TimeInput } from './TimeInput';
+import { DateInput } from './DateInput';
+import { ToggleCard } from './ToggleCard';
+import { ChoiceCard } from './ChoiceCard';
+import { SummaryRow } from './SummaryRow';
 
 const STEPS: Array<{ id: StepId; icon: typeof MapPin }> = [
   { id: 'cargo', icon: Package },
@@ -446,383 +135,6 @@ const STEP_AI_FIELDS: Record<StepId, Array<keyof ScanFieldPatch & keyof LoadDraf
   review: [],
 };
 
-const FieldLabel = ({
-  children,
-  ai,
-  title,
-  onReprefill,
-}: {
-  children: string;
-  ai?: boolean;
-  title?: string;
-  onReprefill?: () => void;
-}) => (
-  <label
-    onClick={ai ? onReprefill : undefined}
-    title={ai ? title : undefined}
-    className={cn(
-      'ml-1 text-[10px] font-bold uppercase tracking-wider',
-      ai ? 'inline-flex cursor-pointer items-center gap-1 text-primary' : 'text-slate-500'
-    )}
-  >
-    {children}
-    {ai && <Sparkles className="h-2.5 w-2.5 shrink-0" />}
-  </label>
-);
-
-const Input = (props: InputHTMLAttributes<HTMLInputElement>) => (
-  <input
-    {...props}
-    className={cn(
-      'w-full h-[54px] cursor-text px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-white outline-none focus:ring-2 focus:ring-primary text-sm',
-      props.type === 'date' &&
-        'pr-3 text-[13px] leading-[54px] [color-scheme:light] dark:[color-scheme:dark] [&::-webkit-datetime-edit]:text-[12px] [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-100',
-      props.className
-    )}
-  />
-);
-
-const Textarea = (props: TextareaHTMLAttributes<HTMLTextAreaElement>) => (
-  <textarea
-    {...props}
-    className={cn(
-      'w-full p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-white outline-none focus:ring-2 focus:ring-primary resize-none text-sm',
-      props.className
-    )}
-  />
-);
-
-const Select = (props: SelectHTMLAttributes<HTMLSelectElement>) => (
-  <select
-    {...props}
-    className={cn(
-      'w-full h-[54px] cursor-pointer px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-white outline-none focus:ring-2 focus:ring-primary text-sm appearance-none',
-      props.className
-    )}
-  />
-);
-
-const AddressAutocompleteField = ({
-  value,
-  onChange,
-  onSelectLocation,
-  placeholder,
-  onOpenMap,
-  mapButtonLabel,
-  mapButtonIcon: MapButtonIcon = MapPin,
-  accentClassName,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  onSelectLocation: (location: LocationSearchResult) => void;
-  placeholder: string;
-  onOpenMap: () => void;
-  mapButtonLabel: string;
-  mapButtonIcon?: LucideIcon;
-  accentClassName: string;
-}) => {
-  const { results, loading, isOpen, open, close, select } = useLocationAutocomplete(value);
-  const containerRef = useRef<HTMLDivElement>(null);
-  useOutsideClick(containerRef, close, isOpen);
-
-  return (
-    <div ref={containerRef} className="relative">
-      <Input
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        onFocus={open}
-        className="pr-12"
-        placeholder={placeholder}
-      />
-      <button
-        type="button"
-        onClick={onOpenMap}
-        aria-label={mapButtonLabel}
-        className={cn('absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg hover:bg-primary/10', accentClassName)}
-      >
-        <MapButtonIcon className="h-5 w-5" />
-      </button>
-      {loading && <Loader2 className="pointer-events-none absolute right-14 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />}
-      {isOpen && (
-        <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-900">
-          {results.map((result) => (
-            <button
-              key={result.id}
-              type="button"
-              onClick={() => {
-                select(result.label);
-                onSelectLocation(result);
-              }}
-              className="flex w-full cursor-pointer items-start gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
-            >
-              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-              <span className="truncate">{result.label}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-// Sea's Origin/Destination equivalent of AddressAutocompleteField above - same visual shell (type
-// to filter, click a suggestion) but backed by the static SEA_PORTS list instead of a Nominatim
-// geocoder, since there is no reason to hit the network for a fixed set of ~60 commercial ports.
-const PortAutocompleteField = ({
-  value,
-  onChange,
-  onSelectPort,
-  placeholder,
-  noResultsLabel,
-  accentClassName,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  onSelectPort: (port: SeaPort) => void;
-  placeholder: string;
-  noResultsLabel: string;
-  accentClassName: string;
-}) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  useOutsideClick(containerRef, () => setIsOpen(false), isOpen);
-
-  const query = value.trim().toLocaleLowerCase();
-  const results = query === ''
-    ? SEA_PORTS
-    : SEA_PORTS.filter((port) => `${port.port} ${port.city} ${port.country} ${port.unlocode}`.toLocaleLowerCase().includes(query));
-
-  return (
-    <div ref={containerRef} className="relative">
-      <Input
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        onFocus={() => setIsOpen(true)}
-        placeholder={placeholder}
-      />
-      <Ship className={cn('pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2', accentClassName)} />
-      {isOpen && (
-        <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-900">
-          {results.length === 0 && (
-            <p className="px-3 py-2 text-sm text-slate-400">{noResultsLabel}</p>
-          )}
-          {results.map((port) => (
-            <button
-              key={port.unlocode}
-              type="button"
-              onClick={() => {
-                onSelectPort(port);
-                setIsOpen(false);
-              }}
-              className="flex w-full cursor-pointer items-start gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
-            >
-              <Ship className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-              <span className="truncate">{port.port} — {port.city}, {port.country} — {port.unlocode}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-// One stop on the sea route timeline (icon + label + value) - keeps the four points (origin
-// address, POL, POD, destination address) visually identical instead of four hand-copied blocks.
-const RoutePoint = ({
-  icon: Icon,
-  iconClassName,
-  label,
-  value,
-  align = 'left',
-}: {
-  icon: LucideIcon;
-  iconClassName: string;
-  label: string;
-  value: string;
-  align?: 'left' | 'right';
-}) => {
-  const icon = (
-    <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white shadow-lg', iconClassName)}>
-      <Icon className="h-4 w-4" />
-    </span>
-  );
-  const text = (
-    <div className={cn('mt-0.5 shrink-0', align === 'right' && 'text-right')}>
-      <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">{label}</p>
-      <p className={cn('w-[10rem] truncate text-xs font-bold text-slate-900 dark:text-white', align === 'right' && 'ml-auto')}>{value}</p>
-    </div>
-  );
-  return (
-    <div className="flex shrink-0 items-center gap-2">
-      {align === 'left' ? <>{icon}{text}</> : <>{text}{icon}</>}
-    </div>
-  );
-};
-
-const TimeInput = ({
-  value,
-  onChange,
-  placeholder,
-  lang,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-  lang: Language;
-}) => (
-  <div className="w-full">
-    <Flatpickr
-      value={value}
-      options={{
-        enableTime: true,
-        noCalendar: true,
-        dateFormat: 'H:i',
-        time_24hr: true,
-        minuteIncrement: 5,
-        locale: flatpickrI18n(lang),
-        onReady: (_dates, _dateStr, instance) => instance.calendarContainer?.classList.add('smart-time-flatpickr'),
-        onOpen: (_dates, _dateStr, instance) => instance.calendarContainer?.classList.add('smart-time-flatpickr'),
-      }}
-      onChange={(_, dateStr) => onChange(dateStr)}
-      render={(_, ref) => (
-        <div className="relative">
-          <input
-            ref={ref}
-            value={value}
-            onChange={() => undefined}
-            placeholder={placeholder}
-            className="h-[54px] w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 pr-11 text-sm outline-none focus:ring-2 focus:ring-primary dark:border-slate-800 dark:bg-slate-950 dark:text-white"
-          />
-          <Clock3 className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" />
-        </div>
-      )}
-    />
-  </div>
-);
-
-const DateInput = ({
-  value,
-  onChange,
-  placeholder,
-  lang,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-  lang: Language;
-}) => (
-  <div className="w-full">
-    <Flatpickr
-      value={value}
-      options={{
-        dateFormat: 'd.m.Y',
-        locale: flatpickrI18n(lang),
-        allowInput: true,
-      }}
-      onChange={(_, dateStr) => onChange(dateStr)}
-      render={(_, ref) => (
-        <div className="relative">
-          <input
-            ref={ref}
-            value={value}
-            onChange={() => undefined}
-            placeholder={placeholder}
-            className="h-[54px] w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 pr-11 text-sm outline-none focus:ring-2 focus:ring-primary dark:border-slate-800 dark:bg-slate-950 dark:text-white"
-          />
-          <CalendarDays className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" />
-        </div>
-      )}
-    />
-  </div>
-);
-
-const ToggleCard = ({
-  active,
-  title,
-  description,
-  icon: Icon,
-  onClick,
-}: {
-  active: boolean;
-  title: string;
-  description: string;
-  icon?: LucideIcon;
-  onClick: () => void;
-}) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={cn(
-      'flex cursor-pointer flex-col items-start rounded-2xl border px-4 py-3 text-left transition-all',
-      active
-        ? 'border-primary bg-primary/5 shadow-sm'
-        : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-primary/40'
-    )}
-  >
-    {Icon && (
-      <Icon
-        className={cn(
-          'mb-2 h-5 w-5',
-          active ? 'text-primary' : 'text-slate-400'
-        )}
-      />
-    )}
-    <p className="w-full truncate text-sm font-bold dark:text-white" title={title}>{title}</p>
-    <p className="mt-1 w-full overflow-hidden text-xs text-slate-500 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">{description}</p>
-  </button>
-);
-
-const ChoiceCard = ({
-  active,
-  title,
-  description,
-  icon: Icon,
-  onClick,
-  compact = false,
-  className,
-  nowrap = false,
-}: {
-  active: boolean;
-  title: string;
-  description?: string;
-  icon: typeof MapPin;
-  onClick: (event: MouseEvent<HTMLButtonElement>) => void;
-  compact?: boolean;
-  className?: string;
-  nowrap?: boolean;
-}) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={cn(
-      'relative flex min-w-0 cursor-pointer items-center gap-3 rounded-2xl border text-left transition-all',
-      compact ? 'p-3' : 'p-4',
-      active
-        ? 'border-primary bg-primary/10 text-primary shadow-sm ring-1 ring-primary/20'
-        : 'border-slate-200 bg-white text-slate-700 hover:border-primary/40 hover:bg-primary/5 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200',
-      className
-    )}
-  >
-    <span className={cn('flex shrink-0 items-center justify-center rounded-xl', compact ? 'h-9 w-9' : 'h-10 w-10', active ? 'bg-primary text-white' : 'bg-slate-100 text-slate-500 dark:bg-slate-800')}>
-      <Icon className="h-4 w-4" />
-    </span>
-    <span className="min-w-0"><span className={cn('block text-sm font-bold', nowrap && 'whitespace-nowrap')}>{title}</span>{description && <span className="mt-0.5 block text-xs text-slate-500">{description}</span>}</span>
-    {active && <CheckCircle2 className="absolute right-3 top-3 h-4 w-4 text-primary" />}
-  </button>
-);
-
-const SummaryRow = ({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) => (
-  <div className="flex items-start justify-between gap-4 py-2 border-b border-slate-100 dark:border-slate-800 last:border-b-0">
-    <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">{label}</span>
-    <span className="text-sm font-medium text-right dark:text-white">{value || '—'}</span>
-  </div>
-);
 
 export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSaved, initialPrefill = null, onOpenLenaAI, sourceConversationId = null, initialDraftId = null, onDraftConversationCreated }: PostLoadModalProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
@@ -985,7 +297,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         deliveryPlaceType: String(delivery.place_type || INITIAL_DRAFT.deliveryPlaceType), deliveryCity: String(delivery.city || ''), deliveryCountry: String(delivery.country_code || 'BA'), deliveryAddress: String(delivery.address || ''), deliveryPort: String(delivery.port || ''), deliveryLatitude: String(delivery.latitude || ''), deliveryLongitude: String(delivery.longitude || ''), deliveryDate: deliveryStart.date, deliveryDateTo: deliveryEnd.date, deliveryTimeFrom: deliveryStart.time, deliveryTimeTo: deliveryEnd.time,
         transitDays: String(record.transit_days || ''),
         loadTitle: String(record.title || ''), cargoType: String(record.cargo_type || 'FTL'), goodsType: String(record.goods_type || 'General'), hsCodes, weightKg: fromApiWeightKg(record.weight_kg), pallets: String(record.pallets || ''), quantityMeasure: String(record.quantity_measure || ''), lengthM: String(record.length_m || ''), widthM: String(record.width_m || ''), heightM: String(record.height_m || ''), volumeM3: String(record.volume_m3 || ''), declaredValue: String(record.declared_value || ''), budget: String(record.budget || ''), freightCurrency: String(record.currency || 'EUR'), shipmentValueCurrency: String(record.shipment_value_currency || record.currency || 'EUR'), paymentDueDays: String(record.payment_due_days || ''), paymentDeferred: terms === 'deferred', incoterm: String(record.incoterms || ''),
-        loadingEquipment: Array.isArray(record.loading_methods) ? record.loading_methods.map(String) : [], vehicleType: String(record.vehicle_type || INITIAL_DRAFT.vehicleType), characteristics: Array.isArray(record.characteristics) ? record.characteristics.map(String) : [], specialRequirements: Array.isArray(record.special_requirements) ? record.special_requirements.map(String) : [], transportMode: String(record.transport_mode || INITIAL_DRAFT.transportMode), deliveryProof: String(record.delivery_proof || ''), temperatureControlled: record.temperature_min != null || record.temperature_max != null, temperatureMin: String(record.temperature_min ?? ''), temperatureMax: String(record.temperature_max ?? ''),
+        loadingEquipment: Array.isArray(record.loading_methods) ? record.loading_methods.map(String) : [], vehicleType: String(record.vehicle_type || INITIAL_DRAFT.vehicleType), characteristics: Array.isArray(record.characteristics) ? record.characteristics.map(String) : [], specialRequirements: Array.isArray(record.special_requirements) ? record.special_requirements.map(String) : [], deliveryProof: String(record.delivery_proof || ''), temperatureControlled: record.temperature_min != null || record.temperature_max != null, temperatureMin: String(record.temperature_min ?? ''), temperatureMax: String(record.temperature_max ?? ''),
         requiresAdr: Boolean(record.requires_adr), requiresTailLift: Boolean(record.requires_tail_lift), tollRoadsIncluded: Boolean(record.toll_roads_included), ferryIncluded: Boolean(record.ferry_included), cmrRequired: record.cmr_required == null ? true : Boolean(record.cmr_required), palletExchangeRequired: Boolean(record.pallet_exchange_required), customsRequired: Boolean(record.customs_required), insuranceRequired: Boolean(record.insurance_required), certificationRequired: Boolean(record.certification_required), inspectionServicesRequired: Boolean(record.inspection_services_required), mustBeTrackable: Boolean(record.must_be_trackable), urgent: Boolean(record.is_urgent), receivePriceProposals: record.is_negotiable == null ? true : Boolean(record.is_negotiable), bodyTypes: Array.isArray(record.body_types) ? record.body_types.map(String) : [], notes: String(record.notes || ''), internalComments: String(record.internal_comments || ''), externalComments: String(record.external_comments || ''), contactName: String(contact.name || ''), contactPhone: String(contact.phone || ''), contactMobile: String(contact.mobile || ''), contactEmail: String(contact.email || ''), contactFax: String(contact.fax || ''),
       });
     }).catch((error) => setSubmitError(error instanceof Error ? error.message : u('postLoadModal.loadFetchError', 'The load could not be loaded.'))).finally(() => setIsLoadingExisting(false));
@@ -1622,8 +934,10 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       <div className="pointer-events-none absolute left-5 right-5 top-1/2 -translate-y-1/2 border-t-2 border-dashed border-sky-300/80 dark:border-sky-700/80" />
                       <div className="relative flex items-center gap-3">
                         <div className="flex min-w-0 flex-1 items-center gap-6">
-                          <RoutePoint icon={MapPin} iconClassName="bg-emerald-500 shadow-emerald-500/20" label={u('postLoadModal.address', 'Adresa')} value={draft.pickupAddress || draft.pickupCity || '—'} />
-                          <RoutePoint icon={Ship} iconClassName="bg-primary shadow-sky-500/20" label="POL" value={draft.pickupPort ? draft.pickupPort.split(' — ')[0] : '—'} />
+                          {draft.pickupPlaceType !== 'Port to Port' && (
+                            <RoutePoint icon={MapPin} iconClassName="bg-emerald-500 shadow-emerald-500/20" label={u('postLoadModal.address', 'Address')} value={draft.pickupAddress || draft.pickupCity || '—'} />
+                          )}
+                          <RoutePoint icon={Ship} iconClassName="bg-primary shadow-sky-500/20" label="POL" value={draft.pickupPort || '—'} />
                         </div>
                         <div className="relative shrink-0 rounded-2xl border border-sky-200 bg-white px-2.5 py-1 text-center shadow-sm dark:border-sky-800 dark:bg-slate-900">
                           <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">ETA</p>
@@ -1636,12 +950,14 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                               placeholder="0"
                               className="w-6 border-0 bg-transparent p-0 text-center text-sm font-black text-slate-900 outline-none dark:text-white"
                             />
-                            {u('postLoadModal.transitDays', 'dana')}
+                            {u('postLoadModal.transitDays', 'days')}
                           </p>
                         </div>
                         <div className="flex min-w-0 flex-1 items-center justify-end gap-6">
-                          <RoutePoint icon={Ship} iconClassName="bg-primary shadow-sky-500/20" label="POD" value={draft.deliveryPort ? draft.deliveryPort.split(' — ')[0] : '—'} align="right" />
-                          <RoutePoint icon={MapPin} iconClassName="bg-blue-500 shadow-blue-500/20" label={u('postLoadModal.address', 'Adresa')} value={draft.deliveryAddress || draft.deliveryCity || '—'} align="right" />
+                          <RoutePoint icon={Ship} iconClassName="bg-primary shadow-sky-500/20" label="POD" value={draft.deliveryPort || '—'} align="right" />
+                          {draft.deliveryPlaceType !== 'Port to Port' && (
+                            <RoutePoint icon={MapPin} iconClassName="bg-blue-500 shadow-blue-500/20" label={u('postLoadModal.address', 'Address')} value={draft.deliveryAddress || draft.deliveryCity || '—'} align="right" />
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1680,12 +996,12 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         </p>
                       </div>
                       <div className="space-y-1.5">
-                        <FieldLabel>{draft.transportType === 'sea' ? u('postLoadModal.seaOriginType', 'Tip polazišta') : u('postLoadModal.pickupPlaceType', 'Place type')}</FieldLabel>
-                        <div className="grid grid-cols-2 gap-2">
+                        <FieldLabel>{draft.transportType === 'sea' ? u('postLoadModal.seaOriginType', 'Origin type') : u('postLoadModal.pickupPlaceType', 'Place type')}</FieldLabel>
+                        <div className={cn('grid grid-cols-2', draft.transportType === 'sea' ? 'gap-4' : 'gap-2')}>
                           {(draft.transportType === 'sea'
                             ? [
-                                { value: 'Port to Port', label: u('postLoadModal.portToPort', 'Port to Port'), icon: Ship },
-                                { value: 'Door to Port', label: u('postLoadModal.doorToPort', 'Door to Port'), icon: Truck },
+                                { value: 'Port to Port', label: u('postLoadModal.portToPort', 'Port'), icon: Ship },
+                                { value: 'Door to Port', label: u('postLoadModal.doorToPort', 'Address'), icon: Truck },
                               ]
                             : draft.transportType === 'air'
                             ? [
@@ -1710,45 +1026,47 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           ))}
                         </div>
                       </div>
-                      {draft.transportType === 'sea' && (
-                        <div className="space-y-1.5">
-                          <FieldLabel>{u('postLoadModal.pol', 'Luka utovara (POL)')}</FieldLabel>
-                          <PortAutocompleteField
-                            value={draft.pickupPort}
-                            onChange={(value) => setField('pickupPort', value)}
-                            onSelectPort={(port) => setDraft((current) => ({
-                              ...current,
-                              pickupPort: `${port.port} — ${port.city}, ${port.country} — ${port.unlocode}`,
-                              pickupCity: port.city,
-                              pickupCountry: port.countryCode,
-                            }))}
-                            placeholder={u('postLoadModal.portSearchPlaceholder', 'Pretraga luke, grada, države ili UN/LOCODE')}
-                            noResultsLabel={u('postLoadModal.noResults', 'Nema rezultata')}
-                            accentClassName="text-emerald-500"
-                          />
-                        </div>
-                      )}
-                      <div className="space-y-1.5">
-                        <FieldLabel>
-                          {draft.transportType === 'sea' ? u('postLoadModal.doorAddress', 'Adresa preuzimanja/isporuke (vrata)') : u('postLoadModal.pickupAddress', 'Pickup address')}
-                        </FieldLabel>
-                        <AddressAutocompleteField
-                          value={draft.pickupAddress}
-                          onChange={(value) => setField('pickupAddress', value)}
-                          onSelectLocation={(location) => setDraft((current) => ({
-                            ...current,
-                            pickupAddress: location.label,
-                            pickupCity: location.city || current.pickupCity,
-                            pickupCountry: location.countryCode || current.pickupCountry,
-                            pickupLatitude: String(location.latitude),
-                            pickupLongitude: String(location.longitude),
-                          }))}
-                          placeholder={u('postLoadModal.pickupAddressPlaceholder', 'Start typing or click the map to select')}
-                          onOpenMap={() => setAddressMap('pickup')}
-                          mapButtonLabel={u('map.choosePickup', 'Choose pickup address on map')}
-                          mapButtonIcon={MapGlyphIcon}
-                          accentClassName="text-emerald-500"
-                        />
+                      <div className={cn(draft.transportType === 'sea' && draft.pickupPlaceType !== 'Port to Port' && 'grid gap-4 sm:grid-cols-2')}>
+                        {draft.transportType === 'sea' && (
+                          <div className="space-y-1.5">
+                            <FieldLabel>{u('postLoadModal.pol', 'Loading Port (POL)')}</FieldLabel>
+                            <PortAutocompleteField
+                              value={draft.pickupPort}
+                              onChange={(value) => setField('pickupPort', value)}
+                              onSelectPort={(port) => setDraft((current) => ({
+                                ...current,
+                                pickupPort: `${port.port} - ${port.unlocode}`,
+                                pickupCity: port.city,
+                                pickupCountry: port.countryCode,
+                              }))}
+                              placeholder={u('postLoadModal.portSearchPlaceholder', 'Search ports')}
+                            />
+                          </div>
+                        )}
+                        {(draft.transportType !== 'sea' || draft.pickupPlaceType !== 'Port to Port') && (
+                          <div className="space-y-1.5">
+                            <FieldLabel>
+                              {draft.transportType === 'sea' ? u('postLoadModal.doorAddress', 'Pickup/Delivery Address (Door)') : u('postLoadModal.pickupAddress', 'Pickup address')}
+                            </FieldLabel>
+                            <AddressAutocompleteField
+                              value={draft.pickupAddress}
+                              onChange={(value) => setField('pickupAddress', value)}
+                              onSelectLocation={(location) => setDraft((current) => ({
+                                ...current,
+                                pickupAddress: location.label,
+                                pickupCity: location.city || current.pickupCity,
+                                pickupCountry: location.countryCode || current.pickupCountry,
+                                pickupLatitude: String(location.latitude),
+                                pickupLongitude: String(location.longitude),
+                              }))}
+                              placeholder={u('postLoadModal.pickupAddressPlaceholder', 'Search places or click the map')}
+                              onOpenMap={() => setAddressMap('pickup')}
+                              mapButtonLabel={u('map.choosePickup', 'Choose pickup address on map')}
+                              mapButtonIcon={MapGlyphIcon}
+                              accentClassName="text-emerald-500"
+                            />
+                          </div>
+                        )}
                       </div>
                       <div className="grid sm:grid-cols-[240px_minmax(0,1fr)] gap-4">
                         <div className="space-y-1.5">
@@ -1812,12 +1130,12 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         </p>
                       </div>
                       <div className="space-y-1.5">
-                        <FieldLabel>{draft.transportType === 'sea' ? u('postLoadModal.seaDestinationType', 'Tip odredišta') : u('postLoadModal.deliveryPlaceType', 'Place type')}</FieldLabel>
-                        <div className="grid grid-cols-2 gap-2">
+                        <FieldLabel>{draft.transportType === 'sea' ? u('postLoadModal.seaDestinationType', 'Destination type') : u('postLoadModal.deliveryPlaceType', 'Place type')}</FieldLabel>
+                        <div className={cn('grid grid-cols-2', draft.transportType === 'sea' ? 'gap-4' : 'gap-2')}>
                           {(draft.transportType === 'sea'
                             ? [
-                                { value: 'Port to Port', label: u('postLoadModal.portToPort', 'Port to Port'), icon: Ship },
-                                { value: 'Port to Door', label: u('postLoadModal.portToDoor', 'Port to Door'), icon: Truck },
+                                { value: 'Port to Port', label: u('postLoadModal.portToPort', 'Port'), icon: Ship },
+                                { value: 'Port to Door', label: u('postLoadModal.portToDoor', 'Address'), icon: Truck },
                               ]
                             : draft.transportType === 'air'
                             ? [
@@ -1842,45 +1160,47 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           ))}
                         </div>
                       </div>
-                      {draft.transportType === 'sea' && (
-                        <div className="space-y-1.5">
-                          <FieldLabel>{u('postLoadModal.pod', 'Luka istovara (POD)')}</FieldLabel>
-                          <PortAutocompleteField
-                            value={draft.deliveryPort}
-                            onChange={(value) => setField('deliveryPort', value)}
-                            onSelectPort={(port) => setDraft((current) => ({
-                              ...current,
-                              deliveryPort: `${port.port} — ${port.city}, ${port.country} — ${port.unlocode}`,
-                              deliveryCity: port.city,
-                              deliveryCountry: port.countryCode,
-                            }))}
-                            placeholder={u('postLoadModal.portSearchPlaceholder', 'Pretraga luke, grada, države ili UN/LOCODE')}
-                            noResultsLabel={u('postLoadModal.noResults', 'Nema rezultata')}
-                            accentClassName="text-blue-500"
-                          />
-                        </div>
-                      )}
-                      <div className="space-y-1.5">
-                        <FieldLabel>
-                          {draft.transportType === 'sea' ? u('postLoadModal.doorAddress', 'Adresa preuzimanja/isporuke (vrata)') : u('postLoadModal.deliveryAddress', 'Delivery address')}
-                        </FieldLabel>
-                        <AddressAutocompleteField
-                          value={draft.deliveryAddress}
-                          onChange={(value) => setField('deliveryAddress', value)}
-                          onSelectLocation={(location) => setDraft((current) => ({
-                            ...current,
-                            deliveryAddress: location.label,
-                            deliveryCity: location.city || current.deliveryCity,
-                            deliveryCountry: location.countryCode || current.deliveryCountry,
-                            deliveryLatitude: String(location.latitude),
-                            deliveryLongitude: String(location.longitude),
-                          }))}
-                          placeholder={u('postLoadModal.deliveryAddressPlaceholder', 'Start typing or click the map to select')}
-                          onOpenMap={() => setAddressMap('delivery')}
-                          mapButtonLabel={u('map.chooseDelivery', 'Choose delivery address on map')}
-                          mapButtonIcon={MapGlyphIcon}
-                          accentClassName="text-blue-500"
-                        />
+                      <div className={cn(draft.transportType === 'sea' && draft.deliveryPlaceType !== 'Port to Port' && 'grid gap-4 sm:grid-cols-2')}>
+                        {draft.transportType === 'sea' && (
+                          <div className="space-y-1.5">
+                            <FieldLabel>{u('postLoadModal.pod', 'Discharge Port (POD)')}</FieldLabel>
+                            <PortAutocompleteField
+                              value={draft.deliveryPort}
+                              onChange={(value) => setField('deliveryPort', value)}
+                              onSelectPort={(port) => setDraft((current) => ({
+                                ...current,
+                                deliveryPort: `${port.port} - ${port.unlocode}`,
+                                deliveryCity: port.city,
+                                deliveryCountry: port.countryCode,
+                              }))}
+                              placeholder={u('postLoadModal.portSearchPlaceholder', 'Search ports')}
+                            />
+                          </div>
+                        )}
+                        {(draft.transportType !== 'sea' || draft.deliveryPlaceType !== 'Port to Port') && (
+                          <div className="space-y-1.5">
+                            <FieldLabel>
+                              {draft.transportType === 'sea' ? u('postLoadModal.doorAddress', 'Pickup/Delivery Address (Door)') : u('postLoadModal.deliveryAddress', 'Delivery address')}
+                            </FieldLabel>
+                            <AddressAutocompleteField
+                              value={draft.deliveryAddress}
+                              onChange={(value) => setField('deliveryAddress', value)}
+                              onSelectLocation={(location) => setDraft((current) => ({
+                                ...current,
+                                deliveryAddress: location.label,
+                                deliveryCity: location.city || current.deliveryCity,
+                                deliveryCountry: location.countryCode || current.deliveryCountry,
+                                deliveryLatitude: String(location.latitude),
+                                deliveryLongitude: String(location.longitude),
+                              }))}
+                              placeholder={u('postLoadModal.deliveryAddressPlaceholder', 'Search places or click the map')}
+                              onOpenMap={() => setAddressMap('delivery')}
+                              mapButtonLabel={u('map.chooseDelivery', 'Choose delivery address on map')}
+                              mapButtonIcon={MapGlyphIcon}
+                              accentClassName="text-blue-500"
+                            />
+                          </div>
+                        )}
                       </div>
                       <div className="grid sm:grid-cols-[240px_minmax(0,1fr)] gap-4">
                         <div className="space-y-1.5">
@@ -2023,13 +1343,13 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
 
                       <div className="space-y-1.5">
                         <FieldLabel>{u('postLoadModal.cargoModel', 'Shipment type')}</FieldLabel>
-                        <div className="overflow-x-auto pb-2 [scroll-padding-inline:0.25rem] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory">
+                        <ScrollableRow className="pb-2">
                           <div className="flex w-max gap-2 px-1">
                           {shipmentTypeOptions[draft.transportType].map((option) => (
                             <ChoiceCard key={option} compact nowrap className="w-auto snap-start shrink-0 justify-start pl-3 pr-7 text-left" active={draft.cargoType === option} title={option} icon={option === 'Charter' ? Plane : option === 'Express' || option === 'Priority' ? Clock3 : Package} onClick={(event) => { setField('cargoType', option); event.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' }); }} />
                           ))}
                           </div>
-                        </div>
+                        </ScrollableRow>
                       </div>
 
                       <div className="space-y-1.5">
@@ -2284,7 +1604,6 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
                       {draft.transportType === 'air' ? (
                         <div className="space-y-4">
-                          <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.transportMode', 'Transport mode')}</FieldLabel><div className="grid sm:grid-cols-2 gap-3"><ChoiceCard active={draft.transportMode === 'Airport to airport'} title="Airport to airport" description="Terminal-to-terminal air cargo" icon={Plane} onClick={() => setField('transportMode', 'Airport to airport')} /><ChoiceCard active={draft.transportMode === 'Air freight + last-mile delivery'} title="Air freight + last-mile delivery" description="Air transport plus final delivery" icon={Truck} onClick={() => setField('transportMode', 'Air freight + last-mile delivery')} /></div></div>
                           <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.specialRequirements', 'Special requirements')}</FieldLabel><div className="min-h-[54px] rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950"><div className="flex flex-wrap gap-2">{(draft.pickupPlaceType === 'Address' || draft.deliveryPlaceType === 'Address + Last Mile Delivery' ? [...AIR_SPECIAL_REQUIREMENT_OPTIONS, AIR_TAIL_LIFT_REQUIREMENT] : AIR_SPECIAL_REQUIREMENT_OPTIONS).map((option) => <button key={option} type="button" onClick={() => toggleSpecialRequirement(option)} className={cn('cursor-pointer rounded-full border px-3 py-1.5 text-xs font-bold transition-colors', draft.specialRequirements.includes(option) ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200')}>{option}</button>)}</div></div></div>
                         </div>
                       ) : (
@@ -2297,11 +1616,11 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       <div className="space-y-4">
                         <div className="space-y-1.5">
                           <FieldLabel>{u('postLoadModal.characteristics', 'Characteristics & certificates')}</FieldLabel>
-                          <div className="overflow-x-auto pb-2 [scroll-padding-inline:0.25rem] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory">
+                          <ScrollableRow className="pb-2">
                             <div className="flex w-max gap-2 px-1">
                               {(draft.transportType === 'air' ? AIR_CHARACTERISTIC_OPTIONS : ROAD_CHARACTERISTIC_OPTIONS).map((option) => <ChoiceCard key={option} compact nowrap className="w-auto snap-start shrink-0 justify-start pl-3 pr-7 text-left" active={draft.characteristics.includes(option)} title={option} icon={option.startsWith('DG') || option === 'ADR' ? ShieldCheck : option.startsWith('MED') ? FileText : option.startsWith('Fragile') ? ShieldAlert : option.startsWith('Oversized') ? Layers : option.startsWith('Lithium') ? Zap : option.startsWith('Dry Ice') ? ThermometerSnowflake : Package} onClick={(event) => { toggleCharacteristic(option); event.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' }); }} />)}
                             </div>
-                          </div>
+                          </ScrollableRow>
                         </div>
                         <div className="space-y-1.5">
                           {fieldLabel('temperatureControlled', 'postLoadModal.temperature', 'Temperature controlled')}
@@ -2564,14 +1883,25 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         label={u('postLoadModal.transportType', 'Transport type')}
                         value={transportOptions.find((option) => option.id === draft.transportType)?.label || draft.transportType}
                       />
-                      {draft.transportType === 'sea' && (
-                        <SummaryRow label={u('postLoadModal.pol', 'Luka utovara (POL)')} value={draft.pickupPort || '—'} />
+                      {draft.transportType === 'air' && (
+                        <SummaryRow
+                          label={u('postLoadModal.transportMode', 'Transport mode')}
+                          value={{
+                            'Airport to Airport': u('postLoadModal.transportModeAirportToAirport', 'Airport to Airport'),
+                            'Address to Airport': u('postLoadModal.transportModeAddressToAirport', 'Address to Airport'),
+                            'Airport to Address': u('postLoadModal.transportModeAirportToAddress', 'Airport to Address'),
+                            'Air Freight + Last-Mile Delivery': u('postLoadModal.transportModeAirFreightLastMile', 'Air Freight + Last-Mile Delivery'),
+                          }[deriveAirTransportMode(draft.pickupPlaceType, draft.deliveryPlaceType)]}
+                        />
                       )}
                       {draft.transportType === 'sea' && (
-                        <SummaryRow label={u('postLoadModal.pod', 'Luka istovara (POD)')} value={draft.deliveryPort || '—'} />
+                        <SummaryRow label={u('postLoadModal.pol', 'Loading Port (POL)')} value={draft.pickupPort || '—'} />
                       )}
                       {draft.transportType === 'sea' && (
-                        <SummaryRow label={u('postLoadModal.transitTime', 'ETA - tranzitno vrijeme (POL-POD)')} value={draft.transitDays ? `${draft.transitDays} ${u('postLoadModal.transitDays', 'dana')}` : '—'} />
+                        <SummaryRow label={u('postLoadModal.pod', 'Discharge Port (POD)')} value={draft.deliveryPort || '—'} />
+                      )}
+                      {draft.transportType === 'sea' && (
+                        <SummaryRow label={u('postLoadModal.transitTime', 'ETA - transit time (POL-POD)')} value={draft.transitDays ? `${draft.transitDays} ${u('postLoadModal.transitDays', 'days')}` : '—'} />
                       )}
                       <SummaryRow
                         label={u('postLoadModal.pickupSummary', 'Pickup')}
