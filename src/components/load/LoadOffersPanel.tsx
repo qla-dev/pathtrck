@@ -8,6 +8,8 @@ import {
   Coins,
   CreditCard,
   Eye,
+  Gavel,
+  History,
   Inbox,
   Percent,
   Repeat,
@@ -17,11 +19,13 @@ import {
   XCircle,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { Language, Load } from '../../types';
+import { Language, Load, Offer } from '../../types';
 import { ui } from '../../i18n';
-import { PAYMENT_TERMS_OPTIONS, PRICE_BASIS_OPTIONS, chargeLabel, offerDraftFromRecord } from '../../lib/offerBid';
+import { PAYMENT_TERMS_OPTIONS, PRICE_BASIS_OPTIONS, buildCounterOfferPayload, chargeLabel, getLatestOfferPerThread, offerDraftFromRecord } from '../../lib/offerBid';
 import { Button } from '../ui/Button';
+import { BiddingHistoryModal } from './BiddingHistoryModal';
 import { LoadBidModal } from './LoadBidModal';
+import { QuickCounterModal } from './QuickCounterModal';
 
 type DriverOption = {
   id: number;
@@ -57,9 +61,11 @@ type LoadOffersPanelProps = {
   selectedDrivers: Record<string, number>;
   loading: boolean;
   actionMessage?: string;
+  userId?: number;
   onDriverChange: (offerId: string, driverId: number) => void;
   onApprove: (offer: Record<string, unknown>) => void;
   onReject: (offer: Record<string, unknown>) => void;
+  onSendCounter: (payload: Record<string, unknown>) => Promise<void>;
 };
 
 export const LoadOffersPanel = ({
@@ -70,12 +76,49 @@ export const LoadOffersPanel = ({
   selectedDrivers,
   loading,
   actionMessage,
+  userId,
   onDriverChange,
   onApprove,
   onReject,
+  onSendCounter,
 }: LoadOffersPanelProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [viewingOffer, setViewingOffer] = useState<Record<string, unknown> | null>(null);
+  const [historyOfferId, setHistoryOfferId] = useState<string | null>(null);
+  const [quickCounterOffer, setQuickCounterOffer] = useState<Record<string, unknown> | null>(null);
+  const [counterOffer, setCounterOffer] = useState<Record<string, unknown> | null>(null);
+  const [counterDraft, setCounterDraft] = useState<Offer | null>(null);
+  const [sendingCounter, setSendingCounter] = useState(false);
+
+  const sendQuickCounter = async (amount: number) => {
+    if (!quickCounterOffer) return;
+    setSendingCounter(true);
+    try {
+      const draft = { ...offerDraftFromRecord(quickCounterOffer), amount: String(amount) };
+      await onSendCounter(buildCounterOfferPayload(quickCounterOffer, draft, userId));
+      setQuickCounterOffer(null);
+    } catch {
+      // already surfaced to the user by the parent; keep the modal open so they can retry
+    } finally {
+      setSendingCounter(false);
+    }
+  };
+
+  const sendFullCounter = async () => {
+    if (!counterOffer || !counterDraft) return;
+    setSendingCounter(true);
+    try {
+      await onSendCounter(buildCounterOfferPayload(counterOffer, counterDraft, userId));
+      setCounterOffer(null);
+      setCounterDraft(null);
+    } catch {
+      // already surfaced to the user by the parent; keep the modal open so they can retry
+    } finally {
+      setSendingCounter(false);
+    }
+  };
+
+  const visibleOffers = getLatestOfferPerThread(offers);
 
   return (
     <div>
@@ -89,14 +132,14 @@ export const LoadOffersPanel = ({
         <div className="flex min-h-56 items-center justify-center text-sm font-semibold text-slate-500">
           {u('common.loading', 'Loading')}
         </div>
-      ) : offers.length === 0 ? (
+      ) : visibleOffers.length === 0 ? (
         <div className="flex min-h-56 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-6 text-center dark:border-slate-700 dark:bg-slate-950/50">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 dark:bg-slate-800"><Inbox className="h-6 w-6" /></div>
           <p className="mt-4 font-black text-slate-800 dark:text-white">{u('No offers for this load yet.', 'No offers for this load yet.')}</p>
         </div>
       ) : (
         <div className="grid gap-4">
-          {offers.map((offer) => {
+          {visibleOffers.map((offer) => {
             const company = offer.company as { name?: string } | undefined;
             const creator = offer.creator as { name?: string; email?: string } | undefined;
             const driver = offer.driver as { id?: number; name?: string } | undefined;
@@ -112,7 +155,7 @@ export const LoadOffersPanel = ({
             const excludedCharges = Array.isArray(offer.excluded_charges) ? (offer.excluded_charges as string[]) : [];
 
             return (
-              <article key={offerId} className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-950/40 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-stretch">
+              <article key={offerId} className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-950/40 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-stretch">
                 <div className="flex min-w-0 flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -180,13 +223,43 @@ export const LoadOffersPanel = ({
                       </select>
                     </label>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => setViewingOffer(offer)}
-                    className="flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 transition-colors hover:border-primary/40 hover:text-primary dark:border-slate-700 dark:text-slate-300"
-                  >
-                    <Eye className="h-4 w-4" /> {u('See full bid', 'See full bid')}
-                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setViewingOffer(offer)}
+                      className="flex h-10 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-primary/20 bg-primary/10 text-sm font-bold text-primary transition-colors hover:bg-primary/15 dark:border-primary/30 dark:bg-primary/15"
+                    >
+                      <Eye className="h-4 w-4" /> {u('See full bid', 'See full bid')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setHistoryOfferId(offerId)}
+                      className="flex h-10 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-primary/20 bg-primary/10 text-sm font-bold text-primary transition-colors hover:bg-primary/15 dark:border-primary/30 dark:bg-primary/15"
+                    >
+                      <History className="h-4 w-4" /> {u('Bidding history', 'Bidding history')}
+                    </button>
+                  </div>
+
+                  {!decided && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setQuickCounterOffer(offer)}
+                        className="flex h-10 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-primary/20 bg-primary/10 text-sm font-bold text-primary transition-colors hover:bg-primary/15 dark:border-primary/30 dark:bg-primary/15"
+                      >
+                        <Gavel className="h-4 w-4" /> {u('Quick counter', 'Quick counter')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setCounterOffer(offer); setCounterDraft(offerDraftFromRecord(offer)); }}
+                        className="flex h-10 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-primary/20 bg-primary/10 text-sm font-bold text-primary transition-colors hover:bg-primary/15 dark:border-primary/30 dark:bg-primary/15"
+                      >
+                        <Repeat className="h-4 w-4" /> {u('Counter', 'Counter')}
+                      </button>
+                    </div>
+                  )}
+
                   <div className="mt-auto flex items-center gap-2">
                     <Button className="h-11 flex-1 shadow-lg shadow-primary/20" disabled={decided} onClick={() => onApprove(offer)}>
                       {accepted ? <><CheckCircle2 className="mr-2 h-4 w-4" />{u('Approved', 'Approved')}</> : u('Approve', 'Approve')}
@@ -217,6 +290,42 @@ export const LoadOffersPanel = ({
           role="superadmin"
           onClose={() => setViewingOffer(null)}
           onSubmit={() => undefined}
+        />
+      )}
+
+      <BiddingHistoryModal
+        open={Boolean(historyOfferId)}
+        lang={lang}
+        load={load}
+        offerId={historyOfferId}
+        offers={offers}
+        onClose={() => setHistoryOfferId(null)}
+      />
+
+      <QuickCounterModal
+        open={Boolean(quickCounterOffer)}
+        lang={lang}
+        currentAmount={Number(quickCounterOffer?.amount || 0)}
+        currency={String(quickCounterOffer?.currency || 'EUR')}
+        loading={sendingCounter}
+        onClose={() => setQuickCounterOffer(null)}
+        onSend={(amount) => void sendQuickCounter(amount)}
+      />
+
+      {counterOffer && counterDraft && (
+        <LoadBidModal
+          open
+          lang={lang}
+          load={load}
+          draft={counterDraft}
+          onDraftChange={(patch) => setCounterDraft((current) => (current ? { ...current, ...patch } : current))}
+          editing={false}
+          readOnly={false}
+          variant="counter"
+          loading={sendingCounter}
+          role="superadmin"
+          onClose={() => { setCounterOffer(null); setCounterDraft(null); }}
+          onSubmit={() => void sendFullCounter()}
         />
       )}
     </div>

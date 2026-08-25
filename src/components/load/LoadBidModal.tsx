@@ -42,6 +42,8 @@ type LoadBidModalProps = {
   editing: boolean;
   loading: boolean;
   readOnly?: boolean;
+  /** 'counter' prefills the form from an existing offer but submits as a brand-new counter-offer instead of updating it. */
+  variant?: 'bid' | 'counter';
   role?: Role;
   userId?: number;
   companyIds?: number[];
@@ -238,6 +240,7 @@ export const LoadBidModal = ({
   editing,
   loading,
   readOnly = false,
+  variant = 'bid',
   role,
   userId,
   companyIds = [],
@@ -332,7 +335,9 @@ export const LoadBidModal = ({
               </div>
               <div className="min-w-0">
                 <p className="truncate font-black text-slate-900 dark:text-white">
-                  {readOnly ? u('Bid details', 'Bid details') : editing ? u('legacy.loadDetails.changeOffer', 'Change offer') : u('Bid on Load', 'Bid on Load')}
+                  {variant === 'counter'
+                    ? u('Counter offer', 'Counter offer')
+                    : readOnly ? u('Bid details', 'Bid details') : editing ? u('legacy.loadDetails.changeOffer', 'Change offer') : u('Bid on Load', 'Bid on Load')}
                 </p>
                 <p className="truncate text-xs font-semibold uppercase tracking-wider text-primary">
                   {load.publicId || `#${load.id}`}
@@ -655,9 +660,11 @@ export const LoadBidModal = ({
                     {u('common.cancel', 'Cancel')}
                   </Button>
                   <Button className="h-11 rounded-xl px-6 text-sm shadow-lg shadow-primary/20" disabled={loading} onClick={onSubmit}>
-                    {loading
-                      ? (editing ? u('legacy.loadDetails.updatingOffer', 'Updating…') : u('legacy.loadDetails.sendingOffer', 'Sending…'))
-                      : (editing ? u('legacy.loadDetails.updateOffer', 'Update offer') : u('Submit Bid', 'Submit Bid'))}
+                    {variant === 'counter'
+                      ? (loading ? u('legacy.loadDetails.sendingOffer', 'Sending…') : u('Send counter bid', 'Send counter bid'))
+                      : loading
+                        ? (editing ? u('legacy.loadDetails.updatingOffer', 'Updating…') : u('legacy.loadDetails.sendingOffer', 'Sending…'))
+                        : (editing ? u('legacy.loadDetails.updateOffer', 'Update offer') : u('Submit Bid', 'Submit Bid'))}
                   </Button>
                 </>
               )}

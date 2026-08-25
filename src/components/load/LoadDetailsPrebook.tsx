@@ -12,6 +12,7 @@ import {
   FileText,
   Hash,
   MapPin,
+  Repeat,
   ShieldCheck,
   Sparkles,
   Thermometer,
@@ -25,6 +26,7 @@ import { cn } from '../../lib/cn';
 import {
   createEmptyOfferDraft,
   getBidState,
+  getLatestCounter,
   getOfferLabel,
   offerDraftFromRecord,
   offerDraftToPayload,
@@ -39,6 +41,7 @@ import { ui } from '../../i18n';
 import { Button } from '../ui/Button';
 import { LoadStatusPicker } from './LoadStatusPicker';
 import { LenaAI } from '../lena/LenaAI';
+import { CounterOfferReviewModal } from './CounterOfferReviewModal';
 import { LoadAssignmentModal } from './LoadAssignmentModal';
 import { LoadBidModal } from './LoadBidModal';
 import { LoadOffersPanel } from './LoadOffersPanel';
@@ -139,6 +142,8 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
   const [lenaOpen, setLenaOpen] = useState(false);
   const [companies, setCompanies] = useState<Array<Record<string, unknown>>>([]);
   const [assignDriverNow, setAssignDriverNow] = useState(false);
+  const [viewingCounter, setViewingCounter] = useState<Record<string, unknown> | null>(null);
+  const [acceptingCounter, setAcceptingCounter] = useState(false);
   const [bookingDriverId, setBookingDriverId] = useState('');
   const [bookingCompanyId, setBookingCompanyId] = useState('');
   const [assignmentOpen, setAssignmentOpen] = useState(false);
@@ -351,6 +356,20 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
     }
   };
 
+  const sendCounterOffer = async (payload: Record<string, unknown>) => {
+    if (!load) return;
+    try {
+      await api.offers.create(payload);
+      void showSuccess(u('Counter offer sent', 'Counter offer sent'), u('The carrier will see your counter offer.', 'The carrier will see your counter offer.'));
+      const refreshed = await api.offers.list({ per_page: 100 });
+      setOffers(refreshed.data.filter((offer) => String(offer.load_id) === String(load.id)));
+      onChanged?.();
+    } catch (error) {
+      void showError(u('Counter offer failed', 'Counter offer failed'), error instanceof ApiError ? error.message : undefined);
+      throw error;
+    }
+  };
+
   if (!load) return null;
 
   const goodsNote = getGoodsNote(load.goodsType, u);
@@ -363,6 +382,26 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
   const bidState = getBidState(offers, userId, load.budget);
   const myOffer = bidState.myOffer;
   const offerLabel = getOfferLabel(u, bidState, offerCurrency);
+  const latestCounter = myOffer ? getLatestCounter(offers, String(myOffer.id), userId) : null;
+
+  const acceptCounterOffer = async () => {
+    if (!viewingCounter || !myOffer) return;
+    setAcceptingCounter(true);
+    try {
+      const draft = offerDraftFromRecord(viewingCounter);
+      await api.offers.update(String(myOffer.id), { ...offerDraftToPayload(draft), is_counter: false });
+      void showSuccess(u('Counter accepted', 'Counter accepted'), u('Your offer has been updated with the new terms.', 'Your offer has been updated with the new terms.'));
+      setViewingCounter(null);
+      const refreshed = await api.offers.list({ per_page: 100 });
+      setOffers(refreshed.data.filter((offer) => String(offer.load_id) === String(load.id)));
+      onChanged?.();
+    } catch (error) {
+      void showError(u('Could not accept the counter offer', 'Could not accept the counter offer'), error instanceof ApiError ? error.message : undefined);
+    } finally {
+      setAcceptingCounter(false);
+    }
+  };
+
   const bookLabel = u('legacy.loadDetails.bookNow', 'Book now');
   const paymentTermsLabel = load.paymentTerms === 'Deferred' && load.paymentDueDays
     ? `${load.paymentTerms} · ${load.paymentDueDays} days`
@@ -526,9 +565,11 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                 selectedDrivers={selectedDrivers}
                 loading={offersLoading}
                 actionMessage={actionMessage}
+                userId={userId}
                 onDriverChange={(offerId, driverId) => setSelectedDrivers((current) => ({ ...current, [offerId]: driverId }))}
                 onApprove={(offer) => void approveOffer(offer)}
                 onReject={(offer) => void rejectOffer(offer)}
+                onSendCounter={sendCounterOffer}
               />
             ) : (
             <div className="space-y-6">
@@ -566,28 +607,50 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                     {currentStatus === 'Posted' && load.isNegotiable === true && (
                       <div className="space-y-3 border-t border-slate-100 pt-3 dark:border-slate-800">
                         {bookingSummary}
-                        <Button
-                          className="h-11 w-full rounded-xl shadow-lg shadow-primary/20"
-                          disabled={isSubmittingOffer}
-                          onClick={openBidModal}
-                        >
-                          {offerLabel}
-                          {!myOffer && <ChevronRight className="ml-1 h-4 w-4" />}
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            className="h-11 flex-1 rounded-xl shadow-lg shadow-primary/20"
+                            disabled={isSubmittingOffer}
+                            onClick={openBidModal}
+                          >
+                            {offerLabel}
+                            {!myOffer && <ChevronRight className="ml-1 h-4 w-4" />}
+                          </Button>
+                          {latestCounter && (
+                            <Button
+                              variant="outline"
+                              className="h-11 flex-1 rounded-xl border-primary/20 bg-primary/10 text-primary hover:bg-primary/15 dark:border-primary/30 dark:bg-primary/15"
+                              onClick={() => setViewingCounter(latestCounter)}
+                            >
+                              <Repeat className="mr-2 h-4 w-4" />{u('Vidi povratnu ponudu', 'Vidi povratnu ponudu')}
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     )}
                   </> : role === 'company' ? (
                     currentStatus === 'Posted' ? (
                       <div className="space-y-3">
                         {bookingSummary}
-                        <Button
-                          className="h-11 w-full rounded-xl shadow-lg shadow-primary/20"
-                          disabled={isBooking || isSubmittingOffer}
-                          onClick={load.isNegotiable === true ? openBidModal : () => setAssignmentOpen(true)}
-                        >
-                          {load.isNegotiable === true ? offerLabel : (isBooking ? u('legacy.loadDetails.booking', 'Booking…') : bookLabel)}
-                          {load.isNegotiable === true && !myOffer && <ChevronRight className="ml-1 h-4 w-4" />}
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            className="h-11 flex-1 rounded-xl shadow-lg shadow-primary/20"
+                            disabled={isBooking || isSubmittingOffer}
+                            onClick={load.isNegotiable === true ? openBidModal : () => setAssignmentOpen(true)}
+                          >
+                            {load.isNegotiable === true ? offerLabel : (isBooking ? u('legacy.loadDetails.booking', 'Booking…') : bookLabel)}
+                            {load.isNegotiable === true && !myOffer && <ChevronRight className="ml-1 h-4 w-4" />}
+                          </Button>
+                          {load.isNegotiable === true && latestCounter && (
+                            <Button
+                              variant="outline"
+                              className="h-11 flex-1 rounded-xl border-primary/20 bg-primary/10 text-primary hover:bg-primary/15 dark:border-primary/30 dark:bg-primary/15"
+                              onClick={() => setViewingCounter(latestCounter)}
+                            >
+                              <Repeat className="mr-2 h-4 w-4" />{u('Vidi povratnu ponudu', 'Vidi povratnu ponudu')}
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     ) : (
                       <p className="text-sm text-slate-500">{u('legacy.loadDetails.alreadyBooked', 'Already booked')}</p>
@@ -608,14 +671,25 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                             : u('legacy.loadDetails.alreadyBooked', 'Already booked')}
                       </Button>
                     ) : (
-                      <Button
-                        className="h-11 w-full rounded-xl shadow-lg shadow-primary/20"
-                        disabled={currentStatus !== 'Posted'}
-                        onClick={openBidModal}
-                      >
-                        {offerLabel}
-                        {!myOffer && <ChevronRight className="ml-1 h-4 w-4" />}
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          className="h-11 flex-1 rounded-xl shadow-lg shadow-primary/20"
+                          disabled={currentStatus !== 'Posted'}
+                          onClick={openBidModal}
+                        >
+                          {offerLabel}
+                          {!myOffer && <ChevronRight className="ml-1 h-4 w-4" />}
+                        </Button>
+                        {latestCounter && (
+                          <Button
+                            variant="outline"
+                            className="h-11 flex-1 rounded-xl border-primary/20 bg-primary/10 text-primary hover:bg-primary/15 dark:border-primary/30 dark:bg-primary/15"
+                            onClick={() => setViewingCounter(latestCounter)}
+                          >
+                            <Repeat className="mr-2 h-4 w-4" />{u('Vidi povratnu ponudu', 'Vidi povratnu ponudu')}
+                          </Button>
+                        )}
+                      </div>
                     )}
                     </div>
                   ) : null}
@@ -839,6 +913,17 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
         loadId={load.id}
         loadLabel={load.title}
         onBookLoad={currentStatus === 'Posted' ? () => bookLoad() : undefined}
+      />
+
+      <CounterOfferReviewModal
+        open={Boolean(viewingCounter)}
+        lang={lang}
+        load={load}
+        originalOffer={myOffer}
+        counterOffer={viewingCounter}
+        loading={acceptingCounter}
+        onClose={() => setViewingCounter(null)}
+        onAccept={() => void acceptCounterOffer()}
       />
     </motion.div>
     )}

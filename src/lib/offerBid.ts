@@ -81,6 +81,7 @@ export const createEmptyOfferDraft = (overrides: Partial<Offer> = {}): Offer => 
   additionalCharges: [],
   hasExceptions: false,
   isCounter: false,
+  parentOfferId: undefined,
   message: '',
   confirmedAuthorized: false,
   confirmedDetailsMatch: false,
@@ -153,6 +154,7 @@ export const offerDraftFromRecord = (record: Record<string, unknown> | null, bas
     additionalCharges: additionalCharges(record.additional_charges),
     hasExceptions: Boolean(record.has_exceptions),
     isCounter: Boolean(record.is_counter),
+    parentOfferId: record.parent_offer_id == null ? undefined : String(record.parent_offer_id),
     message: str(record.message, empty.message),
     confirmedAuthorized: Boolean(record.confirmed_authorized),
     confirmedDetailsMatch: Boolean(record.confirmed_details_match),
@@ -248,3 +250,111 @@ export const getOfferLabel = (
 
   return bidState.displayAmount != null ? `${base} · ${currency} ${bidState.displayAmount.toLocaleString()}` : base;
 };
+
+/**
+ * Identifies who is bidding, regardless of which specific offer row we're looking at: a counter is
+ * created under the poster's own user id, so `created_by_user_id` differs between a bidder's own offer
+ * and the counter sent back to them. `driver_user_id`/`company_id` stay the same across both, since a
+ * counter payload copies them from the offer being countered — that's what makes them the same
+ * "bidding session" on this load, even if a row is missing a clean `parent_offer_id` link.
+ */
+const bidderIdentity = (offer: Record<string, unknown>): string => {
+  if (offer.driver_user_id != null) return `driver:${offer.driver_user_id}`;
+  if (offer.company_id != null) return `company:${offer.company_id}`;
+  return `offer:${offer.id}`;
+};
+
+const sameBiddingSession = (a: Record<string, unknown>, b: Record<string, unknown>): boolean =>
+  String(a.load_id) === String(b.load_id) && bidderIdentity(a) === bidderIdentity(b);
+
+/** Every offer from the same bidder on the same load — the original bid plus every counter, either direction, oldest first. */
+export const getOfferThread = (
+  offers: Array<Record<string, unknown>> | undefined,
+  offerId: string
+): Array<Record<string, unknown>> => {
+  const list = offers || [];
+  const anchor = list.find((offer) => String(offer.id) === offerId);
+  if (!anchor) return [];
+  return list
+    .filter((offer) => sameBiddingSession(offer, anchor))
+    .sort((a, b) => Number(a.id) - Number(b.id));
+};
+
+/** One row per bidding session (same load + same bidder) — the most recent offer in that session. */
+export const getLatestOfferPerThread = (
+  offers: Array<Record<string, unknown>> | undefined
+): Array<Record<string, unknown>> => {
+  const list = offers || [];
+  const latestByKey = new Map<string, Record<string, unknown>>();
+  for (const offer of list) {
+    const key = `${String(offer.load_id)}::${bidderIdentity(offer)}`;
+    const existing = latestByKey.get(key);
+    if (!existing || Number(offer.id) > Number(existing.id)) {
+      latestByKey.set(key, offer);
+    }
+  }
+  return Array.from(latestByKey.values());
+};
+
+/** The newest offer in `offerId`'s bidding session sent by someone other than `excludeUserId` (the bidder) — i.e. the poster's counter. */
+export const getLatestCounter = (
+  offers: Array<Record<string, unknown>> | undefined,
+  offerId: string,
+  excludeUserId: number | undefined
+): Record<string, unknown> | null => {
+  const list = offers || [];
+  const anchor = list.find((offer) => String(offer.id) === offerId);
+  if (!anchor) return null;
+  const replies = list
+    .filter((offer) => sameBiddingSession(offer, anchor))
+    .filter((offer) => Number(offer.id) !== Number(anchor.id))
+    .filter((offer) => excludeUserId == null || Number(offer.created_by_user_id) !== excludeUserId)
+    .sort((a, b) => Number(b.id) - Number(a.id));
+  return replies[0] || null;
+};
+
+/** Full create payload for a counter-offer: identity fields copied from the offer being countered, edited terms from `draft`. */
+export const buildCounterOfferPayload = (
+  original: Record<string, unknown>,
+  draft: Offer,
+  createdByUserId: number | undefined
+): Record<string, unknown> => ({
+  load_id: Number(original.load_id),
+  company_id: original.company_id ?? undefined,
+  driver_user_id: original.driver_user_id ?? undefined,
+  created_by_user_id: createdByUserId,
+  ...offerDraftToPayload(draft),
+  is_counter: true,
+  parent_offer_id: Number(original.id),
+});
+
+type CompareField = { key: string; label: string; format?: (value: unknown) => string };
+
+const COMPARE_FIELDS: CompareField[] = [
+  { key: 'amount', label: 'Price', format: (v) => (v == null ? '—' : Number(v).toLocaleString()) },
+  { key: 'price_basis', label: 'Price basis', format: (v) => optionLabel(PRICE_BASIS_OPTIONS, v) },
+  { key: 'vat', label: 'VAT', format: (v) => (v == null ? '—' : String(v)) },
+  { key: 'payment_terms', label: 'Payment terms', format: (v) => optionLabel(PAYMENT_TERMS_OPTIONS, v) },
+  { key: 'valid_until', label: 'Valid until' },
+  { key: 'equipment_type', label: 'Equipment type' },
+  { key: 'estimated_transit_days', label: 'Transit days' },
+  { key: 'estimated_delivery_date', label: 'Delivery ETA' },
+];
+
+const optionLabel = (options: Array<{ value: string; label: string }>, value: unknown): string =>
+  options.find((option) => option.value === value)?.label || (value == null ? '—' : String(value));
+
+export type OfferFieldDiff = { key: string; label: string; oldValue: string; newValue: string };
+
+/** Fields whose value actually changed between two offer records, for a "here's what changed" comparison view. */
+export const diffOfferRecords = (
+  previous: Record<string, unknown>,
+  next: Record<string, unknown>
+): OfferFieldDiff[] =>
+  COMPARE_FIELDS.filter((field) => String(previous[field.key] ?? '') !== String(next[field.key] ?? ''))
+    .map((field) => ({
+      key: field.key,
+      label: field.label,
+      oldValue: (field.format || String)(previous[field.key]),
+      newValue: (field.format || String)(next[field.key]),
+    }));

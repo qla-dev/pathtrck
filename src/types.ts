@@ -139,6 +139,7 @@ export interface Offer {
   additionalCharges: AdditionalChargeRow[];
   hasExceptions: boolean;
   isCounter: boolean;
+  parentOfferId?: string;
   message: string;
   confirmedAuthorized: boolean;
   confirmedDetailsMatch: boolean;
