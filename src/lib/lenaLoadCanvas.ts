@@ -152,7 +152,7 @@ export const loadDraftRecordToScan = (record: unknown): LoadScanResult | undefin
     volumeM3: draftNumber(draft.volume_m3),
     vehicleType: draftString(draft.vehicle_type),
     loadingEquipment: draftString(loadingMethods[0]),
-    characteristics: draftString(draft.characteristics),
+    characteristics: draftString(Array.isArray(draft.characteristics) ? draft.characteristics[0] : draft.characteristics),
     specialRequirements: Array.isArray(draft.special_requirements) ? draft.special_requirements.map(String) : [],
     transportMode: draftString(draft.transport_mode),
     deliveryProof: draftString(draft.delivery_proof),

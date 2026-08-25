@@ -66,7 +66,7 @@ export type ScanFieldPatch = Partial<{
   volumeM3: string;
   vehicleType: string;
   loadingEquipment: string[];
-  characteristics: string;
+  characteristics: string[];
   specialRequirements: string[];
   transportMode: string;
   deliveryProof: string;
@@ -313,7 +313,7 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
   }
 
   if (result.characteristics) {
-    rows.push({ key: 'characteristics', label: 'Characteristics', value: result.characteristics, patch: { characteristics: result.characteristics }, icon: ClipboardList });
+    rows.push({ key: 'characteristics', label: 'Characteristics', value: result.characteristics, patch: { characteristics: [result.characteristics] }, icon: ClipboardList });
   }
 
   const specialRequirements = result.specialRequirements || [];

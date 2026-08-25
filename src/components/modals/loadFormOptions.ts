@@ -2,11 +2,17 @@ export const INCOTERM_OPTIONS = ['EXW', 'FCA', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP'
 export const VEHICLE_OPTIONS = ['Cargo Van', 'Box Truck', 'Curtainsider', 'Reefer', 'Trailer', 'Rigid Truck', 'Container truck'] as const;
 export const BODY_TYPE_OPTIONS = ['Curtain', 'Box', 'Reefer', 'Mega', 'Tautliner', 'Flatbed'] as const;
 export const ROAD_CHARACTERISTIC_OPTIONS = ['ADR', 'CMR', 'GDP', 'TIR', 'Lift', 'Express'] as const;
-export const AIR_CHARACTERISTIC_OPTIONS = ['Non-DG', 'DG', 'TCG (temperature controlled goods)', 'MED (medicine)', 'VAL (money and other valuables)'] as const;
+// No temperature-controlled-goods entry here - the dedicated "Temperature controlled" yes/no
+// toggle right below this list already covers that.
+export const AIR_CHARACTERISTIC_OPTIONS = ['Non-DG', 'DG', 'MED (medicine)', 'VAL (money and other valuables)', 'Fragile Cargo', 'Oversized / Heavy Cargo', 'Lithium Batteries', 'Dry Ice'] as const;
 export const LOADING_EQUIPMENT_OPTIONS = ['Vehicle with ramp', 'Vehicle without ramp', 'Forklift: Yes', 'Forklift: No', 'Other loading/unloading equipment', 'Not specified'] as const;
 export const AIR_LOADING_EQUIPMENT_OPTIONS = ['Forklift Required', 'Tail Lift Required', 'Cargo Lift / High Loader Required', 'Pallet Jack Required', 'Roller Bed Required', 'Conveyor Required', 'No Special Equipment', 'Other Special Handling Equipment'] as const;
 export const SEA_LOADING_EQUIPMENT_OPTIONS = ['Forklift Required', 'Crane Required', 'Heavy Lift', 'Port Handling', 'Stuffing Required', 'Unstuffing Required', 'Special Handling', 'No Special Equipment'] as const;
-export const AIR_SPECIAL_REQUIREMENT_OPTIONS = ['AWB required', 'Tail lift needed', 'Express onboard courier', 'Time-critical door to door'] as const;
+// 'Tail Lift Required' is not listed here - it's only relevant when the shipment has a road leg
+// (an "Address" pickup or "Address + Last Mile Delivery" delivery), so PostLoadModal appends it
+// conditionally instead of always showing it.
+export const AIR_SPECIAL_REQUIREMENT_OPTIONS = ['AWB Required', 'ULD Required', 'Airport Handling Required', 'Security Screening Required', 'Time-Critical', 'Express / Next Flight Out', 'On Board Courier (OBC)', 'Customs Clearance', 'Special Handling'] as const;
+export const AIR_TAIL_LIFT_REQUIREMENT = 'Tail Lift Required';
 export const AIR_TRANSPORT_MODE_OPTIONS = ['Airport to airport', 'Air freight + last-mile delivery'] as const;
 export const DELIVERY_PROOF_OPTIONS = ['POD', 'AOD'] as const;
 export const CONTACT_OPTIONS = ['Current user', 'Operations desk', 'Dispatch team'] as const;

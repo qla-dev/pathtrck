@@ -81,6 +81,7 @@ import {
   AIR_CHARACTERISTIC_OPTIONS,
   AIR_LOADING_EQUIPMENT_OPTIONS,
   AIR_SPECIAL_REQUIREMENT_OPTIONS,
+  AIR_TAIL_LIFT_REQUIREMENT,
   BODY_TYPE_OPTIONS,
   CLOSED_EXCHANGE_OPTIONS,
   CONTACT_OPTIONS,
@@ -163,7 +164,7 @@ type LoadDraft = {
   loadingEquipment: string[];
   vehicleType: string;
   bodyTypes: string[];
-  characteristics: string;
+  characteristics: string[];
   specialRequirements: string[];
   transportMode: string;
   deliveryProof: string;
@@ -252,7 +253,7 @@ const INITIAL_DRAFT: LoadDraft = {
   loadingEquipment: [],
   vehicleType: 'Box Truck',
   bodyTypes: ['Curtain'],
-  characteristics: '',
+  characteristics: [],
   specialRequirements: [],
   transportMode: 'Airport to airport',
   deliveryProof: '',
@@ -353,7 +354,7 @@ const buildLoadFieldsPayload = (draft: LoadDraft) => ({
   vehicle_type: draft.transportType === 'road' ? draft.vehicleType : null,
   transport_mode: draft.transportType === 'air' ? draft.transportMode : null,
   special_requirements: draft.transportType === 'air' ? draft.specialRequirements : [],
-  characteristics: draft.characteristics || null,
+  characteristics: draft.characteristics,
   delivery_proof: draft.transportType === 'air' ? draft.deliveryProof || null : null,
   transit_days: draft.transportType === 'sea' && draft.transitDays ? Number(draft.transitDays) : null,
   requires_adr: draft.requiresAdr,
@@ -646,13 +647,13 @@ const RoutePoint = ({
     </span>
   );
   const text = (
-    <div className={cn('mt-0.5 min-w-0', align === 'right' && 'text-right')}>
+    <div className={cn('mt-0.5 shrink-0', align === 'right' && 'text-right')}>
       <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">{label}</p>
-      <p className={cn('max-w-[10rem] truncate text-xs font-bold text-slate-900 dark:text-white', align === 'right' && 'ml-auto')}>{value}</p>
+      <p className={cn('w-[10rem] truncate text-xs font-bold text-slate-900 dark:text-white', align === 'right' && 'ml-auto')}>{value}</p>
     </div>
   );
   return (
-    <div className="flex min-w-0 items-center gap-2">
+    <div className="flex shrink-0 items-center gap-2">
       {align === 'left' ? <>{icon}{text}</> : <>{text}{icon}</>}
     </div>
   );
@@ -984,7 +985,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         deliveryPlaceType: String(delivery.place_type || INITIAL_DRAFT.deliveryPlaceType), deliveryCity: String(delivery.city || ''), deliveryCountry: String(delivery.country_code || 'BA'), deliveryAddress: String(delivery.address || ''), deliveryPort: String(delivery.port || ''), deliveryLatitude: String(delivery.latitude || ''), deliveryLongitude: String(delivery.longitude || ''), deliveryDate: deliveryStart.date, deliveryDateTo: deliveryEnd.date, deliveryTimeFrom: deliveryStart.time, deliveryTimeTo: deliveryEnd.time,
         transitDays: String(record.transit_days || ''),
         loadTitle: String(record.title || ''), cargoType: String(record.cargo_type || 'FTL'), goodsType: String(record.goods_type || 'General'), hsCodes, weightKg: fromApiWeightKg(record.weight_kg), pallets: String(record.pallets || ''), quantityMeasure: String(record.quantity_measure || ''), lengthM: String(record.length_m || ''), widthM: String(record.width_m || ''), heightM: String(record.height_m || ''), volumeM3: String(record.volume_m3 || ''), declaredValue: String(record.declared_value || ''), budget: String(record.budget || ''), freightCurrency: String(record.currency || 'EUR'), shipmentValueCurrency: String(record.shipment_value_currency || record.currency || 'EUR'), paymentDueDays: String(record.payment_due_days || ''), paymentDeferred: terms === 'deferred', incoterm: String(record.incoterms || ''),
-        loadingEquipment: Array.isArray(record.loading_methods) ? record.loading_methods.map(String) : [], vehicleType: String(record.vehicle_type || INITIAL_DRAFT.vehicleType), characteristics: String(record.characteristics || ''), specialRequirements: Array.isArray(record.special_requirements) ? record.special_requirements.map(String) : [], transportMode: String(record.transport_mode || INITIAL_DRAFT.transportMode), deliveryProof: String(record.delivery_proof || ''), temperatureControlled: record.temperature_min != null || record.temperature_max != null, temperatureMin: String(record.temperature_min ?? ''), temperatureMax: String(record.temperature_max ?? ''),
+        loadingEquipment: Array.isArray(record.loading_methods) ? record.loading_methods.map(String) : [], vehicleType: String(record.vehicle_type || INITIAL_DRAFT.vehicleType), characteristics: Array.isArray(record.characteristics) ? record.characteristics.map(String) : [], specialRequirements: Array.isArray(record.special_requirements) ? record.special_requirements.map(String) : [], transportMode: String(record.transport_mode || INITIAL_DRAFT.transportMode), deliveryProof: String(record.delivery_proof || ''), temperatureControlled: record.temperature_min != null || record.temperature_max != null, temperatureMin: String(record.temperature_min ?? ''), temperatureMax: String(record.temperature_max ?? ''),
         requiresAdr: Boolean(record.requires_adr), requiresTailLift: Boolean(record.requires_tail_lift), tollRoadsIncluded: Boolean(record.toll_roads_included), ferryIncluded: Boolean(record.ferry_included), cmrRequired: record.cmr_required == null ? true : Boolean(record.cmr_required), palletExchangeRequired: Boolean(record.pallet_exchange_required), customsRequired: Boolean(record.customs_required), insuranceRequired: Boolean(record.insurance_required), certificationRequired: Boolean(record.certification_required), inspectionServicesRequired: Boolean(record.inspection_services_required), mustBeTrackable: Boolean(record.must_be_trackable), urgent: Boolean(record.is_urgent), receivePriceProposals: record.is_negotiable == null ? true : Boolean(record.is_negotiable), bodyTypes: Array.isArray(record.body_types) ? record.body_types.map(String) : [], notes: String(record.notes || ''), internalComments: String(record.internal_comments || ''), externalComments: String(record.external_comments || ''), contactName: String(contact.name || ''), contactPhone: String(contact.phone || ''), contactMobile: String(contact.mobile || ''), contactEmail: String(contact.email || ''), contactFax: String(contact.fax || ''),
       });
     }).catch((error) => setSubmitError(error instanceof Error ? error.message : u('postLoadModal.loadFetchError', 'The load could not be loaded.'))).finally(() => setIsLoadingExisting(false));
@@ -1114,6 +1115,15 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       specialRequirements: prev.specialRequirements.includes(value)
         ? prev.specialRequirements.filter((item) => item !== value)
         : [...prev.specialRequirements, value],
+    }));
+  };
+
+  const toggleCharacteristic = (value: string) => {
+    setDraft((prev) => ({
+      ...prev,
+      characteristics: prev.characteristics.includes(value)
+        ? prev.characteristics.filter((item) => item !== value)
+        : [...prev.characteristics, value],
     }));
   };
 
@@ -1813,7 +1823,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             ? [
                                 { value: 'Warehouse', label: u('postLoadModal.warehouse', 'Warehouse'), icon: Warehouse },
                                 { value: 'Terminal', label: u('postLoadModal.terminal', 'Terminal'), icon: Building2 },
-                                { value: 'Address', label: u('postLoadModal.address', 'Address'), icon: MapPin },
+                                { value: 'AOD / Airport of delivery', label: 'AOD / Airport of delivery', icon: PlaneLanding },
+                                { value: 'Address + Last Mile Delivery', label: u('postLoadModal.addressLastMile', 'Address + Last Mile Delivery'), icon: MapPin },
                               ]
                             : [
                                 { value: 'Warehouse', label: u('postLoadModal.warehouse', 'Warehouse'), icon: Warehouse },
@@ -2266,7 +2277,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       {draft.transportType === 'air' ? (
                         <div className="space-y-4">
                           <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.transportMode', 'Transport mode')}</FieldLabel><div className="grid sm:grid-cols-2 gap-3"><ChoiceCard active={draft.transportMode === 'Airport to airport'} title="Airport to airport" description="Terminal-to-terminal air cargo" icon={Plane} onClick={() => setField('transportMode', 'Airport to airport')} /><ChoiceCard active={draft.transportMode === 'Air freight + last-mile delivery'} title="Air freight + last-mile delivery" description="Air transport plus final delivery" icon={Truck} onClick={() => setField('transportMode', 'Air freight + last-mile delivery')} /></div></div>
-                          <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.specialRequirements', 'Special requirements')}</FieldLabel><div className="min-h-[54px] rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950"><div className="flex flex-wrap gap-2">{AIR_SPECIAL_REQUIREMENT_OPTIONS.map((option) => <button key={option} type="button" onClick={() => toggleSpecialRequirement(option)} className={cn('cursor-pointer rounded-full border px-3 py-1.5 text-xs font-bold transition-colors', draft.specialRequirements.includes(option) ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200')}>{option}</button>)}</div></div></div>
+                          <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.specialRequirements', 'Special requirements')}</FieldLabel><div className="min-h-[54px] rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950"><div className="flex flex-wrap gap-2">{(draft.pickupPlaceType === 'Address' || draft.deliveryPlaceType === 'Address + Last Mile Delivery' ? [...AIR_SPECIAL_REQUIREMENT_OPTIONS, AIR_TAIL_LIFT_REQUIREMENT] : AIR_SPECIAL_REQUIREMENT_OPTIONS).map((option) => <button key={option} type="button" onClick={() => toggleSpecialRequirement(option)} className={cn('cursor-pointer rounded-full border px-3 py-1.5 text-xs font-bold transition-colors', draft.specialRequirements.includes(option) ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200')}>{option}</button>)}</div></div></div>
                         </div>
                       ) : (
                         <div className="grid sm:grid-cols-2 gap-4">
@@ -2280,7 +2291,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           <FieldLabel>{u('postLoadModal.characteristics', 'Characteristics & certificates')}</FieldLabel>
                           <div className="overflow-x-auto pb-2 [scroll-padding-inline:0.25rem] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory">
                             <div className="flex w-max gap-2 px-1">
-                              {(draft.transportType === 'air' ? AIR_CHARACTERISTIC_OPTIONS : ROAD_CHARACTERISTIC_OPTIONS).map((option) => <ChoiceCard key={option} compact nowrap className="w-auto snap-start shrink-0 justify-start pl-3 pr-7 text-left" active={draft.characteristics === option} title={option} icon={option.startsWith('DG') || option === 'ADR' ? ShieldCheck : option.startsWith('TCG') ? ThermometerSnowflake : option.startsWith('MED') ? FileText : Package} onClick={(event) => { setField('characteristics', option); event.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' }); }} />)}
+                              {(draft.transportType === 'air' ? AIR_CHARACTERISTIC_OPTIONS : ROAD_CHARACTERISTIC_OPTIONS).map((option) => <ChoiceCard key={option} compact nowrap className="w-auto snap-start shrink-0 justify-start pl-3 pr-7 text-left" active={draft.characteristics.includes(option)} title={option} icon={option.startsWith('DG') || option === 'ADR' ? ShieldCheck : option.startsWith('MED') ? FileText : option.startsWith('Fragile') ? ShieldAlert : option.startsWith('Oversized') ? Layers : option.startsWith('Lithium') ? Zap : option.startsWith('Dry Ice') ? ThermometerSnowflake : Package} onClick={(event) => { toggleCharacteristic(option); event.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' }); }} />)}
                             </div>
                           </div>
                         </div>
