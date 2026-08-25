@@ -8,6 +8,7 @@ import {
   Gauge,
   MapPinned,
   PackageCheck,
+  Plus,
   Radio,
   TrendingUp,
   Truck,
@@ -16,6 +17,7 @@ import {
 
 import { Language } from '../../types';
 import { cn } from '../../lib/cn';
+import { ui } from '../../i18n';
 import { Card } from '../ui/Card';
 import { getCompanyOverviewCopy } from './companyOverviewCopy';
 import { useEffect, useMemo, useState } from 'react';
@@ -37,8 +39,9 @@ const dispatchRows = [
 
 const activityTones = ['text-sky-500', 'text-emerald-500', 'text-violet-500', 'text-amber-500'];
 
-export const CompanyWorkspaceView = ({ lang }: { lang: Language }) => {
+export const CompanyWorkspaceView = ({ lang, onPostLoad }: { lang: Language; onPostLoad?: () => void }) => {
   const copy = getCompanyOverviewCopy(lang);
+  const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const vehicles = useApiList(api.vehicles.list, { per_page: 100 });
   const loads = useApiList(api.loads.list, { per_page: 100 });
   const routes = useApiList(api.routes.list, { per_page: 100 });
@@ -94,9 +97,20 @@ export const CompanyWorkspaceView = ({ lang }: { lang: Language }) => {
             {copy.subtitle}
           </p>
         </div>
-        <div className="rounded-2xl border border-sky-200 bg-white/70 px-4 py-3 backdrop-blur-sm dark:border-white/10 dark:bg-white/5">
-          <div className="flex items-center gap-2 text-xs font-bold uppercase text-emerald-600 dark:text-emerald-400"><Radio className="h-4 w-4 animate-pulse" /> {copy.live}</div>
-          <p className="mt-1 text-sm font-semibold">{companyVehicles.length} assets · {activeLoads.length} active loads</p>
+        <div className="flex flex-col items-end gap-3">
+          {onPostLoad && (
+            <button
+              type="button"
+              onClick={onPostLoad}
+              className="flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-full bg-primary px-4 text-xs font-bold text-white shadow-lg shadow-primary/30 transition-all hover:scale-[1.02]"
+            >
+              <Plus className="h-4 w-4" /> {u('common.postLoad', 'Post Load')}
+            </button>
+          )}
+          <div className="rounded-2xl border border-sky-200 bg-white/70 px-4 py-3 backdrop-blur-sm dark:border-white/10 dark:bg-white/5">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase text-emerald-600 dark:text-emerald-400"><Radio className="h-4 w-4 animate-pulse" /> {copy.live}</div>
+            <p className="mt-1 text-sm font-semibold">{companyVehicles.length} assets · {activeLoads.length} active loads</p>
+          </div>
         </div>
       </div>
       <div className="relative mt-7 grid gap-3 sm:grid-cols-3">
