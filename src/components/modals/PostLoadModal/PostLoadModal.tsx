@@ -2,8 +2,11 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   Apple,
+  Blinds,
+  Box,
   Boxes,
   Building2,
+  Container,
   CalendarDays,
   Camera,
   CheckCircle2,
@@ -22,7 +25,10 @@ import {
   Loader2,
   Map as MapGlyphIcon,
   MapPin,
+  Maximize2,
   Package,
+  Package2,
+  PanelBottom,
   PawPrint,
   Palette,
   Plane,
@@ -50,6 +56,7 @@ import {
   ThermometerSnowflake,
   TreePine,
   Truck,
+  Umbrella,
   UserRound,
   Warehouse,
   Wrench,
@@ -87,7 +94,6 @@ import {
   LOADING_EQUIPMENT_OPTIONS,
   ROAD_CHARACTERISTIC_OPTIONS,
   SEA_LOADING_EQUIPMENT_OPTIONS,
-  VEHICLE_OPTIONS,
 } from '../loadFormOptions';
 import type { PostLoadModalProps, StepId, TransportType, ScannedDocument, LoadDraft } from './types';
 import { INITIAL_DRAFT } from './types';
@@ -113,6 +119,7 @@ import { PortAutocompleteField } from './PortAutocompleteField';
 import { RoutePoint } from './RoutePoint';
 import { TimeInput } from './TimeInput';
 import { DateInput } from './DateInput';
+import { formatTimeRangeMask } from './timeMask';
 import { ToggleCard } from './ToggleCard';
 import { ChoiceCard } from './ChoiceCard';
 import { SummaryRow } from './SummaryRow';
@@ -124,6 +131,28 @@ const STEPS: Array<{ id: StepId; icon: typeof MapPin }> = [
   { id: 'contact', icon: UserRound },
   { id: 'review', icon: CheckCircle2 },
 ];
+
+const BODY_TYPE_ICONS: Record<(typeof BODY_TYPE_OPTIONS)[number], LucideIcon> = {
+  Curtain: Blinds,
+  Box: Box,
+  Reefer: ThermometerSnowflake,
+  Mega: Maximize2,
+  Tautliner: Container,
+  Flatbed: PanelBottom,
+};
+
+const AIR_SPECIAL_REQUIREMENT_ICONS: Record<string, LucideIcon> = {
+  'ULD Required': Package2,
+  'Security Screening': ScanEye,
+  'Priority / Time Critical': Zap,
+  'AWB Required': FileText,
+  'Airport Handling': PlaneLanding,
+  'Customs Clearance': Landmark,
+  'Insurance Required': Umbrella,
+  'Special Handling': Wrench,
+  'Track & Trace Required': Radar,
+  'Tail Lift Required': ArrowDownToLine,
+};
 
 // Which AI-refillable fields (the ones wrapped in fieldLabel(...) below) live under each step, so
 // the sidebar can show a per-step count instead of only the one global aiFieldCount badge.
@@ -180,6 +209,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     contentScrollRef.current?.scrollTo({ top: 0 });
   }, [step]);
   const [draft, setDraft] = useState<LoadDraft>(INITIAL_DRAFT);
+  const activeTransportOption = transportOptions.find((option) => option.id === draft.transportType);
   const selectedPackageType = PACKAGE_TYPES.find((option) => option.value === draft.quantityMeasure);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingExisting, setIsLoadingExisting] = useState(false);
@@ -714,6 +744,12 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                   {u('postLoadModal.stepLabel', 'Step')} {stepIndex + 1} / {STEPS.length}
                 </span>
               </div>
+              {activeTransportOption && (
+                <div className="flex items-center gap-2 text-xs whitespace-nowrap">
+                  <activeTransportOption.icon className="w-4 h-4" />
+                  <span>{activeTransportOption.label}</span>
+                </div>
+              )}
               <div className="flex items-center gap-2 text-xs whitespace-nowrap">
                 <CalendarDays className="w-4 h-4" />
                 <span>{draft.pickupDate || u('postLoadModal.noPickupDate', 'Pickup date pending')}</span>
@@ -787,6 +823,12 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                   {u('postLoadModal.stepLabel', 'Step')} {stepIndex + 1} / {STEPS.length}
                 </span>
               </div>
+              {activeTransportOption && (
+                <div className="hidden md:flex items-center gap-2 text-xs">
+                  <activeTransportOption.icon className="w-4 h-4" />
+                  <span>{activeTransportOption.label}</span>
+                </div>
+              )}
               <div className="hidden md:flex items-center gap-2 text-xs">
                 <CalendarDays className="w-4 h-4" />
                 <span>{draft.pickupDate || u('postLoadModal.noPickupDate', 'Pickup date pending')}</span>
@@ -1078,48 +1120,48 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           <Input value={draft.pickupCity} onChange={(event) => setField('pickupCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', 'City or postcode')} />
                         </div>
                       </div>
-                      <div className="grid sm:grid-cols-2 gap-4">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="flex h-full flex-col justify-between space-y-1.5">
-                            {fieldLabel('pickupDate', 'postLoadModal.pickupDate', 'Date from')}
-                            <DateInput
-                              value={draft.pickupDate}
-                              onChange={(value) => setField('pickupDate', value)}
-                              placeholder="dd.mm.yyyy"
-                              lang={lang}
-                            />
+                      {draft.transportType !== 'air' && (
+                        <div className="grid sm:grid-cols-2 gap-4">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="flex h-full flex-col justify-between space-y-1.5">
+                              {fieldLabel('pickupDate', 'postLoadModal.pickupDate', 'Date from')}
+                              <DateInput
+                                value={draft.pickupDate}
+                                onChange={(value) => setField('pickupDate', value)}
+                                placeholder="dd.mm.yyyy"
+                                lang={lang}
+                              />
+                            </div>
+                            <div className="flex h-full flex-col justify-between space-y-1.5">
+                              <FieldLabel>{u('postLoadModal.pickupDateTo', 'Date to')}</FieldLabel>
+                              <DateInput
+                                value={draft.pickupDateTo}
+                                onChange={(value) => setField('pickupDateTo', value)}
+                                placeholder="dd.mm.yyyy"
+                                lang={lang}
+                              />
+                            </div>
                           </div>
-                          <div className="flex h-full flex-col justify-between space-y-1.5">
-                            <FieldLabel>{u('postLoadModal.pickupDateTo', 'Date to')}</FieldLabel>
-                            <DateInput
-                              value={draft.pickupDateTo}
-                              onChange={(value) => setField('pickupDateTo', value)}
-                              placeholder="dd.mm.yyyy"
-                              lang={lang}
-                            />
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="flex h-full flex-col justify-between space-y-1.5">
+                              <FieldLabel>{u('postLoadModal.pickupTimeFrom', 'Time from')}</FieldLabel>
+                              <TimeInput
+                                value={draft.pickupTimeFrom}
+                                onChange={(value) => setField('pickupTimeFrom', value)}
+                                placeholder="hh:mm"
+                              />
+                            </div>
+                            <div className="flex h-full flex-col justify-between space-y-1.5">
+                              <FieldLabel>{u('postLoadModal.pickupTimeTo', 'Time to')}</FieldLabel>
+                              <TimeInput
+                                value={draft.pickupTimeTo}
+                                onChange={(value) => setField('pickupTimeTo', value)}
+                                placeholder="hh:mm"
+                              />
+                            </div>
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="flex h-full flex-col justify-between space-y-1.5">
-                            <FieldLabel>{u('postLoadModal.pickupTimeFrom', 'Time from')}</FieldLabel>
-                            <TimeInput
-                              value={draft.pickupTimeFrom}
-                              onChange={(value) => setField('pickupTimeFrom', value)}
-                              placeholder="hh:mm"
-                              lang={lang}
-                            />
-                          </div>
-                          <div className="flex h-full flex-col justify-between space-y-1.5">
-                            <FieldLabel>{u('postLoadModal.pickupTimeTo', 'Time to')}</FieldLabel>
-                            <TimeInput
-                              value={draft.pickupTimeTo}
-                              onChange={(value) => setField('pickupTimeTo', value)}
-                              placeholder="hh:mm"
-                              lang={lang}
-                            />
-                          </div>
-                        </div>
-                      </div>
+                      )}
                     </div>
 
                     <div className="space-y-4 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
@@ -1212,50 +1254,92 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           <Input value={draft.deliveryCity} onChange={(event) => setField('deliveryCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', 'City or postcode')} />
                         </div>
                       </div>
-                      <div className="grid sm:grid-cols-2 gap-4">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="flex h-full flex-col justify-between space-y-1.5">
-                            {fieldLabel('deliveryDate', 'postLoadModal.deliveryDate', 'Date from')}
-                            <DateInput
-                              value={draft.deliveryDate}
-                              onChange={(value) => setField('deliveryDate', value)}
-                              placeholder="dd.mm.yyyy"
-                              lang={lang}
-                            />
+                      {draft.transportType !== 'air' && (
+                        <div className="grid sm:grid-cols-2 gap-4">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="flex h-full flex-col justify-between space-y-1.5">
+                              {fieldLabel('deliveryDate', 'postLoadModal.deliveryDate', 'Date from')}
+                              <DateInput
+                                value={draft.deliveryDate}
+                                onChange={(value) => setField('deliveryDate', value)}
+                                placeholder="dd.mm.yyyy"
+                                lang={lang}
+                              />
+                            </div>
+                            <div className="flex h-full flex-col justify-between space-y-1.5">
+                              <FieldLabel>{u('postLoadModal.deliveryDateTo', 'Date to')}</FieldLabel>
+                              <DateInput
+                                value={draft.deliveryDateTo}
+                                onChange={(value) => setField('deliveryDateTo', value)}
+                                placeholder="dd.mm.yyyy"
+                                lang={lang}
+                              />
+                            </div>
                           </div>
-                          <div className="flex h-full flex-col justify-between space-y-1.5">
-                            <FieldLabel>{u('postLoadModal.deliveryDateTo', 'Date to')}</FieldLabel>
-                            <DateInput
-                              value={draft.deliveryDateTo}
-                              onChange={(value) => setField('deliveryDateTo', value)}
-                              placeholder="dd.mm.yyyy"
-                              lang={lang}
-                            />
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="flex h-full flex-col justify-between space-y-1.5">
+                              <FieldLabel>{u('postLoadModal.deliveryTimeFrom', 'Time from')}</FieldLabel>
+                              <TimeInput
+                                value={draft.deliveryTimeFrom}
+                                onChange={(value) => setField('deliveryTimeFrom', value)}
+                                placeholder="hh:mm"
+                              />
+                            </div>
+                            <div className="flex h-full flex-col justify-between space-y-1.5">
+                              <FieldLabel>{u('postLoadModal.deliveryTimeTo', 'Time to')}</FieldLabel>
+                              <TimeInput
+                                value={draft.deliveryTimeTo}
+                                onChange={(value) => setField('deliveryTimeTo', value)}
+                                placeholder="hh:mm"
+                              />
+                            </div>
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="flex h-full flex-col justify-between space-y-1.5">
-                            <FieldLabel>{u('postLoadModal.deliveryTimeFrom', 'Time from')}</FieldLabel>
-                            <TimeInput
-                              value={draft.deliveryTimeFrom}
-                              onChange={(value) => setField('deliveryTimeFrom', value)}
-                              placeholder="hh:mm"
-                              lang={lang}
+                      )}
+                    </div>
+                  </div>
+
+                  {draft.transportType === 'air' && (
+                    <div className="space-y-4 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
+                      <div className="grid gap-4 sm:grid-cols-3">
+                        <div className="space-y-1.5">
+                          <FieldLabel>{u('postLoadModal.cargoReady', 'Cargo ready')}</FieldLabel>
+                          <DateInput
+                            value={draft.pickupDate}
+                            onChange={(value) => setField('pickupDate', value)}
+                            placeholder="dd.mm.yyyy"
+                            lang={lang}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <FieldLabel>{u('postLoadModal.pickupWindow', 'Pickup window')}</FieldLabel>
+                          <div className="relative">
+                            <Input
+                              value={draft.pickupWindow}
+                              onChange={(event) => setField('pickupWindow', formatTimeRangeMask(event.target.value))}
+                              inputMode="numeric"
+                              placeholder={u('postLoadModal.windowPlaceholder', '08:00 - 12:00')}
+                              className="pr-11"
                             />
+                            <Clock3 className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" />
                           </div>
-                          <div className="flex h-full flex-col justify-between space-y-1.5">
-                            <FieldLabel>{u('postLoadModal.deliveryTimeTo', 'Time to')}</FieldLabel>
-                            <TimeInput
-                              value={draft.deliveryTimeTo}
-                              onChange={(value) => setField('deliveryTimeTo', value)}
-                              placeholder="hh:mm"
-                              lang={lang}
+                        </div>
+                        <div className="space-y-1.5">
+                          <FieldLabel>{u('postLoadModal.deliveryWindow', 'Delivery window')}</FieldLabel>
+                          <div className="relative">
+                            <Input
+                              value={draft.deliveryWindow}
+                              onChange={(event) => setField('deliveryWindow', formatTimeRangeMask(event.target.value))}
+                              inputMode="numeric"
+                              placeholder={u('postLoadModal.windowPlaceholder', '08:00 - 12:00')}
+                              className="pr-11"
                             />
+                            <Clock3 className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" />
                           </div>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                 </motion.div>
               )}
 
@@ -1604,13 +1688,10 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
                       {draft.transportType === 'air' ? (
                         <div className="space-y-4">
-                          <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.specialRequirements', 'Special requirements')}</FieldLabel><div className="min-h-[54px] rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950"><div className="flex flex-wrap gap-2">{(draft.pickupPlaceType === 'Address' || draft.deliveryPlaceType === 'Address + Last Mile Delivery' ? [...AIR_SPECIAL_REQUIREMENT_OPTIONS, AIR_TAIL_LIFT_REQUIREMENT] : AIR_SPECIAL_REQUIREMENT_OPTIONS).map((option) => <button key={option} type="button" onClick={() => toggleSpecialRequirement(option)} className={cn('cursor-pointer rounded-full border px-3 py-1.5 text-xs font-bold transition-colors', draft.specialRequirements.includes(option) ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200')}>{option}</button>)}</div></div></div>
+                          <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.specialRequirements', 'Special requirements')}</FieldLabel><div className="flex min-h-[54px] items-center rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950"><div className="flex flex-wrap gap-2">{(draft.pickupPlaceType === 'Address' || draft.deliveryPlaceType === 'Address + Last Mile Delivery' ? [...AIR_SPECIAL_REQUIREMENT_OPTIONS, AIR_TAIL_LIFT_REQUIREMENT] : AIR_SPECIAL_REQUIREMENT_OPTIONS).map((option) => { const RequirementIcon = AIR_SPECIAL_REQUIREMENT_ICONS[option]; return <button key={option} type="button" onClick={() => toggleSpecialRequirement(option)} className={cn('inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold leading-none transition-colors', draft.specialRequirements.includes(option) ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200')}><RequirementIcon className="h-3.5 w-3.5 shrink-0" /><span className="leading-none">{u(option, option)}</span></button>; })}</div></div></div>
                         </div>
                       ) : (
-                        <div className="grid sm:grid-cols-2 gap-4">
-                          <div className="space-y-1.5">{fieldLabel('vehicleType', 'postLoadModal.vehicleType', 'Required vehicle')}<Select value={draft.vehicleType} onChange={(e) => setField('vehicleType', e.target.value)}>{VEHICLE_OPTIONS.map((option) => <option key={option} value={option}>{u(`postLoadModal.vehicle.${option}`, option)}</option>)}</Select></div>
-                          <div className="space-y-1.5">{fieldLabel('bodyTypes', 'postLoadModal.bodyTypes', 'Body types')}<div className="min-h-[54px] rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950"><div className="flex flex-wrap gap-2">{BODY_TYPE_OPTIONS.map((option) => <button key={option} type="button" onClick={() => toggleBodyType(option)} className={cn('cursor-pointer rounded-full border px-3 py-1.5 text-xs font-bold transition-colors', draft.bodyTypes.includes(option) ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200')}>{option}</button>)}</div></div></div>
-                        </div>
+                        <div className="space-y-1.5">{fieldLabel('bodyTypes', 'postLoadModal.bodyTypes', 'Body types')}<div className="flex min-h-[54px] items-center rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950"><div className="flex flex-wrap gap-2">{BODY_TYPE_OPTIONS.map((option) => { const BodyTypeIcon = BODY_TYPE_ICONS[option]; return <button key={option} type="button" onClick={() => toggleBodyType(option)} className={cn('inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold leading-none transition-colors', draft.bodyTypes.includes(option) ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200')}><BodyTypeIcon className="h-3.5 w-3.5 shrink-0" /><span className="leading-none">{u(`postLoadModal.bodyType.${option}`, option)}</span></button>; })}</div></div></div>
                       )}
 
                       <div className="space-y-4">
@@ -1628,16 +1709,20 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             <ChoiceCard compact active={!draft.temperatureControlled} title={u('common.no', 'No')} description="Ambient conditions" icon={Package} onClick={() => setField('temperatureControlled', false)} />
                             <ChoiceCard compact active={draft.temperatureControlled} title={u('common.yes', 'Yes')} description="Set a temperature range" icon={ThermometerSnowflake} onClick={() => setField('temperatureControlled', true)} />
                           </div>
-                          <Input
-                            value={draft.temperatureMin}
-                            onChange={(e) => setField('temperatureMin', e.target.value)}
-                            className={cn(!draft.temperatureControlled && 'hidden')}
-                            placeholder={u('postLoadModal.temperaturePlaceholder', '2°C to 8°C / Ambient')}
-                          />
                         </div>
+                        {draft.temperatureControlled && (
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                              <FieldLabel>{u('postLoadModal.temperatureMin', 'From (°C)')}</FieldLabel>
+                              <Input type="number" value={draft.temperatureMin} onChange={(e) => setField('temperatureMin', e.target.value)} placeholder="2" />
+                            </div>
+                            <div className="space-y-1.5">
+                              <FieldLabel>{u('postLoadModal.temperatureMax', 'To (°C)')}</FieldLabel>
+                              <Input type="number" value={draft.temperatureMax} onChange={(e) => setField('temperatureMax', e.target.value)} placeholder="8" />
+                            </div>
+                          </div>
+                        )}
                       </div>
-
-                      {draft.temperatureControlled && <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.temperatureMax', 'To (°C)')}</FieldLabel><Input type="number" value={draft.temperatureMax} onChange={(e) => setField('temperatureMax', e.target.value)} placeholder="8" /></div>}
 
                       {draft.transportType === 'air' && <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.deliveryProof', 'Delivery proof')}</FieldLabel><div className="grid grid-cols-2 gap-3"><ChoiceCard compact active={draft.deliveryProof === 'POD'} title="POD" description="Proof of Delivery" icon={FileText} onClick={() => setField('deliveryProof', 'POD')} /><ChoiceCard compact active={draft.deliveryProof === 'AOD'} title="AOD" description="Arrival on Delivery" icon={CheckCircle2} onClick={() => setField('deliveryProof', 'AOD')} /></div></div>}
 

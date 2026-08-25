@@ -32,10 +32,29 @@ export const ScrollableRow = ({ children, className }: { children: ReactNode; cl
     };
   }, [children]);
 
+  // Steps by exactly one item's edge-to-edge position rather than a fraction of the container
+  // width, so uneven pill widths (e.g. "AWB Required" vs "Track & Trace Required") each still take
+  // exactly one press to reach.
   const scrollByStep = (direction: 1 | -1) => {
     const el = scrollRef.current;
     if (!el) return;
-    el.scrollBy({ left: direction * Math.round(el.clientWidth * 0.8), behavior: 'smooth' });
+    const items = Array.from(el.querySelectorAll<HTMLElement>(':scope > * > *'));
+    if (items.length === 0) {
+      el.scrollBy({ left: direction * Math.round(el.clientWidth * 0.8), behavior: 'smooth' });
+      return;
+    }
+    const elLeft = el.getBoundingClientRect().left;
+    const positions = items.map((item) => item.getBoundingClientRect().left - elLeft + el.scrollLeft);
+    const current = el.scrollLeft;
+    let target = current;
+    if (direction === 1) {
+      const next = positions.find((pos) => pos > current + 4);
+      target = next !== undefined ? next : el.scrollWidth;
+    } else {
+      const previous = [...positions].reverse().find((pos) => pos < current - 4);
+      target = previous !== undefined ? previous : 0;
+    }
+    el.scrollTo({ left: target, behavior: 'smooth' });
   };
 
   return (
