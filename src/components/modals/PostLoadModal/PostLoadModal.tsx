@@ -125,7 +125,7 @@ import { Input, Textarea, Select } from './FormFields';
 import { AddressAutocompleteField } from './AddressAutocompleteField';
 import { PortAutocompleteField } from './PortAutocompleteField';
 import { AirportAutocompleteField } from './AirportAutocompleteField';
-import { RoutePoint } from './RoutePoint';
+import { VerticalRoutePoint } from './VerticalRoutePoint';
 import { TimeInput } from './TimeInput';
 import { DateInput } from './DateInput';
 import { formatTimeRangeMask } from './timeMask';
@@ -1046,9 +1046,9 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
           </div>
         </div>
 
-        <div className="grid min-h-0 min-w-0 flex-1 grid-rows-[minmax(0,1fr)] overflow-hidden xl:grid-cols-[250px_minmax(0,1fr)] xl:gap-3">
-          <aside className="hidden xl:flex xl:flex-col border-r border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60">
-            <div className="flex min-h-0 flex-1 flex-col justify-between gap-3 overflow-y-auto p-3">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <div className="shrink-0 overflow-x-auto border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60 px-4 py-3 sm:px-6">
+            <div className="flex w-full min-w-max items-start">
               {STEPS.map((item, index) => {
                 const Icon = item.icon;
                 const isActive = item.id === step;
@@ -1064,16 +1064,6 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         : item.id === 'contact'
                           ? u('postLoadModal.step.contact', 'Contact')
                           : u('postLoadModal.step.review', 'Review');
-                const subtitle =
-                  item.id === 'route'
-                    ? u('postLoadModal.step.routeDesc', 'Where and when the load moves')
-                    : item.id === 'cargo'
-                      ? u('postLoadModal.step.cargoDesc', 'Customer, transport type and cargo')
-                      : item.id === 'terms'
-                        ? u('postLoadModal.step.termsDesc', 'Budget and equipment requirements')
-                        : item.id === 'contact'
-                          ? u('postLoadModal.step.contactDesc', 'Who to coordinate with and publication limits')
-                          : u('postLoadModal.step.reviewDesc', 'Final check before posting');
 
                 return (
                   <button
@@ -1085,114 +1075,59 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                     }}
                     disabled={!isClickable}
                     className={cn(
-                      'w-full min-h-[92px] rounded-2xl border p-4 text-left transition-all',
-                      isActive
-                        ? 'border-primary bg-primary/5'
-                        : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900',
-                      isDone && !isActive && 'border-emerald-500/30 bg-emerald-500/5',
-                      isClickable
-                        ? 'cursor-pointer hover:border-primary/30'
-                        : 'cursor-not-allowed opacity-60'
+                      'flex flex-1 flex-col gap-1.5',
+                      index === 0 ? 'items-start' : index === STEPS.length - 1 ? 'items-end' : 'items-center',
+                      isClickable ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'
                     )}
                   >
-                    <div className="flex items-center gap-3">
-                      <div
+                    {/* One continuous line runs through every circle: each step contributes a line
+                        segment on its left and right (the first/last steps skip the outer segment so
+                        the line doesn't overshoot the row), and since adjacent segments touch with no
+                        gap between them, they read as a single unbroken line with the circles sitting
+                        on top - same idea as the dashed POL/POD line on the sea route header. */}
+                    <span className="flex w-full items-center">
+                      {index > 0 && <span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />}
+                      <span
                         className={cn(
-                          'w-10 h-10 rounded-xl flex items-center justify-center shrink-0',
+                          'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold',
                           isDone
                             ? 'bg-emerald-500 text-white'
                             : isActive
                               ? 'bg-primary text-white'
-                              : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                              : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
                         )}
                       >
-                        {isDone ? <CheckCircle2 className="w-5 h-5" /> : <Icon className="w-5 h-5" />}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-bold dark:text-white">{title}</p>
-                        <p className="text-xs text-slate-500 mt-1 line-clamp-2">{subtitle}</p>
-                      </div>
+                        {isDone ? <CheckCircle2 className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+                      </span>
+                      {index < STEPS.length - 1 && <span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className={cn('whitespace-nowrap text-[11px] font-bold', isActive ? 'text-primary' : isDone ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400')}>
+                        {title}
+                      </span>
                       {aiFieldCountByStep[item.id] > 0 && (
-                        <div
+                        <span
                           title={u('postLoadModal.aiFilledCount', 'fields from AI')}
-                          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[11px] font-bold text-primary"
+                          className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-primary/10 px-1 py-0.5 text-[9px] font-bold text-primary"
                         >
-                          <Sparkles className="h-3 w-3" />
+                          <Sparkles className="h-2 w-2" />
                           {aiFieldCountByStep[item.id]}
-                        </div>
+                        </span>
                       )}
-                    </div>
+                    </span>
                   </button>
                 );
               })}
             </div>
-          </aside>
+          </div>
 
-          <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             <div ref={contentScrollRef} className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain p-4 pb-8 sm:p-5 sm:pb-8 md:p-6 md:pb-10">
               <AnimatePresence mode="wait">
               {step === 'route' && (
                 <motion.div key="route" className="space-y-5 md:space-y-6" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
 
-                  {draft.transportType === 'sea' ? (
-                    <div className="relative min-h-14 py-2">
-                      <div className="pointer-events-none absolute left-5 right-5 top-1/2 -translate-y-1/2 border-t-2 border-dashed border-sky-300/80 dark:border-sky-700/80" />
-                      <div className="relative flex items-center gap-3">
-                        <div className="flex min-w-0 flex-1 items-center gap-6">
-                          {draft.pickupPlaceType !== 'Port to Port' && (
-                            <RoutePoint icon={MapPin} iconClassName="bg-emerald-500 shadow-emerald-500/20" label={u('postLoadModal.address', 'Address')} value={draft.pickupAddress || draft.pickupCity || '—'} />
-                          )}
-                          <RoutePoint icon={Ship} iconClassName="bg-primary shadow-sky-500/20" label="POL" value={draft.pickupPort || '—'} />
-                        </div>
-                        <div className="relative shrink-0 rounded-2xl border border-sky-200 bg-white px-2.5 py-1 text-center shadow-sm dark:border-sky-800 dark:bg-slate-900">
-                          <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">ETA</p>
-                          <p className="flex items-center justify-center gap-1 text-sm font-black text-slate-900 dark:text-white">
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              value={draft.transitDays}
-                              onChange={(event) => setField('transitDays', event.target.value.replace(/\D/g, '').slice(0, 3))}
-                              placeholder="0"
-                              className="w-6 border-0 bg-transparent p-0 text-center text-sm font-black text-slate-900 outline-none dark:text-white"
-                            />
-                            {u('postLoadModal.transitDays', 'days')}
-                          </p>
-                        </div>
-                        <div className="flex min-w-0 flex-1 items-center justify-end gap-6">
-                          <RoutePoint icon={Ship} iconClassName="bg-primary shadow-sky-500/20" label="POD" value={draft.deliveryPort || '—'} align="right" />
-                          {draft.deliveryPlaceType !== 'Port to Port' && (
-                            <RoutePoint icon={MapPin} iconClassName="bg-blue-500 shadow-blue-500/20" label={u('postLoadModal.address', 'Address')} value={draft.deliveryAddress || draft.deliveryCity || '—'} align="right" />
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="relative h-14">
-                      <div className="pointer-events-none absolute left-5 right-0 top-1/2 -translate-y-1/2 border-t-2 border-dashed border-sky-300/80 dark:border-sky-700/80" />
-                      <div className="relative flex h-full items-center gap-3">
-                        <div className="relative h-full min-w-0 flex-1">
-                          <span className="absolute left-0 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-xl bg-primary text-white shadow-lg shadow-sky-500/20"><Route className="h-4 w-4" /></span>
-                          <p className="absolute left-12 top-0 max-w-[calc(100%-3rem)] truncate text-sm font-bold text-slate-900 dark:text-white">{draft.pickupCity || draft.pickupAddress || ''}</p>
-                        </div>
-                        <div className="relative shrink-0 rounded-2xl border border-sky-200 bg-white px-2.5 py-1 text-center shadow-sm dark:border-sky-800 dark:bg-slate-900">
-                          <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">{u('landing.distance', 'Distance')}</p>
-                          <p className="flex items-center justify-center gap-1 text-sm font-black text-slate-900 dark:text-white">
-                            {recalculatingRoute
-                              ? <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-                              : routeDistanceKm === null ? '' : `${routeDistanceKm.toLocaleString()} km`}
-                          </p>
-                        </div>
-                        <div className="relative h-full min-w-0 flex-1">
-                          <p className="absolute right-0 top-0 max-w-full truncate text-right text-sm font-bold text-slate-900 dark:text-white">{draft.deliveryCity || draft.deliveryAddress || ''}</p>
-                        </div>
-                        <div className="relative shrink-0">
-                          <Button type="button" disabled={!routeDistanceKm} onClick={() => setRouteMapOpen(true)} className="shrink-0 gap-2 disabled:cursor-not-allowed disabled:bg-sky-300 disabled:text-white disabled:opacity-100 disabled:shadow-none dark:disabled:bg-sky-800"><MapGlyphIcon className="h-4 w-4" />{u('postLoadModal.showRouteMap', 'Show route')}</Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="grid lg:grid-cols-2 gap-4 sm:gap-5">
+                  <div className="grid lg:grid-cols-[minmax(0,5fr)_minmax(0,5fr)_minmax(0,2fr)] gap-4 sm:gap-5">
                     <div className="space-y-4 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
                       <div className="flex items-center gap-2 text-emerald-500">
                         <MapPin className="w-4 h-4" />
@@ -1518,6 +1453,60 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         </div>
                       )}
                     </div>
+
+                    <div className="flex h-full min-w-0 flex-col space-y-4 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
+                      <div className="flex items-center gap-2 text-primary">
+                        <Route className="w-4 h-4" />
+                        <p className="text-xs font-black uppercase tracking-wider">{u('postLoadModal.routeSummaryTitle', 'Route')}</p>
+                      </div>
+                      {draft.transportType === 'sea' ? (
+                        <div className="flex min-w-0 flex-1 flex-col">
+                          {draft.pickupPlaceType !== 'Port to Port' && (
+                            <VerticalRoutePoint icon={MapPin} iconClassName="bg-emerald-500 shadow-emerald-500/20" label={u('postLoadModal.origin', 'Origin')} value={draft.pickupAddress || draft.pickupCity || '—'} />
+                          )}
+                          <VerticalRoutePoint icon={Ship} iconClassName="bg-primary shadow-sky-500/20" label="POL" value={draft.pickupPort || '—'} />
+                          <VerticalRoutePoint icon={Ship} iconClassName="bg-primary shadow-sky-500/20" label="POD" value={draft.deliveryPort || '—'} last={draft.deliveryPlaceType === 'Port to Port'} />
+                          {draft.deliveryPlaceType !== 'Port to Port' && (
+                            <VerticalRoutePoint icon={MapPin} iconClassName="bg-blue-500 shadow-blue-500/20" label={u('postLoadModal.destination', 'Destination')} value={draft.deliveryAddress || draft.deliveryCity || '—'} last />
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex min-w-0 flex-1 flex-col">
+                          <VerticalRoutePoint icon={MapPin} iconClassName="bg-emerald-500 shadow-emerald-500/20" label={u('postLoadModal.origin', 'Origin')} value={draft.pickupCity || draft.pickupAddress || '—'} />
+                          <VerticalRoutePoint icon={MapPin} iconClassName="bg-blue-500 shadow-blue-500/20" label={u('postLoadModal.destination', 'Destination')} value={draft.deliveryCity || draft.deliveryAddress || '—'} last />
+                        </div>
+                      )}
+
+                      {draft.transportType === 'sea' ? (
+                        <div className="flex items-center justify-between rounded-2xl border border-sky-200 bg-sky-50/50 px-3 py-2 dark:border-sky-800 dark:bg-slate-900">
+                          <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">{u('postLoadModal.transitTime', 'ETA - transit time (POL-POD)')}</p>
+                          <p className="flex items-center gap-1 text-sm font-black text-slate-900 dark:text-white">
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              value={draft.transitDays}
+                              onChange={(event) => setField('transitDays', event.target.value.replace(/\D/g, '').slice(0, 3))}
+                              placeholder="0"
+                              className="w-6 border-0 bg-transparent p-0 text-center text-sm font-black text-slate-900 outline-none dark:text-white"
+                            />
+                            {u('postLoadModal.transitDays', 'days')}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between rounded-2xl border border-sky-200 bg-sky-50/50 px-3 py-2 dark:border-sky-800 dark:bg-slate-900">
+                          <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">{u('landing.distance', 'Distance')}</p>
+                          <p className="flex items-center gap-1 text-sm font-black text-slate-900 dark:text-white">
+                            {recalculatingRoute
+                              ? <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                              : routeDistanceKm === null ? '—' : `${routeDistanceKm.toLocaleString()} km`}
+                          </p>
+                        </div>
+                      )}
+
+                      {draft.transportType !== 'sea' && (
+                        <Button type="button" disabled={!routeDistanceKm} onClick={() => setRouteMapOpen(true)} className="w-full gap-2 disabled:cursor-not-allowed disabled:bg-sky-300 disabled:text-white disabled:opacity-100 disabled:shadow-none dark:disabled:bg-sky-800"><MapGlyphIcon className="h-4 w-4" />{u('postLoadModal.showRouteMap', 'Show route')}</Button>
+                      )}
+                    </div>
                   </div>
 
                   {draft.transportType !== 'road' && (
@@ -1567,7 +1556,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
               {step === 'cargo' && (
                 <motion.div key="cargo" className="space-y-6 sm:space-y-8" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
 
-                  <div className="grid lg:grid-cols-2 gap-4 sm:gap-5">
+                  <div className="grid lg:grid-cols-3 gap-4 sm:gap-5">
                     <div className="space-y-4 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
                       <div className="space-y-1.5">
                         <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
@@ -1633,7 +1622,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                                 <span aria-hidden="true" className="absolute right-4 top-4 flex h-4 w-4 items-center justify-center rounded-full border-2 border-slate-300 bg-white peer-checked:border-primary dark:border-slate-600 dark:bg-slate-900">
                                   <span className={cn('h-2 w-2 rounded-full bg-primary transition-opacity', draft.transportType === option.id ? 'opacity-100' : 'opacity-0')} />
                                 </span>
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-end gap-3">
                                   <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', option.iconSurface)}>
                                     <Icon className={cn('h-5 w-5', option.iconTone)} />
                                   </div>
@@ -1801,90 +1790,91 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           {[{ value: 'Stackable', icon: Package }, { value: 'Top load only', icon: ShieldCheck }, { value: 'Non-stackable', icon: X }].map(({ value, icon }) => <ChoiceCard key={value} compact active={draft.additionalInfo === value} title={value} icon={icon} onClick={() => setField('additionalInfo', value)} />)}
                         </div>
                       </div>
+                    </div>
 
-                      <div className="space-y-4">
-                        <div className="space-y-1.5">
-                          <FieldLabel>{draft.transportType === 'sea' ? u('postLoadModal.characteristicsSea', 'Characteristics') : u('postLoadModal.characteristics', 'Characteristics & certificates')}</FieldLabel>
-                          <div className="grid grid-cols-3 gap-2">
-                            {(draft.transportType === 'sea' ? SEA_CHARACTERISTIC_OPTIONS : draft.transportType === 'air' ? AIR_CHARACTERISTIC_OPTIONS : ROAD_CHARACTERISTIC_OPTIONS).map((option) => <ChoiceCard key={option} compact active={draft.characteristics.includes(option)} title={cropLabel(option)} icon={draft.transportType === 'sea' ? SEA_CHARACTERISTIC_ICONS[option] : option.startsWith('DG') || option === 'ADR' ? ShieldCheck : option.startsWith('MED') ? FileText : option.startsWith('Fragile') ? ShieldAlert : option.startsWith('Oversized') ? Layers : option.startsWith('Lithium') ? Zap : option.startsWith('Dry Ice') ? ThermometerSnowflake : Package} onClick={() => toggleCharacteristic(option)} />)}
+                    <div className="space-y-4 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
+                      <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
+                        <ShieldCheck className="h-4 w-4" />
+                        <span>{draft.transportType === 'sea' ? u('postLoadModal.characteristicsSea', 'Characteristics') : u('postLoadModal.characteristics', 'Characteristics & certificates')}</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {(draft.transportType === 'sea' ? SEA_CHARACTERISTIC_OPTIONS : draft.transportType === 'air' ? AIR_CHARACTERISTIC_OPTIONS : ROAD_CHARACTERISTIC_OPTIONS).map((option) => <ChoiceCard key={option} compact active={draft.characteristics.includes(option)} title={cropLabel(option)} icon={draft.transportType === 'sea' ? SEA_CHARACTERISTIC_ICONS[option] : option.startsWith('DG') || option === 'ADR' ? ShieldCheck : option.startsWith('MED') ? FileText : option.startsWith('Fragile') ? ShieldAlert : option.startsWith('Oversized') ? Layers : option.startsWith('Lithium') ? Zap : option.startsWith('Dry Ice') ? ThermometerSnowflake : Package} onClick={() => toggleCharacteristic(option)} />)}
+                      </div>
+
+                      {draft.transportType === 'sea' && draft.characteristics.includes('DG / IMO') && (
+                        <div className="grid sm:grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <FieldLabel>{u('postLoadModal.dgUnNumber', 'UN Number')}</FieldLabel>
+                            <Input value={draft.dgUnNumber} onChange={(e) => setField('dgUnNumber', e.target.value)} placeholder="UN 3481" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <FieldLabel>{u('postLoadModal.dgImoClass', 'IMO Class')}</FieldLabel>
+                            <Input value={draft.dgImoClass} onChange={(e) => setField('dgImoClass', e.target.value)} placeholder="9" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <FieldLabel>{u('postLoadModal.dgPackingGroup', 'Packing Group')}</FieldLabel>
+                            <Input value={draft.dgPackingGroup} onChange={(e) => setField('dgPackingGroup', e.target.value)} placeholder="II" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <FieldLabel>{u('postLoadModal.dgProperShippingName', 'Proper Shipping Name')}</FieldLabel>
+                            <Input value={draft.dgProperShippingName} onChange={(e) => setField('dgProperShippingName', e.target.value)} />
                           </div>
                         </div>
+                      )}
 
-                        {draft.transportType === 'sea' && draft.characteristics.includes('DG / IMO') && (
-                          <div className="grid sm:grid-cols-2 gap-3">
-                            <div className="space-y-1.5">
-                              <FieldLabel>{u('postLoadModal.dgUnNumber', 'UN Number')}</FieldLabel>
-                              <Input value={draft.dgUnNumber} onChange={(e) => setField('dgUnNumber', e.target.value)} placeholder="UN 3481" />
-                            </div>
-                            <div className="space-y-1.5">
-                              <FieldLabel>{u('postLoadModal.dgImoClass', 'IMO Class')}</FieldLabel>
-                              <Input value={draft.dgImoClass} onChange={(e) => setField('dgImoClass', e.target.value)} placeholder="9" />
-                            </div>
-                            <div className="space-y-1.5">
-                              <FieldLabel>{u('postLoadModal.dgPackingGroup', 'Packing Group')}</FieldLabel>
-                              <Input value={draft.dgPackingGroup} onChange={(e) => setField('dgPackingGroup', e.target.value)} placeholder="II" />
-                            </div>
-                            <div className="space-y-1.5">
-                              <FieldLabel>{u('postLoadModal.dgProperShippingName', 'Proper Shipping Name')}</FieldLabel>
-                              <Input value={draft.dgProperShippingName} onChange={(e) => setField('dgProperShippingName', e.target.value)} />
-                            </div>
-                          </div>
-                        )}
-
-                        {draft.transportType === 'sea' && draft.characteristics.includes('OOG') && (
-                          <div className="space-y-3">
-                            <div className="space-y-1.5">
-                              <FieldLabel>{u('postLoadModal.oogGauge', 'In gauge / Out of gauge')}</FieldLabel>
-                              <div className="grid grid-cols-2 gap-2">
-                                <ChoiceCard compact active={draft.oogInGauge === 'in_gauge'} title={u('postLoadModal.inGauge', 'In gauge')} description={u('postLoadModal.inGaugeDesc', 'Within container dimensions')} icon={Container} onClick={() => setField('oogInGauge', 'in_gauge')} />
-                                <ChoiceCard compact active={draft.oogInGauge === 'out_of_gauge'} title={u('postLoadModal.outOfGauge', 'Out of gauge')} description={u('postLoadModal.outOfGaugeDesc', 'Exceeds container dimensions')} icon={Maximize2} onClick={() => setField('oogInGauge', 'out_of_gauge')} />
-                              </div>
-                            </div>
-                            {draft.oogInGauge === 'out_of_gauge' && (
-                              <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1.5">
-                                  <FieldLabel>{u('postLoadModal.oogLength', 'Length (m)')}</FieldLabel>
-                                  <Input type="number" min="0" value={draft.oogLengthM} onChange={(e) => setField('oogLengthM', e.target.value)} />
-                                </div>
-                                <div className="space-y-1.5">
-                                  <FieldLabel>{u('postLoadModal.oogWidth', 'Width (m)')}</FieldLabel>
-                                  <Input type="number" min="0" value={draft.oogWidthM} onChange={(e) => setField('oogWidthM', e.target.value)} />
-                                </div>
-                                <div className="space-y-1.5">
-                                  <FieldLabel>{u('postLoadModal.oogHeight', 'Height (m)')}</FieldLabel>
-                                  <Input type="number" min="0" value={draft.oogHeightM} onChange={(e) => setField('oogHeightM', e.target.value)} />
-                                </div>
-                                <div className="space-y-1.5">
-                                  <FieldLabel>{u('postLoadModal.oogWeight', 'Weight (kg)')}</FieldLabel>
-                                  <Input type="number" min="0" value={draft.oogWeightKg} onChange={(e) => setField('oogWeightKg', e.target.value)} />
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {draft.transportType !== 'sea' && (
+                      {draft.transportType === 'sea' && draft.characteristics.includes('OOG') && (
+                        <div className="space-y-3">
                           <div className="space-y-1.5">
-                            {fieldLabel('temperatureControlled', 'postLoadModal.temperature', 'Temperature controlled')}
+                            <FieldLabel>{u('postLoadModal.oogGauge', 'In gauge / Out of gauge')}</FieldLabel>
                             <div className="grid grid-cols-2 gap-2">
-                              <ChoiceCard compact active={!draft.temperatureControlled} title={u('common.no', 'No')} description="Ambient conditions" icon={Package} onClick={() => setField('temperatureControlled', false)} />
-                              <ChoiceCard compact active={draft.temperatureControlled} title={u('common.yes', 'Yes')} description="Set a temperature range" icon={ThermometerSnowflake} onClick={() => setField('temperatureControlled', true)} />
+                              <ChoiceCard compact active={draft.oogInGauge === 'in_gauge'} title={u('postLoadModal.inGauge', 'In gauge')} description={u('postLoadModal.inGaugeDesc', 'Within container dimensions')} icon={Container} onClick={() => setField('oogInGauge', 'in_gauge')} />
+                              <ChoiceCard compact active={draft.oogInGauge === 'out_of_gauge'} title={u('postLoadModal.outOfGauge', 'Out of gauge')} description={u('postLoadModal.outOfGaugeDesc', 'Exceeds container dimensions')} icon={Maximize2} onClick={() => setField('oogInGauge', 'out_of_gauge')} />
                             </div>
                           </div>
-                        )}
-                        {draft.temperatureControlled && (
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1.5">
-                              <FieldLabel>{u('postLoadModal.temperatureMin', 'From (°C)')}</FieldLabel>
-                              <Input type="number" value={draft.temperatureMin} onChange={(e) => setField('temperatureMin', e.target.value)} placeholder="2" />
+                          {draft.oogInGauge === 'out_of_gauge' && (
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1.5">
+                                <FieldLabel>{u('postLoadModal.oogLength', 'Length (m)')}</FieldLabel>
+                                <Input type="number" min="0" value={draft.oogLengthM} onChange={(e) => setField('oogLengthM', e.target.value)} />
+                              </div>
+                              <div className="space-y-1.5">
+                                <FieldLabel>{u('postLoadModal.oogWidth', 'Width (m)')}</FieldLabel>
+                                <Input type="number" min="0" value={draft.oogWidthM} onChange={(e) => setField('oogWidthM', e.target.value)} />
+                              </div>
+                              <div className="space-y-1.5">
+                                <FieldLabel>{u('postLoadModal.oogHeight', 'Height (m)')}</FieldLabel>
+                                <Input type="number" min="0" value={draft.oogHeightM} onChange={(e) => setField('oogHeightM', e.target.value)} />
+                              </div>
+                              <div className="space-y-1.5">
+                                <FieldLabel>{u('postLoadModal.oogWeight', 'Weight (kg)')}</FieldLabel>
+                                <Input type="number" min="0" value={draft.oogWeightKg} onChange={(e) => setField('oogWeightKg', e.target.value)} />
+                              </div>
                             </div>
-                            <div className="space-y-1.5">
-                              <FieldLabel>{u('postLoadModal.temperatureMax', 'To (°C)')}</FieldLabel>
-                              <Input type="number" value={draft.temperatureMax} onChange={(e) => setField('temperatureMax', e.target.value)} placeholder="8" />
-                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {draft.transportType !== 'sea' && (
+                        <div className="space-y-1.5">
+                          {fieldLabel('temperatureControlled', 'postLoadModal.temperature', 'Temperature controlled')}
+                          <div className="grid grid-cols-2 gap-2">
+                            <ChoiceCard compact active={!draft.temperatureControlled} title={u('common.no', 'No')} description="Ambient conditions" icon={Package} onClick={() => setField('temperatureControlled', false)} />
+                            <ChoiceCard compact active={draft.temperatureControlled} title={u('common.yes', 'Yes')} description="Set a temperature range" icon={ThermometerSnowflake} onClick={() => setField('temperatureControlled', true)} />
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
+                      {draft.temperatureControlled && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <FieldLabel>{u('postLoadModal.temperatureMin', 'From (°C)')}</FieldLabel>
+                            <Input type="number" value={draft.temperatureMin} onChange={(e) => setField('temperatureMin', e.target.value)} placeholder="2" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <FieldLabel>{u('postLoadModal.temperatureMax', 'To (°C)')}</FieldLabel>
+                            <Input type="number" value={draft.temperatureMax} onChange={(e) => setField('temperatureMax', e.target.value)} placeholder="8" />
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                   </div>
@@ -2155,6 +2145,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
               {step === 'contact' && (
                 <motion.div key="contact" className="space-y-6 sm:space-y-8" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
 
+                  <div className="grid lg:grid-cols-2 gap-4 sm:gap-5">
                     <div className="space-y-5 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
                       <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
                         <UserRound className="h-4 w-4" />
@@ -2237,52 +2228,53 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           placeholder={u('postLoadModal.internalCommentsPlaceholder', 'Only visible within your company')}
                         />
                       </div>
-                      <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
-                        <p className="text-xs font-black uppercase tracking-wider text-primary">
-                          {u('postLoadModal.limitPublication', 'Limit publication')}
-                        </p>
-                        <div className="grid sm:grid-cols-2 gap-4">
-                          <div className="space-y-1.5">
-                            <FieldLabel>{u('postLoadModal.closedFreightExchange', 'Publish in closed freight exchange')}</FieldLabel>
-                            <Select
-                              value={draft.closedFreightExchange}
-                              onChange={(e) => setField('closedFreightExchange', e.target.value)}
-                            >
-                              {CLOSED_EXCHANGE_OPTIONS.map((option) => (
-                                <option key={option || 'none'} value={option}>
-                                  {option || u('postLoadModal.none', 'None')}
-                                </option>
-                              ))}
-                            </Select>
-                          </div>
-                          <div className="space-y-1.5">
-                            <FieldLabel>{u('postLoadModal.closedFreightComments', 'Comments for closed freight exchange')}</FieldLabel>
-                            <Input
-                              value={draft.closedFreightComments}
-                              onChange={(e) => setField('closedFreightComments', e.target.value)}
-                              placeholder={u('postLoadModal.closedFreightCommentsPlaceholder', 'Only visible to members of the closed freight exchange')}
-                            />
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-3 text-sm dark:text-white">
-                          <label className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={draft.publishToAllAfterMinutes}
-                              onChange={(e) => setField('publishToAllAfterMinutes', e.target.checked)}
-                            />
-                            <span>{u('postLoadModal.publishToAllAfter', 'After')}</span>
-                          </label>
-                          <Input
-                            type="number"
-                            value={draft.publishDelayMinutes}
-                            onChange={(e) => setField('publishDelayMinutes', e.target.value)}
-                            className="h-11 w-24"
+                    </div>
+
+                    <div className="space-y-5 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
+                      <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
+                        <ShieldCheck className="h-4 w-4" />
+                        <span>{u('postLoadModal.limitPublication', 'Limit publication')}</span>
+                      </div>
+                      <div className="space-y-1.5">
+                        <FieldLabel>{u('postLoadModal.closedFreightExchange', 'Publish in closed freight exchange')}</FieldLabel>
+                        <Select
+                          value={draft.closedFreightExchange}
+                          onChange={(e) => setField('closedFreightExchange', e.target.value)}
+                        >
+                          {CLOSED_EXCHANGE_OPTIONS.map((option) => (
+                            <option key={option || 'none'} value={option}>
+                              {option || u('postLoadModal.none', 'None')}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <FieldLabel>{u('postLoadModal.closedFreightComments', 'Comments for closed freight exchange')}</FieldLabel>
+                        <Input
+                          value={draft.closedFreightComments}
+                          onChange={(e) => setField('closedFreightComments', e.target.value)}
+                          placeholder={u('postLoadModal.closedFreightCommentsPlaceholder', 'Only visible to members of the closed freight exchange')}
+                        />
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-800 dark:bg-slate-950 dark:text-white">
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={draft.publishToAllAfterMinutes}
+                            onChange={(e) => setField('publishToAllAfterMinutes', e.target.checked)}
                           />
-                          <span>{u('postLoadModal.publishToAllAfterSuffix', 'minutes publish to all')}</span>
-                        </div>
+                          <span>{u('postLoadModal.publishToAllAfter', 'After')}</span>
+                        </label>
+                        <Input
+                          type="number"
+                          value={draft.publishDelayMinutes}
+                          onChange={(e) => setField('publishDelayMinutes', e.target.value)}
+                          className="h-11 w-24"
+                        />
+                        <span>{u('postLoadModal.publishToAllAfterSuffix', 'minutes publish to all')}</span>
                       </div>
                     </div>
+                  </div>
                 </motion.div>
               )}
 
@@ -2413,13 +2405,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
 
         <div className="relative z-20 shrink-0 border-t border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-800">
           {submitError && <div className="mx-5 mt-3 md:mx-7 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400">{submitError}</div>}
-          <div className="grid xl:grid-cols-[250px_minmax(0,1fr)]">
-            {/* p-3 on every side matches the sidebar's own inset exactly, so this button is the
-                same width as the step cards and both its edges land directly under theirs - not
-                just its left edge. No grid gap here: this cell's own right padding is already the
-                12px gap to the next cell, matching the gap-3 used between the three buttons (which
-                is why that cell drops its left padding at xl+ instead of adding a second gap). */}
-            <div className="p-3">
+          <div className="grid gap-3 px-5 md:px-7 py-3 sm:grid-cols-4">
               <Button
                 variant="secondary"
                 className="w-full h-11 gap-2 border border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 dark:bg-primary/15 dark:hover:bg-primary/20"
@@ -2429,8 +2415,6 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                 <Sparkles className="w-4 h-4 shrink-0" />
                 <span className="truncate">{u('postLoadModal.fillWithLenaAI', 'Popuni pomoću LenaAI')}</span>
               </Button>
-            </div>
-            <div className="grid gap-3 px-5 md:px-7 py-3 xl:pl-0 sm:grid-cols-3">
               <Button variant="outline" className="w-full h-11 gap-2" onClick={() => void startOver()} disabled={isSubmitting}>
                 <RotateCcw className="w-4 h-4 shrink-0" />
                 <span className="truncate">{u('postLoadModal.startOver', 'Započni ponovo')}</span>
@@ -2474,7 +2458,6 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                 </Button>
               )}
             </div>
-          </div>
         </div>
       </motion.div>
       <DocumentDropzone open={dropzoneOpen} onClose={() => setDropzoneOpen(false)} onApply={applyScan} />
