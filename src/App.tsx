@@ -3357,6 +3357,24 @@ export default function App() {
   const [feedFilterBarLoading, setFeedFilterBarLoading] = useState(false);
   const prevExchangeModeRef = useRef(exchangeMode);
   const [feedMyBidsOnly, setFeedMyBidsOnly] = useState(false);
+  // Freight-exchange filter groups (Transport / Route / Cargo / Equipment / Date / Requirements /
+  // Assignment). Kept as one object so adding a group does not mean threading another state pair.
+  const EMPTY_EXCHANGE_FILTERS = {
+    transportModes: [] as string[],
+    route: { pickupCountry: '', pickupCity: '', deliveryCountry: '', deliveryCity: '' },
+    cargoFlags: [] as string[],
+    equipmentTypes: [] as string[],
+    dates: { pickupDateFrom: '', pickupDateTo: '', deliveryDateFrom: '', deliveryDateTo: '' },
+    currency: '',
+    specialRequirements: [] as string[],
+    assignment: [] as string[],
+  };
+  const [exchangeFilters, setExchangeFilters] = useState(EMPTY_EXCHANGE_FILTERS);
+  const toggleExchangeList = (key: 'transportModes' | 'cargoFlags' | 'equipmentTypes' | 'specialRequirements' | 'assignment', id: string) =>
+    setExchangeFilters((prev) => ({
+      ...prev,
+      [key]: prev[key].includes(id) ? prev[key].filter((value) => value !== id) : [...prev[key], id],
+    }));
   const globalFeedLoads = useMemo<Load[]>(
     () => GLOBAL_OFFERS.map((offer, index) => mapGlobalOfferToLoad(offer, index)),
     []
@@ -3501,6 +3519,22 @@ export default function App() {
           sensitivity: selectedFeedSensitivity.join(',') || undefined,
           urgency: selectedFeedUrgency.join(',') || undefined,
           loading_methods: selectedFeedLoadingMethods.join(',') || undefined,
+          transport_types: exchangeFilters.transportModes.join(',') || undefined,
+          pickup_country: exchangeFilters.route.pickupCountry || undefined,
+          pickup_city: exchangeFilters.route.pickupCity || undefined,
+          delivery_country: exchangeFilters.route.deliveryCountry || undefined,
+          delivery_city: exchangeFilters.route.deliveryCity || undefined,
+          cargo_flags: exchangeFilters.cargoFlags.join(',') || undefined,
+          equipment_types: exchangeFilters.equipmentTypes.join(',') || undefined,
+          pickup_date_from: exchangeFilters.dates.pickupDateFrom || undefined,
+          pickup_date_to: exchangeFilters.dates.pickupDateTo || undefined,
+          delivery_date_from: exchangeFilters.dates.deliveryDateFrom || undefined,
+          delivery_date_to: exchangeFilters.dates.deliveryDateTo || undefined,
+          currencies: exchangeFilters.currency || undefined,
+          requirements: exchangeFilters.specialRequirements.join(',') || undefined,
+          assignment: exchangeFilters.assignment.join(',') || undefined,
+          volume_min: feedSelectedVolumeMin > feedRangeBounds.volumeMin ? feedSelectedVolumeMin : undefined,
+          volume_max: feedSelectedVolumeMax < feedRangeBounds.volumeMax ? feedSelectedVolumeMax : undefined,
         });
       }
       void api.loads.list(params)
@@ -3521,7 +3555,7 @@ export default function App() {
       requestActive = false;
       window.clearTimeout(timer);
     };
-  }, [role, loadRefreshKey, exchangeMode, feedSortMode, feedMyBidsOnly, feedStartLocation, feedEndLocation, feedSelectedPriceMin, feedSelectedPriceMax, feedSelectedWeightMin, feedSelectedWeightMax, feedSelectedLengthMin, feedSelectedLengthMax, feedSelectedWidthMin, feedSelectedWidthMax, feedSelectedHeightMin, feedSelectedHeightMax, feedSelectedTemperatureMin, feedSelectedTemperatureMax, feedSelectedCargoValueMin, feedSelectedCargoValueMax, feedSelectedTransitMin, feedSelectedTransitMax, feedSelectedPalletsMin, feedSelectedPalletsMax, feedSelectedVolumeMin, feedSelectedVolumeMax, selectedFeedGoodsTypes, selectedFeedPriceTerms, selectedFeedPaymentTerms, selectedFeedAdrClasses, selectedFeedSensitivity, selectedFeedUrgency, selectedFeedLoadingMethods, selectedStorageTypes, selectedStorageRequirements, storageStartFrom, storageStartTo]);
+  }, [role, loadRefreshKey, exchangeMode, feedSortMode, feedMyBidsOnly, feedStartLocation, feedEndLocation, feedSelectedPriceMin, feedSelectedPriceMax, feedSelectedWeightMin, feedSelectedWeightMax, feedSelectedLengthMin, feedSelectedLengthMax, feedSelectedWidthMin, feedSelectedWidthMax, feedSelectedHeightMin, feedSelectedHeightMax, feedSelectedTemperatureMin, feedSelectedTemperatureMax, feedSelectedCargoValueMin, feedSelectedCargoValueMax, feedSelectedTransitMin, feedSelectedTransitMax, feedSelectedPalletsMin, feedSelectedPalletsMax, feedSelectedVolumeMin, feedSelectedVolumeMax, selectedFeedGoodsTypes, selectedFeedPriceTerms, selectedFeedPaymentTerms, selectedFeedAdrClasses, selectedFeedSensitivity, selectedFeedUrgency, selectedFeedLoadingMethods, selectedStorageTypes, selectedStorageRequirements, storageStartFrom, storageStartTo, exchangeFilters]);
 
   useEffect(() => {
     if (isDark) {
@@ -3729,6 +3763,7 @@ export default function App() {
     setSelectedStorageRequirements([]);
     setStorageStartFrom('');
     setStorageStartTo('');
+    setExchangeFilters(EMPTY_EXCHANGE_FILTERS);
   };
   const handleFeedDataModeChange = (nextModeId: string) => {
     const nextMode: FeedDataMode =
@@ -3798,6 +3833,25 @@ export default function App() {
   const feedFilterBarProps: FilterLoadsProps = {
     lang,
     variant: exchangeMode,
+    exchange: exchangeMode === 'transport' ? {
+      transportModes: exchangeFilters.transportModes,
+      onToggleTransportMode: (id) => toggleExchangeList('transportModes', id),
+      route: exchangeFilters.route,
+      onRouteChange: (field, value) => setExchangeFilters((prev) => ({ ...prev, route: { ...prev.route, [field]: value } })),
+      cargoFlags: exchangeFilters.cargoFlags,
+      onToggleCargoFlag: (id) => toggleExchangeList('cargoFlags', id),
+      equipmentTypes: exchangeFilters.equipmentTypes,
+      onToggleEquipmentType: (id) => toggleExchangeList('equipmentTypes', id),
+      dates: exchangeFilters.dates,
+      onDateChange: (field, value) => setExchangeFilters((prev) => ({ ...prev, dates: { ...prev.dates, [field]: value } })),
+      currency: exchangeFilters.currency,
+      currencyOptions: ['EUR', 'USD', 'BAM', 'CHF'],
+      onCurrencyChange: (value) => setExchangeFilters((prev) => ({ ...prev, currency: value })),
+      specialRequirements: exchangeFilters.specialRequirements,
+      onToggleSpecialRequirement: (id) => toggleExchangeList('specialRequirements', id),
+      assignment: exchangeFilters.assignment,
+      onToggleAssignment: (id) => toggleExchangeList('assignment', id),
+    } : undefined,
     startLocation: feedStartLocation,
     endLocation: feedEndLocation,
     onStartLocationChange: setFeedStartLocation,

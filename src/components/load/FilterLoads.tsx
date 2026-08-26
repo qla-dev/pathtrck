@@ -3,27 +3,47 @@ import type { ReactNode } from 'react';
 import Flatpickr from 'react-flatpickr';
 import {
   AlertTriangle,
+  Banknote,
+  Box,
   Boxes,
   CalendarDays,
+  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   Clock,
+  Container,
   CreditCard,
   DollarSign,
+  FileText,
   Forklift,
+  Fuel,
   Gem,
   Handshake,
   Layers,
   Loader2,
   MapPin,
+  Navigation,
+  Package,
+  PackageOpen,
   PackageSearch,
+  PawPrint,
+  Pill,
+  Plane,
+  RectangleHorizontal,
   RotateCcw,
   Ruler,
   Search,
+  Ship,
   ShieldAlert,
   ShieldCheck,
+  Snowflake,
+  Stamp,
   Thermometer,
+  Truck,
+  User,
+  UserCheck,
+  UserX,
   Weight,
   Warehouse,
   Zap,
@@ -43,14 +63,54 @@ import {
   WeightRangeControl,
   formatCompactValue,
 } from './RangeControls';
-import { FilterItem } from './FilterItem';
 
 type ModeTab = {
   id: string;
   label: string;
 };
 
+// Freight-exchange filter vocabulary. Ids are the exact values the API expects.
+export const TRANSPORT_MODE_IDS = ['road', 'air', 'sea', 'multimodal'] as const;
+export const CARGO_FLAG_IDS = [
+  'general', 'adr', 'temperature_controlled', 'refrigerated', 'fragile',
+  'high_value', 'oversized', 'perishable', 'pharmaceutical', 'live_animals',
+] as const;
+export const EQUIPMENT_IDS = ['FTL', 'LTL', 'FCL', 'LCL', 'Reefer', 'Mega', 'Box', 'Flatbed', 'Tanker', 'Container'] as const;
+export const SPECIAL_REQUIREMENT_IDS = ['cmr', 'adr', 'customs', 'tail_lift', 'forklift', 'insurance', 'temperature_control', 'tracking'] as const;
+export const ASSIGNMENT_IDS = ['unassigned', 'assigned_to_me', 'assigned_driver', 'available_capacity', 'full_truck', 'partial_load'] as const;
+
+export type ExchangeRouteField = 'pickupCountry' | 'pickupCity' | 'deliveryCountry' | 'deliveryCity';
+export type ExchangeDateField = 'pickupDateFrom' | 'pickupDateTo' | 'deliveryDateFrom' | 'deliveryDateTo';
+
+export type ExchangeFilters = {
+  transportModes: string[];
+  onToggleTransportMode: (id: string) => void;
+  route: Record<ExchangeRouteField, string>;
+  onRouteChange: (field: ExchangeRouteField, value: string) => void;
+  cargoFlags: string[];
+  onToggleCargoFlag: (id: string) => void;
+  equipmentTypes: string[];
+  onToggleEquipmentType: (id: string) => void;
+  dates: Record<ExchangeDateField, string>;
+  onDateChange: (field: ExchangeDateField, value: string) => void;
+  currency: string;
+  currencyOptions: string[];
+  onCurrencyChange: (value: string) => void;
+  specialRequirements: string[];
+  onToggleSpecialRequirement: (id: string) => void;
+  assignment: string[];
+  onToggleAssignment: (id: string) => void;
+};
+
 type PillId =
+  | 'all'
+  | 'transport'
+  | 'route'
+  | 'cargo'
+  | 'equipment'
+  | 'date'
+  | 'specialRequirements'
+  | 'assignment'
   | 'mode'
   | 'goodsType'
   | 'priceTerms'
@@ -120,6 +180,7 @@ export type FilterLoadsProps = {
   storageStartTo?: string;
   onStorageStartFromChange?: (value: string) => void;
   onStorageStartToChange?: (value: string) => void;
+  exchange?: ExchangeFilters;
 };
 
 const isRangeActive = (config?: RangeFilterConfig) =>
@@ -166,32 +227,83 @@ const ChipGroup = ({
   options,
   selectedIds,
   onToggle,
+  icon,
 }: {
   options: ChipFilterOption[];
   selectedIds: string[];
   onToggle?: (id: string) => void;
+  icon?: LucideIcon;
 }) => (
-  <div className="flex flex-wrap gap-2">
+  <OptionList
+    options={options.map((option) => ({ id: option.id, label: option.label }))}
+    selectedIds={selectedIds}
+    onToggle={(id) => onToggle?.(id)}
+    fallbackIcon={icon}
+  />
+);
+
+// Per-option glyphs so every dropdown row reads as an icon + label, matching the select fields.
+const OPTION_ICONS: Record<string, LucideIcon> = {
+  road: Truck, air: Plane, sea: Ship, multimodal: Layers,
+  general: Package, adr: ShieldAlert, temperature_controlled: Thermometer, refrigerated: Snowflake,
+  fragile: AlertTriangle, high_value: Gem, oversized: Ruler, perishable: Clock,
+  pharmaceutical: Pill, live_animals: PawPrint,
+  FTL: Truck, LTL: Boxes, FCL: Container, LCL: Boxes, Reefer: Snowflake, Mega: Truck,
+  Box: Box, Flatbed: RectangleHorizontal, Tanker: Fuel, Container: Container,
+  cmr: FileText, customs: Stamp, tail_lift: Forklift, forklift: Forklift,
+  insurance: ShieldCheck, temperature_control: Thermometer, tracking: Navigation,
+  unassigned: UserX, assigned_to_me: UserCheck, assigned_driver: User,
+  available_capacity: PackageOpen, full_truck: Truck, partial_load: Boxes,
+  EUR: Banknote, USD: Banknote, BAM: Banknote, CHF: Banknote,
+};
+
+/** Vertical option list used inside every filter dropdown. */
+const OptionList = ({
+  options,
+  selectedIds,
+  onToggle,
+  fallbackIcon: FallbackIcon = Layers,
+}: {
+  options: { id: string; label: string }[];
+  selectedIds: string[];
+  onToggle: (id: string) => void;
+  fallbackIcon?: LucideIcon;
+}) => (
+  <div role="listbox" aria-multiselectable className="max-h-64 space-y-0.5 overflow-y-auto">
     {options.map((option) => {
       const isSelected = selectedIds.includes(option.id);
+      const Icon = OPTION_ICONS[option.id] || FallbackIcon;
       return (
         <button
           key={option.id}
           type="button"
-          aria-pressed={isSelected}
-          onClick={() => onToggle?.(option.id)}
+          role="option"
+          aria-selected={isSelected}
+          onClick={() => onToggle(option.id)}
           className={cn(
-            'cursor-pointer rounded-full border px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-all',
-            isSelected
-              ? option.toneClass
-              : 'border-transparent bg-slate-100 text-slate-500 hover:border-slate-300 dark:bg-slate-800 dark:hover:border-slate-600'
+            'flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-semibold transition-colors',
+            isSelected ? 'bg-primary/10 text-primary' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
           )}
         >
-          {option.label}
+          <Icon className={cn('h-3.5 w-3.5 shrink-0', isSelected ? 'text-primary' : 'text-slate-400')} />
+          <span className="min-w-0 flex-1 truncate">{option.label}</span>
+          {isSelected && <Check className="h-3.5 w-3.5 shrink-0" />}
         </button>
       );
     })}
   </div>
+);
+
+const FilterTextInput = ({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder: string }) => (
+  <label className="min-w-0 block">
+    <span className="mb-1 block text-[11px] font-semibold text-slate-500">{label}</span>
+    <input
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      placeholder={placeholder}
+      className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+    />
+  </label>
 );
 
 type PillDescriptor = {
@@ -255,6 +367,7 @@ export const FilterLoads = (props: FilterLoadsProps) => {
     storageStartTo = '',
     onStorageStartFromChange,
     onStorageStartToChange,
+    exchange,
   } = props;
 
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
@@ -267,6 +380,8 @@ export const FilterLoads = (props: FilterLoadsProps) => {
   useOutsideClick(endFieldRef, endSearch.close, endSearch.isOpen);
 
   const pillsScrollRef = useRef<HTMLDivElement>(null);
+  const panelBoundsRef = useRef<HTMLDivElement>(null);
+  const [anchorLeft, setAnchorLeft] = useState(0);
   const [canScrollPillsLeft, setCanScrollPillsLeft] = useState(false);
   const [canScrollPillsRight, setCanScrollPillsRight] = useState(false);
 
@@ -299,6 +414,11 @@ export const FilterLoads = (props: FilterLoadsProps) => {
   };
 
   const pills: PillDescriptor[] = [];
+  // On the freight exchange the named groups own the main row, so every other filter is collected
+  // here and rendered as a section inside the More filters panel instead of getting its own pill.
+  const isExchange = variant === 'transport' && Boolean(exchange);
+  const secondary: PillDescriptor[] = [];
+  const primary = isExchange ? secondary : pills;
 
   if (variant === 'storage' && storageTypeOptions.length > 0) {
     pills.push({ id: 'storageType', label: `${u('feed.storage.type', 'Storage type')}${selectedStorageTypeIds.length ? ` (${selectedStorageTypeIds.length})` : ''}`, title: u('feed.storage.type', 'Storage type'), icon: Warehouse, isActive: selectedStorageTypeIds.length > 0, content: <ChipGroup options={storageTypeOptions} selectedIds={selectedStorageTypeIds} onToggle={onToggleStorageType} />, onClear: () => clearChipGroup(selectedStorageTypeIds, onToggleStorageType) });
@@ -315,7 +435,7 @@ export const FilterLoads = (props: FilterLoadsProps) => {
 
   if (modeTabs.length > 0 && activeModeTabId && onModeTabChange) {
     const activeTab = modeTabs.find((tab) => tab.id === activeModeTabId);
-    pills.push({
+    primary.push({
       id: 'mode',
       label: `${u('feed.filterBar.source', 'Source')}: ${activeTab?.label ?? ''}`,
       title: u('feed.filterBar.source', 'Source'),
@@ -344,7 +464,7 @@ export const FilterLoads = (props: FilterLoadsProps) => {
   }
 
   if (goodsTypeOptions.length > 0) {
-    pills.push({
+    primary.push({
       id: 'goodsType',
       label: `${u('legacy.sidebarFilter.goodsType', 'Goods type')}${selectedGoodsTypeIds.length ? ` (${selectedGoodsTypeIds.length})` : ''}`,
       title: u('legacy.sidebarFilter.goodsType', 'Goods type'),
@@ -356,7 +476,7 @@ export const FilterLoads = (props: FilterLoadsProps) => {
   }
 
   if (priceTermOptions.length > 0) {
-    pills.push({
+    primary.push({
       id: 'priceTerms',
       label: `${u('legacy.sidebarFilter.priceTerms', 'Uslovi cijene')}${selectedPriceTermIds.length ? ` (${selectedPriceTermIds.length})` : ''}`,
       title: u('legacy.sidebarFilter.priceTerms', 'Uslovi cijene'),
@@ -368,7 +488,7 @@ export const FilterLoads = (props: FilterLoadsProps) => {
   }
 
   if (paymentTermOptions.length > 0) {
-    pills.push({
+    primary.push({
       id: 'paymentTerms',
       label: `${u('legacy.sidebarFilter.paymentTerms', 'Payment terms')}${selectedPaymentTermIds.length ? ` (${selectedPaymentTermIds.length})` : ''}`,
       title: u('legacy.sidebarFilter.paymentTerms', 'Payment terms'),
@@ -382,7 +502,7 @@ export const FilterLoads = (props: FilterLoadsProps) => {
   }
 
   if (weightRange) {
-    pills.push({
+    primary.push({
       id: 'weight',
       label: isRangeActive(weightRange)
         ? formatRangeSummary(weightRange)
@@ -398,7 +518,7 @@ export const FilterLoads = (props: FilterLoadsProps) => {
   if (dimensionRanges) {
     const dimensionsActive =
       isRangeActive(dimensionRanges.length) || isRangeActive(dimensionRanges.width) || isRangeActive(dimensionRanges.height);
-    pills.push({
+    primary.push({
       id: 'dimensions',
       label: u('feed.filters.dimensions', 'Dimensions'),
       title: u('feed.filters.dimensions', 'Dimensions'),
@@ -429,7 +549,7 @@ export const FilterLoads = (props: FilterLoadsProps) => {
   }
 
   if (temperatureRange) {
-    pills.push({
+    primary.push({
       id: 'temperature',
       label: isRangeActive(temperatureRange)
         ? formatRangeSummary(temperatureRange)
@@ -443,7 +563,7 @@ export const FilterLoads = (props: FilterLoadsProps) => {
   }
 
   if (cargoValueRange) {
-    pills.push({
+    primary.push({
       id: 'cargoValue',
       label: isRangeActive(cargoValueRange)
         ? formatRangeSummary(cargoValueRange)
@@ -457,7 +577,7 @@ export const FilterLoads = (props: FilterLoadsProps) => {
   }
 
   if (adrClassOptions.length > 0) {
-    pills.push({
+    primary.push({
       id: 'adrClass',
       label: `${u('feed.filters.adrClass', 'ADR class')}${selectedAdrClassIds.length ? ` (${selectedAdrClassIds.length})` : ''}`,
       title: u('feed.filters.adrClass', 'ADR class'),
@@ -469,7 +589,7 @@ export const FilterLoads = (props: FilterLoadsProps) => {
   }
 
   if (sensitivityOptions.length > 0) {
-    pills.push({
+    primary.push({
       id: 'sensitivity',
       label: `${u('feed.filters.sensitivity', 'Sensitivity')}${selectedSensitivityIds.length ? ` (${selectedSensitivityIds.length})` : ''}`,
       title: u('feed.filters.sensitivity', 'Sensitivity'),
@@ -483,7 +603,7 @@ export const FilterLoads = (props: FilterLoadsProps) => {
   }
 
   if (urgencyOptions.length > 0) {
-    pills.push({
+    primary.push({
       id: 'urgency',
       label: `${u('feed.filters.urgency', 'Urgency')}${selectedUrgencyIds.length ? ` (${selectedUrgencyIds.length})` : ''}`,
       title: u('feed.filters.urgency', 'Urgency'),
@@ -495,7 +615,7 @@ export const FilterLoads = (props: FilterLoadsProps) => {
   }
 
   if (loadingMethodOptions.length > 0) {
-    pills.push({
+    primary.push({
       id: 'loadingMethod',
       label: `${u('feed.filters.loadingMethod', 'Loading method')}${selectedLoadingMethodIds.length ? ` (${selectedLoadingMethodIds.length})` : ''}`,
       title: u('feed.filters.loadingMethod', 'Loading method'),
@@ -513,7 +633,7 @@ export const FilterLoads = (props: FilterLoadsProps) => {
   }
 
   if (priceRange) {
-    pills.push({
+    primary.push({
       id: 'price',
       label: isRangeActive(priceRange) ? formatRangeSummary(priceRange) : u('legacy.sidebarFilter.price', 'Price'),
       title: u('legacy.sidebarFilter.price', 'Price'),
@@ -525,7 +645,7 @@ export const FilterLoads = (props: FilterLoadsProps) => {
   }
 
   if (transitRange) {
-    pills.push({
+    primary.push({
       id: 'transit',
       label: isRangeActive(transitRange)
         ? formatRangeSummary(transitRange)
@@ -538,6 +658,199 @@ export const FilterLoads = (props: FilterLoadsProps) => {
     });
   }
 
+  if (isExchange && exchange) {
+    const label = (id: string, fallback: string) => u(`feed.exchangeFilters.${id}`, fallback);
+    const withCount = (base: string, count: number) => (count ? `${base} (${count})` : base);
+    const toOptions = (ids: readonly string[], fallbacks: Record<string, string>) =>
+      ids.map((id) => ({ id, label: label(id, fallbacks[id] ?? id) }));
+
+    const transportOptions = toOptions(TRANSPORT_MODE_IDS, { road: 'Road', air: 'Air', sea: 'Sea', multimodal: 'Multimodal' });
+    const cargoOptions = toOptions(CARGO_FLAG_IDS, {
+      general: 'General Cargo', adr: 'ADR / Dangerous Goods', temperature_controlled: 'Temperature Controlled',
+      refrigerated: 'Refrigerated', fragile: 'Fragile', high_value: 'High Value', oversized: 'Oversized',
+      perishable: 'Perishable', pharmaceutical: 'Pharmaceutical', live_animals: 'Live Animals',
+    });
+    const equipmentOptions = toOptions(EQUIPMENT_IDS, { Container: 'Container Type' });
+    const requirementChips = toOptions(SPECIAL_REQUIREMENT_IDS, {
+      cmr: 'CMR', adr: 'ADR', customs: 'Customs', tail_lift: 'Tail Lift', forklift: 'Forklift',
+      insurance: 'Insurance', temperature_control: 'Temperature Control', tracking: 'Tracking Required',
+    });
+    const assignmentChips = toOptions(ASSIGNMENT_IDS, {
+      unassigned: 'Unassigned', assigned_to_me: 'Assigned to me', assigned_driver: 'Assigned driver',
+      available_capacity: 'Available capacity', full_truck: 'Full truck', partial_load: 'Partial load',
+    });
+
+    const routeCount = Object.values(exchange.route).filter(Boolean).length;
+    const dateCount = Object.values(exchange.dates).filter(Boolean).length;
+    const weightActive = isRangeActive(weightRange) || isRangeActive(volumeRange);
+    const priceActive = isRangeActive(priceRange) || Boolean(exchange.currency);
+    const secondaryActive = secondary.filter((pill) => pill.isActive).length;
+    const anyActive = exchange.transportModes.length > 0 || routeCount > 0 || exchange.cargoFlags.length > 0
+      || exchange.equipmentTypes.length > 0 || weightActive || dateCount > 0 || priceActive
+      || exchange.specialRequirements.length > 0 || exchange.assignment.length > 0 || secondaryActive > 0;
+
+    pills.push({
+      id: 'all',
+      label: u('feed.exchangeFilters.all', 'All'),
+      title: u('feed.exchangeFilters.all', 'All'),
+      icon: Layers,
+      isActive: !anyActive,
+      content: null,
+    });
+
+    pills.push({
+      id: 'transport',
+      label: withCount(u('feed.exchangeFilters.transport', 'Transport'), exchange.transportModes.length),
+      title: u('feed.exchangeFilters.transportMode', 'Transport Mode'),
+      icon: Layers,
+      isActive: exchange.transportModes.length > 0,
+      content: <OptionList options={transportOptions} selectedIds={exchange.transportModes} onToggle={exchange.onToggleTransportMode} />,
+      onClear: () => exchange.transportModes.forEach(exchange.onToggleTransportMode),
+    });
+
+    pills.push({
+      id: 'route',
+      label: withCount(u('feed.exchangeFilters.route', 'Route'), routeCount),
+      title: u('feed.exchangeFilters.route', 'Route'),
+      icon: MapPin,
+      isActive: routeCount > 0,
+      content: (
+        <div className="grid grid-cols-2 gap-3">
+          <FilterTextInput label={label('pickupCountry', 'Pickup Country')} value={exchange.route.pickupCountry} onChange={(v) => exchange.onRouteChange('pickupCountry', v)} placeholder="BA" />
+          <FilterTextInput label={label('pickupCity', 'Pickup City')} value={exchange.route.pickupCity} onChange={(v) => exchange.onRouteChange('pickupCity', v)} placeholder="Sarajevo" />
+          <FilterTextInput label={label('deliveryCountry', 'Delivery Country')} value={exchange.route.deliveryCountry} onChange={(v) => exchange.onRouteChange('deliveryCountry', v)} placeholder="DE" />
+          <FilterTextInput label={label('deliveryCity', 'Delivery City')} value={exchange.route.deliveryCity} onChange={(v) => exchange.onRouteChange('deliveryCity', v)} placeholder="Berlin" />
+        </div>
+      ),
+      onClear: () => (Object.keys(exchange.route) as ExchangeRouteField[]).forEach((field) => exchange.onRouteChange(field, '')),
+    });
+
+    pills.push({
+      id: 'cargo',
+      label: withCount(u('feed.exchangeFilters.cargo', 'Cargo'), exchange.cargoFlags.length),
+      title: u('feed.exchangeFilters.cargo', 'Cargo'),
+      icon: PackageSearch,
+      isActive: exchange.cargoFlags.length > 0,
+      content: <OptionList options={cargoOptions} selectedIds={exchange.cargoFlags} onToggle={exchange.onToggleCargoFlag} />,
+      onClear: () => exchange.cargoFlags.forEach(exchange.onToggleCargoFlag),
+    });
+
+    pills.push({
+      id: 'equipment',
+      label: withCount(u('feed.exchangeFilters.equipment', 'Equipment'), exchange.equipmentTypes.length),
+      title: u('feed.exchangeFilters.equipment', 'Equipment'),
+      icon: Boxes,
+      isActive: exchange.equipmentTypes.length > 0,
+      content: <OptionList options={equipmentOptions} selectedIds={exchange.equipmentTypes} onToggle={exchange.onToggleEquipmentType} />,
+      onClear: () => exchange.equipmentTypes.forEach(exchange.onToggleEquipmentType),
+    });
+
+    if (weightRange) {
+      pills.push({
+        id: 'weight',
+        label: isRangeActive(weightRange) ? formatRangeSummary(weightRange) : u('feed.exchangeFilters.weight', 'Weight'),
+        title: u('feed.exchangeFilters.weightCapacity', 'Weight / Capacity'),
+        icon: Weight,
+        isActive: weightActive,
+        content: (
+          <div className="space-y-4">
+            <div>
+              <p className="mb-2 text-[11px] font-semibold text-slate-500">{u('legacy.sidebarFilter.loadWeight', 'Load weight')}</p>
+              <WeightRangeControl config={weightRange} u={u} />
+            </div>
+            {volumeRange && (
+              <div>
+                <p className="mb-2 text-[11px] font-semibold text-slate-500">{u('feed.storage.volume', 'Volume')}</p>
+                <DualRangeControl config={volumeRange} />
+              </div>
+            )}
+          </div>
+        ),
+        onClear: () => {
+          weightRange.onChange(weightRange.min, weightRange.max);
+          volumeRange?.onChange(volumeRange.min, volumeRange.max);
+        },
+      });
+    }
+
+    pills.push({
+      id: 'date',
+      label: withCount(u('feed.exchangeFilters.date', 'Date'), dateCount),
+      title: u('feed.exchangeFilters.date', 'Date'),
+      icon: CalendarDays,
+      isActive: dateCount > 0,
+      content: (
+        <div className="space-y-4">
+          <div>
+            <p className="mb-2 text-[11px] font-semibold text-slate-500">{label('pickupDate', 'Pickup date')}</p>
+            <div className="grid grid-cols-2 gap-3">
+              <StorageDatePicker value={exchange.dates.pickupDateFrom} onChange={(v) => exchange.onDateChange('pickupDateFrom', v)} lang={lang} maxDate={exchange.dates.pickupDateTo || undefined} />
+              <StorageDatePicker value={exchange.dates.pickupDateTo} onChange={(v) => exchange.onDateChange('pickupDateTo', v)} lang={lang} minDate={exchange.dates.pickupDateFrom || undefined} />
+            </div>
+          </div>
+          <div>
+            <p className="mb-2 text-[11px] font-semibold text-slate-500">{label('deliveryDate', 'Delivery date')}</p>
+            <div className="grid grid-cols-2 gap-3">
+              <StorageDatePicker value={exchange.dates.deliveryDateFrom} onChange={(v) => exchange.onDateChange('deliveryDateFrom', v)} lang={lang} maxDate={exchange.dates.deliveryDateTo || undefined} />
+              <StorageDatePicker value={exchange.dates.deliveryDateTo} onChange={(v) => exchange.onDateChange('deliveryDateTo', v)} lang={lang} minDate={exchange.dates.deliveryDateFrom || undefined} />
+            </div>
+          </div>
+        </div>
+      ),
+      onClear: () => (Object.keys(exchange.dates) as ExchangeDateField[]).forEach((field) => exchange.onDateChange(field, '')),
+    });
+
+    if (priceRange) {
+      pills.push({
+        id: 'price',
+        label: isRangeActive(priceRange) ? formatRangeSummary(priceRange) : u('legacy.sidebarFilter.price', 'Price'),
+        title: u('legacy.sidebarFilter.price', 'Price'),
+        icon: DollarSign,
+        isActive: priceActive,
+        content: (
+          <div className="space-y-4">
+            <DualRangeControl config={priceRange} />
+            <div>
+              <p className="mb-2 text-[11px] font-semibold text-slate-500">{u('feed.exchangeFilters.currency', 'Currency')}</p>
+              <OptionList
+                options={exchange.currencyOptions.map((code) => ({ id: code, label: code }))}
+                selectedIds={exchange.currency ? [exchange.currency] : []}
+                onToggle={(id) => exchange.onCurrencyChange(exchange.currency === id ? '' : id)}
+              />
+            </div>
+          </div>
+        ),
+        onClear: () => {
+          priceRange.onChange(priceRange.min, priceRange.max);
+          exchange.onCurrencyChange('');
+        },
+      });
+    }
+
+    pills.push({
+      id: 'specialRequirements',
+      label: withCount(u('feed.exchangeFilters.specialRequirements', 'Special Requirements'), exchange.specialRequirements.length),
+      title: u('feed.exchangeFilters.specialRequirements', 'Special Requirements'),
+      icon: ShieldCheck,
+      isActive: exchange.specialRequirements.length > 0,
+      content: <OptionList options={requirementChips} selectedIds={exchange.specialRequirements} onToggle={exchange.onToggleSpecialRequirement} />,
+      onClear: () => exchange.specialRequirements.forEach(exchange.onToggleSpecialRequirement),
+    });
+
+    pills.push({
+      id: 'assignment',
+      label: withCount(u('feed.exchangeFilters.assignment', 'Assignment'), exchange.assignment.length),
+      title: u('feed.exchangeFilters.assignment', 'Assignment'),
+      icon: Handshake,
+      isActive: exchange.assignment.length > 0,
+      content: <OptionList options={assignmentChips} selectedIds={exchange.assignment} onToggle={exchange.onToggleAssignment} />,
+      onClear: () => exchange.assignment.forEach(exchange.onToggleAssignment),
+    });
+
+    // Everything that is not one of the named groups keeps its own pill in the same row.
+    pills.push(...secondary);
+  }
+
   useEffect(() => {
     updatePillsScrollState();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -546,7 +859,10 @@ export const FilterLoads = (props: FilterLoadsProps) => {
   const activePill = pills.find((pill) => pill.id === openPanel) || null;
 
   return (
-    <>
+    // One wrapper, not a fragment: as siblings the search row and the pill row each picked up the
+    // parent's space-y gap, which stacked with the row's own margin and made the pills sit further
+    // from the search fields than from the results.
+    <div className="space-y-5">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
         <label ref={startFieldRef} className="relative block flex-1">
           <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -651,17 +967,26 @@ export const FilterLoads = (props: FilterLoadsProps) => {
         </button>
       </div>
 
-      <div className="relative mt-3">
+      <div className="relative" ref={panelBoundsRef}>
         <div
           ref={pillsScrollRef}
           onScroll={updatePillsScrollState}
-          className="flex items-center gap-2 overflow-x-auto py-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          // Sits above the dropdown's outside-click backdrop so switching straight from one open
+          // filter to another is a single click instead of close-then-open.
+          className="relative z-50 flex items-center gap-2 overflow-x-auto py-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {pills.map((pill) => (
             <button
               key={pill.id}
               type="button"
-              onClick={() => setOpenPanel(pill.id)}
+              onClick={(event) => {
+                if (pill.id === 'all') { onClear(); return; }
+                // The row scrolls horizontally, so anchor the dropdown to the pill's position
+                // within the row rather than nesting it (overflow-x would clip it).
+                const row = pillsScrollRef.current;
+                setAnchorLeft(event.currentTarget.offsetLeft - (row?.scrollLeft ?? 0));
+                setOpenPanel((current) => (current === pill.id ? null : pill.id));
+              }}
               className={cn(
                 'inline-flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-2 text-xs font-bold transition-all',
                 pill.isActive
@@ -671,13 +996,13 @@ export const FilterLoads = (props: FilterLoadsProps) => {
             >
               <pill.icon className="h-3.5 w-3.5" />
               {pill.label}
-              <ChevronDown className="h-3 w-3 opacity-60" />
+              {pill.id !== 'all' && <ChevronDown className="h-3 w-3 opacity-60" />}
             </button>
           ))}
         </div>
 
         {canScrollPillsLeft && (
-          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 flex w-12 items-center bg-gradient-to-r from-slate-50 to-transparent dark:from-slate-950">
+          <div className="pointer-events-none absolute inset-y-0 left-0 z-[60] flex w-12 items-center bg-gradient-to-r from-slate-50 to-transparent dark:from-slate-950">
             <button
               type="button"
               onClick={() => scrollPillsBy(-240)}
@@ -690,7 +1015,7 @@ export const FilterLoads = (props: FilterLoadsProps) => {
         )}
 
         {canScrollPillsRight && (
-          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 flex w-12 items-center justify-end bg-gradient-to-l from-slate-50 to-transparent dark:from-slate-950">
+          <div className="pointer-events-none absolute inset-y-0 right-0 z-[60] flex w-12 items-center justify-end bg-gradient-to-l from-slate-50 to-transparent dark:from-slate-950">
             <button
               type="button"
               onClick={() => scrollPillsBy(240)}
@@ -701,18 +1026,33 @@ export const FilterLoads = (props: FilterLoadsProps) => {
             </button>
           </div>
         )}
+        {activePill && activePill.id !== 'all' && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setOpenPanel(null)} />
+            <div
+              className="absolute top-full z-50 mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+              style={{ left: Math.max(0, Math.min(anchorLeft, (panelBoundsRef.current?.clientWidth ?? 0) - 288)) }}
+            >
+              <div className="flex items-center justify-between gap-2 px-1.5 pb-2 pt-1">
+                <span className="flex min-w-0 items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  <activePill.icon className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{activePill.title}</span>
+                </span>
+                {activePill.onClear && (
+                  <button
+                    type="button"
+                    onClick={activePill.onClear}
+                    className="shrink-0 cursor-pointer text-[10px] font-bold text-primary underline"
+                  >
+                    {u('tracking.clearAll', 'Clear all')}
+                  </button>
+                )}
+              </div>
+              {activePill.content}
+            </div>
+          </>
+        )}
       </div>
-
-      <FilterItem
-        open={Boolean(activePill)}
-        lang={lang}
-        title={activePill?.label || ''}
-        icon={activePill?.icon || Layers}
-        onClose={() => setOpenPanel(null)}
-        onClear={activePill?.onClear}
-      >
-        {activePill?.content}
-      </FilterItem>
-    </>
+    </div>
   );
 };
