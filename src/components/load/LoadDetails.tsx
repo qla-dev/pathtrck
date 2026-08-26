@@ -247,7 +247,7 @@ export const LoadDetails = ({ open, load, onClose, lang, role, userId, onEdit, o
     if (!load || isSubmittingOffer) return;
     const amount = Number(offerDraft.amount);
     const minimumAmount = getBidState(offers, userId, load.budget).displayAmount ?? 0;
-    if (!Number.isFinite(amount) || amount <= 0 || amount < minimumAmount) {
+    if (!Number.isFinite(amount) || amount <= 0 || (offerDraft.priceBasis === 'best_bid' && amount < minimumAmount)) {
       void showError(
         u('Offer amount too low', 'Offer amount too low'),
         u('Offer minimum amount', 'Your offer must be at least {amount}.').replace('{amount}', `${offerCurrency} ${minimumAmount.toLocaleString()}`)
