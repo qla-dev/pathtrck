@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Flatpickr from 'react-flatpickr';
-import { Search, MapPin, ChevronRight, Package as PackageIcon, Clock3, Coins, Truck, Plane, Ship, Filter, CalendarDays, Trash2, List, LayoutGrid } from 'lucide-react';
+import { Search, MapPin, ChevronRight, Package as PackageIcon, Coins, Truck, Plane, Ship, Filter, CalendarDays, Trash2, List, LayoutGrid, Route, BriefcaseBusiness, CircleDot, Navigation, CalendarRange, BadgeEuro, Building2, Container, Tags, FileText, SlidersHorizontal, ShieldAlert, Zap, X } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { Language, Package as PackageData, Role } from '../../types';
 import { api } from '../../services/api';
 import { useApiList } from '../../hooks/useApiList';
@@ -9,8 +10,9 @@ import { cn } from '../../lib/cn';
 import { mapLoadToPackage } from '../../lib/loadDetails';
 import { LOAD_STATUS_OPTIONS, LoadStatusIcon } from '../load/LoadStatusPicker';
 import { LoadDetailsModal } from '../tracking/LoadDetailsModal';
+import { INCOTERM_OPTIONS, ROAD_CHARACTERISTIC_OPTIONS, VEHICLE_OPTIONS } from '../modals/loadFormOptions';
+import { IconSelect, type IconSelectOption } from '../ui/IconSelect';
 
-type TrackingFilterMode = 'all' | 'today' | 'calendar';
 type TrackingStatusFilter = PackageData['status'] | 'all';
 type TrackingLayoutMode = 'list' | 'grid';
 
@@ -45,28 +47,41 @@ const statusBadgeColors = (status: PackageData['status']) => {
   }
 };
 
-const startOfDay = (date: Date) => {
-  const clone = new Date(date);
-  clone.setHours(0, 0, 0, 0);
-  return clone;
-};
+const apiDate = (date?: Date) => date
+  ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  : undefined;
 
-const endOfDay = (date: Date) => {
-  const clone = new Date(date);
-  clone.setHours(23, 59, 59, 999);
-  return clone;
-};
+const TRACKING_SERVICES = ['FTL', 'LTL', 'Express', 'Dedicated', 'Standard', 'Priority', 'Economy', 'Charter', 'FCL', 'Groupage'] as const;
 
-const packageActivityDate = (pkg: PackageData) => {
-  const source = pkg.history[0]?.date || pkg.addedDate;
-  const direct = new Date(source);
-  if (!Number.isNaN(direct.getTime())) return direct;
-  const parts = source.match(/^(\d{1,2})\s+([A-Za-z]+)(?:,\s*(\d{1,2}):(\d{2}))?/);
-  if (!parts) return null;
-  const [, day, month, hours = '00', minutes = '00'] = parts;
-  const timestamp = Date.parse(`${month} ${day}, ${new Date().getFullYear()} ${hours}:${minutes}`);
-  return Number.isNaN(timestamp) ? null : new Date(timestamp);
-};
+const FilterSelect = ({ icon: Icon, label, value, onChange, options, allLabel }: { icon: LucideIcon; label: string; value: string; onChange: (value: string) => void; options: IconSelectOption[]; allLabel: string }) => (
+  <label className="min-w-0">
+    <span className="mb-1.5 block text-[10px] font-bold text-slate-500">{label}</span>
+    <IconSelect value={value} onChange={onChange} icon={Icon} ariaLabel={label} placeholder={allLabel} options={[{ value: '', label: allLabel, icon: Icon }, ...options]} />
+  </label>
+);
+
+const FilterInput = ({ icon: Icon, label, value, onChange, placeholder, type = 'text' }: { icon: LucideIcon; label: string; value: string; onChange: (value: string) => void; placeholder: string; type?: 'text' | 'number' }) => (
+  <label className="min-w-0">
+    <span className="mb-1.5 block text-[10px] font-bold text-slate-500">{label}</span>
+    <span className="relative block">
+      <Icon className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+      <input type={type} min={type === 'number' ? 0 : undefined} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs font-semibold text-slate-600 outline-none placeholder:font-normal placeholder:text-slate-400 focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200" />
+    </span>
+  </label>
+);
+
+const TrackingFilterSkeleton = () => (
+  <div className="animate-pulse rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+    <div className="mb-4 flex items-center justify-between gap-4"><div className="h-5 w-36 rounded bg-slate-200 dark:bg-slate-700" /><div className="h-10 w-1/2 rounded-lg bg-slate-100 dark:bg-slate-800" /></div>
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">{Array.from({ length: 12 }, (_, index) => <div key={index} className="space-y-2"><div className="h-2.5 w-20 rounded bg-slate-200 dark:bg-slate-700" /><div className="h-10 rounded-lg bg-slate-100 dark:bg-slate-800" /></div>)}</div>
+  </div>
+);
+
+const TrackingCardsSkeleton = ({ layout }: { layout: TrackingLayoutMode }) => (
+  <div className={cn('mt-6 animate-pulse gap-4', layout === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3' : 'flex flex-col')}>
+    {Array.from({ length: 6 }, (_, index) => <div key={index} className="min-h-52 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"><div className="flex justify-between"><div className="h-4 w-28 rounded bg-slate-200 dark:bg-slate-700" /><div className="h-6 w-24 rounded-full bg-slate-100 dark:bg-slate-800" /></div><div className="mt-5 h-5 w-2/3 rounded bg-slate-200 dark:bg-slate-700" /><div className="mt-5 grid grid-cols-2 gap-3"><div className="h-10 rounded-xl bg-slate-100 dark:bg-slate-800" /><div className="h-10 rounded-xl bg-slate-100 dark:bg-slate-800" /></div><div className="mt-5 h-14 rounded-xl bg-slate-100 dark:bg-slate-800" /></div>)}
+  </div>
+);
 
 type TrackingViewProps = {
   lang: Language;
@@ -77,58 +92,78 @@ type TrackingViewProps = {
 
 export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingViewProps) => {
   const TRUCK_CAPACITY_KG = 48000;
-  const loadsResult = useApiList(api.loads.list, { per_page: 500 });
-  const packages = useMemo<PackageData[]>(
-    () => loadsResult.items
-      .filter((load) => String(load.status || '').toLowerCase() !== 'posted')
-      .map((load) => mapLoadToPackage(load, lang)),
-    [lang, loadsResult.items]
-  );
+  const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [openLoadId, setOpenLoadId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<TrackingStatusFilter>('all');
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(true);
   const [layout, setLayout] = useState<TrackingLayoutMode>('grid');
-  const [filterMode, setFilterMode] = useState<TrackingFilterMode>('all');
-  const [rangeStart, setRangeStart] = useState(() => {
-    const date = new Date();
-    date.setMonth(date.getMonth() - 1);
-    return startOfDay(date);
+  const [transportType, setTransportType] = useState('');
+  const [service, setService] = useState('');
+  const [origin, setOrigin] = useState('');
+  const [destination, setDestination] = useState('');
+  const [dateRange, setDateRange] = useState<Date[]>([]);
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  const [currency, setCurrency] = useState('');
+  const [partner, setPartner] = useState('');
+  const [equipment, setEquipment] = useState('');
+  const [characteristic, setCharacteristic] = useState('');
+  const [incoterm, setIncoterm] = useState('');
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
+  const [adrOnly, setAdrOnly] = useState(false);
+  const [urgentOnly, setUrgentOnly] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+
+  const trackingFilterParams = {
+    tracking: true,
+    for_storage: false,
+    tracking_search: debouncedQuery || undefined,
+    transport_types: transportType || undefined,
+    services: service || undefined,
+    origin: origin || undefined,
+    destination: destination || undefined,
+    tracking_date_from: apiDate(dateRange[0]),
+    tracking_date_to: apiDate(dateRange[1]),
+    budget_min: minPrice || undefined,
+    budget_max: maxPrice || undefined,
+    currencies: currency || undefined,
+    partner: partner || undefined,
+    equipment: equipment || undefined,
+    characteristics: characteristic || undefined,
+    incoterms: incoterm || undefined,
+    tracking_requires_adr: adrOnly || undefined,
+    tracking_is_urgent: urgentOnly || undefined,
+  };
+  const loadsResult = useApiList(api.loads.list, {
+    ...trackingFilterParams,
+    per_page: 500,
+    status: statusFilter === 'all' ? undefined : statusFilter.toLowerCase().replaceAll(' ', '_'),
+    sort: 'date_desc',
   });
-  const [rangeEnd, setRangeEnd] = useState(() => endOfDay(new Date()));
-  const u = (key: string, fallback: string) => ui(lang, key, fallback);
-
-  const filteredPackages = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    const todayStart = startOfDay(new Date()).getTime();
-    const todayEnd = endOfDay(new Date()).getTime();
-
-    return packages.filter((pkg) => {
-      const matchesQuery = `${pkg.trackingNumber} ${pkg.bookingReference || ''} ${pkg.recipient || ''} ${pkg.carrier} ${pkg.origin} ${pkg.destination}`
-        .toLowerCase()
-        .includes(normalizedQuery);
-      const matchesFields = matchesQuery && (statusFilter === 'all' || pkg.status === statusFilter);
-      if (!matchesFields || filterMode === 'all') return matchesFields;
-
-      const activityDate = packageActivityDate(pkg);
-      if (!activityDate) return false;
-      const timestamp = activityDate.getTime();
-
-      return filterMode === 'today'
-        ? timestamp >= todayStart && timestamp <= todayEnd
-        : timestamp >= rangeStart.getTime() && timestamp <= rangeEnd.getTime();
+  const statusCountsResult = useApiList(api.loads.trackingStatusCounts, trackingFilterParams);
+  const capacityResult = useApiList(api.loads.list, { per_page: 500, tracking: true, for_storage: false, statuses: 'sent,in_delivery' });
+  const packages = useMemo<PackageData[]>(
+    () => loadsResult.items.map((load) => mapLoadToPackage(load, lang)),
+    [lang, loadsResult.items]
+  );
+  const statusCounts = useMemo(() => {
+    const counts = Object.fromEntries(TRACKING_STATUS_FILTERS.map((status) => [status, 0])) as Record<TrackingStatusFilter, number>;
+    statusCountsResult.items.forEach((row) => {
+      const mapped = TRACKING_STATUS_FILTERS.find((status) => status.toLowerCase().replaceAll(' ', '_') === String(row.status || '').toLowerCase());
+      if (mapped) counts[mapped] = Number(row.count || 0);
     });
-  }, [filterMode, packages, query, rangeEnd, rangeStart, statusFilter]);
-
-  const statusCounts = useMemo(() => Object.fromEntries(
-    ['all', ...TRACKING_STATUS_FILTERS].map((status) => [
-      status,
-      status === 'all' ? packages.length : packages.filter((pkg) => pkg.status === status).length,
-    ])
-  ) as Record<TrackingStatusFilter, number>, [packages]);
+    counts.all = TRACKING_STATUS_FILTERS.reduce((sum, status) => sum + (counts[status] || 0), 0);
+    return counts;
+  }, [statusCountsResult.items]);
 
   const loadCapacity = useMemo(() => {
-    const roleLoads = loadsResult.items.filter((load) => {
+    const roleLoads = capacityResult.items.filter((load) => {
       if (role === 'driver') return Boolean(userId) && Number(load.assigned_driver_user_id) === userId;
       if (role === 'company') {
         return (
@@ -138,9 +173,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
       }
       return false;
     });
-    const activeLoads = roleLoads.filter((load) =>
-      ['sent', 'in_delivery'].includes(String(load.status).toLowerCase())
-    );
+    const activeLoads = roleLoads;
     const totalWeightKg = activeLoads.reduce((sum, load) => sum + Number(load.weight_kg || 0), 0);
     const usedPercentage = Math.min(100, Math.round((totalWeightKg / TRUCK_CAPACITY_KG) * 100));
 
@@ -151,7 +184,45 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
       remainingPercentage: Math.max(0, 100 - usedPercentage),
       remainingKg: Math.max(0, TRUCK_CAPACITY_KG - totalWeightKg),
     };
-  }, [companyIds, loadsResult.items, role, userId]);
+  }, [capacityResult.items, companyIds, role, userId]);
+
+  const clearFilters = () => {
+    setQuery(''); setDebouncedQuery(''); setStatusFilter('all'); setTransportType(''); setService('');
+    setOrigin(''); setDestination(''); setDateRange([]); setMinPrice(''); setMaxPrice(''); setCurrency('');
+    setPartner(''); setEquipment(''); setCharacteristic(''); setIncoterm(''); setAdrOnly(false); setUrgentOnly(false);
+  };
+
+  const activeFilters = [
+    transportType && { key: 'transport', label: transportType, clear: () => setTransportType('') },
+    service && { key: 'service', label: service, clear: () => setService('') },
+    statusFilter !== 'all' && { key: 'status', label: trPackageStatus(lang, statusFilter), clear: () => setStatusFilter('all') },
+    origin && { key: 'origin', label: origin, clear: () => setOrigin('') },
+    destination && { key: 'destination', label: destination, clear: () => setDestination('') },
+    dateRange[0] && { key: 'date', label: `${dateRange[0].toLocaleDateString()}${dateRange[1] ? ` – ${dateRange[1].toLocaleDateString()}` : ''}`, clear: () => setDateRange([]) },
+    (minPrice || maxPrice) && { key: 'price', label: `${minPrice || '0'} – ${maxPrice || '∞'} ${currency || ''}`.trim(), clear: () => { setMinPrice(''); setMaxPrice(''); } },
+    currency && !minPrice && !maxPrice && { key: 'currency', label: currency, clear: () => setCurrency('') },
+    partner && { key: 'partner', label: partner, clear: () => setPartner('') },
+    equipment && { key: 'equipment', label: equipment, clear: () => setEquipment('') },
+    characteristic && { key: 'characteristic', label: characteristic, clear: () => setCharacteristic('') },
+    incoterm && { key: 'incoterm', label: incoterm, clear: () => setIncoterm('') },
+    adrOnly && { key: 'adr', label: 'ADR', clear: () => setAdrOnly(false) },
+    urgentOnly && { key: 'urgent', label: u('tracking.urgentOnly', 'Urgent'), clear: () => setUrgentOnly(false) },
+  ].filter(Boolean) as Array<{ key: string; label: string; clear: () => void }>;
+  const transportOptions: IconSelectOption[] = [
+    { value: 'road', label: u('postLoadModal.transport.road', 'Road'), icon: Truck },
+    { value: 'air', label: u('postLoadModal.transport.air', 'Air'), icon: Plane },
+    { value: 'sea', label: u('postLoadModal.transport.sea', 'Sea'), icon: Ship },
+  ];
+  const serviceOptions: IconSelectOption[] = TRACKING_SERVICES.map((value) => ({ value, label: value, icon: value === 'Express' || value === 'Priority' ? Zap : PackageIcon }));
+  const statusOptions: IconSelectOption[] = TRACKING_STATUS_FILTERS.map((status) => ({
+    value: status,
+    label: trPackageStatus(lang, status),
+    icon: ({ className }) => <LoadStatusIcon status={status} className={className} />,
+  }));
+  const equipmentOptions: IconSelectOption[] = VEHICLE_OPTIONS.map((value) => ({ value, label: value, icon: Container }));
+  const characteristicOptions: IconSelectOption[] = ROAD_CHARACTERISTIC_OPTIONS.map((value) => ({ value, label: value, icon: value === 'ADR' ? ShieldAlert : value === 'Express' ? Zap : Tags }));
+  const incotermOptions: IconSelectOption[] = INCOTERM_OPTIONS.map((value) => ({ value, label: value, icon: FileText }));
+  const currencyOptions: IconSelectOption[] = ['EUR', 'USD', 'BAM', 'CHF'].map((value) => ({ value, label: value, icon: Coins }));
 
   return (
     <div className="space-y-6">
@@ -207,155 +278,71 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
         )}
 
         <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
-          {(['all', ...TRACKING_STATUS_FILTERS] as TrackingStatusFilter[]).map((status) => (
-            <button
-              type="button"
-              key={status}
-              onClick={() => setStatusFilter(status)}
-              className={cn(
-                'min-h-20 cursor-pointer rounded-xl border bg-white px-3 py-3 text-center transition-all hover:-translate-y-0.5 dark:bg-slate-900',
-                statusCardColors(status),
-                statusFilter === status && 'ring-2 ring-current ring-offset-2 dark:ring-offset-slate-950'
-              )}
-            >
-              <span className="flex items-center justify-center gap-1.5 truncate text-xs font-bold">
-                {status === 'all' ? <LayoutGrid className="h-3.5 w-3.5" /> : <LoadStatusIcon status={status} />}
-                <span>{status === 'all' ? u('history.filter.all', 'All') : trPackageStatus(lang, status)}</span>
-              </span>
-              <span className="mt-1 block text-2xl font-black text-slate-700 dark:text-slate-100">{statusCounts[status]}</span>
-            </button>
-          ))}
+          {statusCountsResult.loading && statusCountsResult.items.length === 0
+            ? Array.from({ length: 8 }, (_, index) => <div key={index} className="h-20 animate-pulse rounded-xl bg-slate-200/70 dark:bg-slate-800" />)
+            : (['all', ...TRACKING_STATUS_FILTERS] as TrackingStatusFilter[]).map((status) => (
+              <button type="button" key={status} onClick={() => setStatusFilter(status)} className={cn('min-h-20 cursor-pointer rounded-xl border bg-white px-3 py-3 text-center transition-all hover:-translate-y-0.5 dark:bg-slate-900', statusCardColors(status), statusFilter === status && 'ring-2 ring-current ring-offset-2 dark:ring-offset-slate-950')}>
+                <span className="flex items-center justify-center gap-1.5 truncate text-xs font-bold">{status === 'all' ? <LayoutGrid className="h-3.5 w-3.5" /> : <LoadStatusIcon status={status} />}<span>{status === 'all' ? u('history.filter.all', 'All') : trPackageStatus(lang, status)}</span></span>
+                <span className="mt-1 block text-2xl font-black text-slate-700 dark:text-slate-100">{statusCounts[status]}</span>
+              </button>
+            ))}
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-slate-800">
-            <h3 className="text-lg font-black text-slate-800 dark:text-white">{u('tracking.filters', 'Shipment filters')}</h3>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setFiltersOpen((open) => !open)}
-                aria-expanded={filtersOpen}
-                className="flex h-11 cursor-pointer items-center gap-2 rounded-lg border border-primary px-3 text-xs font-bold text-primary transition-colors hover:bg-primary/5"
-              >
-                <Filter className="h-4 w-4" />
-                {filtersOpen ? u('tracking.hideFilters', 'Hide filters') : u('tracking.showFilters', 'Show filters')}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const start = new Date();
-                  start.setMonth(start.getMonth() - 1);
-                  setQuery('');
-                  setStatusFilter('all');
-                  setFilterMode('all');
-                  setRangeStart(startOfDay(start));
-                  setRangeEnd(endOfDay(new Date()));
-                }}
-                className="flex h-11 cursor-pointer items-center gap-2 rounded-lg border border-rose-400 px-3 text-xs font-bold text-rose-500 transition-colors hover:bg-rose-50 dark:hover:bg-rose-950/20"
-              >
-                <Trash2 className="h-4 w-4" />
-                {u('tracking.clearFilters', 'Clear filters')}
-              </button>
-              <div className="relative block w-full sm:w-72">
-                <Search className="absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder={u('common.searchTracking', 'Search tracking number...')}
-                  className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                />
-              </div>
-              <div className="inline-flex h-11 items-center rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-800 dark:bg-slate-900">
-                {([
-                  ['list', List, u('home.layout.list', 'List')],
-                  ['grid', LayoutGrid, u('home.layout.grid', 'Grid')],
-                ] as const).map(([mode, Icon, label]) => (
-                  <button
-                    type="button"
-                    key={mode}
-                    onClick={() => setLayout(mode)}
-                    title={label}
-                    aria-label={label}
-                    aria-pressed={layout === mode}
-                    className={cn(
-                      'flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg transition-colors',
-                      layout === mode
-                        ? 'bg-primary text-white'
-                        : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
-                    )}
-                  >
-                    <Icon className="h-4 w-4" />
+        {loadsResult.loading && loadsResult.items.length === 0 ? <TrackingFilterSkeleton /> : (
+          <div className="overflow-visible rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-950/60">
+                <h3 className="mr-1 text-sm font-black text-slate-800 dark:text-white">{u('tracking.searchFilters', 'Search filters')}</h3>
+                {(['all', ...TRACKING_STATUS_FILTERS] as TrackingStatusFilter[]).map((status) => (
+                  <button type="button" key={status} onClick={() => setStatusFilter(status)} className={cn('inline-flex h-7 cursor-pointer items-center gap-1 rounded-full border px-2 text-[10px] font-bold transition-colors', statusCardColors(status), statusFilter === status ? 'bg-current/10 ring-1 ring-current' : 'bg-white dark:bg-slate-900')}>
+                    {status === 'all' ? <LayoutGrid className="h-3 w-3" /> : <LoadStatusIcon status={status} className="h-3 w-3" />}
+                    <span>{status === 'all' ? u('history.filter.all', 'All') : trPackageStatus(lang, status)}</span>
+                    <span className="opacity-70">{statusCounts[status]}</span>
                   </button>
                 ))}
+              </div>
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <button type="button" onClick={() => setFiltersOpen((open) => !open)} className="flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-primary px-3 text-[11px] font-bold text-primary hover:bg-primary/5"><Filter className="h-3.5 w-3.5" />{filtersOpen ? u('tracking.hideFilters', 'Hide filters') : u('tracking.showFilters', 'Show filters')}</button>
+                <button type="button" onClick={clearFilters} className="flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-rose-400 px-3 text-[11px] font-bold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20"><Trash2 className="h-3.5 w-3.5" />{u('tracking.clearFilters', 'Clear filters')}</button>
+                <div className="relative min-w-56 flex-1 sm:max-w-80"><Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={u('tracking.searchPlaceholder', 'Search shipment number, booking ref...')} className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white" /></div>
+                <div className="inline-flex h-10 items-center rounded-lg border border-slate-200 bg-transparent p-1 dark:border-slate-800">{([['list', List, u('home.layout.list', 'List')], ['grid', LayoutGrid, u('home.layout.grid', 'Grid')]] as const).map(([mode, Icon, label]) => <button type="button" key={mode} onClick={() => setLayout(mode)} title={label} className={cn('flex h-8 w-8 cursor-pointer items-center justify-center rounded-md', layout === mode ? 'bg-primary text-white' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800')}><Icon className="h-4 w-4" /></button>)}</div>
               </div>
             </div>
-          </div>
 
-          {filtersOpen && (
-            <div className="space-y-5 p-5">
-              <div className="grid grid-cols-3 gap-2">
-                {([
-                  ['all', Filter, u('history.filter.all', 'All')],
-                  ['today', Clock3, u('history.filter.today', 'Today')],
-                  ['calendar', CalendarDays, u('history.filter.calendar', 'Calendar')],
-                ] as const).map(([mode, Icon, label]) => (
-                  <button
-                    type="button"
-                    key={mode}
-                    onClick={() => setFilterMode(mode)}
-                    className={cn(
-                      'flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl text-xs font-bold transition-all',
-                      filterMode === mode
-                        ? 'bg-primary text-white shadow-sm'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
-                    )}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {label}
-                  </button>
-                ))}
+            {filtersOpen && <div className="border-t border-slate-100 px-4 py-3 dark:border-slate-800">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+                <FilterSelect icon={Route} label={u('tracking.transportMode', 'Transport mode')} value={transportType} onChange={setTransportType} allLabel={u('tracking.allModes', 'All modes')} options={transportOptions} />
+                <FilterSelect icon={BriefcaseBusiness} label={u('tracking.service', 'Service')} value={service} onChange={setService} allLabel={u('tracking.allServices', 'All services')} options={serviceOptions} />
+                <FilterSelect icon={CircleDot} label={u('common.status', 'Status')} value={statusFilter === 'all' ? '' : statusFilter} onChange={(value) => setStatusFilter(value ? value as TrackingStatusFilter : 'all')} allLabel={u('tracking.allStatuses', 'All statuses')} options={statusOptions} />
+                <FilterInput icon={MapPin} label={u('tracking.origin', 'Origin')} value={origin} onChange={setOrigin} placeholder={u('tracking.chooseOrigin', 'Choose origin')} />
+                <FilterInput icon={Navigation} label={u('tracking.destination', 'Destination')} value={destination} onChange={setDestination} placeholder={u('tracking.chooseDestination', 'Choose destination')} />
+                <label className="min-w-0"><span className="mb-1.5 block text-[10px] font-bold text-slate-500">{u('tracking.date', 'Date')}</span><span className="relative block"><CalendarRange className="pointer-events-none absolute left-3 top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" /><Flatpickr value={dateRange} options={{ mode: 'range', dateFormat: 'Y-m-d', altInput: true, altFormat: 'd.m.Y', locale: flatpickrI18n(lang), allowInput: true }} onChange={setDateRange} placeholder={u('tracking.allDates', 'All dates')} className="h-10 w-full cursor-pointer rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs font-semibold text-slate-600 outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200" /></span></label>
+                <div className="col-span-2 grid grid-cols-[1fr_auto_1fr_80px] items-end gap-2"><FilterInput icon={BadgeEuro} label={u('tracking.priceRange', 'Price range')} value={minPrice} onChange={setMinPrice} placeholder={u('tracking.minPrice', 'Min price')} type="number" /><span className="mb-3 text-slate-400">–</span><FilterInput icon={BadgeEuro} label=" " value={maxPrice} onChange={setMaxPrice} placeholder={u('tracking.maxPrice', 'Max price')} type="number" /><FilterSelect icon={Coins} label=" " value={currency} onChange={setCurrency} allLabel="EUR" options={currencyOptions} /></div>
+                <FilterInput icon={Building2} label={u('tracking.carriersPartners', 'Carriers / Partners')} value={partner} onChange={setPartner} placeholder={u('tracking.choosePartner', 'Choose partner')} />
+                <FilterSelect icon={Container} label={u('tracking.equipment', 'Equipment')} value={equipment} onChange={setEquipment} allLabel={u('tracking.allEquipment', 'All equipment')} options={equipmentOptions} />
+                <FilterSelect icon={Tags} label={u('tracking.loadCharacteristics', 'Load characteristics')} value={characteristic} onChange={setCharacteristic} allLabel={u('tracking.allCharacteristics', 'All characteristics')} options={characteristicOptions} />
+                <FilterSelect icon={FileText} label="Incoterms" value={incoterm} onChange={setIncoterm} allLabel={u('tracking.allIncoterms', 'All incoterms')} options={incotermOptions} />
               </div>
-
-              {filterMode === 'calendar' && (
-                <div className="grid gap-4 md:grid-cols-2">
-                  <label className="block">
-                    <span className="mb-1.5 block text-xs font-bold text-slate-500">{u('tracking.dateFrom', 'Date from')}</span>
-                    <span className="relative block">
-                      <CalendarDays className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                      <Flatpickr
-                        value={rangeStart}
-                        options={{ dateFormat: 'Y-m-d', altInput: true, altFormat: 'd.m.Y', allowInput: true, locale: flatpickrI18n(lang) }}
-                        onChange={(dates) => dates[0] && setRangeStart(startOfDay(dates[0]))}
-                        className="h-11 w-full cursor-pointer rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-sm text-slate-900 outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                      />
-                    </span>
-                  </label>
-                  <label className="block">
-                    <span className="mb-1.5 block text-xs font-bold text-slate-500">{u('tracking.dateTo', 'Date to')}</span>
-                    <span className="relative block">
-                      <CalendarDays className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                      <Flatpickr
-                        value={rangeEnd}
-                        options={{ dateFormat: 'Y-m-d', altInput: true, altFormat: 'd.m.Y', allowInput: true, locale: flatpickrI18n(lang) }}
-                        onChange={(dates) => dates[0] && setRangeEnd(endOfDay(dates[0]))}
-                        className="h-11 w-full cursor-pointer rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-sm text-slate-900 outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                      />
-                    </span>
-                  </label>
+              <div className="mt-3 flex flex-wrap items-start gap-3 border-t border-slate-100 pt-3 dark:border-slate-800">
+                <button type="button" onClick={() => setMoreFiltersOpen((open) => !open)} className={cn('flex h-9 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-lg border px-3 text-xs font-bold', moreFiltersOpen || adrOnly || urgentOnly ? 'border-primary bg-primary/5 text-primary' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300')}><SlidersHorizontal className="h-3.5 w-3.5" />{u('tracking.moreFilters', 'More filters')}</button>
+                <div className="ml-auto flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
+                  {activeFilters.length > 0 && <span className="text-[10px] font-bold text-slate-500">{u('tracking.activeFilters', 'Active filters')}:</span>}
+                  {activeFilters.map((filter) => <button type="button" key={filter.key} onClick={filter.clear} className="flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-1 text-[10px] font-bold text-sky-600 hover:bg-sky-100 dark:bg-sky-950/30 dark:text-sky-300">{filter.label}<X className="h-3 w-3" /></button>)}
+                  {activeFilters.length > 0 && <button type="button" onClick={clearFilters} className="text-[10px] font-bold text-primary underline">{u('tracking.clearAll', 'Clear all')}</button>}
                 </div>
-              )}
-            </div>
-          )}
-        </div>
+              </div>
+              {moreFiltersOpen && <div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => setAdrOnly((value) => !value)} className={cn('flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-bold', adrOnly ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300')}><ShieldAlert className="h-3.5 w-3.5" />ADR</button><button type="button" onClick={() => setUrgentOnly((value) => !value)} className={cn('flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-bold', urgentOnly ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300')}><Zap className="h-3.5 w-3.5" />{u('tracking.urgentOnly', 'Urgent')}</button></div>}
+            </div>}
+          </div>
+        )}
 
-        <div className={cn(
+        {loadsResult.loading ? <TrackingCardsSkeleton layout={layout} /> : <div className={cn(
           'mt-6',
           layout === 'list'
             ? 'space-y-4'
             : 'grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3'
         )}>
-          {filteredPackages.map(pkg => (
+          {packages.map(pkg => (
             <button
               key={pkg.id}
               onClick={() => setOpenLoadId(pkg.id)}
@@ -428,7 +415,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
               </div>
             </button>
           ))}
-          {filteredPackages.length === 0 && (
+          {packages.length === 0 && (
             <div className={cn(
               'rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500 dark:border-slate-800',
               layout === 'grid' && 'md:col-span-2 xl:col-span-3'
@@ -436,7 +423,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
               {u('tracking.noPackagesFound', 'No tracking items found for this filter.')}
             </div>
           )}
-        </div>
+        </div>}
       </div>
 
       {openLoadId && (
@@ -447,7 +434,11 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
           userId={userId}
           companyIds={companyIds}
           onClose={() => setOpenLoadId(null)}
-          onChanged={loadsResult.refresh}
+          onChanged={() => {
+            void loadsResult.refresh();
+            void capacityResult.refresh();
+            void statusCountsResult.refresh();
+          }}
         />
       )}
       </div>

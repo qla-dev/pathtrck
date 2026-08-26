@@ -32,6 +32,7 @@ type ChatSidebarProps = {
   // stays reachable while the draft panel is open. Search stays; channel filters drop their
   // labels down to icon-only; each row keeps its subtitle/timestamp and just crops harder.
   compact?: boolean;
+  loading?: boolean;
 };
 
 export const ChatSidebar = ({
@@ -53,6 +54,7 @@ export const ChatSidebar = ({
   deleteConversationLabel = 'Delete conversation',
   cancelLabel = 'Cancel',
   compact = false,
+  loading = false,
 }: ChatSidebarProps) => {
   const [contextMenu, setContextMenu] = useState<{ id: string; x: number; y: number } | null>(null);
 
@@ -123,7 +125,16 @@ export const ChatSidebar = ({
       })}
     </div>
 
-    {conversations.length === 0 ? (
+    {loading ? (
+      <div className="min-h-0 flex-1 space-y-1.5 overflow-hidden pr-1 animate-pulse">
+        {Array.from({ length: 8 }, (_, index) => (
+          <div key={index} className="rounded-xl border border-slate-100 px-2.5 py-2 dark:border-slate-800">
+            <div className="flex justify-between gap-3"><div className="h-4 w-2/3 rounded bg-slate-200 dark:bg-slate-700" /><div className="h-3 w-8 rounded bg-slate-100 dark:bg-slate-800" /></div>
+            <div className="mt-1.5 h-3 w-1/2 rounded bg-slate-100 dark:bg-slate-800" />
+          </div>
+        ))}
+      </div>
+    ) : conversations.length === 0 ? (
       <div className="flex flex-1 min-h-0 flex-col items-center justify-center gap-3 px-6 text-center">
         <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
           <Sparkles className="h-7 w-7" />
@@ -156,7 +167,7 @@ export const ChatSidebar = ({
           }}
           className={cn(
             'w-full rounded-xl border text-left transition-all cursor-pointer',
-            compact ? 'p-2' : 'p-2.5',
+            compact ? 'px-2 py-1.5' : 'px-2.5 py-2',
             activeConversationId === chat.id
               ? 'border-primary bg-primary/5'
               : 'border-slate-100 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
@@ -169,7 +180,7 @@ export const ChatSidebar = ({
             </div>
             <p className="shrink-0 text-[9px] text-slate-400">{chat.lastTime}</p>
           </div>
-          <div className="mt-1.5 flex items-end justify-between gap-2">
+          <div className="mt-1 flex items-end justify-between gap-2">
             <div className="flex min-w-0 items-center gap-1.5">
               {typeof chat.detectedFieldCount === 'number' ? (
                 <span className="inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/10 px-1 text-[9px] font-black leading-none text-primary">

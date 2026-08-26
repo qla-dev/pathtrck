@@ -1,17 +1,12 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import L from 'leaflet';
-import { ArrowDownWideNarrow, ChevronDown, ChevronLeft, ChevronRight, Filter, Gavel, List, LayoutGrid, Map as MapIcon, Layers, Table } from 'lucide-react';
+import { ArrowDownWideNarrow, ArrowDown, ArrowUp, CalendarArrowDown, CalendarArrowUp, ChevronDown, ChevronLeft, ChevronRight, Filter, Gavel, List, LayoutGrid, Map as MapIcon, Layers, Table, Truck, Warehouse } from 'lucide-react';
 import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 
 import { ui } from '../../i18n';
 import { cn } from '../../lib/cn';
-import { getBidState } from '../../lib/offerBid';
 import {
-  estimateLoadTransitDays,
   getPlaceCoord,
-  parseLoadDateValue,
-  parseLoadPriceValue,
-  parseLoadWeightValue,
 } from '../../lib/loadGeo';
 import { MOCK_LOADS } from '../../mockData';
 import { Language, Load, Role } from '../../types';
@@ -32,6 +27,13 @@ const SORT_MODE_KEYS: Record<FeedSortMode, [string, string]> = {
   date_asc: ['legacy.sidebarSort.dateAscending', 'Date ascending'],
 };
 
+const SORT_MODE_ICONS = {
+  price_asc: ArrowUp,
+  price_desc: ArrowDown,
+  date_desc: CalendarArrowDown,
+  date_asc: CalendarArrowUp,
+} satisfies Record<FeedSortMode, typeof ArrowUp>;
+
 const SortDropdown = ({
   lang,
   sortMode,
@@ -46,6 +48,7 @@ const SortDropdown = ({
   const options = (Object.keys(SORT_MODE_KEYS) as FeedSortMode[]).map((id) => ({
     id,
     label: u(SORT_MODE_KEYS[id][0], SORT_MODE_KEYS[id][1]),
+    icon: SORT_MODE_ICONS[id],
   }));
   const activeLabel = u(SORT_MODE_KEYS[sortMode][0], SORT_MODE_KEYS[sortMode][1]);
 
@@ -54,11 +57,12 @@ const SortDropdown = ({
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-600 transition-all hover:border-slate-300 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600"
+        title={`${u('feed.filterBar.sortBy', 'Sort by')} ${activeLabel}`}
+        aria-label={`${u('feed.filterBar.sortBy', 'Sort by')} ${activeLabel}`}
+        className="inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-600 transition-all hover:border-slate-300 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600"
       >
-        <ArrowDownWideNarrow className="h-3.5 w-3.5" />
-        {u('feed.filterBar.sortBy', 'Sort by')} {activeLabel}
-        <ChevronDown className="h-3 w-3 opacity-60" />
+        <ArrowDownWideNarrow className="h-4 w-4" />
+        {u('common.sort', 'Sort')}
       </button>
       {isOpen && (
         <>
@@ -73,18 +77,80 @@ const SortDropdown = ({
                   setIsOpen(false);
                 }}
                 className={cn(
-                  'w-full cursor-pointer rounded-lg px-3 py-2 text-left text-xs font-semibold transition-all',
+                  'flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold transition-all',
                   sortMode === option.id
                     ? 'bg-primary/10 text-primary'
                     : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
                 )}
               >
+                <option.icon className="h-4 w-4 shrink-0" />
                 {option.label}
               </button>
             ))}
           </div>
         </>
       )}
+    </div>
+  );
+};
+
+const FilterSkeleton = () => (
+  <div
+    aria-label="Loading filters"
+    className="animate-pulse rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"
+  >
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      {Array.from({ length: 4 }, (_, index) => (
+        <div key={index} className="space-y-2">
+          <div className="h-3 w-20 rounded bg-slate-200 dark:bg-slate-700" />
+          <div className="h-10 rounded-xl bg-slate-100 dark:bg-slate-800" />
+        </div>
+      ))}
+    </div>
+    <div className="mt-4 flex flex-wrap gap-2">
+      {[72, 96, 84, 108, 76].map((width, index) => (
+        <div key={index} className="h-8 rounded-full bg-slate-100 dark:bg-slate-800" style={{ width }} />
+      ))}
+    </div>
+  </div>
+);
+
+const ResultSkeletons = ({ layout }: { layout: FeedLayoutMode }) => {
+  if (layout === 'table') {
+    return (
+      <div aria-label="Loading loads" className="animate-pulse overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+        <div className="h-12 bg-slate-100 dark:bg-slate-800" />
+        {Array.from({ length: 6 }, (_, index) => (
+          <div key={index} className="grid grid-cols-5 gap-5 border-t border-slate-100 px-5 py-4 dark:border-slate-800">
+            {[80, 65, 90, 55, 70].map((width, cell) => (
+              <div key={cell} className="h-4 rounded bg-slate-100 dark:bg-slate-800" style={{ width: `${width}%` }} />
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  const isGrid = layout === 'grid';
+  return (
+    <div
+      aria-label="Loading loads"
+      className={cn('animate-pulse gap-4', isGrid ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4' : 'flex flex-col')}
+    >
+      {Array.from({ length: isGrid ? 4 : 5 }, (_, index) => (
+        <div key={index} className={cn('rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900', isGrid ? 'min-h-64' : 'min-h-36')}>
+          <div className="flex items-center justify-between gap-4">
+            <div className="h-5 w-2/3 rounded bg-slate-200 dark:bg-slate-700" />
+            <div className="h-8 w-16 rounded-lg bg-slate-100 dark:bg-slate-800" />
+          </div>
+          <div className="mt-5 h-4 w-4/5 rounded bg-slate-100 dark:bg-slate-800" />
+          <div className="mt-3 h-4 w-3/5 rounded bg-slate-100 dark:bg-slate-800" />
+          <div className="mt-7 flex gap-2">
+            <div className="h-7 w-20 rounded-full bg-slate-100 dark:bg-slate-800" />
+            <div className="h-7 w-24 rounded-full bg-slate-100 dark:bg-slate-800" />
+          </div>
+        </div>
+      ))}
     </div>
   );
 };
@@ -131,6 +197,7 @@ type HomeFeedProps = {
   companyIds?: number[];
   dataMode?: 'all' | 'organic' | 'global';
   loads?: Load[];
+  loading?: boolean;
   sortMode?: FeedSortMode;
   startLocation?: string;
   endLocation?: string;
@@ -162,6 +229,10 @@ type HomeFeedProps = {
   selectedUrgency?: string[];
   selectedLoadingMethods?: string[];
   filterBar?: FilterLoadsProps;
+  exchangeMode?: 'transport' | 'storage';
+  onExchangeModeChange?: (mode: 'transport' | 'storage') => void;
+  myBidsOnly?: boolean;
+  onMyBidsOnlyChange?: (value: boolean) => void;
   onSortModeChange?: (mode: FeedSortMode) => void;
   onEditLoad?: (load: Load) => void;
   onLoadChanged?: () => void;
@@ -174,6 +245,7 @@ export const HomeFeed = ({
   companyIds = [],
   dataMode = 'all',
   loads = MOCK_LOADS,
+  loading = false,
   sortMode = 'price_asc',
   startLocation = '',
   endLocation = '',
@@ -205,6 +277,10 @@ export const HomeFeed = ({
   selectedUrgency = [],
   selectedLoadingMethods = [],
   filterBar,
+  exchangeMode = 'transport',
+  onExchangeModeChange,
+  myBidsOnly = false,
+  onMyBidsOnlyChange,
   onSortModeChange,
   onEditLoad,
   onLoadChanged,
@@ -213,136 +289,15 @@ export const HomeFeed = ({
   const [mapSource, setMapSource] = useState<MapSource>('normal');
   const [selectedLoad, setSelectedLoad] = useState<Load | null>(null);
   const [isFilterBarOpen, setIsFilterBarOpen] = useState(true);
-  const [myBidsOnly, setMyBidsOnly] = useState(false);
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const bookLoadLabel = u('common.bookLoad', 'Reserve');
-  const loadsTitle =
-    dataMode === 'all'
-      ? u('home.loadsTitle.all', 'All Organic and Global Loads')
-      : dataMode === 'organic'
-        ? u('home.loadsTitle.organic', 'All Organic Available Loads')
-        : u('home.loadsTitle.global', 'All Global Available Loads');
+  const loadsTitle = exchangeMode === 'storage'
+    ? u('home.loadsTitle.storage', 'Warehouse Exchange')
+    : u('home.loadsTitle.transport', 'Freight Exchange');
 
-  const filteredLoads = useMemo(() => {
-    const startFilter = startLocation.trim().toLowerCase();
-    const endFilter = endLocation.trim().toLowerCase();
-
-    return loads.filter((load) => {
-      if (load.status !== 'Posted') return false;
-
-      const pickup = load.pickup.toLowerCase();
-      const delivery = load.delivery.toLowerCase();
-      const priceValue = parseLoadPriceValue(load.price);
-      const weightValue = parseLoadWeightValue(load.weight);
-      const lengthValue = load.length;
-      const widthValue = load.width;
-      const heightValue = load.height;
-      const temperatureMinValue = load.temperatureMin ?? 15;
-      const temperatureMaxValue = load.temperatureMax ?? 25;
-      const cargoValue = load.cargoValue;
-      const transitDays = load.transitDays ?? estimateLoadTransitDays(load.pickup, load.delivery);
-      const startMatch = !startFilter || pickup.includes(startFilter);
-      const endMatch = !endFilter || delivery.includes(endFilter);
-      const priceMatch = priceValue >= minPriceFilter && priceValue <= maxPriceFilter;
-      const weightMatch = weightValue >= minWeightFilter && weightValue <= maxWeightFilter;
-      const lengthMatch = lengthValue === undefined
-        ? !isLengthFilterActive
-        : lengthValue >= minLengthFilter && lengthValue <= maxLengthFilter;
-      const widthMatch = widthValue === undefined
-        ? !isWidthFilterActive
-        : widthValue >= minWidthFilter && widthValue <= maxWidthFilter;
-      const heightMatch = heightValue === undefined
-        ? !isHeightFilterActive
-        : heightValue >= minHeightFilter && heightValue <= maxHeightFilter;
-      const temperatureMatch = temperatureMaxValue >= minTemperatureFilter && temperatureMinValue <= maxTemperatureFilter;
-      const cargoValueMatch = cargoValue === undefined
-        ? !isCargoValueFilterActive
-        : cargoValue >= minCargoValueFilter && cargoValue <= maxCargoValueFilter;
-      const transitMatch = transitDays >= minTransitDaysFilter && transitDays <= maxTransitDaysFilter;
-      const goodsMatch = !selectedGoodsTypes.length || selectedGoodsTypes.includes(load.goodsType);
-      const priceTermsMatch = !selectedPriceTerms.length || selectedPriceTerms.includes(load.isNegotiable ? 'negotiable' : 'fixed');
-      const paymentMatch = !selectedPaymentTerms.length || selectedPaymentTerms.includes(load.paymentTerms);
-      const adrMatch = !selectedAdrClasses.length || selectedAdrClasses.includes(load.adrClass || 'None');
-      const sensitivityMatch =
-        !selectedSensitivity.length || (selectedSensitivity.includes('fragile') ? Boolean(load.isFragile) : true);
-      const urgencyMatch = !selectedUrgency.length || selectedUrgency.includes(load.urgency || 'Standard');
-      const loadingMethodMatch =
-        !selectedLoadingMethods.length ||
-        selectedLoadingMethods.some((method) => (load.loadingMethods || []).includes(method as 'Forklift' | 'Crane' | 'Manual'));
-      const myBidsMatch = !myBidsOnly || Boolean(getBidState(load.offers, userId, load.budget).myOffer);
-      return (
-        startMatch &&
-        endMatch &&
-        priceMatch &&
-        weightMatch &&
-        lengthMatch &&
-        widthMatch &&
-        heightMatch &&
-        temperatureMatch &&
-        cargoValueMatch &&
-        transitMatch &&
-        goodsMatch &&
-        priceTermsMatch &&
-        paymentMatch &&
-        adrMatch &&
-        sensitivityMatch &&
-        urgencyMatch &&
-        loadingMethodMatch &&
-        myBidsMatch
-      );
-    });
-  }, [
-    loads,
-    startLocation,
-    endLocation,
-    myBidsOnly,
-    userId,
-    minPriceFilter,
-    maxPriceFilter,
-    minWeightFilter,
-    maxWeightFilter,
-    minLengthFilter,
-    maxLengthFilter,
-    isLengthFilterActive,
-    minWidthFilter,
-    maxWidthFilter,
-    isWidthFilterActive,
-    minHeightFilter,
-    maxHeightFilter,
-    isHeightFilterActive,
-    minTemperatureFilter,
-    maxTemperatureFilter,
-    minCargoValueFilter,
-    maxCargoValueFilter,
-    isCargoValueFilterActive,
-    minTransitDaysFilter,
-    maxTransitDaysFilter,
-    selectedGoodsTypes,
-    selectedPriceTerms,
-    selectedPaymentTerms,
-    selectedAdrClasses,
-    selectedSensitivity,
-    selectedUrgency,
-    selectedLoadingMethods,
-  ]);
-
-  const sortedLoads = useMemo(() => {
-    const items = [...filteredLoads];
-    if (sortMode === 'price_desc') {
-      items.sort((a, b) => parseLoadPriceValue(b.price) - parseLoadPriceValue(a.price));
-      return items;
-    }
-    if (sortMode === 'price_asc') {
-      items.sort((a, b) => parseLoadPriceValue(a.price) - parseLoadPriceValue(b.price));
-      return items;
-    }
-    if (sortMode === 'date_desc') {
-      items.sort((a, b) => parseLoadDateValue(b.date) - parseLoadDateValue(a.date));
-      return items;
-    }
-    items.sort((a, b) => parseLoadDateValue(a.date) - parseLoadDateValue(b.date));
-    return items;
-  }, [filteredLoads, sortMode]);
+  /* Filtering and ordering are deliberately performed by GET /loads. The exchange renders the
+     server result verbatim so pagination/counts cannot disagree with locally filtered data. */
+  const sortedLoads = loads;
 
   const loadsMapData = useMemo<LoadMapData[]>(
     () =>
@@ -365,12 +320,12 @@ export const HomeFeed = ({
     imagery: u('home.mapSource.imagery', 'Imagery'),
   };
 
-  const layoutButtons: Array<{ id: FeedLayoutMode; icon: typeof List; title: string }> = [
+  const layoutButtons = [
     { id: 'table', icon: Table, title: u('home.layout.table', 'Table') },
     { id: 'list', icon: List, title: u('home.layout.list', 'List') },
     { id: 'grid', icon: LayoutGrid, title: u('home.layout.grid', 'Grid') },
     { id: 'map', icon: MapIcon, title: u('home.layout.map', 'Map') },
-  ];
+  ] satisfies Array<{ id: FeedLayoutMode; icon: typeof List; title: string }>;
 
   return (
     <div className="w-full min-w-0 space-y-6">
@@ -381,7 +336,20 @@ export const HomeFeed = ({
             {sortedLoads.length} {u('feed.filterBar.loadsLabel', 'loads')}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => onMyBidsOnlyChange?.(!myBidsOnly)}
+            className={cn(
+              'inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl border px-3 text-xs font-bold transition-all',
+              myBidsOnly
+                ? 'border-primary/40 bg-primary/10 text-primary'
+                : 'border-slate-200 text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600'
+            )}
+          >
+            <Gavel className="h-3.5 w-3.5" />
+            {u('feed.filterBar.myBids', 'Moje ponude')}
+          </button>
           {filterBar && (
             <button
               type="button"
@@ -397,21 +365,29 @@ export const HomeFeed = ({
               {u('common.filter', 'Filter')}
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => setMyBidsOnly((prev) => !prev)}
-            className={cn(
-              'inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl border px-3 text-xs font-bold transition-all',
-              myBidsOnly
-                ? 'border-primary/40 bg-primary/10 text-primary'
-                : 'border-slate-200 text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600'
-            )}
-          >
-            <Gavel className="h-3.5 w-3.5" />
-            {u('feed.filterBar.myBids', 'Moje ponude')}
-          </button>
           <SortDropdown lang={lang} sortMode={sortMode} onChange={onSortModeChange} />
-          <div className="inline-flex h-9 items-center gap-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-1">
+          <div className="inline-flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-transparent px-1 dark:border-slate-800">
+            {([
+              { id: 'transport' as const, icon: Truck, label: u('feed.exchange.transport', 'Prevoz') },
+              { id: 'storage' as const, icon: Warehouse, label: u('feed.exchange.storage', 'Skladište') },
+            ]).map((mode) => (
+              <button
+                key={mode.id}
+                type="button"
+                title={mode.label}
+                aria-label={mode.label}
+                onClick={() => onExchangeModeChange?.(mode.id)}
+                className={cn(
+                  'flex h-7 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold transition-all',
+                  exchangeMode === mode.id ? 'bg-primary text-white' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+                )}
+              >
+                <mode.icon className="h-4 w-4" />
+                <span>{mode.label}</span>
+              </button>
+            ))}
+          </div>
+          <div className="inline-flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-transparent px-1 dark:border-slate-800">
             {layoutButtons.map((button) => (
               <button
                 key={button.id}
@@ -432,9 +408,11 @@ export const HomeFeed = ({
         </div>
       </div>
 
-      {filterBar && isFilterBarOpen && <FilterLoads {...filterBar} />}
+      {filterBar && isFilterBarOpen && (loading ? <FilterSkeleton /> : <FilterLoads {...filterBar} />)}
 
-      {sortedLoads.length === 0 ? (
+      {loading ? (
+        <ResultSkeletons layout={layout} />
+      ) : sortedLoads.length === 0 ? (
         <EmptyState
           title={u('home.empty.title', 'No loads found')}
           description={
@@ -459,7 +437,7 @@ export const HomeFeed = ({
         </div>
       )}
 
-      {sortedLoads.length > 0 && layout === 'grid' && (
+      {!loading && sortedLoads.length > 0 && layout === 'grid' && (
         <div className="grid w-full grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           {sortedLoads.map((load) => (
             <LoadItem
@@ -475,11 +453,11 @@ export const HomeFeed = ({
         </div>
       )}
 
-      {sortedLoads.length > 0 && layout === 'table' && (
+      {!loading && sortedLoads.length > 0 && layout === 'table' && (
         <LoadsTable lang={lang} loads={sortedLoads} userId={userId} onOpenDetails={setSelectedLoad} />
       )}
 
-      {sortedLoads.length > 0 && layout === 'map' && (
+      {!loading && sortedLoads.length > 0 && layout === 'map' && (
         <div className="grid lg:grid-cols-12 gap-6">
           <div className="lg:col-span-5 space-y-4 max-h-[78vh] overflow-y-auto pr-1">
             {sortedLoads.map((load) => (

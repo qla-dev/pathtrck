@@ -147,6 +147,7 @@ export const buildDraftPayload = (draft: LoadDraft) => ({
 // transport_type. They intentionally have no route stops or shipment-tracking record.
 export const buildWarehouseLoadPayload = (draft: LoadDraft) => ({
   transport_type: 'warehouse',
+  for_storage: true,
   status: 'posted',
   title: draft.loadTitle || null,
   storage_type: draft.warehouseStorageType,
@@ -195,4 +196,3 @@ export const estimatedDrivingDistanceKm = (from: [number, number], to: [number, 
     + Math.cos(radians(fromLat)) * Math.cos(radians(toLat)) * Math.sin(radians(toLng - fromLng) / 2) ** 2;
   return Math.round(6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 1.18);
 };
-

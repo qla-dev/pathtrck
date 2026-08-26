@@ -81,7 +81,13 @@ export interface Load {
   paymentTerms: string;
   paymentDueDays?: number;
   eta: string;
-  transportType?: 'road' | 'air' | 'sea';
+  transportType?: 'road' | 'air' | 'sea' | 'warehouse';
+  forStorage?: boolean;
+  storageType?: string;
+  storageStartDate?: string;
+  storageEndDate?: string;
+  isStorageOngoing?: boolean;
+  warehouseRequirements?: string[];
   isNegotiable?: boolean;
   budget?: number;
   offers?: Array<Record<string, unknown>>;

@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import Flatpickr from 'react-flatpickr';
 import {
   AlertTriangle,
+  Boxes,
+  CalendarDays,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -19,14 +22,16 @@ import {
   Ruler,
   Search,
   ShieldAlert,
+  ShieldCheck,
   Thermometer,
   Weight,
+  Warehouse,
   Zap,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 import { Language } from '../../types';
-import { ui } from '../../i18n';
+import { flatpickrI18n, ui } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { useLocationAutocomplete } from '../../hooks/useLocationAutocomplete';
 import { useOutsideClick } from '../../hooks/useOutsideClick';
@@ -59,7 +64,11 @@ type PillId =
   | 'urgency'
   | 'loadingMethod'
   | 'price'
-  | 'transit';
+  | 'transit'
+  | 'storageType'
+  | 'pallets'
+  | 'volume'
+  | 'requirements';
 
 export type FilterLoadsProps = {
   lang: Language;
@@ -98,6 +107,19 @@ export type FilterLoadsProps = {
   onToggleSensitivity?: (id: string) => void;
   onToggleUrgency?: (id: string) => void;
   onToggleLoadingMethod?: (id: string) => void;
+  variant?: 'transport' | 'storage';
+  palletRange?: RangeFilterConfig;
+  volumeRange?: RangeFilterConfig;
+  storageTypeOptions?: ChipFilterOption[];
+  selectedStorageTypeIds?: string[];
+  onToggleStorageType?: (id: string) => void;
+  requirementOptions?: ChipFilterOption[];
+  selectedRequirementIds?: string[];
+  onToggleRequirement?: (id: string) => void;
+  storageStartFrom?: string;
+  storageStartTo?: string;
+  onStorageStartFromChange?: (value: string) => void;
+  onStorageStartToChange?: (value: string) => void;
 };
 
 const isRangeActive = (config?: RangeFilterConfig) =>
@@ -105,6 +127,39 @@ const isRangeActive = (config?: RangeFilterConfig) =>
 
 const formatRangeSummary = (config: RangeFilterConfig) =>
   `${config.prefix || ''}${formatCompactValue(config.selectedMin)}${config.suffix || ''} – ${config.prefix || ''}${formatCompactValue(config.selectedMax)}${config.suffix || ''}`;
+
+const StorageDatePicker = ({
+  value,
+  onChange,
+  lang,
+  minDate,
+  maxDate,
+}: {
+  value: string;
+  onChange?: (value: string) => void;
+  lang: Language;
+  minDate?: string;
+  maxDate?: string;
+}) => (
+  <span className="relative block">
+    <CalendarDays className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
+    <Flatpickr
+      value={value}
+      options={{
+        dateFormat: 'Y-m-d',
+        altInput: true,
+        altFormat: 'd.m.Y',
+        allowInput: true,
+        locale: flatpickrI18n(lang),
+        minDate,
+        maxDate,
+      }}
+      onChange={(_, dateStr) => onChange?.(dateStr)}
+      placeholder="dd.mm.yyyy"
+      className="h-11 w-full cursor-pointer rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm text-slate-700 outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary/30 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+    />
+  </span>
+);
 
 const ChipGroup = ({
   options,
@@ -186,6 +241,19 @@ export const FilterLoads = (props: FilterLoadsProps) => {
     onToggleSensitivity,
     onToggleUrgency,
     onToggleLoadingMethod,
+    variant = 'transport',
+    palletRange,
+    volumeRange,
+    storageTypeOptions = [],
+    selectedStorageTypeIds = [],
+    onToggleStorageType,
+    requirementOptions = [],
+    selectedRequirementIds = [],
+    onToggleRequirement,
+    storageStartFrom = '',
+    storageStartTo = '',
+    onStorageStartFromChange,
+    onStorageStartToChange,
   } = props;
 
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
@@ -230,6 +298,19 @@ export const FilterLoads = (props: FilterLoadsProps) => {
   };
 
   const pills: PillDescriptor[] = [];
+
+  if (variant === 'storage' && storageTypeOptions.length > 0) {
+    pills.push({ id: 'storageType', label: `${u('feed.storage.type', 'Storage type')}${selectedStorageTypeIds.length ? ` (${selectedStorageTypeIds.length})` : ''}`, title: u('feed.storage.type', 'Storage type'), icon: Warehouse, isActive: selectedStorageTypeIds.length > 0, content: <ChipGroup options={storageTypeOptions} selectedIds={selectedStorageTypeIds} onToggle={onToggleStorageType} />, onClear: () => clearChipGroup(selectedStorageTypeIds, onToggleStorageType) });
+  }
+  if (variant === 'storage' && palletRange) {
+    pills.push({ id: 'pallets', label: isRangeActive(palletRange) ? formatRangeSummary(palletRange) : u('feed.storage.pallets', 'Pallets'), title: u('feed.storage.pallets', 'Pallets'), icon: Boxes, isActive: isRangeActive(palletRange), content: <DualRangeControl config={palletRange} />, onClear: () => palletRange.onChange(palletRange.min, palletRange.max) });
+  }
+  if (variant === 'storage' && volumeRange) {
+    pills.push({ id: 'volume', label: isRangeActive(volumeRange) ? formatRangeSummary(volumeRange) : u('feed.storage.volume', 'Volume'), title: u('feed.storage.volume', 'Volume'), icon: Ruler, isActive: isRangeActive(volumeRange), content: <DualRangeControl config={volumeRange} />, onClear: () => volumeRange.onChange(volumeRange.min, volumeRange.max) });
+  }
+  if (variant === 'storage' && requirementOptions.length > 0) {
+    pills.push({ id: 'requirements', label: `${u('feed.storage.requirements', 'Requirements')}${selectedRequirementIds.length ? ` (${selectedRequirementIds.length})` : ''}`, title: u('feed.storage.requirements', 'Requirements'), icon: ShieldCheck, isActive: selectedRequirementIds.length > 0, content: <ChipGroup options={requirementOptions} selectedIds={selectedRequirementIds} onToggle={onToggleRequirement} />, onClear: () => clearChipGroup(selectedRequirementIds, onToggleRequirement) });
+  }
 
   if (modeTabs.length > 0 && activeModeTabId && onModeTabChange) {
     const activeTab = modeTabs.find((tab) => tab.id === activeModeTabId);
@@ -468,7 +549,7 @@ export const FilterLoads = (props: FilterLoadsProps) => {
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
         <label ref={startFieldRef} className="relative block flex-1">
           <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">
-            {u('feed.filterBar.pickup', 'Pickup')}
+            {variant === 'storage' ? u('feed.storage.location', 'Warehouse location') : u('feed.filterBar.pickup', 'Pickup')}
           </span>
           <div className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 transition-colors focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/30 dark:border-slate-700 dark:bg-slate-950">
             <Search className="h-4 w-4 shrink-0 text-slate-400" />
@@ -476,7 +557,7 @@ export const FilterLoads = (props: FilterLoadsProps) => {
               value={startLocation}
               onChange={(event) => onStartLocationChange(event.target.value)}
               onFocus={startSearch.open}
-              placeholder={u('feed.filterBar.searchCity', 'Search city...')}
+              placeholder={variant === 'storage' ? u('feed.storage.searchLocation', 'Search warehouse location...') : u('feed.filterBar.searchCity', 'Search city...')}
               className="w-full border-0 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 dark:text-slate-200"
             />
             {startSearch.loading && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />}
@@ -502,7 +583,7 @@ export const FilterLoads = (props: FilterLoadsProps) => {
           )}
         </label>
 
-        <label ref={endFieldRef} className="relative block flex-1">
+        {variant === 'transport' && <label ref={endFieldRef} className="relative block flex-1">
           <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">
             {u('feed.filterBar.delivery', 'Delivery')}
           </span>
@@ -536,7 +617,20 @@ export const FilterLoads = (props: FilterLoadsProps) => {
               ))}
             </div>
           )}
-        </label>
+        </label>}
+
+        {variant === 'storage' && (
+          <div className="grid flex-[1.2] grid-cols-2 gap-3">
+            <label>
+              <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">{u('feed.storage.availableFrom', 'Available from')}</span>
+              <StorageDatePicker value={storageStartFrom} onChange={onStorageStartFromChange} lang={lang} maxDate={storageStartTo || undefined} />
+            </label>
+            <label>
+              <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">{u('feed.storage.availableTo', 'Available to')}</span>
+              <StorageDatePicker value={storageStartTo} onChange={onStorageStartToChange} lang={lang} minDate={storageStartFrom || undefined} />
+            </label>
+          </div>
+        )}
 
         <button
           type="button"

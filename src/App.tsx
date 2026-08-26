@@ -3053,6 +3053,15 @@ const getLoadCargoValue = (load: Load) => load.cargoValue;
 
 type FeedDataMode = 'all' | 'organic' | 'global';
 
+type ExchangeMode = 'transport' | 'storage';
+
+const SERVER_FILTER_BOUNDS = {
+  priceMin: 0, priceMax: 1_000_000, weightMin: 0, weightMax: 100_000,
+  lengthMin: 0, lengthMax: 100, widthMin: 0, widthMax: 20, heightMin: 0, heightMax: 20,
+  temperatureMin: -80, temperatureMax: 80, cargoValueMin: 0, cargoValueMax: 10_000_000,
+  transitMin: 0, transitMax: 200, palletsMin: 0, palletsMax: 100_000, volumeMin: 0, volumeMax: 1_000_000,
+};
+
 const estimateLoadTransitDays = (pickup: string, delivery: string) => {
   const [lat1, lon1] = getFeedLoadCoord(pickup);
   const [lat2, lon2] = getFeedLoadCoord(delivery);
@@ -3204,8 +3213,10 @@ const mapDatabaseRecordToLoad = (record: Record<string, unknown>): Load => {
     urgency: record.is_urgent ? 'Express' : 'Standard',
     loadingMethods,
     transitDays,
-    pickup: [pickup?.city, pickup?.country_code].filter(Boolean).join(', '),
-    delivery: [delivery?.city, delivery?.country_code].filter(Boolean).join(', '),
+    pickup: record.for_storage
+      ? [record.warehouse_city, record.warehouse_country_code].filter(Boolean).join(', ')
+      : [pickup?.city, pickup?.country_code].filter(Boolean).join(', '),
+    delivery: record.for_storage ? '' : [delivery?.city, delivery?.country_code].filter(Boolean).join(', '),
     date: String(record.published_at || record.created_at || ''),
     author: String(
       (record.company as { name?: string } | undefined)?.name
@@ -3218,7 +3229,18 @@ const mapDatabaseRecordToLoad = (record: Record<string, unknown>): Load => {
     hsCodes: Array.isArray(record.hs_codes) ? record.hs_codes as Array<{ code: string; description: string; confidence?: number }> : [],
     paymentTerms,
     paymentDueDays: record.payment_due_days == null ? undefined : Number(record.payment_due_days),
-    transportType: record.transport_type === 'air' ? 'air' : record.transport_type === 'sea' ? 'sea' : 'road',
+    transportType: record.transport_type === 'warehouse' ? 'warehouse' : record.transport_type === 'air' ? 'air' : record.transport_type === 'sea' ? 'sea' : 'road',
+    forStorage: Boolean(record.for_storage),
+    storageType: record.storage_type == null ? undefined : String(record.storage_type),
+    storageStartDate: record.storage_start_date == null ? undefined : String(record.storage_start_date),
+    storageEndDate: record.storage_end_date == null ? undefined : String(record.storage_end_date),
+    isStorageOngoing: Boolean(record.is_storage_ongoing),
+    warehouseRequirements: [
+      record.requires_customs_bonded ? 'Customs bonded' : '',
+      record.requires_racking ? 'Racking' : '',
+      record.insurance_required ? 'Insurance' : '',
+      record.requires_security ? 'Security' : '',
+    ].filter(Boolean),
     eta: String(delivery?.window_starts_at || delivery?.window_ends_at || record.completed_at || ''),
     isNegotiable: record.is_negotiable == null ? true : Boolean(record.is_negotiable),
     budget: record.budget == null ? undefined : Number(record.budget),
@@ -3309,8 +3331,9 @@ export default function App() {
     [currentUser]
   );
   const [feedSortMode, setFeedSortMode] = useState<FeedSortMode>('price_asc');
-  const [feedDataMode, setFeedDataMode] = useState<FeedDataMode>('all');
-  const initializedFeedRangeModes = useRef<Set<FeedDataMode>>(new Set(['global']));
+  const [feedDataMode, setFeedDataMode] = useState<FeedDataMode>('organic');
+  const [exchangeMode, setExchangeMode] = useState<ExchangeMode>('transport');
+  const [feedMyBidsOnly, setFeedMyBidsOnly] = useState(false);
   const globalFeedLoads = useMemo<Load[]>(
     () => GLOBAL_OFFERS.map((offer, index) => mapGlobalOfferToLoad(offer, index)),
     []
@@ -3323,26 +3346,32 @@ export default function App() {
   const allFeedRangeBounds = useMemo(() => buildFeedRangeBounds(allFeedLoads), [allFeedLoads]);
   const organicFeedRangeBounds = useMemo(() => buildFeedRangeBounds(organicFeedLoads), [organicFeedLoads]);
   const globalFeedRangeBounds = useMemo(() => buildFeedRangeBounds(globalFeedLoads), [globalFeedLoads]);
-  const activeFeedLoads =
-    feedDataMode === 'global' ? globalFeedLoads : feedDataMode === 'all' ? allFeedLoads : organicFeedLoads;
-  const feedRangeBounds =
-    feedDataMode === 'global' ? globalFeedRangeBounds : feedDataMode === 'all' ? allFeedRangeBounds : organicFeedRangeBounds;
-  const [feedSelectedPriceMin, setFeedSelectedPriceMin] = useState(() => allFeedRangeBounds.priceMin);
-  const [feedSelectedPriceMax, setFeedSelectedPriceMax] = useState(() => allFeedRangeBounds.priceMax);
-  const [feedSelectedWeightMin, setFeedSelectedWeightMin] = useState(() => allFeedRangeBounds.weightMin);
-  const [feedSelectedWeightMax, setFeedSelectedWeightMax] = useState(() => allFeedRangeBounds.weightMax);
-  const [feedSelectedLengthMin, setFeedSelectedLengthMin] = useState(() => allFeedRangeBounds.lengthMin);
-  const [feedSelectedLengthMax, setFeedSelectedLengthMax] = useState(() => allFeedRangeBounds.lengthMax);
-  const [feedSelectedWidthMin, setFeedSelectedWidthMin] = useState(() => allFeedRangeBounds.widthMin);
-  const [feedSelectedWidthMax, setFeedSelectedWidthMax] = useState(() => allFeedRangeBounds.widthMax);
-  const [feedSelectedHeightMin, setFeedSelectedHeightMin] = useState(() => allFeedRangeBounds.heightMin);
-  const [feedSelectedHeightMax, setFeedSelectedHeightMax] = useState(() => allFeedRangeBounds.heightMax);
-  const [feedSelectedTemperatureMin, setFeedSelectedTemperatureMin] = useState(() => allFeedRangeBounds.temperatureMin);
-  const [feedSelectedTemperatureMax, setFeedSelectedTemperatureMax] = useState(() => allFeedRangeBounds.temperatureMax);
-  const [feedSelectedCargoValueMin, setFeedSelectedCargoValueMin] = useState(() => allFeedRangeBounds.cargoValueMin);
-  const [feedSelectedCargoValueMax, setFeedSelectedCargoValueMax] = useState(() => allFeedRangeBounds.cargoValueMax);
-  const [feedSelectedTransitMin, setFeedSelectedTransitMin] = useState(() => allFeedRangeBounds.transitMin);
-  const [feedSelectedTransitMax, setFeedSelectedTransitMax] = useState(() => allFeedRangeBounds.transitMax);
+  const activeFeedLoads = databaseLoads;
+  const feedRangeBounds = SERVER_FILTER_BOUNDS;
+  const [feedSelectedPriceMin, setFeedSelectedPriceMin] = useState(SERVER_FILTER_BOUNDS.priceMin);
+  const [feedSelectedPriceMax, setFeedSelectedPriceMax] = useState(SERVER_FILTER_BOUNDS.priceMax);
+  const [feedSelectedWeightMin, setFeedSelectedWeightMin] = useState(SERVER_FILTER_BOUNDS.weightMin);
+  const [feedSelectedWeightMax, setFeedSelectedWeightMax] = useState(SERVER_FILTER_BOUNDS.weightMax);
+  const [feedSelectedLengthMin, setFeedSelectedLengthMin] = useState(SERVER_FILTER_BOUNDS.lengthMin);
+  const [feedSelectedLengthMax, setFeedSelectedLengthMax] = useState(SERVER_FILTER_BOUNDS.lengthMax);
+  const [feedSelectedWidthMin, setFeedSelectedWidthMin] = useState(SERVER_FILTER_BOUNDS.widthMin);
+  const [feedSelectedWidthMax, setFeedSelectedWidthMax] = useState(SERVER_FILTER_BOUNDS.widthMax);
+  const [feedSelectedHeightMin, setFeedSelectedHeightMin] = useState(SERVER_FILTER_BOUNDS.heightMin);
+  const [feedSelectedHeightMax, setFeedSelectedHeightMax] = useState(SERVER_FILTER_BOUNDS.heightMax);
+  const [feedSelectedTemperatureMin, setFeedSelectedTemperatureMin] = useState(SERVER_FILTER_BOUNDS.temperatureMin);
+  const [feedSelectedTemperatureMax, setFeedSelectedTemperatureMax] = useState(SERVER_FILTER_BOUNDS.temperatureMax);
+  const [feedSelectedCargoValueMin, setFeedSelectedCargoValueMin] = useState(SERVER_FILTER_BOUNDS.cargoValueMin);
+  const [feedSelectedCargoValueMax, setFeedSelectedCargoValueMax] = useState(SERVER_FILTER_BOUNDS.cargoValueMax);
+  const [feedSelectedTransitMin, setFeedSelectedTransitMin] = useState(SERVER_FILTER_BOUNDS.transitMin);
+  const [feedSelectedTransitMax, setFeedSelectedTransitMax] = useState(SERVER_FILTER_BOUNDS.transitMax);
+  const [feedSelectedPalletsMin, setFeedSelectedPalletsMin] = useState(SERVER_FILTER_BOUNDS.palletsMin);
+  const [feedSelectedPalletsMax, setFeedSelectedPalletsMax] = useState(SERVER_FILTER_BOUNDS.palletsMax);
+  const [feedSelectedVolumeMin, setFeedSelectedVolumeMin] = useState(SERVER_FILTER_BOUNDS.volumeMin);
+  const [feedSelectedVolumeMax, setFeedSelectedVolumeMax] = useState(SERVER_FILTER_BOUNDS.volumeMax);
+  const [selectedStorageTypes, setSelectedStorageTypes] = useState<string[]>([]);
+  const [selectedStorageRequirements, setSelectedStorageRequirements] = useState<string[]>([]);
+  const [storageStartFrom, setStorageStartFrom] = useState('');
+  const [storageStartTo, setStorageStartTo] = useState('');
   const [selectedFeedGoodsTypes, setSelectedFeedGoodsTypes] = useState<string[]>([]);
   const [selectedFeedPriceTerms, setSelectedFeedPriceTerms] = useState<string[]>([]);
   const [selectedFeedPaymentTerms, setSelectedFeedPaymentTerms] = useState<string[]>([]);
@@ -3389,81 +3418,80 @@ export default function App() {
   };
 
   useEffect(() => {
+    let requestActive = true;
     if (!role) {
       setCurrentUser(null);
       setDatabaseLoads([]);
       setDatabaseLoadsLoaded(false);
-      initializedFeedRangeModes.current = new Set(['global']);
       return;
     }
     setDatabaseLoadsLoaded(false);
     void api.auth.me().then(setCurrentUser).catch(() => setCurrentUser(null));
-    void api.loads.list({ per_page: 100, status: 'posted' })
-      .then((response) => setDatabaseLoads(response.data.map(mapDatabaseRecordToLoad)))
-      .catch(() => setDatabaseLoads([]))
-      .finally(() => setDatabaseLoadsLoaded(true));
-  }, [role, loadRefreshKey]);
-
-  useEffect(() => {
-    if (initializedFeedRangeModes.current.has(feedDataMode)) {
-      if (!databaseLoadsLoaded || activeFeedLoads.length === 0) return;
-      if (feedSelectedLengthMin === 0 && feedSelectedLengthMax === 0 && feedRangeBounds.lengthMax > feedRangeBounds.lengthMin) {
-        setFeedSelectedLengthMin(feedRangeBounds.lengthMin);
-        setFeedSelectedLengthMax(feedRangeBounds.lengthMax);
+    const timer = window.setTimeout(() => {
+      const params: Record<string, string | number | boolean | undefined> = {
+        per_page: 100,
+        status: 'posted',
+        for_storage: exchangeMode === 'storage',
+        sort: feedSortMode,
+        my_bids: feedMyBidsOnly || undefined,
+        budget_min: feedSelectedPriceMin > feedRangeBounds.priceMin ? feedSelectedPriceMin : undefined,
+        budget_max: feedSelectedPriceMax < feedRangeBounds.priceMax ? feedSelectedPriceMax : undefined,
+        temperature_min: feedSelectedTemperatureMin > feedRangeBounds.temperatureMin ? feedSelectedTemperatureMin : undefined,
+        temperature_max: feedSelectedTemperatureMax < feedRangeBounds.temperatureMax ? feedSelectedTemperatureMax : undefined,
+        price_terms: selectedFeedPriceTerms.join(',') || undefined,
+      };
+      if (exchangeMode === 'storage') {
+        Object.assign(params, {
+          warehouse_location: feedStartLocation || undefined,
+          pallets_min: feedSelectedPalletsMin > feedRangeBounds.palletsMin ? feedSelectedPalletsMin : undefined,
+          pallets_max: feedSelectedPalletsMax < feedRangeBounds.palletsMax ? feedSelectedPalletsMax : undefined,
+          volume_min: feedSelectedVolumeMin > feedRangeBounds.volumeMin ? feedSelectedVolumeMin : undefined,
+          volume_max: feedSelectedVolumeMax < feedRangeBounds.volumeMax ? feedSelectedVolumeMax : undefined,
+          storage_types: selectedStorageTypes.join(',') || undefined,
+          requirements: selectedStorageRequirements.join(',') || undefined,
+          storage_start_from: storageStartFrom || undefined,
+          storage_start_to: storageStartTo || undefined,
+        });
+      } else {
+        Object.assign(params, {
+          origin: feedStartLocation || undefined,
+          destination: feedEndLocation || undefined,
+          weight_min: feedSelectedWeightMin > feedRangeBounds.weightMin ? feedSelectedWeightMin : undefined,
+          weight_max: feedSelectedWeightMax < feedRangeBounds.weightMax ? feedSelectedWeightMax : undefined,
+          length_min: feedSelectedLengthMin > feedRangeBounds.lengthMin ? feedSelectedLengthMin : undefined,
+          length_max: feedSelectedLengthMax < feedRangeBounds.lengthMax ? feedSelectedLengthMax : undefined,
+          width_min: feedSelectedWidthMin > feedRangeBounds.widthMin ? feedSelectedWidthMin : undefined,
+          width_max: feedSelectedWidthMax < feedRangeBounds.widthMax ? feedSelectedWidthMax : undefined,
+          height_min: feedSelectedHeightMin > feedRangeBounds.heightMin ? feedSelectedHeightMin : undefined,
+          height_max: feedSelectedHeightMax < feedRangeBounds.heightMax ? feedSelectedHeightMax : undefined,
+          cargo_value_min: feedSelectedCargoValueMin > feedRangeBounds.cargoValueMin ? feedSelectedCargoValueMin : undefined,
+          cargo_value_max: feedSelectedCargoValueMax < feedRangeBounds.cargoValueMax ? feedSelectedCargoValueMax : undefined,
+          transit_days_min: feedSelectedTransitMin > feedRangeBounds.transitMin ? feedSelectedTransitMin : undefined,
+          transit_days_max: feedSelectedTransitMax < feedRangeBounds.transitMax ? feedSelectedTransitMax : undefined,
+          goods_types: selectedFeedGoodsTypes.join(',') || undefined,
+          payment_terms: selectedFeedPaymentTerms.map((value) => value.toLowerCase().replaceAll(' ', '_')).join(',') || undefined,
+          adr_classes: selectedFeedAdrClasses.join(',') || undefined,
+          sensitivity: selectedFeedSensitivity.join(',') || undefined,
+          urgency: selectedFeedUrgency.join(',') || undefined,
+          loading_methods: selectedFeedLoadingMethods.join(',') || undefined,
+        });
       }
-      if (feedSelectedWidthMin === 0 && feedSelectedWidthMax === 0 && feedRangeBounds.widthMax > feedRangeBounds.widthMin) {
-        setFeedSelectedWidthMin(feedRangeBounds.widthMin);
-        setFeedSelectedWidthMax(feedRangeBounds.widthMax);
-      }
-      if (feedSelectedHeightMin === 0 && feedSelectedHeightMax === 0 && feedRangeBounds.heightMax > feedRangeBounds.heightMin) {
-        setFeedSelectedHeightMin(feedRangeBounds.heightMin);
-        setFeedSelectedHeightMax(feedRangeBounds.heightMax);
-      }
-      if (feedSelectedCargoValueMin === 0 && feedSelectedCargoValueMax === 0 && feedRangeBounds.cargoValueMax > feedRangeBounds.cargoValueMin) {
-        setFeedSelectedCargoValueMin(feedRangeBounds.cargoValueMin);
-        setFeedSelectedCargoValueMax(feedRangeBounds.cargoValueMax);
-      }
-      if (feedSelectedTransitMin === 0 && feedSelectedTransitMax === 0 && feedRangeBounds.transitMax > feedRangeBounds.transitMin) {
-        setFeedSelectedTransitMin(feedRangeBounds.transitMin);
-        setFeedSelectedTransitMax(feedRangeBounds.transitMax);
-      }
-      return;
-    }
-    if (feedDataMode !== 'global' && !databaseLoadsLoaded) return;
-
-    setFeedSelectedPriceMin(feedRangeBounds.priceMin);
-    setFeedSelectedPriceMax(feedRangeBounds.priceMax);
-    setFeedSelectedWeightMin(feedRangeBounds.weightMin);
-    setFeedSelectedWeightMax(feedRangeBounds.weightMax);
-    setFeedSelectedLengthMin(feedRangeBounds.lengthMin);
-    setFeedSelectedLengthMax(feedRangeBounds.lengthMax);
-    setFeedSelectedWidthMin(feedRangeBounds.widthMin);
-    setFeedSelectedWidthMax(feedRangeBounds.widthMax);
-    setFeedSelectedHeightMin(feedRangeBounds.heightMin);
-    setFeedSelectedHeightMax(feedRangeBounds.heightMax);
-    setFeedSelectedTemperatureMin(feedRangeBounds.temperatureMin);
-    setFeedSelectedTemperatureMax(feedRangeBounds.temperatureMax);
-    setFeedSelectedCargoValueMin(feedRangeBounds.cargoValueMin);
-    setFeedSelectedCargoValueMax(feedRangeBounds.cargoValueMax);
-    setFeedSelectedTransitMin(feedRangeBounds.transitMin);
-    setFeedSelectedTransitMax(feedRangeBounds.transitMax);
-    initializedFeedRangeModes.current.add(feedDataMode);
-  }, [
-    activeFeedLoads.length,
-    databaseLoadsLoaded,
-    feedDataMode,
-    feedRangeBounds,
-    feedSelectedCargoValueMax,
-    feedSelectedCargoValueMin,
-    feedSelectedHeightMax,
-    feedSelectedHeightMin,
-    feedSelectedLengthMax,
-    feedSelectedLengthMin,
-    feedSelectedTransitMax,
-    feedSelectedTransitMin,
-    feedSelectedWidthMax,
-    feedSelectedWidthMin,
-  ]);
+      void api.loads.list(params)
+        .then((response) => {
+          if (requestActive) setDatabaseLoads(response.data.map(mapDatabaseRecordToLoad));
+        })
+        .catch(() => {
+          if (requestActive) setDatabaseLoads([]);
+        })
+        .finally(() => {
+          if (requestActive) setDatabaseLoadsLoaded(true);
+        });
+    }, 250);
+    return () => {
+      requestActive = false;
+      window.clearTimeout(timer);
+    };
+  }, [role, loadRefreshKey, exchangeMode, feedSortMode, feedMyBidsOnly, feedStartLocation, feedEndLocation, feedSelectedPriceMin, feedSelectedPriceMax, feedSelectedWeightMin, feedSelectedWeightMax, feedSelectedLengthMin, feedSelectedLengthMax, feedSelectedWidthMin, feedSelectedWidthMax, feedSelectedHeightMin, feedSelectedHeightMax, feedSelectedTemperatureMin, feedSelectedTemperatureMax, feedSelectedCargoValueMin, feedSelectedCargoValueMax, feedSelectedTransitMin, feedSelectedTransitMax, feedSelectedPalletsMin, feedSelectedPalletsMax, feedSelectedVolumeMin, feedSelectedVolumeMax, selectedFeedGoodsTypes, selectedFeedPriceTerms, selectedFeedPaymentTerms, selectedFeedAdrClasses, selectedFeedSensitivity, selectedFeedUrgency, selectedFeedLoadingMethods, selectedStorageTypes, selectedStorageRequirements, storageStartFrom, storageStartTo]);
 
   useEffect(() => {
     if (isDark) {
@@ -3663,6 +3691,14 @@ export default function App() {
     setSelectedFeedSensitivity([]);
     setSelectedFeedUrgency([]);
     setSelectedFeedLoadingMethods([]);
+    setFeedSelectedPalletsMin(feedRangeBounds.palletsMin);
+    setFeedSelectedPalletsMax(feedRangeBounds.palletsMax);
+    setFeedSelectedVolumeMin(feedRangeBounds.volumeMin);
+    setFeedSelectedVolumeMax(feedRangeBounds.volumeMax);
+    setSelectedStorageTypes([]);
+    setSelectedStorageRequirements([]);
+    setStorageStartFrom('');
+    setStorageStartTo('');
   };
   const handleFeedDataModeChange = (nextModeId: string) => {
     const nextMode: FeedDataMode =
@@ -3731,18 +3767,12 @@ export default function App() {
   };
   const feedFilterBarProps: FilterLoadsProps = {
     lang,
+    variant: exchangeMode,
     startLocation: feedStartLocation,
     endLocation: feedEndLocation,
     onStartLocationChange: setFeedStartLocation,
     onEndLocationChange: setFeedEndLocation,
     onClear: clearFeedFilters,
-    modeTabs: [
-      { id: 'all', label: ui(lang, 'home.feedMode.all', 'All') },
-      { id: 'organic', label: ui(lang, 'home.feedMode.organic', 'Organic') },
-      { id: 'global', label: ui(lang, 'home.feedMode.global', 'Global') },
-    ],
-    activeModeTabId: feedDataMode,
-    onModeTabChange: handleFeedDataModeChange,
     priceRange: {
       min: feedRangeBounds.priceMin,
       max: feedRangeBounds.priceMax,
@@ -3755,7 +3785,7 @@ export default function App() {
       prefix: feedDataMode === 'global' ? 'USD ' : feedDataMode === 'organic' ? 'EUR ' : '',
       allowManualInput: true,
     },
-    weightRange: {
+    weightRange: exchangeMode === 'transport' ? {
       min: feedRangeBounds.weightMin,
       max: feedRangeBounds.weightMax,
       selectedMin: feedSelectedWeightMin,
@@ -3766,8 +3796,8 @@ export default function App() {
       },
       suffix: ' kg',
       step: 100,
-    },
-    dimensionRanges: {
+    } : undefined,
+    dimensionRanges: exchangeMode === 'transport' ? {
       length: {
         min: feedRangeBounds.lengthMin,
         max: feedRangeBounds.lengthMax,
@@ -3807,7 +3837,7 @@ export default function App() {
         allowManualInput: true,
         step: 0.05,
       },
-    },
+    } : undefined,
     temperatureRange: {
       min: feedRangeBounds.temperatureMin,
       max: feedRangeBounds.temperatureMax,
@@ -3820,7 +3850,7 @@ export default function App() {
       suffix: ' °C',
       allowManualInput: true,
     },
-    cargoValueRange: {
+    cargoValueRange: exchangeMode === 'transport' ? {
       min: feedRangeBounds.cargoValueMin,
       max: feedRangeBounds.cargoValueMax,
       selectedMin: feedSelectedCargoValueMin,
@@ -3832,8 +3862,8 @@ export default function App() {
       prefix: 'EUR ',
       allowManualInput: true,
       step: 1000,
-    },
-    transitRange: {
+    } : undefined,
+    transitRange: exchangeMode === 'transport' ? {
       min: feedRangeBounds.transitMin,
       max: feedRangeBounds.transitMax,
       selectedMin: feedSelectedTransitMin,
@@ -3843,14 +3873,26 @@ export default function App() {
         setFeedSelectedTransitMax(nextMax);
       },
       suffix: ` ${u('common.days', 'days')}`,
-    },
-    goodsTypeOptions: feedGoodsTypeOptions,
+    } : undefined,
+    goodsTypeOptions: exchangeMode === 'transport' ? feedGoodsTypeOptions : [],
     priceTermOptions: feedPriceTermOptions,
-    paymentTermOptions: feedPaymentTermOptions,
-    adrClassOptions: feedAdrClassOptions,
-    sensitivityOptions: feedSensitivityOptions,
-    urgencyOptions: feedUrgencyOptions,
-    loadingMethodOptions: feedLoadingMethodOptions,
+    paymentTermOptions: exchangeMode === 'transport' ? feedPaymentTermOptions : [],
+    adrClassOptions: exchangeMode === 'transport' ? feedAdrClassOptions : [],
+    sensitivityOptions: exchangeMode === 'transport' ? feedSensitivityOptions : [],
+    urgencyOptions: exchangeMode === 'transport' ? feedUrgencyOptions : [],
+    loadingMethodOptions: exchangeMode === 'transport' ? feedLoadingMethodOptions : [],
+    palletRange: exchangeMode === 'storage' ? { min: feedRangeBounds.palletsMin, max: feedRangeBounds.palletsMax, selectedMin: feedSelectedPalletsMin, selectedMax: feedSelectedPalletsMax, onChange: (min, max) => { setFeedSelectedPalletsMin(min); setFeedSelectedPalletsMax(max); }, suffix: ' pal.', step: 1, allowManualInput: true } : undefined,
+    volumeRange: exchangeMode === 'storage' ? { min: feedRangeBounds.volumeMin, max: feedRangeBounds.volumeMax, selectedMin: feedSelectedVolumeMin, selectedMax: feedSelectedVolumeMax, onChange: (min, max) => { setFeedSelectedVolumeMin(min); setFeedSelectedVolumeMax(max); }, suffix: ' m³', step: 1, allowManualInput: true } : undefined,
+    storageTypeOptions: ['Ambient', 'Chilled', 'Frozen', 'Bonded', 'Outdoor'].map((value) => ({ id: value, label: value, toneClass: 'bg-primary/10 text-primary border-primary/30' })),
+    selectedStorageTypeIds: selectedStorageTypes,
+    onToggleStorageType: (id) => setSelectedStorageTypes((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]),
+    requirementOptions: [{ id: 'customs_bonded', label: u('feed.storage.customsBonded', 'Customs bonded'), toneClass: 'bg-violet-500/10 text-violet-500 border-violet-500/30' }, { id: 'racking', label: u('feed.storage.racking', 'Racking'), toneClass: 'bg-sky-500/10 text-sky-500 border-sky-500/30' }, { id: 'insurance', label: u('feed.storage.insurance', 'Insurance'), toneClass: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' }, { id: 'security', label: u('feed.storage.security', 'Security'), toneClass: 'bg-amber-500/10 text-amber-500 border-amber-500/30' }],
+    selectedRequirementIds: selectedStorageRequirements,
+    onToggleRequirement: (id) => setSelectedStorageRequirements((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]),
+    storageStartFrom,
+    storageStartTo,
+    onStorageStartFromChange: setStorageStartFrom,
+    onStorageStartToChange: setStorageStartTo,
     selectedGoodsTypeIds: selectedFeedGoodsTypes,
     selectedPriceTermIds: selectedFeedPriceTerms,
     selectedPaymentTermIds: selectedFeedPaymentTerms,
@@ -3961,7 +4003,7 @@ export default function App() {
         </div>
 
         <nav className={cn(
-          "mt-1 min-h-0 flex-1 space-y-2 px-4 pb-4",
+          "mt-1 min-h-0 flex-1 space-y-1 px-4 pb-4",
           isSidebarOpen ? "overflow-y-auto" : "overflow-visible"
         )}>
           {navItems.map(item => (
@@ -3970,7 +4012,7 @@ export default function App() {
               aria-label={!isSidebarOpen ? item.label : undefined}
               onClick={() => setView(item.id)}
               className={cn(
-                "group relative w-full flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer",
+                "group relative w-full flex items-center gap-3 rounded-xl px-3 py-2 transition-all cursor-pointer",
                 view === item.id
                   ? "bg-primary text-white shadow-lg shadow-primary/20"
                   : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
@@ -4230,6 +4272,11 @@ export default function App() {
                     userId={currentUser?.id}
                     dataMode={feedDataMode}
                     loads={activeFeedLoads}
+                    loading={!databaseLoadsLoaded}
+                    exchangeMode={exchangeMode}
+                    onExchangeModeChange={(mode) => { setExchangeMode(mode); clearFeedFilters(); }}
+                    myBidsOnly={feedMyBidsOnly}
+                    onMyBidsOnlyChange={setFeedMyBidsOnly}
                     sortMode={feedSortMode}
                     startLocation={feedStartLocation}
                     endLocation={feedEndLocation}

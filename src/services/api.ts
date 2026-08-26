@@ -320,6 +320,10 @@ export const api = {
   fleetAccess: resourceApi<Record<string, unknown>>('fleet-access'),
   loads: {
     ...resourceApi<Record<string, unknown>>('loads'),
+    trackingStatusCounts: async (params: ListParams = {}) => {
+      const query = queryString(params);
+      return request<Record<string, unknown>[]>(query ? `/loads/tracking-status-counts?${query}` : '/loads/tracking-status-counts');
+    },
     publicList: () => request<Record<string, unknown>[]>('/public-loads'),
     updateStatus: (id: number | string, status: string) => request<Record<string, unknown>>(`/loads/${id}/status`, {
       method: 'PATCH',

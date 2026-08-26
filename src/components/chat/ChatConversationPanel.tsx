@@ -68,6 +68,10 @@ type ChatConversationPanelProps = {
   // "later"/"none" escape option), never from free text that the pills wouldn't expect.
   inputLocked?: boolean;
   inputLockedPlaceholder?: string;
+  loadingMessages?: boolean;
+  loadingOlderMessages?: boolean;
+  hasOlderMessages?: boolean;
+  onLoadOlderMessages?: () => void;
 };
 
 export const ChatConversationPanel = ({
@@ -99,12 +103,17 @@ export const ChatConversationPanel = ({
   inputMask = null,
   inputLocked = false,
   inputLockedPlaceholder,
+  loadingMessages = false,
+  loadingOlderMessages = false,
+  hasOlderMessages = false,
+  onLoadOlderMessages,
 }: ChatConversationPanelProps) => {
   const primaryActionButtonClass = 'h-9 rounded-lg bg-primary text-white flex items-center justify-center cursor-pointer transition-all hover:brightness-95';
   const messageListRef = useRef<HTMLDivElement>(null);
   const messageContentRef = useRef<HTMLDivElement>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
   const previousConversationIdRef = useRef<string | null>(null);
+  const restoreScrollHeightRef = useRef<number | null>(null);
   const knownMessageIdsRef = useRef(new Set(activeConversation.messages.map((message) => message.id)));
   const knownMessagesConversationIdRef = useRef<string | null>(null);
   const [typingMessageId, setTypingMessageId] = useState<string | null>(null);
@@ -184,6 +193,12 @@ export const ChatConversationPanel = ({
     // which can move the entire application when this view opens from the header.
     const isSameConversation = previousConversationIdRef.current === activeConversation.id;
     previousConversationIdRef.current = activeConversation.id;
+    if (restoreScrollHeightRef.current !== null) {
+      const messageList = messageListRef.current;
+      if (messageList) messageList.scrollTop = messageList.scrollHeight - restoreScrollHeightRef.current;
+      restoreScrollHeightRef.current = null;
+      return;
+    }
     scrollMessageListToBottom(isSameConversation ? 'smooth' : 'auto');
   }, [activeConversation.id, activeConversation.messages.length, otherTyping, scrollMessageListToBottom]);
 
@@ -261,11 +276,26 @@ export const ChatConversationPanel = ({
         key={activeConversation.id}
         ref={messageListRef}
         className="absolute inset-0 overflow-y-auto p-4"
+        onScroll={(event) => {
+          if (event.currentTarget.scrollTop > 32 || !hasOlderMessages || loadingOlderMessages || !onLoadOlderMessages) return;
+          restoreScrollHeightRef.current = event.currentTarget.scrollHeight;
+          onLoadOlderMessages();
+        }}
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
       >
       <div ref={messageContentRef}>
+      {loadingOlderMessages && (
+        <div className="mb-4 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
+      )}
+      {loadingMessages ? (
+        <div className="animate-pulse space-y-5 py-3">
+          {Array.from({ length: 5 }, (_, index) => (
+            <div key={index} className={cn('h-16 rounded-2xl bg-slate-200/70 dark:bg-slate-800', index % 2 === 0 ? 'mr-auto w-3/4' : 'ml-auto w-1/2')} />
+          ))}
+        </div>
+      ) : <>
       {activeConversation.messages.map((m, index) => {
         const isAiAnswer = Boolean(activeConversation.isAiDispatch) && m.sender === 'other';
         const previousSender = activeConversation.messages[index - 1]?.sender;
@@ -419,6 +449,7 @@ export const ChatConversationPanel = ({
           </span>
         </motion.div>
       )}
+      </>}
       </div>
       </motion.div>
     </div>
