@@ -2142,7 +2142,7 @@ Object.assign(UI.bs, {
   'postLoadModal.declaredValue': 'Vrijednost pošiljke',
   'postLoadModal.cargoModel': 'Vrsta pošiljke',
   'postLoadModal.additionalInfo': 'Dodatne informacije',
-  'postLoadModal.targetPrice': 'Vaša očekivana cijena',
+  'postLoadModal.targetPrice': 'Vaša očekivana cijena (nije vidljiva javno)',
   'postLoadModal.currency': 'Valuta',
   'postLoadModal.deferredPayment': 'Odgođeno plaćanje',
   'postLoadModal.paymentDueDays': 'Broj dana',

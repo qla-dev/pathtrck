@@ -94,8 +94,8 @@ export const buildLoadFieldsPayload = (draft: LoadDraft) => ({
 });
 
 export const buildLoadStopsPayload = (draft: LoadDraft) => [
-  { type: 'pickup', position: 1, place_type: draft.pickupPlaceType, city: draft.pickupCity, postal_code: draft.pickupPostalCode || null, country_code: draft.pickupCountry, address: draft.pickupAddress || null, port: draft.transportType === 'sea' ? draft.pickupPort || null : null, airport: draft.transportType === 'air' ? draft.pickupAirport || null : null, latitude: draft.pickupLatitude ? Number(draft.pickupLatitude) : null, longitude: draft.pickupLongitude ? Number(draft.pickupLongitude) : null, window_starts_at: toApiDateTime(draft.pickupDate, draft.pickupTimeFrom), window_ends_at: toApiDateTime(draft.pickupDateTo || draft.pickupDate, draft.pickupTimeTo || draft.pickupTimeFrom) },
-  { type: 'delivery', position: 2, place_type: draft.deliveryPlaceType, city: draft.deliveryCity, postal_code: draft.deliveryPostalCode || null, country_code: draft.deliveryCountry, address: draft.deliveryAddress || null, port: draft.transportType === 'sea' ? draft.deliveryPort || null : null, airport: draft.transportType === 'air' ? draft.deliveryAirport || null : null, latitude: draft.deliveryLatitude ? Number(draft.deliveryLatitude) : null, longitude: draft.deliveryLongitude ? Number(draft.deliveryLongitude) : null, window_starts_at: toApiDateTime(draft.deliveryDate, draft.deliveryTimeFrom), window_ends_at: toApiDateTime(draft.deliveryDateTo || draft.deliveryDate, draft.deliveryTimeTo || draft.deliveryTimeFrom) },
+  { type: 'pickup', position: 1, place_type: draft.pickupPlaceType, city: draft.pickupCity, postal_code: draft.pickupPostalCode || null, country_code: draft.pickupCountry, address: draft.pickupAddress || null, port: (draft.transportType === 'sea' || draft.pickupPlaceType === 'Port') ? draft.pickupPort || null : null, airport: (draft.transportType === 'air' || draft.pickupPlaceType === 'Airport') ? draft.pickupAirport || null : null, latitude: draft.pickupLatitude ? Number(draft.pickupLatitude) : null, longitude: draft.pickupLongitude ? Number(draft.pickupLongitude) : null, window_starts_at: toApiDateTime(draft.pickupDate, draft.pickupTimeFrom), window_ends_at: toApiDateTime(draft.pickupDateTo || draft.pickupDate, draft.pickupTimeTo || draft.pickupTimeFrom) },
+  { type: 'delivery', position: 2, place_type: draft.deliveryPlaceType, city: draft.deliveryCity, postal_code: draft.deliveryPostalCode || null, country_code: draft.deliveryCountry, address: draft.deliveryAddress || null, port: (draft.transportType === 'sea' || draft.deliveryPlaceType === 'Port') ? draft.deliveryPort || null : null, airport: (draft.transportType === 'air' || draft.deliveryPlaceType === 'Airport') ? draft.deliveryAirport || null : null, latitude: draft.deliveryLatitude ? Number(draft.deliveryLatitude) : null, longitude: draft.deliveryLongitude ? Number(draft.deliveryLongitude) : null, window_starts_at: toApiDateTime(draft.deliveryDate, draft.deliveryTimeFrom), window_ends_at: toApiDateTime(draft.deliveryDateTo || draft.deliveryDate, draft.deliveryTimeTo || draft.deliveryTimeFrom) },
 ];
 
 export const buildLoadPayload = (draft: LoadDraft) => ({ ...buildLoadFieldsPayload(draft), stops: buildLoadStopsPayload(draft) });
@@ -107,8 +107,8 @@ export const buildDraftPayload = (draft: LoadDraft) => ({
   pickup_postal_code: draft.pickupPostalCode || null,
   pickup_country_code: draft.pickupCountry || null,
   pickup_address: draft.pickupAddress || null,
-  pickup_port: draft.transportType === 'sea' ? draft.pickupPort || null : null,
-  pickup_airport: draft.transportType === 'air' ? draft.pickupAirport || null : null,
+  pickup_port: (draft.transportType === 'sea' || draft.pickupPlaceType === 'Port') ? draft.pickupPort || null : null,
+  pickup_airport: (draft.transportType === 'air' || draft.pickupPlaceType === 'Airport') ? draft.pickupAirport || null : null,
   pickup_latitude: draft.pickupLatitude ? Number(draft.pickupLatitude) : null,
   pickup_longitude: draft.pickupLongitude ? Number(draft.pickupLongitude) : null,
   pickup_date: toApiDate(draft.pickupDate),
@@ -120,8 +120,8 @@ export const buildDraftPayload = (draft: LoadDraft) => ({
   delivery_postal_code: draft.deliveryPostalCode || null,
   delivery_country_code: draft.deliveryCountry || null,
   delivery_address: draft.deliveryAddress || null,
-  delivery_port: draft.transportType === 'sea' ? draft.deliveryPort || null : null,
-  delivery_airport: draft.transportType === 'air' ? draft.deliveryAirport || null : null,
+  delivery_port: (draft.transportType === 'sea' || draft.deliveryPlaceType === 'Port') ? draft.deliveryPort || null : null,
+  delivery_airport: (draft.transportType === 'air' || draft.deliveryPlaceType === 'Airport') ? draft.deliveryAirport || null : null,
   delivery_latitude: draft.deliveryLatitude ? Number(draft.deliveryLatitude) : null,
   delivery_longitude: draft.deliveryLongitude ? Number(draft.deliveryLongitude) : null,
   delivery_date: toApiDate(draft.deliveryDate),

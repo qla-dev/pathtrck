@@ -1127,7 +1127,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
                       <div className="space-y-1.5">
                         <FieldLabel>{draft.transportType === 'sea' ? u('postLoadModal.seaOriginType', 'Origin type') : u('postLoadModal.pickupPlaceType', 'Place type')}</FieldLabel>
-                        <div className={cn('grid grid-cols-2', draft.transportType === 'sea' || draft.transportType === 'air' ? 'gap-4' : 'gap-2')}>
+                        <div className="grid grid-cols-2 gap-4">
                           {(draft.transportType === 'sea'
                             ? [
                                 { value: 'Port to Port', label: u('postLoadModal.portToPort', 'Port'), icon: Ship },
@@ -1142,7 +1142,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                               ]
                             : [
                                 { value: 'Warehouse', label: u('postLoadModal.warehouse', 'Warehouse'), icon: Warehouse },
-                                { value: 'Terminal', label: u('postLoadModal.terminal', 'Terminal'), icon: Building2 },
+                                { value: 'Port', label: u('postLoadModal.portToPort', 'Port'), icon: Ship },
+                                { value: 'Airport', label: u('postLoadModal.airportPlaceType', 'Airport'), icon: PlaneLanding },
                               ]
                           ).map((option) => (
                             <ChoiceCard
@@ -1158,12 +1159,13 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
                       <div className={cn(
                         ((draft.transportType === 'sea' && draft.pickupPlaceType !== 'Port to Port') ||
-                          (draft.transportType === 'air' && draft.pickupPlaceType === 'Address')) &&
+                          (draft.transportType === 'air' && draft.pickupPlaceType !== 'AOL / Airport of loading') ||
+                          (draft.transportType === 'road' && (draft.pickupPlaceType === 'Port' || draft.pickupPlaceType === 'Airport'))) &&
                         'grid gap-4 sm:grid-cols-2'
                       )}>
-                        {draft.transportType === 'sea' && (
+                        {(draft.transportType === 'sea' || (draft.transportType === 'road' && draft.pickupPlaceType === 'Port')) && (
                           <div className="space-y-1.5">
-                            <FieldLabel>{u('postLoadModal.pol', 'Loading Port (POL)')}</FieldLabel>
+                            <FieldLabel>{draft.transportType === 'sea' ? u('postLoadModal.pol', 'Loading Port (POL)') : u('postLoadModal.portToPort', 'Port')}</FieldLabel>
                             <PortAutocompleteField
                               value={draft.pickupPort}
                               onChange={(value) => setField('pickupPort', value)}
@@ -1177,9 +1179,9 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             />
                           </div>
                         )}
-                        {draft.transportType === 'air' && (
+                        {(draft.transportType === 'air' || (draft.transportType === 'road' && draft.pickupPlaceType === 'Airport')) && (
                           <div className="space-y-1.5">
-                            <FieldLabel>{u('postLoadModal.aol', 'Loading Airport (AOL)')}</FieldLabel>
+                            <FieldLabel>{draft.transportType === 'air' ? u('postLoadModal.aol', 'Loading Airport (AOL)') : u('postLoadModal.airportPlaceType', 'Airport')}</FieldLabel>
                             <AirportAutocompleteField
                               value={draft.pickupAirport}
                               onChange={(value) => setField('pickupAirport', value)}
@@ -1195,7 +1197,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         )}
                         {(
                           (draft.transportType !== 'sea' || draft.pickupPlaceType !== 'Port to Port') &&
-                          (draft.transportType !== 'air' || draft.pickupPlaceType === 'Address')
+                          (draft.transportType !== 'air' || draft.pickupPlaceType !== 'AOL / Airport of loading')
                         ) && (
                           <div className="space-y-1.5">
                             <FieldLabel>
@@ -1288,7 +1290,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
                       <div className="space-y-1.5">
                         <FieldLabel>{draft.transportType === 'sea' ? u('postLoadModal.seaDestinationType', 'Destination type') : u('postLoadModal.deliveryPlaceType', 'Place type')}</FieldLabel>
-                        <div className={cn('grid grid-cols-2', draft.transportType === 'sea' || draft.transportType === 'air' ? 'gap-4' : 'gap-2')}>
+                        <div className="grid grid-cols-2 gap-4">
                           {(draft.transportType === 'sea'
                             ? [
                                 { value: 'Port to Port', label: u('postLoadModal.portToPort', 'Port'), icon: Ship },
@@ -1303,7 +1305,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                               ]
                             : [
                                 { value: 'Warehouse', label: u('postLoadModal.warehouse', 'Warehouse'), icon: Warehouse },
-                                { value: 'Terminal', label: u('postLoadModal.terminal', 'Terminal'), icon: Building2 },
+                                { value: 'Port', label: u('postLoadModal.portToPort', 'Port'), icon: Ship },
+                                { value: 'Airport', label: u('postLoadModal.airportPlaceType', 'Airport'), icon: PlaneLanding },
                               ]
                           ).map((option) => (
                             <ChoiceCard
@@ -1319,12 +1322,13 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
                       <div className={cn(
                         ((draft.transportType === 'sea' && draft.deliveryPlaceType !== 'Port to Port') ||
-                          (draft.transportType === 'air' && draft.deliveryPlaceType === 'Address + Last Mile Delivery')) &&
+                          (draft.transportType === 'air' && draft.deliveryPlaceType !== 'AOD / Airport of delivery') ||
+                          (draft.transportType === 'road' && (draft.deliveryPlaceType === 'Port' || draft.deliveryPlaceType === 'Airport'))) &&
                         'grid gap-4 sm:grid-cols-2'
                       )}>
-                        {draft.transportType === 'sea' && (
+                        {(draft.transportType === 'sea' || (draft.transportType === 'road' && draft.deliveryPlaceType === 'Port')) && (
                           <div className="space-y-1.5">
-                            <FieldLabel>{u('postLoadModal.pod', 'Discharge Port (POD)')}</FieldLabel>
+                            <FieldLabel>{draft.transportType === 'sea' ? u('postLoadModal.pod', 'Discharge Port (POD)') : u('postLoadModal.portToPort', 'Port')}</FieldLabel>
                             <PortAutocompleteField
                               value={draft.deliveryPort}
                               onChange={(value) => setField('deliveryPort', value)}
@@ -1338,9 +1342,9 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             />
                           </div>
                         )}
-                        {draft.transportType === 'air' && (
+                        {(draft.transportType === 'air' || (draft.transportType === 'road' && draft.deliveryPlaceType === 'Airport')) && (
                           <div className="space-y-1.5">
-                            <FieldLabel>{u('postLoadModal.aod', 'Discharge Airport (AOD)')}</FieldLabel>
+                            <FieldLabel>{draft.transportType === 'air' ? u('postLoadModal.aod', 'Discharge Airport (AOD)') : u('postLoadModal.airportPlaceType', 'Airport')}</FieldLabel>
                             <AirportAutocompleteField
                               value={draft.deliveryAirport}
                               onChange={(value) => setField('deliveryAirport', value)}
@@ -1356,7 +1360,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         )}
                         {(
                           (draft.transportType !== 'sea' || draft.deliveryPlaceType !== 'Port to Port') &&
-                          (draft.transportType !== 'air' || draft.deliveryPlaceType === 'Address + Last Mile Delivery')
+                          (draft.transportType !== 'air' || draft.deliveryPlaceType !== 'AOD / Airport of delivery')
                         ) && (
                           <div className="space-y-1.5">
                             <FieldLabel>
