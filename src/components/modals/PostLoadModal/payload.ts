@@ -143,29 +143,30 @@ export const buildDraftPayload = (draft: LoadDraft) => ({
   delivery_time_to: draft.deliveryTimeTo || draft.deliveryTimeFrom || null,
 });
 
-// Genuinely distinct from buildLoadFieldsPayload above - a warehouse request is a storage-service
-// listing (pallets/CBM/storage duration/handling requirements), not a route+cargo load, so it has
-// no stops array and shares almost no fields with /loads. Posted to /warehouse-requests instead.
-export const buildWarehouseRequestPayload = (draft: LoadDraft) => ({
+// Warehouse listings live in the same `loads` resource as transport loads and are distinguished by
+// transport_type. They intentionally have no route stops or shipment-tracking record.
+export const buildWarehouseLoadPayload = (draft: LoadDraft) => ({
+  transport_type: 'warehouse',
+  status: 'posted',
   title: draft.loadTitle || null,
   storage_type: draft.warehouseStorageType,
   pallets: draft.pallets ? Number(draft.pallets) : null,
-  cbm: draft.volumeM3 ? Number(draft.volumeM3) : null,
+  volume_m3: draft.volumeM3 ? Number(draft.volumeM3) : null,
   weight_kg: draft.weightKg ? toApiWeightKg(draft.weightKg) : null,
-  city: draft.pickupCity,
-  country_code: draft.pickupCountry,
-  address: draft.pickupAddress || null,
-  latitude: draft.pickupLatitude ? Number(draft.pickupLatitude) : null,
-  longitude: draft.pickupLongitude ? Number(draft.pickupLongitude) : null,
-  start_date: toApiDate(draft.warehouseStartDate),
-  end_date: draft.warehouseIsOngoing ? null : toApiDate(draft.warehouseEndDate),
-  is_ongoing: draft.warehouseIsOngoing,
+  warehouse_city: draft.pickupCity,
+  warehouse_country_code: draft.pickupCountry,
+  warehouse_address: draft.pickupAddress || null,
+  warehouse_latitude: draft.pickupLatitude ? Number(draft.pickupLatitude) : null,
+  warehouse_longitude: draft.pickupLongitude ? Number(draft.pickupLongitude) : null,
+  storage_start_date: toApiDate(draft.warehouseStartDate),
+  storage_end_date: draft.warehouseIsOngoing ? null : toApiDate(draft.warehouseEndDate),
+  is_storage_ongoing: draft.warehouseIsOngoing,
   handling_requirements: draft.loadingEquipment,
   temperature_min: draft.warehouseTemperatureMin ? Number(draft.warehouseTemperatureMin) : null,
   temperature_max: draft.warehouseTemperatureMax ? Number(draft.warehouseTemperatureMax) : null,
   requires_customs_bonded: draft.warehouseRequiresCustomsBonded,
   requires_racking: draft.warehouseRequiresRacking,
-  requires_insurance: draft.warehouseRequiresInsurance,
+  insurance_required: draft.warehouseRequiresInsurance,
   requires_security: draft.warehouseRequiresSecurity,
   budget: draft.budget ? Number(draft.budget) : null,
   currency: draft.freightCurrency,
@@ -194,5 +195,4 @@ export const estimatedDrivingDistanceKm = (from: [number, number], to: [number, 
     + Math.cos(radians(fromLat)) * Math.cos(radians(toLat)) * Math.sin(radians(toLng - fromLng) / 2) ** 2;
   return Math.round(6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 1.18);
 };
-
 

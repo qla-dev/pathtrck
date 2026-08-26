@@ -118,7 +118,7 @@ import {
   buildLoadStopsPayload,
   buildLoadPayload,
   buildDraftPayload,
-  buildWarehouseRequestPayload,
+  buildWarehouseLoadPayload,
   routePosition,
   estimatedDrivingDistanceKm,
   deriveAirTransportMode,
@@ -738,15 +738,12 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     }
   };
 
-  // Distinct from publishLoad above - a warehouse request posts to /warehouse-requests (the "berza
-  // skladišta"), not /loads, and has no edit-existing-record path since Post Load's edit flow only
-  // opens for loads today.
-  const publishWarehouseRequest = async (): Promise<boolean> => {
+  const publishWarehouseLoad = async (): Promise<boolean> => {
     setIsSubmitting(true);
     setSubmitError('');
     try {
-      const payload = buildWarehouseRequestPayload(draft);
-      const response = await api.warehouseRequests.create(payload);
+      const payload = buildWarehouseLoadPayload(draft);
+      const response = await api.loads.create(payload);
       onSaved?.(response.data);
       onClose();
       void showSuccess(
@@ -776,7 +773,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         confirmText: u('postLoadModal.publishConfirm', 'Objavi'),
       });
       if (!confirmed) return;
-      await publishWarehouseRequest();
+      await publishWarehouseLoad();
       return;
     }
     const confirmed = await confirmAction({

@@ -374,7 +374,6 @@ export const api = {
   conversations: resourceApi<Record<string, unknown>>('conversations'),
   messages: resourceApi<Record<string, unknown>>('messages'),
   loadDrafts: resourceApi<Record<string, unknown>>('load-drafts'),
-  warehouseRequests: resourceApi<Record<string, unknown>>('warehouse-requests'),
   warehouses: resourceApi<Record<string, unknown>>('warehouses'),
   warehouse: {
     overview: () => request<Record<string, unknown>>('/warehouse/overview'),
