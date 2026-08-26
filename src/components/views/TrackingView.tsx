@@ -18,7 +18,7 @@ import { INCOTERM_OPTIONS, ROAD_CHARACTERISTIC_OPTIONS, VEHICLE_OPTIONS } from '
 import { IconSelect, type IconSelectOption } from '../ui/IconSelect';
 
 type TrackingStatusFilter = PackageData['status'] | 'all';
-type TrackingLayoutMode = 'list' | 'grid' | 'map';
+export type TrackingLayoutMode = 'list' | 'grid' | 'map';
 
 const countryFlagUrl = (countryCode: string) => `https://flagcdn.com/w40/${countryCode.toLowerCase()}.png`;
 
@@ -182,9 +182,13 @@ type TrackingViewProps = {
   userId?: number;
   companyIds?: number[];
   onLayoutModeChange?: (mode: TrackingLayoutMode) => void;
+  // Sidebar entries (Global Tracking / Map) drop the user straight into a layout. The nonce lets
+  // the same mode be re-requested - clicking "Map" again after switching to grid must still work.
+  requestedLayout?: TrackingLayoutMode;
+  requestedLayoutNonce?: number;
 };
 
-export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutModeChange }: TrackingViewProps) => {
+export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutModeChange, requestedLayout, requestedLayoutNonce }: TrackingViewProps) => {
   const TRUCK_CAPACITY_KG = 48000;
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const mapRef = useRef<L.Map | null>(null);
@@ -238,6 +242,11 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
   useEffect(() => {
     onLayoutModeChange?.(layout);
   }, [layout, onLayoutModeChange]);
+
+  useEffect(() => {
+    if (requestedLayout) setLayout(requestedLayout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- nonce is the trigger, mode is the payload
+  }, [requestedLayout, requestedLayoutNonce]);
 
   useEffect(() => {
     const el = moreFiltersRef.current;
@@ -533,11 +542,11 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
                 </div>
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2">
-                <button type="button" onClick={() => setFiltersOpen((open) => !open)} className="flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-primary px-3 text-[11px] font-bold text-primary hover:bg-primary/5"><Filter className="h-3.5 w-3.5" />{filtersOpen ? u('tracking.hideFilters', 'Hide filters') : u('tracking.showFilters', 'Show filters')}</button>
-                <button type="button" onClick={clearFilters} className="flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-rose-400 px-3 text-[11px] font-bold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20"><Trash2 className="h-3.5 w-3.5" />{u('tracking.clearFilters', 'Clear filters')}</button>
+                <button type="button" onClick={() => setFiltersOpen((open) => !open)} className={cn('flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-primary px-3 text-[11px] font-bold text-primary hover:bg-primary/5', layout === 'map' && 'dark:border-white dark:text-white dark:hover:bg-white/10')}><Filter className="h-3.5 w-3.5" />{filtersOpen ? u('tracking.hideFilters', 'Hide filters') : u('tracking.showFilters', 'Show filters')}</button>
+                <button type="button" onClick={clearFilters} className={cn('flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-rose-400 px-3 text-[11px] font-bold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20', layout === 'map' && 'dark:border-white dark:text-white dark:hover:bg-white/10')}><Trash2 className="h-3.5 w-3.5" />{u('tracking.clearFilters', 'Clear filters')}</button>
                 <div className="relative min-w-56 flex-1 sm:max-w-80"><Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={u('tracking.searchPlaceholder', 'Search shipment number, booking ref...')} className={cn('h-10 w-full rounded-lg border bg-white pl-9 pr-3 text-xs outline-none focus:border-primary dark:bg-slate-950 dark:text-white', layout === 'map' ? 'border-slate-200/50 dark:border-slate-700/40' : 'border-slate-200 dark:border-slate-700')} /></div>
-                <div className={cn('inline-flex h-10 items-center rounded-lg border bg-transparent p-1', layout === 'map' ? 'border-slate-200/50 dark:border-slate-700/40' : 'border-slate-200 dark:border-slate-800')}>{([['list', List, u('home.layout.list', 'List')], ['grid', LayoutGrid, u('home.layout.grid', 'Grid')]] as const).map(([mode, Icon, label]) => <button type="button" key={mode} onClick={() => setLayout(mode)} title={label} className={cn('flex h-8 w-8 cursor-pointer items-center justify-center rounded-md', layout === mode ? 'bg-primary text-white' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800')}><Icon className="h-4 w-4" /></button>)}</div>
-                <div className={cn('inline-flex h-10 items-center rounded-lg border bg-transparent p-1', layout === 'map' ? 'border-slate-200/50 dark:border-slate-700/40' : 'border-slate-200 dark:border-slate-800')}>
+                <div className={cn('inline-flex h-10 items-center rounded-lg border bg-transparent p-1', layout === 'map' ? 'border-white/70 dark:border-white' : 'border-slate-200 dark:border-slate-800')}>{([['list', List, u('home.layout.list', 'List')], ['grid', LayoutGrid, u('home.layout.grid', 'Grid')]] as const).map(([mode, Icon, label]) => <button type="button" key={mode} onClick={() => setLayout(mode)} title={label} className={cn('flex h-8 w-8 cursor-pointer items-center justify-center rounded-md', layout === mode ? 'bg-primary text-white' : cn('text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800', layout === 'map' && 'dark:text-white'))}><Icon className="h-4 w-4" /></button>)}</div>
+                <div className={cn('inline-flex h-10 items-center rounded-lg border bg-transparent p-1', layout === 'map' ? 'border-white/70 dark:border-white' : 'border-slate-200 dark:border-slate-800')}>
                   <button type="button" onClick={() => setLayout('map')} title={u('home.layout.map', 'Map')} aria-label={u('home.layout.map', 'Map')} className={cn('flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-md px-2 text-[11px] font-bold', layout === 'map' ? 'bg-primary text-white' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800')}>
                     <span>{u('home.layout.map', 'Map')}</span>
                     <MapIcon className="h-4 w-4" />
@@ -546,7 +555,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
               </div>
             </div>
 
-            {filtersOpen && <div className="border-t border-slate-100 px-4 py-3 dark:border-slate-800">
+            {filtersOpen && <div className={cn('border-t px-4 py-3', layout === 'map' ? 'border-white/50 dark:border-white/40' : 'border-slate-100 dark:border-slate-800')}>
               <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
                 <FilterSelect icon={Route} label={u('tracking.transportMode', 'Transport mode')} value={transportType} onChange={setTransportType} allLabel={u('tracking.allModes', 'All modes')} options={transportOptions} />
                 <FilterSelect icon={BriefcaseBusiness} label={u('tracking.service', 'Service')} value={service} onChange={setService} allLabel={u('tracking.allServices', 'All services')} options={serviceOptions} />
@@ -567,17 +576,17 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
                 <FilterSelect icon={FileText} label="Incoterms" value={incoterm} onChange={setIncoterm} allLabel={u('tracking.allIncoterms', 'All incoterms')} options={incotermOptions} />
                 <div className="min-w-0" ref={moreFiltersRef}>
                   <span className="mb-1.5 block text-[10px] font-bold text-transparent select-none">·</span>
-                  <button type="button" onClick={() => setMoreFiltersOpen((open) => !open)} className={cn('flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border px-3 text-xs font-bold', moreFiltersOpen || adrOnly || urgentOnly ? 'border-primary bg-primary/5 text-primary' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300')}><SlidersHorizontal className="h-3.5 w-3.5" />{u('tracking.moreFilters', 'More filters')}</button>
+                  <button type="button" onClick={() => setMoreFiltersOpen((open) => !open)} className={cn('flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border px-3 text-xs font-bold', moreFiltersOpen || adrOnly || urgentOnly ? 'border-primary bg-primary/5 text-primary' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300', layout === 'map' && 'dark:border-white dark:text-white')}><SlidersHorizontal className="h-3.5 w-3.5" />{u('tracking.moreFilters', 'More filters')}</button>
                 </div>
               </div>
               {moreFiltersOpen && (
-                <div className="mt-3 flex flex-col gap-3 border-t border-slate-100 pt-3 dark:border-slate-800">
+                <div className={cn('mt-3 flex flex-col gap-3 border-t pt-3', layout === 'map' ? 'border-white/50 dark:border-white/40' : 'border-slate-100 dark:border-slate-800')}>
                   <div className="flex flex-wrap gap-2">
-                    <button type="button" onClick={() => setAdrOnly((value) => !value)} className={cn('flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-bold', adrOnly ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300')}><ShieldAlert className="h-3.5 w-3.5" />ADR</button>
-                    <button type="button" onClick={() => setUrgentOnly((value) => !value)} className={cn('flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-bold', urgentOnly ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300')}><Zap className="h-3.5 w-3.5" />{u('tracking.urgentOnly', 'Urgent')}</button>
-                    <button type="button" onClick={() => setInsuranceRequired((value) => !value)} className={cn('flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-bold', insuranceRequired ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300')}><ShieldCheck className="h-3.5 w-3.5" />{u('tracking.insuranceRequired', 'Insurance')}</button>
-                    <button type="button" onClick={() => setCustomsRequired((value) => !value)} className={cn('flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-bold', customsRequired ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300')}><Stamp className="h-3.5 w-3.5" />{u('tracking.customsRequired', 'Customs')}</button>
-                    <button type="button" onClick={() => setSecurityRequired((value) => !value)} className={cn('flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-bold', securityRequired ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300')}><Lock className="h-3.5 w-3.5" />{u('tracking.securityRequired', 'Security')}</button>
+                    <button type="button" onClick={() => setAdrOnly((value) => !value)} className={cn('flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-bold', adrOnly ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300', layout === 'map' && 'dark:border-white dark:text-white')}><ShieldAlert className="h-3.5 w-3.5" />ADR</button>
+                    <button type="button" onClick={() => setUrgentOnly((value) => !value)} className={cn('flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-bold', urgentOnly ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300', layout === 'map' && 'dark:border-white dark:text-white')}><Zap className="h-3.5 w-3.5" />{u('tracking.urgentOnly', 'Urgent')}</button>
+                    <button type="button" onClick={() => setInsuranceRequired((value) => !value)} className={cn('flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-bold', insuranceRequired ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300', layout === 'map' && 'dark:border-white dark:text-white')}><ShieldCheck className="h-3.5 w-3.5" />{u('tracking.insuranceRequired', 'Insurance')}</button>
+                    <button type="button" onClick={() => setCustomsRequired((value) => !value)} className={cn('flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-bold', customsRequired ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300', layout === 'map' && 'dark:border-white dark:text-white')}><Stamp className="h-3.5 w-3.5" />{u('tracking.customsRequired', 'Customs')}</button>
+                    <button type="button" onClick={() => setSecurityRequired((value) => !value)} className={cn('flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-bold', securityRequired ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300', layout === 'map' && 'dark:border-white dark:text-white')}><Lock className="h-3.5 w-3.5" />{u('tracking.securityRequired', 'Security')}</button>
                   </div>
                   <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                     <div className="col-span-2 grid grid-cols-[1fr_auto_1fr] items-end gap-2">

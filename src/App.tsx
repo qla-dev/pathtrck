@@ -76,7 +76,7 @@ import { Button } from './components/ui/Button';
 import { Card } from './components/ui/Card';
 import { LoadItem } from './components/load/LoadItem';
 import { Dashboard } from './components/views/Dashboard';
-import { TrackingView } from './components/views/TrackingView';
+import { TrackingView, type TrackingLayoutMode } from './components/views/TrackingView';
 import { HomeFeed, FeedSortMode } from './components/views/HomeFeed';
 import { FleetView } from './components/views/FleetView';
 import { FilterLoadsProps } from './components/load/FilterLoads';
@@ -3294,6 +3294,25 @@ export default function App() {
   const [view, setView] = useState('tracking');
   const [trackingMapActive, setTrackingMapActive] = useState(false);
   const isTrackingMapActive = (view === 'tracking' || view === 'history') && trackingMapActive;
+  // The sidebar "Map" entry is a shortcut into the tracking screen's map layout rather than its
+  // own view, so navigation carries the layout it wants Tracking to open in.
+  const [trackingLayoutRequest, setTrackingLayoutRequest] = useState<{ mode: TrackingLayoutMode; nonce: number } | null>(null);
+  const navigateTo = (id: string) => {
+    if (id === 'map') {
+      setTrackingLayoutRequest((prev) => ({ mode: 'map', nonce: (prev?.nonce ?? 0) + 1 }));
+      setView('tracking');
+      return;
+    }
+    if (id === 'tracking') {
+      setTrackingLayoutRequest((prev) => ({ mode: 'grid', nonce: (prev?.nonce ?? 0) + 1 }));
+    }
+    setView(id);
+  };
+  const isNavItemActive = (id: string) => {
+    if (id === 'map') return isTrackingMapActive;
+    if (id === 'tracking') return view === 'tracking' && !isTrackingMapActive;
+    return view === id;
+  };
   const [checkoutPackageId, setCheckoutPackageId] = useState<number | null>(null);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [pricingRefreshSignal, setPricingRefreshSignal] = useState(0);
@@ -3942,6 +3961,7 @@ export default function App() {
         { id: 'admin-drivers', label: u('nav.allDrivers', 'Drivers'), icon: Users },
         { id: 'feed', label: t.homeFeed, icon: Boxes },
         { id: 'tracking', label: u('nav.globalTracking', 'Global Tracking'), icon: PackageIcon },
+        { id: 'map', label: u('nav.map', 'Map'), icon: MapIcon },
         { id: 'fleet', label: u('nav.globalFleet', 'Global Fleet'), icon: Truck },
         { id: 'finance', label: u('nav.finance', 'Finance'), icon: Banknote },
         { id: 'email-studio', label: u('nav.emailStudio', 'Email Studio'), icon: Mail },
@@ -3959,6 +3979,7 @@ export default function App() {
           { id: 'company', label: u('nav.companyOverview', 'Company Overview'), icon: Building2 },
           { id: 'feed', label: t.homeFeed, icon: Boxes },
           { id: 'tracking', label: myCargoLabels[lang || 'en'], icon: PackageIcon },
+          { id: 'map', label: u('nav.map', 'Map'), icon: MapIcon },
           { id: 'fleet', label: t.myFleet, icon: Truck },
           { id: 'company-team', label: u('nav.teamPermissions', 'Team & Permissions'), icon: Users },
           { id: 'dashboard', label: analyticsLabel, icon: BarChart3 },
@@ -3968,11 +3989,13 @@ export default function App() {
         ? [
             { id: 'warehouse-overview', label: u('nav.myWarehouse', 'Moj Warehouse'), icon: Warehouse },
             { id: 'tracking', label: myCargoLabels[lang || 'en'], icon: PackageIcon },
+            { id: 'map', label: u('nav.map', 'Map'), icon: MapIcon },
             { id: 'settings', label: t.settings, icon: Settings },
           ]
       : [
           ...(role === 'driver' ? [{ id: 'feed', label: t.homeFeed, icon: Boxes }] : []),
           { id: 'tracking', label: myCargoLabels[lang || 'en'], icon: PackageIcon },
+          { id: 'map', label: u('nav.map', 'Map'), icon: MapIcon },
           ...(role === 'driver' ? [
             { id: 'fleet', label: t.myFleet, icon: Truck },
           ] : []),
@@ -4017,10 +4040,11 @@ export default function App() {
             <button
               key={item.id}
               aria-label={!isSidebarOpen ? item.label : undefined}
-              onClick={() => setView(item.id)}
+              onClick={() => navigateTo(item.id)}
               className={cn(
-                "group relative w-full flex items-center gap-3 rounded-xl px-3 py-2 transition-all cursor-pointer",
-                view === item.id
+                "group relative w-full flex items-center rounded-xl py-2 transition-all cursor-pointer",
+                isSidebarOpen ? "gap-3 px-3" : "justify-center px-0",
+                isNavItemActive(item.id)
                   ? "bg-primary text-white shadow-lg shadow-primary/20"
                   : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
               )}
@@ -4056,7 +4080,7 @@ export default function App() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col h-screen relative overflow-hidden">
         {/* Header (Mobile & Desktop) */}
-        <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 flex items-center justify-between sticky top-0 z-40">
+        <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 flex items-center justify-between sticky top-0 z-[60]">
           <div className="md:hidden flex items-center">
             <BrandWordmark className="text-lg" />
           </div>
@@ -4248,9 +4272,11 @@ export default function App() {
         <div
           ref={viewContentRef}
           className={cn(
-            "flex-1 min-h-0 mx-auto w-full",
-            (view === 'map' || isTrackingMapActive) ? "max-w-none p-0" : "p-6 pb-24 md:pb-6",
-            !(view === 'map' || isTrackingMapActive) && (isSidebarOpen ? "max-w-7xl" : "max-w-none"),
+            // No width cap: the cap used to be 1280px, which left ~512px of dead gutter each side
+            // on a 2560px display (and ~950px on an ultrawide) while looking fine on a 1366px
+            // laptop, so it only ever showed up on wider client machines.
+            "flex-1 min-h-0 w-full max-w-none",
+            (view === 'map' || isTrackingMapActive) ? "p-0" : "p-6 pb-24 md:pb-6",
             view === 'messages' || view === 'map' ? "overflow-hidden" : "overflow-y-auto"
           )}
         >
@@ -4271,6 +4297,8 @@ export default function App() {
                     userId={currentUser?.id}
                     companyIds={trackingCompanyIds}
                     onLayoutModeChange={(mode) => setTrackingMapActive(mode === 'map')}
+                    requestedLayout={trackingLayoutRequest?.mode}
+                    requestedLayoutNonce={trackingLayoutRequest?.nonce}
                   />
                 )}
 	              {view === 'feed' && (
@@ -4488,10 +4516,10 @@ export default function App() {
           {navItems.map(item => (
             <button
               key={item.id}
-              onClick={() => setView(item.id)}
+              onClick={() => navigateTo(item.id)}
               className={cn(
                 "flex shrink-0 flex-col items-center gap-1 transition-all cursor-pointer",
-                view === item.id ? "text-primary" : "text-slate-400"
+                isNavItemActive(item.id) ? "text-primary" : "text-slate-400"
               )}
             >
               <item.icon className="w-5 h-5" />
