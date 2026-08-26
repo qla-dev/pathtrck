@@ -5,9 +5,16 @@ export const ROAD_CHARACTERISTIC_OPTIONS = ['ADR', 'CMR', 'GDP', 'TIR', 'Lift', 
 // No temperature-controlled-goods entry here - the dedicated "Temperature controlled" yes/no
 // toggle right below this list already covers that.
 export const AIR_CHARACTERISTIC_OPTIONS = ['Non-DG', 'DG', 'DGR', 'MED (medicine)', 'VAL (money and other valuables)', 'Fragile Cargo', 'Oversized / Heavy Cargo', 'Lithium Batteries', 'Dry Ice'] as const;
+// Selecting DG / IMO, REEFER, or OOG opens its own detail fields (UN number/IMO class/packing
+// group; temperature range; in-gauge vs out-of-gauge dimensions) instead of being a plain toggle -
+// mirrors how ocean carriers (and SeaRates) surface attributes based on the commodity/equipment
+// chosen rather than a flat ADR/CMR/GDP checklist.
+export const SEA_CHARACTERISTIC_OPTIONS = ['DG / IMO', 'REEFER', 'OOG', 'LIQUID', 'BULK', 'FRAGILE', 'NON-STACKABLE', 'TOP LOAD ONLY', 'HEAVY', 'VALUABLE', 'PHARMA', 'FOOD GRADE'] as const;
+export const SEA_BL_TYPE_OPTIONS = ['Original B/L', 'SeaWaybill', 'Telex Release'] as const;
+export const SEA_PAYMENT_TERMS_OPTIONS = ['Prepaid', 'Collect', 'Other'] as const;
 export const LOADING_EQUIPMENT_OPTIONS = ['Vehicle with ramp', 'Vehicle without ramp', 'Forklift: Yes', 'Forklift: No', 'Other loading/unloading equipment', 'Not specified'] as const;
 export const AIR_LOADING_EQUIPMENT_OPTIONS = ['Forklift Required', 'Tail Lift Required', 'Cargo Lift / High Loader Required', 'Pallet Jack Required', 'Roller Bed Required', 'Conveyor Required', 'No Special Equipment', 'Other Special Handling Equipment'] as const;
-export const SEA_LOADING_EQUIPMENT_OPTIONS = ['Forklift Required', 'Crane Required', 'Heavy Lift', 'Port Handling', 'Stuffing Required', 'Unstuffing Required', 'Special Handling', 'No Special Equipment'] as const;
+export const SEA_LOADING_EQUIPMENT_OPTIONS = ['Forklift Required', 'Crane / Heavy Lift', 'Port Handling', 'Stuffing Required', 'Unstuffing Required', 'Special Handling', 'No Special Equipment'] as const;
 // 'Tail Lift Required' is not listed here - it's only relevant when the shipment has a road leg
 // (an "Address" pickup or "Address + Last Mile Delivery" delivery), so PostLoadModal appends it
 // conditionally instead of always showing it.

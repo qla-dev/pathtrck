@@ -24,6 +24,8 @@ export type PostLoadModalProps = {
 export type StepId = 'cargo' | 'route' | 'terms' | 'contact' | 'review';
 export type TransportType = 'road' | 'air' | 'sea';
 export type ScannedDocument = { id: string; imageDataUrl: string | null; result: LoadScanResult };
+// Sea only - one row of the "Container types" picker (type + how many of that type).
+export type ContainerSelection = { type: string; quantity: string };
 
 export type LoadDraft = {
   consignee: CustomerOption | null;
@@ -82,11 +84,29 @@ export type LoadDraft = {
   loadingEquipment: string[];
   vehicleType: string;
   bodyTypes: string[];
+  // Sea only - replaces bodyTypes for the "Equipment & requirements" card.
+  containerSelections: ContainerSelection[];
   characteristics: string[];
   specialRequirements: string[];
   deliveryProof: string;
+  // Sea only - the detail fields opened by the "DG / IMO" characteristics chip.
+  dgUnNumber: string;
+  dgImoClass: string;
+  dgPackingGroup: string;
+  dgProperShippingName: string;
+  // Sea only - the detail fields opened by the "OOG" characteristics chip. Only out_of_gauge
+  // needs the excess dimensions below - in_gauge cargo fits within the container envelope.
+  oogInGauge: string;
+  oogLengthM: string;
+  oogWidthM: string;
+  oogHeightM: string;
+  oogWeightKg: string;
+  // Sea only - Bill of Lading type, replaces the road-only CMR toggle.
+  blType: string;
   mustBeTrackable: boolean;
   paymentDeferred: boolean;
+  // Sea only - replaces paymentDeferred (Prepaid / Collect / Other instead of a due-date window).
+  seaPaymentTerms: string;
   incoterm: string;
   budget: string;
   freightCurrency: string;
@@ -175,11 +195,23 @@ export const INITIAL_DRAFT: LoadDraft = {
   loadingEquipment: [],
   vehicleType: 'Box Truck',
   bodyTypes: ['Curtain'],
+  containerSelections: [],
   characteristics: [],
   specialRequirements: [],
   deliveryProof: '',
+  dgUnNumber: '',
+  dgImoClass: '',
+  dgPackingGroup: '',
+  dgProperShippingName: '',
+  oogInGauge: '',
+  oogLengthM: '',
+  oogWidthM: '',
+  oogHeightM: '',
+  oogWeightKg: '',
+  blType: '',
   mustBeTrackable: false,
   paymentDeferred: false,
+  seaPaymentTerms: '',
   incoterm: '',
   budget: '',
   freightCurrency: 'EUR',
