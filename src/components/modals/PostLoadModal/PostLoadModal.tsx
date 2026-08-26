@@ -1211,7 +1211,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           <Input value={draft.pickupPostalCode} onChange={(event) => setField('pickupPostalCode', event.target.value)} placeholder={u('postLoadModal.postalCodePlaceholder', 'Postal code')} />
                         </div>
                       </div>
-                      {draft.transportType !== 'air' && (
+                      {draft.transportType === 'road' && (
                         <div className="grid sm:grid-cols-2 gap-4">
                           <div className="grid grid-cols-2 gap-3">
                             <div className="flex h-full flex-col justify-between space-y-1.5">
@@ -1349,7 +1349,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           <Input value={draft.deliveryPostalCode} onChange={(event) => setField('deliveryPostalCode', event.target.value)} placeholder={u('postLoadModal.postalCodePlaceholder', 'Postal code')} />
                         </div>
                       </div>
-                      {draft.transportType !== 'air' && (
+                      {draft.transportType === 'road' && (
                         <div className="grid sm:grid-cols-2 gap-4">
                           <div className="grid grid-cols-2 gap-3">
                             <div className="flex h-full flex-col justify-between space-y-1.5">
@@ -1394,7 +1394,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                     </div>
                   </div>
 
-                  {draft.transportType === 'air' && (
+                  {draft.transportType !== 'road' && (
                     <div className="space-y-4 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
                       <div className="grid gap-4 sm:grid-cols-3">
                         <div className="space-y-1.5">
