@@ -1127,7 +1127,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
                       <div className="space-y-1.5">
                         <FieldLabel>{draft.transportType === 'sea' ? u('postLoadModal.seaOriginType', 'Origin type') : u('postLoadModal.pickupPlaceType', 'Place type')}</FieldLabel>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className={cn('grid gap-4', draft.transportType === 'road' ? 'grid-cols-3' : 'grid-cols-2')}>
                           {(draft.transportType === 'sea'
                             ? [
                                 { value: 'Port to Port', label: u('postLoadModal.portToPort', 'Port'), icon: Ship },
@@ -1290,7 +1290,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
                       <div className="space-y-1.5">
                         <FieldLabel>{draft.transportType === 'sea' ? u('postLoadModal.seaDestinationType', 'Destination type') : u('postLoadModal.deliveryPlaceType', 'Place type')}</FieldLabel>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className={cn('grid gap-4', draft.transportType === 'road' ? 'grid-cols-3' : 'grid-cols-2')}>
                           {(draft.transportType === 'sea'
                             ? [
                                 { value: 'Port to Port', label: u('postLoadModal.portToPort', 'Port'), icon: Ship },

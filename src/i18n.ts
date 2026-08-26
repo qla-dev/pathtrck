@@ -2109,6 +2109,7 @@ Object.assign(UI.bs, {
   'postLoadModal.seaOriginType': 'Tip polazišta',
   'postLoadModal.seaDestinationType': 'Tip odredišta',
   'postLoadModal.portToPort': 'Luka',
+  'postLoadModal.airportPlaceType': 'Aerodrom',
   'postLoadModal.doorToPort': 'Adresa',
   'postLoadModal.portToDoor': 'Adresa',
   'postLoadModal.pol': 'Luka utovara (POL)',
