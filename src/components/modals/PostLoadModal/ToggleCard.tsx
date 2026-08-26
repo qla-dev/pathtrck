@@ -18,7 +18,7 @@ export const ToggleCard = ({
     type="button"
     onClick={onClick}
     className={cn(
-      'flex cursor-pointer flex-col items-start rounded-2xl border px-4 py-3 text-left transition-all',
+      'flex cursor-pointer flex-col items-start rounded-xl border px-3 py-2.5 text-left transition-all',
       active
         ? 'border-primary bg-primary/5 shadow-sm'
         : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-primary/40'
@@ -27,13 +27,13 @@ export const ToggleCard = ({
     {Icon && (
       <Icon
         className={cn(
-          'mb-2 h-5 w-5',
+          'mb-1.5 h-4 w-4',
           active ? 'text-primary' : 'text-slate-400'
         )}
       />
     )}
-    <p className="w-full truncate text-sm font-bold dark:text-white" title={title}>{title}</p>
-    <p className="mt-1 w-full overflow-hidden text-xs text-slate-500 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">{description}</p>
+    <p className="w-full truncate text-xs font-bold dark:text-white" title={title}>{title}</p>
+    <p className="w-full truncate text-[11px] leading-tight text-slate-500" title={description}>{description}</p>
   </button>
 );
 

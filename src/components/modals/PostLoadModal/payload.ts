@@ -144,7 +144,8 @@ export const buildDraftPayload = (draft: LoadDraft) => ({
 });
 
 // Warehouse listings live in the same `loads` resource as transport loads and are distinguished by
-// transport_type. They intentionally have no route stops or shipment-tracking record.
+// transport_type. Their two stops preserve pickup and preferred-storage locations, while the backend
+// still omits shipment tracking for storage requests.
 export const buildWarehouseLoadPayload = (draft: LoadDraft) => ({
   transport_type: 'warehouse',
   for_storage: true,
@@ -154,13 +155,17 @@ export const buildWarehouseLoadPayload = (draft: LoadDraft) => ({
   pallets: draft.pallets ? Number(draft.pallets) : null,
   volume_m3: draft.volumeM3 ? Number(draft.volumeM3) : null,
   weight_kg: draft.weightKg ? toApiWeightKg(draft.weightKg) : null,
-  warehouse_city: draft.pickupCity,
-  warehouse_country_code: draft.pickupCountry,
-  warehouse_address: draft.pickupAddress || null,
-  warehouse_latitude: draft.pickupLatitude ? Number(draft.pickupLatitude) : null,
-  warehouse_longitude: draft.pickupLongitude ? Number(draft.pickupLongitude) : null,
-  storage_start_date: toApiDate(draft.warehouseStartDate),
-  storage_end_date: draft.warehouseIsOngoing ? null : toApiDate(draft.warehouseEndDate),
+  warehouse_city: draft.deliveryCity,
+  warehouse_country_code: draft.deliveryCountry,
+  warehouse_address: draft.deliveryAddress || null,
+  warehouse_latitude: draft.deliveryLatitude ? Number(draft.deliveryLatitude) : null,
+  warehouse_longitude: draft.deliveryLongitude ? Number(draft.deliveryLongitude) : null,
+  stops: [
+    { type: 'pickup', position: 1, place_type: draft.pickupPlaceType, city: draft.pickupCity, postal_code: draft.pickupPostalCode || null, country_code: draft.pickupCountry, address: draft.pickupAddress || null, latitude: draft.pickupLatitude ? Number(draft.pickupLatitude) : null, longitude: draft.pickupLongitude ? Number(draft.pickupLongitude) : null, window_starts_at: toApiDateTime(draft.pickupDate, draft.pickupTimeFrom), window_ends_at: toApiDateTime(draft.pickupDateTo || draft.pickupDate, draft.pickupTimeTo || draft.pickupTimeFrom) },
+    { type: 'delivery', position: 2, place_type: draft.deliveryPlaceType, city: draft.deliveryCity, postal_code: draft.deliveryPostalCode || null, country_code: draft.deliveryCountry, address: draft.deliveryAddress || null, latitude: draft.deliveryLatitude ? Number(draft.deliveryLatitude) : null, longitude: draft.deliveryLongitude ? Number(draft.deliveryLongitude) : null, window_starts_at: toApiDateTime(draft.deliveryDate, draft.deliveryTimeFrom), window_ends_at: toApiDateTime(draft.deliveryDateTo || draft.deliveryDate, draft.deliveryTimeTo || draft.deliveryTimeFrom) },
+  ],
+  storage_start_date: toApiDate(draft.deliveryDate || draft.warehouseStartDate),
+  storage_end_date: draft.warehouseIsOngoing ? null : toApiDate(draft.deliveryDateTo || draft.warehouseEndDate || draft.deliveryDate),
   is_storage_ongoing: draft.warehouseIsOngoing,
   handling_requirements: draft.loadingEquipment,
   temperature_min: draft.warehouseTemperatureMin ? Number(draft.warehouseTemperatureMin) : null,

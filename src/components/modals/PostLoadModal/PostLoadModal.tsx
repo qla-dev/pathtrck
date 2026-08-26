@@ -136,7 +136,7 @@ import { formatTimeRangeMask } from './timeMask';
 import { ToggleCard } from './ToggleCard';
 import { ChoiceCard } from './ChoiceCard';
 import { SummaryRow } from './SummaryRow';
-import { WarehouseCargoFields, WarehouseLocationFields, WarehouseTermsFields } from './WarehouseFormFields';
+import { HANDLING_DESCRIPTIONS, HANDLING_ICONS, WarehouseLocationFields, WarehouseStorageTypeField } from './WarehouseFormFields';
 
 const STEPS: Array<{ id: StepId; icon: typeof MapPin }> = [
   { id: 'cargo', icon: Package },
@@ -348,12 +348,13 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         bookingReference: String(record.booking_reference || ''),
         transportType: (record.transport_type as TransportType) || 'road',
         pickupPlaceType: String(pickup.place_type || INITIAL_DRAFT.pickupPlaceType), pickupCity: String(pickup.city || ''), pickupPostalCode: String(pickup.postal_code || ''), pickupCountry: String(pickup.country_code || 'BA'), pickupAddress: String(pickup.address || ''), pickupPort: String(pickup.port || ''), pickupAirport: String(pickup.airport || ''), pickupLatitude: String(pickup.latitude || ''), pickupLongitude: String(pickup.longitude || ''), pickupDate: pickupStart.date, pickupDateTo: pickupEnd.date, pickupTimeFrom: pickupStart.time, pickupTimeTo: pickupEnd.time,
-        deliveryPlaceType: String(delivery.place_type || INITIAL_DRAFT.deliveryPlaceType), deliveryCity: String(delivery.city || ''), deliveryPostalCode: String(delivery.postal_code || ''), deliveryCountry: String(delivery.country_code || 'BA'), deliveryAddress: String(delivery.address || ''), deliveryPort: String(delivery.port || ''), deliveryAirport: String(delivery.airport || ''), deliveryLatitude: String(delivery.latitude || ''), deliveryLongitude: String(delivery.longitude || ''), deliveryDate: deliveryStart.date, deliveryDateTo: deliveryEnd.date, deliveryTimeFrom: deliveryStart.time, deliveryTimeTo: deliveryEnd.time,
+        deliveryPlaceType: String(delivery.place_type || INITIAL_DRAFT.deliveryPlaceType), deliveryCity: String(delivery.city || record.warehouse_city || ''), deliveryPostalCode: String(delivery.postal_code || ''), deliveryCountry: String(delivery.country_code || record.warehouse_country_code || 'BA'), deliveryAddress: String(delivery.address || record.warehouse_address || ''), deliveryPort: String(delivery.port || ''), deliveryAirport: String(delivery.airport || ''), deliveryLatitude: String(delivery.latitude || record.warehouse_latitude || ''), deliveryLongitude: String(delivery.longitude || record.warehouse_longitude || ''), deliveryDate: deliveryStart.date || String(record.storage_start_date || '').slice(0, 10), deliveryDateTo: deliveryEnd.date || String(record.storage_end_date || '').slice(0, 10), deliveryTimeFrom: deliveryStart.time, deliveryTimeTo: deliveryEnd.time,
         transitDays: String(record.transit_days || ''),
         loadTitle: String(record.title || ''), cargoType: String(record.cargo_type || 'FTL'), goodsType: String(record.goods_type || 'General'), hsCodes, weightKg: fromApiWeightKg(record.weight_kg), pallets: String(record.pallets || ''), quantityMeasure: String(record.quantity_measure || ''), lengthM: String(record.length_m || ''), widthM: String(record.width_m || ''), heightM: String(record.height_m || ''), volumeM3: String(record.volume_m3 || ''), declaredValue: String(record.declared_value || ''), budget: String(record.budget || ''), freightCurrency: String(record.currency || 'EUR'), shipmentValueCurrency: String(record.shipment_value_currency || record.currency || 'EUR'), paymentDueDays: String(record.payment_due_days || ''), paymentDeferred: terms === 'deferred', seaPaymentTerms: ['Prepaid', 'Collect', 'Other'].includes(terms) ? terms : '', incoterm: String(record.incoterms || ''),
-        loadingEquipment: Array.isArray(record.loading_methods) ? record.loading_methods.map(String) : [], vehicleType: String(record.vehicle_type || INITIAL_DRAFT.vehicleType), characteristics: Array.isArray(record.characteristics) ? record.characteristics.map(String) : [], specialRequirements: Array.isArray(record.special_requirements) ? record.special_requirements.map(String) : [], deliveryProof: String(record.delivery_proof || ''), temperatureControlled: record.temperature_min != null || record.temperature_max != null, temperatureMin: String(record.temperature_min ?? ''), temperatureMax: String(record.temperature_max ?? ''),
+        loadingEquipment: Array.isArray(record.handling_requirements) ? record.handling_requirements.map(String) : Array.isArray(record.loading_methods) ? record.loading_methods.map(String) : [], vehicleType: String(record.vehicle_type || INITIAL_DRAFT.vehicleType), characteristics: Array.isArray(record.characteristics) ? record.characteristics.map(String) : [], specialRequirements: Array.isArray(record.special_requirements) ? record.special_requirements.map(String) : [], deliveryProof: String(record.delivery_proof || ''), temperatureControlled: record.temperature_min != null || record.temperature_max != null, temperatureMin: String(record.temperature_min ?? ''), temperatureMax: String(record.temperature_max ?? ''),
         containerSelections: Array.isArray(record.container_selections) ? (record.container_selections as Array<Record<string, unknown>>).map((row) => ({ type: String(row.type || ''), quantity: String(row.quantity ?? '1') })) : [],
         blType: String(record.bl_type || ''), dgUnNumber: String(record.dg_un_number || ''), dgImoClass: String(record.dg_imo_class || ''), dgPackingGroup: String(record.dg_packing_group || ''), dgProperShippingName: String(record.dg_proper_shipping_name || ''),
+        warehouseStorageType: String(record.storage_type || INITIAL_DRAFT.warehouseStorageType), warehouseStartDate: String(record.storage_start_date || '').slice(0, 10), warehouseEndDate: String(record.storage_end_date || '').slice(0, 10), warehouseIsOngoing: Boolean(record.is_storage_ongoing), warehouseTemperatureMin: String(record.temperature_min ?? ''), warehouseTemperatureMax: String(record.temperature_max ?? ''), warehouseRequiresCustomsBonded: Boolean(record.requires_customs_bonded), warehouseRequiresRacking: Boolean(record.requires_racking), warehouseRequiresInsurance: Boolean(record.insurance_required), warehouseRequiresSecurity: Boolean(record.requires_security), warehouseRateUnit: String(record.rate_unit || INITIAL_DRAFT.warehouseRateUnit),
         oogInGauge: String(record.oog_in_gauge || ''), oogLengthM: String(record.oog_length_m ?? ''), oogWidthM: String(record.oog_width_m ?? ''), oogHeightM: String(record.oog_height_m ?? ''), oogWeightKg: String(record.oog_weight_kg ?? ''),
         requiresAdr: Boolean(record.requires_adr), requiresTailLift: Boolean(record.requires_tail_lift), tollRoadsIncluded: Boolean(record.toll_roads_included), ferryIncluded: Boolean(record.ferry_included), cmrRequired: record.cmr_required == null ? true : Boolean(record.cmr_required), palletExchangeRequired: Boolean(record.pallet_exchange_required), customsRequired: Boolean(record.customs_required), insuranceRequired: Boolean(record.insurance_required), certificationRequired: Boolean(record.certification_required), inspectionServicesRequired: Boolean(record.inspection_services_required), mustBeTrackable: Boolean(record.must_be_trackable), urgent: Boolean(record.is_urgent), receivePriceProposals: record.is_negotiable == null ? true : Boolean(record.is_negotiable), bodyTypes: Array.isArray(record.body_types) ? record.body_types.map(String) : [], notes: String(record.notes || ''), internalComments: String(record.internal_comments || ''), externalComments: String(record.external_comments || ''), contactName: String(contact.name || ''), contactPhone: String(contact.phone || ''), contactMobile: String(contact.mobile || ''), contactEmail: String(contact.email || ''), contactFax: String(contact.fax || ''),
       });
@@ -408,27 +409,24 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   const stepCompletion = useMemo<Record<StepId, boolean>>(
     () => ({
       route: draft.transportType === 'warehouse'
-        ? Boolean(draft.pickupCity && draft.warehouseStartDate)
+        ? Boolean(draft.pickupCity && draft.pickupDate && draft.deliveryCity && draft.deliveryDate)
         : Boolean(
           draft.pickupCity &&
             draft.pickupDate &&
             draft.deliveryCity &&
             draft.deliveryDate
         ),
-      cargo: draft.transportType === 'warehouse'
-        ? Boolean(draft.loadTitle.trim() && (Number(draft.pallets) > 0 || Number(draft.volumeM3) > 0))
-        : Boolean(
-          draft.consignee &&
-            draft.transportType &&
-            draft.loadTitle.trim() &&
-            Number(draft.weightKg) > 0 &&
-            Number(draft.lengthM) > 0
-        ),
+      cargo: Boolean(
+        (draft.transportType === 'warehouse' || draft.consignee) &&
+          draft.transportType &&
+          draft.loadTitle.trim() &&
+          Number(draft.weightKg) > 0 &&
+          Number(draft.lengthM) > 0
+      ),
       // vehicleType alone is never a useful signal here - it defaults to 'Box Truck' in
       // INITIAL_DRAFT, so it's already truthy before the user has touched this step at all.
-      terms: draft.transportType === 'warehouse'
-        ? Boolean(draft.receivePriceProposals || draft.budget)
-        : Boolean((draft.receivePriceProposals || draft.budget) && draft.incoterm && draft.vehicleType),
+      // Warehouse shares the road terms form, so it shares the same completion rule.
+      terms: Boolean((draft.receivePriceProposals || draft.budget) && draft.incoterm && draft.vehicleType),
       contact: Boolean(
         draft.contactName &&
           (draft.contactPhone || draft.contactMobile || draft.contactEmail)
@@ -536,6 +534,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   };
 
   const loadingEquipmentIcon = (option: string): LucideIcon => {
+    // Warehouse reuses this row for handling requirements, which have their own glyphs.
+    if (option in HANDLING_ICONS) return HANDLING_ICONS[option as keyof typeof HANDLING_ICONS];
     if (option.includes('Forklift')) return Forklift;
     if (option.includes('ramp')) return Truck;
     if (option.includes('Other')) return ShieldCheck;
@@ -570,7 +570,9 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     'Special Handling': 'Non-standard handling required',
   };
   const loadingEquipmentDescription = (option: string): string =>
-    u(`postLoadModal.loadingEquipmentDesc.${option}`, LOADING_EQUIPMENT_DESCRIPTIONS[option] || option);
+    option in HANDLING_DESCRIPTIONS
+      ? u(`postLoadModal.handlingReqDesc.${option}`, HANDLING_DESCRIPTIONS[option as keyof typeof HANDLING_DESCRIPTIONS])
+      : u(`postLoadModal.loadingEquipmentDesc.${option}`, LOADING_EQUIPMENT_DESCRIPTIONS[option] || option);
 
   const cropLabel = (text: string, maxLength = 14): string =>
     text.length > maxLength ? `${text.slice(0, maxLength).trimEnd()}...` : text;
@@ -1105,7 +1107,15 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <div className="shrink-0 overflow-x-auto border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60 px-4 py-3 sm:px-6">
-            <div className="flex w-full min-w-max items-start">
+            {/* Equal-width columns plus one continuous line behind them, so the distance between
+                every pair of circles is identical no matter how wide the labels are or how many
+                steps the current transport type has. */}
+            <div className="relative flex w-full items-start">
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute top-3.5 z-0 h-px bg-slate-200 dark:bg-slate-700"
+                style={{ left: `${50 / STEPS.length}%`, right: `${50 / STEPS.length}%` }}
+              />
               {STEPS.map((item, index) => {
                 const Icon = item.icon;
                 const isActive = item.id === step;
@@ -1135,11 +1145,13 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       setStep(item.id);
                     }}
                     disabled={!isClickable}
-                    className={cn('flex shrink-0 flex-col items-center gap-1.5', isClickable ? 'cursor-pointer' : 'cursor-not-allowed opacity-60')}
+                    className={cn('relative z-10 flex min-w-[6.5rem] flex-1 basis-0 flex-col items-center gap-1.5 px-1', isClickable ? 'cursor-pointer' : 'cursor-not-allowed opacity-60')}
                   >
                     <span
                       className={cn(
-                        'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold',
+                        // Opaque and above the connector, so the line that runs behind the column
+                        // is masked exactly at the circle's edge instead of stopping short of it.
+                        'relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold',
                         isDone
                           ? 'bg-emerald-500 text-white'
                           : isActive
@@ -1164,9 +1176,6 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       )}
                     </span>
                   </button>,
-                  index < STEPS.length - 1 && (
-                    <span key={`${item.id}-line`} className="mt-3.5 h-px min-w-[1rem] flex-1 bg-slate-200 dark:bg-slate-700" />
-                  ),
                 ];
               })}
             </div>
@@ -1178,7 +1187,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
               {step === 'route' && (
                 <motion.div key="route" className="space-y-5 md:space-y-6" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
                   {draft.transportType === 'warehouse' ? (
-                    <WarehouseLocationFields draft={draft} setField={setField} setDraft={setDraft} u={u} lang={lang} onOpenMap={() => setAddressMap('pickup')} />
+                    <WarehouseLocationFields draft={draft} setField={setField} setDraft={setDraft} u={u} lang={lang} onOpenPickupMap={() => setAddressMap('pickup')} onOpenWarehouseMap={() => setAddressMap('delivery')} routeDistanceKm={routeDistanceKm} recalculatingRoute={recalculatingRoute} onShowRoute={() => setRouteMapOpen(true)} />
                   ) : (
                   <>
                   <div className="grid lg:grid-cols-[minmax(0,5fr)_minmax(0,5fr)_minmax(0,2fr)] gap-4 sm:gap-5">
@@ -1547,7 +1556,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           </p>
                         </div>
                       ) : (
-                        <div className="flex items-center justify-between rounded-2xl border border-sky-200 bg-sky-50/50 px-3 py-2 dark:border-sky-800 dark:bg-slate-900">
+                        <div className="flex items-center justify-between rounded-xl border border-sky-200 bg-sky-50/50 px-3 py-2 dark:border-sky-800 dark:bg-slate-900">
                           <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">{u('landing.distance', 'Distance')}</p>
                           <p className="flex items-center gap-1 text-sm font-black text-slate-900 dark:text-white">
                             {recalculatingRoute
@@ -1563,7 +1572,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                     </div>
                   </div>
 
-                  {draft.transportType !== 'road' && (
+                  {draft.transportType !== 'road' && draft.transportType !== 'warehouse' && (
                     <div className="space-y-4 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
                       <div className="grid gap-4 sm:grid-cols-3">
                         <div className="space-y-1.5">
@@ -1611,101 +1620,90 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
 
               {step === 'cargo' && (
                 <motion.div key="cargo" className="space-y-6 sm:space-y-8" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
-                  {draft.transportType === 'warehouse' ? (
-                    <WarehouseCargoFields draft={draft} setField={setField} setDraft={setDraft} u={u} />
-                  ) : (
+                  {(
                   <div className="grid lg:grid-cols-3 gap-4 sm:gap-5">
                     <div className="space-y-4 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
-                      <div className="space-y-1.5">
-                        <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
-                          <UserRound className="h-4 w-4" />
-                          <span>{u('postLoadModal.consignee', 'Consignee (customer)')}</span>
-                        </div>
-                        <CustomerSelect
-                          required
-                          value={draft.consignee}
-                          onChange={(option) => setField('consignee', option)}
-                          placeholder={u('postLoadModal.consigneePlaceholder', 'Select a consignee from the global customer database')}
-                        />
-                        <p className="text-xs text-slate-500">
-                          {u('postLoadModal.consigneeHelp', 'Search by company name, tax number, city or country. More results load as you scroll.')}
-                        </p>
-                      </div>
-
                       <fieldset>
                         <legend className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
                           <Route className="h-4 w-4" />
-                          {u('postLoadModal.transportType', 'Transport type')}
+                          {u('postLoadModal.transportType', 'Transport types and services')}
                         </legend>
-                        <div className="mt-4 grid sm:grid-cols-3 gap-3">
-                          {transportOptions.map((option) => {
-                            const Icon = option.icon;
-                            return (
-                              <label
-                                key={option.id}
-                                className="relative flex cursor-pointer flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-4 pr-11 transition-all hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800/60"
-                              >
-                                <input
-                                  type="radio"
-                                  name="transportType"
-                                  value={option.id}
-                                  checked={draft.transportType === option.id}
-                                  onChange={() => setDraft((prev) => {
-                                    const validCargoTypes = shipmentTypeOptions[option.id];
-                                    const validLoadingEquipment = loadingEquipmentOptions[option.id];
-                                    const enteringSea = option.id === 'sea' && prev.transportType !== 'sea';
-                                    const leavingSea = option.id !== 'sea' && prev.transportType === 'sea';
-                                    const enteringAir = option.id === 'air' && prev.transportType !== 'air';
-                                    return {
-                                      ...prev,
-                                      transportType: option.id,
-                                      cargoType: validCargoTypes.includes(prev.cargoType) ? prev.cargoType : validCargoTypes[0],
-                                      loadingEquipment: prev.loadingEquipment.filter((item) => validLoadingEquipment.includes(item)),
-                                      // Sea repurposes the pickup/delivery "place type" row into a Port-to-Port /
-                                      // Door-to-Port(-Door) leg-type choice - neither set of values makes sense
-                                      // for the other transport types, so reset it on the way in and out of sea.
-                                      pickupPlaceType: enteringSea ? 'Port to Port' : leavingSea ? INITIAL_DRAFT.pickupPlaceType : prev.pickupPlaceType,
-                                      deliveryPlaceType: enteringSea ? 'Port to Port' : leavingSea ? INITIAL_DRAFT.deliveryPlaceType : prev.deliveryPlaceType,
-                                      // Toll roads/ferry/CMR/pallet exchange are road-only concepts and hidden
-                                      // from the requirements grid for air - clear them so a stale true carried
-                                      // over from road doesn't silently submit on an air load.
-                                      tollRoadsIncluded: enteringAir ? false : prev.tollRoadsIncluded,
-                                      ferryIncluded: enteringAir ? false : prev.ferryIncluded,
-                                      cmrRequired: enteringAir ? false : prev.cmrRequired,
-                                      palletExchangeRequired: enteringAir ? false : prev.palletExchangeRequired,
-                                    };
-                                  })}
-                                  className="peer sr-only"
-                                />
-                                <span aria-hidden="true" className="absolute right-4 top-4 flex h-4 w-4 items-center justify-center rounded-full border-2 border-slate-300 bg-white peer-checked:border-primary dark:border-slate-600 dark:bg-slate-900">
-                                  <span className={cn('h-2 w-2 rounded-full bg-primary transition-opacity', draft.transportType === option.id ? 'opacity-100' : 'opacity-0')} />
-                                </span>
-                                <div className="flex items-end gap-3">
-                                  <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', option.iconSurface)}>
-                                    <Icon className={cn('h-5 w-5', option.iconTone)} />
-                                  </div>
-                                  <p className="text-sm font-bold text-slate-900 dark:text-white">{option.label}</p>
-                                </div>
-                                <p className="min-h-10 line-clamp-2 text-xs leading-5 text-slate-500">{option.description}</p>
-                              </label>
-                            );
-                          })}
+                        <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
+                          {transportOptions.map((option) => (
+                            <ChoiceCard
+                              key={option.id}
+                              compact
+                              truncate
+                              active={draft.transportType === option.id}
+                              title={option.label}
+                              description={option.description}
+                              icon={option.icon}
+                              iconSurface={option.iconSurface}
+                              iconTone={option.iconTone}
+                              onClick={() => setDraft((prev) => {
+                                const validCargoTypes = shipmentTypeOptions[option.id];
+                                const validLoadingEquipment = loadingEquipmentOptions[option.id];
+                                const enteringSea = option.id === 'sea' && prev.transportType !== 'sea';
+                                const leavingSea = option.id !== 'sea' && prev.transportType === 'sea';
+                                const enteringAir = option.id === 'air' && prev.transportType !== 'air';
+                                return {
+                                  ...prev,
+                                  transportType: option.id,
+                                  consignee: option.id === 'warehouse' ? null : prev.consignee,
+                                  cargoType: validCargoTypes.length === 0 || validCargoTypes.includes(prev.cargoType) ? prev.cargoType : validCargoTypes[0],
+                                  loadingEquipment: prev.loadingEquipment.filter((item) => validLoadingEquipment.includes(item)),
+                                  // Sea repurposes the pickup/delivery "place type" row into a Port-to-Port /
+                                  // Door-to-Port(-Door) leg-type choice - neither set of values makes sense
+                                  // for the other transport types, so reset it on the way in and out of sea.
+                                  pickupPlaceType: enteringSea ? 'Port to Port' : leavingSea ? INITIAL_DRAFT.pickupPlaceType : prev.pickupPlaceType,
+                                  deliveryPlaceType: enteringSea ? 'Port to Port' : leavingSea ? INITIAL_DRAFT.deliveryPlaceType : prev.deliveryPlaceType,
+                                  // Toll roads/ferry/CMR/pallet exchange are road-only concepts and hidden
+                                  // from the requirements grid for air - clear them so a stale true carried
+                                  // over from road doesn't silently submit on an air load.
+                                  tollRoadsIncluded: enteringAir ? false : prev.tollRoadsIncluded,
+                                  ferryIncluded: enteringAir ? false : prev.ferryIncluded,
+                                  cmrRequired: enteringAir ? false : prev.cmrRequired,
+                                  palletExchangeRequired: enteringAir ? false : prev.palletExchangeRequired,
+                                };
+                              })}
+                            />
+                          ))}
                         </div>
                       </fieldset>
 
-                      <div className="space-y-1.5">
-                        <FieldLabel>{u('postLoadModal.cargoModel', 'Shipment type')}</FieldLabel>
-                        <ScrollableRow className="pb-2">
-                          <div className="flex w-max gap-2 px-1">
-                          {shipmentTypeOptions[draft.transportType].map((option) => (
-                            <ChoiceCard key={option} compact nowrap className="w-auto snap-start shrink-0 justify-start pl-3 pr-7 text-left" active={draft.cargoType === option} title={option} icon={option === 'Charter' ? Plane : option === 'Express' || option === 'Priority' ? Clock3 : Package} onClick={(event) => { setField('cargoType', option); event.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' }); }} />
-                          ))}
+                      {draft.transportType !== 'warehouse' && (
+                        <div className="space-y-1.5">
+                          <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
+                            <UserRound className="h-4 w-4" />
+                            <span>{u('postLoadModal.consignee', 'Consignee (customer)')}</span>
                           </div>
-                        </ScrollableRow>
-                      </div>
+                          <CustomerSelect
+                            required
+                            value={draft.consignee}
+                            onChange={(option) => setField('consignee', option)}
+                            placeholder={u('postLoadModal.consigneePlaceholder', 'Select a consignee from the global customer database')}
+                          />
+                          <p className="text-xs text-slate-500">
+                            {u('postLoadModal.consigneeHelp', 'Search by company name, tax number, city or country. More results load as you scroll.')}
+                          </p>
+                        </div>
+                      )}
+
+                      {draft.transportType !== 'warehouse' && (
+                        <div className="space-y-1.5">
+                          <FieldLabel>{u('postLoadModal.cargoModel', 'Shipment type')}</FieldLabel>
+                          <ScrollableRow className="pb-2">
+                            <div className="flex w-max gap-2 px-1">
+                            {shipmentTypeOptions[draft.transportType].map((option) => (
+                              <ChoiceCard key={option} compact nowrap className="w-auto snap-start shrink-0 justify-start pl-3 pr-7 text-left" active={draft.cargoType === option} title={option} icon={option === 'Charter' ? Plane : option === 'Express' || option === 'Priority' ? Clock3 : Package} onClick={(event) => { setField('cargoType', option); event.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' }); }} />
+                            ))}
+                            </div>
+                          </ScrollableRow>
+                        </div>
+                      )}
 
                       <div className="space-y-1.5">
-                        <FieldLabel>{draft.transportType === 'sea' ? u('postLoadModal.handlingRequirements', 'Handling Requirements') : u('postLoadModal.loadingEquipment', 'Loading equipment')}</FieldLabel>
+                        <FieldLabel>{draft.transportType === 'sea' || draft.transportType === 'warehouse' ? u('postLoadModal.handlingRequirements', 'Handling Requirements') : u('postLoadModal.loadingEquipment', 'Loading equipment')}</FieldLabel>
                         <div className="grid md:grid-cols-3 gap-3">
                           {loadingEquipmentOptions[draft.transportType].map((option) => <ToggleCard key={option} active={draft.loadingEquipment.includes(option)} title={option} description={loadingEquipmentDescription(option)} icon={loadingEquipmentIcon(option)} onClick={() => toggleLoadingEquipment(option)} />)}
                         </div>
@@ -1720,7 +1718,9 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       <div className="space-y-1.5">
                         {fieldLabel('goodsType', 'postLoadModal.cargoName', 'Type of goods and HS codes')}
                         <div ref={hsSearchRef} className="relative">
-                          <div className="flex w-full flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 focus-within:ring-2 focus-within:ring-primary dark:border-slate-800 dark:bg-slate-950">
+                          {/* min-h rather than h so the box still grows once HS chips wrap, but an
+                              empty field lines up with the standard Input height. */}
+                          <div className="flex min-h-[54px] w-full flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 focus-within:ring-2 focus-within:ring-primary dark:border-slate-800 dark:bg-slate-950">
                             {draft.hsCodes.map((item) => (
                               <HsCodeChip
                                 key={item.code}
@@ -1933,6 +1933,10 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           </div>
                         </div>
                       )}
+
+                      {draft.transportType === 'warehouse' && (
+                        <WarehouseStorageTypeField draft={draft} setField={setField} u={u} />
+                      )}
                     </div>
 
                   </div>
@@ -1942,9 +1946,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
 
               {step === 'terms' && (
                 <motion.div key="terms" className="space-y-6 sm:space-y-8" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
-                  {draft.transportType === 'warehouse' ? (
-                    <WarehouseTermsFields draft={draft} setField={setField} u={u} />
-                  ) : (
+                  {(
                   <div className="grid lg:grid-cols-2 gap-4 sm:gap-5">
                   <div className="order-2 flex flex-col space-y-4 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
                     <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
@@ -1983,6 +1985,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       <FieldLabel>{u('postLoadModal.priceTerms', 'Terms')}</FieldLabel>
                       <div className="grid grid-cols-2 gap-3">
                         <ChoiceCard
+                          compact
                           active={draft.receivePriceProposals}
                           title={u('postLoadModal.termsNegotiable', 'Negotiable')}
                           description={u('postLoadModal.termsNegotiableDesc', 'Carriers can send alternative prices')}
@@ -1990,6 +1993,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           onClick={() => setField('receivePriceProposals', true)}
                         />
                         <ChoiceCard
+                          compact
                           active={!draft.receivePriceProposals}
                           title={u('postLoadModal.termsFixed', 'Fixed price')}
                           description={u('postLoadModal.termsFixedDesc', 'Carriers book instantly at your price')}
@@ -2347,7 +2351,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                     <div className="rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
                       <SummaryRow label={u('postLoadModal.titleSummary', 'Title')} value={draft.loadTitle || '—'} />
                       <SummaryRow label={u('postLoadModal.warehouseStorageType', 'Vrsta skladištenja')} value={u(`postLoadModal.storageType.${draft.warehouseStorageType}`, draft.warehouseStorageType)} />
-                      <SummaryRow label={u('postLoadModal.warehousePreferredLocation', 'Željena lokacija skladišta')} value={`${draft.pickupCity || '—'}, ${draft.pickupCountry || '—'}`} />
+                      <SummaryRow label={u('postLoadModal.pickupBlock', 'Pickup')} value={`${draft.pickupCity || '—'}, ${draft.pickupCountry || '—'}`} />
+                      <SummaryRow label={u('postLoadModal.warehousePreferredLocation', 'Željena lokacija skladišta')} value={`${draft.deliveryCity || '—'}, ${draft.deliveryCountry || '—'}`} />
                       <SummaryRow label={u('postLoadModal.specsSummary', 'Specs')} value={`${draft.pallets || '—'} pal. · ${draft.volumeM3 || '—'} CBM · ${draft.weightKg || '—'} t`} />
                       <SummaryRow
                         label={u('postLoadModal.warehouseDuration', 'Trajanje')}
@@ -2376,7 +2381,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       <SummaryRow label={u('postLoadModal.consignee', 'Consignee (customer)')} value={draft.consignee?.text || '—'} />
                       <SummaryRow label={u('postLoadModal.routeSummary', 'Route')} value={`${draft.pickupCity} → ${draft.deliveryCity}`} />
                       <SummaryRow
-                        label={u('postLoadModal.transportType', 'Transport type')}
+                        label={u('postLoadModal.transportType', 'Transport types and services')}
                         value={transportOptions.find((option) => option.id === draft.transportType)?.label || draft.transportType}
                       />
                       {draft.transportType === 'air' && (
