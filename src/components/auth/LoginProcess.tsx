@@ -307,12 +307,12 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
       </motion.button>
 
       <motion.div
-        className="fixed bottom-0 left-0 right-0 z-[140] px-4 pb-4"
+        className="pointer-events-none fixed bottom-0 left-0 right-0 z-[140] px-4 pb-4"
         initial={{ opacity: 0, y: 22 }}
         animate={isSwitchingToSetup ? { opacity: 0, y: 18 } : { opacity: 1, y: 0 }}
         transition={{ duration: 0.32, delay: 0.1 }}
       >
-        <div className="max-w-md w-full mx-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl p-3">
+        <div className="pointer-events-auto max-w-md w-full mx-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl p-3">
           <div className="flex gap-3">
             <Button
               variant="outline"
