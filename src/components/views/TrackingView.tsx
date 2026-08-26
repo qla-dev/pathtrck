@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Flatpickr from 'react-flatpickr';
-import { Search, MapPin, ChevronRight, Package as PackageIcon, Coins, Truck, Plane, Ship, Filter, CalendarDays, Trash2, List, LayoutGrid, Route, BriefcaseBusiness, Navigation, CalendarRange, BadgeEuro, Building2, Container, Tags, FileText, SlidersHorizontal, ShieldAlert, Zap, X, Weight, Box, Layers, Thermometer, ShieldCheck, Stamp, Lock } from 'lucide-react';
+import L from 'leaflet';
+import { MapContainer, TileLayer, CircleMarker, Popup, ZoomControl, useMap } from 'react-leaflet';
+import { Search, MapPin, ChevronRight, Package as PackageIcon, Coins, Truck, Plane, Ship, Filter, CalendarDays, Trash2, List, LayoutGrid, Map as MapIcon, LocateFixed, Route, BriefcaseBusiness, Navigation, CalendarRange, BadgeEuro, Building2, Container, Tags, FileText, SlidersHorizontal, ShieldAlert, Zap, X, Weight, Box, Layers, Thermometer, ShieldCheck, Stamp, Lock } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Language, Package as PackageData, Role } from '../../types';
 import { api } from '../../services/api';
@@ -14,7 +16,7 @@ import { INCOTERM_OPTIONS, ROAD_CHARACTERISTIC_OPTIONS, VEHICLE_OPTIONS } from '
 import { IconSelect, type IconSelectOption } from '../ui/IconSelect';
 
 type TrackingStatusFilter = PackageData['status'] | 'all';
-type TrackingLayoutMode = 'list' | 'grid';
+type TrackingLayoutMode = 'list' | 'grid' | 'map';
 
 const countryFlagUrl = (countryCode: string) => `https://flagcdn.com/w40/${countryCode.toLowerCase()}.png`;
 
@@ -76,16 +78,48 @@ const TrackingCardsSkeleton = ({ layout }: { layout: TrackingLayoutMode }) => (
   </div>
 );
 
+const TrackingMapBounds = ({ points }: { points: [number, number][] }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!points.length) return;
+    const bounds = L.latLngBounds(points);
+    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 8 });
+  }, [map, points]);
+
+  return null;
+};
+
+const TrackingMapAutoResize = () => {
+  const map = useMap();
+
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => map.invalidateSize());
+    const timer = window.setTimeout(() => map.invalidateSize(), 250);
+    const handleResize = () => map.invalidateSize();
+    window.addEventListener('resize', handleResize);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(timer);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [map]);
+
+  return null;
+};
+
 type TrackingViewProps = {
   lang: Language;
   role: Role;
   userId?: number;
   companyIds?: number[];
+  onLayoutModeChange?: (mode: TrackingLayoutMode) => void;
 };
 
-export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingViewProps) => {
+export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutModeChange }: TrackingViewProps) => {
   const TRUCK_CAPACITY_KG = 48000;
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  const mapRef = useRef<L.Map | null>(null);
   const [openLoadId, setOpenLoadId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -123,6 +157,14 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
     const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 300);
     return () => window.clearTimeout(timer);
   }, [query]);
+
+  useEffect(() => {
+    if (layout === 'map') setFiltersOpen(false);
+  }, [layout]);
+
+  useEffect(() => {
+    onLayoutModeChange?.(layout);
+  }, [layout, onLayoutModeChange]);
 
   const trackingFilterParams = {
     tracking: true,
@@ -167,6 +209,10 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
     () => loadsResult.items.map((load) => mapLoadToPackage(load, lang)),
     [lang, loadsResult.items]
   );
+  const trackingMapPoints = useMemo<[number, number][]>(
+    () => packages.map((pkg) => pkg.currentLocation),
+    [packages]
+  );
   const statusCounts = useMemo(() => {
     const counts = Object.fromEntries(TRACKING_STATUS_FILTERS.map((status) => [status, 0])) as Record<TrackingStatusFilter, number>;
     statusCountsResult.items.forEach((row) => {
@@ -209,6 +255,13 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
     setTemperatureMin(''); setTemperatureMax(''); setInsuranceRequired(false); setCustomsRequired(false); setSecurityRequired(false);
   };
 
+  const locateMe = () => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition((position) => {
+      mapRef.current?.flyTo([position.coords.latitude, position.coords.longitude], 13);
+    });
+  };
+
   const activeFilters = [
     transportType && { key: 'transport', label: transportType, clear: () => setTransportType('') },
     service && { key: 'service', label: service, clear: () => setService('') },
@@ -244,11 +297,11 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
   const currencyOptions: IconSelectOption[] = ['EUR', 'USD', 'BAM', 'CHF'].map((value) => ({ value, label: value, icon: Coins }));
 
   return (
-    <div className="space-y-6">
-      <div className="w-full">
+    <div className={cn(layout === 'map' ? 'h-full' : 'space-y-6')}>
+      <div className={cn('w-full', layout === 'map' && 'h-full')}>
       {/* Sidebar List */}
-      <div className="w-full">
-        {(role === 'company' || role === 'driver') && (
+      <div className={cn('w-full', layout === 'map' && 'h-full')}>
+        {(role === 'company' || role === 'driver') && layout !== 'map' && (
           <div className="mb-5 rounded-2xl border border-slate-200 bg-white px-4 py-4 dark:border-slate-800 dark:bg-slate-900">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
@@ -296,27 +349,61 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
           </div>
         )}
 
-        <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
+        <div className={cn('relative', layout === 'map' && 'h-full min-h-0 overflow-hidden')}>
+          {layout === 'map' && (
+            <div className="absolute inset-0 z-0">
+              <MapContainer ref={mapRef} key="tracking-map" center={[48.5, 14.8]} zoom={5} zoomControl={false} className="h-full w-full">
+                <TileLayer
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution="&copy; OpenStreetMap contributors"
+                  subdomains={['a', 'b', 'c']}
+                />
+                <TrackingMapAutoResize />
+                <TrackingMapBounds points={trackingMapPoints} />
+                <ZoomControl position="bottomright" />
+                {packages.map((pkg) => (
+                  <CircleMarker key={pkg.id} center={pkg.currentLocation} radius={8} pathOptions={{ color: '#00AEEF', fillColor: '#00AEEF', fillOpacity: 0.9 }}>
+                    <Popup>
+                      <p className="font-bold">{pkg.recipient || pkg.trackingNumber}</p>
+                      <p className="text-xs text-slate-500">{trPackageStatus(lang, pkg.status)}</p>
+                    </Popup>
+                  </CircleMarker>
+                ))}
+              </MapContainer>
+              <button
+                type="button"
+                onClick={locateMe}
+                title={u('tracking.locateMe', 'Locate me')}
+                aria-label={u('tracking.locateMe', 'Locate me')}
+                className="absolute bottom-[120px] right-2.5 z-[1000] flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-2 border-black/20 bg-white text-slate-700 shadow hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200"
+              >
+                <LocateFixed className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
+          <div className={cn(layout === 'map' ? 'pointer-events-none absolute inset-x-0 top-0 z-10 max-h-full space-y-3 overflow-y-auto p-4' : undefined)}>
+        <div className={cn('mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8', layout === 'map' && 'pointer-events-auto gap-2')}>
           {(['all', ...TRACKING_STATUS_FILTERS] as TrackingStatusFilter[]).map((status) => (
-            <button type="button" key={status} onClick={() => setStatusFilter(status)} className={cn('flex h-14 cursor-pointer items-center justify-center gap-2 rounded-full border bg-white px-4 text-sm font-bold transition-all hover:-translate-y-0.5 dark:bg-slate-900', statusCardColors(status), statusFilter === status && 'bg-current/10 ring-2 ring-current ring-offset-2 dark:ring-offset-slate-950')}>
-              {status === 'all' ? <LayoutGrid className="h-4 w-4 shrink-0" /> : <LoadStatusIcon status={status} className="h-4 w-4 shrink-0" />}
+            <button type="button" key={status} onClick={() => setStatusFilter(status)} className={cn('flex cursor-pointer items-center justify-center gap-2 rounded-full border text-sm font-bold transition-all hover:-translate-y-0.5', layout === 'map' ? 'h-9 gap-1.5 bg-white/90 px-3 text-xs backdrop-blur dark:bg-slate-900/90' : 'h-14 bg-white px-4 dark:bg-slate-900', statusCardColors(status), statusFilter === status && 'bg-current/10 ring-2 ring-current ring-offset-2 dark:ring-offset-slate-950')}>
+              {status === 'all' ? <LayoutGrid className={cn('shrink-0', layout === 'map' ? 'h-3.5 w-3.5' : 'h-4 w-4')} /> : <LoadStatusIcon status={status} className={cn('shrink-0', layout === 'map' ? 'h-3.5 w-3.5' : 'h-4 w-4')} />}
               <span className="truncate">{status === 'all' ? u('history.filter.all', 'All') : trPackageStatus(lang, status)}</span>
               <span className="opacity-70">{statusCounts[status]}</span>
             </button>
           ))}
         </div>
 
-        <div className="overflow-visible rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+        <div className={cn('overflow-visible rounded-2xl border border-slate-200 dark:border-slate-800', layout === 'map' ? 'pointer-events-auto bg-white/90 backdrop-blur dark:bg-slate-900/90' : 'bg-white dark:bg-slate-900')}>
             <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-950/60">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <div className="flex h-9 min-w-0 items-center gap-2 overflow-x-auto rounded-xl bg-slate-50 px-3 dark:bg-slate-950/60">
                   {activeFilters.length > 0 ? (
                     <>
-                      <span className="text-[10px] font-bold text-slate-500">{u('tracking.activeFilters', 'Active filters')}:</span>
-                      {activeFilters.map((filter) => <button type="button" key={filter.key} onClick={filter.clear} className="flex cursor-pointer items-center gap-1 rounded-full bg-sky-50 px-2.5 py-1 text-[10px] font-bold text-sky-600 hover:bg-sky-100 dark:bg-sky-950/30 dark:text-sky-300">{filter.label}<X className="h-3 w-3" /></button>)}
+                      <span className="shrink-0 text-[10px] font-bold text-slate-500">{u('tracking.activeFilters', 'Active filters')}:</span>
+                      {activeFilters.map((filter) => <button type="button" key={filter.key} onClick={filter.clear} className="flex shrink-0 cursor-pointer items-center gap-1 rounded-full bg-sky-50 px-2.5 py-1 text-[10px] font-bold text-sky-600 hover:bg-sky-100 dark:bg-sky-950/30 dark:text-sky-300">{filter.label}<X className="h-3 w-3" /></button>)}
                     </>
                   ) : (
-                    <span className="text-[10px] font-bold text-slate-400">{u('tracking.noActiveFilters', 'No active filters')}</span>
+                    <span className="shrink-0 text-[10px] font-bold text-slate-400">{u('tracking.noActiveFilters', 'No active filters')}</span>
                   )}
                 </div>
               </div>
@@ -325,6 +412,11 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
                 <button type="button" onClick={clearFilters} className="flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-rose-400 px-3 text-[11px] font-bold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20"><Trash2 className="h-3.5 w-3.5" />{u('tracking.clearFilters', 'Clear filters')}</button>
                 <div className="relative min-w-56 flex-1 sm:max-w-80"><Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={u('tracking.searchPlaceholder', 'Search shipment number, booking ref...')} className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white" /></div>
                 <div className="inline-flex h-10 items-center rounded-lg border border-slate-200 bg-transparent p-1 dark:border-slate-800">{([['list', List, u('home.layout.list', 'List')], ['grid', LayoutGrid, u('home.layout.grid', 'Grid')]] as const).map(([mode, Icon, label]) => <button type="button" key={mode} onClick={() => setLayout(mode)} title={label} className={cn('flex h-8 w-8 cursor-pointer items-center justify-center rounded-md', layout === mode ? 'bg-primary text-white' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800')}><Icon className="h-4 w-4" /></button>)}</div>
+                <div className="inline-flex h-10 items-center rounded-lg border border-slate-200 bg-transparent p-1 dark:border-slate-800">
+                  <button type="button" onClick={() => setLayout('map')} title={u('home.layout.map', 'Map')} aria-label={u('home.layout.map', 'Map')} className={cn('flex h-8 w-8 cursor-pointer items-center justify-center rounded-md', layout === 'map' ? 'bg-primary text-white' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800')}>
+                    <MapIcon className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -381,7 +473,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
             </div>}
           </div>
 
-        {loadsResult.loading ? <TrackingCardsSkeleton layout={layout} /> : <div className={cn(
+        {layout !== 'map' && (loadsResult.loading ? <TrackingCardsSkeleton layout={layout} /> : <div className={cn(
           'mt-6',
           layout === 'list'
             ? 'space-y-4'
@@ -468,7 +560,9 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
               {u('tracking.noPackagesFound', 'No tracking items found for this filter.')}
             </div>
           )}
-        </div>}
+        </div>)}
+          </div>
+        </div>
       </div>
 
       {openLoadId && (

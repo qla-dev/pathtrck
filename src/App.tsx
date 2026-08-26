@@ -3292,6 +3292,8 @@ export default function App() {
   const [lang, setLang] = useState<Language>(() => getInitialLanguage());
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [view, setView] = useState('tracking');
+  const [trackingMapActive, setTrackingMapActive] = useState(false);
+  const isTrackingMapActive = (view === 'tracking' || view === 'history') && trackingMapActive;
   const [checkoutPackageId, setCheckoutPackageId] = useState<number | null>(null);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [pricingRefreshSignal, setPricingRefreshSignal] = useState(0);
@@ -4251,15 +4253,15 @@ export default function App() {
           ref={viewContentRef}
           className={cn(
             "flex-1 min-h-0 mx-auto w-full",
-            view === 'map' ? "max-w-none p-0" : "p-6 pb-24 md:pb-6",
-            view !== 'map' && (isSidebarOpen ? "max-w-7xl" : "max-w-none"),
+            (view === 'map' || isTrackingMapActive) ? "max-w-none p-0" : "p-6 pb-24 md:pb-6",
+            !(view === 'map' || isTrackingMapActive) && (isSidebarOpen ? "max-w-7xl" : "max-w-none"),
             view === 'messages' || view === 'map' ? "overflow-hidden" : "overflow-y-auto"
           )}
         >
           <AnimatePresence mode="wait">
             <motion.div
               key={view}
-              className={cn((view === 'messages' || view === 'map') && "h-full")}
+              className={cn((view === 'messages' || view === 'map' || isTrackingMapActive) && "h-full")}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
@@ -4272,6 +4274,7 @@ export default function App() {
                     role={role}
                     userId={currentUser?.id}
                     companyIds={trackingCompanyIds}
+                    onLayoutModeChange={(mode) => setTrackingMapActive(mode === 'map')}
                   />
                 )}
 	              {view === 'feed' && (
