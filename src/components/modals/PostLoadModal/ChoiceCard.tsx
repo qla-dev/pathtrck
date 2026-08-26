@@ -11,6 +11,7 @@ export const ChoiceCard = ({
   compact = false,
   className,
   nowrap = false,
+  truncate = false,
 }: {
   active: boolean;
   title: string;
@@ -20,6 +21,7 @@ export const ChoiceCard = ({
   compact?: boolean;
   className?: string;
   nowrap?: boolean;
+  truncate?: boolean;
 }) => (
   <button
     type="button"
@@ -36,7 +38,7 @@ export const ChoiceCard = ({
     <span className={cn('flex shrink-0 items-center justify-center rounded-xl', compact ? 'h-9 w-9' : 'h-10 w-10', active ? 'bg-primary text-white' : 'bg-slate-100 text-slate-500 dark:bg-slate-800')}>
       <Icon className="h-4 w-4" />
     </span>
-    <span className="min-w-0"><span className={cn('block text-sm font-bold', nowrap && 'whitespace-nowrap')}>{title}</span>{description && <span className="mt-0.5 block text-xs text-slate-500">{description}</span>}</span>
+    <span className="min-w-0"><span className={cn('block text-sm font-bold', nowrap && 'whitespace-nowrap', truncate && 'truncate')} title={truncate ? title : undefined}>{title}</span>{description && <span className="mt-0.5 block text-xs text-slate-500">{description}</span>}</span>
     {active && <CheckCircle2 className="absolute right-3 top-3 h-4 w-4 text-primary" />}
   </button>
 );

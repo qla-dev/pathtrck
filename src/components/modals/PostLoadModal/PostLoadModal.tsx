@@ -3,8 +3,6 @@ import { AnimatePresence, motion } from 'motion/react';
 import {
   AlertTriangle,
   Apple,
-  ArrowUpToLine,
-  Ban,
   Blinds,
   Box,
   Boxes,
@@ -169,8 +167,8 @@ const AIR_SPECIAL_REQUIREMENT_ICONS: Record<string, LucideIcon> = {
 // the sidebar can show a per-step count instead of only the one global aiFieldCount badge.
 const STEP_AI_FIELDS: Record<StepId, Array<keyof ScanFieldPatch & keyof LoadDraft>> = {
   route: ['pickupCountry', 'pickupCity', 'pickupPostalCode', 'pickupDate', 'deliveryCountry', 'deliveryCity', 'deliveryPostalCode', 'deliveryDate'],
-  cargo: ['consignee', 'bookingReference', 'loadTitle', 'lengthM', 'weightKg', 'pallets', 'volumeM3', 'widthM', 'heightM'],
-  terms: ['budget', 'freightCurrency', 'paymentDeferred', 'incoterm', 'notes', 'vehicleType', 'bodyTypes', 'temperatureControlled'],
+  cargo: ['consignee', 'bookingReference', 'loadTitle', 'lengthM', 'weightKg', 'pallets', 'volumeM3', 'widthM', 'heightM', 'temperatureControlled'],
+  terms: ['budget', 'freightCurrency', 'paymentDeferred', 'incoterm', 'notes', 'vehicleType', 'bodyTypes'],
   contact: ['contactName', 'contactEmail', 'contactPhone'],
   review: [],
 };
@@ -529,6 +527,33 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     return X;
   };
 
+  const LOADING_EQUIPMENT_DESCRIPTIONS: Record<string, string> = {
+    'Vehicle with ramp': 'Trailer or truck fitted with a loading ramp',
+    'Vehicle without ramp': 'Standard vehicle, no ramp fitted',
+    'Forklift: Yes': 'Forklift available for loading and unloading',
+    'Forklift: No': 'No forklift available',
+    'Other loading/unloading equipment': 'Other equipment as specified in notes',
+    'Not specified': 'No handling requirement specified',
+    'Forklift Required': 'Forklift needed for loading or unloading',
+    'Tail Lift Required': 'Tail lift needed for pickup or delivery',
+    'Cargo Lift / High Loader Required': 'High loader needed for aircraft-side handling',
+    'Pallet Jack Required': 'Pallet jack needed for ULD or pallet handling',
+    'Roller Bed Required': 'Roller bed surface required for transfer',
+    'Conveyor Required': 'Conveyor belt required for transfer',
+    'No Special Equipment': 'Standard handling, nothing extra required',
+    'Other Special Handling Equipment': 'Other equipment as specified in notes',
+    'Crane / Heavy Lift': 'Crane or heavy-lift equipment required',
+    'Port Handling': 'Port handling services required',
+    'Stuffing Required': 'Container stuffing service required',
+    'Unstuffing Required': 'Container unstuffing service required',
+    'Special Handling': 'Non-standard handling required',
+  };
+  const loadingEquipmentDescription = (option: string): string =>
+    u(`postLoadModal.loadingEquipmentDesc.${option}`, LOADING_EQUIPMENT_DESCRIPTIONS[option] || option);
+
+  const cropLabel = (text: string, maxLength = 14): string =>
+    text.length > maxLength ? `${text.slice(0, maxLength).trimEnd()}...` : text;
+
   const SEA_CHARACTERISTIC_ICONS: Record<string, LucideIcon> = {
     'DG / IMO': ShieldAlert,
     REEFER: ThermometerSnowflake,
@@ -536,8 +561,6 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     LIQUID: Droplet,
     BULK: Boxes,
     FRAGILE: AlertTriangle,
-    'NON-STACKABLE': Ban,
-    'TOP LOAD ONLY': ArrowUpToLine,
     HEAVY: Weight,
     VALUABLE: Gem,
     PHARMA: Pill,
@@ -1636,8 +1659,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
 
                       <div className="space-y-1.5">
                         <FieldLabel>{draft.transportType === 'sea' ? u('postLoadModal.handlingRequirements', 'Handling Requirements') : u('postLoadModal.loadingEquipment', 'Loading equipment')}</FieldLabel>
-                        <div className="grid grid-cols-2 gap-2">
-                          {loadingEquipmentOptions[draft.transportType].map((option) => <ChoiceCard key={option} compact active={draft.loadingEquipment.includes(option)} title={option} icon={loadingEquipmentIcon(option)} onClick={() => toggleLoadingEquipment(option)} />)}
+                        <div className="grid md:grid-cols-3 gap-3">
+                          {loadingEquipmentOptions[draft.transportType].map((option) => <ToggleCard key={option} active={draft.loadingEquipment.includes(option)} title={option} description={loadingEquipmentDescription(option)} icon={loadingEquipmentIcon(option)} onClick={() => toggleLoadingEquipment(option)} />)}
                         </div>
                       </div>
                     </div>
@@ -1777,6 +1800,90 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         <div className="grid grid-cols-3 gap-2">
                           {[{ value: 'Stackable', icon: Package }, { value: 'Top load only', icon: ShieldCheck }, { value: 'Non-stackable', icon: X }].map(({ value, icon }) => <ChoiceCard key={value} compact active={draft.additionalInfo === value} title={value} icon={icon} onClick={() => setField('additionalInfo', value)} />)}
                         </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="space-y-1.5">
+                          <FieldLabel>{draft.transportType === 'sea' ? u('postLoadModal.characteristicsSea', 'Characteristics') : u('postLoadModal.characteristics', 'Characteristics & certificates')}</FieldLabel>
+                          <div className="grid grid-cols-3 gap-2">
+                            {(draft.transportType === 'sea' ? SEA_CHARACTERISTIC_OPTIONS : draft.transportType === 'air' ? AIR_CHARACTERISTIC_OPTIONS : ROAD_CHARACTERISTIC_OPTIONS).map((option) => <ChoiceCard key={option} compact active={draft.characteristics.includes(option)} title={cropLabel(option)} icon={draft.transportType === 'sea' ? SEA_CHARACTERISTIC_ICONS[option] : option.startsWith('DG') || option === 'ADR' ? ShieldCheck : option.startsWith('MED') ? FileText : option.startsWith('Fragile') ? ShieldAlert : option.startsWith('Oversized') ? Layers : option.startsWith('Lithium') ? Zap : option.startsWith('Dry Ice') ? ThermometerSnowflake : Package} onClick={() => toggleCharacteristic(option)} />)}
+                          </div>
+                        </div>
+
+                        {draft.transportType === 'sea' && draft.characteristics.includes('DG / IMO') && (
+                          <div className="grid sm:grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                              <FieldLabel>{u('postLoadModal.dgUnNumber', 'UN Number')}</FieldLabel>
+                              <Input value={draft.dgUnNumber} onChange={(e) => setField('dgUnNumber', e.target.value)} placeholder="UN 3481" />
+                            </div>
+                            <div className="space-y-1.5">
+                              <FieldLabel>{u('postLoadModal.dgImoClass', 'IMO Class')}</FieldLabel>
+                              <Input value={draft.dgImoClass} onChange={(e) => setField('dgImoClass', e.target.value)} placeholder="9" />
+                            </div>
+                            <div className="space-y-1.5">
+                              <FieldLabel>{u('postLoadModal.dgPackingGroup', 'Packing Group')}</FieldLabel>
+                              <Input value={draft.dgPackingGroup} onChange={(e) => setField('dgPackingGroup', e.target.value)} placeholder="II" />
+                            </div>
+                            <div className="space-y-1.5">
+                              <FieldLabel>{u('postLoadModal.dgProperShippingName', 'Proper Shipping Name')}</FieldLabel>
+                              <Input value={draft.dgProperShippingName} onChange={(e) => setField('dgProperShippingName', e.target.value)} />
+                            </div>
+                          </div>
+                        )}
+
+                        {draft.transportType === 'sea' && draft.characteristics.includes('OOG') && (
+                          <div className="space-y-3">
+                            <div className="space-y-1.5">
+                              <FieldLabel>{u('postLoadModal.oogGauge', 'In gauge / Out of gauge')}</FieldLabel>
+                              <div className="grid grid-cols-2 gap-2">
+                                <ChoiceCard compact active={draft.oogInGauge === 'in_gauge'} title={u('postLoadModal.inGauge', 'In gauge')} description={u('postLoadModal.inGaugeDesc', 'Within container dimensions')} icon={Container} onClick={() => setField('oogInGauge', 'in_gauge')} />
+                                <ChoiceCard compact active={draft.oogInGauge === 'out_of_gauge'} title={u('postLoadModal.outOfGauge', 'Out of gauge')} description={u('postLoadModal.outOfGaugeDesc', 'Exceeds container dimensions')} icon={Maximize2} onClick={() => setField('oogInGauge', 'out_of_gauge')} />
+                              </div>
+                            </div>
+                            {draft.oogInGauge === 'out_of_gauge' && (
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1.5">
+                                  <FieldLabel>{u('postLoadModal.oogLength', 'Length (m)')}</FieldLabel>
+                                  <Input type="number" min="0" value={draft.oogLengthM} onChange={(e) => setField('oogLengthM', e.target.value)} />
+                                </div>
+                                <div className="space-y-1.5">
+                                  <FieldLabel>{u('postLoadModal.oogWidth', 'Width (m)')}</FieldLabel>
+                                  <Input type="number" min="0" value={draft.oogWidthM} onChange={(e) => setField('oogWidthM', e.target.value)} />
+                                </div>
+                                <div className="space-y-1.5">
+                                  <FieldLabel>{u('postLoadModal.oogHeight', 'Height (m)')}</FieldLabel>
+                                  <Input type="number" min="0" value={draft.oogHeightM} onChange={(e) => setField('oogHeightM', e.target.value)} />
+                                </div>
+                                <div className="space-y-1.5">
+                                  <FieldLabel>{u('postLoadModal.oogWeight', 'Weight (kg)')}</FieldLabel>
+                                  <Input type="number" min="0" value={draft.oogWeightKg} onChange={(e) => setField('oogWeightKg', e.target.value)} />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {draft.transportType !== 'sea' && (
+                          <div className="space-y-1.5">
+                            {fieldLabel('temperatureControlled', 'postLoadModal.temperature', 'Temperature controlled')}
+                            <div className="grid grid-cols-2 gap-2">
+                              <ChoiceCard compact active={!draft.temperatureControlled} title={u('common.no', 'No')} description="Ambient conditions" icon={Package} onClick={() => setField('temperatureControlled', false)} />
+                              <ChoiceCard compact active={draft.temperatureControlled} title={u('common.yes', 'Yes')} description="Set a temperature range" icon={ThermometerSnowflake} onClick={() => setField('temperatureControlled', true)} />
+                            </div>
+                          </div>
+                        )}
+                        {draft.temperatureControlled && (
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                              <FieldLabel>{u('postLoadModal.temperatureMin', 'From (°C)')}</FieldLabel>
+                              <Input type="number" value={draft.temperatureMin} onChange={(e) => setField('temperatureMin', e.target.value)} placeholder="2" />
+                            </div>
+                            <div className="space-y-1.5">
+                              <FieldLabel>{u('postLoadModal.temperatureMax', 'To (°C)')}</FieldLabel>
+                              <Input type="number" value={draft.temperatureMax} onChange={(e) => setField('temperatureMax', e.target.value)} placeholder="8" />
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -1929,92 +2036,6 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       ) : (
                         <div className="space-y-1.5">{fieldLabel('bodyTypes', 'postLoadModal.bodyTypes', 'Body types')}<div className="flex min-h-[54px] items-center rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950"><div className="flex flex-wrap gap-2">{BODY_TYPE_OPTIONS.map((option) => { const BodyTypeIcon = BODY_TYPE_ICONS[option]; return <button key={option} type="button" onClick={() => toggleBodyType(option)} className={cn('inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold leading-none transition-colors', draft.bodyTypes.includes(option) ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200')}><BodyTypeIcon className="h-3.5 w-3.5 shrink-0" /><span className="leading-none">{u(`postLoadModal.bodyType.${option}`, option)}</span></button>; })}</div></div></div>
                       )}
-
-                      <div className="space-y-4">
-                        <div className="space-y-1.5">
-                          <FieldLabel>{draft.transportType === 'sea' ? u('postLoadModal.characteristicsSea', 'Characteristics') : u('postLoadModal.characteristics', 'Characteristics & certificates')}</FieldLabel>
-                          <ScrollableRow>
-                            <div className="flex w-max gap-2 px-1">
-                              {(draft.transportType === 'sea' ? SEA_CHARACTERISTIC_OPTIONS : draft.transportType === 'air' ? AIR_CHARACTERISTIC_OPTIONS : ROAD_CHARACTERISTIC_OPTIONS).map((option) => <ChoiceCard key={option} compact nowrap className="w-auto snap-start shrink-0 justify-start pl-3 pr-7 text-left" active={draft.characteristics.includes(option)} title={option} icon={draft.transportType === 'sea' ? SEA_CHARACTERISTIC_ICONS[option] : option.startsWith('DG') || option === 'ADR' ? ShieldCheck : option.startsWith('MED') ? FileText : option.startsWith('Fragile') ? ShieldAlert : option.startsWith('Oversized') ? Layers : option.startsWith('Lithium') ? Zap : option.startsWith('Dry Ice') ? ThermometerSnowflake : Package} onClick={(event) => { toggleCharacteristic(option); event.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' }); }} />)}
-                            </div>
-                          </ScrollableRow>
-                        </div>
-
-                        {draft.transportType === 'sea' && draft.characteristics.includes('DG / IMO') && (
-                          <div className="grid sm:grid-cols-2 gap-3">
-                            <div className="space-y-1.5">
-                              <FieldLabel>{u('postLoadModal.dgUnNumber', 'UN Number')}</FieldLabel>
-                              <Input value={draft.dgUnNumber} onChange={(e) => setField('dgUnNumber', e.target.value)} placeholder="UN 3481" />
-                            </div>
-                            <div className="space-y-1.5">
-                              <FieldLabel>{u('postLoadModal.dgImoClass', 'IMO Class')}</FieldLabel>
-                              <Input value={draft.dgImoClass} onChange={(e) => setField('dgImoClass', e.target.value)} placeholder="9" />
-                            </div>
-                            <div className="space-y-1.5">
-                              <FieldLabel>{u('postLoadModal.dgPackingGroup', 'Packing Group')}</FieldLabel>
-                              <Input value={draft.dgPackingGroup} onChange={(e) => setField('dgPackingGroup', e.target.value)} placeholder="II" />
-                            </div>
-                            <div className="space-y-1.5">
-                              <FieldLabel>{u('postLoadModal.dgProperShippingName', 'Proper Shipping Name')}</FieldLabel>
-                              <Input value={draft.dgProperShippingName} onChange={(e) => setField('dgProperShippingName', e.target.value)} />
-                            </div>
-                          </div>
-                        )}
-
-                        {draft.transportType === 'sea' && draft.characteristics.includes('OOG') && (
-                          <div className="space-y-3">
-                            <div className="space-y-1.5">
-                              <FieldLabel>{u('postLoadModal.oogGauge', 'In gauge / Out of gauge')}</FieldLabel>
-                              <div className="grid grid-cols-2 gap-2">
-                                <ChoiceCard compact active={draft.oogInGauge === 'in_gauge'} title={u('postLoadModal.inGauge', 'In gauge')} description={u('postLoadModal.inGaugeDesc', 'Within container dimensions')} icon={Container} onClick={() => setField('oogInGauge', 'in_gauge')} />
-                                <ChoiceCard compact active={draft.oogInGauge === 'out_of_gauge'} title={u('postLoadModal.outOfGauge', 'Out of gauge')} description={u('postLoadModal.outOfGaugeDesc', 'Exceeds container dimensions')} icon={Maximize2} onClick={() => setField('oogInGauge', 'out_of_gauge')} />
-                              </div>
-                            </div>
-                            {draft.oogInGauge === 'out_of_gauge' && (
-                              <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1.5">
-                                  <FieldLabel>{u('postLoadModal.oogLength', 'Length (m)')}</FieldLabel>
-                                  <Input type="number" min="0" value={draft.oogLengthM} onChange={(e) => setField('oogLengthM', e.target.value)} />
-                                </div>
-                                <div className="space-y-1.5">
-                                  <FieldLabel>{u('postLoadModal.oogWidth', 'Width (m)')}</FieldLabel>
-                                  <Input type="number" min="0" value={draft.oogWidthM} onChange={(e) => setField('oogWidthM', e.target.value)} />
-                                </div>
-                                <div className="space-y-1.5">
-                                  <FieldLabel>{u('postLoadModal.oogHeight', 'Height (m)')}</FieldLabel>
-                                  <Input type="number" min="0" value={draft.oogHeightM} onChange={(e) => setField('oogHeightM', e.target.value)} />
-                                </div>
-                                <div className="space-y-1.5">
-                                  <FieldLabel>{u('postLoadModal.oogWeight', 'Weight (kg)')}</FieldLabel>
-                                  <Input type="number" min="0" value={draft.oogWeightKg} onChange={(e) => setField('oogWeightKg', e.target.value)} />
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {draft.transportType !== 'sea' && (
-                          <div className="space-y-1.5">
-                            {fieldLabel('temperatureControlled', 'postLoadModal.temperature', 'Temperature controlled')}
-                            <div className="grid grid-cols-2 gap-2">
-                              <ChoiceCard compact active={!draft.temperatureControlled} title={u('common.no', 'No')} description="Ambient conditions" icon={Package} onClick={() => setField('temperatureControlled', false)} />
-                              <ChoiceCard compact active={draft.temperatureControlled} title={u('common.yes', 'Yes')} description="Set a temperature range" icon={ThermometerSnowflake} onClick={() => setField('temperatureControlled', true)} />
-                            </div>
-                          </div>
-                        )}
-                        {draft.temperatureControlled && (
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1.5">
-                              <FieldLabel>{u('postLoadModal.temperatureMin', 'From (°C)')}</FieldLabel>
-                              <Input type="number" value={draft.temperatureMin} onChange={(e) => setField('temperatureMin', e.target.value)} placeholder="2" />
-                            </div>
-                            <div className="space-y-1.5">
-                              <FieldLabel>{u('postLoadModal.temperatureMax', 'To (°C)')}</FieldLabel>
-                              <Input type="number" value={draft.temperatureMax} onChange={(e) => setField('temperatureMax', e.target.value)} placeholder="8" />
-                            </div>
-                          </div>
-                        )}
-                      </div>
 
                       {draft.transportType === 'air' && <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.deliveryProof', 'Delivery proof')}</FieldLabel><div className="grid grid-cols-2 gap-3"><ChoiceCard compact active={draft.deliveryProof === 'POD'} title="POD" description="Proof of Delivery" icon={FileText} onClick={() => setField('deliveryProof', 'POD')} /><ChoiceCard compact active={draft.deliveryProof === 'AOD'} title="AOD" description="Arrival on Delivery" icon={CheckCircle2} onClick={() => setField('deliveryProof', 'AOD')} /></div></div>}
 

@@ -9,7 +9,10 @@ export const AIR_CHARACTERISTIC_OPTIONS = ['Non-DG', 'DG', 'DGR', 'MED (medicine
 // group; temperature range; in-gauge vs out-of-gauge dimensions) instead of being a plain toggle -
 // mirrors how ocean carriers (and SeaRates) surface attributes based on the commodity/equipment
 // chosen rather than a flat ADR/CMR/GDP checklist.
-export const SEA_CHARACTERISTIC_OPTIONS = ['DG / IMO', 'REEFER', 'OOG', 'LIQUID', 'BULK', 'FRAGILE', 'NON-STACKABLE', 'TOP LOAD ONLY', 'HEAVY', 'VALUABLE', 'PHARMA', 'FOOD GRADE'] as const;
+// No NON-STACKABLE / TOP LOAD ONLY entries here - the "Additional information" picker (Stackable /
+// Top load only / Non-stackable) right above this section on the Cargo step already covers that,
+// and it's shared across all transport types rather than being sea-specific.
+export const SEA_CHARACTERISTIC_OPTIONS = ['DG / IMO', 'REEFER', 'OOG', 'LIQUID', 'BULK', 'FRAGILE', 'HEAVY', 'VALUABLE', 'PHARMA', 'FOOD GRADE'] as const;
 export const SEA_BL_TYPE_OPTIONS = ['Original B/L', 'SeaWaybill', 'Telex Release'] as const;
 export const SEA_PAYMENT_TERMS_OPTIONS = ['Prepaid', 'Collect', 'Other'] as const;
 export const LOADING_EQUIPMENT_OPTIONS = ['Vehicle with ramp', 'Vehicle without ramp', 'Forklift: Yes', 'Forklift: No', 'Other loading/unloading equipment', 'Not specified'] as const;
