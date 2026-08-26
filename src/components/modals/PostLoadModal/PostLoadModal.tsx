@@ -1065,41 +1065,32 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           ? u('postLoadModal.step.contact', 'Contact')
                           : u('postLoadModal.step.review', 'Review');
 
-                return (
+                // Each step is its own natural-width column (icon centered over its label, however
+                // wide that label is) and the connector between two steps is the only flex-1
+                // element - so every gap gets an equal share of the leftover space and reads as the
+                // same length, instead of stretching unevenly based on neighboring label widths.
+                return [
                   <button
-                    key={item.id}
+                    key={`${item.id}-step`}
                     type="button"
                     onClick={() => {
                       if (!isClickable) return;
                       setStep(item.id);
                     }}
                     disabled={!isClickable}
-                    className={cn(
-                      'flex flex-1 flex-col gap-1.5',
-                      index === 0 ? 'items-start' : index === STEPS.length - 1 ? 'items-end' : 'items-center',
-                      isClickable ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'
-                    )}
+                    className={cn('flex shrink-0 flex-col items-center gap-1.5', isClickable ? 'cursor-pointer' : 'cursor-not-allowed opacity-60')}
                   >
-                    {/* One continuous line runs through every circle: each step contributes a line
-                        segment on its left and right (the first/last steps skip the outer segment so
-                        the line doesn't overshoot the row), and since adjacent segments touch with no
-                        gap between them, they read as a single unbroken line with the circles sitting
-                        on top - same idea as the dashed POL/POD line on the sea route header. */}
-                    <span className="flex w-full items-center">
-                      {index > 0 && <span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />}
-                      <span
-                        className={cn(
-                          'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold',
-                          isDone
-                            ? 'bg-emerald-500 text-white'
-                            : isActive
-                              ? 'bg-primary text-white'
-                              : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
-                        )}
-                      >
-                        {isDone ? <CheckCircle2 className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
-                      </span>
-                      {index < STEPS.length - 1 && <span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />}
+                    <span
+                      className={cn(
+                        'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold',
+                        isDone
+                          ? 'bg-emerald-500 text-white'
+                          : isActive
+                            ? 'bg-primary text-white'
+                            : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                      )}
+                    >
+                      {isDone ? <CheckCircle2 className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
                     </span>
                     <span className="flex items-center gap-1">
                       <span className={cn('whitespace-nowrap text-[11px] font-bold', isActive ? 'text-primary' : isDone ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400')}>
@@ -1115,8 +1106,11 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         </span>
                       )}
                     </span>
-                  </button>
-                );
+                  </button>,
+                  index < STEPS.length - 1 && (
+                    <span key={`${item.id}-line`} className="mt-3.5 h-px min-w-[1rem] flex-1 bg-slate-200 dark:bg-slate-700" />
+                  ),
+                ];
               })}
             </div>
           </div>
