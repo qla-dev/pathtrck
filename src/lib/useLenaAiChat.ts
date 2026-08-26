@@ -305,13 +305,17 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
       return;
     }
 
-    setSelectedConversationId(String(conversationId));
-    setStartingNewChat(false);
+    // Flip to the new conversation only after the list already contains it - doing this before
+    // result.refresh() resolves leaves a render where selectedConversationId points at a row that
+    // availableRows doesn't have yet, so `row` briefly resolves to undefined and the welcome screen
+    // flashes back before the real conversation takes over.
     try {
       await result.refresh();
     } catch {
       // The message is already stored; a transient refresh failure must not mark it as unsent.
     } finally {
+      setSelectedConversationId(String(conversationId));
+      setStartingNewChat(false);
       setOptimisticMessages((messages) => messages.filter((message) => message.id !== optimisticId));
     }
 
@@ -355,12 +359,16 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
       const conversationId = await ensureConversation(canvasEnabled);
       setOptimisticMessages((messages) => messages.map((message) => message.id === optimisticId ? { ...message, conversationId } : message));
       await withMinDelay(api.dispatchChat.answerStep(conversationId, step, skip ? null : value, displayText, skip, lang || 'en'));
-      setSelectedConversationId(String(conversationId));
-      setStartingNewChat(false);
+      // See sendMessage's matching comment: flip to the new conversation only after the list
+      // already contains it, so `row` doesn't briefly resolve to undefined and flash the welcome
+      // screen back before the real conversation takes over.
       try {
         await result.refresh();
       } catch {
         // The answer is already stored server-side; a transient refresh failure isn't a send failure.
+      } finally {
+        setSelectedConversationId(String(conversationId));
+        setStartingNewChat(false);
       }
       setCanvasOverride(null);
     } catch (error) {
@@ -415,13 +423,16 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
       return;
     }
 
-    setSelectedConversationId(String(conversationId));
-    setStartingNewChat(false);
+    // See sendMessage's matching comment: flip to the new conversation only after the list already
+    // contains it, so `row` doesn't briefly resolve to undefined and flash the welcome screen back
+    // before the real conversation takes over.
     try {
       await result.refresh();
     } catch {
       // The attachment is already stored; a transient refresh failure must not mark it as unsent.
     } finally {
+      setSelectedConversationId(String(conversationId));
+      setStartingNewChat(false);
       setOptimisticMessages((messages) => messages.filter((message) => message.id !== optimisticId));
     }
 
