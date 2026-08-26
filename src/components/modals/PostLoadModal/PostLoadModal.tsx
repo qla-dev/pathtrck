@@ -2400,6 +2400,10 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         <div className="relative z-20 shrink-0 border-t border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-800">
           {submitError && <div className="mx-5 mt-3 md:mx-7 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400">{submitError}</div>}
           <div className="grid gap-3 px-5 md:px-7 py-3 sm:grid-cols-4">
+              <Button variant="outline" className="w-full h-11 gap-2" onClick={() => void startOver()} disabled={isSubmitting}>
+                <RotateCcw className="w-4 h-4 shrink-0" />
+                <span className="truncate">{u('postLoadModal.startOver', 'Započni ponovo')}</span>
+              </Button>
               <Button
                 variant="secondary"
                 className="w-full h-11 gap-2 border border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 dark:bg-primary/15 dark:hover:bg-primary/20"
@@ -2408,10 +2412,6 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
               >
                 <Sparkles className="w-4 h-4 shrink-0" />
                 <span className="truncate">{u('postLoadModal.fillWithLenaAI', 'Popuni pomoću LenaAI')}</span>
-              </Button>
-              <Button variant="outline" className="w-full h-11 gap-2" onClick={() => void startOver()} disabled={isSubmitting}>
-                <RotateCcw className="w-4 h-4 shrink-0" />
-                <span className="truncate">{u('postLoadModal.startOver', 'Započni ponovo')}</span>
               </Button>
               <Button
                 variant="secondary"
