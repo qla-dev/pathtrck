@@ -3333,6 +3333,8 @@ export default function App() {
   const [feedSortMode, setFeedSortMode] = useState<FeedSortMode>('price_asc');
   const [feedDataMode, setFeedDataMode] = useState<FeedDataMode>('organic');
   const [exchangeMode, setExchangeMode] = useState<ExchangeMode>('transport');
+  const [feedFilterBarLoading, setFeedFilterBarLoading] = useState(false);
+  const prevExchangeModeRef = useRef(exchangeMode);
   const [feedMyBidsOnly, setFeedMyBidsOnly] = useState(false);
   const globalFeedLoads = useMemo<Load[]>(
     () => GLOBAL_OFFERS.map((offer, index) => mapGlobalOfferToLoad(offer, index)),
@@ -3419,10 +3421,14 @@ export default function App() {
 
   useEffect(() => {
     let requestActive = true;
+    const exchangeModeChanged = prevExchangeModeRef.current !== exchangeMode;
+    prevExchangeModeRef.current = exchangeMode;
+    if (exchangeModeChanged) setFeedFilterBarLoading(true);
     if (!role) {
       setCurrentUser(null);
       setDatabaseLoads([]);
       setDatabaseLoadsLoaded(false);
+      setFeedFilterBarLoading(false);
       return;
     }
     setDatabaseLoadsLoaded(false);
@@ -3484,7 +3490,10 @@ export default function App() {
           if (requestActive) setDatabaseLoads([]);
         })
         .finally(() => {
-          if (requestActive) setDatabaseLoadsLoaded(true);
+          if (requestActive) {
+            setDatabaseLoadsLoaded(true);
+            if (exchangeModeChanged) setFeedFilterBarLoading(false);
+          }
         });
     }, 250);
     return () => {
@@ -4273,6 +4282,7 @@ export default function App() {
                     dataMode={feedDataMode}
                     loads={activeFeedLoads}
                     loading={!databaseLoadsLoaded}
+                    filterBarLoading={feedFilterBarLoading}
                     exchangeMode={exchangeMode}
                     onExchangeModeChange={(mode) => { setExchangeMode(mode); clearFeedFilters(); }}
                     myBidsOnly={feedMyBidsOnly}

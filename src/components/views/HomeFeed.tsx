@@ -229,6 +229,7 @@ type HomeFeedProps = {
   selectedUrgency?: string[];
   selectedLoadingMethods?: string[];
   filterBar?: FilterLoadsProps;
+  filterBarLoading?: boolean;
   exchangeMode?: 'transport' | 'storage';
   onExchangeModeChange?: (mode: 'transport' | 'storage') => void;
   myBidsOnly?: boolean;
@@ -277,6 +278,7 @@ export const HomeFeed = ({
   selectedUrgency = [],
   selectedLoadingMethods = [],
   filterBar,
+  filterBarLoading = false,
   exchangeMode = 'transport',
   onExchangeModeChange,
   myBidsOnly = false,
@@ -408,7 +410,7 @@ export const HomeFeed = ({
         </div>
       </div>
 
-      {filterBar && isFilterBarOpen && (loading ? <FilterSkeleton /> : <FilterLoads {...filterBar} />)}
+      {filterBar && isFilterBarOpen && (filterBarLoading ? <FilterSkeleton /> : <FilterLoads {...filterBar} />)}
 
       {loading ? (
         <ResultSkeletons layout={layout} />

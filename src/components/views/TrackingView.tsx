@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import Flatpickr from 'react-flatpickr';
-import { Search, MapPin, ChevronRight, Package as PackageIcon, Coins, Truck, Plane, Ship, Filter, CalendarDays, Trash2, List, LayoutGrid, Route, BriefcaseBusiness, CircleDot, Navigation, CalendarRange, BadgeEuro, Building2, Container, Tags, FileText, SlidersHorizontal, ShieldAlert, Zap, X } from 'lucide-react';
+import { Search, MapPin, ChevronRight, Package as PackageIcon, Coins, Truck, Plane, Ship, Filter, CalendarDays, Trash2, List, LayoutGrid, Route, BriefcaseBusiness, Navigation, CalendarRange, BadgeEuro, Building2, Container, Tags, FileText, SlidersHorizontal, ShieldAlert, Zap, X, Weight, Box, Layers, Thermometer, ShieldCheck, Stamp, Lock } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Language, Package as PackageData, Role } from '../../types';
 import { api } from '../../services/api';
@@ -60,21 +60,14 @@ const FilterSelect = ({ icon: Icon, label, value, onChange, options, allLabel }:
   </label>
 );
 
-const FilterInput = ({ icon: Icon, label, value, onChange, placeholder, type = 'text' }: { icon: LucideIcon; label: string; value: string; onChange: (value: string) => void; placeholder: string; type?: 'text' | 'number' }) => (
+const FilterInput = ({ icon: Icon, label, value, onChange, placeholder, type = 'text', allowNegative = false }: { icon: LucideIcon; label: string; value: string; onChange: (value: string) => void; placeholder: string; type?: 'text' | 'number'; allowNegative?: boolean }) => (
   <label className="min-w-0">
     <span className="mb-1.5 block text-[10px] font-bold text-slate-500">{label}</span>
     <span className="relative block">
       <Icon className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-      <input type={type} min={type === 'number' ? 0 : undefined} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs font-semibold text-slate-600 outline-none placeholder:font-normal placeholder:text-slate-400 focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200" />
+      <input type={type} min={type === 'number' && !allowNegative ? 0 : undefined} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs font-semibold text-slate-600 outline-none placeholder:font-normal placeholder:text-slate-400 focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200" />
     </span>
   </label>
-);
-
-const TrackingFilterSkeleton = () => (
-  <div className="animate-pulse rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-    <div className="mb-4 flex items-center justify-between gap-4"><div className="h-5 w-36 rounded bg-slate-200 dark:bg-slate-700" /><div className="h-10 w-1/2 rounded-lg bg-slate-100 dark:bg-slate-800" /></div>
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">{Array.from({ length: 12 }, (_, index) => <div key={index} className="space-y-2"><div className="h-2.5 w-20 rounded bg-slate-200 dark:bg-slate-700" /><div className="h-10 rounded-lg bg-slate-100 dark:bg-slate-800" /></div>)}</div>
-  </div>
 );
 
 const TrackingCardsSkeleton = ({ layout }: { layout: TrackingLayoutMode }) => (
@@ -114,6 +107,17 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
   const [adrOnly, setAdrOnly] = useState(false);
   const [urgentOnly, setUrgentOnly] = useState(false);
+  const [weightMin, setWeightMin] = useState('');
+  const [weightMax, setWeightMax] = useState('');
+  const [volumeMin, setVolumeMin] = useState('');
+  const [volumeMax, setVolumeMax] = useState('');
+  const [palletsMin, setPalletsMin] = useState('');
+  const [palletsMax, setPalletsMax] = useState('');
+  const [temperatureMin, setTemperatureMin] = useState('');
+  const [temperatureMax, setTemperatureMax] = useState('');
+  const [insuranceRequired, setInsuranceRequired] = useState(false);
+  const [customsRequired, setCustomsRequired] = useState(false);
+  const [securityRequired, setSecurityRequired] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 300);
@@ -139,6 +143,17 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
     incoterms: incoterm || undefined,
     tracking_requires_adr: adrOnly || undefined,
     tracking_is_urgent: urgentOnly || undefined,
+    weight_min: weightMin || undefined,
+    weight_max: weightMax || undefined,
+    volume_min: volumeMin || undefined,
+    volume_max: volumeMax || undefined,
+    pallets_min: palletsMin || undefined,
+    pallets_max: palletsMax || undefined,
+    temperature_min: temperatureMin || undefined,
+    temperature_max: temperatureMax || undefined,
+    requirements: [insuranceRequired && 'insurance', customsRequired && 'customs_bonded', securityRequired && 'security']
+      .filter(Boolean)
+      .join(',') || undefined,
   };
   const loadsResult = useApiList(api.loads.list, {
     ...trackingFilterParams,
@@ -190,6 +205,8 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
     setQuery(''); setDebouncedQuery(''); setStatusFilter('all'); setTransportType(''); setService('');
     setOrigin(''); setDestination(''); setDateRange([]); setMinPrice(''); setMaxPrice(''); setCurrency('');
     setPartner(''); setEquipment(''); setCharacteristic(''); setIncoterm(''); setAdrOnly(false); setUrgentOnly(false);
+    setWeightMin(''); setWeightMax(''); setVolumeMin(''); setVolumeMax(''); setPalletsMin(''); setPalletsMax('');
+    setTemperatureMin(''); setTemperatureMax(''); setInsuranceRequired(false); setCustomsRequired(false); setSecurityRequired(false);
   };
 
   const activeFilters = [
@@ -207,6 +224,13 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
     incoterm && { key: 'incoterm', label: incoterm, clear: () => setIncoterm('') },
     adrOnly && { key: 'adr', label: 'ADR', clear: () => setAdrOnly(false) },
     urgentOnly && { key: 'urgent', label: u('tracking.urgentOnly', 'Urgent'), clear: () => setUrgentOnly(false) },
+    (weightMin || weightMax) && { key: 'weight', label: `${weightMin || '0'} – ${weightMax || '∞'} kg`, clear: () => { setWeightMin(''); setWeightMax(''); } },
+    (volumeMin || volumeMax) && { key: 'volume', label: `${volumeMin || '0'} – ${volumeMax || '∞'} m³`, clear: () => { setVolumeMin(''); setVolumeMax(''); } },
+    (palletsMin || palletsMax) && { key: 'pallets', label: `${palletsMin || '0'} – ${palletsMax || '∞'} ${u('tracking.pallets', 'pallets')}`, clear: () => { setPalletsMin(''); setPalletsMax(''); } },
+    (temperatureMin || temperatureMax) && { key: 'temperature', label: `${temperatureMin || '-∞'} – ${temperatureMax || '∞'} °C`, clear: () => { setTemperatureMin(''); setTemperatureMax(''); } },
+    insuranceRequired && { key: 'insurance', label: u('tracking.insuranceRequired', 'Insurance'), clear: () => setInsuranceRequired(false) },
+    customsRequired && { key: 'customs', label: u('tracking.customsRequired', 'Customs'), clear: () => setCustomsRequired(false) },
+    securityRequired && { key: 'security', label: u('tracking.securityRequired', 'Security'), clear: () => setSecurityRequired(false) },
   ].filter(Boolean) as Array<{ key: string; label: string; clear: () => void }>;
   const transportOptions: IconSelectOption[] = [
     { value: 'road', label: u('postLoadModal.transport.road', 'Road'), icon: Truck },
@@ -214,11 +238,6 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
     { value: 'sea', label: u('postLoadModal.transport.sea', 'Sea'), icon: Ship },
   ];
   const serviceOptions: IconSelectOption[] = TRACKING_SERVICES.map((value) => ({ value, label: value, icon: value === 'Express' || value === 'Priority' ? Zap : PackageIcon }));
-  const statusOptions: IconSelectOption[] = TRACKING_STATUS_FILTERS.map((status) => ({
-    value: status,
-    label: trPackageStatus(lang, status),
-    icon: ({ className }) => <LoadStatusIcon status={status} className={className} />,
-  }));
   const equipmentOptions: IconSelectOption[] = VEHICLE_OPTIONS.map((value) => ({ value, label: value, icon: Container }));
   const characteristicOptions: IconSelectOption[] = ROAD_CHARACTERISTIC_OPTIONS.map((value) => ({ value, label: value, icon: value === 'ADR' ? ShieldAlert : value === 'Express' ? Zap : Tags }));
   const incotermOptions: IconSelectOption[] = INCOTERM_OPTIONS.map((value) => ({ value, label: value, icon: FileText }));
@@ -278,28 +297,28 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
         )}
 
         <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
-          {statusCountsResult.loading && statusCountsResult.items.length === 0
-            ? Array.from({ length: 8 }, (_, index) => <div key={index} className="h-20 animate-pulse rounded-xl bg-slate-200/70 dark:bg-slate-800" />)
-            : (['all', ...TRACKING_STATUS_FILTERS] as TrackingStatusFilter[]).map((status) => (
-              <button type="button" key={status} onClick={() => setStatusFilter(status)} className={cn('min-h-20 cursor-pointer rounded-xl border bg-white px-3 py-3 text-center transition-all hover:-translate-y-0.5 dark:bg-slate-900', statusCardColors(status), statusFilter === status && 'ring-2 ring-current ring-offset-2 dark:ring-offset-slate-950')}>
-                <span className="flex items-center justify-center gap-1.5 truncate text-xs font-bold">{status === 'all' ? <LayoutGrid className="h-3.5 w-3.5" /> : <LoadStatusIcon status={status} />}<span>{status === 'all' ? u('history.filter.all', 'All') : trPackageStatus(lang, status)}</span></span>
-                <span className="mt-1 block text-2xl font-black text-slate-700 dark:text-slate-100">{statusCounts[status]}</span>
-              </button>
-            ))}
+          {(['all', ...TRACKING_STATUS_FILTERS] as TrackingStatusFilter[]).map((status) => (
+            <button type="button" key={status} onClick={() => setStatusFilter(status)} className={cn('flex h-14 cursor-pointer items-center justify-center gap-2 rounded-full border bg-white px-4 text-sm font-bold transition-all hover:-translate-y-0.5 dark:bg-slate-900', statusCardColors(status), statusFilter === status && 'bg-current/10 ring-2 ring-current ring-offset-2 dark:ring-offset-slate-950')}>
+              {status === 'all' ? <LayoutGrid className="h-4 w-4 shrink-0" /> : <LoadStatusIcon status={status} className="h-4 w-4 shrink-0" />}
+              <span className="truncate">{status === 'all' ? u('history.filter.all', 'All') : trPackageStatus(lang, status)}</span>
+              <span className="opacity-70">{statusCounts[status]}</span>
+            </button>
+          ))}
         </div>
 
-        {loadsResult.loading && loadsResult.items.length === 0 ? <TrackingFilterSkeleton /> : (
-          <div className="overflow-visible rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+        <div className="overflow-visible rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
             <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-950/60">
-                <h3 className="mr-1 text-sm font-black text-slate-800 dark:text-white">{u('tracking.searchFilters', 'Search filters')}</h3>
-                {(['all', ...TRACKING_STATUS_FILTERS] as TrackingStatusFilter[]).map((status) => (
-                  <button type="button" key={status} onClick={() => setStatusFilter(status)} className={cn('inline-flex h-7 cursor-pointer items-center gap-1 rounded-full border px-2 text-[10px] font-bold transition-colors', statusCardColors(status), statusFilter === status ? 'bg-current/10 ring-1 ring-current' : 'bg-white dark:bg-slate-900')}>
-                    {status === 'all' ? <LayoutGrid className="h-3 w-3" /> : <LoadStatusIcon status={status} className="h-3 w-3" />}
-                    <span>{status === 'all' ? u('history.filter.all', 'All') : trPackageStatus(lang, status)}</span>
-                    <span className="opacity-70">{statusCounts[status]}</span>
-                  </button>
-                ))}
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-950/60">
+                  {activeFilters.length > 0 ? (
+                    <>
+                      <span className="text-[10px] font-bold text-slate-500">{u('tracking.activeFilters', 'Active filters')}:</span>
+                      {activeFilters.map((filter) => <button type="button" key={filter.key} onClick={filter.clear} className="flex cursor-pointer items-center gap-1 rounded-full bg-sky-50 px-2.5 py-1 text-[10px] font-bold text-sky-600 hover:bg-sky-100 dark:bg-sky-950/30 dark:text-sky-300">{filter.label}<X className="h-3 w-3" /></button>)}
+                    </>
+                  ) : (
+                    <span className="text-[10px] font-bold text-slate-400">{u('tracking.noActiveFilters', 'No active filters')}</span>
+                  )}
+                </div>
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2">
                 <button type="button" onClick={() => setFiltersOpen((open) => !open)} className="flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-primary px-3 text-[11px] font-bold text-primary hover:bg-primary/5"><Filter className="h-3.5 w-3.5" />{filtersOpen ? u('tracking.hideFilters', 'Hide filters') : u('tracking.showFilters', 'Show filters')}</button>
@@ -313,28 +332,54 @@ export const TrackingView = ({ lang, role, userId, companyIds = [] }: TrackingVi
               <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
                 <FilterSelect icon={Route} label={u('tracking.transportMode', 'Transport mode')} value={transportType} onChange={setTransportType} allLabel={u('tracking.allModes', 'All modes')} options={transportOptions} />
                 <FilterSelect icon={BriefcaseBusiness} label={u('tracking.service', 'Service')} value={service} onChange={setService} allLabel={u('tracking.allServices', 'All services')} options={serviceOptions} />
-                <FilterSelect icon={CircleDot} label={u('common.status', 'Status')} value={statusFilter === 'all' ? '' : statusFilter} onChange={(value) => setStatusFilter(value ? value as TrackingStatusFilter : 'all')} allLabel={u('tracking.allStatuses', 'All statuses')} options={statusOptions} />
+                <FilterSelect icon={Container} label={u('tracking.equipment', 'Equipment')} value={equipment} onChange={setEquipment} allLabel={u('tracking.allEquipment', 'All equipment')} options={equipmentOptions} />
                 <FilterInput icon={MapPin} label={u('tracking.origin', 'Origin')} value={origin} onChange={setOrigin} placeholder={u('tracking.chooseOrigin', 'Choose origin')} />
                 <FilterInput icon={Navigation} label={u('tracking.destination', 'Destination')} value={destination} onChange={setDestination} placeholder={u('tracking.chooseDestination', 'Choose destination')} />
                 <label className="min-w-0"><span className="mb-1.5 block text-[10px] font-bold text-slate-500">{u('tracking.date', 'Date')}</span><span className="relative block"><CalendarRange className="pointer-events-none absolute left-3 top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" /><Flatpickr value={dateRange} options={{ mode: 'range', dateFormat: 'Y-m-d', altInput: true, altFormat: 'd.m.Y', locale: flatpickrI18n(lang), allowInput: true }} onChange={setDateRange} placeholder={u('tracking.allDates', 'All dates')} className="h-10 w-full cursor-pointer rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs font-semibold text-slate-600 outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200" /></span></label>
                 <div className="col-span-2 grid grid-cols-[1fr_auto_1fr_80px] items-end gap-2"><FilterInput icon={BadgeEuro} label={u('tracking.priceRange', 'Price range')} value={minPrice} onChange={setMinPrice} placeholder={u('tracking.minPrice', 'Min price')} type="number" /><span className="mb-3 text-slate-400">–</span><FilterInput icon={BadgeEuro} label=" " value={maxPrice} onChange={setMaxPrice} placeholder={u('tracking.maxPrice', 'Max price')} type="number" /><FilterSelect icon={Coins} label=" " value={currency} onChange={setCurrency} allLabel="EUR" options={currencyOptions} /></div>
                 <FilterInput icon={Building2} label={u('tracking.carriersPartners', 'Carriers / Partners')} value={partner} onChange={setPartner} placeholder={u('tracking.choosePartner', 'Choose partner')} />
-                <FilterSelect icon={Container} label={u('tracking.equipment', 'Equipment')} value={equipment} onChange={setEquipment} allLabel={u('tracking.allEquipment', 'All equipment')} options={equipmentOptions} />
                 <FilterSelect icon={Tags} label={u('tracking.loadCharacteristics', 'Load characteristics')} value={characteristic} onChange={setCharacteristic} allLabel={u('tracking.allCharacteristics', 'All characteristics')} options={characteristicOptions} />
                 <FilterSelect icon={FileText} label="Incoterms" value={incoterm} onChange={setIncoterm} allLabel={u('tracking.allIncoterms', 'All incoterms')} options={incotermOptions} />
-              </div>
-              <div className="mt-3 flex flex-wrap items-start gap-3 border-t border-slate-100 pt-3 dark:border-slate-800">
-                <button type="button" onClick={() => setMoreFiltersOpen((open) => !open)} className={cn('flex h-9 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-lg border px-3 text-xs font-bold', moreFiltersOpen || adrOnly || urgentOnly ? 'border-primary bg-primary/5 text-primary' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300')}><SlidersHorizontal className="h-3.5 w-3.5" />{u('tracking.moreFilters', 'More filters')}</button>
-                <div className="ml-auto flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
-                  {activeFilters.length > 0 && <span className="text-[10px] font-bold text-slate-500">{u('tracking.activeFilters', 'Active filters')}:</span>}
-                  {activeFilters.map((filter) => <button type="button" key={filter.key} onClick={filter.clear} className="flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-1 text-[10px] font-bold text-sky-600 hover:bg-sky-100 dark:bg-sky-950/30 dark:text-sky-300">{filter.label}<X className="h-3 w-3" /></button>)}
-                  {activeFilters.length > 0 && <button type="button" onClick={clearFilters} className="text-[10px] font-bold text-primary underline">{u('tracking.clearAll', 'Clear all')}</button>}
+                <div className="min-w-0">
+                  <span className="mb-1.5 block text-[10px] font-bold text-transparent select-none">·</span>
+                  <button type="button" onClick={() => setMoreFiltersOpen((open) => !open)} className={cn('flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border px-3 text-xs font-bold', moreFiltersOpen || adrOnly || urgentOnly ? 'border-primary bg-primary/5 text-primary' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300')}><SlidersHorizontal className="h-3.5 w-3.5" />{u('tracking.moreFilters', 'More filters')}</button>
                 </div>
               </div>
-              {moreFiltersOpen && <div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => setAdrOnly((value) => !value)} className={cn('flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-bold', adrOnly ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300')}><ShieldAlert className="h-3.5 w-3.5" />ADR</button><button type="button" onClick={() => setUrgentOnly((value) => !value)} className={cn('flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-bold', urgentOnly ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300')}><Zap className="h-3.5 w-3.5" />{u('tracking.urgentOnly', 'Urgent')}</button></div>}
+              {moreFiltersOpen && (
+                <div className="mt-3 flex flex-col gap-3 border-t border-slate-100 pt-3 dark:border-slate-800">
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={() => setAdrOnly((value) => !value)} className={cn('flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-bold', adrOnly ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300')}><ShieldAlert className="h-3.5 w-3.5" />ADR</button>
+                    <button type="button" onClick={() => setUrgentOnly((value) => !value)} className={cn('flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-bold', urgentOnly ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300')}><Zap className="h-3.5 w-3.5" />{u('tracking.urgentOnly', 'Urgent')}</button>
+                    <button type="button" onClick={() => setInsuranceRequired((value) => !value)} className={cn('flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-bold', insuranceRequired ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300')}><ShieldCheck className="h-3.5 w-3.5" />{u('tracking.insuranceRequired', 'Insurance')}</button>
+                    <button type="button" onClick={() => setCustomsRequired((value) => !value)} className={cn('flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-bold', customsRequired ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300')}><Stamp className="h-3.5 w-3.5" />{u('tracking.customsRequired', 'Customs')}</button>
+                    <button type="button" onClick={() => setSecurityRequired((value) => !value)} className={cn('flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-bold', securityRequired ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300')}><Lock className="h-3.5 w-3.5" />{u('tracking.securityRequired', 'Security')}</button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                    <div className="col-span-2 grid grid-cols-[1fr_auto_1fr] items-end gap-2">
+                      <FilterInput icon={Weight} label={u('tracking.weightRange', 'Weight (kg)')} value={weightMin} onChange={setWeightMin} placeholder={u('tracking.min', 'Min')} type="number" />
+                      <span className="mb-3 text-slate-400">–</span>
+                      <FilterInput icon={Weight} label=" " value={weightMax} onChange={setWeightMax} placeholder={u('tracking.max', 'Max')} type="number" />
+                    </div>
+                    <div className="col-span-2 grid grid-cols-[1fr_auto_1fr] items-end gap-2">
+                      <FilterInput icon={Box} label={u('tracking.volumeRange', 'Volume (m³)')} value={volumeMin} onChange={setVolumeMin} placeholder={u('tracking.min', 'Min')} type="number" />
+                      <span className="mb-3 text-slate-400">–</span>
+                      <FilterInput icon={Box} label=" " value={volumeMax} onChange={setVolumeMax} placeholder={u('tracking.max', 'Max')} type="number" />
+                    </div>
+                    <div className="col-span-2 grid grid-cols-[1fr_auto_1fr] items-end gap-2">
+                      <FilterInput icon={Layers} label={u('tracking.palletsRange', 'Pallets')} value={palletsMin} onChange={setPalletsMin} placeholder={u('tracking.min', 'Min')} type="number" />
+                      <span className="mb-3 text-slate-400">–</span>
+                      <FilterInput icon={Layers} label=" " value={palletsMax} onChange={setPalletsMax} placeholder={u('tracking.max', 'Max')} type="number" />
+                    </div>
+                    <div className="col-span-2 grid grid-cols-[1fr_auto_1fr] items-end gap-2">
+                      <FilterInput icon={Thermometer} label={u('tracking.temperatureRange', 'Temperature (°C)')} value={temperatureMin} onChange={setTemperatureMin} placeholder={u('tracking.min', 'Min')} type="number" allowNegative />
+                      <span className="mb-3 text-slate-400">–</span>
+                      <FilterInput icon={Thermometer} label=" " value={temperatureMax} onChange={setTemperatureMax} placeholder={u('tracking.max', 'Max')} type="number" allowNegative />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>}
           </div>
-        )}
 
         {loadsResult.loading ? <TrackingCardsSkeleton layout={layout} /> : <div className={cn(
           'mt-6',
