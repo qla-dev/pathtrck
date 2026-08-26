@@ -22,7 +22,7 @@ export type PostLoadModalProps = {
 
 
 export type StepId = 'cargo' | 'route' | 'terms' | 'contact' | 'review';
-export type TransportType = 'road' | 'air' | 'sea';
+export type TransportType = 'road' | 'air' | 'sea' | 'warehouse';
 export type ScannedDocument = { id: string; imageDataUrl: string | null; result: LoadScanResult };
 // Sea only - one row of the "Container types" picker (type + how many of that type).
 export type ContainerSelection = { type: string; quantity: string };
@@ -103,6 +103,18 @@ export type LoadDraft = {
   oogWeightKg: string;
   // Sea only - Bill of Lading type, replaces the road-only CMR toggle.
   blType: string;
+  // Warehouse only - storage-service request fields (pallet/CBM/duration, not route-shaped).
+  warehouseStorageType: string;
+  warehouseStartDate: string;
+  warehouseEndDate: string;
+  warehouseIsOngoing: boolean;
+  warehouseTemperatureMin: string;
+  warehouseTemperatureMax: string;
+  warehouseRequiresCustomsBonded: boolean;
+  warehouseRequiresRacking: boolean;
+  warehouseRequiresInsurance: boolean;
+  warehouseRequiresSecurity: boolean;
+  warehouseRateUnit: string;
   mustBeTrackable: boolean;
   paymentDeferred: boolean;
   // Sea only - replaces paymentDeferred (Prepaid / Collect / Other instead of a due-date window).
@@ -209,6 +221,17 @@ export const INITIAL_DRAFT: LoadDraft = {
   oogHeightM: '',
   oogWeightKg: '',
   blType: '',
+  warehouseStorageType: 'Ambient',
+  warehouseStartDate: '',
+  warehouseEndDate: '',
+  warehouseIsOngoing: false,
+  warehouseTemperatureMin: '',
+  warehouseTemperatureMax: '',
+  warehouseRequiresCustomsBonded: false,
+  warehouseRequiresRacking: false,
+  warehouseRequiresInsurance: false,
+  warehouseRequiresSecurity: false,
+  warehouseRateUnit: 'per_pallet_month',
   mustBeTrackable: false,
   paymentDeferred: false,
   seaPaymentTerms: '',

@@ -42,7 +42,8 @@ import {
   ScanSearch,
   Gem,
   History,
-  Zap
+  Zap,
+  Warehouse
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useScrollDownReveal } from './hooks/useScrollDownReveal';
@@ -93,6 +94,7 @@ import { LenaCanvasMode } from './lib/lenaLoadCanvas';
 import { SettingsView } from './components/views/SettingsView';
 import { LoadNotesView } from './components/views/LoadNotesView';
 import { CompanyWorkspaceView } from './components/views/CompanyWorkspaceView';
+import { WarehouseOverviewView } from './components/views/WarehouseOverviewView';
 import { CompanyTeamView } from './components/views/CompanyTeamView';
 import { FinanceView } from './components/views/FinanceView';
 import { AdminOverviewView } from './components/views/AdminOverviewView';
@@ -3250,9 +3252,11 @@ const getDefaultViewForRole = (role: Exclude<Role, null>) =>
       ? 'company'
       : role === 'finance'
         ? 'finance'
-        : role === 'superadmin' || role === 'master'
-          ? 'admin'
-          : 'tracking';
+        : role === 'warehouse'
+          ? 'warehouse-overview'
+          : role === 'superadmin' || role === 'master'
+            ? 'admin'
+            : 'tracking';
 
 export default function App() {
   const [isLanding, setIsLanding] = useState(true);
@@ -3557,7 +3561,9 @@ export default function App() {
       ? { label: u('common.logisticsCompany', 'Logistics Company'), status: u('common.admin', 'Admin'), icon: Building2, tone: 'bg-violet-500/10 text-violet-600 dark:text-violet-400' }
       : role === 'finance'
         ? { label: u('common.financeAdministration', 'Finance & Administration'), status: u('common.restrictedAccess', 'Controlled Access'), icon: Banknote, tone: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' }
-        : isElevatedAdmin
+        : role === 'warehouse'
+          ? { label: u('common.warehouseCompany', 'Warehouse Company'), status: u('common.admin', 'Admin'), icon: Warehouse, tone: 'bg-orange-500/10 text-orange-600 dark:text-orange-400' }
+          : isElevatedAdmin
           ? { label: role === 'master' ? u('common.master', 'Master') : u('common.superadmin', 'Superadmin'), status: u('common.godMode', 'God Mode'), icon: Crown, tone: 'bg-rose-500/10 text-rose-600 dark:text-rose-400' }
           : { label: u('common.customerLicense', 'Customer License'), status: u('common.active', 'Active'), icon: User, tone: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' };
   const RoleStatusIcon = roleMeta.icon;
@@ -3907,6 +3913,13 @@ export default function App() {
           { id: 'dashboard', label: analyticsLabel, icon: BarChart3 },
           { id: 'settings', label: t.settings, icon: Settings },
         ]
+      : role === 'warehouse'
+        ? [
+            { id: 'warehouse-overview', label: u('nav.myWarehouse', 'Moj Warehouse'), icon: Warehouse },
+            { id: 'tracking', label: myCargoLabels[lang || 'en'], icon: PackageIcon },
+            { id: 'map', label: u('nav.map', 'Map'), icon: MapIcon },
+            { id: 'settings', label: t.settings, icon: Settings },
+          ]
       : [
           ...(role === 'driver' ? [{ id: 'feed', label: t.homeFeed, icon: Boxes }] : []),
           { id: 'tracking', label: myCargoLabels[lang || 'en'], icon: PackageIcon },
@@ -4286,7 +4299,8 @@ export default function App() {
 	                  onPostLoad={() => { setLenaLoadPrefill(null); setLenaSourceConversationId(null); setLenaSourceDraftId(null); setEditLoadId(null); setIsPostLoadOpen(true); }}
 	                />
 	              )}
-	              {view === 'company-team' && <CompanyTeamView lang={lang} />}
+	              {view === 'warehouse-overview' && <WarehouseOverviewView lang={lang} />}
+              {view === 'company-team' && <CompanyTeamView lang={lang} />}
 	              {view === 'finance' && <FinanceView lang={lang} />}
 	              {view === 'automations' && <AutomationsView lang={lang} />}
 	              {view === 'fleet' && <FleetView lang={lang} role={role} userId={currentUser?.id} companyIds={trackingCompanyIds} />}

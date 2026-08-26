@@ -374,6 +374,11 @@ export const api = {
   conversations: resourceApi<Record<string, unknown>>('conversations'),
   messages: resourceApi<Record<string, unknown>>('messages'),
   loadDrafts: resourceApi<Record<string, unknown>>('load-drafts'),
+  warehouseRequests: resourceApi<Record<string, unknown>>('warehouse-requests'),
+  warehouses: resourceApi<Record<string, unknown>>('warehouses'),
+  warehouse: {
+    overview: () => request<Record<string, unknown>>('/warehouse/overview'),
+  },
   aiCallLogs: {
     ...resourceApi<Record<string, unknown>>('ai-call-logs'),
     // Master-only: permanently deletes a conversation's ai_call_logs rows AND the conversation

@@ -102,6 +102,9 @@ import {
   SEA_CHARACTERISTIC_OPTIONS,
   SEA_LOADING_EQUIPMENT_OPTIONS,
   SEA_PAYMENT_TERMS_OPTIONS,
+  WAREHOUSE_STORAGE_TYPE_OPTIONS,
+  WAREHOUSE_HANDLING_REQUIREMENT_OPTIONS,
+  WAREHOUSE_RATE_UNIT_OPTIONS,
 } from '../loadFormOptions';
 import type { PostLoadModalProps, StepId, TransportType, ScannedDocument, LoadDraft, ContainerSelection } from './types';
 import { INITIAL_DRAFT } from './types';
@@ -115,6 +118,7 @@ import {
   buildLoadStopsPayload,
   buildLoadPayload,
   buildDraftPayload,
+  buildWarehouseRequestPayload,
   routePosition,
   estimatedDrivingDistanceKm,
   deriveAirTransportMode,
@@ -132,6 +136,7 @@ import { formatTimeRangeMask } from './timeMask';
 import { ToggleCard } from './ToggleCard';
 import { ChoiceCard } from './ChoiceCard';
 import { SummaryRow } from './SummaryRow';
+import { WarehouseCargoFields, WarehouseLocationFields, WarehouseTermsFields } from './WarehouseFormFields';
 
 const STEPS: Array<{ id: StepId; icon: typeof MapPin }> = [
   { id: 'cargo', icon: Package },
@@ -201,16 +206,26 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       iconTone: 'text-blue-500',
       iconSurface: 'bg-blue-500/10',
     },
+    {
+      id: 'warehouse' as const,
+      label: u('postLoadModal.transport.warehouse', 'Warehouse'),
+      description: u('postLoadModal.transport.warehouseDesc', 'Pallet and bulk storage'),
+      icon: Warehouse,
+      iconTone: 'text-orange-500',
+      iconSurface: 'bg-orange-500/10',
+    },
   ];
   const shipmentTypeOptions: Record<TransportType, string[]> = {
     road: ['FTL', 'LTL', 'Express', 'Dedicated'],
     air: ['Standard', 'Express', 'Priority', 'Economy', 'Charter'],
     sea: ['FCL', 'LCL'],
+    warehouse: [],
   };
   const loadingEquipmentOptions: Record<TransportType, readonly string[]> = {
     road: LOADING_EQUIPMENT_OPTIONS,
     air: AIR_LOADING_EQUIPMENT_OPTIONS,
     sea: SEA_LOADING_EQUIPMENT_OPTIONS,
+    warehouse: WAREHOUSE_HANDLING_REQUIREMENT_OPTIONS,
   };
   const [step, setStep] = useState<StepId>('cargo');
   const contentScrollRef = useRef<HTMLDivElement>(null);
@@ -392,22 +407,28 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   }, [step]);
   const stepCompletion = useMemo<Record<StepId, boolean>>(
     () => ({
-      route: Boolean(
-        draft.pickupCity &&
-          draft.pickupDate &&
-          draft.deliveryCity &&
-          draft.deliveryDate
-      ),
-      cargo: Boolean(
-        draft.consignee &&
-          draft.transportType &&
-          draft.loadTitle.trim() &&
-          Number(draft.weightKg) > 0 &&
-          Number(draft.lengthM) > 0
-      ),
+      route: draft.transportType === 'warehouse'
+        ? Boolean(draft.pickupCity && draft.warehouseStartDate)
+        : Boolean(
+          draft.pickupCity &&
+            draft.pickupDate &&
+            draft.deliveryCity &&
+            draft.deliveryDate
+        ),
+      cargo: draft.transportType === 'warehouse'
+        ? Boolean(draft.loadTitle.trim() && (Number(draft.pallets) > 0 || Number(draft.volumeM3) > 0))
+        : Boolean(
+          draft.consignee &&
+            draft.transportType &&
+            draft.loadTitle.trim() &&
+            Number(draft.weightKg) > 0 &&
+            Number(draft.lengthM) > 0
+        ),
       // vehicleType alone is never a useful signal here - it defaults to 'Box Truck' in
       // INITIAL_DRAFT, so it's already truthy before the user has touched this step at all.
-      terms: Boolean((draft.receivePriceProposals || draft.budget) && draft.incoterm && draft.vehicleType),
+      terms: draft.transportType === 'warehouse'
+        ? Boolean(draft.receivePriceProposals || draft.budget)
+        : Boolean((draft.receivePriceProposals || draft.budget) && draft.incoterm && draft.vehicleType),
       contact: Boolean(
         draft.contactName &&
           (draft.contactPhone || draft.contactMobile || draft.contactEmail)
@@ -717,8 +738,47 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     }
   };
 
+  // Distinct from publishLoad above - a warehouse request posts to /warehouse-requests (the "berza
+  // skladišta"), not /loads, and has no edit-existing-record path since Post Load's edit flow only
+  // opens for loads today.
+  const publishWarehouseRequest = async (): Promise<boolean> => {
+    setIsSubmitting(true);
+    setSubmitError('');
+    try {
+      const payload = buildWarehouseRequestPayload(draft);
+      const response = await api.warehouseRequests.create(payload);
+      onSaved?.(response.data);
+      onClose();
+      void showSuccess(
+        u('postLoadModal.warehousePublishedTitle', 'Warehouse request published'),
+        u('postLoadModal.warehousePublishedText', 'The storage request is now visible to warehouse companies.'),
+      );
+      return true;
+    } catch (error) {
+      if (error instanceof ApiError) {
+        const validationMessage = Object.values(error.errors).flat().find(Boolean);
+        setSubmitError(validationMessage || error.message);
+      } else {
+        setSubmitError(u('postLoadModal.apiError', 'The load could not be published.'));
+      }
+      return false;
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const submit = async () => {
     if (isSubmitting) return;
+    if (draft.transportType === 'warehouse') {
+      const confirmed = await confirmAction({
+        title: u('postLoadModal.publishWarehouseTitle', 'Objava na berzu skladišta?'),
+        text: u('postLoadModal.publishWarehouseText', 'Are you sure you want to post this storage request to the warehouse exchange? It will become visible to warehouse companies.'),
+        confirmText: u('postLoadModal.publishConfirm', 'Objavi'),
+      });
+      if (!confirmed) return;
+      await publishWarehouseRequest();
+      return;
+    }
     const confirmed = await confirmAction({
       title: editLoadId ? u('postLoadModal.saveChangesTitle', 'Save load changes?') : u('postLoadModal.publishTitle', 'Objava na berzu tereta?'),
       text: editLoadId
@@ -1120,7 +1180,10 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
               <AnimatePresence mode="wait">
               {step === 'route' && (
                 <motion.div key="route" className="space-y-5 md:space-y-6" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
-
+                  {draft.transportType === 'warehouse' ? (
+                    <WarehouseLocationFields draft={draft} setField={setField} setDraft={setDraft} u={u} lang={lang} onOpenMap={() => setAddressMap('pickup')} />
+                  ) : (
+                  <>
                   <div className="grid lg:grid-cols-[minmax(0,5fr)_minmax(0,5fr)_minmax(0,2fr)] gap-4 sm:gap-5">
                     <div className="space-y-4 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
                       <div className="flex items-center gap-2 text-emerald-500">
@@ -1544,12 +1607,16 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
                     </div>
                   )}
+                  </>
+                  )}
                 </motion.div>
               )}
 
               {step === 'cargo' && (
                 <motion.div key="cargo" className="space-y-6 sm:space-y-8" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
-
+                  {draft.transportType === 'warehouse' ? (
+                    <WarehouseCargoFields draft={draft} setField={setField} setDraft={setDraft} u={u} />
+                  ) : (
                   <div className="grid lg:grid-cols-3 gap-4 sm:gap-5">
                     <div className="space-y-4 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
                       <div className="space-y-1.5">
@@ -1872,12 +1939,15 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                     </div>
 
                   </div>
+                  )}
                 </motion.div>
               )}
 
               {step === 'terms' && (
                 <motion.div key="terms" className="space-y-6 sm:space-y-8" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
-
+                  {draft.transportType === 'warehouse' ? (
+                    <WarehouseTermsFields draft={draft} setField={setField} u={u} />
+                  ) : (
                   <div className="grid lg:grid-cols-2 gap-4 sm:gap-5">
                   <div className="order-2 flex flex-col space-y-4 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
                     <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
@@ -2133,6 +2203,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
                     </div>
                   </div>
+                  )}
                 </motion.div>
               )}
 
@@ -2275,6 +2346,35 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
               {step === 'review' && (
                 <motion.div key="review" className="space-y-6 sm:space-y-8" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
                   <div className="grid xl:grid-cols-[minmax(0,1fr)_300px] gap-5">
+                    {draft.transportType === 'warehouse' ? (
+                    <div className="rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
+                      <SummaryRow label={u('postLoadModal.titleSummary', 'Title')} value={draft.loadTitle || '—'} />
+                      <SummaryRow label={u('postLoadModal.warehouseStorageType', 'Vrsta skladištenja')} value={u(`postLoadModal.storageType.${draft.warehouseStorageType}`, draft.warehouseStorageType)} />
+                      <SummaryRow label={u('postLoadModal.warehousePreferredLocation', 'Željena lokacija skladišta')} value={`${draft.pickupCity || '—'}, ${draft.pickupCountry || '—'}`} />
+                      <SummaryRow label={u('postLoadModal.specsSummary', 'Specs')} value={`${draft.pallets || '—'} pal. · ${draft.volumeM3 || '—'} CBM · ${draft.weightKg || '—'} t`} />
+                      <SummaryRow
+                        label={u('postLoadModal.warehouseDuration', 'Trajanje')}
+                        value={draft.warehouseIsOngoing
+                          ? `${draft.warehouseStartDate || '—'} · ${u('postLoadModal.warehouseOngoing', 'Neograničeno')}`
+                          : `${draft.warehouseStartDate || '—'}${draft.warehouseEndDate ? ` - ${draft.warehouseEndDate}` : ''}`}
+                      />
+                      <SummaryRow label={u('postLoadModal.handlingRequirements', 'Zahtjevi za rukovanje')} value={draft.loadingEquipment.join(', ') || u('postLoadModal.none', 'None')} />
+                      <SummaryRow
+                        label={u('postLoadModal.paymentSummary', 'Payout')}
+                        value={`${draft.budget || '—'} ${draft.freightCurrency} / ${u(`postLoadModal.rateUnit.${draft.warehouseRateUnit}`, draft.warehouseRateUnit)}`}
+                      />
+                      <SummaryRow label={u('postLoadModal.contactSummary', 'Contact')} value={`${draft.contactName} · ${draft.contactPhone || draft.contactMobile || draft.contactEmail || '—'}`} />
+                      <SummaryRow
+                        label={u('postLoadModal.requirements', 'Zahtjevi')}
+                        value={[
+                          draft.warehouseRequiresCustomsBonded ? u('postLoadModal.warehouseCustomsBonded', 'Carinsko skladište (bonded)') : null,
+                          draft.warehouseRequiresRacking ? u('postLoadModal.warehouseRacking', 'Regalno skladištenje') : null,
+                          draft.warehouseRequiresInsurance ? u('postLoadModal.warehouseInsurance', 'Osiguranje robe') : null,
+                          draft.warehouseRequiresSecurity ? u('postLoadModal.warehouseSecurity', 'Obezbjeđenje / video nadzor') : null,
+                        ].filter(Boolean).join(', ') || u('postLoadModal.none', 'None')}
+                      />
+                    </div>
+                    ) : (
                     <div className="rounded-3xl border border-slate-200 dark:border-slate-800 p-4 md:p-5">
                       <SummaryRow label={u('postLoadModal.consignee', 'Consignee (customer)')} value={draft.consignee?.text || '—'} />
                       <SummaryRow label={u('postLoadModal.routeSummary', 'Route')} value={`${draft.pickupCity} → ${draft.deliveryCity}`} />
@@ -2344,6 +2444,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       />
                       <SummaryRow label={u('postLoadModal.publicationSummary', 'Publication')} value={draft.closedFreightExchange || u('postLoadModal.openPublication', 'Open publication')} />
                     </div>
+                    )}
 
                     <div className="space-y-4">
                       <div className="rounded-3xl bg-primary text-white p-5">
@@ -2353,17 +2454,28 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         <p className="text-4xl font-black mt-2">
                           {Math.min(
                             100,
-                            [
-                              draft.pickupCity,
-                              draft.deliveryCity,
-                              draft.pickupDate,
-                              draft.deliveryDate,
-                              draft.loadTitle,
-                              draft.weightKg,
-                              draft.budget || (draft.receivePriceProposals ? 'negotiable' : ''),
-                              draft.contactName,
-                              draft.contactPhone,
-                            ].filter(Boolean).length * 11
+                            (draft.transportType === 'warehouse'
+                              ? [
+                                  draft.pickupCity,
+                                  draft.warehouseStartDate,
+                                  draft.loadTitle,
+                                  draft.pallets || draft.volumeM3,
+                                  draft.budget || (draft.receivePriceProposals ? 'negotiable' : ''),
+                                  draft.contactName,
+                                  draft.contactPhone,
+                                ]
+                              : [
+                                  draft.pickupCity,
+                                  draft.deliveryCity,
+                                  draft.pickupDate,
+                                  draft.deliveryDate,
+                                  draft.loadTitle,
+                                  draft.weightKg,
+                                  draft.budget || (draft.receivePriceProposals ? 'negotiable' : ''),
+                                  draft.contactName,
+                                  draft.contactPhone,
+                                ]
+                            ).filter(Boolean).length * (draft.transportType === 'warehouse' ? 14 : 11)
                           )}
                           %
                         </p>
@@ -2408,7 +2520,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                 variant="secondary"
                 className="w-full h-11 gap-2 border border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 dark:bg-primary/15 dark:hover:bg-primary/20"
                 onClick={onOpenLenaAI ?? (() => setDropzoneOpen(true))}
-                disabled={isSubmitting}
+                disabled={isSubmitting || draft.transportType === 'warehouse'}
               >
                 <Sparkles className="w-4 h-4 shrink-0" />
                 <span className="truncate">{u('postLoadModal.fillWithLenaAI', 'Popuni pomoću LenaAI')}</span>
@@ -2417,7 +2529,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                 variant="secondary"
                 className="w-full h-11 gap-2 border border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 dark:bg-primary/15 dark:hover:bg-primary/20"
                 onClick={() => void saveDraft()}
-                disabled={isSubmitting || savingDraft}
+                disabled={isSubmitting || savingDraft || draft.transportType === 'warehouse'}
               >
                 <Save className="w-4 h-4 shrink-0" />
                 <span className="truncate">
@@ -2447,7 +2559,9 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       ? u('postLoadModal.publishing', 'Saving...')
                       : editLoadId
                         ? u('common.save', 'Save changes')
-                        : u('common.postLoad', 'Objava na berzu tereta')}
+                        : draft.transportType === 'warehouse'
+                          ? u('common.postWarehouse', 'Objavi na berzu skladišta')
+                          : u('common.postLoad', 'Objava na berzu tereta')}
                   </span>
                 </Button>
               )}

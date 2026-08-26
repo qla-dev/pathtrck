@@ -54,7 +54,7 @@ export type ScanFieldPatch = Partial<{
   consignee: CustomerOption;
   bookingReference: string;
   loadTitle: string;
-  transportType: 'road' | 'air' | 'sea';
+  transportType: 'road' | 'air' | 'sea' | 'warehouse';
   goodsType: string;
   hsCodes: LoadScanResult['hsCodes'];
   weightKg: string;
@@ -211,7 +211,7 @@ export const resolveHsCodes = async (hsCodes: HsCodeMatch[]): Promise<HsCodeMatc
   return hsCodes.map((item) => byCode.get(item.code) || item);
 };
 
-const TRANSPORT_TYPE_LABELS: Record<string, string> = { road: 'Road', air: 'Air', sea: 'Sea' };
+const TRANSPORT_TYPE_LABELS: Record<string, string> = { road: 'Road', air: 'Air', sea: 'Sea', warehouse: 'Warehouse' };
 const PRICE_TERMS_LABELS: Record<string, string> = { fixed: 'Fixed price', negotiable: 'Open to offers' };
 
 export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
@@ -232,7 +232,7 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
     rows.push({ key: 'title', label: 'Title', value: result.title, patch: { loadTitle: result.title }, icon: Hash });
   }
 
-  if (result.transportType === 'road' || result.transportType === 'air' || result.transportType === 'sea') {
+  if (result.transportType === 'road' || result.transportType === 'air' || result.transportType === 'sea' || result.transportType === 'warehouse') {
     rows.push({
       key: 'transportType',
       label: 'Transport type',

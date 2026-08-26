@@ -28,3 +28,6 @@ export const DELIVERY_PROOF_OPTIONS = ['POD', 'AOD'] as const;
 export const CONTACT_OPTIONS = ['Current user', 'Operations desk', 'Dispatch team'] as const;
 export const CLOSED_EXCHANGE_OPTIONS = ['', 'TIMOCOM', 'Private board'] as const;
 export const LOAD_REQUIREMENT_OPTIONS = ['ADR', 'Tail lift', 'Priority load', 'Toll roads', 'Ferry', 'CMR', 'Pallet exchange', 'Customs', 'Insurance', 'Certification', 'Inspection services', 'Must be trackable'] as const;
+export const WAREHOUSE_STORAGE_TYPE_OPTIONS = ['Ambient', 'Chilled', 'Frozen', 'Hazmat', 'Bulk', 'Bonded'] as const;
+export const WAREHOUSE_HANDLING_REQUIREMENT_OPTIONS = ['Cross-docking', 'Pick & Pack', 'Labeling', 'Kitting', 'Palletizing', 'Repackaging'] as const;
+export const WAREHOUSE_RATE_UNIT_OPTIONS = ['per_pallet_month', 'per_m3_month', 'per_month'] as const;

@@ -143,6 +143,40 @@ export const buildDraftPayload = (draft: LoadDraft) => ({
   delivery_time_to: draft.deliveryTimeTo || draft.deliveryTimeFrom || null,
 });
 
+// Genuinely distinct from buildLoadFieldsPayload above - a warehouse request is a storage-service
+// listing (pallets/CBM/storage duration/handling requirements), not a route+cargo load, so it has
+// no stops array and shares almost no fields with /loads. Posted to /warehouse-requests instead.
+export const buildWarehouseRequestPayload = (draft: LoadDraft) => ({
+  title: draft.loadTitle || null,
+  storage_type: draft.warehouseStorageType,
+  pallets: draft.pallets ? Number(draft.pallets) : null,
+  cbm: draft.volumeM3 ? Number(draft.volumeM3) : null,
+  weight_kg: draft.weightKg ? toApiWeightKg(draft.weightKg) : null,
+  city: draft.pickupCity,
+  country_code: draft.pickupCountry,
+  address: draft.pickupAddress || null,
+  latitude: draft.pickupLatitude ? Number(draft.pickupLatitude) : null,
+  longitude: draft.pickupLongitude ? Number(draft.pickupLongitude) : null,
+  start_date: toApiDate(draft.warehouseStartDate),
+  end_date: draft.warehouseIsOngoing ? null : toApiDate(draft.warehouseEndDate),
+  is_ongoing: draft.warehouseIsOngoing,
+  handling_requirements: draft.loadingEquipment,
+  temperature_min: draft.warehouseTemperatureMin ? Number(draft.warehouseTemperatureMin) : null,
+  temperature_max: draft.warehouseTemperatureMax ? Number(draft.warehouseTemperatureMax) : null,
+  requires_customs_bonded: draft.warehouseRequiresCustomsBonded,
+  requires_racking: draft.warehouseRequiresRacking,
+  requires_insurance: draft.warehouseRequiresInsurance,
+  requires_security: draft.warehouseRequiresSecurity,
+  budget: draft.budget ? Number(draft.budget) : null,
+  currency: draft.freightCurrency,
+  rate_unit: draft.warehouseRateUnit || null,
+  is_negotiable: draft.receivePriceProposals,
+  notes: draft.notes || null,
+  internal_comments: draft.internalComments || null,
+  external_comments: draft.externalComments || null,
+  contact: { name: draft.contactName, phone: draft.contactPhone, mobile: draft.contactMobile, email: draft.contactEmail, fax: draft.contactFax },
+});
+
 export const routePosition = (latitude: string, longitude: string): [number, number] | null => {
   // Number('') is 0, not NaN - without this guard a missing coordinate silently becomes a "valid"
   // (0, 0) position instead of no position, which showed up as a bogus "0 km" route distance.

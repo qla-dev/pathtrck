@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Banknote, Building2, Crown, RefreshCw, Truck, User, X } from 'lucide-react';
+import { Banknote, Building2, Crown, RefreshCw, Truck, User, Warehouse, X } from 'lucide-react';
 
 import { Language, Role } from '../../types';
 import { ui } from '../../i18n';
@@ -38,6 +38,7 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
     { id: 'driver' as const, label: u('onboarding.driverTitle', "I'm a Driver"), icon: Truck },
     { id: 'company' as const, label: u('login.logisticsCompany', 'Logistics Company'), icon: Building2 },
     { id: 'finance' as const, label: u('login.financeAdministration', 'Finance & Administration'), icon: Banknote },
+    { id: 'warehouse' as const, label: u('login.warehouseCompany', 'Warehouse Company'), icon: Warehouse },
   ];
   const [loginData, setLoginData] = useState({
     username: 'superadmin_demo',
