@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Flatpickr from 'react-flatpickr';
+import { renderToStaticMarkup } from 'react-dom/server';
 import L from 'leaflet';
-import { MapContainer, TileLayer, CircleMarker, Popup, ZoomControl, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, ZoomControl, useMap } from 'react-leaflet';
 import { Search, MapPin, ChevronRight, Package as PackageIcon, Coins, Truck, Plane, Ship, Filter, CalendarDays, Trash2, List, LayoutGrid, Map as MapIcon, LocateFixed, Route, BriefcaseBusiness, Navigation, CalendarRange, BadgeEuro, Building2, Container, Tags, FileText, SlidersHorizontal, ShieldAlert, Zap, X, Weight, Box, Layers, Thermometer, ShieldCheck, Stamp, Lock } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Language, Package as PackageData, Role } from '../../types';
@@ -12,6 +13,7 @@ import { cn } from '../../lib/cn';
 import { mapLoadToPackage } from '../../lib/loadDetails';
 import { LOAD_STATUS_OPTIONS, LoadStatusIcon } from '../load/LoadStatusPicker';
 import { LoadDetailsModal } from '../tracking/LoadDetailsModal';
+import { TrackingMapCard } from '../tracking/TrackingMapCard';
 import { INCOTERM_OPTIONS, ROAD_CHARACTERISTIC_OPTIONS, VEHICLE_OPTIONS } from '../modals/loadFormOptions';
 import { IconSelect, type IconSelectOption } from '../ui/IconSelect';
 
@@ -72,19 +74,85 @@ const FilterInput = ({ icon: Icon, label, value, onChange, placeholder, type = '
   </label>
 );
 
+// react-flatpickr@4 rebuilds its flatpickr instance on every render (its internal `options` memo
+// keys off the props object, which is a new identity each time). Each rebuild destroys the styled
+// altInput and momentarily un-hides the source input, so the cell resizes and shoves the whole
+// filter grid. memo() keeps this subtree from re-rendering on unrelated filter changes, and the
+// absolutely-positioned input inside a fixed-height wrapper pins the cell at 40px regardless.
+const DATE_INPUT_CLASS = 'absolute inset-0 h-10 w-full cursor-pointer rounded-lg border border-slate-200 bg-white pl-8 pr-2 text-xs font-semibold text-slate-600 outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200';
+
+const DatePickerField = memo(({ value, onChange, placeholder, minDate, maxDate, lang }: { value?: Date; onChange: (date?: Date) => void; placeholder: string; minDate?: Date; maxDate?: Date; lang: Language }) => {
+  const options = useMemo(
+    () => ({ dateFormat: 'Y-m-d', altInput: true, altInputClass: DATE_INPUT_CLASS, altFormat: 'd.m.Y', locale: flatpickrI18n(lang), allowInput: true, minDate, maxDate }),
+    [lang, minDate, maxDate]
+  );
+  const handleChange = useCallback(([date]: Date[]) => onChange(date), [onChange]);
+
+  return (
+    <span className="relative block h-10">
+      <CalendarRange className="pointer-events-none absolute left-2.5 top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+      <Flatpickr value={value} options={options} onChange={handleChange} placeholder={placeholder} className={DATE_INPUT_CLASS} />
+    </span>
+  );
+});
+
 const TrackingCardsSkeleton = ({ layout }: { layout: TrackingLayoutMode }) => (
   <div className={cn('mt-6 animate-pulse gap-4', layout === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3' : 'flex flex-col')}>
     {Array.from({ length: 6 }, (_, index) => <div key={index} className="min-h-52 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"><div className="flex justify-between"><div className="h-4 w-28 rounded bg-slate-200 dark:bg-slate-700" /><div className="h-6 w-24 rounded-full bg-slate-100 dark:bg-slate-800" /></div><div className="mt-5 h-5 w-2/3 rounded bg-slate-200 dark:bg-slate-700" /><div className="mt-5 grid grid-cols-2 gap-3"><div className="h-10 rounded-xl bg-slate-100 dark:bg-slate-800" /><div className="h-10 rounded-xl bg-slate-100 dark:bg-slate-800" /></div><div className="mt-5 h-14 rounded-xl bg-slate-100 dark:bg-slate-800" /></div>)}
   </div>
 );
 
+const STATUS_MARKER_COLORS: Record<PackageData['status'], string> = {
+  Posted: '#64748b', Opened: '#06b6d4', Sent: '#3b82f6', 'In delivery': '#f59e0b',
+  Received: '#8b5cf6', Finished: '#10b981', Pending: '#fb923c', Cancelled: '#f43f5e',
+};
+
+const TRANSPORT_MARKER_ICONS = { air: Plane, sea: Ship, road: Truck } as const;
+
+// Leaflet wants raw HTML, and the glyph/colour pair only varies by transport+status - so render
+// each combination once and reuse the icon across every marker that shares it.
+const markerIconCache = new Map<string, L.DivIcon>();
+
+const trackingMarkerIcon = (transportType: string, status: PackageData['status']) => {
+  const key = `${transportType}|${status}`;
+  const cached = markerIconCache.get(key);
+  if (cached) return cached;
+
+  const color = STATUS_MARKER_COLORS[status] || '#64748b';
+  const Icon = TRANSPORT_MARKER_ICONS[transportType as keyof typeof TRANSPORT_MARKER_ICONS] || Truck;
+  const glyph = renderToStaticMarkup(<Icon width={16} height={16} color="#ffffff" strokeWidth={2.4} />);
+  const icon = L.divIcon({
+    className: 'tracking-map-marker',
+    html: `<div style="position:relative;width:32px;height:38px;">
+      <div style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:9999px;background:${color};border:2.5px solid #fff;box-shadow:0 2px 8px rgba(15,23,42,0.45);">${glyph}</div>
+      <div style="position:absolute;left:50%;top:29px;transform:translateX(-50%);width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:8px solid #fff;"></div>
+    </div>`,
+    iconSize: [32, 38],
+    iconAnchor: [16, 38],
+    popupAnchor: [0, -40],
+  });
+  markerIconCache.set(key, icon);
+  return icon;
+};
+
 const TrackingMapBounds = ({ points }: { points: [number, number][] }) => {
   const map = useMap();
 
   useEffect(() => {
-    if (!points.length) return;
-    const bounds = L.latLngBounds(points);
-    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 8 });
+    if (!points.length) return undefined;
+    // Switching into map layout mounts this while the container is still being laid out, so
+    // Leaflet would solve the zoom against a stale (smaller) size and land far too close once
+    // the real size lands. Re-measure first, and fit again after the layout settles.
+    const fit = () => {
+      map.invalidateSize();
+      map.fitBounds(L.latLngBounds(points), { padding: [60, 60], maxZoom: 6 });
+    };
+    const raf = requestAnimationFrame(fit);
+    const timer = window.setTimeout(fit, 300);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(timer);
+    };
   }, [map, points]);
 
   return null;
@@ -120,7 +188,10 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
   const TRUCK_CAPACITY_KG = 48000;
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const mapRef = useRef<L.Map | null>(null);
+  const moreFiltersRef = useRef<HTMLDivElement>(null);
+  const dateCellRef = useRef<HTMLDivElement>(null);
   const [openLoadId, setOpenLoadId] = useState<string | null>(null);
+  const [mapSelectedId, setMapSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<TrackingStatusFilter>('all');
@@ -130,7 +201,8 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
   const [service, setService] = useState('');
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
-  const [dateRange, setDateRange] = useState<Date[]>([]);
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [currency, setCurrency] = useState('');
@@ -160,11 +232,34 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
 
   useEffect(() => {
     if (layout === 'map') setFiltersOpen(false);
+    else setMapSelectedId(null);
   }, [layout]);
 
   useEffect(() => {
     onLayoutModeChange?.(layout);
   }, [layout, onLayoutModeChange]);
+
+  useEffect(() => {
+    const el = moreFiltersRef.current;
+    const rect = el?.getBoundingClientRect();
+    const scrollParent = el?.closest('.overflow-y-auto') as HTMLElement | null;
+    const dateRect = dateCellRef.current?.getBoundingClientRect();
+    const dateInputs = dateCellRef.current?.querySelectorAll('input').length;
+    console.log('[tracking-debug]', {
+      y: rect?.y,
+      x: rect?.x,
+      height: rect?.height,
+      dateCellHeight: dateRect?.height,
+      dateInputCount: dateInputs,
+      windowScrollY: window.scrollY,
+      docScrollTop: document.documentElement.scrollTop,
+      scrollParentScrollTop: scrollParent?.scrollTop,
+      scrollParentClass: scrollParent?.className,
+      statusCountsLoading: statusCountsResult.loading,
+      loadsLoading: loadsResult.loading,
+      time: new Date().toISOString(),
+    });
+  });
 
   const trackingFilterParams = {
     tracking: true,
@@ -174,8 +269,8 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
     services: service || undefined,
     origin: origin || undefined,
     destination: destination || undefined,
-    tracking_date_from: apiDate(dateRange[0]),
-    tracking_date_to: apiDate(dateRange[1]),
+    tracking_date_from: apiDate(dateFrom),
+    tracking_date_to: apiDate(dateTo),
     budget_min: minPrice || undefined,
     budget_max: maxPrice || undefined,
     currencies: currency || undefined,
@@ -213,6 +308,10 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
     () => packages.map((pkg) => pkg.currentLocation),
     [packages]
   );
+  const mapSelectedPackage = useMemo(
+    () => packages.find((pkg) => pkg.id === mapSelectedId),
+    [packages, mapSelectedId]
+  );
   const statusCounts = useMemo(() => {
     const counts = Object.fromEntries(TRACKING_STATUS_FILTERS.map((status) => [status, 0])) as Record<TrackingStatusFilter, number>;
     statusCountsResult.items.forEach((row) => {
@@ -249,7 +348,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
 
   const clearFilters = () => {
     setQuery(''); setDebouncedQuery(''); setStatusFilter('all'); setTransportType(''); setService('');
-    setOrigin(''); setDestination(''); setDateRange([]); setMinPrice(''); setMaxPrice(''); setCurrency('');
+    setOrigin(''); setDestination(''); setDateFrom(undefined); setDateTo(undefined); setMinPrice(''); setMaxPrice(''); setCurrency('');
     setPartner(''); setEquipment(''); setCharacteristic(''); setIncoterm(''); setAdrOnly(false); setUrgentOnly(false);
     setWeightMin(''); setWeightMax(''); setVolumeMin(''); setVolumeMax(''); setPalletsMin(''); setPalletsMax('');
     setTemperatureMin(''); setTemperatureMax(''); setInsuranceRequired(false); setCustomsRequired(false); setSecurityRequired(false);
@@ -268,7 +367,15 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
     statusFilter !== 'all' && { key: 'status', label: trPackageStatus(lang, statusFilter), clear: () => setStatusFilter('all') },
     origin && { key: 'origin', label: origin, clear: () => setOrigin('') },
     destination && { key: 'destination', label: destination, clear: () => setDestination('') },
-    dateRange[0] && { key: 'date', label: `${dateRange[0].toLocaleDateString()}${dateRange[1] ? ` – ${dateRange[1].toLocaleDateString()}` : ''}`, clear: () => setDateRange([]) },
+    (dateFrom || dateTo) && {
+      key: 'date',
+      label: dateFrom && dateTo
+        ? `${dateFrom.toLocaleDateString()} – ${dateTo.toLocaleDateString()}`
+        : dateFrom
+          ? `${u('tracking.from', 'From')} ${dateFrom.toLocaleDateString()}`
+          : `${u('tracking.to', 'To')} ${dateTo!.toLocaleDateString()}`,
+      clear: () => { setDateFrom(undefined); setDateTo(undefined); },
+    },
     (minPrice || maxPrice) && { key: 'price', label: `${minPrice || '0'} – ${maxPrice || '∞'} ${currency || ''}`.trim(), clear: () => { setMinPrice(''); setMaxPrice(''); } },
     currency && !minPrice && !maxPrice && { key: 'currency', label: currency, clear: () => setCurrency('') },
     partner && { key: 'partner', label: partner, clear: () => setPartner('') },
@@ -362,14 +469,28 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
                 <TrackingMapBounds points={trackingMapPoints} />
                 <ZoomControl position="bottomright" />
                 {packages.map((pkg) => (
-                  <CircleMarker key={pkg.id} center={pkg.currentLocation} radius={8} pathOptions={{ color: '#00AEEF', fillColor: '#00AEEF', fillOpacity: 0.9 }}>
-                    <Popup>
-                      <p className="font-bold">{pkg.recipient || pkg.trackingNumber}</p>
-                      <p className="text-xs text-slate-500">{trPackageStatus(lang, pkg.status)}</p>
-                    </Popup>
-                  </CircleMarker>
+                  <Marker
+                    key={pkg.id}
+                    position={pkg.currentLocation}
+                    icon={trackingMarkerIcon(pkg.transportType || 'road', pkg.status)}
+                    eventHandlers={{ click: () => setMapSelectedId(pkg.id) }}
+                  />
                 ))}
               </MapContainer>
+
+              {/* Leaflet keeps every pane inside .leaflet-map-pane, so a real popup can never paint
+                  above the filter overlay that sits next to the map. Render the card as its own
+                  sibling instead, where it can own a higher z-index than the filters. */}
+              {mapSelectedPackage && (
+                <div className="pointer-events-auto absolute bottom-4 left-4 z-30">
+                  <TrackingMapCard
+                    pkg={mapSelectedPackage}
+                    lang={lang}
+                    onOpenDetails={() => { setOpenLoadId(mapSelectedPackage.id); setMapSelectedId(null); }}
+                    onClose={() => setMapSelectedId(null)}
+                  />
+                </div>
+              )}
               <button
                 type="button"
                 onClick={locateMe}
@@ -382,10 +503,14 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
             </div>
           )}
 
-          <div className={cn(layout === 'map' ? 'pointer-events-none absolute inset-x-0 top-0 z-10 max-h-full space-y-3 overflow-y-auto p-4' : undefined)}>
+          <div className={cn(layout === 'map' ? 'pointer-events-none absolute inset-x-0 top-0 z-10 space-y-3 overflow-visible p-4' : undefined)}>
         <div className={cn('mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8', layout === 'map' && 'pointer-events-auto gap-2')}>
           {(['all', ...TRACKING_STATUS_FILTERS] as TrackingStatusFilter[]).map((status) => (
-            <button type="button" key={status} onClick={() => setStatusFilter(status)} className={cn('flex cursor-pointer items-center justify-center gap-2 rounded-full border text-sm font-bold transition-all hover:-translate-y-0.5', layout === 'map' ? 'h-9 gap-1.5 bg-white/90 px-3 text-xs backdrop-blur dark:bg-slate-900/90' : 'h-14 bg-white px-4 dark:bg-slate-900', statusCardColors(status), statusFilter === status && 'bg-current/10 ring-2 ring-current ring-offset-2 dark:ring-offset-slate-950')}>
+            <button type="button" key={status} onClick={() => setStatusFilter(status)} className={cn('flex cursor-pointer items-center justify-center gap-2 rounded-full border text-sm font-bold transition-all hover:-translate-y-0.5', layout === 'map' ? 'h-9 gap-1.5 px-3 text-xs' : 'h-14 px-4', statusCardColors(status), layout === 'map'
+              ? statusFilter === status
+                ? 'bg-white shadow-md ring-2 ring-current ring-offset-2 ring-offset-white/40 dark:bg-slate-900 dark:ring-offset-slate-900/40'
+                : 'bg-white/25 backdrop-blur-md hover:bg-white/40 dark:bg-slate-900/25 dark:hover:bg-slate-900/40'
+              : cn('bg-white dark:bg-slate-900', statusFilter === status && 'bg-current/10 ring-2 ring-current ring-offset-2 dark:ring-offset-slate-950'))}>
               {status === 'all' ? <LayoutGrid className={cn('shrink-0', layout === 'map' ? 'h-3.5 w-3.5' : 'h-4 w-4')} /> : <LoadStatusIcon status={status} className={cn('shrink-0', layout === 'map' ? 'h-3.5 w-3.5' : 'h-4 w-4')} />}
               <span className="truncate">{status === 'all' ? u('history.filter.all', 'All') : trPackageStatus(lang, status)}</span>
               <span className="opacity-70">{statusCounts[status]}</span>
@@ -393,7 +518,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
           ))}
         </div>
 
-        <div className={cn('overflow-visible rounded-2xl border border-slate-200 dark:border-slate-800', layout === 'map' ? 'pointer-events-auto bg-white/90 backdrop-blur dark:bg-slate-900/90' : 'bg-white dark:bg-slate-900')}>
+        <div className={cn('overflow-visible rounded-2xl border border-slate-200 dark:border-slate-800', layout === 'map' ? 'pointer-events-auto border-white/60 bg-white/25 shadow-md shadow-slate-900/10 backdrop-blur-md dark:border-white/10 dark:bg-slate-900/25' : 'bg-white dark:bg-slate-900')}>
             <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
               <div className="flex min-w-0 flex-1 items-center gap-2">
                 <div className="flex h-9 min-w-0 items-center gap-2 overflow-x-auto rounded-xl bg-slate-50 px-3 dark:bg-slate-950/60">
@@ -410,10 +535,11 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
               <div className="flex flex-wrap items-center justify-end gap-2">
                 <button type="button" onClick={() => setFiltersOpen((open) => !open)} className="flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-primary px-3 text-[11px] font-bold text-primary hover:bg-primary/5"><Filter className="h-3.5 w-3.5" />{filtersOpen ? u('tracking.hideFilters', 'Hide filters') : u('tracking.showFilters', 'Show filters')}</button>
                 <button type="button" onClick={clearFilters} className="flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-rose-400 px-3 text-[11px] font-bold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20"><Trash2 className="h-3.5 w-3.5" />{u('tracking.clearFilters', 'Clear filters')}</button>
-                <div className="relative min-w-56 flex-1 sm:max-w-80"><Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={u('tracking.searchPlaceholder', 'Search shipment number, booking ref...')} className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white" /></div>
-                <div className="inline-flex h-10 items-center rounded-lg border border-slate-200 bg-transparent p-1 dark:border-slate-800">{([['list', List, u('home.layout.list', 'List')], ['grid', LayoutGrid, u('home.layout.grid', 'Grid')]] as const).map(([mode, Icon, label]) => <button type="button" key={mode} onClick={() => setLayout(mode)} title={label} className={cn('flex h-8 w-8 cursor-pointer items-center justify-center rounded-md', layout === mode ? 'bg-primary text-white' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800')}><Icon className="h-4 w-4" /></button>)}</div>
-                <div className="inline-flex h-10 items-center rounded-lg border border-slate-200 bg-transparent p-1 dark:border-slate-800">
-                  <button type="button" onClick={() => setLayout('map')} title={u('home.layout.map', 'Map')} aria-label={u('home.layout.map', 'Map')} className={cn('flex h-8 w-8 cursor-pointer items-center justify-center rounded-md', layout === 'map' ? 'bg-primary text-white' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800')}>
+                <div className="relative min-w-56 flex-1 sm:max-w-80"><Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={u('tracking.searchPlaceholder', 'Search shipment number, booking ref...')} className={cn('h-10 w-full rounded-lg border bg-white pl-9 pr-3 text-xs outline-none focus:border-primary dark:bg-slate-950 dark:text-white', layout === 'map' ? 'border-slate-200/50 dark:border-slate-700/40' : 'border-slate-200 dark:border-slate-700')} /></div>
+                <div className={cn('inline-flex h-10 items-center rounded-lg border bg-transparent p-1', layout === 'map' ? 'border-slate-200/50 dark:border-slate-700/40' : 'border-slate-200 dark:border-slate-800')}>{([['list', List, u('home.layout.list', 'List')], ['grid', LayoutGrid, u('home.layout.grid', 'Grid')]] as const).map(([mode, Icon, label]) => <button type="button" key={mode} onClick={() => setLayout(mode)} title={label} className={cn('flex h-8 w-8 cursor-pointer items-center justify-center rounded-md', layout === mode ? 'bg-primary text-white' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800')}><Icon className="h-4 w-4" /></button>)}</div>
+                <div className={cn('inline-flex h-10 items-center rounded-lg border bg-transparent p-1', layout === 'map' ? 'border-slate-200/50 dark:border-slate-700/40' : 'border-slate-200 dark:border-slate-800')}>
+                  <button type="button" onClick={() => setLayout('map')} title={u('home.layout.map', 'Map')} aria-label={u('home.layout.map', 'Map')} className={cn('flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-md px-2 text-[11px] font-bold', layout === 'map' ? 'bg-primary text-white' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800')}>
+                    <span>{u('home.layout.map', 'Map')}</span>
                     <MapIcon className="h-4 w-4" />
                   </button>
                 </div>
@@ -427,12 +553,19 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
                 <FilterSelect icon={Container} label={u('tracking.equipment', 'Equipment')} value={equipment} onChange={setEquipment} allLabel={u('tracking.allEquipment', 'All equipment')} options={equipmentOptions} />
                 <FilterInput icon={MapPin} label={u('tracking.origin', 'Origin')} value={origin} onChange={setOrigin} placeholder={u('tracking.chooseOrigin', 'Choose origin')} />
                 <FilterInput icon={Navigation} label={u('tracking.destination', 'Destination')} value={destination} onChange={setDestination} placeholder={u('tracking.chooseDestination', 'Choose destination')} />
-                <label className="min-w-0"><span className="mb-1.5 block text-[10px] font-bold text-slate-500">{u('tracking.date', 'Date')}</span><span className="relative block"><CalendarRange className="pointer-events-none absolute left-3 top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" /><Flatpickr value={dateRange} options={{ mode: 'range', dateFormat: 'Y-m-d', altInput: true, altFormat: 'd.m.Y', locale: flatpickrI18n(lang), allowInput: true }} onChange={setDateRange} placeholder={u('tracking.allDates', 'All dates')} className="h-10 w-full cursor-pointer rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs font-semibold text-slate-600 outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200" /></span></label>
+                <div className="min-w-0" ref={dateCellRef}>
+                  <span className="mb-1.5 block text-[10px] font-bold text-slate-500">{u('tracking.date', 'Date')}</span>
+                  <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5">
+                    <DatePickerField value={dateFrom} onChange={setDateFrom} placeholder={u('tracking.from', 'From')} maxDate={dateTo} lang={lang} />
+                    <span className="text-slate-400">–</span>
+                    <DatePickerField value={dateTo} onChange={setDateTo} placeholder={u('tracking.to', 'To')} minDate={dateFrom} lang={lang} />
+                  </div>
+                </div>
                 <div className="col-span-2 grid grid-cols-[1fr_auto_1fr_80px] items-end gap-2"><FilterInput icon={BadgeEuro} label={u('tracking.priceRange', 'Price range')} value={minPrice} onChange={setMinPrice} placeholder={u('tracking.minPrice', 'Min price')} type="number" /><span className="mb-3 text-slate-400">–</span><FilterInput icon={BadgeEuro} label=" " value={maxPrice} onChange={setMaxPrice} placeholder={u('tracking.maxPrice', 'Max price')} type="number" /><FilterSelect icon={Coins} label=" " value={currency} onChange={setCurrency} allLabel="EUR" options={currencyOptions} /></div>
                 <FilterInput icon={Building2} label={u('tracking.carriersPartners', 'Carriers / Partners')} value={partner} onChange={setPartner} placeholder={u('tracking.choosePartner', 'Choose partner')} />
                 <FilterSelect icon={Tags} label={u('tracking.loadCharacteristics', 'Load characteristics')} value={characteristic} onChange={setCharacteristic} allLabel={u('tracking.allCharacteristics', 'All characteristics')} options={characteristicOptions} />
                 <FilterSelect icon={FileText} label="Incoterms" value={incoterm} onChange={setIncoterm} allLabel={u('tracking.allIncoterms', 'All incoterms')} options={incotermOptions} />
-                <div className="min-w-0">
+                <div className="min-w-0" ref={moreFiltersRef}>
                   <span className="mb-1.5 block text-[10px] font-bold text-transparent select-none">·</span>
                   <button type="button" onClick={() => setMoreFiltersOpen((open) => !open)} className={cn('flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border px-3 text-xs font-bold', moreFiltersOpen || adrOnly || urgentOnly ? 'border-primary bg-primary/5 text-primary' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300')}><SlidersHorizontal className="h-3.5 w-3.5" />{u('tracking.moreFilters', 'More filters')}</button>
                 </div>

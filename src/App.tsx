@@ -3942,7 +3942,6 @@ export default function App() {
         { id: 'admin-drivers', label: u('nav.allDrivers', 'Drivers'), icon: Users },
         { id: 'feed', label: t.homeFeed, icon: Boxes },
         { id: 'tracking', label: u('nav.globalTracking', 'Global Tracking'), icon: PackageIcon },
-        { id: 'map', label: u('nav.map', 'Map'), icon: MapIcon },
         { id: 'fleet', label: u('nav.globalFleet', 'Global Fleet'), icon: Truck },
         { id: 'finance', label: u('nav.finance', 'Finance'), icon: Banknote },
         { id: 'email-studio', label: u('nav.emailStudio', 'Email Studio'), icon: Mail },
@@ -3960,7 +3959,6 @@ export default function App() {
           { id: 'company', label: u('nav.companyOverview', 'Company Overview'), icon: Building2 },
           { id: 'feed', label: t.homeFeed, icon: Boxes },
           { id: 'tracking', label: myCargoLabels[lang || 'en'], icon: PackageIcon },
-          { id: 'map', label: u('nav.map', 'Map'), icon: MapIcon },
           { id: 'fleet', label: t.myFleet, icon: Truck },
           { id: 'company-team', label: u('nav.teamPermissions', 'Team & Permissions'), icon: Users },
           { id: 'dashboard', label: analyticsLabel, icon: BarChart3 },
@@ -3970,13 +3968,11 @@ export default function App() {
         ? [
             { id: 'warehouse-overview', label: u('nav.myWarehouse', 'Moj Warehouse'), icon: Warehouse },
             { id: 'tracking', label: myCargoLabels[lang || 'en'], icon: PackageIcon },
-            { id: 'map', label: u('nav.map', 'Map'), icon: MapIcon },
             { id: 'settings', label: t.settings, icon: Settings },
           ]
       : [
           ...(role === 'driver' ? [{ id: 'feed', label: t.homeFeed, icon: Boxes }] : []),
           { id: 'tracking', label: myCargoLabels[lang || 'en'], icon: PackageIcon },
-          { id: 'map', label: u('nav.map', 'Map'), icon: MapIcon },
           ...(role === 'driver' ? [
             { id: 'fleet', label: t.myFleet, icon: Truck },
           ] : []),

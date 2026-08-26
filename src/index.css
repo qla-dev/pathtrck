@@ -103,6 +103,14 @@
 .dark .smart-time-flatpickr .numInputWrapper span {
   border-color: rgb(51 65 85);
 }
+
+/* Transport-type pins are built with L.divIcon, which would otherwise inherit Leaflet's default
+   boxed marker chrome. */
+.tracking-map-marker {
+  background: transparent;
+  border: 0;
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {

@@ -148,6 +148,7 @@ const StorageDatePicker = ({
       options={{
         dateFormat: 'Y-m-d',
         altInput: true,
+        altInputClass: 'h-11 w-full cursor-pointer rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm text-slate-700 outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary/30 dark:border-slate-700 dark:bg-slate-950 dark:text-white',
         altFormat: 'd.m.Y',
         allowInput: true,
         locale: flatpickrI18n(lang),
