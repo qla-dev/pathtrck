@@ -116,6 +116,7 @@ import { FieldLabel } from './FieldLabel';
 import { Input, Textarea, Select } from './FormFields';
 import { AddressAutocompleteField } from './AddressAutocompleteField';
 import { PortAutocompleteField } from './PortAutocompleteField';
+import { AirportAutocompleteField } from './AirportAutocompleteField';
 import { RoutePoint } from './RoutePoint';
 import { TimeInput } from './TimeInput';
 import { DateInput } from './DateInput';
@@ -323,8 +324,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         consignee,
         bookingReference: String(record.booking_reference || ''),
         transportType: (record.transport_type as TransportType) || 'road',
-        pickupPlaceType: String(pickup.place_type || INITIAL_DRAFT.pickupPlaceType), pickupCity: String(pickup.city || ''), pickupPostalCode: String(pickup.postal_code || ''), pickupCountry: String(pickup.country_code || 'BA'), pickupAddress: String(pickup.address || ''), pickupPort: String(pickup.port || ''), pickupLatitude: String(pickup.latitude || ''), pickupLongitude: String(pickup.longitude || ''), pickupDate: pickupStart.date, pickupDateTo: pickupEnd.date, pickupTimeFrom: pickupStart.time, pickupTimeTo: pickupEnd.time,
-        deliveryPlaceType: String(delivery.place_type || INITIAL_DRAFT.deliveryPlaceType), deliveryCity: String(delivery.city || ''), deliveryPostalCode: String(delivery.postal_code || ''), deliveryCountry: String(delivery.country_code || 'BA'), deliveryAddress: String(delivery.address || ''), deliveryPort: String(delivery.port || ''), deliveryLatitude: String(delivery.latitude || ''), deliveryLongitude: String(delivery.longitude || ''), deliveryDate: deliveryStart.date, deliveryDateTo: deliveryEnd.date, deliveryTimeFrom: deliveryStart.time, deliveryTimeTo: deliveryEnd.time,
+        pickupPlaceType: String(pickup.place_type || INITIAL_DRAFT.pickupPlaceType), pickupCity: String(pickup.city || ''), pickupPostalCode: String(pickup.postal_code || ''), pickupCountry: String(pickup.country_code || 'BA'), pickupAddress: String(pickup.address || ''), pickupPort: String(pickup.port || ''), pickupAirport: String(pickup.airport || ''), pickupLatitude: String(pickup.latitude || ''), pickupLongitude: String(pickup.longitude || ''), pickupDate: pickupStart.date, pickupDateTo: pickupEnd.date, pickupTimeFrom: pickupStart.time, pickupTimeTo: pickupEnd.time,
+        deliveryPlaceType: String(delivery.place_type || INITIAL_DRAFT.deliveryPlaceType), deliveryCity: String(delivery.city || ''), deliveryPostalCode: String(delivery.postal_code || ''), deliveryCountry: String(delivery.country_code || 'BA'), deliveryAddress: String(delivery.address || ''), deliveryPort: String(delivery.port || ''), deliveryAirport: String(delivery.airport || ''), deliveryLatitude: String(delivery.latitude || ''), deliveryLongitude: String(delivery.longitude || ''), deliveryDate: deliveryStart.date, deliveryDateTo: deliveryEnd.date, deliveryTimeFrom: deliveryStart.time, deliveryTimeTo: deliveryEnd.time,
         transitDays: String(record.transit_days || ''),
         loadTitle: String(record.title || ''), cargoType: String(record.cargo_type || 'FTL'), goodsType: String(record.goods_type || 'General'), hsCodes, weightKg: fromApiWeightKg(record.weight_kg), pallets: String(record.pallets || ''), quantityMeasure: String(record.quantity_measure || ''), lengthM: String(record.length_m || ''), widthM: String(record.width_m || ''), heightM: String(record.height_m || ''), volumeM3: String(record.volume_m3 || ''), declaredValue: String(record.declared_value || ''), budget: String(record.budget || ''), freightCurrency: String(record.currency || 'EUR'), shipmentValueCurrency: String(record.shipment_value_currency || record.currency || 'EUR'), paymentDueDays: String(record.payment_due_days || ''), paymentDeferred: terms === 'deferred', incoterm: String(record.incoterms || ''),
         loadingEquipment: Array.isArray(record.loading_methods) ? record.loading_methods.map(String) : [], vehicleType: String(record.vehicle_type || INITIAL_DRAFT.vehicleType), characteristics: Array.isArray(record.characteristics) ? record.characteristics.map(String) : [], specialRequirements: Array.isArray(record.special_requirements) ? record.special_requirements.map(String) : [], deliveryProof: String(record.delivery_proof || ''), temperatureControlled: record.temperature_min != null || record.temperature_max != null, temperatureMin: String(record.temperature_min ?? ''), temperatureMax: String(record.temperature_max ?? ''),
@@ -1126,7 +1127,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
                       <div className="space-y-1.5">
                         <FieldLabel>{draft.transportType === 'sea' ? u('postLoadModal.seaOriginType', 'Origin type') : u('postLoadModal.pickupPlaceType', 'Place type')}</FieldLabel>
-                        <div className={cn('grid grid-cols-2', draft.transportType === 'sea' ? 'gap-4' : 'gap-2')}>
+                        <div className={cn('grid grid-cols-2', draft.transportType === 'sea' || draft.transportType === 'air' ? 'gap-4' : 'gap-2')}>
                           {(draft.transportType === 'sea'
                             ? [
                                 { value: 'Port to Port', label: u('postLoadModal.portToPort', 'Port'), icon: Ship },
@@ -1155,7 +1156,11 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           ))}
                         </div>
                       </div>
-                      <div className={cn(draft.transportType === 'sea' && draft.pickupPlaceType !== 'Port to Port' && 'grid gap-4 sm:grid-cols-2')}>
+                      <div className={cn(
+                        ((draft.transportType === 'sea' && draft.pickupPlaceType !== 'Port to Port') ||
+                          (draft.transportType === 'air' && draft.pickupPlaceType === 'Address')) &&
+                        'grid gap-4 sm:grid-cols-2'
+                      )}>
                         {draft.transportType === 'sea' && (
                           <div className="space-y-1.5">
                             <FieldLabel>{u('postLoadModal.pol', 'Loading Port (POL)')}</FieldLabel>
@@ -1164,7 +1169,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                               onChange={(value) => setField('pickupPort', value)}
                               onSelectPort={(port) => setDraft((current) => ({
                                 ...current,
-                                pickupPort: `${port.port} - ${port.unlocode}`,
+                                pickupPort: `${port.port} - ${port.unlocode} - ${port.country}`,
                                 pickupCity: port.city,
                                 pickupCountry: port.countryCode,
                               }))}
@@ -1172,7 +1177,26 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             />
                           </div>
                         )}
-                        {(draft.transportType !== 'sea' || draft.pickupPlaceType !== 'Port to Port') && (
+                        {draft.transportType === 'air' && (
+                          <div className="space-y-1.5">
+                            <FieldLabel>{u('postLoadModal.aol', 'Loading Airport (AOL)')}</FieldLabel>
+                            <AirportAutocompleteField
+                              value={draft.pickupAirport}
+                              onChange={(value) => setField('pickupAirport', value)}
+                              onSelectAirport={(airport) => setDraft((current) => ({
+                                ...current,
+                                pickupAirport: `${airport.name} (${airport.iata}) — ${airport.city}, ${airport.country}`,
+                                pickupCity: airport.city,
+                                pickupCountry: airport.countryCode,
+                              }))}
+                              placeholder={u('postLoadModal.airportSearchPlaceholder', 'Search airport, city or IATA code')}
+                            />
+                          </div>
+                        )}
+                        {(
+                          (draft.transportType !== 'sea' || draft.pickupPlaceType !== 'Port to Port') &&
+                          (draft.transportType !== 'air' || draft.pickupPlaceType === 'Address')
+                        ) && (
                           <div className="space-y-1.5">
                             <FieldLabel>
                               {draft.transportType === 'sea' ? u('postLoadModal.doorAddress', 'Pickup/Delivery Address (Door)') : u('postLoadModal.pickupAddress', 'Pickup address')}
@@ -1197,18 +1221,18 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           </div>
                         )}
                       </div>
-                      <div className="grid sm:grid-cols-[200px_minmax(0,1fr)_140px] gap-4">
+                      <div className="grid sm:grid-cols-[200px_140px_minmax(0,1fr)] gap-4">
                         <div className="space-y-1.5">
                           {fieldLabel('pickupCountry', 'postLoadModal.pickupCountryShort', 'Country')}
                           <CountrySelect value={draft.pickupCountry} onChange={(value) => setField('pickupCountry', value)} placeholder={u('postLoadModal.selectCountry', 'Select country')} />
                         </div>
                         <div className="space-y-1.5">
-                          {fieldLabel('pickupCity', 'postLoadModal.pickupCity', 'City')}
-                          <Input value={draft.pickupCity} onChange={(event) => setField('pickupCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', 'City')} />
-                        </div>
-                        <div className="space-y-1.5">
                           {fieldLabel('pickupPostalCode', 'postLoadModal.pickupPostalCode', 'Postal code')}
                           <Input value={draft.pickupPostalCode} onChange={(event) => setField('pickupPostalCode', event.target.value)} placeholder={u('postLoadModal.postalCodePlaceholder', 'Postal code')} />
+                        </div>
+                        <div className="space-y-1.5">
+                          {fieldLabel('pickupCity', 'postLoadModal.pickupCity', 'City')}
+                          <Input value={draft.pickupCity} onChange={(event) => setField('pickupCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', 'City')} />
                         </div>
                       </div>
                       {draft.transportType === 'road' && (
@@ -1264,7 +1288,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
                       <div className="space-y-1.5">
                         <FieldLabel>{draft.transportType === 'sea' ? u('postLoadModal.seaDestinationType', 'Destination type') : u('postLoadModal.deliveryPlaceType', 'Place type')}</FieldLabel>
-                        <div className={cn('grid grid-cols-2', draft.transportType === 'sea' ? 'gap-4' : 'gap-2')}>
+                        <div className={cn('grid grid-cols-2', draft.transportType === 'sea' || draft.transportType === 'air' ? 'gap-4' : 'gap-2')}>
                           {(draft.transportType === 'sea'
                             ? [
                                 { value: 'Port to Port', label: u('postLoadModal.portToPort', 'Port'), icon: Ship },
@@ -1293,7 +1317,11 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           ))}
                         </div>
                       </div>
-                      <div className={cn(draft.transportType === 'sea' && draft.deliveryPlaceType !== 'Port to Port' && 'grid gap-4 sm:grid-cols-2')}>
+                      <div className={cn(
+                        ((draft.transportType === 'sea' && draft.deliveryPlaceType !== 'Port to Port') ||
+                          (draft.transportType === 'air' && draft.deliveryPlaceType === 'Address + Last Mile Delivery')) &&
+                        'grid gap-4 sm:grid-cols-2'
+                      )}>
                         {draft.transportType === 'sea' && (
                           <div className="space-y-1.5">
                             <FieldLabel>{u('postLoadModal.pod', 'Discharge Port (POD)')}</FieldLabel>
@@ -1302,7 +1330,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                               onChange={(value) => setField('deliveryPort', value)}
                               onSelectPort={(port) => setDraft((current) => ({
                                 ...current,
-                                deliveryPort: `${port.port} - ${port.unlocode}`,
+                                deliveryPort: `${port.port} - ${port.unlocode} - ${port.country}`,
                                 deliveryCity: port.city,
                                 deliveryCountry: port.countryCode,
                               }))}
@@ -1310,7 +1338,26 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             />
                           </div>
                         )}
-                        {(draft.transportType !== 'sea' || draft.deliveryPlaceType !== 'Port to Port') && (
+                        {draft.transportType === 'air' && (
+                          <div className="space-y-1.5">
+                            <FieldLabel>{u('postLoadModal.aod', 'Discharge Airport (AOD)')}</FieldLabel>
+                            <AirportAutocompleteField
+                              value={draft.deliveryAirport}
+                              onChange={(value) => setField('deliveryAirport', value)}
+                              onSelectAirport={(airport) => setDraft((current) => ({
+                                ...current,
+                                deliveryAirport: `${airport.name} (${airport.iata}) — ${airport.city}, ${airport.country}`,
+                                deliveryCity: airport.city,
+                                deliveryCountry: airport.countryCode,
+                              }))}
+                              placeholder={u('postLoadModal.airportSearchPlaceholder', 'Search airport, city or IATA code')}
+                            />
+                          </div>
+                        )}
+                        {(
+                          (draft.transportType !== 'sea' || draft.deliveryPlaceType !== 'Port to Port') &&
+                          (draft.transportType !== 'air' || draft.deliveryPlaceType === 'Address + Last Mile Delivery')
+                        ) && (
                           <div className="space-y-1.5">
                             <FieldLabel>
                               {draft.transportType === 'sea' ? u('postLoadModal.doorAddress', 'Pickup/Delivery Address (Door)') : u('postLoadModal.deliveryAddress', 'Delivery address')}
@@ -1335,18 +1382,18 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           </div>
                         )}
                       </div>
-                      <div className="grid sm:grid-cols-[200px_minmax(0,1fr)_140px] gap-4">
+                      <div className="grid sm:grid-cols-[200px_140px_minmax(0,1fr)] gap-4">
                         <div className="space-y-1.5">
                           {fieldLabel('deliveryCountry', 'postLoadModal.deliveryCountryShort', 'Country')}
                           <CountrySelect value={draft.deliveryCountry} onChange={(value) => setField('deliveryCountry', value)} placeholder={u('postLoadModal.selectCountry', 'Select country')} />
                         </div>
                         <div className="space-y-1.5">
-                          {fieldLabel('deliveryCity', 'postLoadModal.deliveryCity', 'City')}
-                          <Input value={draft.deliveryCity} onChange={(event) => setField('deliveryCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', 'City')} />
-                        </div>
-                        <div className="space-y-1.5">
                           {fieldLabel('deliveryPostalCode', 'postLoadModal.deliveryPostalCode', 'Postal code')}
                           <Input value={draft.deliveryPostalCode} onChange={(event) => setField('deliveryPostalCode', event.target.value)} placeholder={u('postLoadModal.postalCodePlaceholder', 'Postal code')} />
+                        </div>
+                        <div className="space-y-1.5">
+                          {fieldLabel('deliveryCity', 'postLoadModal.deliveryCity', 'City')}
+                          <Input value={draft.deliveryCity} onChange={(event) => setField('deliveryCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', 'City')} />
                         </div>
                       </div>
                       {draft.transportType === 'road' && (
@@ -2073,6 +2120,12 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             'Air Freight + Last-Mile Delivery': u('postLoadModal.transportModeAirFreightLastMile', 'Air Freight + Last-Mile Delivery'),
                           }[deriveAirTransportMode(draft.pickupPlaceType, draft.deliveryPlaceType)]}
                         />
+                      )}
+                      {draft.transportType === 'air' && (
+                        <SummaryRow label={u('postLoadModal.aol', 'Loading Airport (AOL)')} value={draft.pickupAirport || '—'} />
+                      )}
+                      {draft.transportType === 'air' && (
+                        <SummaryRow label={u('postLoadModal.aod', 'Discharge Airport (AOD)')} value={draft.deliveryAirport || '—'} />
                       )}
                       {draft.transportType === 'sea' && (
                         <SummaryRow label={u('postLoadModal.pol', 'Loading Port (POL)')} value={draft.pickupPort || '—'} />

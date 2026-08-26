@@ -37,6 +37,8 @@ export type LoadDraft = {
   // Sea only - the selected port of loading (POL), kept separate from pickupAddress so a sea
   // shipment can carry both the port AND a door pickup address (Door to Port) at once.
   pickupPort: string;
+  // Air only - the selected airport of loading (AOL), same reasoning as pickupPort above.
+  pickupAirport: string;
   pickupLatitude: string;
   pickupLongitude: string;
   pickupDate: string;
@@ -52,6 +54,8 @@ export type LoadDraft = {
   // Sea only - the selected port of discharge (POD), kept separate from deliveryAddress so a sea
   // shipment can carry both the port AND a door delivery address (Port to Door) at once.
   deliveryPort: string;
+  // Air only - the selected airport of delivery (AOD), same reasoning as deliveryPort above.
+  deliveryAirport: string;
   deliveryLatitude: string;
   deliveryLongitude: string;
   deliveryDate: string;
@@ -132,6 +136,7 @@ export const INITIAL_DRAFT: LoadDraft = {
   pickupCountry: 'BA',
   pickupAddress: '',
   pickupPort: '',
+  pickupAirport: '',
   pickupLatitude: '',
   pickupLongitude: '',
   pickupDate: '',
@@ -145,6 +150,7 @@ export const INITIAL_DRAFT: LoadDraft = {
   deliveryCountry: 'BA',
   deliveryAddress: '',
   deliveryPort: '',
+  deliveryAirport: '',
   deliveryLatitude: '',
   deliveryLongitude: '',
   deliveryDate: '',
