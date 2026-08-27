@@ -57,7 +57,6 @@ type MessageHistoryState = {
   messages: Conversation['messages'];
   page: number;
   lastPage: number;
-  loadingInitial: boolean;
   loadingOlder: boolean;
 };
 
@@ -95,7 +94,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     continue_add_no: u('No, leave load creation', 'No, leave load creation'),
   }), [lang]);
   const generalWelcome = `${u('Lena welcome general', 'Hello, I am LenaAI, your AI dispatcher in Freightbook.ai.\n\nYou can write to me in any language. I will reply exclusively in the language you use. How can I help you today?')}\n\n[[LENA_OPTIONS:add,tracking,booking,hs,free]]`;
-  const result = useApiList(api.conversations.list, { per_page: 100 });
+  const result = useApiList(api.conversations.list, { per_page: 10 });
   const isInitialRefreshSignal = useRef(true);
   useEffect(() => {
     if (isInitialRefreshSignal.current) {
@@ -169,6 +168,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
       messages: isAiDispatch && !row.load_id && mappedMessages.length === 0
         ? [{ id: `welcome-${row.id}`, sender: 'other' as const, text: generalWelcome, time: '' }]
         : mappedMessages,
+      messageCount: Number(row.messages_count || mappedMessages.length),
       loadId: row.load_id ? String(row.load_id) : undefined,
       loadDraftId: row.load_draft_id ? String(row.load_draft_id) : undefined,
       isAiDispatch,
@@ -203,18 +203,22 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
   );
   const [messageHistory, setMessageHistory] = useState<Record<string, MessageHistoryState>>({});
 
-  const loadMessagePage = useCallback(async (conversationId: string, page: number, replace: boolean) => {
+  // Opening a conversation renders the latest 10 messages that already arrived with the
+  // conversation list (ConversationController's recentMessages), so a click costs no request at
+  // all. Only an upward scroll comes here, pulling the next 10 older messages one page at a time.
+  const loadOlderMessages = useCallback(async (conversationId: string, page: number) => {
     if (!conversationId || conversationId === EMPTY_LENA_CONVERSATION_ID) return;
     const conversation = displayedConversations.find((item) => item.id === conversationId);
     const isAiDispatch = Boolean(conversation?.isAiDispatch);
+    const previewMessages = conversation?.messages || [];
+    const previewLastPage = Math.max(1, Math.ceil((conversation?.messageCount || previewMessages.length) / 10));
     setMessageHistory((current) => ({
       ...current,
       [conversationId]: {
-        messages: replace ? [] : current[conversationId]?.messages || [],
-        page: replace ? 0 : current[conversationId]?.page || 0,
-        lastPage: current[conversationId]?.lastPage || 1,
-        loadingInitial: replace,
-        loadingOlder: !replace,
+        messages: current[conversationId]?.messages || previewMessages,
+        page: current[conversationId]?.page || page - 1,
+        lastPage: current[conversationId]?.lastPage || previewLastPage,
+        loadingOlder: true,
       },
     }));
     try {
@@ -223,16 +227,15 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
         .reverse()
         .map((message) => mapServerMessage(message, isAiDispatch));
       setMessageHistory((current) => {
-        const existing = replace ? [] : current[conversationId]?.messages || [];
+        const existing = current[conversationId]?.messages || previewMessages;
         const seen = new Set(existing.map((message) => message.id));
         const older = incoming.filter((message) => !seen.has(message.id));
         return {
           ...current,
           [conversationId]: {
-            messages: replace ? incoming : [...older, ...existing],
+            messages: [...older, ...existing],
             page,
             lastPage: Number(response.meta?.last_page || page),
-            loadingInitial: false,
             loadingOlder: false,
           },
         };
@@ -241,10 +244,9 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
       setMessageHistory((current) => ({
         ...current,
         [conversationId]: {
-          messages: current[conversationId]?.messages || [],
-          page: current[conversationId]?.page || 0,
-          lastPage: current[conversationId]?.lastPage || 1,
-          loadingInitial: false,
+          messages: current[conversationId]?.messages || previewMessages,
+          page: current[conversationId]?.page || page - 1,
+          lastPage: current[conversationId]?.lastPage || previewLastPage,
           loadingOlder: false,
         },
       }));
@@ -266,13 +268,26 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     [channelFilter, displayedConversations]
   );
 
-  const activePreviewSignature = displayedConversations
-    .find((conversation) => conversation.id === activeId)
-    ?.messages.map((message) => message.id).join(':') || '';
+  const activePreview = displayedConversations.find((conversation) => conversation.id === activeId);
+  const activePreviewSignature = activePreview?.messages.map((message) => message.id).join(':') || '';
   useEffect(() => {
-    if (!activeId || activeId === EMPTY_LENA_CONVERSATION_ID) return;
-    void loadMessagePage(activeId, 1, true);
-  }, [activeId, activePreviewSignature, loadMessagePage]);
+    if (!activePreview?.id) return;
+    setMessageHistory((current) => {
+      const history = current[activePreview.id];
+      if (!history) return current;
+      const seen = new Set(history.messages.map((message) => message.id));
+      const appended = activePreview.messages.filter((message) => !seen.has(message.id));
+      if (appended.length === 0) return current;
+      return {
+        ...current,
+        [activePreview.id]: {
+          ...history,
+          messages: [...history.messages, ...appended],
+          lastPage: Math.max(history.lastPage, Math.ceil((activePreview.messageCount || history.messages.length + appended.length) / 10)),
+        },
+      };
+    });
+  }, [activePreview?.id, activePreview?.messageCount, activePreviewSignature]);
 
   const activeConversation = useMemo(() => {
     // isAiDispatch: true so the attach-file control isn't structurally hidden while there's no
@@ -298,7 +313,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
       : filteredConversations.find((c) => c.id === activeId) ?? displayedConversations.find((c) => c.id === activeId) ?? emptyConversation;
     const history = messageHistory[base.id];
     const keepSyntheticWelcome = history?.messages.length === 0 && base.messages.some((message) => message.id.startsWith('welcome-'));
-    const hydratedBase = history && !history.loadingInitial && !keepSyntheticWelcome ? { ...base, messages: history.messages } : base;
+    const hydratedBase = history && !keepSyntheticWelcome ? { ...base, messages: history.messages } : base;
     const pending = optimisticMessages
       .filter((message) => message.conversationId === hydratedBase.id)
       .map((message) => ({
@@ -624,7 +639,6 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     setChannelFilter('ai');
     setActiveId(openConversationId);
     setPendingNewConversation(null);
-    void result.refresh();
     onConversationOpened?.();
   }, [openConversationId]);
 
@@ -664,7 +678,14 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
   };
 
   const showCanvas = canEnterCanvas && Boolean(activeConversation.canvas) && canvasPanelOpen;
-  const activeMessageHistory = activeConversation.id ? messageHistory[activeConversation.id] : undefined;
+  const activeMessageHistory = activeConversation.id
+    ? messageHistory[activeConversation.id] || {
+        messages: activeConversation.messages,
+        page: 1,
+        lastPage: Math.max(1, Math.ceil((activeConversation.messageCount || activeConversation.messages.length) / 10)),
+        loadingOlder: false,
+      }
+    : undefined;
 
   return (
     <div className="h-full">
@@ -678,8 +699,11 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
           onChannelFilterChange={(id) => setChannelFilter(id as 'all' | 'ai' | 'direct')}
           conversations={filteredConversations}
           loading={result.loading && result.items.length === 0}
+          loadingMore={result.loadingMore}
+          hasMore={result.hasMore}
+          onLoadMore={() => void result.loadMore()}
           activeConversationId={activeConversation.id}
-          onSelectConversation={setActiveId}
+          onSelectConversation={(conversationId) => setActiveId(conversationId)}
           emptyStateTitle={u('No conversations yet', 'No conversations yet')}
           emptyStateDescription={u(
             'Just type a message or drop a file on the right to start chatting with LenaAI',
@@ -716,12 +740,11 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
             inputMask={lenaStepInputMask(pendingStep, lang)}
             inputLocked={pendingStepHasOptions}
             inputLockedPlaceholder={u('chat.chooseOptionAbove', 'Choose an option above')}
-            loadingMessages={Boolean(activeMessageHistory?.loadingInitial)}
             loadingOlderMessages={Boolean(activeMessageHistory?.loadingOlder)}
             hasOlderMessages={Boolean(activeMessageHistory && activeMessageHistory.page < activeMessageHistory.lastPage)}
             onLoadOlderMessages={() => {
               if (!activeConversation.id || !activeMessageHistory || activeMessageHistory.loadingOlder || activeMessageHistory.page >= activeMessageHistory.lastPage) return;
-              void loadMessagePage(activeConversation.id, activeMessageHistory.page + 1, false);
+              void loadOlderMessages(activeConversation.id, activeMessageHistory.page + 1);
             }}
             headerActionsLeading={(
               <>

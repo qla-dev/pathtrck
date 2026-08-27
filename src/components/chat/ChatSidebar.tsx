@@ -1,4 +1,4 @@
-import { Plus, Circle, Search, Sparkles, Trash2, X, type LucideIcon } from 'lucide-react';
+import { Plus, Circle, Loader2, Search, Sparkles, Trash2, X, type LucideIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { cn } from '../../lib/cn';
@@ -33,6 +33,9 @@ type ChatSidebarProps = {
   // labels down to icon-only; each row keeps its subtitle/timestamp and just crops harder.
   compact?: boolean;
   loading?: boolean;
+  loadingMore?: boolean;
+  hasMore?: boolean;
+  onLoadMore?: () => void;
 };
 
 export const ChatSidebar = ({
@@ -55,6 +58,9 @@ export const ChatSidebar = ({
   cancelLabel = 'Cancel',
   compact = false,
   loading = false,
+  loadingMore = false,
+  hasMore = false,
+  onLoadMore,
 }: ChatSidebarProps) => {
   const [contextMenu, setContextMenu] = useState<{ id: string; x: number; y: number } | null>(null);
 
@@ -154,7 +160,13 @@ export const ChatSidebar = ({
         )}
       </div>
     ) : (
-    <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
+    <div
+      className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1"
+      onScroll={(event) => {
+        const element = event.currentTarget;
+        if (element.scrollHeight - element.scrollTop - element.clientHeight < 80 && hasMore && !loadingMore) onLoadMore?.();
+      }}
+    >
       {conversations.map((chat) => (
         <button
           key={chat.id}
@@ -199,6 +211,7 @@ export const ChatSidebar = ({
           </div>
         </button>
       ))}
+      {loadingMore && <div className="flex justify-center py-2"><Loader2 className="h-4 w-4 animate-spin text-primary" /></div>}
     </div>
     )}
   </div>

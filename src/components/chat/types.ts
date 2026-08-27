@@ -19,6 +19,7 @@ export type Conversation = {
   unread: number;
   lastTime: string;
   messages: ChatMessage[];
+  messageCount?: number;
   loadId?: string;
   loadDraftId?: string;
   isAiDispatch?: boolean;
