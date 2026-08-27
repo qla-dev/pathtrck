@@ -14,6 +14,16 @@ export const mapLoadStatus = (value: unknown): PackageData['status'] => {
   return statuses[String(value || '').toLowerCase()] || 'Pending';
 };
 
+// Load timestamps arrive as raw ISO strings from the API; every surface that shows one to a
+// person formats it the same way.
+export const formatShortDate = (value: unknown): string => {
+  if (!value) return '—';
+  const date = new Date(String(value));
+  return Number.isNaN(date.getTime())
+    ? String(value)
+    : new Intl.DateTimeFormat(undefined, { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
+};
+
 const detailValue = (value: unknown) => {
   const text = String(value ?? '').trim();
   return text && text !== 'null' ? text : '—';

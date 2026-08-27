@@ -21,6 +21,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { Language, Load, Offer } from '../../types';
 import { ui } from '../../i18n';
+import { formatShortDate } from '../../lib/loadDetails';
 import { PAYMENT_TERMS_OPTIONS, PRICE_BASIS_OPTIONS, buildCounterOfferPayload, chargeLabel, getLatestOfferPerThread, offerDraftFromRecord } from '../../lib/offerBid';
 import { Button } from '../ui/Button';
 import { BiddingHistoryModal } from './BiddingHistoryModal';
@@ -30,14 +31,6 @@ import { QuickCounterModal } from './QuickCounterModal';
 type DriverOption = {
   id: number;
   label: string;
-};
-
-const formatShortDate = (value: unknown): string => {
-  if (!value) return '—';
-  const date = new Date(String(value));
-  return Number.isNaN(date.getTime())
-    ? String(value)
-    : new Intl.DateTimeFormat(undefined, { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
 };
 
 const optionLabel = (options: Array<{ value: string; label: string }>, value: unknown): string =>

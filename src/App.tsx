@@ -3161,6 +3161,14 @@ const mapGlobalOfferToLoad = (
   };
 };
 
+const stopPosition = (stop?: Record<string, unknown>): [number, number] | undefined => {
+  const latitude = Number(stop?.latitude);
+  const longitude = Number(stop?.longitude);
+  return Number.isFinite(latitude) && Number.isFinite(longitude) && (latitude !== 0 || longitude !== 0)
+    ? [latitude, longitude]
+    : undefined;
+};
+
 const mapDatabaseRecordToLoad = (record: Record<string, unknown>): Load => {
   const stops = Array.isArray(record.stops) ? record.stops as Array<Record<string, unknown>> : [];
   const pickup = stops.find((stop) => stop.type === 'pickup');
@@ -3213,10 +3221,12 @@ const mapDatabaseRecordToLoad = (record: Record<string, unknown>): Load => {
     urgency: record.is_urgent ? 'Express' : 'Standard',
     loadingMethods,
     transitDays,
-    pickup: record.for_storage
-      ? [record.warehouse_city, record.warehouse_country_code].filter(Boolean).join(', ')
-      : [pickup?.city, pickup?.country_code].filter(Boolean).join(', '),
-    delivery: record.for_storage ? '' : [delivery?.city, delivery?.country_code].filter(Boolean).join(', '),
+    pickup: [pickup?.city, pickup?.country_code].filter(Boolean).join(', '),
+    delivery: [delivery?.city, delivery?.country_code].filter(Boolean).join(', ')
+      || [record.warehouse_city, record.warehouse_country_code].filter(Boolean).join(', '),
+    pickupPosition: stopPosition(pickup),
+    deliveryPosition: stopPosition(delivery),
+    pickupAt: String(pickup?.window_starts_at || ''),
     date: String(record.published_at || record.created_at || ''),
     author: String(
       (record.company as { name?: string } | undefined)?.name
@@ -3252,6 +3262,7 @@ const mapDatabaseRecordToLoad = (record: Record<string, unknown>): Load => {
     shipperName: record.shipper_name == null ? undefined : String(record.shipper_name),
     mediator: record.mediator == null ? undefined : String(record.mediator),
     publicId: record.public_id == null ? undefined : String(record.public_id),
+    trackingNumber: String((record.shipment as { tracking_number?: unknown } | undefined)?.tracking_number || record.public_id || '') || undefined,
     volume: record.volume_m3 == null ? undefined : Number(record.volume_m3),
     pallets: record.pallets == null ? undefined : Number(record.pallets),
     truckType: record.vehicle_type == null ? undefined : String(record.vehicle_type),

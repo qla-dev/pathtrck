@@ -49,7 +49,9 @@ export const estimateLoadDistanceKm = (pickup: string, delivery: string) => {
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return 6371 * c;
+  // Two decimals: the raw great-circle figure carries a dozen meaningless digits into every
+  // place the distance is printed.
+  return Math.round(6371 * c * 100) / 100;
 };
 
 export const estimateLoadTransitDays = (pickup: string, delivery: string) =>

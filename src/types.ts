@@ -72,6 +72,12 @@ export interface Load {
   transitDays?: number;
   pickup: string;
   delivery: string;
+  // Stop coordinates, when the load carries them - what lets the details view draw the real
+  // driving route instead of only naming the two cities.
+  pickupPosition?: [number, number];
+  deliveryPosition?: [number, number];
+  // Start of the pickup window, as opposed to the posted date.
+  pickupAt?: string;
   date: string;
   author: string;
   status: LoadStatus;
@@ -100,6 +106,9 @@ export interface Load {
   shipperName?: string;
   mediator?: string;
   publicId?: string;
+  // The shipment's tracking number when one exists, falling back to the load's public id - the
+  // reference people quote to each other, so it leads both the exchange table and the details.
+  trackingNumber?: string;
   volume?: number;
   pallets?: number;
   truckType?: string;

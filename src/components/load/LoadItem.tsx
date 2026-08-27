@@ -64,8 +64,8 @@ export const LoadItem = ({
   const showChevron = load.isNegotiable === false || !bidState.myOffer;
   const isStorage = Boolean(load.forStorage || load.transportType === 'warehouse');
   const TransportIcon = isStorage ? Warehouse : load.transportType === 'air' ? Plane : load.transportType === 'sea' ? Ship : Truck;
-  const pickupLabel = (load.pickup || 'Nije definisano')
-    + (isStorage && load.storageRadiusKm ? ` · +${load.storageRadiusKm} km` : '');
+  const pickupLabel = load.pickup || 'Nije definisano';
+  const storageRadiusLabel = isStorage && load.storageRadiusKm ? `+${load.storageRadiusKm} km` : '';
   const deliveryLabel = load.delivery || 'Nije definisano';
   const pickupCountryCode = getCountryCode(load.pickup);
   const deliveryCountryCode = getCountryCode(load.delivery);
@@ -156,7 +156,13 @@ export const LoadItem = ({
             <div className={cn('flex min-w-0 items-center', isGrid ? 'w-full gap-2' : 'gap-8')}>
               {isStorage ? (
                 <>
-                  <div className="flex min-w-0 flex-1 items-center gap-2"><MapPin className="h-4 w-4 shrink-0 text-primary" /><span className="truncate text-sm font-medium dark:text-slate-300">{pickupLabel}</span></div>
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
+                    <MapPin className="h-4 w-4 shrink-0 text-primary" />
+                    <span className="truncate text-sm font-medium dark:text-slate-300">{load.delivery || pickupLabel}</span>
+                    {storageRadiusLabel && (
+                      <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-black text-primary">{storageRadiusLabel}</span>
+                    )}
+                  </div>
                   <div className="flex shrink-0 items-center gap-2 text-xs font-semibold text-slate-500"><CalendarDays className="h-4 w-4" />{load.storageStartDate || '—'}</div>
                 </>
               ) : (

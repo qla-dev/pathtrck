@@ -78,6 +78,7 @@ import { Button } from '../../ui/Button';
 import { AI_DISPATCH_SUBJECT_PREFIX, api, ApiError, ApiUser, HsCodeMatch, LoadScanResult } from '../../../services/api';
 import { CustomerSelect, customerOptionFromRecord, type CustomerOption } from '../../customer/CustomerSelect';
 import { HsCodeChip } from '../../hs/HsCodeChip';
+import { INVALID_FIELD_CLASS, describeApiErrors, stepForField, validateDraft, type ValidationIssues } from './validation';
 import { AddressMapModal } from '../../maps/AddressMapModal';
 import { AreaMapModal } from '../../maps/AreaMapModal';
 import { RouteMapModal } from '../../maps/RouteMapModal';
@@ -241,6 +242,10 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   const [submitError, setSubmitError] = useState('');
   const [addressMap, setAddressMap] = useState<'pickup' | 'delivery' | null>(null);
   const [areaMapOpen, setAreaMapOpen] = useState(false);
+  // The draft as it stood when a submit was rejected, kept alongside the fields that were
+  // rejected: a field stops being outlined the moment its value changes, no matter which control
+  // changed it (typing, the map picker, an AI refill), without any per-field bookkeeping.
+  const [rejected, setRejected] = useState<{ fields: Array<keyof LoadDraft>; draft: LoadDraft } | null>(null);
   const [routeMapOpen, setRouteMapOpen] = useState(false);
   const [dropzoneOpen, setDropzoneOpen] = useState(false);
   const [scannedDocuments, setScannedDocuments] = useState<ScannedDocument[]>([]);
@@ -442,6 +447,31 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     setDraft((prev) => ({ ...prev, [key]: value }));
   };
 
+  const invalidFields = useMemo(
+    () => new Set(rejected ? rejected.fields.filter((field) => draft[field] === rejected.draft[field]) : []),
+    [draft, rejected]
+  );
+  // Outlines the control(s) inside a field wrapper in red. Passed the draft fields that feed the
+  // control, since one message can cover two inputs (a date and its time, say).
+  const invalidClass = (...fields: Array<keyof LoadDraft>) =>
+    fields.some((field) => invalidFields.has(field)) ? INVALID_FIELD_CLASS : '';
+
+  const rejectSubmit = (issues: ValidationIssues) => {
+    setSubmitError(issues.message);
+    setRejected({ fields: issues.fields, draft });
+    const failingStep = issues.fields.map(stepForField).find(Boolean);
+    if (failingStep) setStep(failingStep);
+  };
+
+  const rejectFromApi = (error: unknown, fallbackMessage: string) => {
+    if (!(error instanceof ApiError)) {
+      setSubmitError(fallbackMessage);
+      return;
+    }
+    const described = describeApiErrors(u, error.errors);
+    rejectSubmit({ message: described.message || error.message, fields: described.fields });
+  };
+
   const aiFieldCount = Object.keys(aiFilledPatch).length;
 
   const isAiField = (key: keyof ScanFieldPatch) => aiFilledPatch[key] !== undefined;
@@ -617,7 +647,16 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
 
   const saveDraft = async () => {
     if (savingDraft) return;
+    // A draft may be as empty as the user likes, but a malformed time or date would still be
+    // rejected by the API with a message about a payload field nobody recognises.
+    const issues = validateDraft(u, draft, 'draft');
+    if (issues) {
+      rejectSubmit(issues);
+      return;
+    }
     setSavingDraft(true);
+    setSubmitError('');
+    setRejected(null);
     try {
       const payload = buildDraftPayload(draft);
       if (draftId) {
@@ -650,11 +689,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       setDraftSavedAt(new Date());
       void showSuccess(u('postLoadModal.draftSavedTitle', 'Draft saved'), u('postLoadModal.draftSavedText', 'Your progress has been saved.'));
     } catch (error) {
-      setSubmitError(
-        error instanceof ApiError
-          ? Object.values(error.errors).flat().find(Boolean) || error.message
-          : u('postLoadModal.draftSaveError', 'The draft could not be saved.')
-      );
+      rejectFromApi(error, u('postLoadModal.draftSaveError', 'The draft could not be saved.'));
     } finally {
       setSavingDraft(false);
     }
@@ -701,8 +736,14 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   // latter needs to know whether the publish actually succeeded before it goes on to create a
   // second draft/conversation, without showing its own duplicate confirm prompt.
   const publishLoad = async (): Promise<boolean> => {
+    const issues = validateDraft(u, draft);
+    if (issues) {
+      rejectSubmit(issues);
+      return false;
+    }
     setIsSubmitting(true);
     setSubmitError('');
+    setRejected(null);
     try {
       // Keep chapterCode/chapterName (and heading) alongside code/description/confidence so the
       // category icon shown on a pill stays correct after the load is saved and reloaded for
@@ -730,12 +771,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       );
       return true;
     } catch (error) {
-      if (error instanceof ApiError) {
-        const validationMessage = Object.values(error.errors).flat().find(Boolean);
-        setSubmitError(validationMessage || error.message);
-      } else {
-        setSubmitError(u('postLoadModal.apiError', 'The load could not be published.'));
-      }
+      rejectFromApi(error, u('postLoadModal.apiError', 'The load could not be published.'));
       return false;
     } finally {
       setIsSubmitting(false);
@@ -743,8 +779,14 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   };
 
   const publishWarehouseLoad = async (): Promise<boolean> => {
+    const issues = validateDraft(u, draft);
+    if (issues) {
+      rejectSubmit(issues);
+      return false;
+    }
     setIsSubmitting(true);
     setSubmitError('');
+    setRejected(null);
     try {
       const payload = buildWarehouseLoadPayload(draft);
       const response = await api.loads.create(payload);
@@ -756,12 +798,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       );
       return true;
     } catch (error) {
-      if (error instanceof ApiError) {
-        const validationMessage = Object.values(error.errors).flat().find(Boolean);
-        setSubmitError(validationMessage || error.message);
-      } else {
-        setSubmitError(u('postLoadModal.apiError', 'The load could not be published.'));
-      }
+      rejectFromApi(error, u('postLoadModal.apiError', 'The load could not be published.'));
       return false;
     } finally {
       setIsSubmitting(false);
@@ -773,12 +810,16 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     if (draft.transportType === 'warehouse') {
       const confirmed = await confirmAction({
         title: u('postLoadModal.publishWarehouseTitle', 'Objava na berzu skladišta?'),
-        text: u('postLoadModal.publishWarehouseWithTransportText', 'The storage request will be posted to the warehouse exchange, and a road transport draft to that warehouse will be prepared for you to finish with LenaAI.'),
+        text: editLoadId
+          ? u('postLoadModal.publishWarehouseText', 'Are you sure you want to post this storage request to the warehouse exchange? It will become visible to warehouse companies.')
+          : u('postLoadModal.publishWarehouseWithTransportText', 'The storage request will be posted to the warehouse exchange, and a road transport draft to that warehouse will be prepared for you to finish with LenaAI.'),
         confirmText: u('postLoadModal.publishConfirm', 'Objavi'),
       });
       if (!confirmed) return;
       const published = await publishWarehouseLoad();
-      if (published) await startWarehouseTransportDraft();
+      // Only a freshly posted request needs the transport leg - re-saving an existing one would
+      // hand the user a second, duplicate road draft for a route they already have.
+      if (published && !editLoadId) await startWarehouseTransportDraft();
       return;
     }
     const confirmed = await confirmAction({
@@ -1054,7 +1095,10 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                   value={draft.loadTitle}
                   onChange={(e) => setField('loadTitle', e.target.value)}
                   placeholder={editLoadId ? u('postLoadModal.editTitle', 'Edit Load') : u('postLoadModal.titlePlaceholder', 'Enter load title')}
-                  className="w-full max-w-md bg-transparent text-base md:text-lg font-black tracking-tight dark:text-white leading-tight truncate outline-none cursor-text rounded-md focus:ring-2 focus:ring-primary/40 -mx-1 px-1"
+                  className={cn(
+                    'w-full max-w-md bg-transparent text-base md:text-lg font-black tracking-tight dark:text-white leading-tight truncate outline-none cursor-text rounded-md focus:ring-2 focus:ring-primary/40 -mx-1 px-1',
+                    invalidFields.has('loadTitle') && 'ring-2 ring-rose-500/60 bg-rose-50/70 dark:bg-rose-950/20'
+                  )}
                 />
                 <p className="hidden sm:block text-xs text-slate-500 mt-0.5 max-w-2xl truncate">
                   {u(
@@ -1296,7 +1340,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
               {step === 'route' && (
                 <motion.div key="route" className="space-y-5 md:space-y-6" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
                   {draft.transportType === 'warehouse' ? (
-                    <WarehouseLocationFields draft={draft} setField={setField} setDraft={setDraft} u={u} lang={lang} onOpenPickupMap={() => setAddressMap('pickup')} onOpenWarehouseArea={() => setAreaMapOpen(true)} routeDistanceKm={routeDistanceKm} recalculatingRoute={recalculatingRoute} onShowRoute={() => setRouteMapOpen(true)} />
+                    <WarehouseLocationFields draft={draft} setField={setField} setDraft={setDraft} u={u} lang={lang} invalidClass={invalidClass} onOpenPickupMap={() => setAddressMap('pickup')} onOpenWarehouseArea={() => setAreaMapOpen(true)} routeDistanceKm={routeDistanceKm} recalculatingRoute={recalculatingRoute} onShowRoute={() => setRouteMapOpen(true)} />
                   ) : (
                   <>
                   <div className="grid lg:grid-cols-[minmax(0,5fr)_minmax(0,5fr)_minmax(0,2fr)] gap-4 sm:gap-5">
@@ -1346,7 +1390,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         'grid gap-4 sm:grid-cols-2'
                       )}>
                         {(draft.transportType === 'sea' || (draft.transportType === 'road' && draft.pickupPlaceType === 'Port')) && (
-                          <div className="space-y-1.5">
+                          <div className={cn('space-y-1.5', invalidClass('pickupPort'))}>
                             <FieldLabel>{draft.transportType === 'sea' ? u('postLoadModal.pol', 'Loading Port (POL)') : u('postLoadModal.portToPort', 'Port')}</FieldLabel>
                             <PortAutocompleteField
                               value={draft.pickupPort}
@@ -1362,7 +1406,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           </div>
                         )}
                         {(draft.transportType === 'air' || (draft.transportType === 'road' && draft.pickupPlaceType === 'Airport')) && (
-                          <div className="space-y-1.5">
+                          <div className={cn('space-y-1.5', invalidClass('pickupAirport'))}>
                             <FieldLabel>{draft.transportType === 'air' ? u('postLoadModal.aol', 'Loading Airport (AOL)') : u('postLoadModal.airportPlaceType', 'Airport')}</FieldLabel>
                             <AirportAutocompleteField
                               value={draft.pickupAirport}
@@ -1381,7 +1425,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           (draft.transportType !== 'sea' || draft.pickupPlaceType !== 'Port to Port') &&
                           (draft.transportType !== 'air' || draft.pickupPlaceType !== 'AOL / Airport of loading')
                         ) && (
-                          <div className="space-y-1.5">
+                          <div className={cn('space-y-1.5', invalidClass('pickupAddress'))}>
                             <FieldLabel>
                               {draft.transportType === 'sea' ? u('postLoadModal.doorAddress', 'Pickup/Delivery Address (Door)') : u('postLoadModal.pickupAddress', 'Pickup address')}
                             </FieldLabel>
@@ -1406,15 +1450,15 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         )}
                       </div>
                       <div className="grid sm:grid-cols-[200px_140px_minmax(0,1fr)] gap-4">
-                        <div className="space-y-1.5">
+                        <div className={cn('space-y-1.5', invalidClass('pickupCountry'))}>
                           {fieldLabel('pickupCountry', 'postLoadModal.pickupCountryShort', 'Country')}
                           <CountrySelect value={draft.pickupCountry} onChange={(value) => setField('pickupCountry', value)} placeholder={u('postLoadModal.selectCountry', 'Select country')} />
                         </div>
-                        <div className="space-y-1.5">
+                        <div className={cn('space-y-1.5', invalidClass('pickupPostalCode'))}>
                           {fieldLabel('pickupPostalCode', 'postLoadModal.pickupPostalCode', 'Postal code')}
                           <Input value={draft.pickupPostalCode} onChange={(event) => setField('pickupPostalCode', event.target.value)} placeholder={u('postLoadModal.postalCodePlaceholder', 'Postal code')} />
                         </div>
-                        <div className="space-y-1.5">
+                        <div className={cn('space-y-1.5', invalidClass('pickupCity'))}>
                           {fieldLabel('pickupCity', 'postLoadModal.pickupCity', 'City')}
                           <Input value={draft.pickupCity} onChange={(event) => setField('pickupCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', 'City')} />
                         </div>
@@ -1422,7 +1466,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       {draft.transportType === 'road' && (
                         <div className="grid sm:grid-cols-2 gap-4">
                           <div className="grid grid-cols-2 gap-3">
-                            <div className="flex h-full flex-col justify-between space-y-1.5">
+                            <div className={cn('flex h-full flex-col justify-between space-y-1.5', invalidClass('pickupDate'))}>
                               {fieldLabel('pickupDate', 'postLoadModal.pickupDate', 'Date from')}
                               <DateInput
                                 value={draft.pickupDate}
@@ -1431,7 +1475,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                                 lang={lang}
                               />
                             </div>
-                            <div className="flex h-full flex-col justify-between space-y-1.5">
+                            <div className={cn('flex h-full flex-col justify-between space-y-1.5', invalidClass('pickupDateTo'))}>
                               <FieldLabel>{u('postLoadModal.pickupDateTo', 'Date to')}</FieldLabel>
                               <DateInput
                                 value={draft.pickupDateTo}
@@ -1442,7 +1486,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             </div>
                           </div>
                           <div className="grid grid-cols-2 gap-3">
-                            <div className="flex h-full flex-col justify-between space-y-1.5">
+                            <div className={cn('flex h-full flex-col justify-between space-y-1.5', invalidClass('pickupTimeFrom'))}>
                               <FieldLabel>{u('postLoadModal.pickupTimeFrom', 'Time from')}</FieldLabel>
                               <TimeInput
                                 value={draft.pickupTimeFrom}
@@ -1450,7 +1494,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                                 placeholder="hh:mm"
                               />
                             </div>
-                            <div className="flex h-full flex-col justify-between space-y-1.5">
+                            <div className={cn('flex h-full flex-col justify-between space-y-1.5', invalidClass('pickupTimeTo'))}>
                               <FieldLabel>{u('postLoadModal.pickupTimeTo', 'Time to')}</FieldLabel>
                               <TimeInput
                                 value={draft.pickupTimeTo}
@@ -1509,7 +1553,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         'grid gap-4 sm:grid-cols-2'
                       )}>
                         {(draft.transportType === 'sea' || (draft.transportType === 'road' && draft.deliveryPlaceType === 'Port')) && (
-                          <div className="space-y-1.5">
+                          <div className={cn('space-y-1.5', invalidClass('deliveryPort'))}>
                             <FieldLabel>{draft.transportType === 'sea' ? u('postLoadModal.pod', 'Discharge Port (POD)') : u('postLoadModal.portToPort', 'Port')}</FieldLabel>
                             <PortAutocompleteField
                               value={draft.deliveryPort}
@@ -1525,7 +1569,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           </div>
                         )}
                         {(draft.transportType === 'air' || (draft.transportType === 'road' && draft.deliveryPlaceType === 'Airport')) && (
-                          <div className="space-y-1.5">
+                          <div className={cn('space-y-1.5', invalidClass('deliveryAirport'))}>
                             <FieldLabel>{draft.transportType === 'air' ? u('postLoadModal.aod', 'Discharge Airport (AOD)') : u('postLoadModal.airportPlaceType', 'Airport')}</FieldLabel>
                             <AirportAutocompleteField
                               value={draft.deliveryAirport}
@@ -1544,7 +1588,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           (draft.transportType !== 'sea' || draft.deliveryPlaceType !== 'Port to Port') &&
                           (draft.transportType !== 'air' || draft.deliveryPlaceType !== 'AOD / Airport of delivery')
                         ) && (
-                          <div className="space-y-1.5">
+                          <div className={cn('space-y-1.5', invalidClass('deliveryAddress'))}>
                             <FieldLabel>
                               {draft.transportType === 'sea' ? u('postLoadModal.doorAddress', 'Pickup/Delivery Address (Door)') : u('postLoadModal.deliveryAddress', 'Delivery address')}
                             </FieldLabel>
@@ -1569,15 +1613,15 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         )}
                       </div>
                       <div className="grid sm:grid-cols-[200px_140px_minmax(0,1fr)] gap-4">
-                        <div className="space-y-1.5">
+                        <div className={cn('space-y-1.5', invalidClass('deliveryCountry'))}>
                           {fieldLabel('deliveryCountry', 'postLoadModal.deliveryCountryShort', 'Country')}
                           <CountrySelect value={draft.deliveryCountry} onChange={(value) => setField('deliveryCountry', value)} placeholder={u('postLoadModal.selectCountry', 'Select country')} />
                         </div>
-                        <div className="space-y-1.5">
+                        <div className={cn('space-y-1.5', invalidClass('deliveryPostalCode'))}>
                           {fieldLabel('deliveryPostalCode', 'postLoadModal.deliveryPostalCode', 'Postal code')}
                           <Input value={draft.deliveryPostalCode} onChange={(event) => setField('deliveryPostalCode', event.target.value)} placeholder={u('postLoadModal.postalCodePlaceholder', 'Postal code')} />
                         </div>
-                        <div className="space-y-1.5">
+                        <div className={cn('space-y-1.5', invalidClass('deliveryCity'))}>
                           {fieldLabel('deliveryCity', 'postLoadModal.deliveryCity', 'City')}
                           <Input value={draft.deliveryCity} onChange={(event) => setField('deliveryCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', 'City')} />
                         </div>
@@ -1585,7 +1629,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       {draft.transportType === 'road' && (
                         <div className="grid sm:grid-cols-2 gap-4">
                           <div className="grid grid-cols-2 gap-3">
-                            <div className="flex h-full flex-col justify-between space-y-1.5">
+                            <div className={cn('flex h-full flex-col justify-between space-y-1.5', invalidClass('deliveryDate'))}>
                               {fieldLabel('deliveryDate', 'postLoadModal.deliveryDate', 'Date from')}
                               <DateInput
                                 value={draft.deliveryDate}
@@ -1594,7 +1638,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                                 lang={lang}
                               />
                             </div>
-                            <div className="flex h-full flex-col justify-between space-y-1.5">
+                            <div className={cn('flex h-full flex-col justify-between space-y-1.5', invalidClass('deliveryDateTo'))}>
                               <FieldLabel>{u('postLoadModal.deliveryDateTo', 'Date to')}</FieldLabel>
                               <DateInput
                                 value={draft.deliveryDateTo}
@@ -1605,7 +1649,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             </div>
                           </div>
                           <div className="grid grid-cols-2 gap-3">
-                            <div className="flex h-full flex-col justify-between space-y-1.5">
+                            <div className={cn('flex h-full flex-col justify-between space-y-1.5', invalidClass('deliveryTimeFrom'))}>
                               <FieldLabel>{u('postLoadModal.deliveryTimeFrom', 'Time from')}</FieldLabel>
                               <TimeInput
                                 value={draft.deliveryTimeFrom}
@@ -1613,7 +1657,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                                 placeholder="hh:mm"
                               />
                             </div>
-                            <div className="flex h-full flex-col justify-between space-y-1.5">
+                            <div className={cn('flex h-full flex-col justify-between space-y-1.5', invalidClass('deliveryTimeTo'))}>
                               <FieldLabel>{u('postLoadModal.deliveryTimeTo', 'Time to')}</FieldLabel>
                               <TimeInput
                                 value={draft.deliveryTimeTo}
@@ -1824,7 +1868,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         <Package className="h-4 w-4" />
                         <span>{u('postLoadModal.goodsSpecifications', 'Goods specifications')}</span>
                       </div>
-                      <div className="space-y-1.5">
+                      <div className={cn('space-y-1.5', invalidClass('goodsType'))}>
                         {fieldLabel('goodsType', 'postLoadModal.cargoName', 'Type of goods and HS codes')}
                         <div ref={hsSearchRef} className="relative">
                           {/* min-h rather than h so the box still grows once HS chips wrap, but an
@@ -1871,7 +1915,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         </div>
                       </div>
                       <div className={cn('grid gap-4', draft.transportType !== 'road' && 'sm:grid-cols-2')}>
-                        <div className="space-y-1.5">
+                        <div className={cn('space-y-1.5', invalidClass('weightKg'))}>
                           {fieldLabel('weightKg', 'postLoadModal.weight', 'Weight (t)')}
                           <Input
                             type="number"
@@ -1883,7 +1927,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           />
                         </div>
                         {draft.transportType !== 'road' && (
-                          <div className="space-y-1.5">
+                          <div className={cn('space-y-1.5', invalidClass('volumeM3'))}>
                             {fieldLabel('volumeM3', 'postLoadModal.volume', 'CBM (m³)')}
                             <Input type="number" step="0.1" min="0" value={draft.volumeM3} onChange={(e) => setField('volumeM3', e.target.value)} placeholder="33.2" />
                           </div>
@@ -1891,7 +1935,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
                       {draft.transportType !== 'road' && (
                         <div className="grid gap-4 sm:grid-cols-2">
-                          <div className="space-y-1.5">
+                          <div className={cn('space-y-1.5', invalidClass('pallets'))}>
                             {fieldLabel('pallets', 'postLoadModal.unitCount', 'Number of pieces / units')}
                             <Input
                               type="number"
@@ -1915,11 +1959,11 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         </div>
                       )}
                       <div className="grid sm:grid-cols-3 gap-4">
-                        <div className="space-y-1.5">
+                        <div className={cn('space-y-1.5', invalidClass('lengthM'))}>
                           {fieldLabel('lengthM', 'postLoadModal.length', 'Length (m)')}
                           <Input type="number" step="0.1" min="0.1" value={draft.lengthM} onChange={(e) => setField('lengthM', e.target.value)} placeholder="13.6" />
                         </div>
-                        <div className="space-y-1.5">
+                        <div className={cn('space-y-1.5', invalidClass('widthM'))}>
                           {fieldLabel('widthM', 'postLoadModal.width', 'Width (m)')}
                           <Input
                             type="number"
@@ -1930,7 +1974,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             placeholder="2.45"
                           />
                         </div>
-                        <div className="space-y-1.5">
+                        <div className={cn('space-y-1.5', invalidClass('heightM'))}>
                           {fieldLabel('heightM', 'postLoadModal.height', 'Height (m)')}
                           <Input
                             type="number"
@@ -1944,7 +1988,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
                       <div className="space-y-1.5">
                         <FieldLabel>{u('postLoadModal.declaredValue', 'Value of shipment')}</FieldLabel>
-                        <div className="grid w-full grid-cols-[minmax(0,1fr)_110px] gap-2">
+                        <div className={cn('grid w-full grid-cols-[minmax(0,1fr)_110px] gap-2', invalidClass('declaredValue'))}>
                           <Input type="number" step="100" min="0" value={draft.declaredValue} onChange={(e) => setField('declaredValue', e.target.value)} placeholder="50000" />
                           <Select value={draft.shipmentValueCurrency} onChange={(e) => setField('shipmentValueCurrency', e.target.value)}>
                             <option value="EUR">EUR</option><option value="BAM">BAM</option><option value="USD">USD</option>
@@ -2022,7 +2066,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       )}
 
                       {draft.transportType !== 'sea' && (
-                        <div className="space-y-1.5">
+                        <div className={cn('space-y-1.5', invalidClass('temperatureControlled'))}>
                           {fieldLabel('temperatureControlled', 'postLoadModal.temperature', 'Temperature controlled')}
                           <div className="grid grid-cols-2 gap-2">
                             <ChoiceCard compact active={!draft.temperatureControlled} title={u('common.no', 'No')} description="Ambient conditions" icon={Package} onClick={() => setField('temperatureControlled', false)} />
@@ -2072,16 +2116,16 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         </div>
                       </div>
                     ) : (
-                      <div className="space-y-2">
+                      <div className={cn('space-y-2', invalidClass('paymentDeferred'))}>
                         {fieldLabel('paymentDeferred', 'postLoadModal.deferredPayment', 'Deferred payment')}
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className={cn('grid grid-cols-2 gap-2', invalidClass('paymentDueDays'))}>
                           <ChoiceCard compact active={!draft.paymentDeferred} title={u('common.no', 'No')} description="Pay on delivery" icon={Coins} onClick={() => setField('paymentDeferred', false)} />
                           <ChoiceCard compact active={draft.paymentDeferred} title={u('common.yes', 'Yes')} description="Set payment window" icon={Clock3} onClick={() => setField('paymentDeferred', true)} />
                         </div>
                         {draft.paymentDeferred && <Input type="number" min="1" value={draft.paymentDueDays} onChange={(e) => setField('paymentDueDays', e.target.value)} placeholder={u('postLoadModal.paymentDueDays', 'Number of days')} />}
                       </div>
                     )}
-                    <div className="space-y-1.5">
+                    <div className={cn('space-y-1.5', invalidClass('incoterm'))}>
                       {fieldLabel('incoterm', 'postLoadModal.incoterm', 'Incoterm')}
                       <Select value={draft.incoterm} onChange={(event) => setField('incoterm', event.target.value)}>
                         <option value="">{u('postLoadModal.pleaseSelect', 'Please select')}</option>
@@ -2113,7 +2157,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                     </div>
 
                     <div className="grid sm:grid-cols-[minmax(0,1fr)_120px] gap-4">
-                      <div className="space-y-1.5">
+                      <div className={cn('space-y-1.5', invalidClass('budget'))}>
                         {fieldLabel(
                           'budget',
                           draft.receivePriceProposals ? 'postLoadModal.targetPrice' : 'postLoadModal.termsFixed',
@@ -2128,7 +2172,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           placeholder="1450"
                         />
                       </div>
-                      <div className="space-y-1.5">
+                      <div className={cn('space-y-1.5', invalidClass('freightCurrency'))}>
                         {fieldLabel('freightCurrency', 'postLoadModal.currency', 'Currency')}
                         <Select value={draft.freightCurrency} onChange={(e) => setField('freightCurrency', e.target.value)}>
                           <option value="EUR">EUR</option>
@@ -2147,7 +2191,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       />
                     </div>
 
-                    <div className="flex flex-1 flex-col space-y-1.5">
+                    <div className={cn('flex flex-1 flex-col space-y-1.5', invalidClass('notes'))}>
                       {fieldLabel('notes', 'postLoadModal.notes', 'Handling notes')}
                       <Textarea
                         value={draft.notes}
@@ -2198,7 +2242,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           </div>
                         </div>
                       ) : (
-                        <div className="space-y-1.5">{fieldLabel('bodyTypes', 'postLoadModal.bodyTypes', 'Body types')}<div className="flex min-h-[54px] items-center rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950"><div className="flex flex-wrap gap-2">{BODY_TYPE_OPTIONS.map((option) => { const BodyTypeIcon = BODY_TYPE_ICONS[option]; return <button key={option} type="button" onClick={() => toggleBodyType(option)} className={cn('inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold leading-none transition-colors', draft.bodyTypes.includes(option) ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200')}><BodyTypeIcon className="h-3.5 w-3.5 shrink-0" /><span className="leading-none">{u(`postLoadModal.bodyType.${option}`, option)}</span></button>; })}</div></div></div>
+                        <div className={cn('space-y-1.5', invalidClass('bodyTypes'))}>{fieldLabel('bodyTypes', 'postLoadModal.bodyTypes', 'Body types')}<div className="flex min-h-[54px] items-center rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950"><div className="flex flex-wrap gap-2">{BODY_TYPE_OPTIONS.map((option) => { const BodyTypeIcon = BODY_TYPE_ICONS[option]; return <button key={option} type="button" onClick={() => toggleBodyType(option)} className={cn('inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold leading-none transition-colors', draft.bodyTypes.includes(option) ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200')}><BodyTypeIcon className="h-3.5 w-3.5 shrink-0" /><span className="leading-none">{u(`postLoadModal.bodyType.${option}`, option)}</span></button>; })}</div></div></div>
                       )}
 
                       {draft.transportType === 'air' && <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.deliveryProof', 'Delivery proof')}</FieldLabel><div className="grid grid-cols-2 gap-3"><ChoiceCard compact active={draft.deliveryProof === 'POD'} title="POD" description="Proof of Delivery" icon={FileText} onClick={() => setField('deliveryProof', 'POD')} /><ChoiceCard compact active={draft.deliveryProof === 'AOD'} title="AOD" description="Arrival on Delivery" icon={CheckCircle2} onClick={() => setField('deliveryProof', 'AOD')} /></div></div>}
@@ -2326,7 +2370,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         <UserRound className="h-4 w-4" />
                         <span>{u('postLoadModal.contactTitle', 'Contact')}</span>
                       </div>
-                      <div className="space-y-1.5">
+                      <div className={cn('space-y-1.5', invalidClass('contactName'))}>
                         {fieldLabel('contactName', 'postLoadModal.contactName', 'Contact in your company')}
                         <Select
                           value={draft.contactName}
@@ -2341,7 +2385,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         </Select>
                       </div>
                       <div className="grid sm:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
+                        <div className={cn('space-y-1.5', invalidClass('contactEmail'))}>
                           {fieldLabel('contactEmail', 'postLoadModal.contactEmail', 'E-mail address')}
                           <Input
                             value={draft.contactEmail}
@@ -2349,7 +2393,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             placeholder="john@company.com"
                           />
                         </div>
-                        <div className="space-y-1.5">
+                        <div className={cn('space-y-1.5', invalidClass('contactPhone'))}>
                           {fieldLabel('contactPhone', 'postLoadModal.contactPhone', 'Phone number')}
                           <Input
                             value={draft.contactPhone}
@@ -2621,7 +2665,14 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         </div>
 
         <div className="relative z-20 shrink-0 border-t border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-800">
-          {submitError && <div className="mx-5 mt-3 md:mx-7 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400">{submitError}</div>}
+          {submitError && (
+            <div className="mx-5 mt-3 md:mx-7 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400">
+              <p>{submitError}</p>
+              {invalidFields.size > 0 && (
+                <p className="mt-1 text-xs font-medium text-rose-500/90">{u('postLoadModal.checkHighlightedFields', 'Check the highlighted fields.')}</p>
+              )}
+            </div>
+          )}
           <div className="grid gap-3 px-5 md:px-7 py-3 sm:grid-cols-4">
               <Button variant="outline" className="w-full h-11 gap-2" onClick={() => void startOver()} disabled={isSubmitting}>
                 <RotateCcw className="w-4 h-4 shrink-0" />

@@ -847,8 +847,11 @@ export const FilterLoads = (props: FilterLoadsProps) => {
       onClear: () => exchange.assignment.forEach(exchange.onToggleAssignment),
     });
 
-    // Everything that is not one of the named groups keeps its own pill in the same row.
-    pills.push(...secondary);
+    // Everything that is not one of the named groups keeps its own pill in the same row. Weight
+    // and price already have a richer exchange pill above, so their generic version is dropped
+    // rather than rendered a second time under the same key.
+    const namedIds = new Set(pills.map((pill) => pill.id));
+    pills.push(...secondary.filter((pill) => !namedIds.has(pill.id)));
   }
 
   useEffect(() => {

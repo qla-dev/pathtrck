@@ -11,8 +11,15 @@ import {
   Coins,
   FileText,
   Hash,
+  Map as MapIcon,
   MapPin,
+  Package,
   Repeat,
+  Route as RouteIcon,
+  Ruler,
+  Warehouse,
+  Weight,
+  Zap,
   ShieldCheck,
   Sparkles,
   Thermometer,
@@ -22,7 +29,9 @@ import {
   X,
 } from 'lucide-react';
 
+import { RouteMapModal } from '../maps/RouteMapModal';
 import { cn } from '../../lib/cn';
+import { estimateLoadDistanceKm } from '../../lib/loadGeo';
 import {
   createEmptyOfferDraft,
   getBidState,
@@ -126,12 +135,64 @@ const getCountryCode = (location: string) => {
 
 const countryFlagUrl = (countryCode: string) => `https://flagcdn.com/w40/${countryCode.toLowerCase()}.png`;
 
+// One stop on the vertical route timeline, the same shape the post-load form uses for its route
+// column - icon rail on the left, dashed line running down to the next stop.
+const RouteStop = ({ icon: Icon, tone, label, value, countryCode, note, last = false }: {
+  icon: typeof MapPin;
+  tone: string;
+  label: string;
+  value: string;
+  countryCode?: string;
+  note?: string;
+  last?: boolean;
+}) => (
+  <div className={cn('flex min-w-0 gap-3', !last && 'flex-1')}>
+    <div className="flex flex-col items-center self-stretch">
+      <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-white shadow-lg', tone)}>
+        <Icon className="h-4 w-4" />
+      </span>
+      {!last && <span className="my-1 min-h-6 w-0 flex-1 border-l-2 border-dashed border-sky-300/80 dark:border-sky-700/80" />}
+    </div>
+    <div className={cn('min-w-0', !last && 'pb-3')}>
+      <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">{label}</p>
+      <p className="flex items-center gap-1.5 truncate text-sm font-bold text-slate-900 dark:text-white">
+        {countryCode && <img src={countryFlagUrl(countryCode)} alt="" className="h-3 w-[18px] shrink-0 rounded-sm object-cover" />}
+        <span className="truncate">{value}</span>
+      </p>
+      {note && <p className="mt-0.5 truncate text-[10px] text-slate-400">{note}</p>}
+    </div>
+  </div>
+);
+
+// Compact key/value tile shared by the snapshot, financial and cargo blocks - one padding scale
+// for the whole modal instead of every block picking its own.
+const InfoTile = ({ icon: Icon, label, value, tone = 'text-primary', surface = 'bg-primary/10' }: {
+  icon?: typeof MapPin;
+  label: string;
+  value: string;
+  tone?: string;
+  surface?: string;
+}) => (
+  <div className="flex min-w-0 items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-800 dark:bg-slate-950">
+    {Icon && (
+      <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', surface, tone)}>
+        <Icon className="h-4 w-4" />
+      </span>
+    )}
+    <div className="min-w-0">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</p>
+      <p className="truncate text-sm font-bold text-slate-900 dark:text-white">{value}</p>
+    </div>
+  </div>
+);
+
 export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, companyIds = [], onEdit, onChanged }: LoadDetailsPrebookProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [offers, setOffers] = useState<Array<Record<string, unknown>>>([]);
   const [drivers, setDrivers] = useState<Array<Record<string, unknown>>>([]);
   const [selectedDrivers, setSelectedDrivers] = useState<Record<string, number>>({});
   const [offersLoading, setOffersLoading] = useState(false);
+  const [routeMapOpen, setRouteMapOpen] = useState(false);
   const [actionMessage, setActionMessage] = useState('');
   const [currentStatus, setCurrentStatus] = useState<Load['status']>(load?.status || 'Pending');
   const [statusChanging, setStatusChanging] = useState(false);
@@ -375,6 +436,12 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
   const goodsNote = getGoodsNote(load.goodsType, u);
   const pickupLabel = load.pickup || 'Nije definisano';
   const deliveryLabel = load.delivery || 'Nije definisano';
+  const isStorage = Boolean(load.forStorage || load.transportType === 'warehouse');
+  const routeDistanceKm = load.pickup && load.delivery ? estimateLoadDistanceKm(load.pickup, load.delivery) : 0;
+  const canShowRouteMap = Boolean(load.pickupPosition && load.deliveryPosition);
+  const trackingLabel = load.trackingNumber || load.publicId || `#${load.id}`;
+  const loadCurrency = load.price.split(' ')[0] || 'EUR';
+  const cargoValueLabel = load.cargoValue ? `${loadCurrency} ${load.cargoValue.toLocaleString()}` : '—';
   const pickupCountryCode = getCountryCode(load.pickup);
   const deliveryCountryCode = getCountryCode(load.delivery);
 
@@ -466,7 +533,11 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
               <p className="text-[10px] font-black uppercase tracking-wider text-primary leading-none">
                 {u('legacy.loadDetails.loadDetails', 'Load Details')}
               </p>
-              <h2 className="text-base md:text-lg font-black dark:text-white truncate leading-tight mt-0.5">{load.title}</h2>
+              <h2 className="mt-0.5 flex min-w-0 items-baseline gap-1.5 text-base font-black leading-tight dark:text-white md:text-lg">
+                <span className="shrink-0 font-mono text-primary">{trackingLabel}</span>
+                <span className="shrink-0 text-slate-300 dark:text-slate-600">·</span>
+                <span className="truncate">{load.title}</span>
+              </h2>
             </div>
             <div className="flex shrink-0 items-center gap-2">
               {role === 'superadmin' && (
@@ -552,7 +623,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-5 md:p-7">
+          <div className="flex-1 overflow-y-auto p-4 md:p-5">
             {role === 'superadmin' && bodyView === 'offers' ? (
               <LoadOffersPanel
                 lang={lang}
@@ -572,22 +643,28 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                 onSendCounter={sendCounterOffer}
               />
             ) : (
-            <div className="space-y-6">
-              <div className="grid xl:grid-cols-12 gap-6">
-                <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900 xl:col-span-8">
-                  <p className="mb-4 text-xs font-black uppercase tracking-wider text-primary">Load snapshot</p>
-                  <div className="grid flex-1 items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <div className="flex h-full min-h-32 flex-col justify-center rounded-xl bg-slate-50 p-4 dark:bg-slate-950"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Building2 className="h-6 w-6" /></div><p className="mt-4 text-xs text-slate-500">{u('legacy.loadDetails.postedBy', 'Posted by')}</p><p className="mt-1 truncate text-sm font-bold dark:text-white">{load.author || '—'}</p></div>
-                    <div className="flex h-full min-h-32 flex-col justify-center rounded-xl bg-slate-50 p-4 dark:bg-slate-950"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><CalendarDays className="h-6 w-6" /></div><p className="mt-4 text-xs text-slate-500">{u('legacy.loadDetails.postedDate', 'Posted date')}</p><p className="mt-1 text-sm font-bold dark:text-white">{formatLoadDate(load.date)}</p></div>
-                    <div className="flex h-full min-h-32 flex-col justify-center rounded-xl bg-slate-50 p-4 dark:bg-slate-950"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Box className="h-6 w-6" /></div><p className="mt-4 text-xs text-slate-500">Goods type</p><p className="mt-1 truncate text-sm font-bold dark:text-white">{load.goodsType || 'General'}</p></div>
-                    <div className="flex h-full min-h-32 flex-col justify-center rounded-xl bg-slate-50 p-4 dark:bg-slate-950"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><CalendarClock className="h-6 w-6" /></div><p className="mt-4 text-xs text-slate-500">{u('legacy.loadDetails.latestEta', 'Latest ETA')}</p><p className="mt-1 text-sm font-bold dark:text-white">{formatLoadDate(load.eta)}</p></div>
+            <div className="space-y-4">
+              <div className="grid xl:grid-cols-12 gap-4">
+                <div className="xl:col-span-8">
+                  <div className="grid h-full content-between gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                    <InfoTile icon={Building2} label={u('legacy.loadDetails.postedBy', 'Posted by')} value={load.author || '—'} />
+                    <InfoTile icon={CalendarDays} label={u('legacy.loadDetails.postedDate', 'Posted date')} value={formatLoadDate(load.date)} />
+                    <InfoTile icon={Box} label={u('legacy.loadDetails.goodsType', 'Goods type')} value={load.goodsType || 'General'} />
+                    <InfoTile icon={CalendarClock} label={u('legacy.loadDetails.latestEta', 'Latest ETA')} value={formatLoadDate(load.eta)} />
+                    <InfoTile icon={Weight} label={u('legacy.loadDetails.cargoWeight', 'Cargo Weight')} value={`${load.weight} kg`} />
+                    <InfoTile icon={Ruler} label={u('legacy.loadDetails.dimensions', 'Dimensions')} value={[load.length, load.width, load.height].every((value) => value != null) ? `${load.length} × ${load.width} × ${load.height} m` : u('legacy.loadDetails.notSpecified', 'Not specified')} />
+                    <InfoTile icon={Package} label={u('postLoadModal.unitCount', 'Quantity')} value={load.pallets ? String(load.pallets) : u('legacy.loadDetails.notSpecified', 'Not specified')} />
+                    <InfoTile icon={Box} label={u('postLoadModal.volume', 'Volume')} value={load.volume ? `${load.volume} m³` : u('legacy.loadDetails.notSpecified', 'Not specified')} />
+                    <InfoTile icon={Thermometer} label={u('legacy.loadDetails.temperature', 'Temperature')} value={load.temperatureMin != null || load.temperatureMax != null ? `${load.temperatureMin ?? '—'}° to ${load.temperatureMax ?? '—'}°C` : 'Ambient'} />
+                    <InfoTile icon={ShieldCheck} label={u('legacy.loadDetails.handling', 'Handling')} value={load.loadingMethods?.length ? load.loadingMethods.join(', ') : load.isFragile ? 'Fragile cargo' : 'Standard handling'} />
+                    <InfoTile icon={Zap} label={u('legacy.loadDetails.priority', 'Priority')} value={`${load.urgency || 'Standard'}${load.adrClass ? ` · ADR ${load.adrClass}` : ''}`} />
                   </div>
                 </div>
 
-                <div className="self-start xl:col-span-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-3">
+                <div className="xl:col-span-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-2.5">
                   <div className="flex items-center gap-2 text-primary">
-                    <CheckCircle2 className="w-5 h-5" />
-                    <p className="text-xs font-black uppercase tracking-wider">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <p className="text-[10px] font-black uppercase tracking-wider">
                       {u('legacy.loadDetails.readyActions', 'Ready Actions')}
                     </p>
                   </div>
@@ -696,41 +773,110 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                 </div>
               </div>
 
-              <div className="grid gap-6 xl:grid-cols-12">
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900 xl:col-span-4">
-                  <div className="space-y-4">
-                    <p className="text-xs font-black uppercase tracking-wider text-primary">
+              <div className="grid gap-4 xl:grid-cols-12">
+                {/* Route column, same shape as the post-load form's - the two stops on a timeline,
+                    the distance between them, and the map that draws the actual driving route. */}
+                <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 xl:col-span-3">
+                  <div className="mb-3 flex items-center gap-2 text-primary">
+                    <RouteIcon className="h-4 w-4" />
+                    <p className="text-[10px] font-black uppercase tracking-wider">{u('postLoadModal.routeSummaryTitle', 'Route')}</p>
+                  </div>
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <RouteStop
+                      icon={MapPin}
+                      tone="bg-emerald-500 shadow-emerald-500/20"
+                      label={u('legacy.loadDetails.pickup', 'Pickup')}
+                      value={pickupLabel}
+                      countryCode={pickupCountryCode}
+                      note={load.pickupAt ? formatLoadDate(load.pickupAt) : undefined}
+                    />
+                    <RouteStop
+                      last
+                      icon={isStorage ? Warehouse : MapPin}
+                      tone="bg-blue-500 shadow-blue-500/20"
+                      label={isStorage ? u('postLoadModal.warehousePreferredLocation', 'Preferred warehouse location') : u('legacy.loadDetails.delivery', 'Delivery')}
+                      value={isStorage && load.storageRadiusKm ? `${deliveryLabel} · +${load.storageRadiusKm} km` : deliveryLabel}
+                      countryCode={deliveryCountryCode}
+                      note={isStorage ? (load.storageStartDate || undefined) : (load.eta ? formatLoadDate(load.eta) : undefined)}
+                    />
+                  </div>
+                  <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-sky-200 bg-sky-50/60 px-3 py-2 dark:border-sky-900/60 dark:bg-slate-950">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">{u('landing.distance', 'Distance')}</p>
+                    <p className="text-sm font-black text-slate-900 dark:text-white">{isStorage || !routeDistanceKm ? '—' : `${routeDistanceKm.toLocaleString()} km`}</p>
+                  </div>
+                  <Button
+                    type="button"
+                    disabled={!canShowRouteMap}
+                    onClick={() => setRouteMapOpen(true)}
+                    className="mt-2 h-10 w-full gap-2 rounded-xl disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <MapIcon className="h-4 w-4" />
+                    {u('postLoadModal.showRouteMap', 'Show route')}
+                  </Button>
+                </div>
+
+              <section className="overflow-hidden rounded-2xl border border-sky-100 bg-gradient-to-br from-white via-sky-50 to-cyan-100 text-slate-900 shadow-lg shadow-sky-950/5 dark:border-slate-800 dark:bg-slate-950 dark:text-white xl:col-span-5">
+                <div className="relative isolate flex h-full flex-col p-4">
+                  <div className="absolute -right-16 -top-20 h-48 w-48 rounded-full bg-primary/20 blur-3xl dark:bg-primary/25" />
+                  <div className="absolute -bottom-24 left-1/3 h-44 w-44 rounded-full bg-cyan-400/25 blur-3xl dark:bg-cyan-400/15" />
+                  <div className="relative flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-600 dark:text-cyan-300">{u('legacy.loadDetails.routePlan', 'Route overview')}</p>
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full border border-cyan-500/50 bg-white/70 text-cyan-600 dark:bg-cyan-300/15 dark:text-cyan-200"><Truck className="h-4 w-4" /></span>
+                  </div>
+
+                  <div className="relative mt-2.5 flex flex-wrap items-center gap-1.5">
+                    <span className={cn('rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider', getStatusTone(currentStatus))}>{currentStatus}</span>
+                    <span className={cn('rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider', getGoodsTone(load.goodsType))}>{load.goodsType}</span>
+                    <span className={cn('rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider', getPaymentTone(load.paymentTerms))}>{paymentTermsLabel}</span>
+                  </div>
+
+                  <div className="relative mt-3 grid flex-1 grid-cols-2 items-stretch gap-2 border-t border-sky-200/80 pt-3 dark:border-white/10">
+                    <div className="flex items-center gap-2.5 rounded-xl border border-white/80 bg-white/70 px-3 py-2.5 shadow-sm backdrop-blur-sm dark:border-white/15 dark:bg-white/8">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cyan-500/15 text-cyan-600 dark:text-cyan-300"><Hash className="h-4 w-4" /></div>
+                      <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Load ID</p><p className="truncate text-sm font-bold">#{load.id}</p></div>
+                    </div>
+                    <div className="flex items-center gap-2.5 rounded-xl border border-white/80 bg-white/70 px-3 py-2.5 shadow-sm backdrop-blur-sm dark:border-white/15 dark:bg-white/8">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-500/15 text-violet-600 dark:text-violet-300"><CalendarClock className="h-4 w-4" /></div>
+                      <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Transit</p><p className="truncate text-sm font-bold">{load.transitDays ? `${load.transitDays} days` : 'To be confirmed'}</p></div>
+                    </div>
+                    <div className="flex items-center gap-2.5 rounded-xl border border-white/80 bg-white/70 px-3 py-2.5 shadow-sm backdrop-blur-sm dark:border-white/15 dark:bg-white/8">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-300"><Box className="h-4 w-4" /></div>
+                      <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Cargo</p><p className="truncate text-sm font-bold">{load.cargoType || 'General cargo'}</p></div>
+                    </div>
+                    <div className="flex items-center gap-2.5 rounded-xl border border-white/80 bg-white/70 px-3 py-2.5 shadow-sm backdrop-blur-sm dark:border-white/15 dark:bg-white/8">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-300"><CalendarDays className="h-4 w-4" /></div>
+                      <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">ETA</p><p className="truncate text-sm font-bold">{formatLoadDate(load.eta)}</p></div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 xl:col-span-4">
+                  <div className="space-y-2.5">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-primary">
                       {u('legacy.loadDetails.financialTerms', 'Financial Terms')}
                     </p>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
-                        <p className="text-xs text-slate-500">{u('legacy.loadDetails.price', 'Price')}</p>
-                        <p className="mt-1 text-xl font-black text-primary">{load.price}</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="rounded-xl border border-primary/20 bg-primary/5 px-3 py-2.5">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{u('legacy.loadDetails.price', 'Price')}</p>
+                        <p className="truncate text-xl font-black leading-tight text-primary">{load.price}</p>
                       </div>
-                      <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
-                        <p className="text-xs text-slate-500">{u('legacy.loadDetails.terms', 'Terms')}</p>
-                        <p className="mt-1 text-sm font-bold dark:text-white">{paymentTermsLabel}</p>
-                      </div>
-                      <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
-                        <p className="text-xs text-slate-500">{u('legacy.loadDetails.incoterms', 'Incoterms')}</p>
-                        <p className="mt-1 text-sm font-bold dark:text-white">{load.incoterms || '—'}</p>
-                      </div>
-                      <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
-                        <p className="text-xs text-slate-500">{u('legacy.loadDetails.insurance', 'Insurance')}</p>
-                        <p className="mt-1 text-sm font-bold dark:text-white">{load.insurance || '—'}</p>
-                      </div>
-                      <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
-                        <p className="text-xs text-slate-500">{u('legacy.loadDetails.shipper', 'Shipper')}</p>
-                        <p className="mt-1 truncate text-sm font-bold dark:text-white">{load.shipperName || '—'}</p>
-                      </div>
-                      <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
-                        <p className="text-xs text-slate-500">{u('legacy.loadDetails.mediator', 'Mediator')}</p>
-                        <p className="mt-1 truncate text-sm font-bold dark:text-white">{load.mediator || '—'}</p>
+                      <div className="rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-800">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{u('legacy.loadDetails.cargoValueLabel', 'Cargo value')}</p>
+                        <p className="truncate text-xl font-black leading-tight text-slate-900 dark:text-white">{cargoValueLabel}</p>
                       </div>
                     </div>
-                    <div className="flex items-start gap-2 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
-                      <Coins className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      <p className="text-xs text-slate-600 dark:text-slate-300">
+                    <div className="grid grid-cols-2 gap-2">
+                      <InfoTile label={u('legacy.loadDetails.terms', 'Terms')} value={paymentTermsLabel} />
+                      <InfoTile label={u('legacy.loadDetails.incoterms', 'Incoterms')} value={load.incoterms || '—'} />
+                      <InfoTile label={u('legacy.loadDetails.insurance', 'Insurance')} value={load.insurance || '—'} />
+                      <InfoTile label={u('legacy.loadDetails.shipper', 'Shipper')} value={load.shipperName || '—'} />
+                      <InfoTile label={u('legacy.loadDetails.mediator', 'Mediator')} value={load.mediator || '—'} />
+                      <InfoTile label={u('legacy.loadDetails.bookingReference', 'Booking Reference')} value={load.bookingReference || '—'} />
+                    </div>
+                    <div className="flex items-start gap-2 rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-800">
+                      <Coins className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                      <p className="text-[11px] leading-snug text-slate-600 dark:text-slate-300">
                         {u(
                           'legacy.loadDetails.smartSplitPayoutAvailable',
                           'Smart split payout available after automated POD confirmation.'
@@ -739,117 +885,29 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                     </div>
                   </div>
                 </div>
-
-              <section className="overflow-hidden rounded-3xl border border-sky-100 bg-gradient-to-br from-white via-sky-50 to-cyan-100 text-slate-900 shadow-xl shadow-sky-950/10 dark:border-slate-800 dark:bg-slate-950 dark:text-white xl:col-span-8">
-                <div className="relative isolate flex h-full flex-col px-5 py-6 md:px-7 md:py-7">
-                  <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-primary/20 blur-3xl dark:bg-primary/25" />
-                  <div className="absolute -bottom-28 left-1/3 h-56 w-56 rounded-full bg-cyan-400/25 blur-3xl dark:bg-cyan-400/15" />
-                  <div className="relative flex flex-wrap items-start justify-between gap-4">
-                    <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-600 dark:text-cyan-300">{u('legacy.loadDetails.routePlan', 'Route overview')}</p>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={cn('rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-wider', getStatusTone(currentStatus))}>{currentStatus}</span>
-                      <span className={cn('rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-wider', getGoodsTone(load.goodsType))}>{load.goodsType}</span>
-                      <span className={cn('rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-wider', getPaymentTone(load.paymentTerms))}>{paymentTermsLabel}</span>
-                    </div>
-                  </div>
-
-                  <div className="relative mt-7 grid gap-3 md:grid-cols-[1fr_auto_1fr] md:items-center">
-                    <div className="rounded-2xl border border-white/80 bg-white/75 p-4 shadow-sm backdrop-blur-sm dark:border-white/15 dark:bg-white/8 dark:shadow-none">
-                      <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-300"><MapPin className="h-4 w-4" /><span className="text-[11px] font-black uppercase tracking-wider">{u('legacy.loadDetails.pickup', 'Pickup')}</span></div>
-                      <p className="mt-3 flex items-center gap-2 text-lg font-bold">{pickupCountryCode && <img src={countryFlagUrl(pickupCountryCode)} alt="" className="h-4 w-6 rounded-sm object-cover" />}{pickupLabel}</p>
-                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">Collection point</p>
-                    </div>
-                    <div className="flex items-center justify-center gap-2 text-cyan-600 dark:text-cyan-200 md:flex-col">
-                      <span className="h-px w-10 bg-cyan-500/60 md:h-8 md:w-px" />
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full border border-cyan-500/50 bg-white/70 shadow-sm dark:bg-cyan-300/15 dark:shadow-none"><Truck className="h-5 w-5" /></div>
-                      <span className="h-px w-10 bg-cyan-500/60 md:h-8 md:w-px" />
-                    </div>
-                    <div className="rounded-2xl border border-white/80 bg-white/75 p-4 shadow-sm backdrop-blur-sm dark:border-white/15 dark:bg-white/8 dark:shadow-none">
-                      <div className="flex items-center gap-2 text-blue-600 dark:text-blue-300"><MapPin className="h-4 w-4" /><span className="text-[11px] font-black uppercase tracking-wider">{u('legacy.loadDetails.delivery', 'Delivery')}</span></div>
-                      <p className="mt-3 flex items-center gap-2 text-lg font-bold">{deliveryCountryCode && <img src={countryFlagUrl(deliveryCountryCode)} alt="" className="h-4 w-6 rounded-sm object-cover" />}{deliveryLabel}</p>
-                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">Final delivery point</p>
-                    </div>
-                  </div>
-
-                  <div className="relative mt-5 grid flex-1 grid-cols-2 items-stretch gap-3 border-t border-sky-200/80 pt-5 dark:border-white/10 md:grid-cols-4">
-                    <div className="flex h-full min-h-24 items-center gap-3 rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur-sm dark:border-white/15 dark:bg-white/8">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-600 dark:text-cyan-300"><Hash className="h-5 w-5" /></div>
-                      <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Load ID</p><p className="mt-1 truncate font-bold">#{load.id}</p></div>
-                    </div>
-                    <div className="flex h-full min-h-24 items-center gap-3 rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur-sm dark:border-white/15 dark:bg-white/8">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-violet-600 dark:text-violet-300"><CalendarClock className="h-5 w-5" /></div>
-                      <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Transit</p><p className="mt-1 font-bold">{load.transitDays ? `${load.transitDays} days` : 'To be confirmed'}</p></div>
-                    </div>
-                    <div className="flex h-full min-h-24 items-center gap-3 rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur-sm dark:border-white/15 dark:bg-white/8">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-300"><Box className="h-5 w-5" /></div>
-                      <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Cargo</p><p className="mt-1 truncate font-bold">{load.cargoType || 'General cargo'}</p></div>
-                    </div>
-                    <div className="flex h-full min-h-24 items-center gap-3 rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur-sm dark:border-white/15 dark:bg-white/8">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-300"><CalendarDays className="h-5 w-5" /></div>
-                      <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">ETA</p><p className="mt-1 truncate font-bold">{formatLoadDate(load.eta)}</p></div>
-                    </div>
-                  </div>
-                </div>
-              </section>
               </div>
 
-              <div className="grid xl:grid-cols-12 gap-6">
-                <div className="space-y-6 xl:col-span-12">
-                  <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 p-5">
-                    <div className="grid md:grid-cols-3 gap-4">
-                      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-4">
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                          {u('legacy.loadDetails.cargoWeight', 'Cargo Weight')}
-                        </p>
-                        <p className="mt-2 text-2xl font-black dark:text-white">{load.weight} kg</p>
-                      </div>
-                      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-4">
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                          {u('legacy.loadDetails.bookingReference', 'Booking Reference')}
-                        </p>
-                        <p className="mt-2 truncate text-2xl font-black text-primary">{load.bookingReference || '—'}</p>
-                      </div>
-                      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-4">
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                          {u('legacy.loadDetails.eta', 'ETA')}
-                        </p>
-                        <p className="mt-2 text-2xl font-black dark:text-white">{load.eta}</p>
-                      </div>
+              <div className="grid gap-4 xl:grid-cols-12">
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 xl:col-span-12">
+                  <p className="mb-2.5 text-[10px] font-black uppercase tracking-wider text-primary">
+                    {u('legacy.loadDetails.handlingCompliance', 'Handling & Compliance')}
+                  </p>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <div className="flex items-start gap-2.5 rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-800">
+                      <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                      <p className="text-[13px] leading-snug text-slate-700 dark:text-slate-300">{goodsNote}</p>
                     </div>
-
-                    <div className="mt-4">
-                      <div className="mb-3 flex items-center gap-2"><Hash className="h-4 w-4 text-primary" /><p className="text-xs font-black uppercase tracking-wider text-primary">Shipment requirements</p></div>
-                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                        <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950"><p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Dimensions</p><p className="mt-1 text-sm font-bold dark:text-white">{[load.length, load.width, load.height].every((value) => value != null) ? `${load.length} × ${load.width} × ${load.height} m` : 'Not specified'}</p></div>
-                        <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950"><p className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-slate-500"><Thermometer className="h-3.5 w-3.5" /> Temperature</p><p className="mt-1 text-sm font-bold dark:text-white">{load.temperatureMin != null || load.temperatureMax != null ? `${load.temperatureMin ?? '—'}° to ${load.temperatureMax ?? '—'}°C` : 'Ambient'}</p></div>
-                        <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950"><p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Handling</p><p className="mt-1 text-sm font-bold dark:text-white">{load.loadingMethods?.length ? load.loadingMethods.join(', ') : load.isFragile ? 'Fragile cargo' : 'Standard handling'}</p></div>
-                        <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950"><p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Priority</p><p className="mt-1 text-sm font-bold dark:text-white">{load.urgency || 'Standard'}{load.adrClass ? ` · ADR ${load.adrClass}` : ''}</p></div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
-                    <p className="text-xs font-black uppercase tracking-wider text-primary mb-4">
-                      {u('legacy.loadDetails.handlingCompliance', 'Handling & Compliance')}
-                    </p>
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
-                        <ShieldCheck className="w-5 h-5 text-primary mt-0.5 shrink-0" />
-                        <p className="text-sm text-slate-700 dark:text-slate-300">{goodsNote}</p>
-                      </div>
-                      <div className="flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
-                        <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
-                        <p className="text-sm text-slate-700 dark:text-slate-300">
-                          {u(
-                            'legacy.loadDetails.liveRouteAlertsEnabled',
-                            'Live route alerts are enabled for risk, congestion, and checkpoint delay anomalies.'
-                          )}
-                        </p>
-                      </div>
+                    <div className="flex items-start gap-2.5 rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-800">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                      <p className="text-[13px] leading-snug text-slate-700 dark:text-slate-300">
+                        {u(
+                          'legacy.loadDetails.liveRouteAlertsEnabled',
+                          'Live route alerts are enabled for risk, congestion, and checkpoint delay anomalies.'
+                        )}
+                      </p>
                     </div>
                   </div>
                 </div>
-
               </div>
             </div>
             )}
@@ -914,6 +972,16 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
         loadLabel={load.title}
         onBookLoad={currentStatus === 'Posted' ? () => bookLoad() : undefined}
       />
+
+      {load.pickupPosition && load.deliveryPosition && (
+        <RouteMapModal
+          open={routeMapOpen}
+          lang={lang}
+          pickup={{ label: pickupLabel, position: load.pickupPosition }}
+          delivery={{ label: deliveryLabel, position: load.deliveryPosition }}
+          onClose={() => setRouteMapOpen(false)}
+        />
+      )}
 
       <CounterOfferReviewModal
         open={Boolean(viewingCounter)}

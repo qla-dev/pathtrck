@@ -13,6 +13,7 @@ import {
   Gem,
   HandCoins,
   Handshake,
+  Hash,
   MapPin,
   Package,
   PackageOpen,
@@ -32,12 +33,14 @@ import {
 
 import { trGoodsType, trPaymentTerms, ui } from '../../i18n';
 import { countryFlagUrl, estimateLoadDistanceKm, getCountryCode, parseLoadPriceValue, parseLoadWeightValue } from '../../lib/loadGeo';
+import { formatShortDate } from '../../lib/loadDetails';
 import { getBidState, getOfferLabel } from '../../lib/offerBid';
 import { cn } from '../../lib/cn';
 import { Language, Load } from '../../types';
 import { Button } from '../ui/Button';
 
 type TableSortKey =
+  | 'tracking'
   | 'pickup'
   | 'miles'
   | 'delivery'
@@ -60,6 +63,8 @@ type LoadsTableProps = {
 
 const getSortValue = (load: Load, key: TableSortKey): string | number => {
   switch (key) {
+    case 'tracking':
+      return (load.trackingNumber || load.publicId || load.id).toLowerCase();
     case 'pickup':
       return load.pickup.toLowerCase();
     case 'miles':
@@ -155,6 +160,7 @@ export const LoadsTable = ({ lang, loads, userId, onOpenDetails }: LoadsTablePro
   const [sort, setSort] = useState<TableSortState>(null);
 
   const columns: Array<{ key: TableSortKey; label: string; icon: LucideIcon }> = [
+    { key: 'tracking', label: u('Track no.', 'Track no.'), icon: Hash },
     { key: 'pickup', label: u('home.table.pickup', 'Pickup'), icon: MapPin },
     { key: 'miles', label: u('home.table.distance', 'Km'), icon: Route },
     { key: 'delivery', label: u('home.table.delivery', 'Delivery'), icon: Flag },
@@ -330,6 +336,7 @@ export const LoadsTable = ({ lang, loads, userId, onOpenDetails }: LoadsTablePro
               : getOfferLabel(u, bidState, offerCurrency);
             const pickupCountryCode = getCountryCode(load.pickup);
             const deliveryCountryCode = getCountryCode(load.delivery);
+            const isStorage = Boolean(load.forStorage || load.transportType === 'warehouse');
             const TransportIcon = load.transportType === 'air' ? Plane : load.transportType === 'sea' ? Ship : Truck;
 
             return (
@@ -339,18 +346,23 @@ export const LoadsTable = ({ lang, loads, userId, onOpenDetails }: LoadsTablePro
                 className="group cursor-pointer border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/60"
               >
                 <td className="px-4 py-3">
+                  <span className="font-mono text-xs font-bold text-primary">{load.trackingNumber || load.publicId || `#${load.id}`}</span>
+                </td>
+                <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
                     {pickupCountryCode && (
                       <img src={countryFlagUrl(pickupCountryCode)} alt="" className="h-3 w-[18px] shrink-0 rounded-sm object-cover" />
                     )}
                     <div className="min-w-0">
                       <p className="truncate font-semibold text-slate-700 dark:text-slate-200">{load.pickup}</p>
-                      <p className="text-xs text-slate-400">{load.date}</p>
+                      <p className="text-xs text-slate-400">{formatShortDate(load.date)}</p>
                     </div>
                   </div>
                 </td>
                 <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
-                  {estimateLoadDistanceKm(load.pickup, load.delivery)} km
+                  {/* A storage request is one location, not a route - a distance from it to itself
+                      would just read as a misleading 0 km. */}
+                  {isStorage ? '—' : `${estimateLoadDistanceKm(load.pickup, load.delivery)} km`}
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
@@ -358,8 +370,11 @@ export const LoadsTable = ({ lang, loads, userId, onOpenDetails }: LoadsTablePro
                       <img src={countryFlagUrl(deliveryCountryCode)} alt="" className="h-3 w-[18px] shrink-0 rounded-sm object-cover" />
                     )}
                     <div className="min-w-0">
-                      <p className="truncate font-semibold text-slate-700 dark:text-slate-200">{load.delivery}</p>
-                      <p className="text-xs text-slate-400">{load.eta}</p>
+                      <p className="truncate font-semibold text-slate-700 dark:text-slate-200">
+                        {load.delivery}
+                        {isStorage && load.storageRadiusKm ? ` · +${load.storageRadiusKm} km` : ''}
+                      </p>
+                      <p className="text-xs text-slate-400">{isStorage ? formatShortDate(load.storageStartDate) : formatShortDate(load.eta)}</p>
                     </div>
                   </div>
                 </td>

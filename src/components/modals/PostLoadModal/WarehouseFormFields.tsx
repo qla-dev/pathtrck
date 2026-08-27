@@ -38,6 +38,8 @@ import { Button } from '../../ui/Button';
 
 type SetField = <K extends keyof LoadDraft>(key: K, value: LoadDraft[K]) => void;
 type Setter = Dispatch<SetStateAction<LoadDraft>>;
+// Supplied by PostLoadModal: outlines a field in red once a submit was rejected because of it.
+type InvalidClass = (...fields: Array<keyof LoadDraft>) => string;
 
 const STORAGE_TYPE_ICONS: Record<(typeof WAREHOUSE_STORAGE_TYPE_OPTIONS)[number], typeof Package> = {
   Ambient: Package,
@@ -127,7 +129,7 @@ const SectionBox = ({
   </section>
 );
 
-export const WarehouseCargoFields = ({ draft, setField, setDraft, u }: { draft: LoadDraft; setField: SetField; setDraft: Setter; u: (key: string, fallback: string) => string }) => {
+export const WarehouseCargoFields = ({ draft, setField, setDraft, u, invalidClass }: { draft: LoadDraft; setField: SetField; setDraft: Setter; u: (key: string, fallback: string) => string; invalidClass: InvalidClass }) => {
   const toggleHandling = (value: string) => {
     setDraft((prev) => ({
       ...prev,
@@ -158,11 +160,11 @@ export const WarehouseCargoFields = ({ draft, setField, setDraft, u }: { draft: 
 
         {needsTemperature && (
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+            <div className={cn('space-y-1.5', invalidClass('warehouseTemperatureMin'))}>
               <FieldLabel>{u('postLoadModal.temperatureMin', 'Min. temperature (°C)')}</FieldLabel>
               <Input type="number" value={draft.warehouseTemperatureMin} onChange={(e) => setField('warehouseTemperatureMin', e.target.value)} placeholder="2" />
             </div>
-            <div className="space-y-1.5">
+            <div className={cn('space-y-1.5', invalidClass('warehouseTemperatureMax'))}>
               <FieldLabel>{u('postLoadModal.temperatureMax', 'Max. temperature (°C)')}</FieldLabel>
               <Input type="number" value={draft.warehouseTemperatureMax} onChange={(e) => setField('warehouseTemperatureMax', e.target.value)} placeholder="8" />
             </div>
@@ -196,6 +198,7 @@ export const WarehouseLocationFields = ({
   lang,
   onOpenPickupMap,
   onOpenWarehouseArea,
+  invalidClass,
   routeDistanceKm,
   recalculatingRoute,
   onShowRoute,
@@ -207,6 +210,7 @@ export const WarehouseLocationFields = ({
   lang: Language;
   onOpenPickupMap: () => void;
   onOpenWarehouseArea: () => void;
+  invalidClass: InvalidClass;
   routeDistanceKm: number | null;
   recalculatingRoute: boolean;
   onShowRoute: () => void;
@@ -235,7 +239,7 @@ export const WarehouseLocationFields = ({
           <ChoiceCard compact active={draft.pickupPlaceType === 'Address'} title={u('postLoadModal.address', 'Address')} icon={MapPin} onClick={() => setField('pickupPlaceType', 'Address')} />
         </div>
       </div>
-      <div className="space-y-1.5">
+      <div className={cn('space-y-1.5', invalidClass('pickupAddress'))}>
         <FieldLabel>{draft.pickupPlaceType === 'Warehouse' ? u('postLoadModal.selectWarehouse', 'Warehouse') : u('postLoadModal.address', 'Address')}</FieldLabel>
         {draft.pickupPlaceType === 'Warehouse' ? (
           <WarehouseAutocompleteField
@@ -260,14 +264,14 @@ export const WarehouseLocationFields = ({
         )}
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.country', 'Country')}</FieldLabel><CountrySelect value={draft.pickupCountry} onChange={(value) => setField('pickupCountry', value)} /></div>
-        <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.pickupCity', 'City')}</FieldLabel><Input value={draft.pickupCity} onChange={(event) => setField('pickupCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', 'City')} /></div>
+        <div className={cn('space-y-1.5', invalidClass('pickupCountry'))}><FieldLabel>{u('postLoadModal.country', 'Country')}</FieldLabel><CountrySelect value={draft.pickupCountry} onChange={(value) => setField('pickupCountry', value)} /></div>
+        <div className={cn('space-y-1.5', invalidClass('pickupCity'))}><FieldLabel>{u('postLoadModal.pickupCity', 'City')}</FieldLabel><Input value={draft.pickupCity} onChange={(event) => setField('pickupCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', 'City')} /></div>
       </div>
       <div className="grid grid-cols-4 gap-2">
-        <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.pickupDate', 'Date from')}</FieldLabel><DateInput value={draft.pickupDate} onChange={(value) => setField('pickupDate', value)} placeholder="dd.mm.yyyy" lang={lang} /></div>
-        <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.pickupDateTo', 'Date to')}</FieldLabel><DateInput value={draft.pickupDateTo} onChange={(value) => setField('pickupDateTo', value)} placeholder="dd.mm.yyyy" lang={lang} /></div>
-        <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.pickupTimeFrom', 'Time from')}</FieldLabel><TimeInput value={draft.pickupTimeFrom} onChange={(value) => setField('pickupTimeFrom', value)} placeholder="hh:mm" /></div>
-        <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.pickupTimeTo', 'Time to')}</FieldLabel><TimeInput value={draft.pickupTimeTo} onChange={(value) => setField('pickupTimeTo', value)} placeholder="hh:mm" /></div>
+        <div className={cn('space-y-1.5', invalidClass('pickupDate'))}><FieldLabel>{u('postLoadModal.pickupDate', 'Date from')}</FieldLabel><DateInput value={draft.pickupDate} onChange={(value) => setField('pickupDate', value)} placeholder="dd.mm.yyyy" lang={lang} /></div>
+        <div className={cn('space-y-1.5', invalidClass('pickupDateTo'))}><FieldLabel>{u('postLoadModal.pickupDateTo', 'Date to')}</FieldLabel><DateInput value={draft.pickupDateTo} onChange={(value) => setField('pickupDateTo', value)} placeholder="dd.mm.yyyy" lang={lang} /></div>
+        <div className={cn('space-y-1.5', invalidClass('pickupTimeFrom'))}><FieldLabel>{u('postLoadModal.pickupTimeFrom', 'Time from')}</FieldLabel><TimeInput value={draft.pickupTimeFrom} onChange={(value) => setField('pickupTimeFrom', value)} placeholder="hh:mm" /></div>
+        <div className={cn('space-y-1.5', invalidClass('pickupTimeTo'))}><FieldLabel>{u('postLoadModal.pickupTimeTo', 'Time to')}</FieldLabel><TimeInput value={draft.pickupTimeTo} onChange={(value) => setField('pickupTimeTo', value)} placeholder="hh:mm" /></div>
       </div>
     </section>
 
@@ -283,7 +287,7 @@ export const WarehouseLocationFields = ({
           <ChoiceCard compact active={isAreaRequest} title={u('postLoadModal.warehouseArea', 'Area')} icon={Radar} onClick={() => setField('deliveryPlaceType', 'Area')} />
         </div>
       </div>
-      <div className="space-y-1.5">
+      <div className={cn('space-y-1.5', invalidClass('deliveryAddress', 'deliveryRadiusKm'))}>
         <FieldLabel>{isAreaRequest ? u('postLoadModal.warehousePreferredArea', 'Preferred area') : u('postLoadModal.selectWarehouse', 'Warehouse')}</FieldLabel>
         {!isAreaRequest ? (
           <WarehouseAutocompleteField
@@ -332,14 +336,14 @@ export const WarehouseLocationFields = ({
         )}
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.country', 'Country')}</FieldLabel><CountrySelect value={draft.deliveryCountry} onChange={(value) => setField('deliveryCountry', value)} /></div>
-        <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.deliveryCity', 'City')}</FieldLabel><Input value={draft.deliveryCity} onChange={(event) => setField('deliveryCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', 'City')} /></div>
+        <div className={cn('space-y-1.5', invalidClass('deliveryCountry'))}><FieldLabel>{u('postLoadModal.country', 'Country')}</FieldLabel><CountrySelect value={draft.deliveryCountry} onChange={(value) => setField('deliveryCountry', value)} /></div>
+        <div className={cn('space-y-1.5', invalidClass('deliveryCity'))}><FieldLabel>{u('postLoadModal.deliveryCity', 'City')}</FieldLabel><Input value={draft.deliveryCity} onChange={(event) => setField('deliveryCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', 'City')} /></div>
       </div>
       <div className="grid grid-cols-4 gap-2">
-        <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.deliveryDate', 'Date from')}</FieldLabel><DateInput value={draft.deliveryDate} onChange={(value) => setDraft((current) => ({ ...current, deliveryDate: value, warehouseStartDate: value }))} placeholder="dd.mm.yyyy" lang={lang} /></div>
-        <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.deliveryDateTo', 'Date to')}</FieldLabel><DateInput value={draft.deliveryDateTo} onChange={(value) => setDraft((current) => ({ ...current, deliveryDateTo: value, warehouseEndDate: value }))} placeholder="dd.mm.yyyy" lang={lang} /></div>
-        <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.deliveryTimeFrom', 'Time from')}</FieldLabel><TimeInput value={draft.deliveryTimeFrom} onChange={(value) => setField('deliveryTimeFrom', value)} placeholder="hh:mm" /></div>
-        <div className="space-y-1.5"><FieldLabel>{u('postLoadModal.deliveryTimeTo', 'Time to')}</FieldLabel><TimeInput value={draft.deliveryTimeTo} onChange={(value) => setField('deliveryTimeTo', value)} placeholder="hh:mm" /></div>
+        <div className={cn('space-y-1.5', invalidClass('deliveryDate'))}><FieldLabel>{u('postLoadModal.deliveryDate', 'Date from')}</FieldLabel><DateInput value={draft.deliveryDate} onChange={(value) => setDraft((current) => ({ ...current, deliveryDate: value, warehouseStartDate: value }))} placeholder="dd.mm.yyyy" lang={lang} /></div>
+        <div className={cn('space-y-1.5', invalidClass('deliveryDateTo'))}><FieldLabel>{u('postLoadModal.deliveryDateTo', 'Date to')}</FieldLabel><DateInput value={draft.deliveryDateTo} onChange={(value) => setDraft((current) => ({ ...current, deliveryDateTo: value, warehouseEndDate: value }))} placeholder="dd.mm.yyyy" lang={lang} /></div>
+        <div className={cn('space-y-1.5', invalidClass('deliveryTimeFrom'))}><FieldLabel>{u('postLoadModal.deliveryTimeFrom', 'Time from')}</FieldLabel><TimeInput value={draft.deliveryTimeFrom} onChange={(value) => setField('deliveryTimeFrom', value)} placeholder="hh:mm" /></div>
+        <div className={cn('space-y-1.5', invalidClass('deliveryTimeTo'))}><FieldLabel>{u('postLoadModal.deliveryTimeTo', 'Time to')}</FieldLabel><TimeInput value={draft.deliveryTimeTo} onChange={(value) => setField('deliveryTimeTo', value)} placeholder="hh:mm" /></div>
       </div>
     </section>
 

@@ -548,8 +548,14 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
             <p className="text-xs font-black uppercase tracking-wider text-primary">
               {u('tracking.shipmentDetails', 'Shipment details')}
             </p>
-            <h2 className="truncate text-xl font-black text-slate-900 dark:text-white md:text-2xl">
-              {selectedPackage.recipient || selectedPackage.trackingNumber || 'Tracking item'}
+            <h2 className="flex min-w-0 items-baseline gap-2 text-xl font-black text-slate-900 dark:text-white md:text-2xl">
+              {selectedPackage.trackingNumber && (
+                <>
+                  <span className="shrink-0 font-mono text-primary">{selectedPackage.trackingNumber}</span>
+                  <span className="shrink-0 text-slate-300 dark:text-slate-600">·</span>
+                </>
+              )}
+              <span className="truncate">{selectedPackage.recipient || selectedPackage.trackingNumber || 'Tracking item'}</span>
             </h2>
             <p className="mt-0.5 truncate text-xs font-normal text-slate-500">
               {selectedPackage.origin} → {selectedPackage.destination}
