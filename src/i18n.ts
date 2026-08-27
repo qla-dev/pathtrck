@@ -2580,6 +2580,56 @@ Object.assign(UI.bs, {
   'postLoadModal.requirements': 'Zahtjevi',
 });
 
+// Warehouse requests are usually posted for a region rather than one known warehouse, so the
+// storage side of the post-load form picks an area (a centre plus a radius) instead of an address.
+Object.assign(UI.en, {
+  'postLoadModal.warehouseArea': 'Area',
+  'postLoadModal.warehousePreferredArea': 'Preferred area',
+  'postLoadModal.warehouseAreaPlaceholder': 'Search a city or region',
+  'postLoadModal.areaRadius': 'Radius',
+  'postLoadModal.areaRadiusHint': 'Warehouses inside this area will see your request.',
+  'postLoadModal.publishWarehouseWithTransportText': 'The storage request will be posted to the warehouse exchange, and a road transport draft to that warehouse will be prepared for you to finish with LenaAI.',
+  'postLoadModal.warehouseTransportSuffix': 'Transport to warehouse',
+  'postLoadModal.warehouseTransportWelcomeMessage': 'Congratulations, you successfully posted your storage request! We can also make sure your cargo reaches the warehouse safely - let us prepare the road transport to it together.',
+  'map.chooseArea': 'Choose area',
+  'map.searchArea': 'Search a city or region',
+  'map.areaRadius': 'Search radius',
+  'map.areaClickHint': 'Search or click the map to centre your area, then set the radius.',
+  'map.useArea': 'Use area',
+});
+
+Object.assign(UI.bs, {
+  'postLoadModal.warehouseArea': 'Područje',
+  'postLoadModal.warehousePreferredArea': 'Željeno područje',
+  'postLoadModal.warehouseAreaPlaceholder': 'Pretražite grad ili područje',
+  'postLoadModal.areaRadius': 'Radijus',
+  'postLoadModal.areaRadiusHint': 'Skladišta unutar ovog područja vidjet će vaš zahtjev.',
+  'postLoadModal.publishWarehouseWithTransportText': 'Zahtjev za skladištenje će biti objavljen na berzu skladišta, a odmah ćemo vam pripremiti i draft drumskog prevoza do tog skladišta koji dovršavate kroz razgovor sa LenaAI.',
+  'postLoadModal.warehouseTransportSuffix': 'Transport do skladišta',
+  'postLoadModal.warehouseTransportWelcomeMessage': 'Čestitamo, uspješno ste objavili zahtjev za skladištenje! Možemo se pobrinuti i da vaš teret sigurno stigne do skladišta - hajde da zajedno pripremimo drumski prevoz do njega.',
+  'map.chooseArea': 'Odaberite područje na mapi',
+  'map.searchArea': 'Pretražite grad ili regiju',
+  'map.areaRadius': 'Radijus pretrage',
+  'map.areaClickHint': 'Pretražite ili kliknite na mapu da postavite centar područja, pa podesite radijus.',
+  'map.useArea': 'Koristi područje',
+});
+
+Object.assign(UI.de, {
+  'postLoadModal.warehouseArea': 'Gebiet',
+  'postLoadModal.warehousePreferredArea': 'Wunschgebiet',
+  'postLoadModal.warehouseAreaPlaceholder': 'Stadt oder Region suchen',
+  'postLoadModal.areaRadius': 'Radius',
+  'postLoadModal.areaRadiusHint': 'Lager innerhalb dieses Gebiets sehen Ihre Anfrage.',
+  'postLoadModal.publishWarehouseWithTransportText': 'Die Lageranfrage wird auf der Lagerbörse veröffentlicht, und wir bereiten sofort einen Entwurf für den Straßentransport zu diesem Lager vor, den Sie mit LenaAI abschließen.',
+  'postLoadModal.warehouseTransportSuffix': 'Transport zum Lager',
+  'postLoadModal.warehouseTransportWelcomeMessage': 'Herzlichen Glückwunsch, Sie haben Ihre Lageranfrage erfolgreich veröffentlicht! Wir können auch dafür sorgen, dass Ihre Ladung sicher am Lager ankommt - lassen Sie uns gemeinsam den Straßentransport dorthin vorbereiten.',
+  'map.chooseArea': 'Gebiet auf der Karte wählen',
+  'map.searchArea': 'Stadt oder Region suchen',
+  'map.areaRadius': 'Suchradius',
+  'map.areaClickHint': 'Suchen Sie oder klicken Sie auf die Karte, um das Gebiet zu zentrieren, und stellen Sie dann den Radius ein.',
+  'map.useArea': 'Gebiet übernehmen',
+});
+
 const EXTENDED_UI: Partial<Record<Locale, Record<string, string>>> = {
   pl: {
     'common.tokens': 'tokenow',

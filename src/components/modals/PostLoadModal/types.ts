@@ -60,6 +60,9 @@ export type LoadDraft = {
   deliveryAirport: string;
   deliveryLatitude: string;
   deliveryLongitude: string;
+  // Warehouse only - with deliveryPlaceType 'Area' the customer picks a region to store in
+  // rather than one warehouse, so the delivery coordinates are the centre of a circle this wide.
+  deliveryRadiusKm: string;
   deliveryDate: string;
   deliveryDateTo: string;
   deliveryTimeFrom: string;
@@ -185,6 +188,7 @@ export const INITIAL_DRAFT: LoadDraft = {
   deliveryAirport: '',
   deliveryLatitude: '',
   deliveryLongitude: '',
+  deliveryRadiusKm: '25',
   deliveryDate: '',
   deliveryDateTo: '',
   deliveryTimeFrom: '',

@@ -3231,6 +3231,7 @@ const mapDatabaseRecordToLoad = (record: Record<string, unknown>): Load => {
     paymentDueDays: record.payment_due_days == null ? undefined : Number(record.payment_due_days),
     transportType: record.transport_type === 'warehouse' ? 'warehouse' : record.transport_type === 'air' ? 'air' : record.transport_type === 'sea' ? 'sea' : 'road',
     forStorage: Boolean(record.for_storage),
+    storageRadiusKm: record.warehouse_radius_km == null ? undefined : Number(record.warehouse_radius_km),
     storageType: record.storage_type == null ? undefined : String(record.storage_type),
     storageStartDate: record.storage_start_date == null ? undefined : String(record.storage_start_date),
     storageEndDate: record.storage_end_date == null ? undefined : String(record.storage_end_date),

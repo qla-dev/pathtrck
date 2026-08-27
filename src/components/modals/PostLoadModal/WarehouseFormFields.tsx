@@ -10,6 +10,7 @@ import {
   PackageCheck,
   PackageOpen,
   MapPin,
+  Radar,
   Route,
   ShieldCheck,
   Snowflake,
@@ -194,7 +195,7 @@ export const WarehouseLocationFields = ({
   u,
   lang,
   onOpenPickupMap,
-  onOpenWarehouseMap,
+  onOpenWarehouseArea,
   routeDistanceKm,
   recalculatingRoute,
   onShowRoute,
@@ -205,11 +206,22 @@ export const WarehouseLocationFields = ({
   u: (key: string, fallback: string) => string;
   lang: Language;
   onOpenPickupMap: () => void;
-  onOpenWarehouseMap: () => void;
+  onOpenWarehouseArea: () => void;
   routeDistanceKm: number | null;
   recalculatingRoute: boolean;
   onShowRoute: () => void;
-}) => (
+}) => {
+  // Warehouse requests posted before the area picker existed carry the old 'Address' place type -
+  // they are area requests in all but name, so anything that is not one concrete warehouse counts
+  // as one rather than leaving neither option selected.
+  const isAreaRequest = draft.deliveryPlaceType !== 'Warehouse';
+  const radiusKm = Number(draft.deliveryRadiusKm) || 25;
+  const warehouseTarget = draft.deliveryCity || draft.deliveryAddress;
+  const warehouseTargetValue = warehouseTarget
+    ? isAreaRequest ? warehouseTarget + ' · ' + radiusKm + ' km' : warehouseTarget
+    : '—';
+
+  return (
   <div className="grid gap-4 sm:gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,5fr)_minmax(0,2fr)]">
     <section className="space-y-4 rounded-3xl border border-slate-200 p-4 dark:border-slate-800 md:p-5">
       <div className="flex items-center gap-2 text-emerald-500">
@@ -267,13 +279,13 @@ export const WarehouseLocationFields = ({
       <div className="space-y-1.5">
         <FieldLabel>{u('postLoadModal.deliveryPlaceType', 'Place type')}</FieldLabel>
         <div className="grid grid-cols-2 gap-2">
-          <ChoiceCard compact active={draft.deliveryPlaceType === 'Warehouse'} title={u('postLoadModal.warehouse', 'Warehouse')} icon={Warehouse} onClick={() => setField('deliveryPlaceType', 'Warehouse')} />
-          <ChoiceCard compact active={draft.deliveryPlaceType === 'Address'} title={u('postLoadModal.address', 'Address')} icon={MapPin} onClick={() => setField('deliveryPlaceType', 'Address')} />
+          <ChoiceCard compact active={!isAreaRequest} title={u('postLoadModal.warehouse', 'Warehouse')} icon={Warehouse} onClick={() => setField('deliveryPlaceType', 'Warehouse')} />
+          <ChoiceCard compact active={isAreaRequest} title={u('postLoadModal.warehouseArea', 'Area')} icon={Radar} onClick={() => setField('deliveryPlaceType', 'Area')} />
         </div>
       </div>
       <div className="space-y-1.5">
-        <FieldLabel>{draft.deliveryPlaceType === 'Warehouse' ? u('postLoadModal.selectWarehouse', 'Warehouse') : u('postLoadModal.address', 'Address')}</FieldLabel>
-        {draft.deliveryPlaceType === 'Warehouse' ? (
+        <FieldLabel>{isAreaRequest ? u('postLoadModal.warehousePreferredArea', 'Preferred area') : u('postLoadModal.selectWarehouse', 'Warehouse')}</FieldLabel>
+        {!isAreaRequest ? (
           <WarehouseAutocompleteField
             value={draft.deliveryAddress}
             onChange={(value) => setField('deliveryAddress', value)}
@@ -283,16 +295,40 @@ export const WarehouseLocationFields = ({
             emptyLabel={u('postLoadModal.noWarehousesFound', 'No warehouses found')}
           />
         ) : (
-          <AddressAutocompleteField
-            value={draft.deliveryAddress}
-            onChange={(value) => setField('deliveryAddress', value)}
-            onSelectLocation={(location) => setDraft((current) => ({ ...current, deliveryAddress: location.label, deliveryCity: location.city || current.deliveryCity, deliveryCountry: location.countryCode || current.deliveryCountry, deliveryLatitude: String(location.latitude), deliveryLongitude: String(location.longitude) }))}
-            placeholder={u('postLoadModal.warehouseLocationPlaceholder', 'Search city or address')}
-            onOpenMap={onOpenWarehouseMap}
-            mapButtonLabel={u('map.chooseDelivery', 'Choose warehouse address on map')}
-            mapButtonIcon={MapGlyphIcon}
-            accentClassName="text-orange-500"
-          />
+          <div className="space-y-2">
+            <AddressAutocompleteField
+              value={draft.deliveryAddress}
+              onChange={(value) => setField('deliveryAddress', value)}
+              onSelectLocation={(location) => setDraft((current) => ({ ...current, deliveryAddress: location.label, deliveryCity: location.city || current.deliveryCity, deliveryCountry: location.countryCode || current.deliveryCountry, deliveryLatitude: String(location.latitude), deliveryLongitude: String(location.longitude) }))}
+              placeholder={u('postLoadModal.warehouseAreaPlaceholder', 'Search a city or region')}
+              onOpenMap={onOpenWarehouseArea}
+              mapButtonLabel={u('map.chooseArea', 'Choose area')}
+              mapButtonIcon={Radar}
+              accentClassName="text-orange-500"
+            />
+            {/* The radius is what turns a searched point into an area, so it sits with the field
+                itself rather than behind the map button - typing a city and dragging this is the
+                fastest path, while the map is there when the region needs to be seen. */}
+            <div className="rounded-xl border border-orange-200 bg-orange-50/60 px-3 py-2.5 dark:border-orange-900/50 dark:bg-orange-950/20">
+              <div className="flex items-center justify-between gap-3">
+                <p className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-orange-500">
+                  <Radar className="h-3.5 w-3.5" />
+                  {u('postLoadModal.areaRadius', 'Radius')}
+                </p>
+                <p className="text-xs font-black text-slate-900 dark:text-white">{radiusKm} km</p>
+              </div>
+              <input
+                type="range"
+                min={5}
+                max={300}
+                step={5}
+                value={radiusKm}
+                onChange={(event) => setField('deliveryRadiusKm', event.target.value)}
+                className="mt-2 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-orange-200 accent-orange-500 dark:bg-orange-900/60"
+              />
+              <p className="mt-2 text-[10px] font-semibold text-slate-500">{u('postLoadModal.areaRadiusHint', 'Warehouses inside this area will see your request.')}</p>
+            </div>
+          </div>
         )}
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -311,7 +347,7 @@ export const WarehouseLocationFields = ({
       <div className="flex items-center gap-2 text-primary"><Route className="h-4 w-4" /><p className="text-xs font-black uppercase tracking-wider">{u('postLoadModal.routeSummaryTitle', 'Route')}</p></div>
       <div className="flex min-w-0 flex-1 flex-col">
         <VerticalRoutePoint icon={MapPin} iconClassName="bg-emerald-500 shadow-emerald-500/20" label={u('postLoadModal.origin', 'Origin')} value={draft.pickupCity || draft.pickupAddress || '—'} />
-        <VerticalRoutePoint icon={Warehouse} iconClassName="bg-blue-500 shadow-blue-500/20" label={u('postLoadModal.warehousePreferredLocation', 'Preferred warehouse location')} value={draft.deliveryCity || draft.deliveryAddress || '—'} last />
+        <VerticalRoutePoint icon={isAreaRequest ? Radar : Warehouse} iconClassName="bg-blue-500 shadow-blue-500/20" label={isAreaRequest ? u('postLoadModal.warehousePreferredArea', 'Preferred area') : u('postLoadModal.warehousePreferredLocation', 'Preferred warehouse location')} value={warehouseTargetValue} last />
       </div>
       <div className="flex items-center justify-between rounded-xl border border-sky-200 bg-sky-50/50 px-3 py-2 dark:border-sky-800 dark:bg-slate-900">
         <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">{u('landing.distance', 'Distance')}</p>
@@ -320,7 +356,8 @@ export const WarehouseLocationFields = ({
       <Button type="button" disabled={!routeDistanceKm} onClick={onShowRoute} className="w-full gap-2 disabled:cursor-not-allowed disabled:bg-sky-300 disabled:text-white disabled:opacity-100 disabled:shadow-none dark:disabled:bg-sky-800"><MapGlyphIcon className="h-4 w-4" />{u('postLoadModal.showRouteMap', 'Show route')}</Button>
     </section>
   </div>
-);
+  );
+};
 
 type WarehouseRequirementKey = 'warehouseRequiresCustomsBonded' | 'warehouseRequiresRacking' | 'warehouseRequiresInsurance' | 'warehouseRequiresSecurity';
 

@@ -74,9 +74,19 @@ const DRAFT_CREATED_MESSAGE_PREFIXES = [
   'Čestitamo, uspješno ste objavili teret',
   'Herzlichen Glückwunsch, Sie haben die Fracht erfolgreich veröffentlicht',
   'Congratulations, you successfully posted the load',
+  // Storage request published with the follow-up road transport to the warehouse
+  // (PostLoadModal.tsx's startWarehouseTransportDraft).
+  'Čestitamo, uspješno ste objavili zahtjev za skladištenje',
+  'Herzlichen Glückwunsch, Sie haben Ihre Lageranfrage erfolgreich veröffentlicht',
+  'Congratulations, you successfully posted your storage request',
 ];
 const isDraftCreatedMessageBody = (body: string): boolean =>
   DRAFT_CREATED_MESSAGE_PREFIXES.some((prefix) => body.startsWith(prefix));
+
+// Client-side greetings that exist only in this view, never in the database - excluded from the
+// rendered history so they can't be mistaken for a page of real messages. The server-created
+// "your draft was created" message carries a welcome- prefixed id too, but it is a real message.
+const isSyntheticWelcomeId = (id: string): boolean => id.startsWith('welcome-') && !id.startsWith('welcome-draft-');
 
 export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill, onBulkImported, refreshSignal, newChatSignal, openConversationId, onConversationOpened }: MessagesViewProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
@@ -272,18 +282,44 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
   const activePreviewSignature = activePreview?.messages.map((message) => message.id).join(':') || '';
   useEffect(() => {
     if (!activePreview?.id) return;
+    const previewLastPage = Math.max(1, Math.ceil((activePreview.messageCount || activePreview.messages.length) / 10));
     setMessageHistory((current) => {
       const history = current[activePreview.id];
-      if (!history) return current;
+      // Seeded straight from the conversation list's latest 10 messages, so opening a chat costs
+      // no request. Rendering from here rather than from the preview also makes the thread
+      // append-only: the list refetches itself after every send, which slides older messages out
+      // of that 10-message window - they would otherwise vanish from a chat still on screen.
+      if (!history) {
+        return {
+          ...current,
+          [activePreview.id]: {
+            messages: activePreview.messages.filter((message) => !isSyntheticWelcomeId(message.id)),
+            page: 1,
+            lastPage: previewLastPage,
+            loadingOlder: false,
+          },
+        };
+      }
       const seen = new Set(history.messages.map((message) => message.id));
-      const appended = activePreview.messages.filter((message) => !seen.has(message.id));
-      if (appended.length === 0) return current;
+      const appended = activePreview.messages.filter((message) => !seen.has(message.id) && !isSyntheticWelcomeId(message.id));
+      // A message already on screen can still gain an attachment later - saving a load draft
+      // re-synthesizes the conversation-text card onto the first message of the preview - so an
+      // already-held message is swapped for its fresher preview copy instead of only appending.
+      const preview = new Map(activePreview.messages.map((message) => [message.id, message]));
+      let refreshed = false;
+      const merged = history.messages.map((message) => {
+        const fresh = preview.get(message.id);
+        if (!fresh || (fresh.attachments?.length || 0) === (message.attachments?.length || 0)) return message;
+        refreshed = true;
+        return fresh;
+      });
+      if (appended.length === 0 && !refreshed) return current;
       return {
         ...current,
         [activePreview.id]: {
           ...history,
-          messages: [...history.messages, ...appended],
-          lastPage: Math.max(history.lastPage, Math.ceil((activePreview.messageCount || history.messages.length + appended.length) / 10)),
+          messages: [...merged, ...appended],
+          lastPage: Math.max(history.lastPage, previewLastPage),
         },
       };
     });

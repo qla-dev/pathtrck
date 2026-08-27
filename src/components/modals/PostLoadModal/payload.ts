@@ -137,6 +137,7 @@ export const buildDraftPayload = (draft: LoadDraft) => ({
   delivery_airport: (draft.transportType === 'air' || draft.deliveryPlaceType === 'Airport') ? draft.deliveryAirport || null : null,
   delivery_latitude: draft.deliveryLatitude ? Number(draft.deliveryLatitude) : null,
   delivery_longitude: draft.deliveryLongitude ? Number(draft.deliveryLongitude) : null,
+  delivery_radius_km: draft.deliveryPlaceType === 'Area' && draft.deliveryRadiusKm ? Number(draft.deliveryRadiusKm) : null,
   delivery_date: toApiDate(draft.deliveryDate),
   delivery_date_to: toApiDate(draft.deliveryDateTo || draft.deliveryDate),
   delivery_time_from: draft.deliveryTimeFrom || null,
@@ -160,6 +161,8 @@ export const buildWarehouseLoadPayload = (draft: LoadDraft) => ({
   warehouse_address: draft.deliveryAddress || null,
   warehouse_latitude: draft.deliveryLatitude ? Number(draft.deliveryLatitude) : null,
   warehouse_longitude: draft.deliveryLongitude ? Number(draft.deliveryLongitude) : null,
+  // Only an area request carries a radius - picking one concrete warehouse means the exact point.
+  warehouse_radius_km: draft.deliveryPlaceType === 'Area' && draft.deliveryRadiusKm ? Number(draft.deliveryRadiusKm) : null,
   stops: [
     { type: 'pickup', position: 1, place_type: draft.pickupPlaceType, city: draft.pickupCity, postal_code: draft.pickupPostalCode || null, country_code: draft.pickupCountry, address: draft.pickupAddress || null, latitude: draft.pickupLatitude ? Number(draft.pickupLatitude) : null, longitude: draft.pickupLongitude ? Number(draft.pickupLongitude) : null, window_starts_at: toApiDateTime(draft.pickupDate, draft.pickupTimeFrom), window_ends_at: toApiDateTime(draft.pickupDateTo || draft.pickupDate, draft.pickupTimeTo || draft.pickupTimeFrom) },
     { type: 'delivery', position: 2, place_type: draft.deliveryPlaceType, city: draft.deliveryCity, postal_code: draft.deliveryPostalCode || null, country_code: draft.deliveryCountry, address: draft.deliveryAddress || null, latitude: draft.deliveryLatitude ? Number(draft.deliveryLatitude) : null, longitude: draft.deliveryLongitude ? Number(draft.deliveryLongitude) : null, window_starts_at: toApiDateTime(draft.deliveryDate, draft.deliveryTimeFrom), window_ends_at: toApiDateTime(draft.deliveryDateTo || draft.deliveryDate, draft.deliveryTimeTo || draft.deliveryTimeFrom) },

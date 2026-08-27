@@ -79,6 +79,7 @@ import { AI_DISPATCH_SUBJECT_PREFIX, api, ApiError, ApiUser, HsCodeMatch, LoadSc
 import { CustomerSelect, customerOptionFromRecord, type CustomerOption } from '../../customer/CustomerSelect';
 import { HsCodeChip } from '../../hs/HsCodeChip';
 import { AddressMapModal } from '../../maps/AddressMapModal';
+import { AreaMapModal } from '../../maps/AreaMapModal';
 import { RouteMapModal } from '../../maps/RouteMapModal';
 import { CountrySelect } from '../../location/CountrySelect';
 import { PACKAGE_TYPES } from '../../../data/packageTypes';
@@ -239,6 +240,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   const [isLoadingExisting, setIsLoadingExisting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [addressMap, setAddressMap] = useState<'pickup' | 'delivery' | null>(null);
+  const [areaMapOpen, setAreaMapOpen] = useState(false);
   const [routeMapOpen, setRouteMapOpen] = useState(false);
   const [dropzoneOpen, setDropzoneOpen] = useState(false);
   const [scannedDocuments, setScannedDocuments] = useState<ScannedDocument[]>([]);
@@ -348,7 +350,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         bookingReference: String(record.booking_reference || ''),
         transportType: (record.transport_type as TransportType) || 'road',
         pickupPlaceType: String(pickup.place_type || INITIAL_DRAFT.pickupPlaceType), pickupCity: String(pickup.city || ''), pickupPostalCode: String(pickup.postal_code || ''), pickupCountry: String(pickup.country_code || 'BA'), pickupAddress: String(pickup.address || ''), pickupPort: String(pickup.port || ''), pickupAirport: String(pickup.airport || ''), pickupLatitude: String(pickup.latitude || ''), pickupLongitude: String(pickup.longitude || ''), pickupDate: pickupStart.date, pickupDateTo: pickupEnd.date, pickupTimeFrom: pickupStart.time, pickupTimeTo: pickupEnd.time,
-        deliveryPlaceType: String(delivery.place_type || INITIAL_DRAFT.deliveryPlaceType), deliveryCity: String(delivery.city || record.warehouse_city || ''), deliveryPostalCode: String(delivery.postal_code || ''), deliveryCountry: String(delivery.country_code || record.warehouse_country_code || 'BA'), deliveryAddress: String(delivery.address || record.warehouse_address || ''), deliveryPort: String(delivery.port || ''), deliveryAirport: String(delivery.airport || ''), deliveryLatitude: String(delivery.latitude || record.warehouse_latitude || ''), deliveryLongitude: String(delivery.longitude || record.warehouse_longitude || ''), deliveryDate: deliveryStart.date || String(record.storage_start_date || '').slice(0, 10), deliveryDateTo: deliveryEnd.date || String(record.storage_end_date || '').slice(0, 10), deliveryTimeFrom: deliveryStart.time, deliveryTimeTo: deliveryEnd.time,
+        deliveryPlaceType: String(delivery.place_type || INITIAL_DRAFT.deliveryPlaceType), deliveryCity: String(delivery.city || record.warehouse_city || ''), deliveryPostalCode: String(delivery.postal_code || ''), deliveryCountry: String(delivery.country_code || record.warehouse_country_code || 'BA'), deliveryAddress: String(delivery.address || record.warehouse_address || ''), deliveryPort: String(delivery.port || ''), deliveryAirport: String(delivery.airport || ''), deliveryLatitude: String(delivery.latitude || record.warehouse_latitude || ''), deliveryLongitude: String(delivery.longitude || record.warehouse_longitude || ''), deliveryRadiusKm: String(record.warehouse_radius_km || delivery.radius_km || INITIAL_DRAFT.deliveryRadiusKm), deliveryDate: deliveryStart.date || String(record.storage_start_date || '').slice(0, 10), deliveryDateTo: deliveryEnd.date || String(record.storage_end_date || '').slice(0, 10), deliveryTimeFrom: deliveryStart.time, deliveryTimeTo: deliveryEnd.time,
         transitDays: String(record.transit_days || ''),
         loadTitle: String(record.title || ''), cargoType: String(record.cargo_type || 'FTL'), goodsType: String(record.goods_type || 'General'), hsCodes, weightKg: fromApiWeightKg(record.weight_kg), pallets: String(record.pallets || ''), quantityMeasure: String(record.quantity_measure || ''), lengthM: String(record.length_m || ''), widthM: String(record.width_m || ''), heightM: String(record.height_m || ''), volumeM3: String(record.volume_m3 || ''), declaredValue: String(record.declared_value || ''), budget: String(record.budget || ''), freightCurrency: String(record.currency || 'EUR'), shipmentValueCurrency: String(record.shipment_value_currency || record.currency || 'EUR'), paymentDueDays: String(record.payment_due_days || ''), paymentDeferred: terms === 'deferred', seaPaymentTerms: ['Prepaid', 'Collect', 'Other'].includes(terms) ? terms : '', incoterm: String(record.incoterms || ''),
         loadingEquipment: Array.isArray(record.handling_requirements) ? record.handling_requirements.map(String) : Array.isArray(record.loading_methods) ? record.loading_methods.map(String) : [], vehicleType: String(record.vehicle_type || INITIAL_DRAFT.vehicleType), characteristics: Array.isArray(record.characteristics) ? record.characteristics.map(String) : [], specialRequirements: Array.isArray(record.special_requirements) ? record.special_requirements.map(String) : [], deliveryProof: String(record.delivery_proof || ''), temperatureControlled: record.temperature_min != null || record.temperature_max != null, temperatureMin: String(record.temperature_min ?? ''), temperatureMax: String(record.temperature_max ?? ''),
@@ -771,11 +773,12 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     if (draft.transportType === 'warehouse') {
       const confirmed = await confirmAction({
         title: u('postLoadModal.publishWarehouseTitle', 'Objava na berzu skladišta?'),
-        text: u('postLoadModal.publishWarehouseText', 'Are you sure you want to post this storage request to the warehouse exchange? It will become visible to warehouse companies.'),
+        text: u('postLoadModal.publishWarehouseWithTransportText', 'The storage request will be posted to the warehouse exchange, and a road transport draft to that warehouse will be prepared for you to finish with LenaAI.'),
         confirmText: u('postLoadModal.publishConfirm', 'Objavi'),
       });
       if (!confirmed) return;
-      await publishWarehouseLoad();
+      const published = await publishWarehouseLoad();
+      if (published) await startWarehouseTransportDraft();
       return;
     }
     const confirmed = await confirmAction({
@@ -787,6 +790,88 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     });
     if (!confirmed) return;
     await publishLoad();
+  };
+
+  // Publishing a storage request only covers the storing - the goods still have to reach that
+  // warehouse. Same machinery as the last-mile flow below: a pre-filled road draft plus a LenaAI
+  // conversation to finish it, so the customer never re-types the route they just entered.
+  const startWarehouseTransportDraft = async () => {
+    if (!currentUser) return;
+    try {
+      const transportDraft: LoadDraft = {
+        ...INITIAL_DRAFT,
+        transportType: 'road',
+        loadTitle: `${draft.loadTitle || u('postLoadModal.draftFallbackTitle', 'Draft')} - ${u('postLoadModal.warehouseTransportSuffix', 'Transport to warehouse')}`,
+        pickupPlaceType: draft.pickupPlaceType,
+        pickupAddress: draft.pickupAddress,
+        pickupCity: draft.pickupCity,
+        pickupPostalCode: draft.pickupPostalCode,
+        pickupCountry: draft.pickupCountry,
+        pickupLatitude: draft.pickupLatitude,
+        pickupLongitude: draft.pickupLongitude,
+        pickupDate: draft.pickupDate,
+        pickupDateTo: draft.pickupDateTo,
+        pickupTimeFrom: draft.pickupTimeFrom,
+        pickupTimeTo: draft.pickupTimeTo,
+        // Road only offers Warehouse/Terminal as delivery place types, and an area request has no
+        // one address to deliver to - the picked area's label and centre are what the AI works from.
+        deliveryPlaceType: 'Warehouse',
+        deliveryAddress: draft.deliveryAddress,
+        deliveryCity: draft.deliveryCity,
+        deliveryPostalCode: draft.deliveryPostalCode,
+        deliveryCountry: draft.deliveryCountry,
+        deliveryLatitude: draft.deliveryLatitude,
+        deliveryLongitude: draft.deliveryLongitude,
+        deliveryDate: draft.deliveryDate,
+        deliveryDateTo: draft.deliveryDateTo,
+        deliveryTimeFrom: draft.deliveryTimeFrom,
+        deliveryTimeTo: draft.deliveryTimeTo,
+        // The cargo was just described on the storage request, so it carries over rather than
+        // being asked for a second time in the chat.
+        pallets: draft.pallets,
+        volumeM3: draft.volumeM3,
+        weightKg: draft.weightKg,
+        goodsType: draft.goodsType,
+        cargoType: draft.cargoType,
+      };
+      const draftResponse = await api.loadDrafts.create(buildDraftPayload(transportDraft));
+      const newDraftId = draftResponse.data.id as string | number;
+
+      const companyId = Number((currentUser.companies?.[0] as { id?: number } | undefined)?.id);
+      const conversationResponse = await api.conversations.create({
+        company_id: Number.isFinite(companyId) ? companyId : undefined,
+        created_by_user_id: currentUser.id,
+        channel: 'inapp',
+        subject: `${AI_DISPATCH_SUBJECT_PREFIX}${u('postLoadModal.warehouseTransportSuffix', 'Transport to warehouse')} - ${draft.loadTitle || u('postLoadModal.draftFallbackTitle', 'Draft')}`,
+        canvas: true,
+        load_draft_id: newDraftId,
+        last_message_at: new Date().toISOString(),
+        participant_ids: [currentUser.id],
+        initial_message: u(
+          'postLoadModal.warehouseTransportWelcomeMessage',
+          'Congratulations, you successfully posted your storage request! We can also make sure your cargo reaches the warehouse safely - let us prepare the road transport to it together.'
+        ),
+      });
+      const newConversationId = String(conversationResponse.data.id);
+
+      try {
+        await api.messages.create({
+          conversation_id: newConversationId,
+          sender_user_id: currentUser.id,
+          body: '[[LENA_ACTION:continue_add_yes]]',
+          sent_at: new Date().toISOString(),
+        });
+        await api.dispatchChat.reply(Number(newConversationId), lang);
+      } catch {
+        // The draft and conversation already exist either way - the user can still tap "Yes"
+        // themselves if the auto-advance turn failed.
+      }
+
+      onDraftConversationCreated?.(newConversationId);
+    } catch {
+      // The storage request itself is already published; a failed follow-up draft must not be
+      // reported as if the whole publish had failed.
+    }
   };
 
   // Air/Sea loads whose delivery is a straight door address can also spin up a pre-filled road
@@ -880,6 +965,30 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
     >
+      <AreaMapModal
+        open={areaMapOpen}
+        lang={lang}
+        title={u('postLoadModal.warehousePreferredArea', 'Preferred area')}
+        initialQuery={draft.deliveryAddress || draft.deliveryCity}
+        initialPosition={draft.deliveryLatitude && draft.deliveryLongitude
+          ? [Number(draft.deliveryLatitude), Number(draft.deliveryLongitude)]
+          : null}
+        initialRadiusKm={Number(draft.deliveryRadiusKm) || 25}
+        onClose={() => setAreaMapOpen(false)}
+        onSelect={(location, radiusKm) => {
+          setDraft((current) => ({
+            ...current,
+            deliveryPlaceType: 'Area',
+            deliveryAddress: location.label,
+            deliveryCity: location.city || current.deliveryCity,
+            deliveryCountry: location.countryCode || current.deliveryCountry,
+            deliveryLatitude: String(location.latitude),
+            deliveryLongitude: String(location.longitude),
+            deliveryRadiusKm: String(radiusKm),
+          }));
+          setAreaMapOpen(false);
+        }}
+      />
       <AddressMapModal
         open={addressMap !== null}
         lang={lang}
@@ -1187,7 +1296,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
               {step === 'route' && (
                 <motion.div key="route" className="space-y-5 md:space-y-6" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
                   {draft.transportType === 'warehouse' ? (
-                    <WarehouseLocationFields draft={draft} setField={setField} setDraft={setDraft} u={u} lang={lang} onOpenPickupMap={() => setAddressMap('pickup')} onOpenWarehouseMap={() => setAddressMap('delivery')} routeDistanceKm={routeDistanceKm} recalculatingRoute={recalculatingRoute} onShowRoute={() => setRouteMapOpen(true)} />
+                    <WarehouseLocationFields draft={draft} setField={setField} setDraft={setDraft} u={u} lang={lang} onOpenPickupMap={() => setAddressMap('pickup')} onOpenWarehouseArea={() => setAreaMapOpen(true)} routeDistanceKm={routeDistanceKm} recalculatingRoute={recalculatingRoute} onShowRoute={() => setRouteMapOpen(true)} />
                   ) : (
                   <>
                   <div className="grid lg:grid-cols-[minmax(0,5fr)_minmax(0,5fr)_minmax(0,2fr)] gap-4 sm:gap-5">

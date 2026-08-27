@@ -83,6 +83,9 @@ export interface Load {
   eta: string;
   transportType?: 'road' | 'air' | 'sea' | 'warehouse';
   forStorage?: boolean;
+  // Storage requests posted for a region rather than one warehouse: how far around the stated
+  // city the customer is willing to store, so warehouses can tell whether they are in range.
+  storageRadiusKm?: number;
   storageType?: string;
   storageStartDate?: string;
   storageEndDate?: string;

@@ -64,7 +64,8 @@ export const LoadItem = ({
   const showChevron = load.isNegotiable === false || !bidState.myOffer;
   const isStorage = Boolean(load.forStorage || load.transportType === 'warehouse');
   const TransportIcon = isStorage ? Warehouse : load.transportType === 'air' ? Plane : load.transportType === 'sea' ? Ship : Truck;
-  const pickupLabel = load.pickup || 'Nije definisano';
+  const pickupLabel = (load.pickup || 'Nije definisano')
+    + (isStorage && load.storageRadiusKm ? ` · +${load.storageRadiusKm} km` : '');
   const deliveryLabel = load.delivery || 'Nije definisano';
   const pickupCountryCode = getCountryCode(load.pickup);
   const deliveryCountryCode = getCountryCode(load.delivery);
