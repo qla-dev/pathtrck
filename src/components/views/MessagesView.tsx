@@ -198,6 +198,13 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
   const [processingAttachment, setProcessingAttachment] = useState(false);
   const [creatingNewConversation, setCreatingNewConversation] = useState(false);
   const [pendingNewConversation, setPendingNewConversation] = useState<Conversation | null>(null);
+  // Conversations whose client-only greeting has already been answered. The greeting is never
+  // saved, so without this it would be re-synthesized (and re-animated) for the conversation that
+  // the very first quick-action click creates, then vanish again as soon as the real messages land.
+  const [dismissedWelcomeIds, setDismissedWelcomeIds] = useState<ReadonlySet<string>>(() => new Set());
+  const dismissWelcome = useCallback((conversationId: string) => {
+    setDismissedWelcomeIds((ids) => ids.has(conversationId) ? ids : new Set(ids).add(conversationId));
+  }, []);
 
   useEffect(() => {
     if (pendingNewConversation && conversations.some((conversation) => conversation.id === pendingNewConversation.id)) {
@@ -205,12 +212,15 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     }
   }, [conversations, pendingNewConversation]);
 
-  const displayedConversations = useMemo(
-    () => pendingNewConversation && !conversations.some((conversation) => conversation.id === pendingNewConversation.id)
+  // Conversations the user just deleted. They leave the list on the click, before the request is
+  // even sent; a failed delete puts them straight back (see handleDeleteConversation).
+  const [deletedConversationIds, setDeletedConversationIds] = useState<ReadonlySet<string>>(() => new Set());
+  const displayedConversations = useMemo(() => {
+    const listed = pendingNewConversation && !conversations.some((conversation) => conversation.id === pendingNewConversation.id)
       ? [pendingNewConversation, ...conversations]
-      : conversations,
-    [conversations, pendingNewConversation]
-  );
+      : conversations;
+    return deletedConversationIds.size ? listed.filter((conversation) => !deletedConversationIds.has(conversation.id)) : listed;
+  }, [conversations, pendingNewConversation, deletedConversationIds]);
   const [messageHistory, setMessageHistory] = useState<Record<string, MessageHistoryState>>({});
 
   // Opening a conversation renders the latest 10 messages that already arrived with the
@@ -350,8 +360,12 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     const history = messageHistory[base.id];
     const keepSyntheticWelcome = history?.messages.length === 0 && base.messages.some((message) => message.id.startsWith('welcome-'));
     const hydratedBase = history && !keepSyntheticWelcome ? { ...base, messages: history.messages } : base;
+    // Picking a quick-action mode retires the greeting for good - see dismissWelcome above.
+    const greetedBase = dismissedWelcomeIds.has(hydratedBase.id)
+      ? { ...hydratedBase, messages: hydratedBase.messages.filter((message) => !isSyntheticWelcomeId(message.id)) }
+      : hydratedBase;
     const pending = optimisticMessages
-      .filter((message) => message.conversationId === hydratedBase.id)
+      .filter((message) => message.conversationId === greetedBase.id)
       .map((message) => ({
         id: message.id,
         sender: 'me' as const,
@@ -367,8 +381,8 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
                 : () => void sendMessageValue(message.rawText, message.displayText, message.id, message.conversationId))
           : undefined,
       }));
-    return pending.length ? { ...hydratedBase, messages: [...hydratedBase.messages, ...pending] } : hydratedBase;
-  }, [filteredConversations, activeId, displayedConversations, messageHistory, optimisticMessages, generalWelcome, u]);
+    return pending.length ? { ...greetedBase, messages: [...greetedBase.messages, ...pending] } : greetedBase;
+  }, [filteredConversations, activeId, displayedConversations, messageHistory, optimisticMessages, dismissedWelcomeIds, generalWelcome, u]);
 
   const [canvasPanelOpen, setCanvasPanelOpen] = useState(false);
   const previousCanvas = useRef({ conversationId: '', active: false });
@@ -499,8 +513,11 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
   // Shared by every entry point that can fire with no conversation open yet (the text input, a
   // quick-action/suggested-reply button on the virtual welcome message, a dropped file) - creates
   // the real conversation on first use, or reuses the already-active one.
-  const ensureConversationId = async (): Promise<string | null> =>
-    activeConversation.id || createNewConversation();
+  const ensureConversationId = async (): Promise<string | null> => {
+    if (!activeConversation.id) return createNewConversation(false);
+    dismissWelcome(activeConversation.id);
+    return activeConversation.id;
+  };
 
   // Quick-action and suggested-reply buttons (including the ones on the client-only welcome
   // message shown before any real conversation exists - see activeConversation above) go through
@@ -586,7 +603,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
   // Shared by the explicit "New chat" action and by sendMessage/attachFile silently starting one
   // the moment the user types or drops a file with no conversation open - no confirmation here
   // since there's nothing to lose (no existing chat is being interrupted).
-  const createNewConversation = async (): Promise<string | null> => {
+  const createNewConversation = async (seedWelcome = true): Promise<string | null> => {
     if (!user) return null;
     setCreatingNewConversation(true);
     try {
@@ -601,6 +618,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
         participant_ids: [user.id],
       });
       const conversationId = String(created.data.id);
+      if (!seedWelcome) dismissWelcome(conversationId);
       setPendingNewConversation({
         id: conversationId,
         name: u('New LenaAI conversation', 'New LenaAI conversation'),
@@ -609,7 +627,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
         online: false,
         unread: 0,
         lastTime: '',
-        messages: [{ id: `welcome-${conversationId}`, sender: 'other', text: generalWelcome, time: '' }],
+        messages: seedWelcome ? [{ id: `welcome-${conversationId}`, sender: 'other', text: generalWelcome, time: '' }] : [],
         isAiDispatch: true,
         canvas: false,
         status: u('Draft', 'Draft'),
@@ -632,12 +650,8 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
   };
 
   const attachFile = async (file: File) => {
-    let conversationId = activeConversation.id;
-    if (!conversationId) {
-      const created = await createNewConversation();
-      if (!created) return;
-      conversationId = created;
-    }
+    const conversationId = await ensureConversationId();
+    if (!conversationId) return;
     return attachFileValue(file, undefined, conversationId);
   };
 
@@ -690,9 +704,23 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     });
     if (!confirmed) return;
 
+    // The row disappears right away and the view moves off it; only a failed request brings it
+    // back, so a slow delete never leaves a conversation sitting there looking undeleted.
+    const wasPending = pendingNewConversation?.id === conversationId;
+    const wasActive = activeId === conversationId;
+    setDeletedConversationIds((ids) => new Set(ids).add(conversationId));
+    if (wasPending) setPendingNewConversation(null);
+    if (wasActive) setActiveId(EMPTY_LENA_CONVERSATION_ID);
+
     try {
       await api.conversations.remove(conversationId);
     } catch (error) {
+      setDeletedConversationIds((ids) => {
+        const rolledBack = new Set(ids);
+        rolledBack.delete(conversationId);
+        return rolledBack;
+      });
+      if (wasActive) setActiveId(conversationId);
       void showError(
         u('This conversation could not be deleted', 'This conversation could not be deleted'),
         error instanceof Error ? error.message : undefined
@@ -700,8 +728,6 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
       return;
     }
 
-    if (pendingNewConversation?.id === conversationId) setPendingNewConversation(null);
-    if (activeId === conversationId) setActiveId(EMPTY_LENA_CONVERSATION_ID);
     await result.refresh();
   };
 

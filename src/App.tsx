@@ -4150,10 +4150,16 @@ export default function App() {
           <div className="md:hidden flex items-center">
             <BrandWordmark className="text-lg" />
           </div>
-          <div className="hidden md:flex items-center gap-3">
-            <p className="text-sm text-slate-500">
-              {t.welcome}, <span className="font-bold text-slate-900 dark:text-white">{currentUser?.name || currentUser?.username || '—'}</span>
-            </p>
+          <div className="flex items-center gap-3">
+            <span
+              className={cn(
+                "hidden md:inline-flex h-10 px-3 rounded-full items-center gap-2 text-xs font-bold whitespace-nowrap",
+                roleMeta.tone
+              )}
+            >
+              <RoleStatusIcon className="w-4 h-4" />
+              {roleMeta.label} • {roleMeta.status}
+            </span>
           </div>
           <div className="flex items-center gap-4">
             {role === 'user' || role === 'driver' || role === 'company' || isElevatedAdmin ? (
@@ -4165,16 +4171,6 @@ export default function App() {
                 <span>{u('common.postLoad', 'Post Load')}</span>
               </button>
             ) : null}
-
-            <span
-              className={cn(
-                "hidden md:inline-flex h-10 px-3 rounded-full items-center gap-2 text-xs font-bold whitespace-nowrap",
-                roleMeta.tone
-              )}
-            >
-              <RoleStatusIcon className="w-4 h-4" />
-              {roleMeta.label} • {roleMeta.status}
-            </span>
 
             <button
               onClick={() => setView('pricing')}
