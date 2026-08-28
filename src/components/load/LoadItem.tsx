@@ -1,4 +1,4 @@
-import { ArrowRight, Boxes, CalendarDays, ChevronRight, MapPin, Plane, Scale, Ship, Truck, Warehouse } from 'lucide-react';
+import { ArrowRight, Boxes, CalendarDays, ChevronRight, MapPin, Plane, Scale, Ship, Train, Truck, Warehouse } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
 import { countryFlagUrl, getCountryCode } from '../../lib/loadGeo';
@@ -63,7 +63,7 @@ export const LoadItem = ({
     : getOfferLabel(u, bidState, offerCurrency);
   const showChevron = load.isNegotiable === false || !bidState.myOffer;
   const isStorage = Boolean(load.forStorage || load.transportType === 'warehouse');
-  const TransportIcon = isStorage ? Warehouse : load.transportType === 'air' ? Plane : load.transportType === 'sea' ? Ship : Truck;
+  const TransportIcon = isStorage ? Warehouse : load.transportType === 'air' ? Plane : load.transportType === 'sea' ? Ship : load.transportType === 'rail' ? Train : Truck;
   const pickupLabel = load.pickup || 'Nije definisano';
   const storageRadiusLabel = isStorage && load.storageRadiusKm ? `+${load.storageRadiusKm} km` : '';
   const deliveryLabel = load.delivery || 'Nije definisano';

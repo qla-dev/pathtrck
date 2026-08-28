@@ -26,6 +26,7 @@ import { PAYMENT_TERMS_OPTIONS, PRICE_BASIS_OPTIONS, buildCounterOfferPayload, c
 import { Button } from '../ui/Button';
 import { BiddingHistoryModal } from './BiddingHistoryModal';
 import { LoadBidModal } from './LoadBidModal';
+import { WarehouseBidModal } from './WarehouseBidModal';
 import { QuickCounterModal } from './QuickCounterModal';
 
 type DriverOption = {
@@ -76,6 +77,8 @@ export const LoadOffersPanel = ({
   onSendCounter,
 }: LoadOffersPanelProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  // Offers on a storage request are read and countered in the warehousing form, not the transport one.
+  const isStorage = Boolean(load.forStorage || load.transportType === 'warehouse');
   const [viewingOffer, setViewingOffer] = useState<Record<string, unknown> | null>(null);
   const [historyOfferId, setHistoryOfferId] = useState<string | null>(null);
   const [quickCounterOffer, setQuickCounterOffer] = useState<Record<string, unknown> | null>(null);
@@ -88,7 +91,7 @@ export const LoadOffersPanel = ({
     setSendingCounter(true);
     try {
       const draft = { ...offerDraftFromRecord(quickCounterOffer), amount: String(amount) };
-      await onSendCounter(buildCounterOfferPayload(quickCounterOffer, draft, userId));
+      await onSendCounter(buildCounterOfferPayload(quickCounterOffer, draft, userId, isStorage));
       setQuickCounterOffer(null);
     } catch {
       // already surfaced to the user by the parent; keep the modal open so they can retry
@@ -101,7 +104,7 @@ export const LoadOffersPanel = ({
     if (!counterOffer || !counterDraft) return;
     setSendingCounter(true);
     try {
-      await onSendCounter(buildCounterOfferPayload(counterOffer, counterDraft, userId));
+      await onSendCounter(buildCounterOfferPayload(counterOffer, counterDraft, userId, isStorage));
       setCounterOffer(null);
       setCounterDraft(null);
     } catch {
@@ -271,19 +274,36 @@ export const LoadOffersPanel = ({
       )}
 
       {viewingOffer && (
-        <LoadBidModal
-          open
-          lang={lang}
-          load={load}
-          draft={offerDraftFromRecord(viewingOffer, { loadId: String(load.id) })}
-          onDraftChange={() => undefined}
-          editing
-          loading={false}
-          readOnly
-          role="superadmin"
-          onClose={() => setViewingOffer(null)}
-          onSubmit={() => undefined}
-        />
+        isStorage ? (
+          <WarehouseBidModal
+            open
+            lang={lang}
+            load={load}
+            draft={offerDraftFromRecord(viewingOffer, { loadId: String(load.id) })}
+            onDraftChange={() => undefined}
+            editing
+            loading={false}
+            readOnly
+            role="superadmin"
+            userId={userId}
+            onClose={() => setViewingOffer(null)}
+            onSubmit={() => undefined}
+          />
+        ) : (
+          <LoadBidModal
+            open
+            lang={lang}
+            load={load}
+            draft={offerDraftFromRecord(viewingOffer, { loadId: String(load.id) })}
+            onDraftChange={() => undefined}
+            editing
+            loading={false}
+            readOnly
+            role="superadmin"
+            onClose={() => setViewingOffer(null)}
+            onSubmit={() => undefined}
+          />
+        )
       )}
 
       <BiddingHistoryModal
@@ -306,20 +326,38 @@ export const LoadOffersPanel = ({
       />
 
       {counterOffer && counterDraft && (
-        <LoadBidModal
-          open
-          lang={lang}
-          load={load}
-          draft={counterDraft}
-          onDraftChange={(patch) => setCounterDraft((current) => (current ? { ...current, ...patch } : current))}
-          editing={false}
-          readOnly={false}
-          variant="counter"
-          loading={sendingCounter}
-          role="superadmin"
-          onClose={() => { setCounterOffer(null); setCounterDraft(null); }}
-          onSubmit={() => void sendFullCounter()}
-        />
+        isStorage ? (
+          <WarehouseBidModal
+            open
+            lang={lang}
+            load={load}
+            draft={counterDraft}
+            onDraftChange={(patch) => setCounterDraft((current) => (current ? { ...current, ...patch } : current))}
+            editing={false}
+            readOnly={false}
+            variant="counter"
+            loading={sendingCounter}
+            role="superadmin"
+            userId={userId}
+            onClose={() => { setCounterOffer(null); setCounterDraft(null); }}
+            onSubmit={() => void sendFullCounter()}
+          />
+        ) : (
+          <LoadBidModal
+            open
+            lang={lang}
+            load={load}
+            draft={counterDraft}
+            onDraftChange={(patch) => setCounterDraft((current) => (current ? { ...current, ...patch } : current))}
+            editing={false}
+            readOnly={false}
+            variant="counter"
+            loading={sendingCounter}
+            role="superadmin"
+            onClose={() => { setCounterOffer(null); setCounterDraft(null); }}
+            onSubmit={() => void sendFullCounter()}
+          />
+        )
       )}
     </div>
   );

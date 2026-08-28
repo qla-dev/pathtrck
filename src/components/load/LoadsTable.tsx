@@ -23,6 +23,7 @@ import {
   Scale,
   ShieldAlert,
   Ship,
+  Train,
   Snowflake,
   Timer,
   Truck,
@@ -337,7 +338,7 @@ export const LoadsTable = ({ lang, loads, userId, onOpenDetails }: LoadsTablePro
             const pickupCountryCode = getCountryCode(load.pickup);
             const deliveryCountryCode = getCountryCode(load.delivery);
             const isStorage = Boolean(load.forStorage || load.transportType === 'warehouse');
-            const TransportIcon = load.transportType === 'air' ? Plane : load.transportType === 'sea' ? Ship : Truck;
+            const TransportIcon = load.transportType === 'air' ? Plane : load.transportType === 'sea' ? Ship : load.transportType === 'rail' ? Train : Truck;
 
             return (
               <tr

@@ -1,11 +1,11 @@
-import { X, Plane, Ship, Truck, ExternalLink, MapPin, Navigation } from 'lucide-react';
+import { X, Plane, Ship, Train, Truck, ExternalLink, MapPin, Navigation } from 'lucide-react';
 
 import { trPackageStatus, ui } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { Language, Package as PackageData } from '../../types';
 import { LoadStatusIcon } from '../load/LoadStatusPicker';
 
-const TRANSPORT_ICONS = { air: Plane, sea: Ship, road: Truck } as const;
+const TRANSPORT_ICONS = { air: Plane, sea: Ship, rail: Train, road: Truck } as const;
 
 const statusChipColors = (status: PackageData['status']) => {
   switch (status) {
@@ -41,7 +41,9 @@ export const TrackingMapCard = ({ pkg, lang, onOpenDetails, onClose }: TrackingM
     ? u('postLoadModal.transport.air', 'Air')
     : pkg.transportType === 'sea'
       ? u('postLoadModal.transport.sea', 'Sea')
-      : u('postLoadModal.transport.road', 'Road');
+      : pkg.transportType === 'rail'
+        ? u('postLoadModal.transport.rail', 'Rail')
+        : u('postLoadModal.transport.road', 'Road');
 
   return (
     <div className="w-[252px] overflow-hidden rounded-xl border border-slate-200 bg-white/95 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/95">

@@ -54,7 +54,7 @@ export type ScanFieldPatch = Partial<{
   consignee: CustomerOption;
   bookingReference: string;
   loadTitle: string;
-  transportType: 'road' | 'air' | 'sea' | 'warehouse';
+  transportType: 'road' | 'air' | 'sea' | 'rail' | 'warehouse';
   goodsType: string;
   hsCodes: LoadScanResult['hsCodes'];
   weightKg: string;
@@ -232,7 +232,7 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
     rows.push({ key: 'title', label: 'Title', value: result.title, patch: { loadTitle: result.title }, icon: Hash });
   }
 
-  if (result.transportType === 'road' || result.transportType === 'air' || result.transportType === 'sea' || result.transportType === 'warehouse') {
+  if (result.transportType === 'road' || result.transportType === 'air' || result.transportType === 'sea' || result.transportType === 'rail' || result.transportType === 'warehouse') {
     rows.push({
       key: 'transportType',
       label: 'Transport type',

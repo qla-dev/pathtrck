@@ -41,6 +41,9 @@ import {
   offerDraftToPayload,
   toFlatpickrDate,
   validateOfferDraft,
+  validateWarehouseOfferDraft,
+  warehouseOfferDraftToPayload,
+  warehousePriceBasisFromRateUnit,
 } from '../../lib/offerBid';
 import { confirmAction, showError, showSuccess } from '../../lib/swal';
 import { Language, Load, Offer } from '../../types';
@@ -53,6 +56,7 @@ import { LenaAI } from '../lena/LenaAI';
 import { CounterOfferReviewModal } from './CounterOfferReviewModal';
 import { LoadAssignmentModal } from './LoadAssignmentModal';
 import { LoadBidModal } from './LoadBidModal';
+import { WarehouseBidModal, seedWarehouseDraft } from './WarehouseBidModal';
 import { LoadOffersPanel } from './LoadOffersPanel';
 
 type LoadDetailsPrebookProps = {
@@ -210,6 +214,9 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
   const [assignmentOpen, setAssignmentOpen] = useState(false);
   const [bodyView, setBodyView] = useState<'details' | 'offers'>('details');
   const [isClosing, setIsClosing] = useState(false);
+  // A storage request is bid on with capacity rather than with a truck, so it gets its own form
+  // and its own payload - everything below that touches offers branches on this.
+  const isStorage = Boolean(load?.forStorage || load?.transportType === 'warehouse');
 
   const requestClose = () => setIsClosing(true);
 
@@ -379,7 +386,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
       return;
     }
 
-    const validationError = validateOfferDraft(offerDraft, u);
+    const validationError = isStorage ? validateWarehouseOfferDraft(offerDraft, u) : validateOfferDraft(offerDraft, u);
     if (validationError) {
       void showError(u('Incomplete offer', 'Incomplete offer'), validationError);
       return;
@@ -387,7 +394,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
 
     setIsSubmittingOffer(true);
     try {
-      const payload = offerDraftToPayload(offerDraft);
+      const payload = isStorage ? warehouseOfferDraftToPayload(offerDraft) : offerDraftToPayload(offerDraft);
       if (myOffer) {
         await api.offers.update(String(myOffer.id), payload);
       } else {
@@ -436,7 +443,6 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
   const goodsNote = getGoodsNote(load.goodsType, u);
   const pickupLabel = load.pickup || 'Nije definisano';
   const deliveryLabel = load.delivery || 'Nije definisano';
-  const isStorage = Boolean(load.forStorage || load.transportType === 'warehouse');
   const routeDistanceKm = load.pickup && load.delivery ? estimateLoadDistanceKm(load.pickup, load.delivery) : 0;
   const canShowRouteMap = Boolean(load.pickupPosition && load.deliveryPosition);
   const trackingLabel = load.trackingNumber || load.publicId || `#${load.id}`;
@@ -496,16 +502,27 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
       setOfferDraft(offerDraftFromRecord(myOffer, { loadId: String(load.id), currency: offerCurrency }));
     } else {
       const defaultValidUntil = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
-      setOfferDraft(createEmptyOfferDraft({
+      const base = createEmptyOfferDraft({
         loadId: String(load.id),
         amount: bidState.displayAmount == null ? '' : String(bidState.displayAmount),
         currency: offerCurrency,
         validUntil: `${toFlatpickrDate(defaultValidUntil.toISOString())} 18:00`,
-        availableDate: toFlatpickrDate(load.pickupWindowStart),
-        exactLoadingDate: toFlatpickrDate(load.pickupWindowStart),
-        estimatedDeliveryDate: toFlatpickrDate(load.deliveryWindowEnd),
-        estimatedTransitDays: load.transitDays ? String(load.transitDays) : '',
-      }));
+        ...(isStorage
+          // The bid opens on the request's own terms: the customer's pricing unit, the day the
+          // goods are due to arrive, and the quantity they asked to store.
+          ? {
+              priceBasis: warehousePriceBasisFromRateUnit(load.storageRateUnit),
+              availableFrom: toFlatpickrDate(load.storageStartDate),
+              availableCapacity: load.pallets != null ? String(load.pallets) : '',
+            }
+          : {
+              availableDate: toFlatpickrDate(load.pickupWindowStart),
+              exactLoadingDate: toFlatpickrDate(load.pickupWindowStart),
+              estimatedDeliveryDate: toFlatpickrDate(load.deliveryWindowEnd),
+              estimatedTransitDays: load.transitDays ? String(load.transitDays) : '',
+            }),
+      });
+      setOfferDraft(isStorage ? seedWarehouseDraft(load, base) : base);
     }
     setShowOfferForm(true);
   };
@@ -769,6 +786,31 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                       </div>
                     )}
                     </div>
+                  ) : role === 'warehouse' && isStorage ? (
+                    // A storage request is answered by the warehouses it was posted to, so this is
+                    // the one role that bids on it - and only ever with the warehousing form.
+                    <div className="space-y-3">
+                      {bookingSummary}
+                      <div className="flex items-center gap-2">
+                        <Button
+                          className="h-11 flex-1 rounded-xl shadow-lg shadow-primary/20"
+                          disabled={isSubmittingOffer || currentStatus !== 'Posted'}
+                          onClick={openBidModal}
+                        >
+                          {currentStatus === 'Posted' ? offerLabel : u('legacy.loadDetails.alreadyBooked', 'Already booked')}
+                          {currentStatus === 'Posted' && !myOffer && <ChevronRight className="ml-1 h-4 w-4" />}
+                        </Button>
+                        {latestCounter && (
+                          <Button
+                            variant="outline"
+                            className="h-11 flex-1 rounded-xl border-primary/20 bg-primary/10 text-primary hover:bg-primary/15 dark:border-primary/30 dark:bg-primary/15"
+                            onClick={() => setViewingCounter(latestCounter)}
+                          >
+                            <Repeat className="mr-2 h-4 w-4" />{u('Vidi povratnu ponudu', 'Vidi povratnu ponudu')}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
                   ) : null}
                 </div>
               </div>
@@ -946,21 +988,37 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
         />
       )}
 
-      {(role === 'company' || role === 'driver' || role === 'superadmin') && (
-        <LoadBidModal
-          open={showOfferForm}
-          lang={lang}
-          load={load}
-          draft={offerDraft}
-          onDraftChange={(patch) => setOfferDraft((current) => ({ ...current, ...patch }))}
-          editing={Boolean(myOffer)}
-          loading={isSubmittingOffer}
-          role={role}
-          userId={userId}
-          companyIds={companyIds}
-          onClose={() => setShowOfferForm(false)}
-          onSubmit={() => void submitOffer()}
-        />
+      {(role === 'company' || role === 'driver' || role === 'superadmin' || role === 'warehouse') && (
+        isStorage ? (
+          <WarehouseBidModal
+            open={showOfferForm}
+            lang={lang}
+            load={load}
+            draft={offerDraft}
+            onDraftChange={(patch) => setOfferDraft((current) => ({ ...current, ...patch }))}
+            editing={Boolean(myOffer)}
+            loading={isSubmittingOffer}
+            role={role}
+            userId={userId}
+            onClose={() => setShowOfferForm(false)}
+            onSubmit={() => void submitOffer()}
+          />
+        ) : (
+          <LoadBidModal
+            open={showOfferForm}
+            lang={lang}
+            load={load}
+            draft={offerDraft}
+            onDraftChange={(patch) => setOfferDraft((current) => ({ ...current, ...patch }))}
+            editing={Boolean(myOffer)}
+            loading={isSubmittingOffer}
+            role={role}
+            userId={userId}
+            companyIds={companyIds}
+            onClose={() => setShowOfferForm(false)}
+            onSubmit={() => void submitOffer()}
+          />
+        )
       )}
 
       <LenaAI

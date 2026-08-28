@@ -3,7 +3,7 @@ import Flatpickr from 'react-flatpickr';
 import { renderToStaticMarkup } from 'react-dom/server';
 import L from 'leaflet';
 import { MapContainer, TileLayer, Marker, ZoomControl, useMap } from 'react-leaflet';
-import { Search, MapPin, ChevronRight, Package as PackageIcon, Coins, Truck, Plane, Ship, Filter, CalendarDays, Trash2, List, LayoutGrid, Map as MapIcon, LocateFixed, Route, BriefcaseBusiness, Navigation, CalendarRange, BadgeEuro, Building2, Container, Tags, FileText, SlidersHorizontal, ShieldAlert, Zap, X, Weight, Box, Layers, Thermometer, ShieldCheck, Stamp, Lock } from 'lucide-react';
+import { Search, MapPin, ChevronRight, Package as PackageIcon, Coins, Truck, Plane, Ship, Train, Filter, CalendarDays, Trash2, List, LayoutGrid, Map as MapIcon, LocateFixed, Route, BriefcaseBusiness, Navigation, CalendarRange, BadgeEuro, Building2, Container, Tags, FileText, SlidersHorizontal, ShieldAlert, Zap, X, Weight, Box, Layers, Thermometer, ShieldCheck, Stamp, Lock } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Language, Package as PackageData, Role } from '../../types';
 import { api } from '../../services/api';
@@ -107,7 +107,7 @@ const STATUS_MARKER_COLORS: Record<PackageData['status'], string> = {
   Received: '#8b5cf6', Finished: '#10b981', Pending: '#fb923c', Cancelled: '#f43f5e',
 };
 
-const TRANSPORT_MARKER_ICONS = { air: Plane, sea: Ship, road: Truck } as const;
+const TRANSPORT_MARKER_ICONS = { air: Plane, sea: Ship, rail: Train, road: Truck } as const;
 
 // Leaflet wants raw HTML, and the glyph/colour pair only varies by transport+status - so render
 // each combination once and reuse the icon across every marker that shares it.
@@ -405,6 +405,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
     { value: 'road', label: u('postLoadModal.transport.road', 'Road'), icon: Truck },
     { value: 'air', label: u('postLoadModal.transport.air', 'Air'), icon: Plane },
     { value: 'sea', label: u('postLoadModal.transport.sea', 'Sea'), icon: Ship },
+    { value: 'rail', label: u('postLoadModal.transport.rail', 'Rail'), icon: Train },
   ];
   const serviceOptions: IconSelectOption[] = TRACKING_SERVICES.map((value) => ({ value, label: value, icon: value === 'Express' || value === 'Priority' ? Zap : PackageIcon }));
   const equipmentOptions: IconSelectOption[] = VEHICLE_OPTIONS.map((value) => ({ value, label: value, icon: Container }));
@@ -635,6 +636,8 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
                       <Plane className="h-3 w-3" />
                     ) : pkg.transportType === 'sea' ? (
                       <Ship className="h-3 w-3" />
+                    ) : pkg.transportType === 'rail' ? (
+                      <Train className="h-3 w-3" />
                     ) : (
                       <Truck className="h-3 w-3" />
                     )}
@@ -642,7 +645,9 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
                       ? u('postLoadModal.transport.air', 'Air')
                       : pkg.transportType === 'sea'
                         ? u('postLoadModal.transport.sea', 'Sea')
-                        : u('postLoadModal.transport.road', 'Road')}
+                        : pkg.transportType === 'rail'
+                          ? u('postLoadModal.transport.rail', 'Rail')
+                          : u('postLoadModal.transport.road', 'Road')}
                     {pkg.cargoType ? ` · ${pkg.cargoType}` : ''}
                   </span>
                   <span className={cn(

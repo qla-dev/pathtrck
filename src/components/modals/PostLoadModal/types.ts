@@ -22,9 +22,20 @@ export type PostLoadModalProps = {
 
 
 export type StepId = 'cargo' | 'route' | 'terms' | 'contact' | 'review';
-export type TransportType = 'road' | 'air' | 'sea' | 'warehouse';
+export type TransportType = 'road' | 'air' | 'sea' | 'rail' | 'warehouse';
+
+/**
+ * Rail is modelled on the sea flow: the same leg types (terminal-to-terminal, door-to-terminal),
+ * the same container picker, the same characteristics and payment terms. Everything the two share
+ * branches on this instead of naming 'sea', so the differences that remain - terminals instead of
+ * ports, a CIM/SMGS consignment note instead of a Bill of Lading - are the only places the two
+ * modes are told apart.
+ */
+export const isContainerTransport = (transportType: TransportType): boolean =>
+  transportType === 'sea' || transportType === 'rail';
+
 export type ScannedDocument = { id: string; imageDataUrl: string | null; result: LoadScanResult };
-// Sea only - one row of the "Container types" picker (type + how many of that type).
+// Sea and rail - one row of the "Container types" picker (type + how many of that type).
 export type ContainerSelection = { type: string; quantity: string };
 
 export type LoadDraft = {
@@ -118,6 +129,10 @@ export type LoadDraft = {
   warehouseRequiresInsurance: boolean;
   warehouseRequiresSecurity: boolean;
   warehouseRateUnit: string;
+  // Warehouse only - the two special requirements a storage request states that have no
+  // equivalent among the transport flags: food-grade/pharma conditions and careful handling.
+  warehouseFoodPharma: boolean;
+  warehouseFragile: boolean;
   mustBeTrackable: boolean;
   paymentDeferred: boolean;
   // Sea only - replaces paymentDeferred (Prepaid / Collect / Other instead of a due-date window).
@@ -236,6 +251,8 @@ export const INITIAL_DRAFT: LoadDraft = {
   warehouseRequiresInsurance: false,
   warehouseRequiresSecurity: false,
   warehouseRateUnit: 'per_pallet_month',
+  warehouseFoodPharma: false,
+  warehouseFragile: false,
   mustBeTrackable: false,
   paymentDeferred: false,
   seaPaymentTerms: '',

@@ -1,4 +1,4 @@
-import { LoadDraft } from './types';
+import { LoadDraft, isContainerTransport } from './types';
 import { deriveGoodsTypeCode, stripHsCodesForPayload } from '../scanFieldRows';
 
 // Air transport mode is no longer a manual choice - it's fully determined by whether the pickup
@@ -62,9 +62,9 @@ export const buildLoadFieldsPayload = (draft: LoadDraft) => ({
   budget: draft.budget ? Number(draft.budget) : null,
   is_negotiable: draft.receivePriceProposals,
   currency: draft.freightCurrency,
-  payment_terms: draft.transportType === 'sea' ? (draft.seaPaymentTerms || null) : (draft.paymentDeferred ? 'deferred' : 'on_delivery'),
+  payment_terms: isContainerTransport(draft.transportType) ? (draft.seaPaymentTerms || null) : (draft.paymentDeferred ? 'deferred' : 'on_delivery'),
   incoterms: draft.incoterm || null,
-  payment_due_days: draft.transportType !== 'sea' && draft.paymentDeferred && draft.paymentDueDays ? Number(draft.paymentDueDays) : null,
+  payment_due_days: !isContainerTransport(draft.transportType) && draft.paymentDeferred && draft.paymentDueDays ? Number(draft.paymentDueDays) : null,
   temperature_min: draft.temperatureControlled && draft.temperatureMin ? Number(draft.temperatureMin) : null,
   temperature_max: draft.temperatureControlled && draft.temperatureMax ? Number(draft.temperatureMax) : null,
   loading_methods: draft.loadingEquipment,
@@ -73,7 +73,7 @@ export const buildLoadFieldsPayload = (draft: LoadDraft) => ({
   special_requirements: draft.transportType === 'air' ? draft.specialRequirements : [],
   characteristics: draft.characteristics,
   delivery_proof: draft.transportType === 'air' ? draft.deliveryProof || null : null,
-  transit_days: draft.transportType === 'sea' && draft.transitDays ? Number(draft.transitDays) : null,
+  transit_days: isContainerTransport(draft.transportType) && draft.transitDays ? Number(draft.transitDays) : null,
   requires_adr: draft.requiresAdr,
   requires_tail_lift: draft.requiresTailLift,
   toll_roads_included: draft.tollRoadsIncluded,
@@ -87,19 +87,19 @@ export const buildLoadFieldsPayload = (draft: LoadDraft) => ({
   must_be_trackable: draft.mustBeTrackable,
   is_urgent: draft.urgent,
   body_types: draft.bodyTypes,
-  container_selections: draft.transportType === 'sea'
+  container_selections: isContainerTransport(draft.transportType)
     ? draft.containerSelections.filter((row) => row.type).map((row) => ({ type: row.type, quantity: row.quantity ? Number(row.quantity) : 1 }))
     : [],
-  bl_type: draft.transportType === 'sea' ? draft.blType || null : null,
-  dg_un_number: draft.transportType === 'sea' && draft.characteristics.includes('DG / IMO') ? draft.dgUnNumber || null : null,
-  dg_imo_class: draft.transportType === 'sea' && draft.characteristics.includes('DG / IMO') ? draft.dgImoClass || null : null,
-  dg_packing_group: draft.transportType === 'sea' && draft.characteristics.includes('DG / IMO') ? draft.dgPackingGroup || null : null,
-  dg_proper_shipping_name: draft.transportType === 'sea' && draft.characteristics.includes('DG / IMO') ? draft.dgProperShippingName || null : null,
-  oog_in_gauge: draft.transportType === 'sea' && draft.characteristics.includes('OOG') ? draft.oogInGauge || null : null,
-  oog_length_m: draft.transportType === 'sea' && draft.oogInGauge === 'out_of_gauge' ? Number(draft.oogLengthM) || null : null,
-  oog_width_m: draft.transportType === 'sea' && draft.oogInGauge === 'out_of_gauge' ? Number(draft.oogWidthM) || null : null,
-  oog_height_m: draft.transportType === 'sea' && draft.oogInGauge === 'out_of_gauge' ? Number(draft.oogHeightM) || null : null,
-  oog_weight_kg: draft.transportType === 'sea' && draft.oogInGauge === 'out_of_gauge' ? Number(draft.oogWeightKg) || null : null,
+  bl_type: isContainerTransport(draft.transportType) ? draft.blType || null : null,
+  dg_un_number: isContainerTransport(draft.transportType) && draft.characteristics.includes('DG / IMO') ? draft.dgUnNumber || null : null,
+  dg_imo_class: isContainerTransport(draft.transportType) && draft.characteristics.includes('DG / IMO') ? draft.dgImoClass || null : null,
+  dg_packing_group: isContainerTransport(draft.transportType) && draft.characteristics.includes('DG / IMO') ? draft.dgPackingGroup || null : null,
+  dg_proper_shipping_name: isContainerTransport(draft.transportType) && draft.characteristics.includes('DG / IMO') ? draft.dgProperShippingName || null : null,
+  oog_in_gauge: isContainerTransport(draft.transportType) && draft.characteristics.includes('OOG') ? draft.oogInGauge || null : null,
+  oog_length_m: isContainerTransport(draft.transportType) && draft.oogInGauge === 'out_of_gauge' ? Number(draft.oogLengthM) || null : null,
+  oog_width_m: isContainerTransport(draft.transportType) && draft.oogInGauge === 'out_of_gauge' ? Number(draft.oogWidthM) || null : null,
+  oog_height_m: isContainerTransport(draft.transportType) && draft.oogInGauge === 'out_of_gauge' ? Number(draft.oogHeightM) || null : null,
+  oog_weight_kg: isContainerTransport(draft.transportType) && draft.oogInGauge === 'out_of_gauge' ? Number(draft.oogWeightKg) || null : null,
   contact: { name: draft.contactName, phone: draft.contactPhone, mobile: draft.contactMobile, email: draft.contactEmail, fax: draft.contactFax },
   notes: draft.notes || draft.additionalInfo || null,
   internal_comments: draft.internalComments || null,
@@ -107,8 +107,8 @@ export const buildLoadFieldsPayload = (draft: LoadDraft) => ({
 });
 
 export const buildLoadStopsPayload = (draft: LoadDraft) => [
-  { type: 'pickup', position: 1, place_type: draft.pickupPlaceType, city: draft.pickupCity, postal_code: draft.pickupPostalCode || null, country_code: draft.pickupCountry, address: draft.pickupAddress || null, port: (draft.transportType === 'sea' || draft.pickupPlaceType === 'Port') ? draft.pickupPort || null : null, airport: (draft.transportType === 'air' || draft.pickupPlaceType === 'Airport') ? draft.pickupAirport || null : null, latitude: draft.pickupLatitude ? Number(draft.pickupLatitude) : null, longitude: draft.pickupLongitude ? Number(draft.pickupLongitude) : null, window_starts_at: toApiDateTime(draft.pickupDate, draft.pickupTimeFrom), window_ends_at: toApiDateTime(draft.pickupDateTo || draft.pickupDate, draft.pickupTimeTo || draft.pickupTimeFrom) },
-  { type: 'delivery', position: 2, place_type: draft.deliveryPlaceType, city: draft.deliveryCity, postal_code: draft.deliveryPostalCode || null, country_code: draft.deliveryCountry, address: draft.deliveryAddress || null, port: (draft.transportType === 'sea' || draft.deliveryPlaceType === 'Port') ? draft.deliveryPort || null : null, airport: (draft.transportType === 'air' || draft.deliveryPlaceType === 'Airport') ? draft.deliveryAirport || null : null, latitude: draft.deliveryLatitude ? Number(draft.deliveryLatitude) : null, longitude: draft.deliveryLongitude ? Number(draft.deliveryLongitude) : null, window_starts_at: toApiDateTime(draft.deliveryDate, draft.deliveryTimeFrom), window_ends_at: toApiDateTime(draft.deliveryDateTo || draft.deliveryDate, draft.deliveryTimeTo || draft.deliveryTimeFrom) },
+  { type: 'pickup', position: 1, place_type: draft.pickupPlaceType, city: draft.pickupCity, postal_code: draft.pickupPostalCode || null, country_code: draft.pickupCountry, address: draft.pickupAddress || null, port: (isContainerTransport(draft.transportType) || draft.pickupPlaceType === 'Port') ? draft.pickupPort || null : null, airport: (draft.transportType === 'air' || draft.pickupPlaceType === 'Airport') ? draft.pickupAirport || null : null, latitude: draft.pickupLatitude ? Number(draft.pickupLatitude) : null, longitude: draft.pickupLongitude ? Number(draft.pickupLongitude) : null, window_starts_at: toApiDateTime(draft.pickupDate, draft.pickupTimeFrom), window_ends_at: toApiDateTime(draft.pickupDateTo || draft.pickupDate, draft.pickupTimeTo || draft.pickupTimeFrom) },
+  { type: 'delivery', position: 2, place_type: draft.deliveryPlaceType, city: draft.deliveryCity, postal_code: draft.deliveryPostalCode || null, country_code: draft.deliveryCountry, address: draft.deliveryAddress || null, port: (isContainerTransport(draft.transportType) || draft.deliveryPlaceType === 'Port') ? draft.deliveryPort || null : null, airport: (draft.transportType === 'air' || draft.deliveryPlaceType === 'Airport') ? draft.deliveryAirport || null : null, latitude: draft.deliveryLatitude ? Number(draft.deliveryLatitude) : null, longitude: draft.deliveryLongitude ? Number(draft.deliveryLongitude) : null, window_starts_at: toApiDateTime(draft.deliveryDate, draft.deliveryTimeFrom), window_ends_at: toApiDateTime(draft.deliveryDateTo || draft.deliveryDate, draft.deliveryTimeTo || draft.deliveryTimeFrom) },
 ];
 
 export const buildLoadPayload = (draft: LoadDraft) => ({ ...buildLoadFieldsPayload(draft), stops: buildLoadStopsPayload(draft) });
@@ -120,7 +120,7 @@ export const buildDraftPayload = (draft: LoadDraft) => ({
   pickup_postal_code: draft.pickupPostalCode || null,
   pickup_country_code: draft.pickupCountry || null,
   pickup_address: draft.pickupAddress || null,
-  pickup_port: (draft.transportType === 'sea' || draft.pickupPlaceType === 'Port') ? draft.pickupPort || null : null,
+  pickup_port: (isContainerTransport(draft.transportType) || draft.pickupPlaceType === 'Port') ? draft.pickupPort || null : null,
   pickup_airport: (draft.transportType === 'air' || draft.pickupPlaceType === 'Airport') ? draft.pickupAirport || null : null,
   pickup_latitude: draft.pickupLatitude ? Number(draft.pickupLatitude) : null,
   pickup_longitude: draft.pickupLongitude ? Number(draft.pickupLongitude) : null,
@@ -133,7 +133,7 @@ export const buildDraftPayload = (draft: LoadDraft) => ({
   delivery_postal_code: draft.deliveryPostalCode || null,
   delivery_country_code: draft.deliveryCountry || null,
   delivery_address: draft.deliveryAddress || null,
-  delivery_port: (draft.transportType === 'sea' || draft.deliveryPlaceType === 'Port') ? draft.deliveryPort || null : null,
+  delivery_port: (isContainerTransport(draft.transportType) || draft.deliveryPlaceType === 'Port') ? draft.deliveryPort || null : null,
   delivery_airport: (draft.transportType === 'air' || draft.deliveryPlaceType === 'Airport') ? draft.deliveryAirport || null : null,
   delivery_latitude: draft.deliveryLatitude ? Number(draft.deliveryLatitude) : null,
   delivery_longitude: draft.deliveryLongitude ? Number(draft.deliveryLongitude) : null,
@@ -171,8 +171,14 @@ export const buildWarehouseLoadPayload = (draft: LoadDraft) => ({
   storage_end_date: draft.warehouseIsOngoing ? null : toApiDate(draft.deliveryDateTo || draft.warehouseEndDate || draft.deliveryDate),
   is_storage_ongoing: draft.warehouseIsOngoing,
   handling_requirements: draft.loadingEquipment,
-  temperature_min: draft.warehouseTemperatureMin ? Number(draft.warehouseTemperatureMin) : null,
-  temperature_max: draft.warehouseTemperatureMax ? Number(draft.warehouseTemperatureMax) : null,
+  // The range comes from the Cargo step's "Temperature controlled" block, the same one every other
+  // transport type uses - the warehouse-specific pair it read before is never filled in on a new
+  // request, so a stated range was silently dropped.
+  temperature_min: draft.temperatureControlled && draft.temperatureMin ? Number(draft.temperatureMin) : null,
+  temperature_max: draft.temperatureControlled && draft.temperatureMax ? Number(draft.temperatureMax) : null,
+  is_fragile: draft.warehouseFragile,
+  requires_adr: draft.requiresAdr,
+  requires_food_grade: draft.warehouseFoodPharma,
   requires_customs_bonded: draft.warehouseRequiresCustomsBonded,
   requires_racking: draft.warehouseRequiresRacking,
   insurance_required: draft.warehouseRequiresInsurance,

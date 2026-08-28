@@ -70,7 +70,7 @@ type ModeTab = {
 };
 
 // Freight-exchange filter vocabulary. Ids are the exact values the API expects.
-export const TRANSPORT_MODE_IDS = ['road', 'air', 'sea', 'multimodal'] as const;
+export const TRANSPORT_MODE_IDS = ['road', 'air', 'sea', 'rail', 'multimodal'] as const;
 export const CARGO_FLAG_IDS = [
   'general', 'adr', 'temperature_controlled', 'refrigerated', 'fragile',
   'high_value', 'oversized', 'perishable', 'pharmaceutical', 'live_animals',
@@ -664,7 +664,7 @@ export const FilterLoads = (props: FilterLoadsProps) => {
     const toOptions = (ids: readonly string[], fallbacks: Record<string, string>) =>
       ids.map((id) => ({ id, label: label(id, fallbacks[id] ?? id) }));
 
-    const transportOptions = toOptions(TRANSPORT_MODE_IDS, { road: 'Road', air: 'Air', sea: 'Sea', multimodal: 'Multimodal' });
+    const transportOptions = toOptions(TRANSPORT_MODE_IDS, { road: 'Road', air: 'Air', sea: 'Sea', rail: 'Rail', multimodal: 'Multimodal' });
     const cargoOptions = toOptions(CARGO_FLAG_IDS, {
       general: 'General Cargo', adr: 'ADR / Dangerous Goods', temperature_controlled: 'Temperature Controlled',
       refrigerated: 'Refrigerated', fragile: 'Fragile', high_value: 'High Value', oversized: 'Oversized',

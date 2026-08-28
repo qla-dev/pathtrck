@@ -94,7 +94,8 @@ const FIELD_STEPS: Partial<Record<keyof LoadDraft, StepId>> = {
   deliveryRadiusKm: 'route', transitDays: 'route',
   loadTitle: 'cargo', cargoType: 'cargo', goodsType: 'cargo', weightKg: 'cargo', pallets: 'cargo', volumeM3: 'cargo',
   lengthM: 'cargo', widthM: 'cargo', heightM: 'cargo', declaredValue: 'cargo', temperatureMin: 'cargo', temperatureMax: 'cargo',
-  warehouseStorageType: 'cargo', warehouseTemperatureMin: 'cargo', warehouseTemperatureMax: 'cargo',
+  // The storage type picker sits on the Terms step, where the transport types show equipment.
+  warehouseStorageType: 'terms', warehouseTemperatureMin: 'cargo', warehouseTemperatureMax: 'cargo',
   budget: 'terms', freightCurrency: 'terms', paymentDueDays: 'terms', warehouseRateUnit: 'terms',
   contactName: 'contact', contactEmail: 'contact', contactPhone: 'contact',
 };

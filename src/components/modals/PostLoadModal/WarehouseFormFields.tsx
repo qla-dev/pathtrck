@@ -1,8 +1,13 @@
 import { Dispatch, ReactNode, SetStateAction } from 'react';
 import {
   AlertTriangle,
+  ArrowDownToLine,
+  ArrowUpFromLine,
   Boxes,
+  Container,
   Forklift,
+  HelpCircle,
+  Landmark,
   Layers,
   Loader2,
   Lock,
@@ -12,10 +17,12 @@ import {
   MapPin,
   Radar,
   Route,
+  ScanEye,
   ShieldCheck,
   Snowflake,
   Tags,
   ThermometerSnowflake,
+  Truck,
   Umbrella,
   Warehouse,
 } from 'lucide-react';
@@ -48,6 +55,8 @@ const STORAGE_TYPE_ICONS: Record<(typeof WAREHOUSE_STORAGE_TYPE_OPTIONS)[number]
   Hazmat: AlertTriangle,
   Bulk: Layers,
   Bonded: Lock,
+  Outdoor: Container,
+  Unsure: HelpCircle,
 };
 
 const STORAGE_TYPE_DESCRIPTIONS: Record<(typeof WAREHOUSE_STORAGE_TYPE_OPTIONS)[number], string> = {
@@ -57,24 +66,38 @@ const STORAGE_TYPE_DESCRIPTIONS: Record<(typeof WAREHOUSE_STORAGE_TYPE_OPTIONS)[
   Hazmat: 'Certified dangerous goods',
   Bulk: 'Loose, non-palletised cargo',
   Bonded: 'Customs-bonded warehouse',
+  Outdoor: 'Yard storage - vehicles, containers',
+  Unsure: 'The warehouse partner can propose one',
 };
 
 export const HANDLING_ICONS: Record<(typeof WAREHOUSE_HANDLING_REQUIREMENT_OPTIONS)[number], typeof Package> = {
+  Storage: Warehouse,
+  Loading: ArrowUpFromLine,
+  Unloading: ArrowDownToLine,
   'Cross-docking': Forklift,
   'Pick & Pack': PackageCheck,
   Labeling: Tags,
   Kitting: Boxes,
   Palletizing: Layers,
   Repackaging: PackageOpen,
+  'Goods inspection': ScanEye,
+  'Customs handling': Landmark,
+  Distribution: Truck,
 };
 
 export const HANDLING_DESCRIPTIONS: Record<(typeof WAREHOUSE_HANDLING_REQUIREMENT_OPTIONS)[number], string> = {
+  Storage: 'Holding the goods in the warehouse',
+  Loading: 'Loading onto outbound vehicles',
+  Unloading: 'Unloading inbound vehicles',
   'Cross-docking': 'Straight from inbound to outbound',
   'Pick & Pack': 'Order picking and packing',
   Labeling: 'Barcode and label application',
   Kitting: 'Assemble items into sets',
   Palletizing: 'Stack and wrap onto pallets',
   Repackaging: 'Repack into new units',
+  'Goods inspection': 'Checking quantity and condition',
+  'Customs handling': 'Customs clearance and documents',
+  Distribution: 'Onward delivery to end recipients',
 };
 
 /**
