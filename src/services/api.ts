@@ -254,6 +254,32 @@ const openMessageAttachment = async (path: string, name: string, inline: boolean
   }
 };
 
+// Load documents are behind the same Bearer token as chat attachments, so they take the same route:
+// fetch the bytes, hand the browser a blob: URL.
+const openLoadDocument = async (id: string | number, name: string, inline: boolean): Promise<void> => {
+  const headers = new Headers();
+  const token = getToken();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+
+  const response = await fetch(`${API_BASE_URL}/documents/${id}/download${inline ? '?inline=1' : ''}`, {
+    credentials: 'omit', headers,
+  });
+  if (!response.ok) throw new ApiError(`The file could not be loaded (${response.status}).`, response.status);
+
+  const objectUrl = URL.createObjectURL(await response.blob());
+  if (inline) {
+    window.open(objectUrl, '_blank');
+  } else {
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+};
+
 const queryString = (params: ListParams = {}) => {
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => { if (value !== undefined) query.set(key, String(value)); });
@@ -414,7 +440,19 @@ export const api = {
       })).data,
   },
   notes: resourceApi<Record<string, unknown>>('load-notes'),
-  documents: resourceApi<Record<string, unknown>>('documents'),
+  documents: {
+    ...resourceApi<Record<string, unknown>>('documents'),
+    /** Uploads the file and creates its row in one call. Omitting `loadId` files it in the archive. */
+    upload: async (input: { file: File; loadId?: string | null; type?: string; name?: string }) => {
+      const form = new FormData();
+      form.append('file', input.file);
+      if (input.loadId) form.append('load_id', input.loadId);
+      if (input.type) form.append('type', input.type);
+      if (input.name) form.append('name', input.name);
+      return (await request<Record<string, unknown>>('/documents/upload', { method: 'POST', body: form })).data;
+    },
+    open: (id: string | number, name: string, inline: boolean) => openLoadDocument(id, name, inline),
+  },
   invoices: resourceApi<Record<string, unknown>>('invoices'),
   invoiceItems: resourceApi<Record<string, unknown>>('invoice-items'),
   emailTemplates: resourceApi<Record<string, unknown>>('email-templates'),

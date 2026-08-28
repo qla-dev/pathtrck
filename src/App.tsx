@@ -4034,7 +4034,7 @@ export default function App() {
         { id: 'fleet', label: u('nav.globalFleet', 'Global Fleet'), icon: Truck },
         { id: 'finance', label: u('nav.finance', 'Finance'), icon: Banknote },
         { id: 'email-studio', label: u('nav.emailStudio', 'Email Studio'), icon: Mail },
-        { id: 'notes', label: ui(lang, 'notes.navLabel', 'Notes'), icon: NotebookPen },
+        { id: 'notes', label: ui(lang, 'documents.navLabel', 'Documents'), icon: NotebookPen },
         { id: 'dashboard', label: analyticsLabel, icon: BarChart3 },
         { id: 'settings', label: t.settings, icon: Settings },
       ]
@@ -4052,6 +4052,8 @@ export default function App() {
           { id: 'fleet', label: t.myFleet, icon: Truck },
           { id: 'company-team', label: u('nav.teamPermissions', 'Team & Permissions'), icon: Users },
           { id: 'dashboard', label: analyticsLabel, icon: BarChart3 },
+          // A company keeps its own paperwork archive, so it reaches this page like a driver does.
+          { id: 'notes', label: ui(lang, 'documents.navLabel', 'Documents'), icon: NotebookPen },
           { id: 'settings', label: t.settings, icon: Settings },
         ]
       : role === 'warehouse'
@@ -4069,7 +4071,7 @@ export default function App() {
             { id: 'fleet', label: t.myFleet, icon: Truck },
           ] : []),
           { id: 'dashboard', label: analyticsLabel, icon: BarChart3 },
-          ...(role === 'driver' ? [{ id: 'notes', label: ui(lang, 'notes.navLabel', 'Notes'), icon: NotebookPen }] : []),
+          ...(role === 'driver' ? [{ id: 'notes', label: ui(lang, 'documents.navLabel', 'Documents'), icon: NotebookPen }] : []),
           { id: 'settings', label: t.settings, icon: Settings },
         ];
 

@@ -5944,6 +5944,53 @@ const VALUE_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
 };
 
 const TRIPLET_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
+  // Documents and notes page
+  'Documents': { bs: 'Dokumenti', de: 'Dokumente' },
+  'Documents and notes': { bs: 'Dokumenti i napomene', de: 'Dokumente und Notizen' },
+  'Dokumenti': { en: 'Documents', de: 'Dokumente' },
+  'Napomene': { en: 'Notes', de: 'Notizen' },
+  'Manage load paperwork and dispatch notes in one place.': {
+    bs: 'Upravljajte dokumentacijom tereta i napomenama na jednom mjestu.',
+    de: 'Verwalten Sie Ladungsunterlagen und Dispositionsnotizen an einem Ort.',
+  },
+  'Total documents': { bs: 'Ukupno dokumenata', de: 'Dokumente gesamt' },
+  'On loads': { bs: 'Na teretima', de: 'Auf Ladungen' },
+  'In archive': { bs: 'U arhivi', de: 'Im Archiv' },
+  'Total notes': { bs: 'Ukupno napomena', de: 'Notizen gesamt' },
+  'High priority': { bs: 'Visoki prioritet', de: 'Hohe Priorität' },
+  'Upload new document': { bs: 'Novi dokument', de: 'Neues Dokument hochladen' },
+  'Drag & drop a file here': { bs: 'Prevucite fajl ovdje', de: 'Datei hierher ziehen' },
+  'Browse files': { bs: 'Odaberi fajl', de: 'Dateien durchsuchen' },
+  'Scan / photo': { bs: 'Skeniraj / slikaj', de: 'Scannen / Foto' },
+  'PDF, DOC, DOCX, XLS, XLSX, JPG, PNG (max. 25 MB)': {
+    bs: 'PDF, DOC, DOCX, XLS, XLSX, JPG, PNG (max. 25 MB)',
+    de: 'PDF, DOC, DOCX, XLS, XLSX, JPG, PNG (max. 25 MB)',
+  },
+  'Choose another file': { bs: 'Odaberi drugi fajl', de: 'Andere Datei wählen' },
+  'Attach to load': { bs: 'Veži za teret', de: 'An Ladung anhängen' },
+  'No load — company archive': { bs: 'Bez tereta — arhiva firme', de: 'Ohne Ladung — Firmenarchiv' },
+  'The document is filed in your archive and is not tied to any load.': {
+    bs: 'Dokument ide u vašu arhivu i nije vezan ni za jedan teret.',
+    de: 'Das Dokument liegt in Ihrem Archiv und ist keiner Ladung zugeordnet.',
+  },
+  'Document type': { bs: 'Vrsta dokumenta', de: 'Dokumentart' },
+  'Select document type': { bs: 'Odaberite vrstu dokumenta', de: 'Dokumentart wählen' },
+  'Upload': { bs: 'Pošalji', de: 'Hochladen' },
+  'Uploading…': { bs: 'Slanje…', de: 'Wird hochgeladen…' },
+  'The document could not be uploaded.': { bs: 'Dokument nije poslan.', de: 'Das Dokument konnte nicht hochgeladen werden.' },
+  'The file is larger than 25 MB.': { bs: 'Fajl je veći od 25 MB.', de: 'Die Datei ist größer als 25 MB.' },
+  'Search documents by name, type or load...': {
+    bs: 'Pretraži dokumente po nazivu, vrsti ili teretu...',
+    de: 'Dokumente nach Name, Art oder Ladung suchen...',
+  },
+  'All loads': { bs: 'Svi tereti', de: 'Alle Ladungen' },
+  'Archive only (no load)': { bs: 'Samo arhiva (bez tereta)', de: 'Nur Archiv (ohne Ladung)' },
+  'All document types': { bs: 'Sve vrste dokumenata', de: 'Alle Dokumentarten' },
+  'Document name': { bs: 'Naziv dokumenta', de: 'Dokumentname' },
+  'Uploaded by': { bs: 'Poslao', de: 'Hochgeladen von' },
+  'Uploaded at': { bs: 'Vrijeme slanja', de: 'Hochgeladen am' },
+  'Archive': { bs: 'Arhiva', de: 'Archiv' },
+  'No documents yet.': { bs: 'Još nema dokumenata.', de: 'Noch keine Dokumente.' },
   // Warehousing bid form
   'Bid on Warehousing Request': { bs: 'Ponuda na zahtjev za skladištenje', de: 'Angebot für Lageranfrage' },
   'Submit Warehouse Bid': { bs: 'Pošalji ponudu za skladištenje', de: 'Lagerangebot senden' },
