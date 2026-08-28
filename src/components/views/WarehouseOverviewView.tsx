@@ -14,13 +14,13 @@ import {
 } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 
-import { ApiError, api } from '../../services/api';
+import { api } from '../../services/api';
 import { Language } from '../../types';
 import { cn } from '../../lib/cn';
 import { ui } from '../../i18n';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
-import { AdminField, AdminFormModal, adminFieldClass } from './AdminFormModal';
+import { AddWarehouseModal } from '../modals/AddWarehouseModal/AddWarehouseModal';
 import { showSuccess } from '../../lib/swal';
 
 type WarehouseOverviewData = {
@@ -31,8 +31,6 @@ type WarehouseOverviewData = {
   recent_arrivals: Record<string, unknown>[];
   top_customers: Record<string, unknown>[];
 };
-
-const emptyForm = { name: '', address: '', city: '', country_code: 'BA', total_capacity_pallets: '', storage_types: '' };
 
 const formatTime = (value: unknown) => {
   const date = value ? new Date(String(value)) : null;
@@ -49,11 +47,7 @@ export const WarehouseOverviewView = ({ lang }: { lang: Language }) => {
   const [data, setData] = useState<WarehouseOverviewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
-  const [form, setForm] = useState(emptyForm);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
-  const field = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
 
   useEffect(() => {
     setLoading(true);
@@ -63,47 +57,16 @@ export const WarehouseOverviewView = ({ lang }: { lang: Language }) => {
       .finally(() => setLoading(false));
   }, [reloadKey]);
 
-  const saveWarehouse = async () => {
-    setSubmitting(true);
-    setError('');
-    try {
-      await api.warehouses.create({
-        name: form.name,
-        address: form.address || null,
-        city: form.city || null,
-        country_code: form.country_code || null,
-        total_capacity_pallets: form.total_capacity_pallets === '' ? 0 : Number(form.total_capacity_pallets),
-        storage_types: form.storage_types ? form.storage_types.split(',').map((value) => value.trim()).filter(Boolean) : null,
-      });
-      setCreateOpen(false);
-      setForm(emptyForm);
-      setReloadKey((current) => current + 1);
-      void showSuccess(u('warehouses.created', 'Warehouse created'), u('warehouses.createdText', 'The facility is now listed.'));
-    } catch (caught) {
-      const validation = caught instanceof ApiError ? Object.values(caught.errors).flat()[0] : null;
-      setError(validation || (caught instanceof Error ? caught.message : 'Warehouse could not be created.'));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   const createModal = (
-    <AdminFormModal
+    <AddWarehouseModal
       open={createOpen}
-      title={u('warehouses.create', 'Create Warehouse')}
-      description={u('warehouses.createDescription', 'Add a storage facility to the network.')}
-      submitting={submitting}
-      error={error}
-      onClose={() => { setCreateOpen(false); setError(''); }}
-      onSubmit={() => void saveWarehouse()}
-    >
-      <AdminField label={u('warehouses.colName', 'Warehouse')}><input required value={form.name} onChange={(event) => field('name', event.target.value)} className={adminFieldClass} /></AdminField>
-      <AdminField label={u('warehouses.address', 'Address')}><input value={form.address} onChange={(event) => field('address', event.target.value)} className={adminFieldClass} /></AdminField>
-      <AdminField label={u('warehouses.city', 'City')}><input value={form.city} onChange={(event) => field('city', event.target.value)} className={adminFieldClass} /></AdminField>
-      <AdminField label={u('warehouses.countryCode', 'Country code')}><input maxLength={2} value={form.country_code} onChange={(event) => field('country_code', event.target.value.toUpperCase())} className={adminFieldClass} /></AdminField>
-      <AdminField label={u('warehouses.capacityPallets', 'Total capacity (pallets)')}><input type="number" min={0} value={form.total_capacity_pallets} onChange={(event) => field('total_capacity_pallets', event.target.value)} className={adminFieldClass} /></AdminField>
-      <AdminField label={u('warehouses.storageTypes', 'Storage types (comma separated)')}><input value={form.storage_types} onChange={(event) => field('storage_types', event.target.value)} placeholder="Ambient, Chilled, Frozen" className={adminFieldClass} /></AdminField>
-    </AdminFormModal>
+      lang={lang}
+      onClose={() => setCreateOpen(false)}
+      onCreated={() => {
+        setReloadKey((current) => current + 1);
+        void showSuccess(u('warehouses.created', 'Warehouse created'), u('warehouses.createdText', 'The facility is now listed.'));
+      }}
+    />
   );
 
   if (loading) {

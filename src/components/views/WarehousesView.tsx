@@ -1,16 +1,14 @@
 import { useMemo, useState } from 'react';
 import { Boxes, MapPin, Plus, Search, Warehouse as WarehouseIcon } from 'lucide-react';
 
-import { ApiError, api } from '../../services/api';
+import { api } from '../../services/api';
 import { Language, Role } from '../../types';
 import { ui } from '../../i18n';
 import { useApiList } from '../../hooks/useApiList';
-import { AdminField, AdminFormModal, adminFieldClass } from './AdminFormModal';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { showSuccess } from '../../lib/swal';
-
-const emptyForm = { name: '', address: '', city: '', country_code: 'BA', total_capacity_pallets: '', storage_types: '' };
+import { AddWarehouseModal } from '../modals/AddWarehouseModal/AddWarehouseModal';
 
 // The warehouse directory every non-warehouse role reaches from the sidebar. Warehouse-role users
 // get their own facility dashboard instead (WarehouseOverviewView), so this stays a browse +
@@ -18,15 +16,11 @@ const emptyForm = { name: '', address: '', city: '', country_code: 'BA', total_c
 export const WarehousesView = ({ lang, role }: { lang: Language; role: Role }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [query, setQuery] = useState('');
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState(emptyForm);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
+  const [createOpen, setCreateOpen] = useState(false);
   const warehouses = useApiList(api.warehouses.list, { per_page: 100 });
   // POST /warehouses is gated to warehouse/superadmin/master on the backend, so the button only
   // appears where it can actually succeed.
   const canCreate = role === 'superadmin' || role === 'master' || role === 'warehouse';
-  const field = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
 
   const visible = useMemo(
     () => warehouses.items.filter((row) => JSON.stringify(row).toLowerCase().includes(query.toLowerCase())),
@@ -34,30 +28,6 @@ export const WarehousesView = ({ lang, role }: { lang: Language; role: Role }) =
   );
   const totalCapacity = warehouses.items.reduce((sum, row) => sum + Number(row.total_capacity_pallets || 0), 0);
   const countries = new Set(warehouses.items.map((row) => String(row.country_code || '')).filter(Boolean));
-
-  const save = async () => {
-    setSubmitting(true);
-    setError('');
-    try {
-      await api.warehouses.create({
-        name: form.name,
-        address: form.address || null,
-        city: form.city || null,
-        country_code: form.country_code || null,
-        total_capacity_pallets: form.total_capacity_pallets === '' ? 0 : Number(form.total_capacity_pallets),
-        storage_types: form.storage_types ? form.storage_types.split(',').map((value) => value.trim()).filter(Boolean) : null,
-      });
-      await warehouses.refresh();
-      setOpen(false);
-      setForm(emptyForm);
-      void showSuccess(u('warehouses.created', 'Warehouse created'), u('warehouses.createdText', 'The facility is now listed.'));
-    } catch (caught) {
-      const validation = caught instanceof ApiError ? Object.values(caught.errors).flat()[0] : null;
-      setError(validation || (caught instanceof Error ? caught.message : 'Warehouse could not be created.'));
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   return <>
     <div className="space-y-4" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
@@ -70,7 +40,7 @@ export const WarehousesView = ({ lang, role }: { lang: Language; role: Role }) =
           </div>
         </div>
         {canCreate && (
-          <Button size="sm" onClick={() => setOpen(true)}>
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="mr-1.5 h-4 w-4" />{u('warehouses.create', 'Create Warehouse')}
           </Button>
         )}
@@ -125,21 +95,14 @@ export const WarehousesView = ({ lang, role }: { lang: Language; role: Role }) =
       </Card>
     </div>
 
-    <AdminFormModal
-      open={open}
-      title={u('warehouses.create', 'Create Warehouse')}
-      description={u('warehouses.createDescription', 'Add a storage facility to the network.')}
-      submitting={submitting}
-      error={error}
-      onClose={() => { setOpen(false); setError(''); }}
-      onSubmit={() => void save()}
-    >
-      <AdminField label={u('warehouses.colName', 'Warehouse')}><input required value={form.name} onChange={(event) => field('name', event.target.value)} className={adminFieldClass} /></AdminField>
-      <AdminField label={u('warehouses.address', 'Address')}><input value={form.address} onChange={(event) => field('address', event.target.value)} className={adminFieldClass} /></AdminField>
-      <AdminField label={u('warehouses.city', 'City')}><input value={form.city} onChange={(event) => field('city', event.target.value)} className={adminFieldClass} /></AdminField>
-      <AdminField label={u('warehouses.countryCode', 'Country code')}><input maxLength={2} value={form.country_code} onChange={(event) => field('country_code', event.target.value.toUpperCase())} className={adminFieldClass} /></AdminField>
-      <AdminField label={u('warehouses.capacityPallets', 'Total capacity (pallets)')}><input type="number" min={0} value={form.total_capacity_pallets} onChange={(event) => field('total_capacity_pallets', event.target.value)} className={adminFieldClass} /></AdminField>
-      <AdminField label={u('warehouses.storageTypes', 'Storage types (comma separated)')}><input value={form.storage_types} onChange={(event) => field('storage_types', event.target.value)} placeholder="Ambient, Chilled, Frozen" className={adminFieldClass} /></AdminField>
-    </AdminFormModal>
+    <AddWarehouseModal
+      open={createOpen}
+      lang={lang}
+      onClose={() => setCreateOpen(false)}
+      onCreated={() => {
+        void warehouses.refresh();
+        void showSuccess(u('warehouses.created', 'Warehouse created'), u('warehouses.createdText', 'The facility is now listed.'));
+      }}
+    />
   </>;
 };
