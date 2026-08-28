@@ -1315,6 +1315,7 @@ const LandingPage = ({
   const [isDeletingMessage, setIsDeletingMessage] = useState(false);
   const [landingLoads, setLandingLoads] = useState<Load[]>([]);
   const [landingPackages, setLandingPackages] = useState<SubscriptionPackage[]>([]);
+  const [landingModuleCounts, setLandingModuleCounts] = useState<{ recipients: number; tariff_codes: number } | null>(null);
   const SECTION_PADDING = "py-20 sm:py-24 lg:py-32";
   const t = translations[lang || 'en'];
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
@@ -1455,9 +1456,9 @@ const LandingPage = ({
       name: u('landing.modules.recipients.name', 'Recipient database'),
       description: u('landing.modules.recipients', 'Save recipient details once and reuse them when creating new loads.'),
       icon: ContactRound,
-      tone: 'bg-rose-500/10 text-rose-500',
+      tone: 'bg-teal-500/10 text-teal-500',
       points: [
-        { icon: Database, label: u('landing.modules.recipients.1', 'Central recipient directory') },
+        { icon: Database, label: `${u('landing.modules.recipients.1', 'Central recipient directory')}${landingModuleCounts ? ` · ${landingModuleCounts.recipients.toLocaleString()} ${u('landing.modules.recipients.count', 'recipients')}` : ''}` },
         { icon: Building2, label: u('landing.modules.recipients.2', 'Company, address and contact details') },
         { icon: Search, label: u('landing.modules.recipients.3', 'Search by name, tax number or city') },
         { icon: Plus, label: u('landing.modules.recipients.4', 'Reuse recipients on new loads') },
@@ -1469,9 +1470,9 @@ const LandingPage = ({
       name: u('nav.tariffsHs', 'Tariffs & HS codes'),
       description: u('landing.modules.tariffs', 'Browse and search the complete multilingual customs tariff hierarchy.'),
       icon: ScanSearch,
-      tone: 'bg-violet-500/10 text-violet-500',
+      tone: 'bg-fuchsia-500/10 text-fuchsia-500',
       points: [
-        { icon: Search, label: u('landing.modules.tariffs.1', 'Search by HS code or product name') },
+        { icon: Search, label: `${u('landing.modules.tariffs.1', 'Search by HS code or product name')}${landingModuleCounts ? ` · ${landingModuleCounts.tariff_codes.toLocaleString()} ${u('landing.modules.tariffs.count', 'codes')}` : ''}` },
         { icon: Boxes, label: u('landing.modules.tariffs.2', 'Browse sections and chapters') },
         { icon: History, label: u('landing.modules.tariffs.3', 'Follow the indented code hierarchy') },
         { icon: CheckCircle2, label: u('landing.modules.tariffs.4', 'Select precise 10-digit tariff codes') },
@@ -1483,14 +1484,14 @@ const LandingPage = ({
       name: u('landing.modules.mobile.name', 'Mobile app'),
       description: u('landing.modules.mobile', 'Manage loads, tracking and conversations wherever the work takes you.'),
       icon: Smartphone,
-      tone: 'bg-cyan-500/10 text-cyan-500',
+      tone: 'bg-lime-500/10 text-lime-600 dark:text-lime-400',
       points: [
         { icon: Smartphone, label: u('landing.modules.mobile.1', 'Native iOS and Android access') },
         { icon: Boxes, label: u('landing.modules.mobile.2', 'Post and review loads on the go') },
         { icon: MapPin, label: u('landing.modules.mobile.3', 'Follow shipment tracking live') },
         { icon: MessageSquare, label: u('landing.modules.mobile.4', 'Keep conversations close at hand') },
-        { icon: Camera, label: u('landing.modules.mobile.5', 'Capture documents and delivery proof') },
-        { icon: ShieldCheck, label: u('landing.modules.mobile.6', 'The same role-based permissions') },
+        { icon: MapIcon, label: u('landing.modules.mobile.5', 'High-end navigation') },
+        { icon: Smartphone, label: u('landing.modules.mobile.6', 'Apple CarPlay and Android Auto') },
       ],
     },
   ];
@@ -1511,6 +1512,14 @@ const LandingPage = ({
       })
       .catch(() => {
         if (active) setLandingPackages([]);
+      });
+
+    void api.landing.moduleCounts()
+      .then((response) => {
+        if (active) setLandingModuleCounts(response.data);
+      })
+      .catch(() => {
+        if (active) setLandingModuleCounts(null);
       });
 
     return () => { active = false; };

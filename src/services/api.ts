@@ -53,6 +53,10 @@ export type TariffCategory = {
   count: number;
   selectableCount: number;
 };
+export type PublicModuleCounts = {
+  recipients: number;
+  tariff_codes: number;
+};
 export type LoadPartyMatch = {
   role: string;
   name: string;
@@ -396,6 +400,9 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ loads }),
     }),
+  },
+  landing: {
+    moduleCounts: () => request<PublicModuleCounts>('/public-module-counts'),
   },
   hsCodes: {
     search: (query: string, limit = 8, lang?: Language) => request<HsCodeMatch[]>(`/hs-codes?${queryString({ query, limit, lang: lang || undefined })}`),
