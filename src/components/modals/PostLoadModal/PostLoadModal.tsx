@@ -389,7 +389,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       // Only the bare code is persisted per HS entry (see stripHsCodesForPayload) - re-resolve the
       // full catalog details here so the chip UI has category names/icons to show.
       const rawHsCodes = Array.isArray(record.hs_codes) ? record.hs_codes as HsCodeMatch[] : [];
-      const hsCodes = await resolveHsCodes(rawHsCodes);
+      const hsCodes = await resolveHsCodes(rawHsCodes, lang);
       setHsQuery('');
       setDraft({ ...INITIAL_DRAFT,
         consignee,
@@ -836,7 +836,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     if (query.length < 2 || hsSearching) return;
     setHsSearching(true);
     try {
-      const response = await api.hsCodes.search(query, 8);
+      const response = await api.hsCodes.search(query, 25, lang);
       setHsSuggestions(response.data);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : u('HS catalog search failed', 'HS catalog search failed'));
@@ -2076,13 +2076,29 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             </div>
                             {hsSuggestions.length > 0 && (
                               <div className="absolute z-10 mt-1 max-h-44 w-full space-y-1 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-lg dark:border-slate-700 dark:bg-slate-900">
-                                {hsSuggestions.map((item) => {
+                                {hsSuggestions.map((item, index) => {
                                   const SectionIcon = hsSectionIcon(item.chapterCode);
+                                  const selectable = item.selectable ?? true;
+                                  const depth = Math.min(8, Math.max(0, item.depth ?? 0));
                                   return (
-                                    <button key={item.code} type="button" onClick={() => addHsCode(item)} className="flex w-full cursor-pointer items-start gap-3 rounded-lg px-3 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-800">
-                                      <SectionIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                                      <span className="shrink-0 font-mono text-xs font-black text-primary">{item.code}</span>
-                                      <span className="text-xs leading-5 text-slate-600 dark:text-slate-300">{item.description}</span>
+                                    <button
+                                      key={item.catalogId ?? `${item.code}-${index}`}
+                                      type="button"
+                                      disabled={!selectable}
+                                      onClick={() => selectable && addHsCode(item)}
+                                      style={{ paddingLeft: `${12 + depth * 12}px` }}
+                                      className={cn(
+                                        'flex w-full items-start gap-2 rounded-lg py-2 pr-3 text-left',
+                                        selectable
+                                          ? 'cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800'
+                                          : 'cursor-not-allowed bg-slate-50/70 text-slate-400 dark:bg-slate-800/30 dark:text-slate-500',
+                                      )}
+                                    >
+                                      {selectable
+                                        ? <SectionIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                                        : <span className="w-3.5 shrink-0 text-center text-sm font-black">›</span>}
+                                      {item.code && <span className={cn('shrink-0 font-mono text-xs font-black', selectable ? 'text-primary' : 'text-slate-400')}>{item.code}</span>}
+                                      <span className="text-xs leading-5">{item.name || item.description}</span>
                                     </button>
                                   );
                                 })}

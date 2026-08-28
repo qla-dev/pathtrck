@@ -1,4 +1,4 @@
-import { Role } from '../types';
+import { Language, Role } from '../types';
 
 export type ApiEnvelope<T> = {
   message: string;
@@ -27,9 +27,16 @@ export const AI_DISPATCH_SUBJECT_PREFIX = 'AI Dispatch — ';
 
 export type ScanImage = { base64: string; mimeType?: string; filename?: string };
 export type HsCodeMatch = {
+  catalogId?: number;
   code: string;
+  name?: string;
   description: string;
   confidence: number;
+  fullName?: string;
+  parentCode?: string | null;
+  section?: string;
+  depth?: number;
+  selectable?: boolean;
   headingCode?: string;
   headingName?: string;
   chapterCode?: string;
@@ -381,8 +388,8 @@ export const api = {
     }),
   },
   hsCodes: {
-    search: (query: string, limit = 8) => request<HsCodeMatch[]>(`/hs-codes?${queryString({ query, limit })}`),
-    bulk: (codes: string[]) => request<HsCodeMatch[]>('/hs-codes/bulk', { method: 'POST', body: JSON.stringify({ codes }) }),
+    search: (query: string, limit = 8, lang?: Language) => request<HsCodeMatch[]>(`/hs-codes?${queryString({ query, limit, lang: lang || undefined })}`),
+    bulk: (codes: string[], lang?: Language) => request<HsCodeMatch[]>('/hs-codes/bulk', { method: 'POST', body: JSON.stringify({ codes, lang: lang || undefined }) }),
   },
   loadStops: resourceApi<Record<string, unknown>>('load-stops'),
   offers: {

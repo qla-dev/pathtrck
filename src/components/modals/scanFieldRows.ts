@@ -48,6 +48,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import { api, HsCodeMatch, LoadScanResult } from '../../services/api';
+import type { Language } from '../../types';
 import { customerOptionFromRecord, type CustomerOption } from '../customer/CustomerSelect';
 
 export type ScanFieldPatch = Partial<{
@@ -201,11 +202,11 @@ export const stripHsCodesForPayload = (hsCodes: HsCodeMatch[]): Array<{ code: st
 // HS code entries back to their full catalog details in one batched request, for entries missing a
 // description - used when opening an existing load for editing, so the chip UI can show category
 // names/icons without those ever having been stored on the load itself.
-export const resolveHsCodes = async (hsCodes: HsCodeMatch[]): Promise<HsCodeMatch[]> => {
+export const resolveHsCodes = async (hsCodes: HsCodeMatch[], lang?: Language): Promise<HsCodeMatch[]> => {
   const needsResolve = hsCodes.filter((item) => !item.description && item.code);
   if (needsResolve.length === 0) return hsCodes;
 
-  const resolved = await api.hsCodes.bulk(needsResolve.map((item) => item.code));
+  const resolved = await api.hsCodes.bulk(needsResolve.map((item) => item.code), lang);
   const byCode = new Map(resolved.data.map((item) => [item.code, item]));
 
   return hsCodes.map((item) => byCode.get(item.code) || item);
