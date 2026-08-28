@@ -228,9 +228,11 @@ export const LoadNotesView = ({ lang }: { lang: Language }) => {
 
       <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {counters.map((counter) => (
-          <Card key={counter.key} className="shadow-none" contentClassName="flex items-center justify-between gap-3 px-5 py-3">
-            <div>
-              <p className="text-xs uppercase text-slate-500">{counter.label}</p>
+          {/* min-w-0 + truncate: a grid item defaults to min-width:auto, so a long label like
+              "UKUPNO DOKUMENATA" would widen its track and push the whole row past the viewport. */}
+          <Card key={counter.key} className="min-w-0 shadow-none" contentClassName="flex items-center justify-between gap-3 px-5 py-3">
+            <div className="min-w-0">
+              <p className="truncate text-xs uppercase text-slate-500">{counter.label}</p>
               <p className={cn('mt-1 text-2xl font-black', counter.tone)}>{counter.value}</p>
             </div>
             <div className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl', counter.chip)}>
@@ -241,7 +243,7 @@ export const LoadNotesView = ({ lang }: { lang: Language }) => {
       </div>
 
       <div className="grid gap-3 lg:grid-cols-12">
-        <div className="flex h-full flex-col gap-3 lg:col-span-8">
+        <div className="flex h-full min-w-0 flex-col gap-3 lg:col-span-8">
           {/* Uploading stays available in both tabs - someone reading notes still has paperwork in
               hand, and switching tabs to file it would be busywork. */}
           <DocumentUploadCard lang={lang} loadOptions={documentLoadOptions} onUploaded={documentsResult.refresh} />
@@ -353,7 +355,7 @@ export const LoadNotesView = ({ lang }: { lang: Language }) => {
           )}
         </div>
 
-        <div className="lg:col-span-4">
+        <div className="min-w-0 lg:col-span-4">
           <Card className="sticky top-4 shadow-none" contentClassName="p-3.5">
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">{u('notes.newNoteLabel', 'New note')}</p>
             <h2 className="mt-0.5 text-base font-bold dark:text-white">{u('notes.newNoteTitle', 'Add note for a load')}</h2>
