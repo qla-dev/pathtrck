@@ -409,8 +409,8 @@ export const api = {
     bulk: (codes: string[], lang?: Language) => request<HsCodeMatch[]>('/hs-codes/bulk', { method: 'POST', body: JSON.stringify({ codes, lang: lang || undefined }) }),
   },
   tariffs: {
-    categories: (lang?: Language) => request<TariffCategory[]>(`/tariffs/categories?${queryString({ lang: lang || undefined })}`),
-    catalog: (params: { query?: string; section?: string; page?: number; per_page?: number; lang?: Language }) =>
+    categories: (lang?: Language, section?: string) => request<TariffCategory[]>(`/tariffs/categories?${queryString({ lang: lang || undefined, section })}`),
+    catalog: (params: { query?: string; section?: string; chapter?: string; page?: number; per_page?: number; lang?: Language }) =>
       request<TariffCatalogRow[]>(`/tariffs/catalog?${queryString({ ...params, lang: params.lang || undefined })}`),
   },
   loadStops: resourceApi<Record<string, unknown>>('load-stops'),

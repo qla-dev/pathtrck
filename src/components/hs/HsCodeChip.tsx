@@ -1,11 +1,14 @@
 import { useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { Layers3, X } from 'lucide-react';
 import type { HsCodeMatch } from '../../services/api';
+import { ui } from '../../i18n';
+import type { Language } from '../../types';
 import { hsSectionIcon } from '../modals/scanFieldRows';
 
 type HsCodeChipProps = {
   item: HsCodeMatch;
+  lang?: Language;
   onRemove?: () => void;
   removeTitle?: string;
 };
@@ -16,14 +19,15 @@ type TooltipPosition = {
   placement: 'above' | 'below';
 };
 
-export const HsCodeChip = ({ item, onRemove, removeTitle = 'Remove HS code' }: HsCodeChipProps) => {
+export const HsCodeChip = ({ item, lang, onRemove, removeTitle = 'Remove HS code' }: HsCodeChipProps) => {
+  const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const chipRef = useRef<HTMLSpanElement>(null);
   const tooltipId = useId();
   const [tooltipPosition, setTooltipPosition] = useState<TooltipPosition | null>(null);
   const SectionIcon = hsSectionIcon(item.chapterCode);
-  const category = item.headingName || item.chapterName;
-  const parentCategory = item.chapterName && item.chapterName !== category ? item.chapterName : '';
-  const hasTooltip = Boolean(item.description || category);
+  const category = item.chapterName || item.headingName || item.section || '';
+  const parentCategory = item.section && item.section !== category ? item.section : '';
+  const hasTooltip = Boolean(item.description || category || parentCategory);
 
   const showTooltip = () => {
     if (!hasTooltip || !chipRef.current) return;
@@ -39,6 +43,14 @@ export const HsCodeChip = ({ item, onRemove, removeTitle = 'Remove HS code' }: H
     });
   };
 
+  const toggleTooltip = () => {
+    if (tooltipPosition) {
+      setTooltipPosition(null);
+      return;
+    }
+    showTooltip();
+  };
+
   return (
     <>
       <span
@@ -48,8 +60,16 @@ export const HsCodeChip = ({ item, onRemove, removeTitle = 'Remove HS code' }: H
         onMouseLeave={() => setTooltipPosition(null)}
         onFocus={showTooltip}
         onBlur={() => setTooltipPosition(null)}
+        onClick={toggleTooltip}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            toggleTooltip();
+          }
+        }}
+        role={hasTooltip ? 'button' : undefined}
         tabIndex={hasTooltip ? 0 : undefined}
-        className="inline-flex max-w-[240px] shrink-0 items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        className="inline-flex max-w-[240px] shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary outline-none transition-all hover:-translate-y-px hover:border-primary/45 hover:bg-primary/15 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-primary/40"
       >
         <SectionIcon className="h-3.5 w-3.5 shrink-0" />
         <span className="truncate">
@@ -57,7 +77,7 @@ export const HsCodeChip = ({ item, onRemove, removeTitle = 'Remove HS code' }: H
           {category && <span className="font-normal opacity-75"> · {category}</span>}
         </span>
         {onRemove && (
-          <button type="button" onClick={onRemove} title={removeTitle} className="shrink-0 cursor-pointer">
+          <button type="button" onClick={(event) => { event.stopPropagation(); onRemove(); }} title={removeTitle} className="shrink-0 cursor-pointer rounded-sm hover:bg-primary/15">
             <X className="h-3 w-3" />
           </button>
         )}
@@ -79,10 +99,39 @@ export const HsCodeChip = ({ item, onRemove, removeTitle = 'Remove HS code' }: H
           ) : (
             <span className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-950 dark:border-b-slate-800" />
           )}
-          <span className="block text-[10px] font-black uppercase tracking-wider text-sky-300">HS {item.code}</span>
-          {item.description && <span className="mt-1 block text-xs font-semibold leading-5">{item.description}</span>}
-          {category && category !== item.description && <span className="mt-1 block text-[11px] font-medium leading-4 text-slate-300">{category}</span>}
-          {parentCategory && <span className="mt-0.5 block text-[10px] leading-4 text-slate-400">{parentCategory}</span>}
+          <span className="flex items-center gap-2">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-sky-400/15 text-sky-300">
+              <SectionIcon className="h-4 w-4" />
+            </span>
+            <span>
+              <span className="block text-[10px] font-black uppercase tracking-wider text-sky-300">HS {item.code}</span>
+              <span className="mt-0.5 block text-[10px] font-medium text-slate-400">{u('hsChip.classification', 'Customs tariff classification')}</span>
+            </span>
+          </span>
+          {item.description && <span className="mt-2 block text-xs font-bold leading-5 text-white">{item.description}</span>}
+          {(category || parentCategory) && <span className="my-2.5 block h-px bg-white/10" />}
+          {parentCategory && (
+            <span className="flex items-center gap-2">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-violet-400/15 text-violet-300">
+                <Layers3 className="h-3.5 w-3.5" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-[9px] font-black uppercase tracking-wider text-slate-500">{u('hsChip.parent', 'Parent section')}</span>
+                <span className="block text-[11px] font-semibold leading-4 text-slate-200">{parentCategory}</span>
+              </span>
+            </span>
+          )}
+          {category && (
+            <span className="mt-2 flex items-center gap-2">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-sky-400/15 text-sky-300">
+                <SectionIcon className="h-3.5 w-3.5" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-[9px] font-black uppercase tracking-wider text-slate-500">{u('hsChip.category', 'Category')}</span>
+                <span className="block text-[11px] font-semibold leading-4 text-slate-200">{category}</span>
+              </span>
+            </span>
+          )}
         </span>,
         document.body
       )}

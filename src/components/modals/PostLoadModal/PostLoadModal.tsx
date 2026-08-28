@@ -2054,6 +2054,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                                 <HsCodeChip
                                   key={item.code}
                                   item={item}
+                                  lang={lang}
                                   onRemove={() => removeHsCode(item.code)}
                                   removeTitle={u('Remove HS code', 'Remove HS code')}
                                 />

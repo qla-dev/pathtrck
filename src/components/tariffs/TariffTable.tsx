@@ -9,12 +9,13 @@ import { ServerDataTable, type ServerDataTableColumn } from '../ui/ServerDataTab
 type TariffTableProps = {
   lang: Language;
   section: string;
+  chapter: string;
   refreshKey: number;
 };
 
 type TableRow = TariffCatalogRow & Record<string, unknown>;
 
-export const TariffTable = ({ lang, section, refreshKey }: TariffTableProps) => {
+export const TariffTable = ({ lang, section, chapter, refreshKey }: TariffTableProps) => {
   const u = useCallback((key: string, fallback: string) => ui(lang, key, fallback), [lang]);
 
   const columns = useMemo<ServerDataTableColumn<TableRow>[]>(() => [
@@ -88,13 +89,14 @@ export const TariffTable = ({ lang, section, refreshKey }: TariffTableProps) => 
     const response = await api.tariffs.catalog({
       query: typeof params.search === 'string' ? params.search : undefined,
       section: section || undefined,
+      chapter: chapter || undefined,
       page: typeof params.pageno === 'number' ? params.pageno : 1,
       per_page: typeof params.limit === 'number' ? params.limit : 50,
       lang,
     });
 
     return response as ApiEnvelope<TableRow[]>;
-  }, [lang, section]);
+  }, [chapter, lang, section]);
 
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">

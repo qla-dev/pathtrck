@@ -491,6 +491,9 @@ const UI_EN: Record<string, string> = {
   'tariffs.table.leaf': 'Selectable',
   'tariffs.table.group': 'Group',
   'tariffs.empty': 'No tariff entries match your search.',
+  'tariffs.subcategories': 'Subcategories',
+  'tariffs.subcategoriesSubtitle': 'Choose a chapter inside the selected category.',
+  'tariffs.allSubcategories': 'All subcategories',
   'pricing.title': 'Plans & Pricing',
   'pricing.subtitle': 'Pick the plan that matches how much you move - every plan unlocks the full Freightbook feature set.',
   'pricing.godMode': 'God Mode - Unlimited Access',
@@ -656,6 +659,9 @@ const UI: Record<Locale, Record<string, string>> = {
     'tariffs.table.leaf': 'Za odabir',
     'tariffs.table.group': 'Grupa',
     'tariffs.empty': 'Nijedan tarifni zapis ne odgovara pretrazi.',
+    'tariffs.subcategories': 'Podkategorije',
+    'tariffs.subcategoriesSubtitle': 'Izaberite glavu unutar odabrane kategorije.',
+    'tariffs.allSubcategories': 'Sve podkategorije',
     'pricing.title': 'Paketi i cijene',
     'pricing.subtitle': 'Izaberite paket koji odgovara obimu vašeg poslovanja - svaki paket otključava sve funkcije Freightbook-a.',
     'pricing.godMode': 'God Mode - Neograničen pristup',
@@ -1282,6 +1288,9 @@ const UI: Record<Locale, Record<string, string>> = {
     'tariffs.table.leaf': 'Auswählbar',
     'tariffs.table.group': 'Gruppe',
     'tariffs.empty': 'Keine Tarifeinträge entsprechen Ihrer Suche.',
+    'tariffs.subcategories': 'Unterkategorien',
+    'tariffs.subcategoriesSubtitle': 'Wählen Sie ein Kapitel innerhalb der gewählten Kategorie.',
+    'tariffs.allSubcategories': 'Alle Unterkategorien',
     'pricing.title': 'Tarife & Preise',
     'pricing.subtitle': 'Wählen Sie den Tarif, der zu Ihrem Sendungsvolumen passt - jeder Tarif schaltet alle Freightbook-Funktionen frei.',
     'pricing.godMode': 'God Mode - Unbegrenzter Zugriff',
@@ -7997,6 +8006,9 @@ export const translateTriplet = (lang: Language, en: string, bs: string, de: str
 
 const locale = (lang: Language) => UI[(lang || 'en') as Locale] || UI.en;
 Object.assign(UI.en, {
+  'hsChip.classification': 'Customs tariff classification',
+  'hsChip.parent': 'Parent section',
+  'hsChip.category': 'Category',
   'landing.modules.recipients.name': 'Recipient database',
   'landing.modules.recipients': 'Save recipient details once and reuse them when creating new loads.',
   'landing.modules.recipients.1': 'Central recipient directory',
@@ -8025,6 +8037,9 @@ Object.assign(UI.en, {
 });
 
 Object.assign(UI.bs, {
+  'hsChip.classification': 'Carinska tarifna klasifikacija',
+  'hsChip.parent': 'Nadređeni odjeljak',
+  'hsChip.category': 'Kategorija',
   'landing.modules.recipients.name': 'Baza primatelja',
   'landing.modules.recipients': 'Sačuvajte podatke primatelja jednom i koristite ih pri kreiranju novih tereta.',
   'landing.modules.recipients.1': 'Centralna baza primatelja',
@@ -8053,6 +8068,9 @@ Object.assign(UI.bs, {
 });
 
 Object.assign(UI.de, {
+  'hsChip.classification': 'Zolltarifklassifizierung',
+  'hsChip.parent': 'Übergeordneter Abschnitt',
+  'hsChip.category': 'Kategorie',
   'landing.modules.recipients.name': 'Empfängerdatenbank',
   'landing.modules.recipients': 'Empfängerdaten einmal speichern und beim Erstellen neuer Ladungen wiederverwenden.',
   'landing.modules.recipients.1': 'Zentrales Empfängerverzeichnis',

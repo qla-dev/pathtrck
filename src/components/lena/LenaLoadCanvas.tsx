@@ -157,7 +157,7 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftI
                     <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">{row.label}</p>
                     {row.key === 'hsCodes' && mergedScan?.hsCodes?.length ? (
                       <div className="mt-1 flex flex-wrap gap-1.5">
-                        {mergedScan.hsCodes.map((item) => <HsCodeChip key={item.code} item={item} />)}
+                        {mergedScan.hsCodes.map((item) => <HsCodeChip key={item.code} item={item} lang={lang} />)}
                       </div>
                     ) : (
                       <p className="mt-0.5 text-xs font-bold leading-snug text-slate-900 dark:text-white">{row.value}</p>
