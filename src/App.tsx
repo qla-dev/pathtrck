@@ -1185,6 +1185,107 @@ const StatCard = ({ label, value, sub, icon: Icon, delay }: { label: string; val
   );
 };
 
+type LandingModule = {
+  name: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  tone: string;
+  points: Array<{
+    icon: React.ComponentType<{ className?: string }>;
+    label: string;
+  }>;
+};
+
+const LandingModuleCard = ({ module, index }: { module: LandingModule; index: number }) => {
+  const { ref, controls } = useScrollDownReveal(
+    { opacity: 0, y: 24, scale: 0.98 },
+    { opacity: 1, y: 0, scale: 1 },
+    0.2,
+  );
+
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 24, scale: 0.98 }}
+      animate={controls}
+      transition={{ duration: 0.55, delay: (index % 3) * 0.1, ease: 'easeOut' }}
+      className="rounded-2xl border border-slate-200 bg-white p-5 transition-colors hover:border-primary/40 dark:border-slate-800 dark:bg-slate-950"
+    >
+      <div className={cn('mb-4 flex h-11 w-11 items-center justify-center rounded-xl', module.tone)}>
+        <module.icon className="h-5 w-5" />
+      </div>
+      <h3 className="text-base font-black text-slate-900 dark:text-white">{module.name}</h3>
+      <p className="mt-2 line-clamp-2 min-h-12 text-sm leading-6 text-slate-500 dark:text-slate-400">{module.description}</p>
+      <ul className="mt-4 space-y-2 border-t border-slate-100 pt-4 dark:border-slate-800">
+        {module.points.map((point) => (
+          <li key={point.label} className="flex min-h-5 items-center gap-2 text-xs font-semibold leading-5 text-slate-600 dark:text-slate-300">
+            <span className={cn('flex h-5 w-5 shrink-0 items-center justify-center rounded-md', module.tone)}>
+              <point.icon className="h-3 w-3" />
+            </span>
+            {point.label}
+          </li>
+        ))}
+      </ul>
+    </motion.div>
+  );
+};
+
+const LenaCapabilityCard = ({
+  capability,
+  index,
+}: {
+  capability: {
+    icon: React.ComponentType<{ className?: string }>;
+    title: string;
+    description: string;
+    cardClass: string;
+    iconClass: string;
+  };
+  index: number;
+}) => {
+  const { ref, controls } = useScrollDownReveal(
+    { opacity: 0, y: 24, scale: 0.98 },
+    { opacity: 1, y: 0, scale: 1 },
+    0.2,
+  );
+
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 24, scale: 0.98 }}
+      animate={controls}
+      transition={{ duration: 0.55, delay: index * 0.1, ease: 'easeOut' }}
+      className={cn('rounded-2xl border p-5', capability.cardClass)}
+    >
+      <div className={cn('mb-3 flex h-10 w-10 items-center justify-center rounded-xl', capability.iconClass)}>
+        <capability.icon className="h-5 w-5" />
+      </div>
+      <h3 className="font-black text-slate-900 dark:text-white">{capability.title}</h3>
+      <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{capability.description}</p>
+    </motion.div>
+  );
+};
+
+const LenaDataFlowReveal = ({ children }: { children: React.ReactNode }) => {
+  const { ref, controls } = useScrollDownReveal(
+    { opacity: 0, y: 28 },
+    { opacity: 1, y: 0 },
+    0.2,
+  );
+
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 28 }}
+      animate={controls}
+      transition={{ duration: 0.75, ease: 'easeOut' }}
+      className="relative mt-8"
+    >
+      {children}
+    </motion.div>
+  );
+};
+
 const LandingPage = ({
   onStart,
   onLogin,
@@ -1217,6 +1318,137 @@ const LandingPage = ({
   const activeLang = (lang || 'en') as Exclude<Language, null>;
   const currentLang = languages.find(l => l.id === (lang || 'en')) || languages[0];
   const titleMessages = HERO_MAIN_TITLE_MESSAGES[activeLang] || HERO_MAIN_TITLE_MESSAGES.en;
+  // The modules a signed-in account meets in the sidebar. Names come from the same label sources
+  // the app itself renders (translations / nav keys), so the landing page can never advertise a
+  // module under a name that does not exist once you are inside.
+  const appModules = [
+    {
+      name: t.homeFeed,
+      description: u('landing.modules.exchange', "Post loads and bid on freight across road, sea, air and rail."),
+      icon: Boxes,
+      tone: 'bg-primary/10 text-primary',
+      points: [
+        { icon: Plus, label: u('landing.modules.exchange.1', "Post road, sea, air and rail loads") },
+        { icon: Coins, label: u('landing.modules.exchange.2', "Collect and compare carrier offers") },
+        { icon: Filter, label: u('landing.modules.exchange.3', "Filter by route, price and cargo type") },
+        { icon: CheckCircle2, label: u('landing.modules.exchange.4', "Send instant booking requests") },
+        { icon: MessageSquare, label: u('landing.modules.exchange.5', "Message carriers directly") },
+        { icon: History, label: u('landing.modules.exchange.6', "Review offer and booking history") },
+      ],
+    },
+    {
+      name: myCargoLabels[activeLang],
+      description: u('landing.modules.tracking', "Follow every shipment from pickup to proof of delivery."),
+      icon: PackageIcon,
+      tone: 'bg-violet-500/10 text-violet-500',
+      points: [
+        { icon: MapPin, label: u('landing.modules.tracking.1', "Pickup and delivery windows per stop") },
+        { icon: Clock, label: u('landing.modules.tracking.2', "Live status and estimated arrival") },
+        { icon: CheckCircle2, label: u('landing.modules.tracking.3', "Proof of delivery on the load") },
+        { icon: NotebookPen, label: u('landing.modules.tracking.4', "Cargo references and documents") },
+        { icon: Bell, label: u('landing.modules.tracking.5', "Exception and delay updates") },
+        { icon: Users, label: u('landing.modules.tracking.6', "Shared delivery milestones") },
+      ],
+    },
+    {
+      name: u('nav.warehouse', 'Warehouse'),
+      description: u('landing.modules.warehouse', "Storage capacity, dock schedule and occupancy per facility."),
+      icon: Warehouse,
+      tone: 'bg-orange-500/10 text-orange-500',
+      points: [
+        { icon: Boxes, label: u('landing.modules.warehouse.1', "Capacity and occupancy per facility") },
+        { icon: History, label: u('landing.modules.warehouse.2', "Inbound and outbound dock schedule") },
+        { icon: ShieldCheck, label: u('landing.modules.warehouse.3', "Storage types and certifications") },
+        { icon: Clock, label: u('landing.modules.warehouse.4', "Dock booking coordination") },
+        { icon: RefreshCw, label: u('landing.modules.warehouse.5', "Inventory movement history") },
+        { icon: CheckCircle2, label: u('landing.modules.warehouse.6', "Facility verification status") },
+      ],
+    },
+    {
+      name: t.myFleet,
+      description: u('landing.modules.fleet', "Vehicles, drivers and registry coverage in one register."),
+      icon: Truck,
+      tone: 'bg-emerald-500/10 text-emerald-500',
+      points: [
+        { icon: Truck, label: u('landing.modules.fleet.1', "Vehicles, trailers and capacities") },
+        { icon: UserRound, label: u('landing.modules.fleet.2', "Assigned drivers and availability") },
+        { icon: Settings, label: u('landing.modules.fleet.3', "Maintenance and registry coverage") },
+        { icon: NotebookPen, label: u('landing.modules.fleet.4', "Vehicle documents and expiry dates") },
+        { icon: Mail, label: u('landing.modules.fleet.5', "Driver contact details") },
+        { icon: CheckCircle2, label: u('landing.modules.fleet.6', "Fleet readiness at a glance") },
+      ],
+    },
+    {
+      name: u('documents.navLabel', 'Documents'),
+      description: u('landing.modules.documents', "Load paperwork and dispatch notes tied to every load."),
+      icon: NotebookPen,
+      tone: 'bg-sky-500/10 text-sky-500',
+      points: [
+        { icon: ScanSearch, label: u('landing.modules.documents.1', "Scan and attach paperwork") },
+        { icon: PackageIcon, label: u('landing.modules.documents.2', "Filed against the right load") },
+        { icon: History, label: u('landing.modules.documents.3', "Searchable archive and notes") },
+        { icon: CheckCircle2, label: u('landing.modules.documents.4', "Upload status and file preview") },
+        { icon: Users, label: u('landing.modules.documents.5', "Shared team access") },
+        { icon: ExternalLink, label: u('landing.modules.documents.6', "Downloadable shipment records") },
+      ],
+    },
+    {
+      name: u('common.analytics', 'Analytics'),
+      description: u('landing.modules.analytics', "Volumes, costs and on-time performance over any period."),
+      icon: BarChart3,
+      tone: 'bg-indigo-500/10 text-indigo-500',
+      points: [
+        { icon: Coins, label: u('landing.modules.analytics.1', "Cost and revenue per lane") },
+        { icon: Clock, label: u('landing.modules.analytics.2', "On-time performance") },
+        { icon: History, label: u('landing.modules.analytics.3', "Any period, broken down") },
+        { icon: BarChart3, label: u('landing.modules.analytics.4', "Shipment volume trends") },
+        { icon: Truck, label: u('landing.modules.analytics.5', "Carrier performance insights") },
+        { icon: ExternalLink, label: u('landing.modules.analytics.6', "Export-ready reports") },
+      ],
+    },
+    {
+      name: u('nav.finance', 'Finance'),
+      description: u('landing.modules.finance', "Invoices, overdue balances and carrier payout approvals."),
+      icon: Banknote,
+      tone: 'bg-amber-500/10 text-amber-500',
+      points: [
+        { icon: Coins, label: u('landing.modules.finance.1', "Invoices and overdue balances") },
+        { icon: CheckCircle2, label: u('landing.modules.finance.2', "Carrier payout approvals") },
+        { icon: ExternalLink, label: u('landing.modules.finance.3', "Export financial records") },
+        { icon: Clock, label: u('landing.modules.finance.4', "Payment status per invoice") },
+        { icon: BarChart3, label: u('landing.modules.finance.5', "Revenue and cost overview") },
+        { icon: Building2, label: u('landing.modules.finance.6', "Finance records by company") },
+      ],
+    },
+    {
+      name: u('nav.teamPermissions', 'Team & Permissions'),
+      description: u('landing.modules.team', "Invite people, assign company roles, control what they reach."),
+      icon: Users,
+      tone: 'bg-rose-500/10 text-rose-500',
+      points: [
+        { icon: Mail, label: u('landing.modules.team.1', "Invite teammates by email") },
+        { icon: ShieldCheck, label: u('landing.modules.team.2', "Roles decide what opens") },
+        { icon: UserRound, label: u('landing.modules.team.3', "Driver, dispatcher, finance, admin") },
+        { icon: CheckCircle2, label: u('landing.modules.team.4', "Invite and access status") },
+        { icon: Building2, label: u('landing.modules.team.5', "Company-based permissions") },
+        { icon: Settings, label: u('landing.modules.team.6', "Admin role management") },
+      ],
+    },
+    {
+      name: u('nav.map', 'Map'),
+      description: u('landing.modules.map', "Live vehicle positions, stops and route geometry on one map."),
+      icon: MapIcon,
+      tone: 'bg-cyan-500/10 text-cyan-500',
+      points: [
+        { icon: MapPin, label: u('landing.modules.map.1', "Vehicle positions and stops") },
+        { icon: Globe, label: u('landing.modules.map.2', "Route geometry across Europe") },
+        { icon: RefreshCw, label: u('landing.modules.map.3', "Refreshed as trackers report") },
+        { icon: CheckCircle2, label: u('landing.modules.map.4', "Pickup and delivery markers") },
+        { icon: Search, label: u('landing.modules.map.5', "Search by location") },
+        { icon: PackageIcon, label: u('landing.modules.map.6', "Open shipment details") },
+      ],
+    },
+  ];
   useEffect(() => {
     let active = true;
 
@@ -1377,6 +1609,7 @@ const LandingPage = ({
               <Sparkles className="h-4 w-4 text-primary" />
               LenaAI
             </a>
+            <a href="#modules" className="hover:text-primary transition-colors">{u('landing.modules.navLabel', 'Modules')}</a>
             <a href="#features" className="hover:text-primary transition-colors">{t.features}</a>
             <a href="#network" className="hover:text-primary transition-colors">{t.network}</a>
             <a href="#enterprise" className="hover:text-primary transition-colors">{t.enterprise}</a>
@@ -1680,21 +1913,27 @@ const LandingPage = ({
         </div>
       </section>
 
-      {/* Section 2: Trust Marquee */}
-      <section className="py-12 border-y border-slate-100 dark:border-slate-900 bg-slate-50/50 dark:bg-slate-900/20 overflow-hidden">
-        <div className="flex whitespace-nowrap animate-marquee">
-          {Array.from({ length: 18 }, (_, i) => (
-            <div key={i} className="flex items-center justify-center px-12 grayscale opacity-40 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer">
-              <BrandWordmark className="text-xl md:text-2xl" />
+      {/* Section 2: Product modules */}
+      <section id="modules" className={cn('scroll-mt-20 border-y border-slate-100 bg-slate-50/60 dark:border-slate-900 dark:bg-slate-900/20', SECTION_PADDING)}>
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="max-w-3xl">
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-primary sm:text-xs">
+              <Boxes className="h-4 w-4" />
+              {u('landing.modules.eyebrow', 'One platform · every module')}
             </div>
-          ))}
-        </div>
-        <div className="flex whitespace-nowrap animate-marquee mt-8" style={{ animationDirection: 'reverse' }}>
-          {Array.from({ length: 18 }, (_, i) => (
-            <div key={i} className="flex items-center justify-center px-12 grayscale opacity-40 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer">
-              <BrandWordmark className="text-xl md:text-2xl" />
-            </div>
-          ))}
+            <h2 className="text-4xl font-black leading-[1.05] tracking-tight text-slate-900 dark:text-white sm:text-5xl">
+              {u('landing.modules.title', 'Every part of the operation, under one login.')}
+            </h2>
+            <p className="mt-5 text-base leading-7 text-slate-600 dark:text-slate-300 sm:text-lg">
+              {u('landing.modules.subtitle', 'These are the modules the product ships with - the same names you find in the sidebar once you are inside. Your role decides which ones open.')}
+            </p>
+          </div>
+
+          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {appModules.map((module, index) => (
+              <LandingModuleCard key={module.name} module={module} index={index} />
+            ))}
+          </div>
         </div>
       </section>
 
@@ -1721,24 +1960,14 @@ const LandingPage = ({
             </p>
 
             <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {lenaCapabilities.map((capability) => (
-                <div key={capability.title} className={cn('rounded-2xl border p-5', capability.cardClass)}>
-                  <div className={cn('mb-3 flex h-10 w-10 items-center justify-center rounded-xl', capability.iconClass)}><capability.icon className="h-5 w-5" /></div>
-                  <h3 className="font-black text-slate-900 dark:text-white">{capability.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{capability.description}</p>
-                </div>
+              {lenaCapabilities.map((capability, index) => (
+                <LenaCapabilityCard key={capability.title} capability={capability} index={index} />
               ))}
             </div>
 
           </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 28 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
-            transition={{ duration: 0.75 }}
-            className="relative mt-8"
-          >
+          <LenaDataFlowReveal>
             <div className="pointer-events-none absolute inset-0 opacity-40 [background-image:radial-gradient(rgb(14_165_233/0.28)_1px,transparent_1px)] [background-size:22px_22px] dark:opacity-20" />
             <div className="relative grid min-w-0 gap-4 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-stretch">
               <div className="min-w-0 space-y-3">
@@ -1776,7 +2005,7 @@ const LandingPage = ({
               </div>
             </div>
             <div className="mt-20 border-t border-slate-200 sm:mt-24 dark:border-slate-700" />
-          </motion.div>
+          </LenaDataFlowReveal>
 
           <LenaScenarioSections lang={activeLang} />
 

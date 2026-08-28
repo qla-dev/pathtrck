@@ -32,23 +32,35 @@ const useGlobalScrollDirection = () => {
 /**
  * Plays the enter animation only when the element scrolls into view while
  * scrolling down. Scrolling back up snaps it straight to the visible state
- * (no replay), and leaving the viewport resets it so the next downward pass
- * animates again.
+ * (no replay). It resets only after an upward scroll moves the element fully
+ * below the viewport, so the next downward pass can animate again without
+ * hiding content that is still visible.
  */
 export const useScrollDownReveal = (hidden: string | object, visible: string | object, amount = 0.3) => {
   const ref = useRef<HTMLDivElement | null>(null);
+  const hasRevealed = useRef(false);
   const controls = useAnimation();
   const direction = useGlobalScrollDirection();
-  const inView = useInView(ref, { amount, once: false });
+  const reachedRevealThreshold = useInView(ref, { amount, once: false });
+  const isInViewport = useInView(ref, { amount: 'some', once: false });
 
   useEffect(() => {
-    if (inView) {
+    if (reachedRevealThreshold) {
+      hasRevealed.current = true;
       if (direction.current === 'up') controls.set(visible as never);
       else controls.start(visible as never);
-    } else {
+
+      return;
+    }
+
+    // Keep revealed content visible while it is leaving through the top or is
+    // still partially on screen. Reset only once an upward scroll has moved
+    // the whole element below the viewport, ready for the next downward pass.
+    if (hasRevealed.current && !isInViewport && direction.current === 'up') {
+      hasRevealed.current = false;
       controls.set(hidden as never);
     }
-  }, [inView]);
+  }, [reachedRevealThreshold, isInViewport]);
 
   return { ref, controls };
 };
