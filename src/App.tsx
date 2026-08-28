@@ -44,7 +44,9 @@ import {
   History,
   Zap,
   Factory,
-  Warehouse
+  Warehouse,
+  ContactRound,
+  Smartphone
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useScrollDownReveal } from './hooks/useScrollDownReveal';
@@ -109,6 +111,7 @@ import { EmailStudioView } from './components/views/EmailStudioView';
 import { PricingView } from './components/views/PricingView';
 import { UsageView } from './components/views/UsageView';
 import { PaymentHistoryView } from './components/views/PaymentHistoryView';
+import { TariffsHsView } from './components/views/TariffsHsView';
 import { PaymentModal } from './components/modals/PaymentModal';
 import { BrandWordmark, FreightbookMark } from './components/ui/BrandWordmark';
 import { PricingPlanCard } from './components/pricing/PricingPlanCard';
@@ -1446,6 +1449,48 @@ const LandingPage = ({
         { icon: CheckCircle2, label: u('landing.modules.map.4', "Pickup and delivery markers") },
         { icon: Search, label: u('landing.modules.map.5', "Search by location") },
         { icon: PackageIcon, label: u('landing.modules.map.6', "Open shipment details") },
+      ],
+    },
+    {
+      name: u('landing.modules.recipients.name', 'Recipient database'),
+      description: u('landing.modules.recipients', 'Save recipient details once and reuse them when creating new loads.'),
+      icon: ContactRound,
+      tone: 'bg-rose-500/10 text-rose-500',
+      points: [
+        { icon: Database, label: u('landing.modules.recipients.1', 'Central recipient directory') },
+        { icon: Building2, label: u('landing.modules.recipients.2', 'Company, address and contact details') },
+        { icon: Search, label: u('landing.modules.recipients.3', 'Search by name, tax number or city') },
+        { icon: Plus, label: u('landing.modules.recipients.4', 'Reuse recipients on new loads') },
+        { icon: CheckCircle2, label: u('landing.modules.recipients.5', 'Reduce duplicate data entry') },
+        { icon: Users, label: u('landing.modules.recipients.6', 'Shared access for the whole company') },
+      ],
+    },
+    {
+      name: u('nav.tariffsHs', 'Tariffs & HS codes'),
+      description: u('landing.modules.tariffs', 'Browse and search the complete multilingual customs tariff hierarchy.'),
+      icon: ScanSearch,
+      tone: 'bg-violet-500/10 text-violet-500',
+      points: [
+        { icon: Search, label: u('landing.modules.tariffs.1', 'Search by HS code or product name') },
+        { icon: Boxes, label: u('landing.modules.tariffs.2', 'Browse sections and chapters') },
+        { icon: History, label: u('landing.modules.tariffs.3', 'Follow the indented code hierarchy') },
+        { icon: CheckCircle2, label: u('landing.modules.tariffs.4', 'Select precise 10-digit tariff codes') },
+        { icon: Globe, label: u('landing.modules.tariffs.5', 'Bosnian, German and English descriptions') },
+        { icon: ExternalLink, label: u('landing.modules.tariffs.6', 'Export and print catalog results') },
+      ],
+    },
+    {
+      name: u('landing.modules.mobile.name', 'Mobile app'),
+      description: u('landing.modules.mobile', 'Manage loads, tracking and conversations wherever the work takes you.'),
+      icon: Smartphone,
+      tone: 'bg-cyan-500/10 text-cyan-500',
+      points: [
+        { icon: Smartphone, label: u('landing.modules.mobile.1', 'Native iOS and Android access') },
+        { icon: Boxes, label: u('landing.modules.mobile.2', 'Post and review loads on the go') },
+        { icon: MapPin, label: u('landing.modules.mobile.3', 'Follow shipment tracking live') },
+        { icon: MessageSquare, label: u('landing.modules.mobile.4', 'Keep conversations close at hand') },
+        { icon: Camera, label: u('landing.modules.mobile.5', 'Capture documents and delivery proof') },
+        { icon: ShieldCheck, label: u('landing.modules.mobile.6', 'The same role-based permissions') },
       ],
     },
   ];
@@ -4255,7 +4300,7 @@ export default function App() {
     },
   };
 
-  const navItems = isElevatedAdmin
+  const roleNavItems = isElevatedAdmin
     ? [
         { id: 'admin', label: u('nav.commandCenter', 'Command Center'), icon: Crown },
         { id: 'admin-customers', label: u('nav.allCustomers', 'Customers'), icon: UserRound },
@@ -4310,6 +4355,11 @@ export default function App() {
           ...(role === 'driver' ? [{ id: 'notes', label: ui(lang, 'documents.navLabel', 'Documents'), icon: NotebookPen }] : []),
           { id: 'settings', label: t.settings, icon: Settings },
         ];
+  const navItems = [
+    ...roleNavItems.slice(0, -1),
+    { id: 'tariffs-hs', label: u('nav.tariffsHs', 'Tariffs & HS'), icon: ScanSearch },
+    ...roleNavItems.slice(-1),
+  ];
 
   return (
     <div className="h-screen bg-slate-50 dark:bg-slate-950 flex overflow-hidden">
@@ -4736,6 +4786,7 @@ export default function App() {
 	                />
 	              )}
 	              {view === 'payment-history' && <PaymentHistoryView lang={lang} />}
+	              {view === 'tariffs-hs' && <TariffsHsView lang={lang} />}
 	              {view === 'profile' && <ProfileView role={role} lang={lang} />}
 	              {view === 'settings' && (
                   <SettingsView

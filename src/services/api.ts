@@ -3,7 +3,7 @@ import { Language, Role } from '../types';
 export type ApiEnvelope<T> = {
   message: string;
   data: T;
-  meta?: { current_page?: number; page_no?: number; last_page?: number; per_page?: number; limit?: number; total?: number; email_sent?: boolean; has_more?: boolean; unlimited?: boolean };
+  meta?: { current_page?: number; page_no?: number; last_page?: number; per_page?: number; limit?: number; total?: number; categories?: number; coded?: number; selectable?: number; email_sent?: boolean; has_more?: boolean; unlimited?: boolean };
   errors?: Record<string, string[]>;
 };
 
@@ -42,6 +42,16 @@ export type HsCodeMatch = {
   chapterCode?: string;
   chapterName?: string;
   version?: string;
+};
+export type TariffCatalogRow = HsCodeMatch & {
+  ex?: string | null;
+  sourceName?: string | null;
+};
+export type TariffCategory = {
+  id: string;
+  label: string;
+  count: number;
+  selectableCount: number;
 };
 export type LoadPartyMatch = {
   role: string;
@@ -390,6 +400,11 @@ export const api = {
   hsCodes: {
     search: (query: string, limit = 8, lang?: Language) => request<HsCodeMatch[]>(`/hs-codes?${queryString({ query, limit, lang: lang || undefined })}`),
     bulk: (codes: string[], lang?: Language) => request<HsCodeMatch[]>('/hs-codes/bulk', { method: 'POST', body: JSON.stringify({ codes, lang: lang || undefined }) }),
+  },
+  tariffs: {
+    categories: (lang?: Language) => request<TariffCategory[]>(`/tariffs/categories?${queryString({ lang: lang || undefined })}`),
+    catalog: (params: { query?: string; section?: string; page?: number; per_page?: number; lang?: Language }) =>
+      request<TariffCatalogRow[]>(`/tariffs/catalog?${queryString({ ...params, lang: params.lang || undefined })}`),
   },
   loadStops: resourceApi<Record<string, unknown>>('load-stops'),
   offers: {
