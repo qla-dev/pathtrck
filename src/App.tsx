@@ -95,6 +95,8 @@ import { SettingsView } from './components/views/SettingsView';
 import { LoadNotesView } from './components/views/LoadNotesView';
 import { CompanyWorkspaceView } from './components/views/CompanyWorkspaceView';
 import { WarehouseOverviewView } from './components/views/WarehouseOverviewView';
+import { WarehousesView } from './components/views/WarehousesView';
+import { AdminWarehouseCompaniesView } from './components/views/AdminWarehouseCompaniesView';
 import { CompanyTeamView } from './components/views/CompanyTeamView';
 import { FinanceView } from './components/views/FinanceView';
 import { AdminOverviewView } from './components/views/AdminOverviewView';
@@ -4027,10 +4029,12 @@ export default function App() {
         { id: 'admin', label: u('nav.commandCenter', 'Command Center'), icon: Crown },
         { id: 'admin-customers', label: u('nav.allCustomers', 'Customers'), icon: UserRound },
         { id: 'admin-companies', label: u('nav.allCompanies', 'Logistics Companies'), icon: Building2 },
+        { id: 'admin-warehouse-companies', label: u('nav.allWarehouseCompanies', 'Warehouse Companies'), icon: Warehouse },
         { id: 'admin-drivers', label: u('nav.allDrivers', 'Drivers'), icon: Users },
         { id: 'feed', label: t.homeFeed, icon: Boxes },
         { id: 'tracking', label: u('nav.globalTracking', 'Global Tracking'), icon: PackageIcon },
         { id: 'map', label: u('nav.map', 'Map'), icon: MapIcon },
+        { id: 'warehouses', label: u('nav.warehouse', 'Warehouse'), icon: Warehouse },
         { id: 'fleet', label: u('nav.globalFleet', 'Global Fleet'), icon: Truck },
         { id: 'finance', label: u('nav.finance', 'Finance'), icon: Banknote },
         { id: 'email-studio', label: u('nav.emailStudio', 'Email Studio'), icon: Mail },
@@ -4067,6 +4071,7 @@ export default function App() {
           ...(role === 'driver' ? [{ id: 'feed', label: t.homeFeed, icon: Boxes }] : []),
           { id: 'tracking', label: myCargoLabels[lang || 'en'], icon: PackageIcon },
           { id: 'map', label: u('nav.map', 'Map'), icon: MapIcon },
+          { id: 'warehouses', label: u('nav.warehouse', 'Warehouse'), icon: Warehouse },
           ...(role === 'driver' ? [
             { id: 'fleet', label: t.myFleet, icon: Truck },
           ] : []),
@@ -4343,7 +4348,11 @@ export default function App() {
             // on a 2560px display (and ~950px on an ultrawide) while looking fine on a 1366px
             // laptop, so it only ever showed up on wider client machines.
             "flex-1 min-h-0 w-full max-w-none",
-            (view === 'map' || isTrackingMapActive) ? "p-0" : "p-6 pb-24 md:pb-6",
+            (view === 'map' || isTrackingMapActive)
+              ? "p-0"
+              : (view === 'warehouse-overview' || view === 'warehouses')
+                ? "p-4 pb-24 md:pb-4"
+                : "p-6 pb-24 md:pb-6",
             view === 'messages' || view === 'map' ? "overflow-hidden" : "overflow-y-auto"
           )}
         >
@@ -4442,6 +4451,7 @@ export default function App() {
 	              {view === 'admin-customers' && <AdminCustomersView lang={lang} onOpenEmailStudio={() => setView('email-studio')} />}
 	              {view === 'admin-companies' && <AdminCompaniesView lang={lang} onOpenEmailStudio={() => setView('email-studio')} />}
 	              {view === 'admin-drivers' && <AdminDriversView lang={lang} />}
+	              {view === 'admin-warehouse-companies' && <AdminWarehouseCompaniesView lang={lang} onOpenEmailStudio={() => setView('email-studio')} />}
 	              {view === 'ai-stats' && isElevatedAdmin && <AiStatsView lang={lang} role={role} />}
 	              {view === 'email-studio' && <EmailStudioView lang={lang} />}
 	              {view === 'company' && (
@@ -4451,6 +4461,7 @@ export default function App() {
 	                />
 	              )}
 	              {view === 'warehouse-overview' && <WarehouseOverviewView lang={lang} />}
+	              {view === 'warehouses' && <WarehousesView lang={lang} role={role} />}
               {view === 'company-team' && <CompanyTeamView lang={lang} />}
 	              {view === 'finance' && <FinanceView lang={lang} />}
 	              {view === 'automations' && <AutomationsView lang={lang} />}

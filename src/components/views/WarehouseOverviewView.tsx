@@ -6,6 +6,7 @@ import {
   Gauge,
   MapPin,
   PackageCheck,
+  Plus,
   Radio,
   TrendingUp,
   Users,
@@ -13,11 +14,14 @@ import {
 } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 
+import { ApiError, api } from '../../services/api';
 import { Language } from '../../types';
 import { cn } from '../../lib/cn';
 import { ui } from '../../i18n';
 import { Card } from '../ui/Card';
-import { api } from '../../services/api';
+import { Button } from '../ui/Button';
+import { AdminField, AdminFormModal, adminFieldClass } from './AdminFormModal';
+import { showSuccess } from '../../lib/swal';
 
 type WarehouseOverviewData = {
   warehouse: Record<string, unknown> | null;
@@ -27,6 +31,8 @@ type WarehouseOverviewData = {
   recent_arrivals: Record<string, unknown>[];
   top_customers: Record<string, unknown>[];
 };
+
+const emptyForm = { name: '', address: '', city: '', country_code: 'BA', total_capacity_pallets: '', storage_types: '' };
 
 const formatTime = (value: unknown) => {
   const date = value ? new Date(String(value)) : null;
@@ -42,26 +48,78 @@ export const WarehouseOverviewView = ({ lang }: { lang: Language }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [data, setData] = useState<WarehouseOverviewData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [form, setForm] = useState(emptyForm);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
+  const field = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
 
   useEffect(() => {
+    setLoading(true);
     void api.warehouse
       .overview()
       .then((response) => setData(response.data as unknown as WarehouseOverviewData))
       .finally(() => setLoading(false));
-  }, []);
+  }, [reloadKey]);
+
+  const saveWarehouse = async () => {
+    setSubmitting(true);
+    setError('');
+    try {
+      await api.warehouses.create({
+        name: form.name,
+        address: form.address || null,
+        city: form.city || null,
+        country_code: form.country_code || null,
+        total_capacity_pallets: form.total_capacity_pallets === '' ? 0 : Number(form.total_capacity_pallets),
+        storage_types: form.storage_types ? form.storage_types.split(',').map((value) => value.trim()).filter(Boolean) : null,
+      });
+      setCreateOpen(false);
+      setForm(emptyForm);
+      setReloadKey((current) => current + 1);
+      void showSuccess(u('warehouses.created', 'Warehouse created'), u('warehouses.createdText', 'The facility is now listed.'));
+    } catch (caught) {
+      const validation = caught instanceof ApiError ? Object.values(caught.errors).flat()[0] : null;
+      setError(validation || (caught instanceof Error ? caught.message : 'Warehouse could not be created.'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const createModal = (
+    <AdminFormModal
+      open={createOpen}
+      title={u('warehouses.create', 'Create Warehouse')}
+      description={u('warehouses.createDescription', 'Add a storage facility to the network.')}
+      submitting={submitting}
+      error={error}
+      onClose={() => { setCreateOpen(false); setError(''); }}
+      onSubmit={() => void saveWarehouse()}
+    >
+      <AdminField label={u('warehouses.colName', 'Warehouse')}><input required value={form.name} onChange={(event) => field('name', event.target.value)} className={adminFieldClass} /></AdminField>
+      <AdminField label={u('warehouses.address', 'Address')}><input value={form.address} onChange={(event) => field('address', event.target.value)} className={adminFieldClass} /></AdminField>
+      <AdminField label={u('warehouses.city', 'City')}><input value={form.city} onChange={(event) => field('city', event.target.value)} className={adminFieldClass} /></AdminField>
+      <AdminField label={u('warehouses.countryCode', 'Country code')}><input maxLength={2} value={form.country_code} onChange={(event) => field('country_code', event.target.value.toUpperCase())} className={adminFieldClass} /></AdminField>
+      <AdminField label={u('warehouses.capacityPallets', 'Total capacity (pallets)')}><input type="number" min={0} value={form.total_capacity_pallets} onChange={(event) => field('total_capacity_pallets', event.target.value)} className={adminFieldClass} /></AdminField>
+      <AdminField label={u('warehouses.storageTypes', 'Storage types (comma separated)')}><input value={form.storage_types} onChange={(event) => field('storage_types', event.target.value)} placeholder="Ambient, Chilled, Frozen" className={adminFieldClass} /></AdminField>
+    </AdminFormModal>
+  );
 
   if (loading) {
     return <div className="flex h-64 items-center justify-center text-sm text-slate-500">{u('common.loading', 'Loading...')}</div>;
   }
 
   if (!data?.warehouse) {
-    return (
-      <Card className="p-8 text-center">
+    return <>
+      <Card contentClassName="p-8 text-center">
         <WarehouseIcon className="mx-auto h-10 w-10 text-slate-400" />
         <p className="mt-3 font-black text-slate-900 dark:text-white">{u('warehouseView.emptyTitle', 'No warehouse set up yet')}</p>
         <p className="mt-1 text-sm text-slate-500">{u('warehouseView.emptySubtitle', 'Contact support to set up your warehouse facility.')}</p>
+        <Button size="sm" className="mt-4" onClick={() => setCreateOpen(true)}><Plus className="mr-1.5 h-4 w-4" />{u('warehouses.create', 'Create Warehouse')}</Button>
       </Card>
-    );
+      {createModal}
+    </>;
   }
 
   const warehouse = data.warehouse;
@@ -91,63 +149,60 @@ export const WarehouseOverviewView = ({ lang }: { lang: Language }) => {
   const topCustomers = data.top_customers || [];
   const recentArrivals = data.recent_arrivals || [];
 
-  return (
-    <div className="space-y-6" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
-      <section className="relative overflow-hidden rounded-3xl border border-orange-100 bg-gradient-to-br from-white via-orange-50 to-amber-100 p-6 text-slate-900 dark:border-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-amber-950 dark:text-white md:p-8">
-        <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-orange-500/20 blur-3xl dark:bg-orange-500/25" />
-        <div className="relative flex flex-wrap items-start justify-between gap-6">
-          <div>
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-500 text-white shadow-lg shadow-orange-500/30">
-                <WarehouseIcon className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-orange-600 dark:text-orange-400">{u('warehouseView.eyebrow', 'Warehouse Company')}</p>
-                <h1 className="text-2xl font-black md:text-3xl">{u('warehouseView.title', 'Moj Warehouse')}</h1>
-              </div>
-            </div>
-            <p className="mt-3 flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-300">
-              <MapPin className="h-4 w-4 shrink-0" />
+  // Section heading shared by every panel below - compact by design so six KPI tiles plus four
+  // panels stay inside one screen, the way the reference dashboard lays them out.
+  const panelTitle = (Icon: typeof Boxes, text: string) => (
+    <div className="flex items-center gap-2">
+      <Icon className="h-4 w-4 text-orange-500" />
+      <p className="text-sm font-black text-slate-900 dark:text-white">{text}</p>
+    </div>
+  );
+
+  return <>
+    <div className="space-y-3" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+      <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-orange-100 bg-gradient-to-r from-white via-orange-50 to-amber-50 px-4 py-3 dark:border-slate-800 dark:from-slate-900 dark:via-slate-900 dark:to-amber-950">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-500 text-white">
+            <WarehouseIcon className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="truncate text-base font-black leading-tight text-slate-900 dark:text-white">{u('warehouseView.title', 'Moj Warehouse')}</h1>
+            <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-slate-500 dark:text-slate-400">
+              <MapPin className="h-3 w-3 shrink-0" />
               {String(warehouse.name || '—')} · {String(warehouse.city || '')}{warehouse.country_code ? `, ${String(warehouse.country_code)}` : ''}
             </p>
           </div>
-          <div className="rounded-2xl border border-orange-200 bg-white/70 px-4 py-3 backdrop-blur-sm dark:border-white/10 dark:bg-white/5">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase text-emerald-600 dark:text-emerald-400">
-              <Radio className="h-4 w-4 animate-pulse" /> {u('common.live', 'Live')}
-            </div>
-            <p className="mt-1 text-sm font-semibold">
-              {occupiedPallets} / {totalCapacity} {u('warehouseView.palletsUnit', 'paleta')}
-            </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 rounded-xl border border-orange-200 bg-white/70 px-3 py-1.5 dark:border-white/10 dark:bg-white/5">
+            <span className="flex items-center gap-1 text-[11px] font-bold uppercase text-emerald-600 dark:text-emerald-400"><Radio className="h-3 w-3 animate-pulse" />{u('common.live', 'Live')}</span>
+            <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{occupiedPallets} / {totalCapacity} {u('warehouseView.palletsUnit', 'paleta')}</span>
           </div>
+          <Button size="sm" onClick={() => setCreateOpen(true)}><Plus className="mr-1.5 h-4 w-4" />{u('warehouses.create', 'Create Warehouse')}</Button>
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+      <section className="grid gap-3 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {statCards.map((metric) => (
-          <Card key={metric.label} className="p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{metric.label}</p>
-                <p className="mt-2 text-2xl font-black text-slate-900 dark:text-white">{metric.value}</p>
-              </div>
-              <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl', metric.tone)}>
-                <metric.icon className="h-5 w-5" />
-              </div>
+          <Card key={metric.label} className="shadow-none" contentClassName="flex items-center justify-between gap-2 px-3 py-2.5">
+            <div className="min-w-0">
+              <p className="truncate text-[11px] font-bold uppercase tracking-wider text-slate-500">{metric.label}</p>
+              <p className="mt-0.5 truncate text-lg font-black text-slate-900 dark:text-white">{metric.value}</p>
+            </div>
+            <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-xl', metric.tone)}>
+              <metric.icon className="h-4 w-4" />
             </div>
           </Card>
         ))}
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-12">
-        <Card className="xl:col-span-4">
-          <div className="flex items-center gap-2">
-            <Gauge className="h-5 w-5 text-orange-500" />
-            <p className="text-lg font-black text-slate-900 dark:text-white">{u('warehouseView.capacityTitle', 'Kapacitet skladišta')}</p>
-          </div>
-          <div className="mt-2 h-[180px]">
+      <div className="grid gap-3 xl:grid-cols-12">
+        <Card className="shadow-none xl:col-span-4" contentClassName="p-4">
+          {panelTitle(Gauge, u('warehouseView.capacityTitle', 'Kapacitet skladišta'))}
+          <div className="mt-1 h-[140px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={occupancyData} dataKey="value" nameKey="name" innerRadius={52} outerRadius={78} paddingAngle={3}>
+                <Pie data={occupancyData} dataKey="value" nameKey="name" innerRadius={42} outerRadius={62} paddingAngle={3}>
                   {occupancyData.map((item) => (
                     <Cell key={item.name} fill={item.color} />
                   ))}
@@ -156,11 +211,11 @@ export const WarehouseOverviewView = ({ lang }: { lang: Language }) => {
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {occupancyData.map((item) => (
               <div key={item.name} className="flex items-center justify-between text-xs">
                 <span className="inline-flex items-center gap-2 text-slate-500">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />
                   {item.name}
                 </span>
                 <span className="font-bold dark:text-white">{item.value} pal.</span>
@@ -169,45 +224,40 @@ export const WarehouseOverviewView = ({ lang }: { lang: Language }) => {
           </div>
         </Card>
 
-        <Card className="xl:col-span-8">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <ArrowDownToLine className="h-5 w-5 text-orange-500" />
-              <p className="text-lg font-black text-slate-900 dark:text-white">{u('warehouseView.dockSchedule', 'Raspored dokova - danas')}</p>
-            </div>
-          </div>
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[480px] text-left text-sm">
+        <Card className="shadow-none xl:col-span-8" contentClassName="p-4">
+          {panelTitle(ArrowDownToLine, u('warehouseView.dockSchedule', 'Raspored dokova - danas'))}
+          <div className="mt-2 overflow-x-auto">
+            <table className="w-full min-w-[480px] text-left text-xs">
               <thead>
-                <tr className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  <th className="pb-2 pr-3">{u('warehouseView.colTime', 'Vrijeme')}</th>
-                  <th className="pb-2 pr-3">{u('warehouseView.colType', 'Tip')}</th>
-                  <th className="pb-2 pr-3">{u('warehouseView.colCustomer', 'Klijent')}</th>
-                  <th className="pb-2 pr-3">{u('warehouseView.colPallets', 'Palete')}</th>
-                  <th className="pb-2">{u('warehouseView.colStatus', 'Status')}</th>
+                <tr className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  <th className="pb-1.5 pr-3">{u('warehouseView.colTime', 'Vrijeme')}</th>
+                  <th className="pb-1.5 pr-3">{u('warehouseView.colType', 'Tip')}</th>
+                  <th className="pb-1.5 pr-3">{u('warehouseView.colCustomer', 'Klijent')}</th>
+                  <th className="pb-1.5 pr-3">{u('warehouseView.colPallets', 'Palete')}</th>
+                  <th className="pb-1.5">{u('warehouseView.colStatus', 'Status')}</th>
                 </tr>
               </thead>
               <tbody>
                 {dockSchedule.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="py-6 text-center text-sm text-slate-500">{u('warehouseView.noMovementsToday', 'Nema zakazanih kretanja danas.')}</td>
+                    <td colSpan={5} className="py-4 text-center text-slate-500">{u('warehouseView.noMovementsToday', 'Nema zakazanih kretanja danas.')}</td>
                   </tr>
                 )}
                 {dockSchedule.map((row) => {
                   const isInbound = row.direction === 'inbound';
                   return (
                     <tr key={String(row.id)} className="border-t border-slate-100 dark:border-slate-800">
-                      <td className="py-2 pr-3 font-semibold text-slate-700 dark:text-slate-300">{formatTime(row.scheduled_at)}</td>
-                      <td className="py-2 pr-3">
-                        <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold', isInbound ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-violet-500/10 text-violet-600 dark:text-violet-400')}>
+                      <td className="py-1.5 pr-3 font-semibold text-slate-700 dark:text-slate-300">{formatTime(row.scheduled_at)}</td>
+                      <td className="py-1.5 pr-3">
+                        <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold', isInbound ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-violet-500/10 text-violet-600 dark:text-violet-400')}>
                           {isInbound ? <ArrowDownToLine className="h-3 w-3" /> : <ArrowUpFromLine className="h-3 w-3" />}
                           {isInbound ? u('warehouseView.inbound', 'Prijem') : u('warehouseView.outbound', 'Otprema')}
                         </span>
                       </td>
-                      <td className="py-2 pr-3 text-slate-700 dark:text-slate-300">{String(row.customer_name || '—')}</td>
-                      <td className="py-2 pr-3 text-slate-700 dark:text-slate-300">{String(row.pallets ?? 0)}</td>
-                      <td className="py-2">
-                        <span className={cn('rounded-full px-2 py-0.5 text-xs font-bold', row.status === 'completed' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400')}>
+                      <td className="py-1.5 pr-3 text-slate-700 dark:text-slate-300">{String(row.customer_name || '—')}</td>
+                      <td className="py-1.5 pr-3 text-slate-700 dark:text-slate-300">{String(row.pallets ?? 0)}</td>
+                      <td className="py-1.5">
+                        <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-bold', row.status === 'completed' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400')}>
                           {row.status === 'completed' ? u('warehouseView.completed', 'Završeno') : u('warehouseView.scheduled', 'Zakazano')}
                         </span>
                       </td>
@@ -220,67 +270,58 @@ export const WarehouseOverviewView = ({ lang }: { lang: Language }) => {
         </Card>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-12">
-        <Card className="xl:col-span-6">
-          <div className="flex items-center gap-2">
-            <Boxes className="h-5 w-5 text-orange-500" />
-            <p className="text-lg font-black text-slate-900 dark:text-white">{u('warehouseView.inventorySummary', 'Pregled zaliha po vrsti')}</p>
-          </div>
-          <div className="mt-4 space-y-3">
-            {inventorySummary.length === 0 && <p className="text-sm text-slate-500">{u('warehouseView.noInventory', 'Nema trenutno uskladištene robe.')}</p>}
+      <div className="grid gap-3 xl:grid-cols-12">
+        <Card className="shadow-none xl:col-span-6" contentClassName="p-4">
+          {panelTitle(Boxes, u('warehouseView.inventorySummary', 'Pregled zaliha po vrsti'))}
+          <div className="mt-2 space-y-1.5">
+            {inventorySummary.length === 0 && <p className="text-xs text-slate-500">{u('warehouseView.noInventory', 'Nema trenutno uskladištene robe.')}</p>}
             {inventorySummary.map((row) => (
-              <div key={String(row.storage_type)} className="flex items-center justify-between rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
-                <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{String(row.storage_type || '—')}</span>
-                <strong className="text-slate-900 dark:text-white">{String(row.net_pallets)} pal.</strong>
+              <div key={String(row.storage_type)} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-800/60">
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{String(row.storage_type || '—')}</span>
+                <strong className="text-xs text-slate-900 dark:text-white">{String(row.net_pallets)} pal.</strong>
               </div>
             ))}
           </div>
         </Card>
 
-        <Card className="xl:col-span-6">
-          <div className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-orange-500" />
-            <p className="text-lg font-black text-slate-900 dark:text-white">{u('warehouseView.topCustomers', 'Najveći klijenti po skladištenju')}</p>
-          </div>
-          <div className="mt-4 space-y-3">
-            {topCustomers.length === 0 && <p className="text-sm text-slate-500">{u('warehouseView.noCustomers', 'Nema podataka o klijentima.')}</p>}
+        <Card className="shadow-none xl:col-span-6" contentClassName="p-4">
+          {panelTitle(Users, u('warehouseView.topCustomers', 'Najveći klijenti po skladištenju'))}
+          <div className="mt-2 space-y-1.5">
+            {topCustomers.length === 0 && <p className="text-xs text-slate-500">{u('warehouseView.noCustomers', 'Nema podataka o klijentima.')}</p>}
             {topCustomers.map((row) => (
-              <div key={String(row.customer_name)} className="flex items-center justify-between rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
-                <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{String(row.customer_name || '—')}</span>
-                <strong className="text-slate-900 dark:text-white">{String(row.net_pallets)} pal.</strong>
+              <div key={String(row.customer_name)} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-800/60">
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{String(row.customer_name || '—')}</span>
+                <strong className="text-xs text-slate-900 dark:text-white">{String(row.net_pallets)} pal.</strong>
               </div>
             ))}
           </div>
         </Card>
       </div>
 
-      <Card>
-        <div className="flex items-center gap-2">
-          <PackageCheck className="h-5 w-5 text-orange-500" />
-          <p className="text-lg font-black text-slate-900 dark:text-white">{u('warehouseView.recentArrivals', 'Nedavno primljene pošiljke')}</p>
-        </div>
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[480px] text-left text-sm">
+      <Card className="shadow-none" contentClassName="p-4">
+        {panelTitle(PackageCheck, u('warehouseView.recentArrivals', 'Nedavno primljene pošiljke'))}
+        <div className="mt-2 overflow-x-auto">
+          <table className="w-full min-w-[480px] text-left text-xs">
             <thead>
-              <tr className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                <th className="pb-2 pr-3">{u('warehouseView.colDate', 'Datum')}</th>
-                <th className="pb-2 pr-3">{u('warehouseView.colCustomer', 'Klijent')}</th>
-                <th className="pb-2 pr-3">{u('warehouseView.colStorageType', 'Vrsta skladištenja')}</th>
-                <th className="pb-2">{u('warehouseView.colPallets', 'Palete')}</th>
+              <tr className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                <th className="pb-1.5 pr-3">{u('warehouseView.colDate', 'Datum')}</th>
+                <th className="pb-1.5 pr-3">{u('warehouseView.colCustomer', 'Klijent')}</th>
+                <th className="pb-1.5 pr-3">{u('warehouseView.colStorageType', 'Vrsta skladištenja')}</th>
+                <th className="pb-1.5">{u('warehouseView.colPallets', 'Palete')}</th>
               </tr>
             </thead>
             <tbody>
               {recentArrivals.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="py-6 text-center text-sm text-slate-500">{u('warehouseView.noArrivals', 'Nema nedavnih pošiljki.')}</td>
+                  <td colSpan={4} className="py-4 text-center text-slate-500">{u('warehouseView.noArrivals', 'Nema nedavnih pošiljki.')}</td>
                 </tr>
               )}
               {recentArrivals.map((row) => (
                 <tr key={String(row.id)} className="border-t border-slate-100 dark:border-slate-800">
-                  <td className="py-2 pr-3 text-slate-700 dark:text-slate-300">{formatDate(row.completed_at)}</td>
-                  <td className="py-2 pr-3 text-slate-700 dark:text-slate-300">{String(row.customer_name || '—')}</td>
-                  <td className="py-2 pr-3 text-slate-700 dark:text-slate-300">{String(row.storage_type || '—')}</td>
-                  <td className="py-2 text-slate-700 dark:text-slate-300">{String(row.pallets ?? 0)}</td>
+                  <td className="py-1.5 pr-3 text-slate-700 dark:text-slate-300">{formatDate(row.completed_at)}</td>
+                  <td className="py-1.5 pr-3 text-slate-700 dark:text-slate-300">{String(row.customer_name || '—')}</td>
+                  <td className="py-1.5 pr-3 text-slate-700 dark:text-slate-300">{String(row.storage_type || '—')}</td>
+                  <td className="py-1.5 text-slate-700 dark:text-slate-300">{String(row.pallets ?? 0)}</td>
                 </tr>
               ))}
             </tbody>
@@ -288,5 +329,6 @@ export const WarehouseOverviewView = ({ lang }: { lang: Language }) => {
         </div>
       </Card>
     </div>
-  );
+    {createModal}
+  </>;
 };

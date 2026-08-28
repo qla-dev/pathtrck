@@ -404,7 +404,10 @@ export const api = {
   conversations: resourceApi<Record<string, unknown>>('conversations'),
   messages: resourceApi<Record<string, unknown>>('messages'),
   loadDrafts: resourceApi<Record<string, unknown>>('load-drafts'),
-  warehouses: resourceApi<Record<string, unknown>>('warehouses'),
+  warehouses: {
+    ...resourceApi<Record<string, unknown>>('warehouses'),
+    onboard: (data: Record<string, unknown>) => request<Record<string, unknown>>('/warehouses/onboard', { method: 'POST', body: JSON.stringify(data) }),
+  },
   warehouse: {
     overview: () => request<Record<string, unknown>>('/warehouse/overview'),
   },

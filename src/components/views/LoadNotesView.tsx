@@ -227,9 +227,9 @@ export const LoadNotesView = ({ lang }: { lang: Language }) => {
       </section>
 
       <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        {/* min-w-0 + truncate: a grid item defaults to min-width:auto, so a long label like
+            "UKUPNO DOKUMENATA" would widen its track and push the whole row past the viewport. */}
         {counters.map((counter) => (
-          {/* min-w-0 + truncate: a grid item defaults to min-width:auto, so a long label like
-              "UKUPNO DOKUMENATA" would widen its track and push the whole row past the viewport. */}
           <Card key={counter.key} className="min-w-0 shadow-none" contentClassName="flex items-center justify-between gap-3 px-5 py-3">
             <div className="min-w-0">
               <p className="truncate text-xs uppercase text-slate-500">{counter.label}</p>
