@@ -177,12 +177,12 @@ export const CustomerSelect = ({
         onClick={() => setOpen((current) => !current)}
         className={cn(
           'flex w-full items-center rounded-xl border bg-slate-50 text-left text-sm outline-none transition dark:bg-slate-950 dark:text-white',
-          compact ? 'h-8 gap-2 px-2' : 'min-h-[54px] gap-3 px-4',
+          compact ? 'h-8 gap-2 px-2' : 'min-h-11 gap-2.5 px-3 py-1.5',
           open ? 'border-primary ring-2 ring-primary/20' : 'border-slate-200 dark:border-slate-800',
           disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
         )}
       >
-        <Building2 className={cn('shrink-0 text-primary', compact ? 'h-4 w-4' : 'h-5 w-5')} />
+        <Building2 className="h-4 w-4 shrink-0 text-primary" />
         <span className="min-w-0 flex-1">
           {value ? (
             <>

@@ -78,7 +78,7 @@ export const CountrySelect = ({ value, onChange, placeholder = 'Select country' 
 
   return (
     <div ref={rootRef} className="relative">
-      <button type="button" onClick={() => setOpen((current) => !current)} className="flex h-[54px] w-full cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 text-left text-sm outline-none focus:ring-2 focus:ring-primary dark:border-slate-800 dark:bg-slate-950 dark:text-white">
+      <button type="button" onClick={() => setOpen((current) => !current)} className="flex h-10 w-full cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 text-left text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-slate-800 dark:bg-slate-950 dark:text-white">
         {selected ? <img src={flagUrl(selected.code)} alt="" className="h-4 w-6 rounded-sm object-cover" /> : null}
         <span className="min-w-0 flex-1 truncate">{selected ? `${selected.code} - ${selected.name}` : placeholder}</span>
         <ChevronDown className={cn('h-4 w-4 shrink-0 text-slate-400 transition-transform', open && 'rotate-180')} />

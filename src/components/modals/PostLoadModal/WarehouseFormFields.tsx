@@ -41,6 +41,7 @@ import { DateInput } from './DateInput';
 import { TimeInput } from './TimeInput';
 import { WarehouseAutocompleteField } from './WarehouseAutocompleteField';
 import { VerticalRoutePoint } from './VerticalRoutePoint';
+import { ScrollableRow } from './ScrollableRow';
 import { Button } from '../../ui/Button';
 
 type SetField = <K extends keyof LoadDraft>(key: K, value: LoadDraft[K]) => void;
@@ -113,21 +114,29 @@ export const WarehouseStorageTypeField = ({
   setField: SetField;
   u: (key: string, fallback: string) => string;
 }) => (
-  <div className="space-y-1.5">
+  // Storage type is the warehouse answer to "Shipment type", so it sits in that slot on the Details
+  // step and scrolls the same way - one row of cards behind the ScrollableRow arrows.
+  <div className="space-y-1">
     <FieldLabel>{u('postLoadModal.warehouseStorageType', 'Storage type')}</FieldLabel>
-    <div className="grid gap-2 sm:grid-cols-2">
-      {WAREHOUSE_STORAGE_TYPE_OPTIONS.map((option) => (
-        <ChoiceCard
-          key={option}
-          compact
-          active={draft.warehouseStorageType === option}
-          title={u(`postLoadModal.storageType.${option}`, option)}
-          description={u(`postLoadModal.storageTypeDesc.${option}`, STORAGE_TYPE_DESCRIPTIONS[option])}
-          icon={STORAGE_TYPE_ICONS[option]}
-          onClick={() => setField('warehouseStorageType', option)}
-        />
-      ))}
-    </div>
+    <ScrollableRow className="pb-2">
+      <div className="flex w-max gap-2 px-1">
+        {WAREHOUSE_STORAGE_TYPE_OPTIONS.map((option) => (
+          <ChoiceCard
+            key={option}
+            compact
+            nowrap
+            className="w-auto snap-start shrink-0 justify-start pl-3 pr-7 text-left"
+            active={draft.warehouseStorageType === option}
+            title={u(`postLoadModal.storageType.${option}`, option)}
+            icon={STORAGE_TYPE_ICONS[option]}
+            onClick={(event) => {
+              setField('warehouseStorageType', option);
+              event.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+            }}
+          />
+        ))}
+      </div>
+    </ScrollableRow>
   </div>
 );
 
@@ -143,7 +152,7 @@ const SectionBox = ({
   className?: string;
   children: ReactNode;
 }) => (
-  <section className={cn('space-y-4 rounded-3xl border border-slate-200 p-4 dark:border-slate-800 md:p-5', className)}>
+  <section className={cn('space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-800', className)}>
     <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
       <Icon className="h-4 w-4" />
       <span>{title}</span>
@@ -164,7 +173,7 @@ export const WarehouseCargoFields = ({ draft, setField, setDraft, u, invalidClas
   const needsTemperature = draft.warehouseStorageType === 'Chilled' || draft.warehouseStorageType === 'Frozen';
 
   return (
-    <div className="grid gap-4 sm:gap-5 lg:grid-cols-2">
+    <div className="grid gap-3 lg:grid-cols-2">
       {/* Pallets / CBM / weight are captured on the Cargo step (warehouse now shares the full road
           form), so this step only carries what is specific to storing the goods. */}
       <SectionBox icon={Warehouse} title={u('postLoadModal.warehouseStorageType', 'Storage type')}>
@@ -183,11 +192,11 @@ export const WarehouseCargoFields = ({ draft, setField, setDraft, u, invalidClas
 
         {needsTemperature && (
           <div className="grid grid-cols-2 gap-3">
-            <div className={cn('space-y-1.5', invalidClass('warehouseTemperatureMin'))}>
+            <div className={cn('space-y-1', invalidClass('warehouseTemperatureMin'))}>
               <FieldLabel>{u('postLoadModal.temperatureMin', 'Min. temperature (°C)')}</FieldLabel>
               <Input type="number" value={draft.warehouseTemperatureMin} onChange={(e) => setField('warehouseTemperatureMin', e.target.value)} placeholder="2" />
             </div>
-            <div className={cn('space-y-1.5', invalidClass('warehouseTemperatureMax'))}>
+            <div className={cn('space-y-1', invalidClass('warehouseTemperatureMax'))}>
               <FieldLabel>{u('postLoadModal.temperatureMax', 'Max. temperature (°C)')}</FieldLabel>
               <Input type="number" value={draft.warehouseTemperatureMax} onChange={(e) => setField('warehouseTemperatureMax', e.target.value)} placeholder="8" />
             </div>
@@ -249,20 +258,20 @@ export const WarehouseLocationFields = ({
     : '—';
 
   return (
-  <div className="grid gap-4 sm:gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,5fr)_minmax(0,2fr)]">
-    <section className="space-y-4 rounded-3xl border border-slate-200 p-4 dark:border-slate-800 md:p-5">
+  <div className="grid gap-3 lg:grid-cols-[minmax(0,5fr)_minmax(0,5fr)_minmax(0,2fr)]">
+    <section className="space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
       <div className="flex items-center gap-2 text-emerald-500">
         <MapPin className="h-4 w-4" />
         <p className="text-xs font-black uppercase tracking-wider">{u('postLoadModal.pickupBlock', 'Pickup')}</p>
       </div>
-      <div className="space-y-1.5">
+      <div className="space-y-1">
         <FieldLabel>{u('postLoadModal.pickupPlaceType', 'Place type')}</FieldLabel>
         <div className="grid grid-cols-2 gap-2">
           <ChoiceCard compact active={draft.pickupPlaceType === 'Warehouse'} title={u('postLoadModal.warehouse', 'Warehouse')} icon={Warehouse} onClick={() => setField('pickupPlaceType', 'Warehouse')} />
           <ChoiceCard compact active={draft.pickupPlaceType === 'Address'} title={u('postLoadModal.address', 'Address')} icon={MapPin} onClick={() => setField('pickupPlaceType', 'Address')} />
         </div>
       </div>
-      <div className={cn('space-y-1.5', invalidClass('pickupAddress'))}>
+      <div className={cn('space-y-1', invalidClass('pickupAddress'))}>
         <FieldLabel>{draft.pickupPlaceType === 'Warehouse' ? u('postLoadModal.selectWarehouse', 'Warehouse') : u('postLoadModal.address', 'Address')}</FieldLabel>
         {draft.pickupPlaceType === 'Warehouse' ? (
           <WarehouseAutocompleteField
@@ -287,30 +296,30 @@ export const WarehouseLocationFields = ({
         )}
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <div className={cn('space-y-1.5', invalidClass('pickupCountry'))}><FieldLabel>{u('postLoadModal.country', 'Country')}</FieldLabel><CountrySelect value={draft.pickupCountry} onChange={(value) => setField('pickupCountry', value)} /></div>
-        <div className={cn('space-y-1.5', invalidClass('pickupCity'))}><FieldLabel>{u('postLoadModal.pickupCity', 'City')}</FieldLabel><Input value={draft.pickupCity} onChange={(event) => setField('pickupCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', 'City')} /></div>
+        <div className={cn('space-y-1', invalidClass('pickupCountry'))}><FieldLabel>{u('postLoadModal.country', 'Country')}</FieldLabel><CountrySelect value={draft.pickupCountry} onChange={(value) => setField('pickupCountry', value)} /></div>
+        <div className={cn('space-y-1', invalidClass('pickupCity'))}><FieldLabel>{u('postLoadModal.pickupCity', 'City')}</FieldLabel><Input value={draft.pickupCity} onChange={(event) => setField('pickupCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', 'City')} /></div>
       </div>
       <div className="grid grid-cols-4 gap-2">
-        <div className={cn('space-y-1.5', invalidClass('pickupDate'))}><FieldLabel>{u('postLoadModal.pickupDate', 'Date from')}</FieldLabel><DateInput value={draft.pickupDate} onChange={(value) => setField('pickupDate', value)} placeholder="dd.mm.yyyy" lang={lang} /></div>
-        <div className={cn('space-y-1.5', invalidClass('pickupDateTo'))}><FieldLabel>{u('postLoadModal.pickupDateTo', 'Date to')}</FieldLabel><DateInput value={draft.pickupDateTo} onChange={(value) => setField('pickupDateTo', value)} placeholder="dd.mm.yyyy" lang={lang} /></div>
-        <div className={cn('space-y-1.5', invalidClass('pickupTimeFrom'))}><FieldLabel>{u('postLoadModal.pickupTimeFrom', 'Time from')}</FieldLabel><TimeInput value={draft.pickupTimeFrom} onChange={(value) => setField('pickupTimeFrom', value)} placeholder="hh:mm" /></div>
-        <div className={cn('space-y-1.5', invalidClass('pickupTimeTo'))}><FieldLabel>{u('postLoadModal.pickupTimeTo', 'Time to')}</FieldLabel><TimeInput value={draft.pickupTimeTo} onChange={(value) => setField('pickupTimeTo', value)} placeholder="hh:mm" /></div>
+        <div className={cn('space-y-1', invalidClass('pickupDate'))}><FieldLabel>{u('postLoadModal.pickupDate', 'Date from')}</FieldLabel><DateInput value={draft.pickupDate} onChange={(value) => setField('pickupDate', value)} placeholder="dd.mm.yyyy" lang={lang} /></div>
+        <div className={cn('space-y-1', invalidClass('pickupDateTo'))}><FieldLabel>{u('postLoadModal.pickupDateTo', 'Date to')}</FieldLabel><DateInput value={draft.pickupDateTo} onChange={(value) => setField('pickupDateTo', value)} placeholder="dd.mm.yyyy" lang={lang} /></div>
+        <div className={cn('space-y-1', invalidClass('pickupTimeFrom'))}><FieldLabel>{u('postLoadModal.pickupTimeFrom', 'Time from')}</FieldLabel><TimeInput value={draft.pickupTimeFrom} onChange={(value) => setField('pickupTimeFrom', value)} placeholder="hh:mm" /></div>
+        <div className={cn('space-y-1', invalidClass('pickupTimeTo'))}><FieldLabel>{u('postLoadModal.pickupTimeTo', 'Time to')}</FieldLabel><TimeInput value={draft.pickupTimeTo} onChange={(value) => setField('pickupTimeTo', value)} placeholder="hh:mm" /></div>
       </div>
     </section>
 
-    <section className="space-y-4 rounded-3xl border border-slate-200 p-4 dark:border-slate-800 md:p-5">
+    <section className="space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
       <div className="flex items-center gap-2 text-orange-500">
         <Warehouse className="h-4 w-4" />
         <p className="text-xs font-black uppercase tracking-wider">{u('postLoadModal.warehousePreferredLocation', 'Preferred warehouse location')}</p>
       </div>
-      <div className="space-y-1.5">
+      <div className="space-y-1">
         <FieldLabel>{u('postLoadModal.deliveryPlaceType', 'Place type')}</FieldLabel>
         <div className="grid grid-cols-2 gap-2">
           <ChoiceCard compact active={!isAreaRequest} title={u('postLoadModal.warehouse', 'Warehouse')} icon={Warehouse} onClick={() => setField('deliveryPlaceType', 'Warehouse')} />
           <ChoiceCard compact active={isAreaRequest} title={u('postLoadModal.warehouseArea', 'Area')} icon={Radar} onClick={() => setField('deliveryPlaceType', 'Area')} />
         </div>
       </div>
-      <div className={cn('space-y-1.5', invalidClass('deliveryAddress', 'deliveryRadiusKm'))}>
+      <div className={cn('space-y-1', invalidClass('deliveryAddress', 'deliveryRadiusKm'))}>
         <FieldLabel>{isAreaRequest ? u('postLoadModal.warehousePreferredArea', 'Preferred area') : u('postLoadModal.selectWarehouse', 'Warehouse')}</FieldLabel>
         {!isAreaRequest ? (
           <WarehouseAutocompleteField
@@ -359,18 +368,18 @@ export const WarehouseLocationFields = ({
         )}
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <div className={cn('space-y-1.5', invalidClass('deliveryCountry'))}><FieldLabel>{u('postLoadModal.country', 'Country')}</FieldLabel><CountrySelect value={draft.deliveryCountry} onChange={(value) => setField('deliveryCountry', value)} /></div>
-        <div className={cn('space-y-1.5', invalidClass('deliveryCity'))}><FieldLabel>{u('postLoadModal.deliveryCity', 'City')}</FieldLabel><Input value={draft.deliveryCity} onChange={(event) => setField('deliveryCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', 'City')} /></div>
+        <div className={cn('space-y-1', invalidClass('deliveryCountry'))}><FieldLabel>{u('postLoadModal.country', 'Country')}</FieldLabel><CountrySelect value={draft.deliveryCountry} onChange={(value) => setField('deliveryCountry', value)} /></div>
+        <div className={cn('space-y-1', invalidClass('deliveryCity'))}><FieldLabel>{u('postLoadModal.deliveryCity', 'City')}</FieldLabel><Input value={draft.deliveryCity} onChange={(event) => setField('deliveryCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', 'City')} /></div>
       </div>
       <div className="grid grid-cols-4 gap-2">
-        <div className={cn('space-y-1.5', invalidClass('deliveryDate'))}><FieldLabel>{u('postLoadModal.deliveryDate', 'Date from')}</FieldLabel><DateInput value={draft.deliveryDate} onChange={(value) => setDraft((current) => ({ ...current, deliveryDate: value, warehouseStartDate: value }))} placeholder="dd.mm.yyyy" lang={lang} /></div>
-        <div className={cn('space-y-1.5', invalidClass('deliveryDateTo'))}><FieldLabel>{u('postLoadModal.deliveryDateTo', 'Date to')}</FieldLabel><DateInput value={draft.deliveryDateTo} onChange={(value) => setDraft((current) => ({ ...current, deliveryDateTo: value, warehouseEndDate: value }))} placeholder="dd.mm.yyyy" lang={lang} /></div>
-        <div className={cn('space-y-1.5', invalidClass('deliveryTimeFrom'))}><FieldLabel>{u('postLoadModal.deliveryTimeFrom', 'Time from')}</FieldLabel><TimeInput value={draft.deliveryTimeFrom} onChange={(value) => setField('deliveryTimeFrom', value)} placeholder="hh:mm" /></div>
-        <div className={cn('space-y-1.5', invalidClass('deliveryTimeTo'))}><FieldLabel>{u('postLoadModal.deliveryTimeTo', 'Time to')}</FieldLabel><TimeInput value={draft.deliveryTimeTo} onChange={(value) => setField('deliveryTimeTo', value)} placeholder="hh:mm" /></div>
+        <div className={cn('space-y-1', invalidClass('deliveryDate'))}><FieldLabel>{u('postLoadModal.deliveryDate', 'Date from')}</FieldLabel><DateInput value={draft.deliveryDate} onChange={(value) => setDraft((current) => ({ ...current, deliveryDate: value, warehouseStartDate: value }))} placeholder="dd.mm.yyyy" lang={lang} /></div>
+        <div className={cn('space-y-1', invalidClass('deliveryDateTo'))}><FieldLabel>{u('postLoadModal.deliveryDateTo', 'Date to')}</FieldLabel><DateInput value={draft.deliveryDateTo} onChange={(value) => setDraft((current) => ({ ...current, deliveryDateTo: value, warehouseEndDate: value }))} placeholder="dd.mm.yyyy" lang={lang} /></div>
+        <div className={cn('space-y-1', invalidClass('deliveryTimeFrom'))}><FieldLabel>{u('postLoadModal.deliveryTimeFrom', 'Time from')}</FieldLabel><TimeInput value={draft.deliveryTimeFrom} onChange={(value) => setField('deliveryTimeFrom', value)} placeholder="hh:mm" /></div>
+        <div className={cn('space-y-1', invalidClass('deliveryTimeTo'))}><FieldLabel>{u('postLoadModal.deliveryTimeTo', 'Time to')}</FieldLabel><TimeInput value={draft.deliveryTimeTo} onChange={(value) => setField('deliveryTimeTo', value)} placeholder="hh:mm" /></div>
       </div>
     </section>
 
-    <section className="flex h-full min-w-0 flex-col space-y-4 rounded-3xl border border-slate-200 p-4 dark:border-slate-800 md:p-5">
+    <section className="flex h-full min-w-0 flex-col space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
       <div className="flex items-center gap-2 text-primary"><Route className="h-4 w-4" /><p className="text-xs font-black uppercase tracking-wider">{u('postLoadModal.routeSummaryTitle', 'Route')}</p></div>
       <div className="flex min-w-0 flex-1 flex-col">
         <VerticalRoutePoint icon={MapPin} iconClassName="bg-emerald-500 shadow-emerald-500/20" label={u('postLoadModal.origin', 'Origin')} value={draft.pickupCity || draft.pickupAddress || '—'} />
@@ -398,12 +407,12 @@ export const WarehouseTermsFields = ({ draft, setField, u }: { draft: LoadDraft;
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div className="space-y-1.5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="space-y-1">
           <FieldLabel>{u('postLoadModal.targetPrice', 'Vaša očekivana cijena (nije vidljiva javno)')}</FieldLabel>
           <Input type="number" min="0" value={draft.budget} onChange={(e) => setField('budget', e.target.value)} placeholder="450" />
         </div>
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           <FieldLabel>{u('postLoadModal.currency', 'Currency')}</FieldLabel>
           <Select value={draft.freightCurrency} onChange={(e) => setField('freightCurrency', e.target.value)}>
             <option value="EUR">EUR</option>
@@ -411,7 +420,7 @@ export const WarehouseTermsFields = ({ draft, setField, u }: { draft: LoadDraft;
             <option value="USD">USD</option>
           </Select>
         </div>
-        <div className="col-span-2 space-y-1.5">
+        <div className="col-span-2 space-y-1">
           <FieldLabel>{u('postLoadModal.warehouseRateUnit', 'Jedinica cijene')}</FieldLabel>
           <Select value={draft.warehouseRateUnit} onChange={(e) => setField('warehouseRateUnit', e.target.value)}>
             {WAREHOUSE_RATE_UNIT_OPTIONS.map((option) => (
@@ -421,7 +430,7 @@ export const WarehouseTermsFields = ({ draft, setField, u }: { draft: LoadDraft;
         </div>
       </div>
 
-      <div className="space-y-1.5">
+      <div className="space-y-1">
         <FieldLabel>{u('postLoadModal.requirements', 'Zahtjevi')}</FieldLabel>
         <div className="grid grid-cols-2 gap-3">
           {requirementToggles.map((toggle) => (

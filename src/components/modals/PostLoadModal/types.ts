@@ -21,7 +21,7 @@ export type PostLoadModalProps = {
 };
 
 
-export type StepId = 'cargo' | 'route' | 'terms' | 'contact' | 'review';
+export type StepId = 'cargo' | 'route' | 'contact' | 'review';
 export type TransportType = 'road' | 'air' | 'sea' | 'rail' | 'warehouse';
 
 /**
@@ -294,3 +294,16 @@ export const INITIAL_DRAFT: LoadDraft = {
   publishDelayMinutes: '5',
 };
 
+
+// A requirement toggle is only worth showing when the loading-equipment / required-services picker
+// in the middle column does not already state the same thing for this transport type. Keeping the
+// overlaps in one map means the two lists cannot drift apart as options are added to either side:
+// the toggle disappears exactly when an equivalent option exists, and payload.ts reads the same map
+// to keep the boolean column filled from whichever control the user actually saw.
+export const EQUIPMENT_COVERED_REQUIREMENTS = {
+  requiresTailLift: ['Vehicle with ramp', 'Tail Lift Required', 'Loading', 'Unloading'],
+  customsRequired: ['Customs handling'],
+  inspectionServicesRequired: ['Goods inspection'],
+} as const satisfies Record<string, readonly string[]>;
+
+export type EquipmentCoveredRequirement = keyof typeof EQUIPMENT_COVERED_REQUIREMENTS;

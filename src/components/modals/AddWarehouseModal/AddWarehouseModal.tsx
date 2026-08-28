@@ -316,7 +316,7 @@ export const AddWarehouseModal = ({
             </div>
             <div>
               <Label required>{u('addWarehouse.country', 'Country')}</Label>
-              <div className={cn('[&_button]:h-10 [&_button]:rounded-xl', bad('countryCode') && '[&_button]:border-rose-400')}>
+              <div className={cn(bad('countryCode') && '[&_button]:border-rose-400')}>
                 <CountrySelect value={draft.countryCode} onChange={(value) => setField('countryCode', value)} placeholder={u('addWarehouse.selectCountry', 'Select country')} />
               </div>
             </div>

@@ -1,10 +1,15 @@
 export const INCOTERM_OPTIONS = ['EXW', 'FCA', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP', 'FAS', 'FOB', 'CFR', 'CIF'] as const;
 export const VEHICLE_OPTIONS = ['Cargo Van', 'Box Truck', 'Curtainsider', 'Reefer', 'Trailer', 'Rigid Truck', 'Container truck'] as const;
 export const BODY_TYPE_OPTIONS = ['Curtain', 'Box', 'Reefer', 'Mega', 'Tautliner', 'Flatbed'] as const;
-export const ROAD_CHARACTERISTIC_OPTIONS = ['ADR', 'CMR', 'GDP', 'TIR', 'Lift', 'Express'] as const;
+// ADR, CMR, Lift and Express used to live here too, but each one is stated by a requirement
+// toggle in the same group (requiresAdr, cmrRequired, requiresTailLift, urgent) - and those are
+// real columns the exchange filters on, so the duplicate free-text entries were the ones to go.
+export const ROAD_CHARACTERISTIC_OPTIONS = ['GDP', 'TIR'] as const;
 // No temperature-controlled-goods entry here - the dedicated "Temperature controlled" yes/no
 // toggle right below this list already covers that.
-export const AIR_CHARACTERISTIC_OPTIONS = ['Non-DG', 'DG', 'DGR', 'MED (medicine)', 'VAL (money and other valuables)', 'Fragile Cargo', 'Oversized / Heavy Cargo', 'Lithium Batteries', 'Dry Ice'] as const;
+// Non-DG / DG / DGR are all restatements of the "DGR / certified" requirement toggle, which is
+// what air actually files against, so only the cargo attributes stay here.
+export const AIR_CHARACTERISTIC_OPTIONS = ['MED (medicine)', 'VAL (money and other valuables)', 'Fragile Cargo', 'Oversized / Heavy Cargo', 'Lithium Batteries', 'Dry Ice'] as const;
 // Selecting DG / IMO, REEFER, or OOG opens its own detail fields (UN number/IMO class/packing
 // group; temperature range; in-gauge vs out-of-gauge dimensions) instead of being a plain toggle -
 // mirrors how ocean carriers (and SeaRates) surface attributes based on the commodity/equipment
@@ -12,7 +17,8 @@ export const AIR_CHARACTERISTIC_OPTIONS = ['Non-DG', 'DG', 'DGR', 'MED (medicine
 // No NON-STACKABLE / TOP LOAD ONLY entries here - the "Additional information" picker (Stackable /
 // Top load only / Non-stackable) right above this section on the Cargo step already covers that,
 // and it's shared across all transport types rather than being sea-specific.
-export const SEA_CHARACTERISTIC_OPTIONS = ['DG / IMO', 'REEFER', 'OOG', 'LIQUID', 'BULK', 'FRAGILE', 'HEAVY', 'VALUABLE', 'PHARMA', 'FOOD GRADE'] as const;
+// REEFER dropped: it only ever flipped the Temperature controlled toggle sitting under this list.
+export const SEA_CHARACTERISTIC_OPTIONS = ['DG / IMO', 'OOG', 'LIQUID', 'BULK', 'FRAGILE', 'HEAVY', 'VALUABLE', 'PHARMA', 'FOOD GRADE'] as const;
 export const SEA_BL_TYPE_OPTIONS = ['Original B/L', 'SeaWaybill', 'Telex Release'] as const;
 // Rail's equivalent of the Bill of Lading: which consignment note regime the shipment moves under.
 // CIM covers western Europe, SMGS the CIS and China corridors, and the common CIM/SMGS note is what

@@ -1,5 +1,14 @@
-import { LoadDraft, isContainerTransport } from './types';
+import { EQUIPMENT_COVERED_REQUIREMENTS, LoadDraft, isContainerTransport } from './types';
+import type { EquipmentCoveredRequirement } from './types';
 import { deriveGoodsTypeCode, stripHsCodesForPayload } from '../scanFieldRows';
+
+// The exchange filters on requires_tail_lift / customs_required / inspection_services_required, so
+// those columns still have to be filled when the duplicate toggle was hidden - the user stated the
+// same thing by picking the matching loading-equipment / required-services option instead.
+const requirementFlag = (draft: LoadDraft, requirement: EquipmentCoveredRequirement): boolean =>
+  Boolean(draft[requirement])
+  || EQUIPMENT_COVERED_REQUIREMENTS[requirement].some((option) => draft.loadingEquipment.includes(option));
+
 
 // Air transport mode is no longer a manual choice - it's fully determined by whether the pickup
 // is an airport (AOL) or a door/facility, and whether the delivery is an airport (AOD) or a
@@ -75,15 +84,15 @@ export const buildLoadFieldsPayload = (draft: LoadDraft) => ({
   delivery_proof: draft.transportType === 'air' ? draft.deliveryProof || null : null,
   transit_days: isContainerTransport(draft.transportType) && draft.transitDays ? Number(draft.transitDays) : null,
   requires_adr: draft.requiresAdr,
-  requires_tail_lift: draft.requiresTailLift,
+  requires_tail_lift: requirementFlag(draft, 'requiresTailLift'),
   toll_roads_included: draft.tollRoadsIncluded,
   ferry_included: draft.ferryIncluded,
   cmr_required: draft.cmrRequired,
   pallet_exchange_required: draft.palletExchangeRequired,
-  customs_required: draft.customsRequired,
+  customs_required: requirementFlag(draft, 'customsRequired'),
   insurance_required: draft.insuranceRequired,
   certification_required: draft.certificationRequired,
-  inspection_services_required: draft.inspectionServicesRequired,
+  inspection_services_required: requirementFlag(draft, 'inspectionServicesRequired'),
   must_be_trackable: draft.mustBeTrackable,
   is_urgent: draft.urgent,
   body_types: draft.bodyTypes,
