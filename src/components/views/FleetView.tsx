@@ -13,8 +13,9 @@ import {
   Map as MapIcon,
   Share2,
   Users,
+  Gauge,
 } from 'lucide-react';
-import { ResponsiveContainer, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, Area, Line } from 'recharts';
+import { ResponsiveContainer, AreaChart, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, Area, Line, PieChart, Pie, Cell, Legend } from 'recharts';
 import { Language, Role } from '../../types';
 import { ui, trFuelType, trVehicleStatus } from '../../i18n';
 import { cn } from '../../lib/cn';
@@ -44,6 +45,8 @@ type FleetVehicle = {
   capacity: string;
   volume: string;
   configuration: string;
+  capacityKg: number;
+  volumeM3: number;
 };
 
 const INITIAL_VEHICLES: FleetVehicle[] = [
@@ -65,6 +68,8 @@ const INITIAL_VEHICLES: FleetVehicle[] = [
     capacity: '3.5 t',
     volume: '20 m3',
     configuration: '4x2',
+    capacityKg: 3500,
+    volumeM3: 20,
   },
   {
     id: 'V2',
@@ -84,6 +89,8 @@ const INITIAL_VEHICLES: FleetVehicle[] = [
     capacity: '7.5 t',
     volume: '35 m3',
     configuration: '4x2',
+    capacityKg: 7500,
+    volumeM3: 35,
   },
   {
     id: 'V3',
@@ -103,6 +110,8 @@ const INITIAL_VEHICLES: FleetVehicle[] = [
     capacity: '3.2 t',
     volume: '22 m3',
     configuration: '4x2',
+    capacityKg: 3200,
+    volumeM3: 22,
   },
 ];
 
@@ -114,7 +123,12 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
 
   const loadVehicles = async () => {
     const response = await api.vehicles.list({ per_page: 100 });
-    setVehicles(response.data.map((row) => {
+    const scopedRows = response.data.filter((row) => {
+      if (role === 'company' && companyIds.length > 0) return companyIds.includes(Number(row.company_id));
+      if (role === 'driver' && userId) return Number(row.owner_user_id) === userId || Number(row.assigned_driver_user_id) === userId;
+      return true;
+    });
+    setVehicles(scopedRows.map((row) => {
       const locations = Array.isArray(row.locations) ? row.locations as Array<Record<string, unknown>> : [];
       const lastLocation = locations[locations.length - 1];
       const features = (row.features && typeof row.features === 'object' ? row.features : {}) as Record<string, unknown>;
@@ -129,13 +143,17 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
         location: [Number(lastLocation?.latitude || 43.8563), Number(lastLocation?.longitude || 18.4131)] as [number, number],
         category: String(row.vehicle_type || '—'), bodyType: String(features.body_type || row.vehicle_type || '—'),
         capacity: row.capacity_kg ? `${Number(row.capacity_kg).toLocaleString()} kg` : '—', volume: row.capacity_m3 ? `${row.capacity_m3} m³` : '—',
-        configuration: String(features.configuration || '—'),
+        configuration: String(features.configuration || '—'), capacityKg: Number(row.capacity_kg || 0), volumeM3: Number(row.capacity_m3 || 0),
       };
     }));
   };
-  useEffect(() => { void loadVehicles(); }, []);
+  useEffect(() => { void loadVehicles(); }, [role, userId, companyIds.join(',')]);
 
   const fleetData = vehicles.slice(0, 7).map((vehicle) => ({ name: vehicle.plate, fuel: vehicle.status === 'Active' ? 100 : 0, efficiency: vehicle.status === 'Maintenance' ? 0 : 100 }));
+  const statusData = ['Active', 'Maintenance', 'Idle'].map((name) => ({ name, value: vehicles.filter((vehicle) => vehicle.status === name).length }));
+  const typeData = (['truck', 'aircraft', 'ship'] as TransportType[]).map((name) => ({ name, value: vehicles.filter((vehicle) => vehicle.transportType === name).length })).filter((item) => item.value > 0);
+  const capacityData = vehicles.slice(0, 8).map((vehicle) => ({ name: vehicle.plate || vehicle.systemName, capacity: vehicle.capacityKg, volume: vehicle.volumeM3 }));
+  const chartTooltip = { borderRadius: '12px', border: '1px solid #334155', background: '#0f172a', color: '#e2e8f0', fontSize: '12px' };
 
   const vehicleTypeIcon = {
     truck: Truck,
@@ -180,7 +198,7 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-6"
+      className="space-y-3"
     >
       <PageHeader
         icon={Truck}
@@ -191,6 +209,21 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
         </Button>}
         stats={fleetStats}
       />
+
+      <section className="grid gap-3 xl:grid-cols-12">
+        <Card className="shadow-none xl:col-span-3" contentClassName="p-4">
+          <div className="flex items-center gap-2"><Gauge className="h-4 w-4 text-emerald-500" /><div><p className="text-sm font-black dark:text-white">{u('fleet.statusMix', 'Fleet readiness')}</p><p className="text-[11px] text-slate-500">{u('fleet.statusMixSub', 'Vehicles grouped by live status')}</p></div></div>
+          <div className="mt-2 h-56"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={statusData} dataKey="value" nameKey="name" innerRadius={48} outerRadius={76} paddingAngle={3}><Cell fill="#10b981" /><Cell fill="#f59e0b" /><Cell fill="#64748b" /></Pie><Tooltip contentStyle={chartTooltip} /><Legend iconType="circle" wrapperStyle={{ fontSize: '10px' }} /></PieChart></ResponsiveContainer></div>
+        </Card>
+        <Card className="shadow-none xl:col-span-3" contentClassName="p-4">
+          <div className="flex items-center gap-2"><Truck className="h-4 w-4 text-sky-500" /><div><p className="text-sm font-black dark:text-white">{u('fleet.transportMix', 'Transport mix')}</p><p className="text-[11px] text-slate-500">{u('fleet.transportMixSub', 'Assets by transport category')}</p></div></div>
+          <div className="mt-3 h-56"><ResponsiveContainer width="100%" height="100%"><BarChart data={typeData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}><CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" opacity={0.35} vertical={false} /><XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} /><YAxis allowDecimals={false} tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} /><Tooltip contentStyle={chartTooltip} /><Bar dataKey="value" name="Vehicles" fill="#0ea5e9" radius={[6, 6, 0, 0]} /></BarChart></ResponsiveContainer></div>
+        </Card>
+        <Card className="shadow-none xl:col-span-6" contentClassName="p-4">
+          <div className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-violet-500" /><div><p className="text-sm font-black dark:text-white">{u('fleet.capacityProfile', 'Fleet capacity profile')}</p><p className="text-[11px] text-slate-500">{u('fleet.capacityProfileSub', 'Registered payload and volume by vehicle')}</p></div></div>
+          <div className="mt-3 h-56"><ResponsiveContainer width="100%" height="100%"><BarChart data={capacityData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}><CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" opacity={0.35} vertical={false} /><XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} /><YAxis yAxisId="kg" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} /><YAxis yAxisId="m3" orientation="right" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} /><Tooltip contentStyle={chartTooltip} /><Legend wrapperStyle={{ fontSize: '11px' }} /><Bar yAxisId="kg" dataKey="capacity" name="Payload kg" fill="#8b5cf6" radius={[5, 5, 0, 0]} /><Bar yAxisId="m3" dataKey="volume" name="Volume m³" fill="#0ea5e9" radius={[5, 5, 0, 0]} /></BarChart></ResponsiveContainer></div>
+        </Card>
+      </section>
 
       {(role === 'company' || role === 'driver' || role === 'superadmin') && (
         <Card>
@@ -228,7 +261,7 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
         </Card>
       )}
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid gap-3 lg:grid-cols-3">
         <Card title={u('fleet.fuelEfficiencyTitle', 'Fuel Consumption & Efficiency')} className="lg:col-span-2">
           <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">

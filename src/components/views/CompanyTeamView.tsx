@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, MailPlus, Send, ShieldCheck, UserRoundCog, Users } from 'lucide-react';
+import { BarChart3, CheckCircle2, Clock3, Crown, MailPlus, Send, ShieldCheck, UserCheck, UserRoundCog, Users } from 'lucide-react';
+import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 import { Language } from '../../types';
 import { cn } from '../../lib/cn';
@@ -35,6 +36,12 @@ export const CompanyTeamView = ({ lang: _lang }: { lang: Language }) => {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<CompanyRole>('Driver');
   const [message, setMessage] = useState('');
+  const roleData = useMemo(() => (Object.keys(ROLE_PERMISSIONS) as CompanyRole[]).map((name) => ({ name, value: members.filter((member) => member.role === name).length })), [members]);
+  const statusData = [
+    { name: 'Active', value: members.filter((member) => member.status === 'Active').length },
+    { name: 'Invited', value: members.filter((member) => member.status === 'Invited').length },
+  ];
+  const chartTooltip = { borderRadius: '12px', border: '1px solid #334155', background: '#0f172a', color: '#e2e8f0', fontSize: '12px' };
 
   const invite = async () => {
     const trimmed = email.trim();
@@ -56,12 +63,18 @@ export const CompanyTeamView = ({ lang: _lang }: { lang: Language }) => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       <PageHeader
         icon={Users}
         tone="violet"
         title="Team & Permissions"
         subtitle="Invite people by email, assign a company role, and understand exactly what each role can access."
+        stats={[
+          { label: 'People & invitations', value: members.length, icon: Users, tone: 'bg-violet-500/10 text-violet-500' },
+          { label: 'Active members', value: statusData[0].value, icon: UserCheck, tone: 'bg-emerald-500/10 text-emerald-500' },
+          { label: 'Pending invitations', value: statusData[1].value, icon: Clock3, tone: 'bg-amber-500/10 text-amber-500' },
+          { label: 'Company admins', value: members.filter((member) => member.role === 'Company Admin').length, icon: Crown, tone: 'bg-primary/10 text-primary' },
+        ]}
       />
 
       <Card>
@@ -76,7 +89,18 @@ export const CompanyTeamView = ({ lang: _lang }: { lang: Language }) => {
         {message && <p className="mt-2 text-xs font-bold text-primary">{message}</p>}
       </Card>
 
-      <div className="grid gap-6 xl:grid-cols-12">
+      <section className="grid gap-3 xl:grid-cols-12">
+        <Card className="shadow-none xl:col-span-7" contentClassName="p-4">
+          <div className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-violet-500" /><div><p className="text-sm font-black dark:text-white">Role distribution</p><p className="text-[11px] text-slate-500">Active members and invitations across company responsibilities</p></div></div>
+          <div className="mt-3 h-56"><ResponsiveContainer width="100%" height="100%"><BarChart data={roleData} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}><CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" opacity={0.35} vertical={false} /><XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} /><YAxis allowDecimals={false} tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} /><Tooltip contentStyle={chartTooltip} /><Bar dataKey="value" name="People" fill="#8b5cf6" radius={[6, 6, 0, 0]} /></BarChart></ResponsiveContainer></div>
+        </Card>
+        <Card className="shadow-none xl:col-span-5" contentClassName="p-4">
+          <div className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-emerald-500" /><div><p className="text-sm font-black dark:text-white">Team access state</p><p className="text-[11px] text-slate-500">Accepted access compared with outstanding invitations</p></div></div>
+          <div className="mt-2 h-56"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={statusData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={78} paddingAngle={3}><Cell fill="#10b981" /><Cell fill="#f59e0b" /></Pie><Tooltip contentStyle={chartTooltip} /><Legend iconType="circle" wrapperStyle={{ fontSize: '11px' }} /></PieChart></ResponsiveContainer></div>
+        </Card>
+      </section>
+
+      <div className="grid gap-3 xl:grid-cols-12">
         <Card className="xl:col-span-7">
           <div className="flex items-center justify-between"><div><p className="text-lg font-black dark:text-white">Company members</p><p className="text-sm text-slate-500">{members.length} people and pending invitations</p></div><span className="rounded-full bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary">{members.filter((item) => item.status === 'Active').length} active</span></div>
           <div className="mt-4 divide-y divide-slate-100 dark:divide-slate-800">

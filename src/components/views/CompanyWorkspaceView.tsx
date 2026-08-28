@@ -1,9 +1,11 @@
 import {
   Activity,
   ArrowRight,
+  BarChart3,
   Building2,
   CheckCircle2,
   CircleAlert,
+  CircleDollarSign,
   Clock3,
   Gauge,
   MapPinned,
@@ -14,6 +16,7 @@ import {
   Truck,
   Users,
 } from 'lucide-react';
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 import { Language } from '../../types';
 import { cn } from '../../lib/cn';
@@ -40,6 +43,20 @@ const dispatchRows = [
 ];
 
 const activityTones = ['text-sky-500', 'text-emerald-500', 'text-violet-500', 'text-amber-500'];
+const chartColors = ['#0ea5e9', '#8b5cf6', '#10b981', '#f97316', '#f59e0b', '#f43f5e'];
+const tooltipStyle = { borderRadius: '12px', border: '1px solid #334155', background: '#0f172a', color: '#e2e8f0', fontSize: '12px' };
+
+const recordDate = (row: Record<string, unknown>) => {
+  const value = row.recorded_at || row.occurred_at || row.created_at || row.updated_at;
+  const date = value ? new Date(String(value)) : null;
+  return date && !Number.isNaN(date.getTime()) ? date.toISOString().slice(0, 10) : null;
+};
+
+const groupCount = (rows: Array<Record<string, unknown>>, key: string, fallback: string) => {
+  const values = new Map<string, number>();
+  rows.forEach((row) => { const name = String(row[key] || fallback).replaceAll('_', ' '); values.set(name, (values.get(name) || 0) + 1); });
+  return Array.from(values, ([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+};
 
 export const CompanyWorkspaceView = ({ lang, onPostLoad }: { lang: Language; onPostLoad?: () => void }) => {
   const copy = getCompanyOverviewCopy(lang);
@@ -49,6 +66,7 @@ export const CompanyWorkspaceView = ({ lang, onPostLoad }: { lang: Language; onP
   const routes = useApiList(api.routes.list, { per_page: 100 });
   const memberships = useApiList(api.companyMemberships.list, { per_page: 100 });
   const events = useApiList(api.trackingEvents.list, { per_page: 20 });
+  const invoices = useApiList(api.invoices.list, { per_page: 100 });
   const [user, setUser] = useState<ApiUser | null>(null);
   useEffect(() => { void api.auth.me().then(setUser); }, []);
   const company = (user?.companies?.[0] || {}) as Record<string, unknown>;
@@ -57,6 +75,7 @@ export const CompanyWorkspaceView = ({ lang, onPostLoad }: { lang: Language; onP
   const companyLoads = loads.items.filter((row) => !companyId || Number(row.company_id) === companyId);
   const companyRoutes = routes.items.filter((row) => companyLoads.some((load) => Number(load.id) === Number(row.load_id)));
   const companyMembers = memberships.items.filter((row) => !companyId || Number(row.company_id) === companyId);
+  const companyInvoices = invoices.items.filter((row) => !companyId || !row.company_id || Number(row.company_id) === companyId);
   const activeLoads = companyLoads.filter((row) => ['sent', 'in_delivery'].includes(String(row.status).toLowerCase()));
   const revenue = companyLoads.reduce((sum, row) => sum + Number(row.budget || 0), 0);
   const distance = companyRoutes.reduce((sum, row) => sum + Number(row.distance_km || 0), 0);
@@ -78,6 +97,28 @@ export const CompanyWorkspaceView = ({ lang, onPostLoad }: { lang: Language; onP
   const activityRows = events.items.filter((event) => companyLoads.some((load) => Number(load.id) === Number(event.load_id))).slice(0, 4).map((event) => [String(event.event_type || event.status || 'Update'), String(event.recorded_at || event.created_at || '').replace('T', ' ').slice(0, 16)]);
   const availableVehicles = companyVehicles.filter((row) => ['active', 'available'].includes(String(row.status).toLowerCase())).length;
   const maintenanceVehicles = companyVehicles.filter((row) => String(row.status).toLowerCase() === 'maintenance').length;
+  const companyEvents = events.items.filter((event) => companyLoads.some((load) => Number(load.id) === Number(event.load_id)));
+  const loadStatusData = useMemo(() => groupCount(companyLoads, 'status', 'unknown'), [companyLoads]);
+  const fleetStatusData = useMemo(() => groupCount(companyVehicles, 'status', 'unknown'), [companyVehicles]);
+  const transportData = useMemo(() => groupCount(companyLoads, 'transport_type', 'road'), [companyLoads]);
+  const budgetByStatus = useMemo(() => {
+    const grouped = new Map<string, number>();
+    companyLoads.forEach((row) => { const name = String(row.status || 'unknown').replaceAll('_', ' '); grouped.set(name, (grouped.get(name) || 0) + Number(row.budget || 0)); });
+    return Array.from(grouped, ([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+  }, [companyLoads]);
+  const activityData = useMemo(() => {
+    const days = Array.from({ length: 7 }, (_, offset) => {
+      const date = new Date();
+      date.setDate(date.getDate() - (6 - offset));
+      const key = date.toISOString().slice(0, 10);
+      return { key, day: date.toLocaleDateString(undefined, { weekday: 'short' }), loads: 0, events: 0, invoices: 0 };
+    });
+    const index = new Map(days.map((day) => [day.key, day]));
+    companyLoads.forEach((row) => { const day = index.get(recordDate(row) || ''); if (day) day.loads += 1; });
+    companyEvents.forEach((row) => { const day = index.get(recordDate(row) || ''); if (day) day.events += 1; });
+    companyInvoices.forEach((row) => { const day = index.get(recordDate(row) || ''); if (day) day.invoices += 1; });
+    return days;
+  }, [companyEvents, companyInvoices, companyLoads]);
 
   return (
   <div className="space-y-6" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
@@ -100,7 +141,37 @@ export const CompanyWorkspaceView = ({ lang, onPostLoad }: { lang: Language; onP
       ]}
     />
 
-    <div className="grid gap-6 xl:grid-cols-12">
+    <section className="grid gap-3 xl:grid-cols-12">
+      <Card className="shadow-none xl:col-span-6" contentClassName="p-4">
+        <div className="flex items-center gap-2"><Activity className="h-4 w-4 text-primary" /><div><p className="text-sm font-black dark:text-white">{u('companyDashboard.activityTrend', 'Operations trend')}</p><p className="text-[11px] text-slate-500">{u('companyDashboard.activityTrendSub', 'Loads, tracking events and invoices during the last 7 days')}</p></div></div>
+        <div className="mt-3 h-56">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={activityData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+              <defs><linearGradient id="companyLoads" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.35} /><stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} /></linearGradient><linearGradient id="companyEvents" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} /><stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} /></linearGradient></defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" opacity={0.35} />
+              <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={tooltipStyle} /><Legend wrapperStyle={{ fontSize: '11px' }} />
+              <Area type="monotone" dataKey="loads" name="Loads" stroke="#0ea5e9" fill="url(#companyLoads)" strokeWidth={2} />
+              <Area type="monotone" dataKey="events" name="Tracking events" stroke="#8b5cf6" fill="url(#companyEvents)" strokeWidth={2} />
+              <Area type="monotone" dataKey="invoices" name="Invoices" stroke="#f59e0b" fill="transparent" strokeWidth={2} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+
+      <Card className="shadow-none xl:col-span-3" contentClassName="p-4">
+        <div className="flex items-center gap-2"><PackageCheck className="h-4 w-4 text-violet-500" /><div><p className="text-sm font-black dark:text-white">{u('companyDashboard.loadPipeline', 'Load pipeline')}</p><p className="text-[11px] text-slate-500">{u('companyDashboard.loadPipelineSub', 'Current loads grouped by status')}</p></div></div>
+        <div className="mt-2 h-56"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={loadStatusData} dataKey="value" nameKey="name" innerRadius={48} outerRadius={76} paddingAngle={3}>{loadStatusData.map((item, index) => <Cell key={item.name} fill={chartColors[index % chartColors.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /><Legend iconType="circle" wrapperStyle={{ fontSize: '10px', textTransform: 'capitalize' }} /></PieChart></ResponsiveContainer></div>
+      </Card>
+
+      <Card className="shadow-none xl:col-span-3" contentClassName="p-4">
+        <div className="flex items-center gap-2"><Truck className="h-4 w-4 text-sky-500" /><div><p className="text-sm font-black dark:text-white">{u('companyDashboard.fleetReadiness', 'Fleet readiness')}</p><p className="text-[11px] text-slate-500">{u('companyDashboard.fleetReadinessSub', 'Vehicles grouped by operational status')}</p></div></div>
+        <div className="mt-2 h-56"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={fleetStatusData} dataKey="value" nameKey="name" innerRadius={48} outerRadius={76} paddingAngle={3}>{fleetStatusData.map((item, index) => <Cell key={item.name} fill={['#10b981', '#f59e0b', '#f43f5e', '#64748b'][index % 4]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /><Legend iconType="circle" wrapperStyle={{ fontSize: '10px', textTransform: 'capitalize' }} /></PieChart></ResponsiveContainer></div>
+      </Card>
+    </section>
+
+    <div className="grid gap-3 xl:grid-cols-12">
       <Card className="xl:col-span-8">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -141,6 +212,17 @@ export const CompanyWorkspaceView = ({ lang, onPostLoad }: { lang: Language; onP
         </Card>
       </div>
     </div>
+
+    <section className="grid gap-3 xl:grid-cols-12">
+      <Card className="shadow-none xl:col-span-6" contentClassName="p-4">
+        <div className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-primary" /><div><p className="text-sm font-black dark:text-white">{u('companyDashboard.transportMix', 'Transport mix')}</p><p className="text-[11px] text-slate-500">{u('companyDashboard.transportMixSub', 'Company loads by transport mode')}</p></div></div>
+        <div className="mt-3 h-56"><ResponsiveContainer width="100%" height="100%"><BarChart data={transportData} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}><CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" opacity={0.35} vertical={false} /><XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} /><YAxis allowDecimals={false} tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} /><Tooltip contentStyle={tooltipStyle} /><Bar dataKey="value" name="Loads" fill="#0ea5e9" radius={[6, 6, 0, 0]} /></BarChart></ResponsiveContainer></div>
+      </Card>
+      <Card className="shadow-none xl:col-span-6" contentClassName="p-4">
+        <div className="flex items-center gap-2"><CircleDollarSign className="h-4 w-4 text-emerald-500" /><div><p className="text-sm font-black dark:text-white">{u('companyDashboard.valueByStatus', 'Load value by status')}</p><p className="text-[11px] text-slate-500">{u('companyDashboard.valueByStatusSub', 'Combined listed budget across the current pipeline')}</p></div></div>
+        <div className="mt-3 h-56"><ResponsiveContainer width="100%" height="100%"><BarChart data={budgetByStatus} layout="vertical" margin={{ top: 0, right: 15, left: 15, bottom: 0 }}><CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" opacity={0.35} horizontal={false} /><XAxis type="number" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} /><YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} /><Tooltip contentStyle={tooltipStyle} formatter={(value) => [`EUR ${Number(value).toLocaleString()}`, 'Budget']} /><Bar dataKey="value" name="Budget" fill="#10b981" radius={[0, 6, 6, 0]} /></BarChart></ResponsiveContainer></div>
+      </Card>
+    </section>
 
     <Card className="overflow-hidden p-0">
       <div className="flex flex-wrap items-center justify-between gap-4 bg-linear-to-r from-primary/10 via-transparent to-violet-500/10 p-5">
