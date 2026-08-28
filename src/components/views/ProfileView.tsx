@@ -13,6 +13,7 @@ import {
 import { Language, Role } from '../../types';
 import { ui } from '../../i18n';
 import { Button } from '../ui/Button';
+import { PageHeader } from '../ui/PageHeader';
 import { ApiUser, api } from '../../services/api';
 import { useApiList } from '../../hooks/useApiList';
 
@@ -269,17 +270,12 @@ export const ProfileView = ({ role, lang }: { role: Role; lang: Language }) => {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-linear-to-br from-white to-sky-50 dark:from-slate-900 dark:to-slate-900/60 p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] font-bold text-primary mb-2">
-              {u('legacy.profile.header.my-profile', 'My Profile')}
-            </p>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">{content.title}</h1>
-            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300 max-w-2xl">{content.subtitle}</p>
-          </div>
-          <span className="px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-bold">{content.rolePill}</span>
-        </div>
+      <PageHeader
+        icon={UserCircle2}
+        title={content.title}
+        subtitle={content.subtitle}
+        badge={<span className="text-xs font-bold text-primary">{content.rolePill}</span>}
+      />
 
         <div
           className={
@@ -326,7 +322,6 @@ export const ProfileView = ({ role, lang }: { role: Role; lang: Language }) => {
             </article>
           )}
         </div>
-      </section>
 
       <section className="space-y-6">
         <div className="grid gap-6 lg:grid-cols-12">

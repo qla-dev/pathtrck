@@ -37,6 +37,7 @@ import { ui, trLoadStatus, trPackageStatus } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
+import { PageHeader } from '../ui/PageHeader';
 
 type RangeOption = '24h' | '7d' | '30d';
 
@@ -272,40 +273,24 @@ export const Dashboard = ({ role, lang }: { role: Role; lang: Language }) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold dark:text-white">{analyticsTitle}</h1>
-          <p className="text-sm text-slate-500 mt-1">{analyticsSubtitle}</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-1">
-            {rangeOptions.map((opt) => (
-              <button
-                key={opt.id}
-                onClick={() => setRange(opt.id)}
-                className={cn(
-                  'px-3 py-1.5 rounded-lg text-xs font-bold transition-all',
-                  range === opt.id
-                    ? 'bg-primary text-white shadow-md'
-                    : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
-                )}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+      <PageHeader
+        icon={BarChart3}
+        title={analyticsTitle}
+        subtitle={analyticsSubtitle}
+        filters={rangeOptions.map((opt) => ({ id: opt.id, label: opt.label }))}
+        activeFilter={range}
+        onFilterChange={(id) => setRange(id as RangeOption)}
+        actions={<>
           <Button variant="outline" size="sm">
-            <Filter className="w-4 h-4 mr-2" />
-            {u('common.filter', 'Filter')}
+            <Filter className="w-4 h-4 mr-2" />{u('common.filter', 'Filter')}
           </Button>
           {role === 'driver' ? (
             <Button size="sm">
-              <Plus className="w-4 h-4 mr-2" />
-              {u('common.newRoute', 'New Route')}
+              <Plus className="w-4 h-4 mr-2" />{u('common.newRoute', 'New Route')}
             </Button>
           ) : null}
-        </div>
-      </div>
+        </>}
+      />
 
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {liveTopMetrics.map((metric) => (

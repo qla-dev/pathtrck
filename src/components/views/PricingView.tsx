@@ -4,6 +4,7 @@ import { Language, SubscriptionPackage } from '../../types';
 import { ui } from '../../i18n';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
+import { PageHeader } from '../ui/PageHeader';
 import { InlineDataState } from '../ui/InlineDataState';
 import { api } from '../../services/api';
 import { useApiList } from '../../hooks/useApiList';
@@ -51,10 +52,11 @@ export const PricingView = ({
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-display font-black dark:text-white">{u('pricing.title', 'Plans & Pricing')}</h1>
-        <p className="text-slate-500">{u('pricing.subtitle', 'Pick the plan that matches how much you move - every plan unlocks the full Freightbook feature set.')}</p>
-      </div>
+      <PageHeader
+        icon={Crown}
+        title={u('pricing.title', 'Plans & Pricing')}
+        subtitle={u('pricing.subtitle', 'Pick the plan that matches how much you move - every plan unlocks the full Freightbook feature set.')}
+      />
 
       {isUnlimited && (
         <Card contentClassName="p-5 flex items-center justify-between flex-wrap gap-3">

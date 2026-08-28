@@ -20,6 +20,7 @@ import { ui, trFuelType, trVehicleStatus } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
+import { PageHeader } from '../ui/PageHeader';
 import { api } from '../../services/api';
 import { RegisterVehicleModal } from '../modals/RegisterVehicleModal';
 
@@ -148,29 +149,25 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
         label: u('fleet.stats.totalVehicles', 'Total Vehicles'),
         value: String(vehicles.length),
         icon: Truck,
-        color: 'text-blue-600',
-        bg: 'bg-blue-100',
+        tone: 'bg-blue-500/10 text-blue-600',
       },
       {
         label: u('fleet.stats.activeNow', 'Active Now'),
         value: String(vehicles.filter((item) => item.status === 'Active').length),
         icon: CheckCircle2,
-        color: 'text-emerald-600',
-        bg: 'bg-emerald-100',
+        tone: 'bg-emerald-500/10 text-emerald-600',
       },
       {
         label: u('fleet.stats.inMaintenance', 'In Maintenance'),
         value: String(vehicles.filter((item) => item.status === 'Maintenance').length),
         icon: Settings,
-        color: 'text-amber-600',
-        bg: 'bg-amber-100',
+        tone: 'bg-amber-500/10 text-amber-600',
       },
       {
         label: u('fleet.stats.avgEfficiency', 'Registry Coverage'),
         value: `${vehicles.length ? Math.round((vehicles.filter((item) => item.systemName && item.category && item.bodyType).length / vehicles.length) * 100) : 0}%`,
         icon: BarChart3,
-        color: 'text-purple-600',
-        bg: 'bg-purple-100',
+        tone: 'bg-purple-500/10 text-purple-600',
       },
     ],
     [vehicles, lang]
@@ -185,31 +182,15 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
       animate={{ opacity: 1, y: 0 }}
       className="space-y-6"
     >
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-display font-bold dark:text-white">{u('fleet.title', 'My Fleet')}</h1>
-          <p className="text-slate-500">{u('fleet.subtitle', 'Manage and monitor your vehicle assets')}</p>
-        </div>
-        <Button className="rounded-full" onClick={openAddVehicle}>
+      <PageHeader
+        icon={Truck}
+        title={u('fleet.title', 'My Fleet')}
+        subtitle={u('fleet.subtitle', 'Manage and monitor your vehicle assets')}
+        actions={<Button className="rounded-full" onClick={openAddVehicle}>
           <Plus className="w-4 h-4 mr-2" /> {u('fleet.addVehicle', 'Add Vehicle')}
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {fleetStats.map((stat, i) => (
-          <Card key={i} className="p-6">
-            <div className="flex items-center gap-4">
-              <div className={cn('w-12 h-12 rounded-2xl flex items-center justify-center', stat.bg)}>
-                <stat.icon className={cn('w-6 h-6', stat.color)} />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{stat.label}</p>
-                <p className="text-2xl font-black dark:text-white">{stat.value}</p>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
+        </Button>}
+        stats={fleetStats}
+      />
 
       {(role === 'company' || role === 'driver' || role === 'superadmin') && (
         <Card>

@@ -1018,16 +1018,6 @@ export const AddWarehouseModal = ({
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4">
-              <div className="mb-3 px-1">
-                <h2 className="text-base font-black text-slate-900 dark:text-white">{STEPS[stepIndex].label}</h2>
-                <p className="text-[11px] text-slate-500">
-                  {step === 'general' && u('addWarehouse.generalSub', 'Basic details, location and contacts for this facility.')}
-                  {step === 'capacity' && u('addWarehouse.capacitySub', 'Define storage capacity, inventory tracking and handling capabilities.')}
-                  {step === 'operations' && u('addWarehouse.operationsSub', 'Configure operational settings and warehouse capabilities.')}
-                  {step === 'documents' && u('addWarehouse.documentsSub', 'Upload and manage all required documents and ensure compliance with regulations.')}
-                  {step === 'review' && u('addWarehouse.reviewSub', 'Check everything before the warehouse goes live.')}
-                </p>
-              </div>
               <AnimatePresence mode="wait">
                 <motion.div
                   key={step}

@@ -17,6 +17,7 @@ import { Language } from '../../types';
 import { cn } from '../../lib/cn';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
+import { PageHeader } from '../ui/PageHeader';
 import { api } from '../../services/api';
 import { useApiList } from '../../hooks/useApiList';
 
@@ -97,41 +98,14 @@ export const FinanceView = ({ lang: _lang }: { lang: Language }) => {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-              <CircleDollarSign className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Finance & Administration</p>
-              <h1 className="text-2xl font-black text-slate-900 dark:text-white">Financial Control Center</h1>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <span className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400"><ShieldCheck className="h-4 w-4" /> Finance access</span>
-            <Button variant="outline" onClick={exportInvoices} className="gap-2"><ArrowDownToLine className="h-4 w-4" /> Export</Button>
-          </div>
-        </div>
-        <p className="mt-4 max-w-3xl text-sm text-slate-500">
-          Review invoices, monitor overdue balances, reconcile payments, approve payouts, and export financial records. Operational fleet changes remain restricted.
-        </p>
-      </section>
-
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {metrics.map((metric) => (
-          <Card key={metric.label} className="p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{metric.label}</p>
-                <p className="mt-2 text-2xl font-black text-slate-900 dark:text-white">{metric.value}</p>
-                <p className="mt-1 text-xs text-slate-500">{metric.meta}</p>
-              </div>
-              <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', metric.tone)}><metric.icon className="h-5 w-5" /></div>
-            </div>
-          </Card>
-        ))}
-      </section>
+      <PageHeader
+        icon={CircleDollarSign}
+        title="Financial Control Center"
+        subtitle="Review invoices, monitor overdue balances, reconcile payments, approve payouts, and export financial records. Operational fleet changes remain restricted."
+        badge={<span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400"><ShieldCheck className="h-3.5 w-3.5" /> Finance access</span>}
+        actions={<Button variant="outline" onClick={exportInvoices} className="gap-2"><ArrowDownToLine className="h-4 w-4" /> Export</Button>}
+        stats={metrics}
+      />
 
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-4">

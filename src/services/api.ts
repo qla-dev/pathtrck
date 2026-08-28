@@ -409,7 +409,11 @@ export const api = {
     onboard: (data: Record<string, unknown>) => request<Record<string, unknown>>('/warehouses/onboard', { method: 'POST', body: JSON.stringify(data) }),
   },
   warehouse: {
-    overview: () => request<Record<string, unknown>>('/warehouse/overview'),
+    // No warehouse_id means the combined view across every facility the account operates.
+    overview: (params: { warehouse_id?: number | string } = {}) => {
+      const query = queryString(params);
+      return request<Record<string, unknown>>(query ? `/warehouse/overview?${query}` : '/warehouse/overview');
+    },
   },
   aiCallLogs: {
     ...resourceApi<Record<string, unknown>>('ai-call-logs'),

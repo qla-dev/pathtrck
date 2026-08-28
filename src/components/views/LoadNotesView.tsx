@@ -6,6 +6,7 @@ import { cn } from '../../lib/cn';
 import { Language } from '../../types';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
+import { PageHeader } from '../ui/PageHeader';
 import { ApiUser, api } from '../../services/api';
 import { DocumentRow, DocumentUploadCard, LoadDocumentsPanel } from './LoadDocumentsPanel';
 import { useApiList } from '../../hooks/useApiList';
@@ -184,63 +185,20 @@ export const LoadNotesView = ({ lang }: { lang: Language }) => {
 
   return (
     <div className="space-y-3">
-      {/* Same header and counter shape the Drivers page uses, so the two read as one product. */}
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-500">
-              <NotebookPen className="h-6 w-6" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-black dark:text-white">{u('documents.title', 'Documents and notes')}</h1>
-              <p className="mt-1 text-sm text-slate-500">
-                {mode === 'documents'
-                  ? u('documents.subtitle', 'Manage load paperwork and dispatch notes in one place.')
-                  : u('notes.subtitle', 'Keep dispatch notes, handoff instructions and route remarks tied to every active load.')}
-              </p>
-            </div>
-          </div>
-
-          {/* Same switch the freight exchange uses for Prevoz / Skladište - one list underneath,
-              two things to look at. */}
-          <div className="inline-flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-transparent px-1 dark:border-slate-800">
-            {([
-              { id: 'documents' as const, icon: FileText, label: u('documents.tab', 'Dokumenti'), count: documents.length },
-              { id: 'notes' as const, icon: StickyNote, label: u('notes.tab', 'Napomene'), count: notes.length },
-            ]).map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setMode(tab.id)}
-                className={cn(
-                  'flex h-7 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-2.5 text-xs font-bold transition-all',
-                  mode === tab.id ? 'bg-primary text-white' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
-                )}
-              >
-                <tab.icon className="h-4 w-4" />
-                <span>{tab.label}</span>
-                <span className={cn('rounded px-1 text-[10px]', mode === tab.id ? 'bg-white/20' : 'bg-slate-100 dark:bg-slate-800')}>{tab.count}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {/* min-w-0 + truncate: a grid item defaults to min-width:auto, so a long label like
-            "UKUPNO DOKUMENATA" would widen its track and push the whole row past the viewport. */}
-        {counters.map((counter) => (
-          <Card key={counter.key} className="min-w-0 shadow-none" contentClassName="flex items-center justify-between gap-3 px-5 py-3">
-            <div className="min-w-0">
-              <p className="truncate text-xs uppercase text-slate-500">{counter.label}</p>
-              <p className={cn('mt-1 text-2xl font-black', counter.tone)}>{counter.value}</p>
-            </div>
-            <div className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl', counter.chip)}>
-              <counter.icon className="h-6 w-6" />
-            </div>
-          </Card>
-        ))}
-      </div>
+      <PageHeader
+        icon={NotebookPen}
+        title={u('documents.title', 'Documents and notes')}
+        subtitle={mode === 'documents'
+          ? u('documents.subtitle', 'Manage load paperwork and dispatch notes in one place.')
+          : u('notes.subtitle', 'Keep dispatch notes, handoff instructions and route remarks tied to every active load.')}
+        filters={[
+          { id: 'documents', label: u('documents.tab', 'Dokumenti'), count: documents.length },
+          { id: 'notes', label: u('notes.tab', 'Napomene'), count: notes.length },
+        ]}
+        activeFilter={mode}
+        onFilterChange={(id) => setMode(id as 'documents' | 'notes')}
+        stats={counters.map((counter) => ({ label: counter.label, value: counter.value, icon: counter.icon, tone: counter.chip }))}
+      />
 
       <div className="grid gap-3 lg:grid-cols-12">
         <div className="flex h-full min-w-0 flex-col gap-3 lg:col-span-8">

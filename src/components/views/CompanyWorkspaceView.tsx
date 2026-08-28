@@ -18,7 +18,9 @@ import {
 import { Language } from '../../types';
 import { cn } from '../../lib/cn';
 import { ui } from '../../i18n';
+import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
+import { PageHeader } from '../ui/PageHeader';
 import { getCompanyOverviewCopy } from './companyOverviewCopy';
 import { useEffect, useMemo, useState } from 'react';
 import { ApiUser, api } from '../../services/api';
@@ -79,64 +81,24 @@ export const CompanyWorkspaceView = ({ lang, onPostLoad }: { lang: Language; onP
 
   return (
   <div className="space-y-6" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
-    <section className="relative overflow-hidden rounded-3xl border border-sky-100 bg-gradient-to-br from-white via-sky-50 to-cyan-100 p-6 text-slate-900 dark:border-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-cyan-950 dark:text-white md:p-8">
-      <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-primary/20 blur-3xl dark:bg-primary/25" />
-      <div className="absolute bottom-0 right-1/3 h-28 w-48 rounded-full bg-violet-500/15 blur-3xl" />
-      <div className="relative flex flex-wrap items-start justify-between gap-6">
-        <div>
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-white shadow-lg shadow-primary/30">
-              <Building2 className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-primary">{copy.company}</p>
-              <h1 className="text-2xl font-black md:text-3xl">{copy.title}</h1>
-            </div>
-          </div>
-          <p className="mt-4 max-w-2xl text-sm text-slate-600 dark:text-slate-300">
-            {copy.subtitle}
-          </p>
-        </div>
-        <div className="flex flex-col items-end gap-3">
-          {onPostLoad && (
-            <button
-              type="button"
-              onClick={onPostLoad}
-              className="flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-full bg-primary px-4 text-xs font-bold text-white shadow-lg shadow-primary/30 transition-all hover:scale-[1.02]"
-            >
-              <Plus className="h-4 w-4" /> {u('common.postLoad', 'Post Load')}
-            </button>
-          )}
-          <div className="rounded-2xl border border-sky-200 bg-white/70 px-4 py-3 backdrop-blur-sm dark:border-white/10 dark:bg-white/5">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase text-emerald-600 dark:text-emerald-400"><Radio className="h-4 w-4 animate-pulse" /> {copy.live}</div>
-            <p className="mt-1 text-sm font-semibold">{companyVehicles.length} assets · {activeLoads.length} active loads</p>
-          </div>
-        </div>
-      </div>
-      <div className="relative mt-7 grid gap-3 sm:grid-cols-3">
-        {copy.stats.map((label, index) => (
-          <div key={label} className="rounded-2xl border border-sky-200/80 bg-white/65 p-4 dark:border-white/10 dark:bg-white/5">
-            <p className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</p>
-            <p className="mt-1 text-2xl font-black">{heroStats[index]}</p>
-          </div>
-        ))}
-      </div>
-    </section>
-
-    <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      {metrics.map((metric, index) => (
-        <Card key={copy.metrics[index][0]} className="p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{copy.metrics[index][0]}</p>
-              <p className="mt-2 text-3xl font-black text-slate-900 dark:text-white">{metric.value}</p>
-              <p className="mt-1 text-xs text-slate-500">{copy.metrics[index][1]}</p>
-            </div>
-            <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl', metric.tone)}><metric.icon className="h-5 w-5" /></div>
-          </div>
-        </Card>
-      ))}
-    </section>
+    <PageHeader
+      icon={Building2}
+      title={copy.title}
+      subtitle={copy.subtitle}
+      badge={<>
+        <span className="flex items-center gap-1 text-[11px] font-bold uppercase text-emerald-600 dark:text-emerald-400"><Radio className="h-3 w-3 animate-pulse" />{copy.live}</span>
+        <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{companyVehicles.length} assets · {activeLoads.length} active loads</span>
+      </>}
+      actions={onPostLoad && (
+        <Button size="sm" className="rounded-full" onClick={onPostLoad}>
+          <Plus className="mr-1.5 h-4 w-4" />{u('common.postLoad', 'Post Load')}
+        </Button>
+      )}
+      stats={[
+        ...copy.stats.map((label, index) => ({ label, value: heroStats[index], icon: Gauge, tone: "bg-primary/10 text-primary" })),
+        ...metrics.map((metric, index) => ({ label: copy.metrics[index][0], value: metric.value, icon: metric.icon, tone: metric.tone })),
+      ]}
+    />
 
     <div className="grid gap-6 xl:grid-cols-12">
       <Card className="xl:col-span-8">

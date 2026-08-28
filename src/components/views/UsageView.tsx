@@ -18,6 +18,7 @@ import { ui, flatpickrI18n } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
+import { PageHeader } from '../ui/PageHeader';
 import { InlineDataState } from '../ui/InlineDataState';
 import { api } from '../../services/api';
 
@@ -141,22 +142,19 @@ export const UsageView = ({
 
   return (
     <div className="space-y-8">
-      <div className="flex items-start justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-3xl font-display font-black dark:text-white">{u('usage.title', 'Usage')}</h1>
-          <p className="text-slate-500">{u('usage.subtitle', 'Track how your LenaAI messages are being used this month.')}</p>
-        </div>
-        <div className="flex items-center gap-2">
+      <PageHeader
+        icon={Gauge}
+        title={u('usage.title', 'Usage')}
+        subtitle={u('usage.subtitle', 'Track how your LenaAI messages are being used this month.')}
+        actions={<>
           <Button variant="outline" size="sm" onClick={onTopUp}>
-            <Zap className="w-4 h-4 mr-2" />
-            {u('payments.quickTopup', 'Quick Top-up')}
+            <Zap className="w-4 h-4 mr-2" />{u('payments.quickTopup', 'Quick Top-up')}
           </Button>
           <Button variant="outline" size="sm" onClick={onUpgrade}>
-            <ArrowUpCircle className="w-4 h-4 mr-2" />
-            {u('usage.upgradePlan', 'Upgrade Plan')}
+            <ArrowUpCircle className="w-4 h-4 mr-2" />{u('usage.upgradePlan', 'Upgrade Plan')}
           </Button>
-        </div>
-      </div>
+        </>}
+      />
 
       {loading || error ? (
         <InlineDataState loading={loading} error={error} empty="" onRetry={load} />

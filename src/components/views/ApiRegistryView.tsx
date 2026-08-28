@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { LucideIcon, Mail, Plus, Search } from 'lucide-react';
+import { Database, LucideIcon, Mail, PlugZap, Plus, Search, ShieldCheck } from 'lucide-react';
 import { useApiList } from '../../hooks/useApiList';
 import { ApiEnvelope } from '../../services/api';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
+import { PageHeader } from '../ui/PageHeader';
 import { InlineDataState } from '../ui/InlineDataState';
 
 type Row = Record<string, unknown>;
@@ -16,8 +17,20 @@ export const ApiRegistryView = ({ eyebrow, title, description, icon: Icon, reque
   useEffect(() => { if (refreshToken) void result.refresh(); }, [refreshToken, result.refresh]);
   const rows = useMemo(() => result.items.filter((row) => (!filter || filter(row)) && JSON.stringify(row).toLowerCase().includes(query.toLowerCase())), [filter, query, result.items]);
   return <div className="space-y-6">
-    <section className="rounded-3xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900"><div className="flex flex-wrap items-start justify-between gap-4"><div className="flex items-center gap-3"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Icon className="h-6 w-6" /></div><div><p className="text-xs font-black uppercase tracking-[0.18em] text-primary">{eyebrow}</p><h1 className="text-2xl font-black dark:text-white">{title}</h1></div></div><div className="flex flex-wrap gap-2">{onEmail && <Button variant="outline" onClick={onEmail}><Mail className="mr-2 h-4 w-4" />Email</Button>}{onAction && actionLabel && <Button onClick={onAction}><Plus className="mr-2 h-4 w-4" />{actionLabel}</Button>}</div></div><p className="mt-4 text-sm text-slate-500">{description}</p></section>
-    <div className="grid gap-4 sm:grid-cols-2"><Card className="p-4"><p className="text-xs uppercase text-slate-500">Database records</p><p className="mt-1 text-3xl font-black dark:text-white">{result.loading ? '—' : rows.length}</p></Card><Card className="p-4"><p className="text-xs uppercase text-slate-500">API status</p><p className={`mt-1 text-lg font-black ${result.error ? 'text-rose-500' : 'text-emerald-500'}`}>{result.loading ? 'Loading' : result.error ? 'Unavailable' : 'Connected'}</p></Card></div>
+    <PageHeader
+      icon={Icon}
+      title={title}
+      subtitle={description}
+      badge={<span className="text-xs font-bold uppercase tracking-[0.18em] text-primary">{eyebrow}</span>}
+      actions={<>
+        {onEmail && <Button variant="outline" onClick={onEmail}><Mail className="mr-2 h-4 w-4" />Email</Button>}
+        {onAction && actionLabel && <Button onClick={onAction}><Plus className="mr-2 h-4 w-4" />{actionLabel}</Button>}
+      </>}
+      stats={[
+        { label: 'Database records', value: result.loading ? '—' : rows.length, icon: Database, tone: 'bg-primary/10 text-primary' },
+        { label: 'API status', value: result.loading ? 'Loading' : result.error ? 'Unavailable' : 'Connected', icon: result.error ? PlugZap : ShieldCheck, tone: result.error ? 'bg-rose-500/10 text-rose-500' : 'bg-emerald-500/10 text-emerald-500' },
+      ]}
+    />
     <Card><div className="relative max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${title.toLowerCase()}...`} className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white" /></div>{result.loading || result.error || rows.length === 0 ? <InlineDataState loading={result.loading} error={result.error} empty={empty} onRetry={result.refresh} /> : <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[760px] text-left"><thead><tr className="border-b border-slate-200 text-xs uppercase text-slate-500 dark:border-slate-800">{columns.map((column) => <th key={column.label} className="p-3">{column.label}</th>)}</tr></thead><tbody>{rows.map((row) => <tr key={String(row.id)} className="border-b border-slate-100 dark:border-slate-800">{columns.map((column) => <td key={column.label} className="p-3 text-sm text-slate-600 first:font-bold first:text-slate-900 dark:text-slate-300 dark:first:text-white">{String(column.value(row) || '—')}</td>)}</tr>)}</tbody></table></div>}</Card>
   </div>;
 };

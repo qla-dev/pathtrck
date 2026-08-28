@@ -6,6 +6,7 @@ import { Language, Role } from '../../types';
 import { ui } from '../../i18n';
 import { useApiList } from '../../hooks/useApiList';
 import { Button } from '../ui/Button';
+import { PageHeader } from '../ui/PageHeader';
 import { Card } from '../ui/Card';
 import { showError, showSuccess } from '../../lib/swal';
 import { cn } from '../../lib/cn';
@@ -49,7 +50,7 @@ export const WarehousesView = ({ lang, role }: { lang: Language; role: Role }) =
           : u('warehouses.disabledText', 'The facility is suspended and no longer bookable.'),
       );
     } catch (error) {
-      void showError(u('common.error', 'Something went wrong'), error instanceof Error ? error.message : undefined);
+      void showError(u('warehouses.statusFailed', 'Could not update the warehouse status'), error instanceof Error ? error.message : undefined);
     } finally {
       setSavingId(null);
     }
@@ -64,36 +65,22 @@ export const WarehousesView = ({ lang, role }: { lang: Language; role: Role }) =
 
   return <>
     <div className="space-y-4" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
-      <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500/10 text-orange-500"><WarehouseIcon className="h-5 w-5" /></div>
-          <div>
-            <h1 className="text-lg font-black leading-tight dark:text-white">{u('nav.warehouse', 'Warehouse')}</h1>
-            <p className="text-xs text-slate-500">{u('warehouses.subtitle', 'Browse storage facilities, capacity and coverage.')}</p>
-          </div>
-        </div>
-        {canCreate && (
+      <PageHeader
+        icon={WarehouseIcon}
+        tone="orange"
+        title={u('nav.warehouse', 'Warehouse')}
+        subtitle={u('warehouses.subtitle', 'Browse storage facilities, capacity and coverage.')}
+        actions={canCreate && (
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="mr-1.5 h-4 w-4" />{u('warehouses.create', 'Create Warehouse')}
           </Button>
         )}
-      </section>
-
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Card className="shadow-none" contentClassName="flex items-center justify-between gap-3 px-4 py-3">
-          <div><p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{u('warehouses.total', 'Warehouses')}</p><p className="mt-0.5 text-xl font-black dark:text-white">{warehouses.total}</p></div>
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-500/10 text-orange-500"><WarehouseIcon className="h-4 w-4" /></div>
-        </Card>
-        <Card className="shadow-none" contentClassName="flex items-center justify-between gap-3 px-4 py-3">
-          <div><p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{u('warehouses.capacity', 'Total capacity')}</p><p className="mt-0.5 text-xl font-black text-sky-500">{totalCapacity.toLocaleString()} pal.</p></div>
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-500/10 text-sky-500"><Boxes className="h-4 w-4" /></div>
-        </Card>
-        <Card className="shadow-none" contentClassName="flex items-center justify-between gap-3 px-4 py-3">
-          <div><p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{u('warehouses.countries', 'Countries')}</p><p className="mt-0.5 text-xl font-black text-emerald-500">{countries.size}</p></div>
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500"><MapPin className="h-4 w-4" /></div>
-        </Card>
-      </div>
-
+        stats={[
+          { label: u('warehouses.total', 'Warehouses'), value: warehouses.total, icon: WarehouseIcon, tone: 'bg-orange-500/10 text-orange-500' },
+          { label: u('warehouses.capacity', 'Total capacity'), value: `${totalCapacity.toLocaleString()} pal.`, icon: Boxes, tone: 'bg-sky-500/10 text-sky-500' },
+          { label: u('warehouses.countries', 'Countries'), value: countries.size, icon: MapPin, tone: 'bg-emerald-500/10 text-emerald-500' },
+        ]}
+      />
       <Card className="shadow-none" contentClassName="p-4">
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />

@@ -18,6 +18,7 @@ import { Language, Role } from '../../types';
 import { ui } from '../../i18n';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
+import { PageHeader } from '../ui/PageHeader';
 import { Toggle } from '../ui/Toggle';
 import { cn } from '../../lib/cn';
 import { ApiUser, api } from '../../services/api';
@@ -147,35 +148,24 @@ export const SettingsView = ({
 
   return (
     <div className="w-full space-y-6">
-      <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 lg:p-8">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="inline-flex items-center gap-2 text-primary text-xs font-black uppercase tracking-[0.2em]">
-              <SlidersHorizontal className="w-4 h-4" />
-              {u('legacy.settings.systemPreferences', 'System Preferences')}
-            </div>
-            <h1 className="text-3xl font-black mt-2 dark:text-white">{title}</h1>
-            <p className="text-sm text-slate-500 mt-2 max-w-3xl">{subtitle}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className={cn(
-              'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold',
-              isDriver
-                ? 'bg-primary/10 text-primary'
-                : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-            )}>
-              {isDriver ? <Truck className="w-3.5 h-3.5" /> : <Building2 className="w-3.5 h-3.5" />}
-              {isDriver
-                ? u('legacy.settings.driverLicenseVerified', 'Driver License: Verified')
-                : u('legacy.settings.customerLicenseActive', 'Customer License: Active')}
-            </span>
-            <Button size="sm" onClick={() => void saveProfile()}>
-              <CheckCircle2 className="w-4 h-4 mr-2" />
-              {saveStatus || u('legacy.settings.saveChanges', 'Save Changes')}
-            </Button>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        icon={SlidersHorizontal}
+        title={title}
+        subtitle={subtitle}
+        badge={<span className={cn(
+          'inline-flex items-center gap-1.5 text-xs font-bold',
+          isDriver ? 'text-primary' : 'text-emerald-600 dark:text-emerald-400',
+        )}>
+          {isDriver ? <Truck className="w-3.5 h-3.5" /> : <Building2 className="w-3.5 h-3.5" />}
+          {isDriver
+            ? u('legacy.settings.driverLicenseVerified', 'Driver License: Verified')
+            : u('legacy.settings.customerLicenseActive', 'Customer License: Active')}
+        </span>}
+        actions={<Button size="sm" onClick={() => void saveProfile()}>
+          <CheckCircle2 className="w-4 h-4 mr-2" />
+          {saveStatus || u('legacy.settings.saveChanges', 'Save Changes')}
+        </Button>}
+      />
 
       <div className="grid xl:grid-cols-12 gap-6">
         <Card className="xl:col-span-4">

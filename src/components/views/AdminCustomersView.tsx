@@ -5,6 +5,7 @@ import { Language } from "../../types";
 import { AdminField, AdminFormModal, adminFieldClass } from "./AdminFormModal";
 import { useApiList } from "../../hooks/useApiList";
 import { Button } from "../ui/Button";
+import { PageHeader } from '../ui/PageHeader';
 import { Card } from "../ui/Card";
 import { ServerDataTable, ServerDataTableColumn } from "../ui/ServerDataTable";
 import { confirmAction, showSuccess } from "../../lib/swal";
@@ -154,53 +155,20 @@ export const AdminCustomersView = ({
   return (
     <>
       <div className="space-y-6">
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-500">
-                <UserRound className="h-6 w-6" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-black dark:text-white">
-                  Customers
-                </h1>
-                <p className="mt-1 text-sm text-slate-500">
-                  Manage customer accounts, access, load activity and contact
-                  information.
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={onOpenEmailStudio}>
-                <Mail className="mr-2 h-4 w-4" />
-                Email
-              </Button>
-              <Button onClick={() => setOpen(true)}>Add customer</Button>
-            </div>
-          </div>
-        </section>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Card className="shadow-none" contentClassName="flex items-center justify-between gap-3 px-5 py-3">
-            <div><p className="text-xs uppercase text-slate-500">Total customers</p><p className="mt-1 text-2xl font-black dark:text-white">{customers.total}</p></div>
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-500"><UsersRound className="h-6 w-6" /></div>
-          </Card>
-          <Card className="shadow-none" contentClassName="flex items-center justify-between gap-3 px-5 py-3">
-            <div><p className="text-xs uppercase text-slate-500">Authorized</p><p className="mt-1 text-2xl font-black text-emerald-500">{customers.items.filter((row) => row.is_active).length}</p></div>
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500"><CircleCheckBig className="h-6 w-6" /></div>
-          </Card>
-          <Card className="shadow-none" contentClassName="flex items-center justify-between gap-3 px-5 py-3">
-            <div><p className="text-xs uppercase text-slate-500">Countries</p><p className="mt-1 text-2xl font-black text-violet-500">
-              {
-                new Set(
-                  customers.items
-                    .map((row) => row.country_code)
-                    .filter(Boolean),
-                ).size
-              }
-            </p></div>
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-violet-500/10 text-violet-500"><Globe2 className="h-6 w-6" /></div>
-          </Card>
-        </div>
+        <PageHeader
+          icon={UserRound}
+          title="Customers"
+          subtitle="Manage customer accounts, access, load activity and contact information."
+          actions={<>
+            <Button variant="outline" onClick={onOpenEmailStudio}><Mail className="mr-2 h-4 w-4" />Email</Button>
+            <Button onClick={() => setOpen(true)}>Add customer</Button>
+          </>}
+          stats={[
+            { label: 'Total customers', value: customers.total, icon: UsersRound, tone: 'bg-sky-500/10 text-sky-500' },
+            { label: 'Authorized', value: customers.items.filter((row) => row.is_active).length, icon: CircleCheckBig, tone: 'bg-emerald-500/10 text-emerald-500' },
+            { label: 'Countries', value: new Set(customers.items.map((row) => row.country_code).filter(Boolean)).size, icon: Globe2, tone: 'bg-violet-500/10 text-violet-500' },
+          ]}
+        />
         <Card className="shadow-none">
           <ServerDataTable
             title="Customers"

@@ -15,6 +15,7 @@ import { LoadDetailsPrebook } from '../load/LoadDetailsPrebook';
 import { LoadItem } from '../load/LoadItem';
 import { LoadsTable } from '../load/LoadsTable';
 import { EmptyState } from '../ui/EmptyState';
+import { PageHeader } from '../ui/PageHeader';
 
 type FeedLayoutMode = 'list' | 'grid' | 'map' | 'table';
 type MapSource = 'normal' | 'vector' | 'imagery';
@@ -331,14 +332,11 @@ export const HomeFeed = ({
 
   return (
     <div className="w-full min-w-0 space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-baseline gap-3">
-          <h1 className="text-2xl font-bold dark:text-white">{loadsTitle}</h1>
-          <p className="text-sm font-semibold text-slate-500">
-            {sortedLoads.length} {u('feed.filterBar.loadsLabel', 'loads')}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center justify-end gap-2">
+      <PageHeader
+        icon={Truck}
+        title={loadsTitle}
+        subtitle={`${sortedLoads.length} ${u('feed.filterBar.loadsLabel', 'loads')}`}
+        actions={<div className="flex flex-wrap items-center justify-end gap-2">
           <button
             type="button"
             onClick={() => onMyBidsOnlyChange?.(!myBidsOnly)}
@@ -407,8 +405,8 @@ export const HomeFeed = ({
               </button>
             ))}
           </div>
-        </div>
-      </div>
+        </div>}
+      />
 
       {filterBar && isFilterBarOpen && (filterBarLoading ? <FilterSkeleton /> : <FilterLoads {...filterBar} />)}
 

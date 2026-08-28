@@ -23,6 +23,7 @@ import { useApiList } from '../../hooks/useApiList';
 import { cn } from '../../lib/cn';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
+import { PageHeader } from '../ui/PageHeader';
 import { BrandWordmark } from '../ui/BrandWordmark';
 import { AudienceSelection } from '../email/AudienceSelection';
 import { EmailHtmlEditor, sanitizeEmailHtml } from '../email/EmailHtmlEditor';
@@ -153,15 +154,21 @@ export const EmailStudioView = ({ lang: _lang }: { lang: Language }) => {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="space-y-4">
-            <div className="flex items-center gap-3"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-linear-to-br from-primary to-violet-500 text-white shadow-lg shadow-primary/20"><Sparkles className="h-6 w-6" /></div><div><p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Superadmin communication</p><h1 className="text-2xl font-black dark:text-white">Company Email Studio</h1></div></div>
-            <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500"><span className="inline-flex items-center gap-1.5 text-emerald-600"><CheckCircle2 className="h-4 w-4" />{status}</span><span>·</span><span>{audienceData.count} recipients</span></div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2"><Button variant="outline" onClick={saveTemplate} className="gap-2"><Save className="h-4 w-4" /> Save template</Button><Button onClick={openAudienceSelection} className="gap-2"><Send className="h-4 w-4" /> Prepare send</Button></div>
-        </div>
-      </section>
+      <PageHeader
+        icon={Sparkles}
+        tone="violet"
+        title="Company Email Studio"
+        subtitle="Superadmin communication"
+        badge={<span className="inline-flex items-center gap-2 text-xs font-bold text-slate-500">
+          <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400"><CheckCircle2 className="h-3.5 w-3.5" />{status}</span>
+          <span>·</span>
+          <span>{audienceData.count} recipients</span>
+        </span>}
+        actions={<>
+          <Button variant="outline" onClick={saveTemplate} className="gap-2"><Save className="h-4 w-4" /> Save template</Button>
+          <Button onClick={openAudienceSelection} className="gap-2"><Send className="h-4 w-4" /> Prepare send</Button>
+        </>}
+      />
 
       <div className={cn('grid items-stretch gap-6', editorSidebarOpen && 'xl:grid-cols-[minmax(0,1fr)_360px]')}>
         {editorSidebarOpen && <aside className="order-2 self-start space-y-5 xl:sticky xl:top-6">

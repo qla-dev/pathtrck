@@ -1,6 +1,7 @@
 import { Bot, CheckCircle2, Cpu, Gauge, Radar, Rocket, ShieldCheck, Sparkles, TimerReset, Zap } from 'lucide-react';
 import { Language } from '../../types';
 import { ui } from '../../i18n';
+import { PageHeader } from '../ui/PageHeader';
 import { ChatInsightsPanel } from '../chat/ChatInsightsPanel';
 import { AiRouteCalculatorCard } from '../ai_automattions/AiRouteCalculatorCard';
 
@@ -9,71 +10,21 @@ export const AutomationsView = ({ lang }: { lang: Language }) => {
 
   return (
   <div className="space-y-6">
-    <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 lg:p-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center gap-2 text-primary text-xs font-black uppercase tracking-[0.2em]">
-            <Sparkles className="w-4 h-4" />
-            {u('legacy.automationsView.aiAutomations', 'AI Automations')}
-          </div>
-          <h1 className="text-3xl font-black mt-2 dark:text-white">
-            {u('legacy.automationsView.aiControlCenter', 'AI Control Center')}
-          </h1>
-          <p className="text-sm text-slate-500 mt-2 max-w-2xl">
-            {u(
-              'legacy.automationsView.manageTriggersSecurityRulesAndSmartRouteAutomations',
-              'Manage triggers, security rules, and smart route automations from one place.'
-            )}
-          </p>
-        </div>
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-sm font-bold">
-          <CheckCircle2 className="w-4 h-4" />
-          {u('legacy.automationsView.allSystemsActive', 'All systems active')}
-        </div>
-      </div>
-
-      <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4 mt-6">
-        {[
-          {
-            icon: Radar,
-            label: u('legacy.automationsView.activeTriggers', 'Active Triggers'),
-            value: '24',
-            note: u('legacy.automationsView.plus4Today', '+4 today'),
-            tone: 'text-primary',
-          },
-          {
-            icon: Zap,
-            label: u('legacy.automationsView.automatedActions', 'Automated Actions'),
-            value: '182',
-            note: u('legacy.automationsView.in24h', 'in 24h'),
-            tone: 'text-amber-500',
-          },
-          {
-            icon: ShieldCheck,
-            label: u('legacy.automationsView.securityScore', 'Security Score'),
-            value: '99.2%',
-            note: u('legacy.automationsView.noIncidents', 'no incidents'),
-            tone: 'text-emerald-500',
-          },
-          {
-            icon: TimerReset,
-            label: u('legacy.automationsView.averageRuntime', 'Average Runtime'),
-            value: '320ms',
-            note: u('legacy.automationsView.perAutomation', 'per automation'),
-            tone: 'text-violet-500',
-          },
-        ].map((item) => (
-          <div key={item.label} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4">
-            <div className={`w-9 h-9 rounded-xl bg-slate-200/70 dark:bg-slate-800 flex items-center justify-center ${item.tone}`}>
-              <item.icon className="w-4 h-4" />
-            </div>
-            <p className="text-xs uppercase tracking-wider text-slate-500 mt-3">{item.label}</p>
-            <p className="text-2xl font-black dark:text-white">{item.value}</p>
-            <p className="text-xs text-slate-500">{item.note}</p>
-          </div>
-        ))}
-      </div>
-    </div>
+    <PageHeader
+      icon={Sparkles}
+      title={u('legacy.automationsView.aiControlCenter', 'AI Control Center')}
+      subtitle={u('legacy.automationsView.manageTriggersSecurityRulesAndSmartRouteAutomations', 'Manage triggers, security rules, and smart route automations from one place.')}
+      badge={<span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+        <CheckCircle2 className="h-3.5 w-3.5" />
+        {u('legacy.automationsView.allSystemsActive', 'All systems active')}
+      </span>}
+      stats={[
+        { label: u('legacy.automationsView.activeTriggers', 'Active Triggers'), value: '24', icon: Radar, tone: 'bg-primary/10 text-primary' },
+        { label: u('legacy.automationsView.automatedActions', 'Automated Actions'), value: '182', icon: Zap, tone: 'bg-amber-500/10 text-amber-500' },
+        { label: u('legacy.automationsView.securityScore', 'Security Score'), value: '99.2%', icon: ShieldCheck, tone: 'bg-emerald-500/10 text-emerald-500' },
+        { label: u('legacy.automationsView.averageRuntime', 'Average Runtime'), value: '320ms', icon: TimerReset, tone: 'bg-violet-500/10 text-violet-500' },
+      ]}
+    />
 
     <div className="grid xl:grid-cols-12 gap-6">
       <div className="xl:col-span-8">

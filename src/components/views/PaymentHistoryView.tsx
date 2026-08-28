@@ -3,6 +3,7 @@ import { FileText, Loader2, Sparkles, Zap } from 'lucide-react';
 import { Language, SubscriptionPackage } from '../../types';
 import { ui, flatpickrI18n } from '../../i18n';
 import { Card } from '../ui/Card';
+import { PageHeader } from '../ui/PageHeader';
 import { InlineDataState } from '../ui/InlineDataState';
 import { api } from '../../services/api';
 import { planName } from '../pricing/PricingPlanCard';
@@ -69,10 +70,11 @@ export const PaymentHistoryView = ({ lang }: { lang: Language }) => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-display font-black dark:text-white">{u('payments.paymentHistory', 'Payment History')}</h1>
-        <p className="text-slate-500">{u('payments.history.subtitle', 'Every top-up and plan purchase on your account.')}</p>
-      </div>
+      <PageHeader
+        icon={FileText}
+        title={u('payments.paymentHistory', 'Payment History')}
+        subtitle={u('payments.history.subtitle', 'Every top-up and plan purchase on your account.')}
+      />
 
       {invoiceError && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 dark:bg-rose-950/30 dark:text-rose-300">{invoiceError}</p>}
 

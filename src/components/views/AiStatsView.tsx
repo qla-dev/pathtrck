@@ -21,6 +21,7 @@ import { Language, Role } from "../../types";
 import { confirmAction, showError } from "../../lib/swal";
 import { useApiList } from "../../hooks/useApiList";
 import { Card } from "../ui/Card";
+import { PageHeader } from '../ui/PageHeader';
 import { ServerDataTable, ServerDataTableColumn } from "../ui/ServerDataTable";
 
 const SERVICE_LABELS: Record<string, string> = {
@@ -767,20 +768,12 @@ export const AiStatsView = ({ lang: _lang, role }: { lang: Language; role?: Role
   return (
     <>
       <div className="space-y-6">
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-              <Gauge className="h-6 w-6" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-black dark:text-white">AI Stats</h1>
-              <p className="mt-1 text-sm text-slate-500">
-                Every OpenRouter call across LenaAI chat and document scanning - including free,
-                failed, or generic-answer calls. Nothing is hidden by default.
-              </p>
-            </div>
-          </div>
-        </section>
+        <PageHeader
+          icon={Gauge}
+          title="AI Stats"
+          subtitle="Every OpenRouter call across LenaAI chat and document scanning - including free, failed, or generic-answer calls. Nothing is hidden by default."
+        />
+
         <div className="grid items-stretch gap-3 sm:grid-cols-3 lg:grid-cols-6">
           <button
             type="button"

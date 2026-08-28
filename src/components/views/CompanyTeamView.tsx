@@ -5,6 +5,7 @@ import { Language } from '../../types';
 import { cn } from '../../lib/cn';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
+import { PageHeader } from '../ui/PageHeader';
 import { ApiUser, api } from '../../services/api';
 import { useApiList } from '../../hooks/useApiList';
 import { confirmAction, showSuccess } from '../../lib/swal';
@@ -56,13 +57,12 @@ export const CompanyTeamView = ({ lang: _lang }: { lang: Language }) => {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-500/10 text-violet-500"><Users className="h-6 w-6" /></div>
-          <div><p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Company access</p><h1 className="text-2xl font-black text-slate-900 dark:text-white">Team & Permissions</h1></div>
-        </div>
-        <p className="mt-4 max-w-3xl text-sm text-slate-500">Invite people by email, assign a company role, and understand exactly what each role can access.</p>
-      </section>
+      <PageHeader
+        icon={Users}
+        tone="violet"
+        title="Team & Permissions"
+        subtitle="Invite people by email, assign a company role, and understand exactly what each role can access."
+      />
 
       <Card>
         <div className="flex items-center gap-2"><MailPlus className="h-5 w-5 text-primary" /><p className="text-lg font-black text-slate-900 dark:text-white">Invite a team member</p></div>

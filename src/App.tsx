@@ -43,6 +43,7 @@ import {
   Gem,
   History,
   Zap,
+  Factory,
   Warehouse
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -3362,6 +3363,7 @@ export default function App() {
   const [isDark, setIsDark] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => getInitialSidebarState());
   const [isPostLoadOpen, setIsPostLoadOpen] = useState(false);
+  const [warehouseCreateSignal, setWarehouseCreateSignal] = useState(0);
   const [editLoadId, setEditLoadId] = useState<string | null>(null);
   const [loadRefreshKey, setLoadRefreshKey] = useState(0);
   const trackingCompanyIds = useMemo(
@@ -4029,11 +4031,10 @@ export default function App() {
         { id: 'admin', label: u('nav.commandCenter', 'Command Center'), icon: Crown },
         { id: 'admin-customers', label: u('nav.allCustomers', 'Customers'), icon: UserRound },
         { id: 'admin-companies', label: u('nav.allCompanies', 'Logistics Companies'), icon: Building2 },
-        { id: 'admin-warehouse-companies', label: u('nav.allWarehouseCompanies', 'Warehouse Companies'), icon: Warehouse },
+        { id: 'admin-warehouse-companies', label: u('nav.allWarehouseCompanies', 'Warehouse Companies'), icon: Factory },
         { id: 'admin-drivers', label: u('nav.allDrivers', 'Drivers'), icon: Users },
         { id: 'feed', label: t.homeFeed, icon: Boxes },
         { id: 'tracking', label: u('nav.globalTracking', 'Global Tracking'), icon: PackageIcon },
-        { id: 'map', label: u('nav.map', 'Map'), icon: MapIcon },
         { id: 'warehouses', label: u('nav.warehouse', 'Warehouse'), icon: Warehouse },
         { id: 'fleet', label: u('nav.globalFleet', 'Global Fleet'), icon: Truck },
         { id: 'finance', label: u('nav.finance', 'Finance'), icon: Banknote },
@@ -4052,7 +4053,6 @@ export default function App() {
           { id: 'company', label: u('nav.companyOverview', 'Company Overview'), icon: Building2 },
           { id: 'feed', label: t.homeFeed, icon: Boxes },
           { id: 'tracking', label: myCargoLabels[lang || 'en'], icon: PackageIcon },
-          { id: 'map', label: u('nav.map', 'Map'), icon: MapIcon },
           { id: 'fleet', label: t.myFleet, icon: Truck },
           { id: 'company-team', label: u('nav.teamPermissions', 'Team & Permissions'), icon: Users },
           { id: 'dashboard', label: analyticsLabel, icon: BarChart3 },
@@ -4063,14 +4063,16 @@ export default function App() {
       : role === 'warehouse'
         ? [
             { id: 'warehouse-overview', label: u('nav.myWarehouse', 'Moj Warehouse'), icon: Warehouse },
+            { id: 'feed', label: t.homeFeed, icon: Boxes },
             { id: 'tracking', label: myCargoLabels[lang || 'en'], icon: PackageIcon },
-            { id: 'map', label: u('nav.map', 'Map'), icon: MapIcon },
+            { id: 'fleet', label: t.myFleet, icon: Truck },
+            { id: 'dashboard', label: analyticsLabel, icon: BarChart3 },
+            { id: 'notes', label: ui(lang, 'documents.navLabel', 'Documents'), icon: NotebookPen },
             { id: 'settings', label: t.settings, icon: Settings },
           ]
       : [
           ...(role === 'driver' ? [{ id: 'feed', label: t.homeFeed, icon: Boxes }] : []),
           { id: 'tracking', label: myCargoLabels[lang || 'en'], icon: PackageIcon },
-          { id: 'map', label: u('nav.map', 'Map'), icon: MapIcon },
           { id: 'warehouses', label: u('nav.warehouse', 'Warehouse'), icon: Warehouse },
           ...(role === 'driver' ? [
             { id: 'fleet', label: t.myFleet, icon: Truck },
@@ -4180,37 +4182,17 @@ export default function App() {
                 <Plus className="w-4 h-4" />
                 <span>{u('common.postLoad', 'Post Load')}</span>
               </button>
+            ) : role === 'warehouse' ? (
+              <button
+                onClick={() => { setView('warehouse-overview'); setWarehouseCreateSignal((current) => current + 1); }}
+                className="h-10 px-4 rounded-full bg-primary text-white inline-flex items-center gap-2 text-xs font-bold hover:scale-[1.02] transition-all cursor-pointer whitespace-nowrap"
+              >
+                <Plus className="w-4 h-4" />
+                <span>{u('warehouses.create', 'Create Warehouse')}</span>
+              </button>
             ) : null}
 
-            <button
-              onClick={() => setView('pricing')}
-              title={u('nav.pricing', 'Pricing')}
-              className={cn(
-                "h-10 w-10 rounded-full transition-all cursor-pointer flex items-center justify-center",
-                view === 'pricing'
-                  ? "bg-primary text-white shadow-lg shadow-primary/30"
-                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary hover:scale-105"
-              )}
-            >
-              <Gem className="w-5 h-5" />
-            </button>
-
-            {isElevatedAdmin && (
-              <button
-                onClick={() => setView('ai-stats')}
-                title={u('nav.aiStats', 'AI Stats')}
-                className={cn(
-                  "h-10 w-10 rounded-full transition-all cursor-pointer flex items-center justify-center",
-                  view === 'ai-stats'
-                    ? "bg-primary text-white shadow-lg shadow-primary/30"
-                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary hover:scale-105"
-                )}
-              >
-                <Sparkles className="w-5 h-5" />
-              </button>
-            )}
-
-            {/* Language Switcher */}
+            {/* Language is always the first utility action after the role-specific primary action. */}
             <div className="relative group">
               <button
                 aria-label="Language switcher"
@@ -4227,7 +4209,7 @@ export default function App() {
               </button>
               <div className="absolute top-full right-0 mt-2 w-40 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all p-2 z-[110]">
                 {languages.map(l => (
-                  <button 
+                  <button
                     key={l.id}
                     onClick={() => setLang(l.id)}
                     className={cn(
@@ -4247,6 +4229,47 @@ export default function App() {
                 ))}
               </div>
             </div>
+
+            <button
+              onClick={() => setView('pricing')}
+              title={u('nav.pricing', 'Pricing')}
+              className={cn(
+                "h-10 w-10 rounded-full transition-all cursor-pointer flex items-center justify-center",
+                view === 'pricing'
+                  ? "bg-primary text-white shadow-lg shadow-primary/30"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary hover:scale-105"
+              )}
+            >
+              <Gem className="w-5 h-5" />
+            </button>
+
+            <button
+              onClick={() => navigateTo('map')}
+              title={u('nav.map', 'Map')}
+              className={cn(
+                "h-10 w-10 rounded-full transition-all cursor-pointer flex items-center justify-center",
+                isTrackingMapActive
+                  ? "bg-primary text-white shadow-lg shadow-primary/30"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary hover:scale-105"
+              )}
+            >
+              <MapIcon className="w-5 h-5" />
+            </button>
+
+            {isElevatedAdmin && (
+              <button
+                onClick={() => setView('ai-stats')}
+                title={u('nav.aiStats', 'AI Stats')}
+                className={cn(
+                  "h-10 w-10 rounded-full transition-all cursor-pointer flex items-center justify-center",
+                  view === 'ai-stats'
+                    ? "bg-primary text-white shadow-lg shadow-primary/30"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary hover:scale-105"
+                )}
+              >
+                <Sparkles className="w-5 h-5" />
+              </button>
+            )}
 
             {/* Dark Mode Toggle */}
             <button 
@@ -4460,8 +4483,8 @@ export default function App() {
 	                  onPostLoad={() => { setLenaLoadPrefill(null); setLenaSourceConversationId(null); setLenaSourceDraftId(null); setEditLoadId(null); setIsPostLoadOpen(true); }}
 	                />
 	              )}
-	              {view === 'warehouse-overview' && <WarehouseOverviewView lang={lang} />}
-	              {view === 'warehouses' && <WarehousesView lang={lang} role={role} />}
+	              {view === 'warehouse-overview' && <WarehouseOverviewView lang={lang} createSignal={warehouseCreateSignal} onCreateSignalHandled={() => setWarehouseCreateSignal(0)} />}
+	              {view === 'warehouses' && (isElevatedAdmin ? <WarehouseOverviewView lang={lang} networkView /> : <WarehousesView lang={lang} role={role} />)}
               {view === 'company-team' && <CompanyTeamView lang={lang} />}
 	              {view === 'finance' && <FinanceView lang={lang} />}
 	              {view === 'automations' && <AutomationsView lang={lang} />}
