@@ -2090,7 +2090,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             )}
                           </div>
                         </div>
-                        <div className={cn('grid gap-3', draft.transportType !== 'road' && 'sm:grid-cols-2')}>
+                        <div className="grid gap-3 sm:grid-cols-2">
                           <div className={cn('space-y-1', invalidClass('weightKg'))}>
                             {fieldLabel('weightKg', 'postLoadModal.weight', 'Weight (t)')}
                             <Input
@@ -2102,38 +2102,34 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                               placeholder="24.0"
                             />
                           </div>
-                          {draft.transportType !== 'road' && (
-                            <div className={cn('space-y-1', invalidClass('volumeM3'))}>
-                              {fieldLabel('volumeM3', 'postLoadModal.volume', 'CBM (m³)')}
-                              <Input type="number" step="0.1" min="0" value={draft.volumeM3} onChange={(e) => setField('volumeM3', e.target.value)} placeholder="33.2" />
-                            </div>
-                          )}
-                        </div>
-                        {draft.transportType !== 'road' && (
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            <div className={cn('space-y-1', invalidClass('pallets'))}>
-                              {fieldLabel('pallets', 'postLoadModal.unitCount', 'Number of pieces / units')}
-                              <Input
-                                type="number"
-                                step="1"
-                                min="0"
-                                value={draft.pallets}
-                                onChange={(event) => setField('pallets', event.target.value)}
-                                placeholder="24"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <FieldLabel>{u('postLoadModal.packagingMethod', 'Packaging method')}</FieldLabel>
-                              <Select value={draft.quantityMeasure} onChange={(event) => setField('quantityMeasure', event.target.value)}>
-                                <option value="">{u('postLoadModal.selectPackagingMethod', 'Select packaging method')}</option>
-                                {draft.quantityMeasure && !selectedPackageType && <option value={draft.quantityMeasure}>{draft.quantityMeasure}</option>}
-                                {PACKAGE_TYPES.map((option) => (
-                                  <option key={`${option.value}-${option.label}`} value={option.value}>{option.value} - {option.label}</option>
-                                ))}
-                              </Select>
-                            </div>
+                          <div className={cn('space-y-1', invalidClass('volumeM3'))}>
+                            {fieldLabel('volumeM3', 'postLoadModal.volume', 'CBM (m³)')}
+                            <Input type="number" step="0.1" min="0" value={draft.volumeM3} onChange={(e) => setField('volumeM3', e.target.value)} placeholder="33.2" />
                           </div>
-                        )}
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className={cn('space-y-1', invalidClass('pallets'))}>
+                            {fieldLabel('pallets', 'postLoadModal.unitCount', 'Number of pieces / units')}
+                            <Input
+                              type="number"
+                              step="1"
+                              min="0"
+                              value={draft.pallets}
+                              onChange={(event) => setField('pallets', event.target.value)}
+                              placeholder="24"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <FieldLabel>{u('postLoadModal.packagingMethod', 'Packaging method')}</FieldLabel>
+                            <Select value={draft.quantityMeasure} onChange={(event) => setField('quantityMeasure', event.target.value)}>
+                              <option value="">{u('postLoadModal.selectPackagingMethod', 'Select packaging method')}</option>
+                              {draft.quantityMeasure && !selectedPackageType && <option value={draft.quantityMeasure}>{draft.quantityMeasure}</option>}
+                              {PACKAGE_TYPES.map((option) => (
+                                <option key={`${option.value}-${option.label}`} value={option.value}>{option.value} - {option.label}</option>
+                              ))}
+                            </Select>
+                          </div>
+                        </div>
                         <div className="grid sm:grid-cols-3 gap-3">
                           <div className={cn('space-y-1', invalidClass('lengthM'))}>
                             {fieldLabel('lengthM', 'postLoadModal.length', 'Length (m)')}
@@ -2746,8 +2742,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       />
                       <SummaryRow label={u('postLoadModal.titleSummary', 'Title')} value={draft.loadTitle || '—'} />
                       <SummaryRow label={u('postLoadModal.cargoSummary', 'Cargo')} value={deriveGoodsTypeName(draft.hsCodes, draft.goodsType) || '—'} />
-                      <SummaryRow label={u('postLoadModal.specsSummary', 'Specs')} value={`${draft.lengthM || '—'} × ${draft.widthM || '—'} × ${draft.heightM || '—'} m · ${draft.weightKg || '—'} t${draft.transportType !== 'road' ? ` · ${draft.volumeM3 || '—'} CBM` : ''} · ${draft.additionalInfo || u('postLoadModal.none', 'None')}`} />
-                      {draft.transportType !== 'road' && <SummaryRow label={u('postLoadModal.packagingMethod', 'Packaging method')} value={`${selectedPackageType ? `${selectedPackageType.value} - ${selectedPackageType.label}` : draft.quantityMeasure || '—'} · ${draft.pallets || '—'} ${u('postLoadModal.unitsShort', 'units')}`} />}
+                      <SummaryRow label={u('postLoadModal.specsSummary', 'Specs')} value={`${draft.lengthM || '—'} × ${draft.widthM || '—'} × ${draft.heightM || '—'} m · ${draft.weightKg || '—'} t · ${draft.volumeM3 || '—'} CBM · ${draft.additionalInfo || u('postLoadModal.none', 'None')}`} />
+                      <SummaryRow label={u('postLoadModal.packagingMethod', 'Packaging method')} value={`${selectedPackageType ? `${selectedPackageType.value} - ${selectedPackageType.label}` : draft.quantityMeasure || '—'} · ${draft.pallets || '—'} ${u('postLoadModal.unitsShort', 'units')}`} />
                       {isContainerTransport(draft.transportType) ? (
                         <SummaryRow label={u('postLoadModal.containerTypesSummary', 'Container types')} value={draft.containerSelections.length ? draft.containerSelections.map((row) => `${row.quantity}x ${containerLabel(row.type)}`).join(', ') : u('postLoadModal.none', 'None')} />
                       ) : (
