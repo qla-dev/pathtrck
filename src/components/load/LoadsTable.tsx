@@ -25,6 +25,7 @@ import {
   Ship,
   Train,
   Snowflake,
+  Star,
   Timer,
   Truck,
   Wallet,
@@ -65,7 +66,7 @@ type LoadsTableProps = {
 const getSortValue = (load: Load, key: TableSortKey): string | number => {
   switch (key) {
     case 'tracking':
-      return (load.trackingNumber || load.publicId || load.id).toLowerCase();
+      return (load.trackingNumber || '').toLowerCase();
     case 'pickup':
       return load.pickup.toLowerCase();
     case 'miles':
@@ -347,7 +348,7 @@ export const LoadsTable = ({ lang, loads, userId, onOpenDetails }: LoadsTablePro
                 className="group cursor-pointer border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/60"
               >
                 <td className="px-4 py-3">
-                  <span className="font-mono text-xs font-bold text-primary">{load.trackingNumber || load.publicId || `#${load.id}`}</span>
+                  <span className="font-mono text-xs font-bold text-primary">{load.trackingNumber || '—'}</span>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
@@ -379,7 +380,13 @@ export const LoadsTable = ({ lang, loads, userId, onOpenDetails }: LoadsTablePro
                     </div>
                   </div>
                 </td>
-                <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{load.shipperName || load.author}</td>
+                <td className="px-4 py-3">
+                  <p className="font-medium text-slate-600 dark:text-slate-300">{load.shipperName || load.author}</p>
+                  <p className="mt-0.5 inline-flex items-center gap-1 text-xs font-bold text-slate-500 dark:text-slate-400">
+                    <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                    {Number(load.providerRating || 0).toFixed(1)}
+                  </p>
+                </td>
                 <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
                   <span className="inline-flex items-center gap-1.5">
                     <TransportIcon className="h-3.5 w-3.5 text-primary" />

@@ -247,7 +247,7 @@ export const WarehouseBidModal = ({
                         ? u('legacy.loadDetails.changeOffer', 'Change offer')
                         : u('Bid on Warehousing Request', 'Bid on Warehousing Request')}
                 </p>
-                <p className="truncate text-xs font-semibold uppercase tracking-wider text-primary">{load.publicId || `#${load.id}`}</p>
+                <p className="truncate text-xs font-semibold uppercase tracking-wider text-primary">{load.trackingNumber || '—'}</p>
               </div>
             </div>
             <button

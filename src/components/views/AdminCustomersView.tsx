@@ -4,6 +4,7 @@ import {
   Eye,
   Globe2,
   Mail,
+  Star,
   UserRound,
   UsersRound,
 } from "lucide-react";
@@ -81,6 +82,17 @@ export const AdminCustomersView = ({
         header: "Country",
         render: (row) => String(row.country_code || "—"),
         exportValue: (row) => String(row.country_code || ""),
+      },
+      {
+        key: "rating",
+        header: "Rating",
+        render: (row) => (
+          <span className="inline-flex items-center gap-1 font-bold">
+            <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+            {Number(row.rating || row.average_rating || 0).toFixed(1)}
+          </span>
+        ),
+        exportValue: (row) => Number(row.rating || row.average_rating || 0).toFixed(1),
       },
       {
         key: "joined",

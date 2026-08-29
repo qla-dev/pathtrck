@@ -5274,14 +5274,18 @@ const mapDatabaseRecordToLoad = (record: Record<string, unknown>): Load => {
     insurance: record.insurance == null ? undefined : String(record.insurance),
     shipperName:
       record.shipper_name == null ? undefined : String(record.shipper_name),
+    providerRating: Number(
+      (record.company as { rating?: unknown; average_rating?: unknown } | undefined)?.rating
+        ?? (record.company as { average_rating?: unknown } | undefined)?.average_rating
+        ?? (record.assigned_driver as { driver?: { rating?: unknown } } | undefined)?.driver?.rating
+        ?? 0,
+    ),
     mediator: record.mediator == null ? undefined : String(record.mediator),
     publicId: record.public_id == null ? undefined : String(record.public_id),
     trackingNumber:
       String(
         (record.shipment as { tracking_number?: unknown } | undefined)
-          ?.tracking_number ||
-          record.public_id ||
-          "",
+          ?.tracking_number || "",
       ) || undefined,
     volume: record.volume_m3 == null ? undefined : Number(record.volume_m3),
     pallets: record.pallets == null ? undefined : Number(record.pallets),
@@ -5622,6 +5626,7 @@ export default function App() {
 
   const [feedStartLocation, setFeedStartLocation] = useState("");
   const [feedEndLocation, setFeedEndLocation] = useState("");
+  const [feedTrackingSearch, setFeedTrackingSearch] = useState("");
   const clearFeedLocations = () => {
     setFeedStartLocation("");
     setFeedEndLocation("");
@@ -5649,6 +5654,7 @@ export default function App() {
         per_page: 100,
         status: "posted",
         for_storage: exchangeMode === "storage",
+        tracking_search: feedTrackingSearch || undefined,
         sort: feedSortMode,
         my_bids: feedMyBidsOnly || undefined,
         budget_min:
@@ -5810,6 +5816,7 @@ export default function App() {
     feedMyBidsOnly,
     feedStartLocation,
     feedEndLocation,
+    feedTrackingSearch,
     feedSelectedPriceMin,
     feedSelectedPriceMax,
     feedSelectedWeightMin,
@@ -6085,6 +6092,7 @@ export default function App() {
   );
   const clearFeedFilters = () => {
     clearFeedLocations();
+    setFeedTrackingSearch("");
     setFeedSelectedPriceMin(feedRangeBounds.priceMin);
     setFeedSelectedPriceMax(feedRangeBounds.priceMax);
     setFeedSelectedWeightMin(feedRangeBounds.weightMin);
@@ -6232,6 +6240,8 @@ export default function App() {
         : undefined,
     startLocation: feedStartLocation,
     endLocation: feedEndLocation,
+    trackingSearch: feedTrackingSearch,
+    onTrackingSearchChange: setFeedTrackingSearch,
     onStartLocationChange: setFeedStartLocation,
     onEndLocationChange: setFeedEndLocation,
     onClear: clearFeedFilters,
@@ -6784,7 +6794,19 @@ export default function App() {
               </button>
             ) : null}
 
-            {/* Language is always the first utility action after the role-specific primary action. */}
+            <button
+              onClick={() => navigateTo("map")}
+              title={u("nav.map", "Map")}
+              className={cn(
+                "h-10 w-10 rounded-full transition-all cursor-pointer flex items-center justify-center",
+                isTrackingMapActive
+                  ? "bg-primary text-white shadow-lg shadow-primary/30"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary hover:scale-105",
+              )}
+            >
+              <MapIcon className="w-5 h-5" />
+            </button>
+
             <div className="relative group">
               <button
                 aria-label="Language switcher"
@@ -6835,19 +6857,6 @@ export default function App() {
               )}
             >
               <Gem className="w-5 h-5" />
-            </button>
-
-            <button
-              onClick={() => navigateTo("map")}
-              title={u("nav.map", "Map")}
-              className={cn(
-                "h-10 w-10 rounded-full transition-all cursor-pointer flex items-center justify-center",
-                isTrackingMapActive
-                  ? "bg-primary text-white shadow-lg shadow-primary/30"
-                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary hover:scale-105",
-              )}
-            >
-              <MapIcon className="w-5 h-5" />
             </button>
 
             {isElevatedAdmin && (

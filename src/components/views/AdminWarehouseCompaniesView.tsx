@@ -1,16 +1,18 @@
 import { useMemo, useState } from "react";
 import {
   Boxes,
+  BadgeCheck,
+  Ban,
   Clock3,
   Eye,
   Loader2,
   Mail,
+  Star,
   Warehouse as WarehouseIcon,
 } from "lucide-react";
 
 import { ApiError, api } from "../../services/api";
 import { Language, Role } from "../../types";
-import { cn } from "../../lib/cn";
 import { confirmAction, showError, showSuccess } from "../../lib/swal";
 import { useApiList } from "../../hooks/useApiList";
 import { AdminField, AdminFormModal, adminFieldClass } from "./AdminFormModal";
@@ -19,6 +21,7 @@ import { PageHeader } from "../ui/PageHeader";
 import { Card } from "../ui/Card";
 import { ProfileModal } from "./ProfileModal";
 import { ServerDataTable, type ServerDataTableColumn } from "../ui/ServerDataTable";
+import { IconSelect } from "../ui/IconSelect";
 
 const initial = {
   company_name: "",
@@ -106,7 +109,8 @@ export const AdminWarehouseCompaniesView = ({
     { key: "plan", header: "Plan", render: (row) => <span className="font-bold text-orange-500">{String(row.plan || "—")}</span> },
     { key: "capacity", header: "Capacity", render: (row) => `${Number(row.total_capacity_pallets || 0).toLocaleString()} pal.` },
     { key: "storage", header: "Storage types", render: (row) => Array.isArray(row.storage_types) ? (row.storage_types as unknown[]).join(", ") : "—" },
-    { key: "status", header: "Status", render: (row) => { const status = String(row.status || "pending") as WarehouseStatus; const saving = statusSavingId === String(row.id); return <div className="relative inline-flex items-center">{saving && <Loader2 className="absolute left-2 h-3.5 w-3.5 animate-spin" />}<select value={status} disabled={saving} onChange={(event) => void updateStatus(row, event.target.value as WarehouseStatus)} className={cn("h-8 cursor-pointer appearance-none rounded-full border-0 py-1 pl-3 pr-7 text-xs font-bold outline-none ring-1 ring-inset disabled:cursor-wait disabled:opacity-70", saving && "pl-7", status === "verified" ? "bg-emerald-500/10 text-emerald-600 ring-emerald-500/20" : status === "suspended" ? "bg-rose-500/10 text-rose-600 ring-rose-500/20" : "bg-amber-500/10 text-amber-600 ring-amber-500/20")}><option value="pending">pending</option><option value="verified">verified</option><option value="suspended">suspended</option></select></div>; } },
+    { key: "rating", header: "Rating", render: (row) => <span className="inline-flex items-center gap-1 font-bold"><Star className="h-4 w-4 fill-amber-400 text-amber-400" />{Number(row.rating || row.average_rating || 0).toFixed(1)}</span>, exportValue: (row) => Number(row.rating || row.average_rating || 0).toFixed(1) },
+    { key: "status", header: "Status", render: (row) => { const status = String(row.status || "pending") as WarehouseStatus; const saving = statusSavingId === String(row.id); return <div className="relative w-40">{saving && <Loader2 className="pointer-events-none absolute left-3 top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-primary" />}<IconSelect value={status} disabled={saving} onChange={(next) => void updateStatus(row, next as WarehouseStatus)} placeholder="Status" ariaLabel={`Change status for ${String(row.name || "warehouse")}`} icon={Clock3} className={saving ? "[&_button]:pl-9" : undefined} options={[{ value: "pending", label: "Pending", icon: Clock3 }, { value: "verified", label: "Verified", icon: BadgeCheck }, { value: "suspended", label: "Suspended", icon: Ban }]} /></div>; } },
     { key: "actions", header: "", className: "text-right", exportable: false, render: (row) => <button type="button" aria-label="Open warehouse profile" onClick={() => setSelected(row)} className="cursor-pointer rounded-lg bg-slate-100 p-2 transition hover:text-primary dark:bg-slate-800"><Eye className="h-4 w-4" /></button> },
   ], [statusSavingId]);
 

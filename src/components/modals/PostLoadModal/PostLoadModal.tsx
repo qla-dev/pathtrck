@@ -77,6 +77,7 @@ import { confirmAction, showSuccess } from '../../../lib/swal';
 import { useOutsideClick } from '../../../hooks/useOutsideClick';
 import { searchLocations } from '../../../services/locationSearch';
 import { Button } from '../../ui/Button';
+import { IconSelect } from '../../ui/IconSelect';
 import { AI_DISPATCH_SUBJECT_PREFIX, api, ApiError, ApiUser, HsCodeMatch, LoadScanResult } from '../../../services/api';
 import { CustomerSelect, customerOptionFromRecord, type CustomerOption } from '../../customer/CustomerSelect';
 import { HsCodeChip } from '../../hs/HsCodeChip';
@@ -2138,13 +2139,17 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           </div>
                           <div className="space-y-1">
                             <FieldLabel>{u('postLoadModal.packagingMethod', 'Packaging method')}</FieldLabel>
-                            <Select value={draft.quantityMeasure} onChange={(event) => setField('quantityMeasure', event.target.value)}>
-                              <option value="">{u('postLoadModal.selectPackagingMethod', 'Select packaging method')}</option>
-                              {draft.quantityMeasure && !selectedPackageType && <option value={draft.quantityMeasure}>{draft.quantityMeasure}</option>}
-                              {PACKAGE_TYPES.map((option) => (
-                                <option key={`${option.value}-${option.label}`} value={option.value}>{option.value} - {option.label}</option>
-                              ))}
-                            </Select>
+                            <IconSelect
+                              value={draft.quantityMeasure}
+                              onChange={(next) => setField('quantityMeasure', next)}
+                              placeholder={u('postLoadModal.selectPackagingMethod', 'Select packaging method')}
+                              ariaLabel={u('postLoadModal.packagingMethod', 'Packaging method')}
+                              icon={Package}
+                              options={[
+                                ...(draft.quantityMeasure && !selectedPackageType ? [{ value: draft.quantityMeasure, label: draft.quantityMeasure, icon: Package }] : []),
+                                ...PACKAGE_TYPES.map((option) => ({ value: option.value, label: `${option.value} - ${option.label}`, icon: Package })),
+                              ]}
+                            />
                           </div>
                         </div>
                         <div className="grid sm:grid-cols-3 gap-3">

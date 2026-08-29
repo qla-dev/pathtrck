@@ -20,6 +20,7 @@ import {
   Fuel,
   Gem,
   Handshake,
+  Hash,
   Layers,
   Loader2,
   MapPin,
@@ -132,8 +133,10 @@ type PillId =
 
 export type FilterLoadsProps = {
   lang: Language;
+  trackingSearch: string;
   startLocation: string;
   endLocation: string;
+  onTrackingSearchChange: (value: string) => void;
   onStartLocationChange: (value: string) => void;
   onEndLocationChange: (value: string) => void;
   onClear: () => void;
@@ -319,8 +322,10 @@ type PillDescriptor = {
 export const FilterLoads = (props: FilterLoadsProps) => {
   const {
     lang,
+    trackingSearch,
     startLocation,
     endLocation,
+    onTrackingSearchChange,
     onStartLocationChange,
     onEndLocationChange,
     onClear,
@@ -867,6 +872,21 @@ export const FilterLoads = (props: FilterLoadsProps) => {
     // from the search fields than from the results.
     <div className="space-y-5">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+        <label className="block flex-1">
+          <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">
+            {u('feed.filterBar.trackingNumber', 'Tracking number')}
+          </span>
+          <div className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 transition-colors focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/30 dark:border-slate-700 dark:bg-slate-950">
+            <Hash className="h-4 w-4 shrink-0 text-slate-400" />
+            <input
+              value={trackingSearch}
+              onChange={(event) => onTrackingSearchChange(event.target.value)}
+              placeholder={u('feed.filterBar.searchTrackingNumber', 'Search FB tracking number...')}
+              className="w-full border-0 bg-transparent font-mono text-sm text-slate-700 outline-none placeholder:font-sans placeholder:text-slate-400 dark:text-slate-200"
+            />
+          </div>
+        </label>
+
         <label ref={startFieldRef} className="relative block flex-1">
           <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">
             {variant === 'storage' ? u('feed.storage.location', 'Warehouse location') : u('feed.filterBar.pickup', 'Pickup')}
@@ -883,7 +903,7 @@ export const FilterLoads = (props: FilterLoadsProps) => {
             {startSearch.loading && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />}
           </div>
           {startSearch.isOpen && (
-            <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+            <div className="absolute left-0 right-0 top-full z-[80] mt-1 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-900">
               {startSearch.results.map((result) => (
                 <button
                   key={result.id}
@@ -919,7 +939,7 @@ export const FilterLoads = (props: FilterLoadsProps) => {
             {endSearch.loading && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />}
           </div>
           {endSearch.isOpen && (
-            <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+            <div className="absolute left-0 right-0 top-full z-[80] mt-1 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-900">
               {endSearch.results.map((result) => (
                 <button
                   key={result.id}

@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import {
   Activity,
   AtSign,
   BadgeCheck,
+  Boxes,
   BriefcaseBusiness,
   Building2,
   CalendarDays,
@@ -15,7 +17,10 @@ import {
   Phone,
   Save,
   ShieldCheck,
+  Star,
   Truck,
+  UserRound,
+  Warehouse,
   X,
 } from "lucide-react";
 
@@ -24,6 +29,7 @@ import { ApiUser, api } from "../../services/api";
 import { useApiList } from "../../hooks/useApiList";
 import { Button } from "../ui/Button";
 import { cn } from "../../lib/cn";
+import { flatpickrI18n } from "../../i18n";
 
 type CompanyProfile = {
   id: number;
@@ -230,11 +236,27 @@ const COPY = {
   },
 } as const;
 
+const DETAIL_COPY = {
+  en: {
+    businessBilling: "Business & billing", accountRecord: "Account record", organization: "Organization", network: "Network", driverCredentials: "Driver credentials", facility: "Facility", capacity: "Capacity & operations", contact: "Contact", management: "Management",
+    companyName: "Company name", customerType: "Customer type", billingEmail: "Billing email", billingAddress: "Billing address", city: "City", country: "Country", taxNumber: "Tax number", vatNumber: "VAT number", status: "Status", authorized: "Profile authorized", source: "Source", sourceId: "Source ID", created: "Created", updated: "Updated", owner: "Owner", plan: "Plan", slug: "Slug", fleet: "Fleet vehicles", members: "Team members", verified: "Verified", licenseNumber: "License number", licenseCountry: "License country", licenseExpires: "License expires", company: "Primary company", availability: "Availability", certifications: "Certifications", code: "Code", type: "Type", address: "Address", address2: "Address line 2", state: "State / province", postalCode: "Postal code", coordinates: "Coordinates", pallets: "Pallet capacity", volume: "Volume capacity", area: "Storage area", docks: "Dock doors", storageTypes: "Storage types", contactName: "Contact person", department: "Department", preferredContact: "Preferred contact", alternatePhone: "Alternate phone", manager: "Manager", operationalNotes: "Operational notes", capabilities: "Capabilities", equipment: "Equipment", technology: "Technology", compliance: "Compliance", standards: "Standards",
+  },
+  bs: {
+    businessBilling: "Poslovni i obračunski podaci", accountRecord: "Podaci računa", organization: "Organizacija", network: "Mreža", driverCredentials: "Vozačka dokumentacija", facility: "Objekat", capacity: "Kapacitet i operacije", contact: "Kontakt", management: "Upravljanje",
+    companyName: "Naziv kompanije", customerType: "Vrsta kupca", billingEmail: "E-mail za račune", billingAddress: "Adresa za račune", city: "Grad", country: "Država", taxNumber: "Porezni broj", vatNumber: "PDV broj", status: "Status", authorized: "Profil odobren", source: "Izvor", sourceId: "ID izvora", created: "Kreirano", updated: "Ažurirano", owner: "Vlasnik", plan: "Paket", slug: "Oznaka", fleet: "Vozila u floti", members: "Članovi tima", verified: "Verifikovano", licenseNumber: "Broj dozvole", licenseCountry: "Država dozvole", licenseExpires: "Dozvola važi do", company: "Primarna kompanija", availability: "Dostupnost", certifications: "Certifikati", code: "Šifra", type: "Vrsta", address: "Adresa", address2: "Dodatak adresi", state: "Regija / kanton", postalCode: "Poštanski broj", coordinates: "Koordinate", pallets: "Kapacitet paleta", volume: "Zapreminski kapacitet", area: "Skladišna površina", docks: "Utovarne rampe", storageTypes: "Vrste skladištenja", contactName: "Kontakt osoba", department: "Odjel", preferredContact: "Preferirani kontakt", alternatePhone: "Dodatni telefon", manager: "Upravitelj", operationalNotes: "Operativne napomene", capabilities: "Mogućnosti", equipment: "Oprema", technology: "Tehnologija", compliance: "Usklađenost", standards: "Standardi",
+  },
+  de: {
+    businessBilling: "Geschäfts- und Rechnungsdaten", accountRecord: "Kontodatensatz", organization: "Organisation", network: "Netzwerk", driverCredentials: "Fahrerdokumente", facility: "Standort", capacity: "Kapazität und Betrieb", contact: "Kontakt", management: "Leitung",
+    companyName: "Firmenname", customerType: "Kundentyp", billingEmail: "Rechnungs-E-Mail", billingAddress: "Rechnungsadresse", city: "Stadt", country: "Land", taxNumber: "Steuernummer", vatNumber: "USt-IdNr.", status: "Status", authorized: "Profil freigegeben", source: "Quelle", sourceId: "Quell-ID", created: "Erstellt", updated: "Aktualisiert", owner: "Inhaber", plan: "Paket", slug: "Kennung", fleet: "Flottenfahrzeuge", members: "Teammitglieder", verified: "Verifiziert", licenseNumber: "Führerscheinnummer", licenseCountry: "Ausstellungsland", licenseExpires: "Gültig bis", company: "Primärunternehmen", availability: "Verfügbarkeit", certifications: "Zertifikate", code: "Code", type: "Typ", address: "Adresse", address2: "Adresszusatz", state: "Bundesland / Region", postalCode: "Postleitzahl", coordinates: "Koordinaten", pallets: "Palettenkapazität", volume: "Volumenkapazität", area: "Lagerfläche", docks: "Laderampen", storageTypes: "Lagerarten", contactName: "Kontaktperson", department: "Abteilung", preferredContact: "Bevorzugter Kontakt", alternatePhone: "Weitere Telefonnummer", manager: "Leitung", operationalNotes: "Betriebshinweise", capabilities: "Fähigkeiten", equipment: "Ausrüstung", technology: "Technologie", compliance: "Konformität", standards: "Standards",
+  },
+} as const;
+
 const value = (input: unknown) =>
   typeof input === "string" || typeof input === "number" ? String(input) : "";
 const initials = (name: string) =>
   name
     .split(/\s+/)
+    .map((part) => part.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ""))
     .filter(Boolean)
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
@@ -330,6 +352,7 @@ export const ProfileView = ({
   action?: ReactNode;
 }) => {
   const text = COPY[lang === "bs" || lang === "de" ? lang : "en"];
+  const detailText = DETAIL_COPY[lang === "bs" || lang === "de" ? lang : "en"];
   const loads = useApiList(api.loads.list, { per_page: 100 });
   const [user, setUser] = useState<ApiUser | null>(() =>
     profileRecord && profileKind
@@ -367,6 +390,7 @@ export const ProfileView = ({
   }, [profileKind, profileRecord, text.loadError]);
 
   const effectiveRole: Role = profileKind === "driver" ? "driver" : profileKind === "warehouse" ? "warehouse" : profileKind === "company" ? "company" : profileKind === "customer" ? "user" : role;
+  const detailKind: ProfileRecordKind | null = profileKind || (effectiveRole === "driver" ? "driver" : effectiveRole === "warehouse" ? "warehouse" : effectiveRole === "company" || effectiveRole === "finance" ? "company" : effectiveRole === "user" ? "customer" : null);
   const company = (user?.companies?.[0] || undefined) as
     CompanyProfile | undefined;
   const companyMode = Boolean(
@@ -382,22 +406,26 @@ export const ProfileView = ({
     (Number(company.owner_user_id) === user?.id ||
       company.pivot?.company_role === "admin"),
   );
-  const driver = (user?.driver || {}) as Record<string, unknown>;
+  const customer = (profileKind === "customer" ? profileRecord : user?.customer_profile || {}) as Record<string, unknown>;
+  const driver = (profileKind === "driver" ? profileRecord : user?.driver || {}) as Record<string, unknown>;
+  const detailRecord = (profileRecord || (detailKind === "customer" ? customer : detailKind === "driver" ? driver : company) || null) as Record<string, unknown> | null;
+  const profileRating = Number(detailRecord?.rating ?? detailRecord?.average_rating ?? driver.rating ?? 0);
+  const profileReviewCount = Number(detailRecord?.reviews_count ?? detailRecord?.review_count ?? detailRecord?.ratings_count ?? 0);
   const displayName = companyMode
     ? company?.name || user?.name || ""
     : user?.name || "";
   const imageUrl = companyMode
     ? company?.logo_url || ""
     : user?.avatar_url || "";
-  const headline = companyMode
-    ? company?.description || ""
-    : user?.headline || "";
   const location = companyMode
-    ? [company?.city, company?.country_code].filter(Boolean).join(", ")
-    : user?.country_code || "";
+    ? [company?.address, company?.city, company?.country_code].filter(Boolean).join(", ")
+    : detailKind === "customer"
+      ? [customer.billing_address, customer.city, customer.country_code || user?.country_code].filter(Boolean).join(", ")
+      : user?.country_code || "";
   const contactEmail = companyMode
     ? company?.email || user?.email || ""
     : user?.email || "";
+  const profileTaxNumber = value(detailRecord?.tax_number || company?.tax_number || customer.tax_number);
   const totalLoads = profileRecord
     ? Number(profileRecord.loads_count || profileRecord.total_loads || 0)
     : loads.items.length;
@@ -411,8 +439,18 @@ export const ProfileView = ({
   ).length;
 
   const stats = useMemo(
-    () =>
-      effectiveRole === "driver"
+    () => {
+      if (detailKind === "company" && detailRecord) return [
+        { label: detailText.fleet, number: String(Array.isArray(detailRecord.vehicles) ? detailRecord.vehicles.length : detailRecord.vehicles_count || 0), icon: Truck },
+        { label: detailText.members, number: String(Array.isArray(detailRecord.users) ? detailRecord.users.length : detailRecord.users_count || 0), icon: UserRound },
+        { label: detailText.plan, number: value(detailRecord.plan) || "—", icon: PackageCheck },
+      ];
+      if (detailKind === "warehouse" && detailRecord) return [
+        { label: detailText.pallets, number: Number(detailRecord.total_capacity_pallets || 0).toLocaleString(), icon: Boxes },
+        { label: detailText.area, number: `${Number(detailRecord.storage_area_sqm || 0).toLocaleString()} m²`, icon: Warehouse },
+        { label: detailText.docks, number: String(detailRecord.dock_doors || 0), icon: PackageCheck },
+      ];
+      return effectiveRole === "driver"
         ? [
             {
               label: text.completedTrips,
@@ -448,13 +486,17 @@ export const ProfileView = ({
               number: String(completedLoads),
               icon: PackageCheck,
             },
-          ],
+          ];
+    },
     [
       activeLoads,
       completedLoads,
       driver.completed_trips,
       driver.rating,
       effectiveRole,
+      detailKind,
+      detailRecord,
+      detailText,
       text,
       totalLoads,
     ],
@@ -527,15 +569,20 @@ export const ProfileView = ({
       </div>
     );
 
-  const dateLocale =
-    lang === "bs" ? "bs-BA" : lang === "de" ? "de-DE" : "en-US";
-  const formatDate = (date?: string | null) =>
-    date
-      ? new Date(date).toLocaleDateString(dateLocale, {
-          year: "numeric",
-          month: "long",
-        })
-      : text.noValue;
+  const formatDate = (date?: string | null) => {
+    if (!date) return text.noValue;
+    const parsed = new Date(date);
+    if (Number.isNaN(parsed.getTime())) return text.noValue;
+    const month = flatpickrI18n(lang).months.longhand[parsed.getMonth()];
+    return `${month} ${parsed.getFullYear()}`;
+  };
+  const formatFullDate = (dateValue: unknown) => {
+    if (!dateValue) return text.noValue;
+    const parsed = new Date(String(dateValue));
+    if (Number.isNaN(parsed.getTime())) return text.noValue;
+    const month = flatpickrI18n(lang).months.longhand[parsed.getMonth()];
+    return lang === "en" ? `${month} ${parsed.getDate()}, ${parsed.getFullYear()}` : `${parsed.getDate()}. ${month} ${parsed.getFullYear()}`;
+  };
 
   return (
     <div className="w-full space-y-5">
@@ -549,7 +596,7 @@ export const ProfileView = ({
           <div className="absolute inset-0 bg-gradient-to-r from-slate-950/30 via-transparent to-slate-950/10" />
         </div>
         <div className="relative px-5 pb-6 sm:px-8">
-          <div className="absolute -top-14 flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-slate-900 text-3xl font-black text-white shadow-lg dark:border-slate-900 sm:-top-16 sm:h-32 sm:w-32">
+          <div className="absolute -top-14 flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-slate-100 text-3xl font-black text-slate-800 shadow-lg dark:border-slate-900 dark:bg-slate-200 dark:text-slate-900 sm:-top-16 sm:h-32 sm:w-32">
             {imageUrl ? (
               <img
                 src={imageUrl}
@@ -590,21 +637,33 @@ export const ProfileView = ({
                 <BadgeCheck className="h-5 w-5 fill-primary text-white dark:text-slate-900" />
               )}
             </div>
-            <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
-              {headline || text.headlineMissing}
-            </p>
+            <div className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-slate-700 dark:text-slate-200">
+              <span>{Number.isFinite(profileRating) ? profileRating.toFixed(1) : "0.0"}</span>
+              <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+              <span className="text-slate-500">({profileReviewCount.toLocaleString()})</span>
+            </div>
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
               <span className="inline-flex items-center gap-1.5">
                 <MapPin className="h-3.5 w-3.5" />
                 {location || text.locationMissing}
               </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Mail className="h-3.5 w-3.5" />
-                {contactEmail}
-              </span>
-              <span className="rounded-full bg-primary/10 px-2.5 py-1 font-bold text-primary">
-                {companyMode ? text.companyProfile : text.personalProfile}
-              </span>
+              {contactEmail && (
+                <span className="inline-flex items-center gap-1.5">
+                  <Mail className="h-3.5 w-3.5" />
+                  {contactEmail}
+                </span>
+              )}
+              {profileTaxNumber && (
+                <span className="inline-flex items-center gap-1.5">
+                  <BriefcaseBusiness className="h-3.5 w-3.5" />
+                  {profileTaxNumber}
+                </span>
+              )}
+              {companyMode && (
+                <span className="rounded-full bg-primary/10 px-2.5 py-1 font-bold text-primary">
+                  {text.companyProfile}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -625,8 +684,16 @@ export const ProfileView = ({
 
       {action}
 
-      {editing && form && (
-        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-7">
+      <AnimatePresence mode="wait" initial={false}>
+      {editing && form ? (
+        <motion.section
+          key="edit-profile"
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+          className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-7"
+        >
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h2 className="font-black text-slate-950 dark:text-white">
@@ -771,10 +838,17 @@ export const ProfileView = ({
               )}
             </>
           )}
-        </section>
-      )}
+        </motion.section>
+      ) : (
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
+      <motion.div
+        key="profile-details"
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+        className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]"
+      >
         <div className="space-y-5">
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <h2 className="text-lg font-black text-slate-950 dark:text-white">
@@ -951,10 +1025,145 @@ export const ProfileView = ({
             </section>
           )}
         </aside>
-      </div>
+        {detailKind && detailRecord && (
+          <ProfileRecordDetails kind={detailKind} record={detailRecord} labels={detailText} empty={text.noValue} formatDate={formatFullDate} />
+        )}
+      </motion.div>
+      )}
+      </AnimatePresence>
     </div>
   );
 
+};
+
+type DetailLabels = { [Key in keyof (typeof DETAIL_COPY)["en"]]: string };
+type ProfileDetailRow = { label: string; value: unknown; icon: typeof Mail };
+
+const displayProfileValue = (input: unknown, empty: string): string => {
+  if (input === null || input === undefined || input === "") return empty;
+  if (typeof input === "boolean") return input ? "Yes" : "No";
+  if (Array.isArray(input)) {
+    const values = input.map((item) => {
+      if (item && typeof item === "object") {
+        const record = item as Record<string, unknown>;
+        return value(record.label || record.name || record.title || record.code || record.value || record.type);
+      }
+      return value(item);
+    }).filter(Boolean);
+    return values.length ? values.join(", ") : empty;
+  }
+  if (typeof input === "object") {
+    const values = Object.entries(input as Record<string, unknown>)
+      .filter(([, item]) => ["string", "number", "boolean"].includes(typeof item))
+      .map(([key, item]) => `${key.replaceAll("_", " ")}: ${String(item)}`);
+    return values.length ? values.join(" · ") : empty;
+  }
+  return String(input);
+};
+
+const ProfileRecordDetails = ({ kind, record, labels, empty, formatDate }: { kind: ProfileRecordKind; record: Record<string, unknown>; labels: DetailLabels; empty: string; formatDate: (value: unknown) => string }) => {
+  const owner = (record.owner || record.user || {}) as Record<string, unknown>;
+  const primaryCompany = (record.primary_company || {}) as Record<string, unknown>;
+  const sections: Array<{ title: string; icon: typeof Mail; rows: ProfileDetailRow[] }> = kind === "customer"
+    ? [
+        { title: labels.businessBilling, icon: Building2, rows: [
+          { label: labels.companyName, value: record.company_name || record.name, icon: Building2 },
+          { label: labels.customerType, value: record.customer_type, icon: UserRound },
+          { label: labels.billingEmail, value: record.billing_email || record.email, icon: Mail },
+          { label: labels.billingAddress, value: record.billing_address, icon: MapPin },
+          { label: labels.city, value: record.city, icon: MapPin },
+          { label: labels.country, value: record.country_code, icon: Globe2 },
+          { label: labels.taxNumber, value: record.tax_number, icon: BriefcaseBusiness },
+          { label: labels.vatNumber, value: record.vat_number, icon: BadgeCheck },
+        ]},
+        { title: labels.accountRecord, icon: ShieldCheck, rows: [
+          { label: labels.status, value: record.status, icon: ShieldCheck },
+          { label: labels.authorized, value: formatDate(record.profile_authorized_at), icon: BadgeCheck },
+          { label: labels.source, value: record.source, icon: Globe2 },
+          { label: labels.sourceId, value: record.source_id, icon: AtSign },
+          { label: labels.created, value: formatDate(record.created_at), icon: CalendarDays },
+          { label: labels.updated, value: formatDate(record.updated_at), icon: CalendarDays },
+        ]},
+      ]
+    : kind === "company"
+      ? [
+          { title: labels.organization, icon: Building2, rows: [
+            { label: labels.owner, value: owner.name, icon: UserRound },
+            { label: labels.address, value: record.address, icon: MapPin },
+            { label: labels.city, value: record.city, icon: MapPin },
+            { label: labels.country, value: record.country_code, icon: Globe2 },
+            { label: labels.taxNumber, value: record.tax_number, icon: BriefcaseBusiness },
+            { label: labels.vatNumber, value: record.vat_number, icon: BadgeCheck },
+            { label: labels.plan, value: record.plan, icon: PackageCheck },
+            { label: labels.status, value: record.status, icon: ShieldCheck },
+          ]},
+          { title: labels.network, icon: Truck, rows: [
+            { label: labels.fleet, value: Array.isArray(record.vehicles) ? record.vehicles.length : record.vehicles_count, icon: Truck },
+            { label: labels.members, value: Array.isArray(record.users) ? record.users.length : record.users_count, icon: UserRound },
+            { label: labels.slug, value: record.slug, icon: AtSign },
+            { label: labels.verified, value: formatDate(record.verified_at), icon: BadgeCheck },
+            { label: labels.created, value: formatDate(record.created_at), icon: CalendarDays },
+            { label: labels.updated, value: formatDate(record.updated_at), icon: CalendarDays },
+          ]},
+        ]
+      : kind === "driver"
+        ? [
+            { title: labels.driverCredentials, icon: Truck, rows: [
+              { label: labels.licenseNumber, value: record.license_number, icon: BadgeCheck },
+              { label: labels.licenseCountry, value: record.license_country_code, icon: Globe2 },
+              { label: labels.licenseExpires, value: formatDate(record.license_expires_at), icon: CalendarDays },
+              { label: labels.company, value: primaryCompany.name, icon: Building2 },
+              { label: labels.availability, value: record.availability_status, icon: Activity },
+              { label: labels.certifications, value: record.certifications, icon: ShieldCheck },
+              { label: labels.authorized, value: formatDate(record.profile_authorized_at), icon: BadgeCheck },
+              { label: labels.created, value: formatDate(record.created_at), icon: CalendarDays },
+            ]},
+          ]
+        : [
+            { title: labels.facility, icon: Warehouse, rows: [
+              { label: labels.code, value: record.code, icon: AtSign },
+              { label: labels.type, value: record.warehouse_type, icon: Warehouse },
+              { label: labels.address, value: record.address, icon: MapPin },
+              { label: labels.address2, value: record.address_line_2, icon: MapPin },
+              { label: labels.city, value: record.city, icon: MapPin },
+              { label: labels.state, value: record.state_province, icon: MapPin },
+              { label: labels.postalCode, value: record.postal_code, icon: AtSign },
+              { label: labels.country, value: record.country_code, icon: Globe2 },
+              { label: labels.coordinates, value: record.latitude && record.longitude ? `${record.latitude}, ${record.longitude}` : null, icon: Globe2 },
+              { label: labels.status, value: record.status, icon: ShieldCheck },
+            ]},
+            { title: labels.capacity, icon: Boxes, rows: [
+              { label: labels.pallets, value: record.total_capacity_pallets, icon: Boxes },
+              { label: labels.volume, value: record.total_capacity_cbm ? `${record.total_capacity_cbm} m³` : null, icon: Boxes },
+              { label: labels.area, value: record.storage_area_sqm ? `${record.storage_area_sqm} m²` : null, icon: Warehouse },
+              { label: labels.docks, value: record.dock_doors, icon: PackageCheck },
+              { label: labels.storageTypes, value: record.storage_types, icon: Warehouse },
+              { label: labels.certifications, value: record.certifications, icon: ShieldCheck },
+              { label: labels.operationalNotes, value: record.operational_notes, icon: BriefcaseBusiness },
+              { label: labels.capabilities, value: record.capabilities || record.handling_capabilities, icon: PackageCheck },
+              { label: labels.equipment, value: record.equipment, icon: Truck },
+              { label: labels.technology, value: record.technology, icon: Activity },
+              { label: labels.compliance, value: record.compliance, icon: ShieldCheck },
+              { label: labels.standards, value: record.standards, icon: BadgeCheck },
+            ]},
+            { title: labels.contact, icon: Mail, rows: [
+              { label: labels.contactName, value: record.contact_name, icon: UserRound },
+              { label: labels.billingEmail, value: record.contact_email || record.email, icon: Mail },
+              { label: labels.department, value: record.department, icon: Building2 },
+              { label: labels.preferredContact, value: record.preferred_contact_method, icon: Phone },
+              { label: labels.alternatePhone, value: record.contact_alternate_phone || record.contact_phone || record.phone, icon: Phone },
+            ]},
+            { title: labels.management, icon: UserRound, rows: [
+              { label: labels.manager, value: record.manager_name || owner.name, icon: UserRound },
+              { label: labels.billingEmail, value: record.manager_email || owner.email, icon: Mail },
+              { label: labels.alternatePhone, value: record.manager_phone || owner.phone, icon: Phone },
+              { label: labels.plan, value: record.plan, icon: PackageCheck },
+              { label: labels.verified, value: formatDate(record.verified_at), icon: BadgeCheck },
+              { label: labels.updated, value: formatDate(record.updated_at), icon: CalendarDays },
+            ]},
+          ];
+
+  return <div className="grid gap-5 lg:col-span-2 xl:grid-cols-2">{sections.map(({ title, icon: SectionIcon, rows }) => <section key={title} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"><div className="mb-4 flex items-center gap-2"><SectionIcon className="h-5 w-5 text-primary" /><h2 className="font-black text-slate-950 dark:text-white">{title}</h2></div><div className="grid gap-3 sm:grid-cols-2">{rows.map((row) => <Detail key={row.label} icon={row.icon} label={row.label} value={displayProfileValue(row.value, empty)} empty={empty} />)}</div></section>)}</div>;
 };
 
 const Field = ({

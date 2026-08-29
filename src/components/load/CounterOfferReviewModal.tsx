@@ -56,7 +56,7 @@ export const CounterOfferReviewModal = ({
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-500 text-white shadow-lg shadow-violet-500/20"><Gavel className="h-5 w-5" /></span>
                 <div className="min-w-0">
                   <p className="font-black text-slate-900 dark:text-white">{u('Counter offer received', 'Counter offer received')}</p>
-                  <p className="truncate text-xs font-semibold uppercase tracking-wider text-primary">{load.publicId || `#${load.id}`}</p>
+                  <p className="truncate text-xs font-semibold uppercase tracking-wider text-primary">{load.trackingNumber || '—'}</p>
                 </div>
               </div>
               <button

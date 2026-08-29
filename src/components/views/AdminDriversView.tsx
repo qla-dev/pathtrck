@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   CircleCheckBig,
+  Ban,
+  Clock3,
   Eye,
   MapPin,
+  Loader2,
   Star,
   Truck,
   UserRoundSearch,
@@ -15,9 +18,12 @@ import { useApiList } from "../../hooks/useApiList";
 import { Button } from "../ui/Button";
 import { PageHeader } from "../ui/PageHeader";
 import { Card } from "../ui/Card";
-import { confirmAction, showSuccess } from "../../lib/swal";
+import { confirmAction, showError, showSuccess } from "../../lib/swal";
 import { ProfileModal } from "./ProfileModal";
 import { ServerDataTable, type ServerDataTableColumn } from "../ui/ServerDataTable";
+import { IconSelect } from "../ui/IconSelect";
+
+type DriverStatus = "available" | "on_load" | "off_duty" | "unavailable";
 
 const initial = {
   name: "",
@@ -41,6 +47,7 @@ export const AdminDriversView = ({ lang, role }: { lang: Language; role: Role })
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [tableRefreshKey, setTableRefreshKey] = useState(0);
+  const [statusSavingId, setStatusSavingId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
   const drivers = useApiList(api.drivers.list, { per_page: 100 });
   const field = (key: keyof typeof form, value: string) =>
@@ -54,6 +61,24 @@ export const AdminDriversView = ({ lang, role }: { lang: Language; role: Role })
         .catch(() => setCompanies([]));
   }, [open, companies.length]);
 
+  const updateStatus = async (row: Record<string, unknown>, status: DriverStatus) => {
+    if (String(row.availability_status || "available") === status) return;
+    const confirmed = await confirmAction({ title: `Change status to ${status.replace("_", " ")}?`, text: `${String(row.name || "This driver")}'s availability will be updated immediately.`, confirmText: "Change status" });
+    if (!confirmed) return;
+    const id = String(row.id);
+    setStatusSavingId(id);
+    try {
+      await api.drivers.update(id, { availability_status: status });
+      await drivers.refresh();
+      setTableRefreshKey((current) => current + 1);
+      void showSuccess("Driver status updated", `${String(row.name || "Driver")} is now ${status.replace("_", " ")}.`);
+    } catch (caught) {
+      void showError("Driver status could not be updated", caught instanceof Error ? caught.message : undefined);
+    } finally {
+      setStatusSavingId(null);
+    }
+  };
+
   const columns = useMemo<ServerDataTableColumn<Record<string, unknown>>[]>(() => [
     { key: "driver", header: "Driver", render: (row) => { const user = (row.user || {}) as Record<string, unknown>; return <><p className="font-bold dark:text-white">{String(row.name || user.name || "—")}</p><p className="text-xs text-slate-500">{String(row.email || user.email || "")}</p></>; } },
     { key: "company", header: "Company", render: (row) => String(((row.primary_company || {}) as Record<string, unknown>).name || "Independent") },
@@ -61,9 +86,9 @@ export const AdminDriversView = ({ lang, role }: { lang: Language; role: Role })
     { key: "location", header: "Location", render: (row) => { const user = (row.user || {}) as Record<string, unknown>; const vehicles = Array.isArray(user.assigned_vehicles) ? user.assigned_vehicles as Array<Record<string, unknown>> : []; const location = (vehicles[0]?.locations as Array<Record<string, unknown>> | undefined)?.[0]?.location_name; return <span className="flex items-center gap-1 text-sm text-slate-500"><MapPin className="h-4 w-4" />{String(location || "—")}</span>; } },
     { key: "rating", header: "Rating", render: (row) => <span className="flex items-center gap-1 font-bold"><Star className="h-4 w-4 fill-amber-400 text-amber-400" />{String(row.rating || 0)}</span> },
     { key: "trips", header: "Trips", render: (row) => <span className="flex items-center gap-1"><Truck className="h-4 w-4 text-primary" />{String(row.completed_trips || 0)}</span> },
-    { key: "state", header: "State", render: (row) => <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-bold text-primary">{String(row.availability_status || "—")}</span> },
+    { key: "state", header: "State", render: (row) => { const status = String(row.availability_status || "available") as DriverStatus; const saving = statusSavingId === String(row.id); return <div className="relative w-40">{saving && <Loader2 className="pointer-events-none absolute left-3 top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-primary" />}<IconSelect value={status} disabled={saving} onChange={(next) => void updateStatus(row, next as DriverStatus)} placeholder="State" ariaLabel={`Change availability for ${String(row.name || "driver")}`} icon={CircleCheckBig} className={saving ? "[&_button]:pl-9" : undefined} options={[{ value: "available", label: "Available", icon: CircleCheckBig }, { value: "on_load", label: "On load", icon: Truck }, { value: "off_duty", label: "Off duty", icon: Clock3 }, { value: "unavailable", label: "Unavailable", icon: Ban }]} /></div>; } },
     { key: "actions", header: "", className: "text-right", exportable: false, render: (row) => <button type="button" aria-label="Open driver profile" onClick={() => setSelected(row)} className="cursor-pointer rounded-lg bg-slate-100 p-2 transition hover:text-primary dark:bg-slate-800"><Eye className="h-4 w-4" /></button> },
-  ], []);
+  ], [statusSavingId]);
 
   const save = async () => {
     const confirmed = await confirmAction({

@@ -54,7 +54,7 @@ export const mapLoadToPackage = (load: Record<string, unknown>, lang: Language):
     recipient: String(consignee.company_name || consignee.name || '—'),
     id: String(load.id),
     shipmentId: shipment.id ? String(shipment.id) : undefined,
-    trackingNumber: String(shipment.tracking_number || load.public_id || load.id),
+    trackingNumber: String(shipment.tracking_number || ''),
     carrier: String(shipment.carrier || company.name || '—'),
     status: mappedStatus,
     totalAmount: sourcePrice || `${String(load.currency || 'EUR')} ${Number(load.budget || 0).toLocaleString()}`,

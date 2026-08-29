@@ -47,7 +47,7 @@ export const BiddingHistoryModal = ({ open, lang, load, offerId, offers, onClose
               </div>
               <div className="min-w-0">
                 <p className="truncate font-black text-slate-900 dark:text-white">{u('Bidding history', 'Bidding history')}</p>
-                <p className="truncate text-xs font-semibold uppercase tracking-wider text-primary">{load.publicId || `#${load.id}`}</p>
+                <p className="truncate text-xs font-semibold uppercase tracking-wider text-primary">{load.trackingNumber || '—'}</p>
               </div>
             </div>
             <button

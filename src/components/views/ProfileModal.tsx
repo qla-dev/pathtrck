@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { LoaderCircle, UserCheck, X } from "lucide-react";
+import { Building2, LoaderCircle, Truck, User, UserCheck, Warehouse, X } from "lucide-react";
 
 import type { Language, Role } from "../../types";
 import { ApiError, api } from "../../services/api";
@@ -27,6 +27,13 @@ const profileRole = (kind: ProfileRecordKind): Role =>
         ? "company"
         : "user";
 
+const profileTypeMeta = {
+  customer: { label: "Customer", icon: User, tone: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
+  company: { label: "Logistics company", icon: Building2, tone: "bg-violet-500/10 text-violet-600 dark:text-violet-400" },
+  warehouse: { label: "Warehouse company", icon: Warehouse, tone: "bg-orange-500/10 text-orange-600 dark:text-orange-400" },
+  driver: { label: "Driver", icon: Truck, tone: "bg-primary/10 text-primary" },
+};
+
 export const ProfileModal = ({
   open,
   kind,
@@ -39,6 +46,8 @@ export const ProfileModal = ({
   const [authorizationEmail, setAuthorizationEmail] = useState("");
   const [authorizing, setAuthorizing] = useState(false);
   const [authorizationError, setAuthorizationError] = useState("");
+  const profileMeta = profileTypeMeta[kind];
+  const ProfileTypeIcon = profileMeta.icon;
 
   useEffect(() => {
     if (!open) return undefined;
@@ -176,9 +185,7 @@ export const ProfileModal = ({
         transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
       >
         <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 px-5 dark:border-slate-800 md:px-7">
-          <p className="text-xs font-black uppercase tracking-wider text-primary">
-            Profile
-          </p>
+          <span className={`inline-flex h-10 items-center gap-2 whitespace-nowrap rounded-full px-3 text-xs font-bold ${profileMeta.tone}`}><ProfileTypeIcon className="h-4 w-4" />{profileMeta.label}</span>
           <button
             type="button"
             onClick={onClose}

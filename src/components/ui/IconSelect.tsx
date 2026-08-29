@@ -1,5 +1,6 @@
 import { ChevronDown, Check } from 'lucide-react';
 import { useEffect, useRef, useState, type ComponentType, type KeyboardEvent } from 'react';
+import { createPortal } from 'react-dom';
 
 import { cn } from '../../lib/cn';
 
@@ -19,11 +20,14 @@ type IconSelectProps = {
   icon: SelectIcon;
   ariaLabel?: string;
   className?: string;
+  disabled?: boolean;
 };
 
-export const IconSelect = ({ value, onChange, options, placeholder, icon: FieldIcon, ariaLabel, className }: IconSelectProps) => {
+export const IconSelect = ({ value, onChange, options, placeholder, icon: FieldIcon, ariaLabel, className, disabled = false }: IconSelectProps) => {
   const rootRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+  const [panelPosition, setPanelPosition] = useState<{ left: number; width: number; top?: number; bottom?: number; maxHeight: number } | null>(null);
   const selectedIndex = options.findIndex((option) => option.value === value);
   const [highlightedIndex, setHighlightedIndex] = useState(Math.max(0, selectedIndex));
   const selected = selectedIndex >= 0 ? options[selectedIndex] : null;
@@ -31,10 +35,37 @@ export const IconSelect = ({ value, onChange, options, placeholder, icon: FieldI
   useEffect(() => {
     if (!open) return undefined;
     const close = (event: MouseEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (!rootRef.current?.contains(target) && !panelRef.current?.contains(target)) setOpen(false);
     };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const place = () => {
+      const rect = rootRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const gap = 4;
+      const viewportPadding = 8;
+      const spaceBelow = window.innerHeight - rect.bottom - gap - viewportPadding;
+      const spaceAbove = rect.top - gap - viewportPadding;
+      const placeAbove = spaceBelow < 180 && spaceAbove > spaceBelow;
+      setPanelPosition({
+        left: Math.max(viewportPadding, Math.min(rect.left, window.innerWidth - rect.width - viewportPadding)),
+        width: rect.width,
+        maxHeight: Math.max(120, Math.min(240, placeAbove ? spaceAbove : spaceBelow)),
+        ...(placeAbove ? { bottom: window.innerHeight - rect.top + gap } : { top: rect.bottom + gap }),
+      });
+    };
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
   }, [open]);
 
   useEffect(() => {
@@ -42,6 +73,7 @@ export const IconSelect = ({ value, onChange, options, placeholder, icon: FieldI
   }, [open, selectedIndex]);
 
   const choose = (nextValue: string) => {
+    if (disabled) return;
     onChange(nextValue);
     setOpen(false);
   };
@@ -71,19 +103,20 @@ export const IconSelect = ({ value, onChange, options, placeholder, icon: FieldI
     <div ref={rootRef} className={cn('relative min-w-0', className)}>
       <button
         type="button"
+        disabled={disabled}
         aria-label={ariaLabel || placeholder}
         aria-haspopup="listbox"
         aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => { if (!disabled) setOpen((current) => !current); }}
         onKeyDown={onKeyDown}
-        className="flex h-10 w-full cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-left text-xs font-semibold text-slate-600 outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+        className="flex h-10 w-full cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-left text-xs font-semibold text-slate-600 outline-none focus:border-primary disabled:cursor-wait disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
       >
         {selected ? <selected.icon className="h-3.5 w-3.5 shrink-0 text-primary" /> : <FieldIcon className="h-3.5 w-3.5 shrink-0 text-slate-400" />}
         <span className={cn('min-w-0 flex-1 truncate', !selected && 'text-slate-400')}>{selected?.label || placeholder}</span>
         <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform', open && 'rotate-180')} />
       </button>
-      {open && (
-        <div role="listbox" className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+      {open && panelPosition && createPortal(
+        <div ref={panelRef} role="listbox" style={panelPosition} className="fixed z-[320] overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-900">
           {options.map((option, index) => (
             <button
               type="button"
@@ -103,7 +136,8 @@ export const IconSelect = ({ value, onChange, options, placeholder, icon: FieldI
               {option.value === value && <Check className="h-3.5 w-3.5 shrink-0" />}
             </button>
           ))}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

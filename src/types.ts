@@ -110,10 +110,10 @@ export interface Load {
   incoterms?: string;
   insurance?: string;
   shipperName?: string;
+  providerRating?: number;
   mediator?: string;
   publicId?: string;
-  // The shipment's tracking number when one exists, falling back to the load's public id - the
-  // reference people quote to each other, so it leads both the exchange table and the details.
+  // The shipment's Freightbook tracking number.
   trackingNumber?: string;
   volume?: number;
   pallets?: number;

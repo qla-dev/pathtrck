@@ -8101,6 +8101,21 @@ Object.assign(UI.de, {
   'landing.modules.mobile.6': 'Apple CarPlay und Android Auto',
 });
 
+Object.assign(UI.en, {
+  'feed.filterBar.trackingNumber': 'Tracking number',
+  'feed.filterBar.searchTrackingNumber': 'Search FB tracking number...',
+});
+
+Object.assign(UI.bs, {
+  'feed.filterBar.trackingNumber': 'Broj za praćenje',
+  'feed.filterBar.searchTrackingNumber': 'Pretraži FB broj za praćenje...',
+});
+
+Object.assign(UI.de, {
+  'feed.filterBar.trackingNumber': 'Sendungsnummer',
+  'feed.filterBar.searchTrackingNumber': 'FB-Sendungsnummer suchen...',
+});
+
 const replaceBrand = (value: string) => value.replace(/smartfreight\.ai/gi, 'Freightbook.ai').replace(/smartfreight/gi, 'Freightbook.ai');
 
 export const ui = (lang: Language, key: string, fallback: string) => {

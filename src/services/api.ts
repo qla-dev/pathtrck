@@ -26,6 +26,7 @@ export type ApiUser = {
   role?: { id: number; name: Exclude<Role, null>; label: string };
   companies?: Array<Record<string, unknown>>;
   driver?: Record<string, unknown> | null;
+  customer_profile?: Record<string, unknown> | null;
 };
 
 export type ApiLoginResult = { token: string; token_type: 'Bearer'; user: ApiUser };

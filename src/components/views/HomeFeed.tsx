@@ -98,19 +98,28 @@ const SortDropdown = ({
 const FilterSkeleton = () => (
   <div
     aria-label="Loading filters"
-    className="animate-pulse rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"
+    className="animate-pulse space-y-5"
   >
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-      {Array.from({ length: 4 }, (_, index) => (
-        <div key={index} className="space-y-2">
-          <div className="h-3 w-20 rounded bg-slate-200 dark:bg-slate-700" />
-          <div className="h-10 rounded-xl bg-slate-100 dark:bg-slate-800" />
-        </div>
-      ))}
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white px-4 lg:h-16 dark:border-slate-800 dark:bg-slate-900">
+      <div className="grid h-full items-center gap-3 md:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }, (_, index) => (
+          <div key={index} className="space-y-2">
+            <div className="h-3 w-20 rounded bg-slate-200 dark:bg-slate-700" />
+            <div className="h-6 rounded-lg bg-slate-100 dark:bg-slate-800" />
+          </div>
+        ))}
+      </div>
     </div>
-    <div className="mt-4 flex flex-wrap gap-2">
+
+    <div className="flex flex-wrap gap-2 py-1">
       {[72, 96, 84, 108, 76].map((width, index) => (
-        <div key={index} className="h-8 rounded-full bg-slate-100 dark:bg-slate-800" style={{ width }} />
+        <div
+          key={index}
+          className="flex h-9 items-center rounded-full border border-slate-200 bg-white px-3 dark:border-slate-700 dark:bg-slate-900"
+          style={{ width: width + 24 }}
+        >
+          <div className="h-3 rounded bg-slate-200 dark:bg-slate-700" style={{ width }} />
+        </div>
       ))}
     </div>
   </div>
