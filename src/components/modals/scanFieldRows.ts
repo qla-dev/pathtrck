@@ -192,6 +192,9 @@ export const hsSectionIcon = (chapterCode?: string): LucideIcon => {
   return HS_SECTION_ICONS.find((section) => chapter <= section.toChapter)?.icon ?? Package;
 };
 
+export const hsSectionIconByIndex = (sectionIndex: number): LucideIcon =>
+  HS_SECTION_ICONS[sectionIndex]?.icon ?? Package;
+
 // Only the bare code needs to be persisted per HS entry - description/confidence/category names
 // are all resolvable from the hs_code_catalog table (the "šifranik") on demand, so storing them
 // too would just duplicate reference data across every load that shares a code.

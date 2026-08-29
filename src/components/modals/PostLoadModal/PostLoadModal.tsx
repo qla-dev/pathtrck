@@ -2089,14 +2089,14 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                                       onClick={() => selectable && addHsCode(item)}
                                       style={{ paddingLeft: `${12 + depth * 12}px` }}
                                       className={cn(
-                                        'flex w-full items-start gap-2 rounded-lg py-2 pr-3 text-left',
+                                        'flex w-full items-baseline gap-2 rounded-lg py-2 pr-3 text-left',
                                         selectable
                                           ? 'cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800'
                                           : 'cursor-not-allowed bg-slate-50/70 text-slate-400 dark:bg-slate-800/30 dark:text-slate-500',
                                       )}
                                     >
                                       {selectable
-                                        ? <SectionIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                                        ? <SectionIcon className="h-3.5 w-3.5 shrink-0 self-center text-primary" />
                                         : <span className="w-3.5 shrink-0 text-center text-sm font-black">›</span>}
                                       {item.code && <span className={cn('shrink-0 font-mono text-xs font-black', selectable ? 'text-primary' : 'text-slate-400')}>{item.code}</span>}
                                       <span className="text-xs leading-5">{item.name || item.description}</span>

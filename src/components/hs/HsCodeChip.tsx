@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Layers3, X } from 'lucide-react';
 import type { HsCodeMatch } from '../../services/api';
 import { ui } from '../../i18n';
+import { cn } from '../../lib/cn';
 import type { Language } from '../../types';
 import { hsSectionIcon } from '../modals/scanFieldRows';
 
@@ -27,7 +28,15 @@ export const HsCodeChip = ({ item, lang, onRemove, removeTitle = 'Remove HS code
   const SectionIcon = hsSectionIcon(item.chapterCode);
   const category = item.chapterName || item.headingName || item.section || '';
   const parentCategory = item.section && item.section !== category ? item.section : '';
-  const hasTooltip = Boolean(item.description || category || parentCategory);
+  const hierarchyParts = (item.fullName || '').split('>>>').map((part) => part.trim()).filter(Boolean);
+  const leafNames = new Set([item.name, item.description].map((value) => value?.trim()).filter(Boolean));
+  const hierarchyParents = hierarchyParts.length > 0 && leafNames.has(hierarchyParts[hierarchyParts.length - 1])
+    ? hierarchyParts.slice(0, -1)
+    : hierarchyParts;
+  const parents = hierarchyParents.length > 0
+    ? hierarchyParents
+    : [parentCategory, category].filter((value, index, values) => Boolean(value) && values.indexOf(value) === index);
+  const hasTooltip = Boolean(item.description || parents.length > 0);
 
   const showTooltip = () => {
     if (!hasTooltip || !chipRef.current) return;
@@ -108,28 +117,29 @@ export const HsCodeChip = ({ item, lang, onRemove, removeTitle = 'Remove HS code
               <span className="mt-0.5 block text-[10px] font-medium text-slate-400">{u('hsChip.classification', 'Customs tariff classification')}</span>
             </span>
           </span>
-          {item.description && <span className="mt-2 block text-xs font-bold leading-5 text-white">{item.description}</span>}
-          {(category || parentCategory) && <span className="my-2.5 block h-px bg-white/10" />}
-          {parentCategory && (
-            <span className="flex items-center gap-2">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-violet-400/15 text-violet-300">
-                <Layers3 className="h-3.5 w-3.5" />
+          {parents.length > 0 && <span className="my-2.5 block h-px bg-white/10" />}
+          {parents.map((parent, index) => {
+            const ParentIcon = index === 0 ? Layers3 : SectionIcon;
+            const label = index === 0
+              ? u('hsChip.parent', 'Parent section')
+              : index === 1
+                ? u('hsChip.category', 'Category')
+                : u('hsChip.parentCategory', 'Parent category');
+            return (
+              <span key={`${parent}-${index}`} className={cn('flex items-center gap-2', index > 0 && 'mt-2')}>
+                <span className={cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-md', index === 0 ? 'bg-violet-400/15 text-violet-300' : 'bg-sky-400/15 text-sky-300')}>
+                  <ParentIcon className="h-3.5 w-3.5" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[9px] font-black uppercase tracking-wider text-slate-500">{label}</span>
+                  <span className="block text-[11px] font-semibold leading-4 text-slate-200">{parent}</span>
+                </span>
               </span>
-              <span className="min-w-0">
-                <span className="block text-[9px] font-black uppercase tracking-wider text-slate-500">{u('hsChip.parent', 'Parent section')}</span>
-                <span className="block text-[11px] font-semibold leading-4 text-slate-200">{parentCategory}</span>
-              </span>
-            </span>
-          )}
-          {category && (
-            <span className="mt-2 flex items-center gap-2">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-sky-400/15 text-sky-300">
-                <SectionIcon className="h-3.5 w-3.5" />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-[9px] font-black uppercase tracking-wider text-slate-500">{u('hsChip.category', 'Category')}</span>
-                <span className="block text-[11px] font-semibold leading-4 text-slate-200">{category}</span>
-              </span>
+            );
+          })}
+          {item.description && (
+            <span className={cn('block text-xs font-bold leading-5 text-white', parents.length > 0 ? 'mt-2 border-t border-white/10 pt-2' : 'mt-2')}>
+              {item.description}
             </span>
           )}
         </span>,

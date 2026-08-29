@@ -48,7 +48,7 @@ export const HorizontalScrollMenu = ({ children, ariaLabel, className }: Horizon
         aria-label="Scroll left"
         disabled={edges.left}
         onClick={() => scrollBy(-1)}
-        className="absolute -left-9 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors hover:border-primary hover:text-primary disabled:pointer-events-none disabled:opacity-0 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+        className="absolute -left-9 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors hover:border-primary hover:text-primary disabled:pointer-events-none disabled:opacity-0 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
       >
         <ChevronLeft className="h-4 w-4" />
       </button>
@@ -57,7 +57,7 @@ export const HorizontalScrollMenu = ({ children, ariaLabel, className }: Horizon
         aria-label="Scroll right"
         disabled={edges.right}
         onClick={() => scrollBy(1)}
-        className="absolute -right-9 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors hover:border-primary hover:text-primary disabled:pointer-events-none disabled:opacity-0 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+        className="absolute -right-9 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors hover:border-primary hover:text-primary disabled:pointer-events-none disabled:opacity-0 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
       >
         <ChevronRight className="h-4 w-4" />
       </button>
