@@ -7,6 +7,7 @@ import { ApiError, api } from "../../services/api";
 import { confirmAction, showSuccess } from "../../lib/swal";
 import { Button } from "../ui/Button";
 import { ProfileView, type ProfileRecordKind } from "./ProfileView";
+import { ReviewComposer, type ReviewSummary } from "../reviews/ReviewComposer";
 
 type Props = {
   open: boolean;
@@ -46,6 +47,7 @@ export const ProfileModal = ({
   const [authorizationEmail, setAuthorizationEmail] = useState("");
   const [authorizing, setAuthorizing] = useState(false);
   const [authorizationError, setAuthorizationError] = useState("");
+  const [reviewSummary, setReviewSummary] = useState<ReviewSummary | null>(null);
   const profileMeta = profileTypeMeta[kind];
   const ProfileTypeIcon = profileMeta.icon;
 
@@ -66,6 +68,29 @@ export const ProfileModal = ({
     );
     setAuthorizationError("");
   }, [kind, open, record]);
+
+  useEffect(() => {
+    if (open) setReviewSummary(null);
+  }, [kind, open, record?.id]);
+
+  useEffect(() => {
+    if (!open || !record?.id) return undefined;
+    let active = true;
+    api.reviews.list(kind, Number(record.id))
+      .then((response) => {
+        if (!active) return;
+        setReviewSummary({
+          reviews: response.data,
+          averageRating: Number(response.meta?.average_rating || 0),
+          total: Number(response.meta?.total || response.data.length),
+          hasReviewed: Boolean(response.meta?.has_reviewed),
+          canReview: Boolean(response.meta?.can_review),
+          myReview: response.meta?.my_review || null,
+        });
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [kind, open, record?.id]);
 
   const canAuthorize =
     kind === "customer" &&
@@ -164,6 +189,22 @@ export const ProfileModal = ({
       </form>
     </section>
   ) : null;
+  const reviewAction = record && role !== "superadmin" && role !== "master" ? (
+    <ReviewComposer
+      mode={kind}
+      targetId={Number(record.id)}
+      targetName={String(record.name || record.company_name || "Profile")}
+      viewerRole={role}
+      lang={lang}
+      onSummaryChange={setReviewSummary}
+    />
+  ) : null;
+  const displayedRecord = record && reviewSummary ? {
+    ...record,
+    reviews: reviewSummary.reviews,
+    average_rating: reviewSummary.averageRating,
+    reviews_count: reviewSummary.total,
+  } : record;
 
   return (
     <AnimatePresence>
@@ -199,9 +240,9 @@ export const ProfileModal = ({
           <ProfileView
             role={profileRole(kind)}
             lang={lang}
-            profileRecord={record}
+            profileRecord={displayedRecord}
             profileKind={kind}
-            action={authorizationAction}
+            action={authorizationAction || reviewAction}
           />
         </div>
       </motion.div>

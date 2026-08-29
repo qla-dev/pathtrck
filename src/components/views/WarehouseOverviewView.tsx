@@ -1,11 +1,18 @@
 import { useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
+  BadgeCheck,
+  Ban,
+  BarChart3,
   Boxes,
+  Clock3,
   Gauge,
+  Loader2,
   MapPin,
   PackageCheck,
+  Pencil,
   Plus,
   Radio,
   ShieldAlert,
@@ -23,7 +30,10 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { PageHeader } from '../ui/PageHeader';
 import { AddWarehouseModal } from '../modals/AddWarehouseModal/AddWarehouseModal';
-import { showSuccess } from '../../lib/swal';
+import { showError, showSuccess } from '../../lib/swal';
+import { IconSelect } from '../ui/IconSelect';
+
+type WarehouseStatus = 'pending' | 'verified' | 'suspended';
 
 type WarehouseFacility = {
   id: number;
@@ -74,7 +84,13 @@ export const WarehouseOverviewView = ({
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [data, setData] = useState<WarehouseOverviewData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [createOpen, setCreateOpen] = useState(false);
+  // When navigation carries a create signal, mount with the modal already open; do not paint an
+  // intermediate warehouse frame before the effect processes the signal.
+  const [createOpen, setCreateOpen] = useState(createSignal > 0);
+  const [editMode, setEditMode] = useState(false);
+  const [editingWarehouse, setEditingWarehouse] = useState<Record<string, unknown> | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [statusSavingId, setStatusSavingId] = useState<number | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   // 'all' keeps every facility the account operates in one set of figures; an id narrows every
   // panel below to that one warehouse. The server does the aggregating either way.
@@ -152,8 +168,68 @@ export const WarehouseOverviewView = ({
     />
   );
 
+  const editWarehouse = async (id: number) => {
+    setEditingId(id);
+    try {
+      const response = await api.warehouses.get(id);
+      setEditingWarehouse(response.data);
+    } catch (caught) {
+      void showError(
+        u('warehouses.editFailed', 'Warehouse could not be opened'),
+        caught instanceof Error ? caught.message : undefined,
+      );
+    } finally {
+      setEditingId(null);
+    }
+  };
+
+  const editModal = (
+    <AddWarehouseModal
+      open={Boolean(editingWarehouse)}
+      lang={lang}
+      warehouse={editingWarehouse}
+      onClose={() => setEditingWarehouse(null)}
+      onUpdated={() => {
+        setEditingWarehouse(null);
+        setReloadKey((current) => current + 1);
+        void showSuccess(u('warehouses.updated', 'Warehouse updated'), u('warehouses.updatedText', 'The facility profile has been saved.'));
+      }}
+    />
+  );
+
+  const updateStatus = async (facility: WarehouseFacility, status: WarehouseStatus) => {
+    const currentStatus = facility.status === 'active' ? 'verified' : facility.status;
+    if (currentStatus === status) return;
+    setStatusSavingId(facility.id);
+    try {
+      await api.warehouses.update(facility.id, { status });
+      setData((current) => current ? {
+        ...current,
+        warehouses: current.warehouses.map((row) => row.id === facility.id ? { ...row, status } : row),
+        warehouse: current.warehouse && Number(current.warehouse.id) === facility.id
+          ? { ...current.warehouse, status }
+          : current.warehouse,
+      } : current);
+      void showSuccess(
+        u('warehouses.statusUpdated', 'Warehouse status updated'),
+        u('warehouses.statusUpdatedText', 'The new status is active immediately.'),
+      );
+    } catch (caught) {
+      void showError(
+        u('warehouses.statusFailed', 'Could not update the warehouse status'),
+        caught instanceof Error ? caught.message : undefined,
+      );
+    } finally {
+      setStatusSavingId(null);
+    }
+  };
+
   if (loading) {
-    return <div className="flex h-64 items-center justify-center text-sm text-slate-500">{u('common.loading', 'Loading...')}</div>;
+    return <>
+      <div className="flex h-64 items-center justify-center text-sm text-slate-500">{u('common.loading', 'Loading...')}</div>
+      {createModal}
+      {editModal}
+    </>;
   }
 
   if (!data || (data.warehouses || []).length === 0) {
@@ -165,6 +241,7 @@ export const WarehouseOverviewView = ({
         <Button size="sm" className="mt-4" onClick={() => setCreateOpen(true)}><Plus className="mr-1.5 h-4 w-4" />{u('warehouses.create', 'Create Warehouse')}</Button>
       </Card>
       {createModal}
+      {editModal}
     </>;
   }
 
@@ -241,12 +318,84 @@ export const WarehouseOverviewView = ({
           <span className="flex items-center gap-1 text-[11px] font-bold uppercase text-emerald-600 dark:text-emerald-400"><Radio className="h-3 w-3 animate-pulse" />{u('common.live', 'Live')}</span>
           <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{occupiedPallets} / {totalCapacity} {u('warehouseView.palletsUnit', 'paleta')}</span>
         </>}
-        actions={<Button size="sm" onClick={() => setCreateOpen(true)}><Plus className="mr-1.5 h-4 w-4" />{u('warehouses.create', 'Create Warehouse')}</Button>}
+        actions={<div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => setEditMode((current) => !current)}>
+            {editMode ? <BarChart3 className="mr-1.5 h-4 w-4" /> : <Pencil className="mr-1.5 h-4 w-4" />}
+            {editMode ? u('warehouses.statistics', 'Statistics') : u('warehouses.edit', 'Edit')}
+          </Button>
+          <Button size="sm" onClick={() => setCreateOpen(true)}><Plus className="mr-1.5 h-4 w-4" />{u('warehouses.create', 'Create Warehouse')}</Button>
+        </div>}
         filters={[{ id: 'all', label: u('warehouseView.allFacilities', 'Sva skladišta'), count: facilities.length }, ...facilities.map((facility) => ({ id: facility.id, label: facility.name || '—' }))]}
         activeFilter={scope}
         onFilterChange={(id) => setScope(id === 'all' ? 'all' : Number(id))}
         stats={statCards}
       />
+      <AnimatePresence initial={false} mode="popLayout">
+      {editMode ? (
+        <motion.div
+          key="warehouse-edit-list"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+        >
+        <Card className="shadow-none" contentClassName="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[700px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-800">
+                  <th className="px-5 py-3">{u('warehouses.colName', 'Warehouse')}</th>
+                  <th className="px-5 py-3">{u('warehouses.colLocation', 'Location')}</th>
+                  <th className="px-5 py-3">{u('warehouses.colCapacity', 'Capacity')}</th>
+                  <th className="px-5 py-3">{u('warehouses.colStatus', 'Status')}</th>
+                  <th className="px-5 py-3 text-right">{u('warehouses.colActions', 'Actions')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {facilities.map((facility) => (
+                  <tr key={facility.id} className="border-b border-slate-100 last:border-b-0 dark:border-slate-800">
+                    <td className="px-5 py-4 font-black text-slate-900 dark:text-white">{facility.name || '—'}</td>
+                    <td className="px-5 py-4 text-slate-500">{[facility.city, facility.country_code].filter(Boolean).join(', ') || '—'}</td>
+                    <td className="px-5 py-4 text-slate-700 dark:text-slate-300">{facility.total_capacity_pallets.toLocaleString()} {u('warehouseView.palletsUnit', 'paleta')}</td>
+                    <td className="px-5 py-4">
+                      <div className="relative w-40">
+                        {statusSavingId === facility.id && <Loader2 className="pointer-events-none absolute left-3 top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-primary" />}
+                        <IconSelect
+                          value={facility.status === 'active' ? 'verified' : String(facility.status || 'pending')}
+                          disabled={statusSavingId === facility.id}
+                          onChange={(next) => void updateStatus(facility, next as WarehouseStatus)}
+                          placeholder={u('warehouses.colStatus', 'Status')}
+                          ariaLabel={`${u('warehouses.changeStatus', 'Change status')}: ${facility.name || u('warehouses.colName', 'Warehouse')}`}
+                          icon={Clock3}
+                          className={statusSavingId === facility.id ? '[&_button]:pl-9' : undefined}
+                          options={[
+                            { value: 'pending', label: u('warehouses.statusPendingLabel', 'Pending'), icon: Clock3 },
+                            { value: 'verified', label: u('warehouses.statusVerifiedLabel', 'Verified'), icon: BadgeCheck },
+                            { value: 'suspended', label: u('warehouses.statusSuspendedLabel', 'Suspended'), icon: Ban },
+                          ]}
+                        />
+                      </div>
+                    </td>
+                    <td className="px-5 py-4 text-right">
+                      <Button size="sm" variant="outline" disabled={editingId === facility.id} onClick={() => void editWarehouse(facility.id)}>
+                        <Pencil className="mr-1.5 h-3.5 w-3.5" />{u('warehouses.edit', 'Edit')}
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+        </motion.div>
+      ) : <motion.div
+        key="warehouse-statistics"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -8 }}
+        transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+        className="space-y-3"
+      >
       <div className="grid gap-3 xl:grid-cols-12">
       {facilities.length > 1 && (
         <Card className="shadow-none xl:col-span-3" contentClassName="p-4">
@@ -409,7 +558,10 @@ export const WarehouseOverviewView = ({
           </table>
         </div>
       </Card>
+      </motion.div>}
+      </AnimatePresence>
     </div>
     {createModal}
+    {editModal}
   </>;
 };

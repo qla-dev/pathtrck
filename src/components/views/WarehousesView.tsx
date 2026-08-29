@@ -31,9 +31,8 @@ export const WarehousesView = ({ lang, role }: { lang: Language; role: Role }) =
   const [createOpen, setCreateOpen] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
   const warehouses = useApiList(api.warehouses.list, { per_page: 100 });
-  // POST /warehouses is gated to warehouse/superadmin/master on the backend, so the button only
-  // appears where it can actually succeed.
-  const canCreate = role === 'superadmin' || role === 'master' || role === 'warehouse';
+  // Warehouses belong to users, so every operational role that may own one gets the create action.
+  const canCreate = role === 'superadmin' || role === 'master' || role === 'user' || role === 'driver' || role === 'warehouse' || role === 'company';
   // The backend drops status writes from anyone else, so only admins get the enable/disable control.
   const canVerify = role === 'superadmin' || role === 'master';
 

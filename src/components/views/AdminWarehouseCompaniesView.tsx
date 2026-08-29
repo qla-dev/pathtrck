@@ -12,7 +12,8 @@ import {
 } from "lucide-react";
 
 import { ApiError, api } from "../../services/api";
-import { Language, Role } from "../../types";
+import { Language, Role, type UserSubscription } from "../../types";
+import { ui } from "../../i18n";
 import { confirmAction, showError, showSuccess } from "../../lib/swal";
 import { useApiList } from "../../hooks/useApiList";
 import { AdminField, AdminFormModal, adminFieldClass } from "./AdminFormModal";
@@ -22,6 +23,7 @@ import { Card } from "../ui/Card";
 import { ProfileModal } from "./ProfileModal";
 import { ServerDataTable, type ServerDataTableColumn } from "../ui/ServerDataTable";
 import { IconSelect } from "../ui/IconSelect";
+import { AdminSubscriptionButton, AdminSubscriptionModal, LenaTokenCount, type AdminSubscriptionTarget } from "./AdminSubscriptionModal";
 
 const initial = {
   company_name: "",
@@ -52,6 +54,8 @@ export const AdminWarehouseCompaniesView = ({
   role: Role;
   onOpenEmailStudio?: () => void;
 }) => {
+  const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  const canManageSubscriptions = role === "superadmin" || role === "master";
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(initial);
   const [submitting, setSubmitting] = useState(false);
@@ -61,11 +65,25 @@ export const AdminWarehouseCompaniesView = ({
     null,
   );
   const [statusSavingId, setStatusSavingId] = useState<string | null>(null);
-  const warehouses = useApiList(api.warehouses.list, { per_page: 100 });
+  const [subscriptionTarget, setSubscriptionTarget] = useState<AdminSubscriptionTarget | null>(null);
+  const warehouses = useApiList(api.companies.list, {
+    per_page: 100,
+    warehouse_first: true,
+  });
+  const facilitiesFor = (row: Record<string, unknown>) =>
+    Array.isArray(row.warehouses)
+      ? (row.warehouses as Record<string, unknown>[])
+      : [];
   const field = (key: keyof typeof form, value: string) =>
     setForm((current) => ({ ...current, [key]: value }));
   const totalCapacity = warehouses.items.reduce(
-    (sum, row) => sum + Number(row.total_capacity_pallets || 0),
+    (sum, row) =>
+      sum +
+      facilitiesFor(row).reduce(
+        (facilitySum, facility) =>
+          facilitySum + Number(facility.total_capacity_pallets || 0),
+        0,
+      ),
     0,
   );
 
@@ -83,7 +101,7 @@ export const AdminWarehouseCompaniesView = ({
     const id = String(row.id);
     setStatusSavingId(id);
     try {
-      await api.warehouses.update(id, {
+      await api.companies.update(id, {
         status,
         verified_at: status === "verified" ? new Date().toISOString() : null,
       });
@@ -107,12 +125,13 @@ export const AdminWarehouseCompaniesView = ({
     { key: "warehouse", header: "Warehouse", render: (row) => <><p className="font-bold dark:text-white">{String(row.name || "—")}</p><p className="text-xs text-slate-500">{String(row.city || "—")}, {String(row.country_code || "—")} · {String(row.email || "—")}</p></> },
     { key: "owner", header: "Owner", render: (row) => String(((row.owner || {}) as Record<string, unknown>).name || "—") },
     { key: "plan", header: "Plan", render: (row) => <span className="font-bold text-orange-500">{String(row.plan || "—")}</span> },
-    { key: "capacity", header: "Capacity", render: (row) => `${Number(row.total_capacity_pallets || 0).toLocaleString()} pal.` },
-    { key: "storage", header: "Storage types", render: (row) => Array.isArray(row.storage_types) ? (row.storage_types as unknown[]).join(", ") : "—" },
+    { key: "capacity", header: "Capacity", render: (row) => `${facilitiesFor(row).reduce((sum, facility) => sum + Number(facility.total_capacity_pallets || 0), 0).toLocaleString()} pal.` },
+    { key: "storage", header: "Storage types", render: (row) => { const types = facilitiesFor(row).flatMap((facility) => Array.isArray(facility.storage_types) ? facility.storage_types : []).map(String); return [...new Set(types)].join(", ") || "—"; } },
     { key: "rating", header: "Rating", render: (row) => <span className="inline-flex items-center gap-1 font-bold"><Star className="h-4 w-4 fill-amber-400 text-amber-400" />{Number(row.rating || row.average_rating || 0).toFixed(1)}</span>, exportValue: (row) => Number(row.rating || row.average_rating || 0).toFixed(1) },
+    ...(canManageSubscriptions ? [{ key: "lena_ai", header: "LenaAI", render: (row) => { const owner = (row.owner || {}) as Record<string, unknown>; return <LenaTokenCount subscription={(owner.subscription || null) as UserSubscription | null} />; }, exportValue: (row) => { const owner = (row.owner || {}) as Record<string, unknown>; return Number(((owner.subscription || null) as UserSubscription | null)?.remaining_tokens || 0); } } satisfies ServerDataTableColumn<Record<string, unknown>>] : []),
     { key: "status", header: "Status", render: (row) => { const status = String(row.status || "pending") as WarehouseStatus; const saving = statusSavingId === String(row.id); return <div className="relative w-40">{saving && <Loader2 className="pointer-events-none absolute left-3 top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-primary" />}<IconSelect value={status} disabled={saving} onChange={(next) => void updateStatus(row, next as WarehouseStatus)} placeholder="Status" ariaLabel={`Change status for ${String(row.name || "warehouse")}`} icon={Clock3} className={saving ? "[&_button]:pl-9" : undefined} options={[{ value: "pending", label: "Pending", icon: Clock3 }, { value: "verified", label: "Verified", icon: BadgeCheck }, { value: "suspended", label: "Suspended", icon: Ban }]} /></div>; } },
-    { key: "actions", header: "", className: "text-right", exportable: false, render: (row) => <button type="button" aria-label="Open warehouse profile" onClick={() => setSelected(row)} className="cursor-pointer rounded-lg bg-slate-100 p-2 transition hover:text-primary dark:bg-slate-800"><Eye className="h-4 w-4" /></button> },
-  ], [statusSavingId]);
+    { key: "actions", header: "", className: "text-right", exportable: false, render: (row) => { const owner = (row.owner || {}) as Record<string, unknown>; const userId = Number(row.owner_user_id || owner.id || 0); return <div className="flex items-center justify-end gap-2">{canManageSubscriptions && <AdminSubscriptionButton disabled={!userId} label={u('adminSubscription.shortAction', 'Sub')} ariaLabel={userId ? `${u('adminSubscription.open', 'Edit subscription')}: ${String(row.name || '')}` : u('adminSubscription.noAccount', 'No user account available')} onClick={() => userId && setSubscriptionTarget({ userId, name: String(row.name || owner.name || ''), subscription: (owner.subscription || null) as UserSubscription | null })} />}<button type="button" aria-label="Open warehouse profile" onClick={() => setSelected(row)} className="cursor-pointer rounded-lg bg-slate-100 p-2 transition hover:text-primary dark:bg-slate-800"><Eye className="h-4 w-4" /></button></div>; } },
+  ], [canManageSubscriptions, statusSavingId, lang]);
 
   const save = async () => {
     const confirmed = await confirmAction({
@@ -197,11 +216,12 @@ export const AdminWarehouseCompaniesView = ({
           ]}
         />
 
-        <Card className="shadow-none" contentClassName="p-0"><ServerDataTable edgeToEdge title="Warehouse companies" request={api.warehouses.list} columns={columns} refreshKey={tableRefreshKey} initialPageSize={50} emptyMessage="No warehouse companies found." /></Card>
+        <Card className="shadow-none" contentClassName="p-0"><ServerDataTable edgeToEdge title="Warehouse companies" request={api.companies.list} params={{ warehouse_first: true }} columns={columns} refreshKey={tableRefreshKey} initialPageSize={50} emptyMessage="No warehouse companies found." /></Card>
 
       </div>
 
-      <ProfileModal open={selected !== null} kind="warehouse" record={selected} role={role} lang={lang} onClose={() => setSelected(null)} />
+      <ProfileModal open={selected !== null} kind="company" record={selected} role={role} lang={lang} onClose={() => setSelected(null)} />
+      <AdminSubscriptionModal open={subscriptionTarget !== null} target={subscriptionTarget} lang={lang} onClose={() => setSubscriptionTarget(null)} onSaved={() => { void warehouses.refresh(); setTableRefreshKey((current) => current + 1); void showSuccess(u('adminSubscription.updated', 'Subscription updated'), u('adminSubscription.updatedText', 'The package, expiration and LenaAI tokens were saved.')); }} />
 
       <AdminFormModal
         open={open}

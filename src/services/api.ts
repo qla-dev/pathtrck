@@ -3,7 +3,7 @@ import { Language, Role } from '../types';
 export type ApiEnvelope<T> = {
   message: string;
   data: T;
-  meta?: { current_page?: number; page_no?: number; last_page?: number; per_page?: number; limit?: number; total?: number; categories?: number; coded?: number; selectable?: number; email_sent?: boolean; has_more?: boolean; unlimited?: boolean };
+  meta?: { current_page?: number; page_no?: number; last_page?: number; per_page?: number; limit?: number; total?: number; categories?: number; coded?: number; selectable?: number; email_sent?: boolean; has_more?: boolean; unlimited?: boolean; average_rating?: number; has_reviewed?: boolean; can_review?: boolean; my_review?: Record<string, unknown> | null };
   errors?: Record<string, string[]>;
 };
 
@@ -352,6 +352,13 @@ export const api = {
     },
   },
   roles: resourceApi<Record<string, unknown>>('roles'),
+  reviews: {
+    list: (reviewableType: string, reviewableId: number | string) => request<Record<string, unknown>[]>(`/reviews?${queryString({ reviewable_type: reviewableType, reviewable_id: reviewableId })}`),
+    create: (data: { reviewable_type: string; reviewable_id: number | string; rating: number; criteria: Record<string, number>; comment?: string }) => request<Record<string, unknown>[]>('/reviews', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  },
   users: {
     ...resourceApi<Record<string, unknown>>('users'),
   },

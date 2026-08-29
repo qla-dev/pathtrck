@@ -10,13 +10,14 @@ import { Language } from '../../types';
 
 export const fieldInputClass = 'h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary dark:border-slate-800 dark:bg-slate-950 dark:text-white disabled:cursor-default';
 
-export const Checkbox = ({ checked, onChange, className }: { checked: boolean; onChange: () => void; className?: string }) => (
+export const Checkbox = ({ checked, onChange, disabled = false, className }: { checked: boolean; onChange: () => void; disabled?: boolean; className?: string }) => (
   <span className={cn('relative inline-flex h-4 w-4 shrink-0 items-center justify-center', className)}>
     <input
       type="checkbox"
       checked={checked}
       onChange={onChange}
-      className="peer h-4 w-4 shrink-0 cursor-pointer appearance-none rounded border-2 border-slate-300 bg-white outline-none checked:border-primary checked:bg-primary focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1 dark:border-slate-600 dark:bg-slate-950"
+      disabled={disabled}
+      className="peer h-4 w-4 shrink-0 cursor-pointer appearance-none rounded border-2 border-slate-300 bg-white outline-none checked:border-primary checked:bg-primary focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-950 dark:disabled:bg-slate-800"
     />
     <Check className="pointer-events-none absolute h-3 w-3 text-white opacity-0 peer-checked:opacity-100" strokeWidth={3} />
   </span>

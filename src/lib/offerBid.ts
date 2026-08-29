@@ -164,11 +164,15 @@ export const seedPriceBreakdownFromServices = (
   serviceKeys: string[]
 ): PriceBreakdownRow[] => {
   const existing = new Map(current.map((row) => [row.service, row]));
-
-  return serviceKeys.map((key) => {
+  const seeded = serviceKeys.map((key) => {
     const label = warehouseServiceLabel(key);
     return existing.get(label) || createEmptyPriceBreakdownRow(label, warehouseServiceUnit(key));
   });
+
+  return [
+    ...seeded,
+    ...Array.from({ length: Math.max(0, 4 - seeded.length) }, () => createEmptyPriceBreakdownRow()),
+  ];
 };
 
 export const chargeLabel = (key: string): string => STANDARD_CHARGE_ITEMS.find((item) => item.key === key)?.label || key;
@@ -366,9 +370,8 @@ export const warehouseOfferDraftToPayload = (draft: Offer): Record<string, unkno
   optional_conditions: draft.optionalConditions,
   warehouse_id: draft.warehouseId ? Number(draft.warehouseId) : null,
   can_perform_as_required: draft.canPerformAsRequired,
-  additional_charges: draft.additionalCharges
-    .filter((row) => row.type.trim() || row.condition.trim() || row.rate.trim() || row.unit.trim())
-    .map((row) => ({ ...row, rate: row.rate.trim() === '' ? null : Number(row.rate) })),
+  // Warehousing charges are represented exclusively by price_breakdown.
+  additional_charges: [],
   has_exceptions: draft.hasExceptions,
   is_counter: draft.isCounter,
   message: draft.message.trim() || undefined,
@@ -412,13 +415,11 @@ export const validateWarehouseOfferDraft = (
   if (!draft.vat) return u('Select whether VAT is included or excluded.', 'Select whether VAT is included or excluded.');
   if (!draft.paymentTerms) return u('Select payment terms.', 'Select payment terms.');
   if (!draft.validUntil) return u('Set how long your offer is valid.', 'Set how long your offer is valid.');
+  if (!draft.warehouseId) return u('Select the warehouse for this offer.', 'Select the warehouse for this offer.');
   if (!draft.capacityStatus) return u('State whether you can accept this request.', 'State whether you can accept this request.');
   if (!draft.availableFrom) return u('Set the date your capacity is available from.', 'Set the date your capacity is available from.');
   if (draft.availableCapacity.trim() === '' || Number(draft.availableCapacity) <= 0) {
     return u('Enter the capacity you can offer.', 'Enter the capacity you can offer.');
-  }
-  if (draft.servicesIncluded.length === 0) {
-    return u('Select at least one service you are offering.', 'Select at least one service you are offering.');
   }
   if (!draft.confirmedTerms) {
     return u('Confirm the price and conditions before submitting.', 'Confirm the price and conditions before submitting.');

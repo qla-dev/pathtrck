@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   Warehouse as WarehouseIcon,
   X,
+  XCircle,
 } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
@@ -21,12 +22,10 @@ import {
   CURRENCY_OPTIONS,
   MINIMUM_STORAGE_PERIOD_OPTIONS,
   PAYMENT_TERMS_OPTIONS,
-  WAREHOUSE_CHARGE_TYPE_OPTIONS,
   WAREHOUSE_OPTIONAL_CONDITION_ITEMS,
   WAREHOUSE_PRICE_BASIS_OPTIONS,
   WAREHOUSE_SERVICE_ITEMS,
   WAREHOUSE_VAT_OPTIONS,
-  createEmptyAdditionalCharge,
   createEmptyPriceBreakdownRow,
   requestedWarehouseServices,
   seedPriceBreakdownFromServices,
@@ -34,9 +33,10 @@ import {
   warehouseServiceUnit,
 } from '../../lib/offerBid';
 import { ui } from '../../i18n';
-import { AdditionalChargeRow, Language, Load, Offer, PriceBreakdownRow, Role } from '../../types';
+import { Language, Load, Offer, PriceBreakdownRow, Role } from '../../types';
 import { api } from '../../services/api';
 import { Button } from '../ui/Button';
+import { AddWarehouseModal } from '../modals/AddWarehouseModal/AddWarehouseModal';
 import {
   Checkbox,
   DateField,
@@ -98,6 +98,40 @@ const timeRemainingLabel = (target?: string): string => {
 const warehouseLabel = (warehouse: Record<string, unknown>): string =>
   String(warehouse.name || `Warehouse #${warehouse.id}`);
 
+const normalizeCapability = (value: unknown): string =>
+  String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+
+/** Maps facility-profile capabilities onto the services that can be quoted in a warehouse bid. */
+const warehouseServiceKeys = (warehouse?: Record<string, unknown>): Set<string> => {
+  if (!warehouse) return new Set();
+  const profileCapabilities = [warehouse.capabilities, warehouse.handling_capabilities]
+    .flatMap((value) => Array.isArray(value) ? value : [])
+    .map(normalizeCapability);
+  const capabilities = new Set(profileCapabilities);
+  const services = new Set<string>();
+
+  WAREHOUSE_SERVICE_ITEMS.forEach((item) => {
+    if (capabilities.has(normalizeCapability(item.key)) || capabilities.has(normalizeCapability(item.label))) services.add(item.key);
+  });
+  if (capabilities.has('receiving')) {
+    services.add('unloading');
+    services.add('goods_inspection');
+  }
+  if (capabilities.has('packing')) {
+    services.add('loading');
+    services.add('palletization');
+  }
+  if (capabilities.has('picking') && capabilities.has('packing')) services.add('pick_pack');
+  if (capabilities.has('value_added')) ['repacking', 'labeling', 'kitting'].forEach((key) => services.add(key));
+
+  return services;
+};
+
+const serviceKeyFromLabel = (label: string): string =>
+  WAREHOUSE_SERVICE_ITEMS.find((item) => item.label === label)?.key || '';
+
+const WAREHOUSE_SERVICE_UNITS = Array.from(new Set(WAREHOUSE_SERVICE_ITEMS.map((item) => item.unit)));
+
 /** Bordered card wrapping one numbered step of the form. */
 const Section = ({
   index,
@@ -131,30 +165,31 @@ export const WarehouseBidModal = ({
   loading,
   readOnly = false,
   variant = 'bid',
-  role,
   userId,
   onClose,
   onSubmit,
 }: WarehouseBidModalProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [warehouses, setWarehouses] = useState<Array<Record<string, unknown>>>([]);
+  const [addWarehouseOpen, setAddWarehouseOpen] = useState(false);
   const locationCountryCode = getCountryCode(load.delivery);
   const requestedServices = useMemo(() => requestedWarehouseServices(load), [load]);
-  const otherServices = useMemo(
-    () => WAREHOUSE_SERVICE_ITEMS.filter((item) => !requestedServices.includes(item.key)),
-    [requestedServices]
-  );
   const selectedWarehouse = warehouses.find((warehouse) => String(warehouse.id) === draft.warehouseId);
+  const supportedServiceKeys = useMemo(() => warehouseServiceKeys(selectedWarehouse), [selectedWarehouse]);
+  const otherServices = useMemo(
+    () => WAREHOUSE_SERVICE_ITEMS.filter((item) => supportedServiceKeys.has(item.key) && !requestedServices.includes(item.key)),
+    [requestedServices, supportedServiceKeys]
+  );
 
   useEffect(() => {
     if (!open) return undefined;
-    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape' && !loading) onClose(); };
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape' && !loading && !addWarehouseOpen) onClose(); };
     window.addEventListener('keydown', closeOnEscape);
     return () => window.removeEventListener('keydown', closeOnEscape);
-  }, [loading, onClose, open]);
+  }, [addWarehouseOpen, loading, onClose, open]);
 
-  // The facilities this provider can bid from. A warehouse row belongs to the user who owns it, so
-  // everyone but a superadmin only ever sees their own.
+  // A bid may only name a facility owned by the logged-in bidder. Network-wide visibility in the
+  // warehouse directory must never leak unrelated facilities into this selector.
   useEffect(() => {
     if (!open) return;
     let active = true;
@@ -162,42 +197,96 @@ export const WarehouseBidModal = ({
       try {
         const response = await api.warehouses.list({ per_page: 100 });
         if (!active) return;
-        setWarehouses(role === 'superadmin' ? response.data : response.data.filter((warehouse) => Number(warehouse.user_id) === userId));
+        setWarehouses(readOnly
+          ? response.data
+          : response.data.filter((warehouse) => Number(warehouse.user_id) === userId));
       } catch {
         if (active) setWarehouses([]);
       }
     })();
     return () => { active = false; };
-  }, [open, role, userId]);
+  }, [open, readOnly, userId]);
+
+  // Existing bids can open with a warehouse already selected. Once that profile arrives, normalize
+  // the draft exactly as an explicit warehouse selection would, without mutating read-only views.
+  useEffect(() => {
+    if (!selectedWarehouse || readOnly) return;
+    const supported = warehouseServiceKeys(selectedWarehouse);
+    const servicesIncluded = draft.servicesIncluded.filter((key) => supported.has(key));
+    const priceBreakdown = draft.priceBreakdown.map((row) => {
+      const key = serviceKeyFromLabel(row.service);
+      return key && !supported.has(key) ? createEmptyPriceBreakdownRow() : row;
+    });
+    const missesRequestedServices = requestedServices.some((key) => !supported.has(key));
+    const changed = servicesIncluded.length !== draft.servicesIncluded.length
+      || priceBreakdown.some((row, index) => row !== draft.priceBreakdown[index])
+      || (missesRequestedServices && (draft.canPerformAsRequired || draft.capacityStatus !== 'propose_changes'));
+    if (!changed) return;
+    onDraftChange({
+      servicesIncluded,
+      priceBreakdown,
+      ...(missesRequestedServices ? { canPerformAsRequired: false, capacityStatus: 'propose_changes' } : {}),
+    });
+  }, [readOnly, selectedWarehouse]);
 
   const updateBreakdownRow = (index: number, patch: Partial<PriceBreakdownRow>) => {
     onDraftChange({ priceBreakdown: draft.priceBreakdown.map((row, i) => (i === index ? { ...row, ...patch } : row)) });
   };
 
-  const updateChargeRow = (index: number, patch: Partial<AdditionalChargeRow>) => {
-    onDraftChange({ additionalCharges: draft.additionalCharges.map((row, i) => (i === index ? { ...row, ...patch } : row)) });
-  };
-
-  /**
-   * Ticking a service adds its line to the breakdown so the customer can see how it is metered;
-   * unticking removes the line again, but only when it was still empty - a priced line is the
-   * provider's own work and is left for them to delete.
-   */
+  /** A checked service owns one pricing row; empty rows are reused before the table grows. */
   const toggleService = (key: string) => {
+    if (!supportedServiceKeys.has(key)) return;
     const isSelected = draft.servicesIncluded.includes(key);
     const servicesIncluded = isSelected
       ? draft.servicesIncluded.filter((item) => item !== key)
       : [...draft.servicesIncluded, key];
     const label = warehouseServiceLabel(key);
+    const existingRow = draft.priceBreakdown.findIndex((row) => row.service === label);
+    const firstEmptyRow = draft.priceBreakdown.findIndex((row) => row.service.trim() === '');
 
     onDraftChange({
       servicesIncluded,
       priceBreakdown: isSelected
-        ? draft.priceBreakdown.filter((row) => row.service !== label || row.price.trim() !== '')
-        : draft.priceBreakdown.some((row) => row.service === label)
+        ? draft.priceBreakdown.map((row) => row.service === label ? createEmptyPriceBreakdownRow() : row)
+          : existingRow >= 0
           ? draft.priceBreakdown
-          : [...draft.priceBreakdown, createEmptyPriceBreakdownRow(label, warehouseServiceUnit(key))],
+          : firstEmptyRow >= 0
+            ? draft.priceBreakdown.map((row, index) => index === firstEmptyRow ? { ...row, service: label, unit: warehouseServiceUnit(key) } : row)
+            : [...draft.priceBreakdown, createEmptyPriceBreakdownRow(label, warehouseServiceUnit(key))],
     });
+  };
+
+  const selectWarehouse = (warehouseId: string, createdWarehouse?: Record<string, unknown>) => {
+    const warehouse = createdWarehouse || warehouses.find((item) => String(item.id) === warehouseId);
+    const supported = warehouseServiceKeys(warehouse);
+    const servicesIncluded = draft.servicesIncluded.filter((key) => supported.has(key));
+    const missesRequestedServices = requestedServices.some((key) => !supported.has(key));
+    const priceBreakdown = draft.priceBreakdown.map((row) => {
+      const key = serviceKeyFromLabel(row.service);
+      return key && !supported.has(key) ? createEmptyPriceBreakdownRow() : row;
+    });
+
+    onDraftChange({
+      warehouseId,
+      servicesIncluded,
+      priceBreakdown,
+      ...(missesRequestedServices ? { canPerformAsRequired: false, capacityStatus: 'propose_changes' } : {}),
+    });
+  };
+
+  const updateBreakdownService = (index: number, key: string) => {
+    const previousKey = serviceKeyFromLabel(draft.priceBreakdown[index]?.service || '');
+    const nextItem = WAREHOUSE_SERVICE_ITEMS.find((item) => item.key === key);
+    const priceBreakdown = draft.priceBreakdown.map((row, rowIndex) => rowIndex === index
+      ? { ...row, service: nextItem?.label || '', unit: nextItem?.unit || '' }
+      : row);
+    let servicesIncluded = draft.servicesIncluded;
+
+    if (previousKey && !priceBreakdown.some((row, rowIndex) => rowIndex !== index && serviceKeyFromLabel(row.service) === previousKey)) {
+      servicesIncluded = servicesIncluded.filter((item) => item !== previousKey);
+    }
+    if (key && !servicesIncluded.includes(key)) servicesIncluded = [...servicesIncluded, key];
+    onDraftChange({ priceBreakdown, servicesIncluded });
   };
 
   const toggleCondition = (key: string) => {
@@ -328,41 +417,82 @@ export const WarehouseBidModal = ({
 
               <fieldset disabled={readOnly} className="m-0 flex min-w-0 flex-col gap-5 border-0 p-0 lg:h-full lg:min-h-0 lg:-mx-2 lg:mr-7 lg:overflow-y-auto lg:px-2 lg:py-7">
                 <Section index={1} title={u('Your commercial offer', 'Your commercial offer')}>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <label className="block"><FieldLabel required>{u('Total estimated price', 'Total estimated price')}</FieldLabel>
-                      <div className="relative">
-                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">{currencySymbol(draft.currency)}</span>
-                        <input type="number" step="0.01" value={draft.amount} onChange={(e) => onDraftChange({ amount: e.target.value })} className={cn(fieldInputClass, 'pl-9')} />
+                  <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+                    <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
+                      <label className="block"><FieldLabel required>{u('Total estimated price', 'Total estimated price')}</FieldLabel>
+                        <div className="relative">
+                          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">{currencySymbol(draft.currency)}</span>
+                          <input type="number" step="0.01" value={draft.amount} onChange={(e) => onDraftChange({ amount: e.target.value })} className={cn(fieldInputClass, 'pl-9')} />
+                        </div>
+                      </label>
+                      <label className="block"><FieldLabel required>{u('Currency', 'Currency')}</FieldLabel>
+                        <select value={draft.currency} onChange={(e) => onDraftChange({ currency: e.target.value })} className={cn(fieldInputClass, 'cursor-pointer')}>
+                          {CURRENCY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                        </select>
+                      </label>
+                      <label className="block"><FieldLabel required>{u('Payment terms', 'Payment terms')}</FieldLabel>
+                        <select value={draft.paymentTerms} onChange={(e) => onDraftChange({ paymentTerms: e.target.value })} className={cn(fieldInputClass, 'cursor-pointer')}>
+                          {PAYMENT_TERMS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{u(option.label, option.label)}</option>)}
+                        </select>
+                      </label>
+                      <label className="block"><FieldLabel required>{u('Offer valid until', 'Offer valid until')}</FieldLabel>
+                        <DateTimeField value={draft.validUntil} onChange={(value) => onDraftChange({ validUntil: value })} lang={lang} />
+                      </label>
+
+                      <div className="relative min-w-0 sm:col-span-2">
+                        <FieldLabel required>{u('Warehouse', 'Warehouse')}</FieldLabel>
+                        <button
+                          type="button"
+                          onClick={() => setAddWarehouseOpen(true)}
+                          aria-label={u('warehouses.create', 'Add Warehouse')}
+                          title={u('warehouses.create', 'Add Warehouse')}
+                          className="absolute -top-1 right-0 z-10 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-full bg-primary text-white shadow-sm transition-colors hover:bg-primary/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 disabled:cursor-default disabled:opacity-50"
+                        >
+                          <Plus className="h-3 w-3" strokeWidth={3} />
+                        </button>
+                        <select value={draft.warehouseId} onChange={(e) => selectWarehouse(e.target.value)} className={cn(fieldInputClass, 'cursor-pointer')}>
+                          <option value="">{warehouses.length ? u('Select a warehouse…', 'Select a warehouse…') : u('No warehouse profile yet', 'No warehouse profile yet')}</option>
+                          {warehouses.map((warehouse) => (
+                            <option key={String(warehouse.id)} value={String(warehouse.id)}>{warehouseLabel(warehouse)}</option>
+                          ))}
+                        </select>
                       </div>
-                    </label>
-                    <label className="block"><FieldLabel required>{u('Currency', 'Currency')}</FieldLabel>
-                      <select value={draft.currency} onChange={(e) => onDraftChange({ currency: e.target.value })} className={cn(fieldInputClass, 'cursor-pointer')}>
-                        {CURRENCY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                      </select>
-                    </label>
-                    <label className="block"><FieldLabel required>{u('Price basis', 'Price basis')}</FieldLabel>
-                      <select value={draft.priceBasis} onChange={(e) => onDraftChange({ priceBasis: e.target.value })} className={cn(fieldInputClass, 'cursor-pointer')}>
-                        {WAREHOUSE_PRICE_BASIS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{u(option.label, option.label)}</option>)}
-                      </select>
-                    </label>
-                    <label className="block"><FieldLabel required>{u('VAT', 'VAT')}</FieldLabel>
-                      <select value={draft.vat} onChange={(e) => onDraftChange({ vat: e.target.value })} className={cn(fieldInputClass, 'cursor-pointer')}>
-                        {WAREHOUSE_VAT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{u(option.label, option.label)}</option>)}
-                      </select>
-                    </label>
 
-                    <label className="block lg:col-start-1"><FieldLabel required>{u('Payment terms', 'Payment terms')}</FieldLabel>
-                      <select value={draft.paymentTerms} onChange={(e) => onDraftChange({ paymentTerms: e.target.value })} className={cn(fieldInputClass, 'cursor-pointer')}>
-                        {PAYMENT_TERMS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{u(option.label, option.label)}</option>)}
-                      </select>
-                    </label>
-                    <label className="block"><FieldLabel required>{u('Offer valid until', 'Offer valid until')}</FieldLabel>
-                      <DateTimeField value={draft.validUntil} onChange={(value) => onDraftChange({ validUntil: value })} lang={lang} />
-                    </label>
+                      <div className="min-w-0 sm:col-span-2">
+                        {selectedWarehouse ? (
+                          <div className="flex h-14 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 dark:border-slate-800 dark:bg-slate-900">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                              <WarehouseIcon className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-bold text-slate-800 dark:text-white">{[selectedWarehouse.city, selectedWarehouse.country_code].filter(Boolean).join(', ') || warehouseLabel(selectedWarehouse)}</p>
+                              <p className="truncate text-xs text-slate-500">{[
+                                Number(selectedWarehouse.total_capacity_pallets) > 0 ? `${Number(selectedWarehouse.total_capacity_pallets).toLocaleString()} ${u('pallets', 'pallets')}` : '',
+                                ...(Array.isArray(selectedWarehouse.storage_types) ? selectedWarehouse.storage_types.map(String) : []),
+                              ].filter(Boolean).join(' · ') || u('Details on the warehouse profile', 'Details on the warehouse profile')}</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex h-14 items-center rounded-xl border border-dashed border-slate-200 px-3 text-xs text-slate-500 dark:border-slate-800">
+                            {u('Select the facility where the goods will be stored.', 'Select the facility where the goods will be stored.')}
+                          </div>
+                        )}
+                      </div>
+                    </div>
 
-                    {/* The breakdown sits beside the terms rather than under them - it is the part a
-                        customer reads to understand how the quoted total will actually be billed. */}
-                    <div className="sm:col-span-2 lg:col-span-2 lg:col-start-3 lg:row-start-2">
+                    <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
+                      <label className="block"><FieldLabel required>{u('Price basis', 'Price basis')}</FieldLabel>
+                        <select value={draft.priceBasis} onChange={(e) => onDraftChange({ priceBasis: e.target.value })} className={cn(fieldInputClass, 'cursor-pointer')}>
+                          {WAREHOUSE_PRICE_BASIS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{u(option.label, option.label)}</option>)}
+                        </select>
+                      </label>
+                      <label className="block"><FieldLabel required>{u('VAT', 'VAT')}</FieldLabel>
+                        <select value={draft.vat} onChange={(e) => onDraftChange({ vat: e.target.value })} className={cn(fieldInputClass, 'cursor-pointer')}>
+                          {WAREHOUSE_VAT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{u(option.label, option.label)}</option>)}
+                        </select>
+                      </label>
+
+                      <div className="sm:col-span-2">
                       <FieldLabel>{u('Price breakdown', 'Price breakdown')}</FieldLabel>
                       <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
                         <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_90px_32px] items-center gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-900">
@@ -378,8 +508,30 @@ export const WarehouseBidModal = ({
                         )}
                         {draft.priceBreakdown.map((row, index) => (
                           <div key={index} className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_90px_32px] items-center gap-2 border-b border-slate-100 px-3 py-1.5 last:border-b-0 dark:border-slate-800/60">
-                            <input value={row.service} onChange={(e) => updateBreakdownRow(index, { service: e.target.value })} placeholder={u('Service', 'Service')} className="w-full min-w-0 bg-transparent py-1 text-sm font-semibold text-slate-800 outline-none dark:text-white" />
-                            <input value={row.unit} onChange={(e) => updateBreakdownRow(index, { unit: e.target.value })} placeholder={u('Unit', 'Unit')} className="w-full min-w-0 bg-transparent py-1 text-xs text-slate-500 outline-none" />
+                            <select
+                              value={serviceKeyFromLabel(row.service)}
+                              onChange={(event) => updateBreakdownService(index, event.target.value)}
+                              className="w-full min-w-0 cursor-pointer bg-transparent py-1 text-sm font-semibold text-slate-800 outline-none dark:text-white"
+                            >
+                              <option value="">{u('Service', 'Service')}</option>
+                              {WAREHOUSE_SERVICE_ITEMS.filter((item) => (selectedWarehouse && supportedServiceKeys.has(item.key)) || item.label === row.service).map((item) => (
+                                <option
+                                  key={item.key}
+                                  value={item.key}
+                                  disabled={draft.priceBreakdown.some((candidate, candidateIndex) => candidateIndex !== index && candidate.service === item.label)}
+                                >
+                                  {u(item.label, item.label)}
+                                </option>
+                              ))}
+                            </select>
+                            <select
+                              value={row.unit}
+                              onChange={(event) => updateBreakdownRow(index, { unit: event.target.value })}
+                              className="w-full min-w-0 cursor-pointer bg-transparent py-1 text-xs text-slate-500 outline-none dark:text-slate-300"
+                            >
+                              <option value="">{u('Unit', 'Unit')}</option>
+                              {WAREHOUSE_SERVICE_UNITS.map((unit) => <option key={unit} value={unit}>{u(unit, unit)}</option>)}
+                            </select>
                             <input type="number" step="0.01" value={row.price} onChange={(e) => updateBreakdownRow(index, { price: e.target.value })} placeholder="0.00" className="w-full min-w-0 bg-transparent py-1 text-right text-sm font-bold text-slate-800 outline-none dark:text-white" />
                             <button type="button" onClick={() => onDraftChange({ priceBreakdown: draft.priceBreakdown.filter((_, i) => i !== index) })} className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-red-500 disabled:cursor-default dark:hover:bg-slate-800">
                               <X className="h-3.5 w-3.5" />
@@ -394,6 +546,7 @@ export const WarehouseBidModal = ({
                       >
                         <Plus className="h-4 w-4" /> {u('Add another charge', 'Add another charge')}
                       </button>
+                    </div>
                     </div>
                   </div>
                 </Section>
@@ -447,22 +600,38 @@ export const WarehouseBidModal = ({
                   </div>
                 </Section>
 
-                <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)_minmax(0,1.1fr)]">
-                  <Section index={3} title={u('Services included in your offer', 'Services included in your offer')}>
+                <Section index={3} title={u('Services included in your offer', 'Services included in your offer')}>
+                  {!selectedWarehouse ? (
+                    <p className="rounded-xl border border-dashed border-slate-200 px-4 py-5 text-sm font-semibold text-slate-500 dark:border-slate-800">
+                      {u('Choose a warehouse to see its available services.', 'Choose a warehouse to see its available services.')}
+                    </p>
+                  ) : (
                     <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
                       <div className="space-y-2">
                         <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{u('Requested services', 'Requested services')}</p>
-                        {requestedServices.map((key) => (
-                          <label key={key} className="flex cursor-pointer items-center justify-between gap-2 text-sm has-[:disabled]:cursor-default">
-                            <span className="flex items-center gap-2">
-                              <Checkbox checked={draft.servicesIncluded.includes(key)} onChange={() => toggleService(key)} />
-                              <span className="font-semibold text-slate-700 dark:text-slate-200">{u(warehouseServiceLabel(key), warehouseServiceLabel(key))}</span>
-                            </span>
-                            <span className="shrink-0 rounded-md border border-primary/30 bg-primary/5 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-primary">
-                              {u('Requested', 'Requested')}
-                            </span>
-                          </label>
-                        ))}
+                        {requestedServices.map((key) => {
+                          const supported = supportedServiceKeys.has(key);
+                          return (
+                            <label key={key} className={cn('flex items-center justify-between gap-2 text-sm', supported ? 'cursor-pointer' : 'cursor-not-allowed')}>
+                              <span className="flex min-w-0 items-center gap-2">
+                                {supported ? (
+                                  <Checkbox checked={draft.servicesIncluded.includes(key)} onChange={() => toggleService(key)} />
+                                ) : (
+                                  <XCircle className="h-4 w-4 shrink-0 text-red-500" />
+                                )}
+                                <span className={cn('truncate font-semibold', supported ? 'text-slate-700 dark:text-slate-200' : 'text-red-500 line-through')}>
+                                  {u(warehouseServiceLabel(key), warehouseServiceLabel(key))}
+                                </span>
+                              </span>
+                              <span className={cn(
+                                'shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider',
+                                supported ? 'border border-primary/30 bg-primary/5 text-primary' : 'border border-red-200 bg-red-50 text-red-500 dark:border-red-900/50 dark:bg-red-950/30'
+                              )}>
+                                {supported ? u('Requested', 'Requested') : u('Not available', 'Not available')}
+                              </span>
+                            </label>
+                          );
+                        })}
                       </div>
                       <div className="space-y-2">
                         <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{u('Other available services', 'Other available services')}</p>
@@ -473,79 +642,15 @@ export const WarehouseBidModal = ({
                               <span className="text-slate-700 dark:text-slate-200">{u(item.label, item.label)}</span>
                             </label>
                           ))}
+                          {otherServices.length === 0 && <p className="text-xs text-slate-400">{u('No other services available.', 'No other services available.')}</p>}
                         </div>
                       </div>
                     </div>
-                  </Section>
-
-                  <Section index={4} title={u('Facility', 'Facility')}>
-                    <label className="block"><FieldLabel>{u('Warehouse', 'Warehouse')}</FieldLabel>
-                      <select value={draft.warehouseId} onChange={(e) => onDraftChange({ warehouseId: e.target.value })} className={cn(fieldInputClass, 'cursor-pointer')}>
-                        <option value="">{warehouses.length ? u('Select a warehouse…', 'Select a warehouse…') : u('No warehouse profile yet', 'No warehouse profile yet')}</option>
-                        {warehouses.map((warehouse) => (
-                          <option key={String(warehouse.id)} value={String(warehouse.id)}>{warehouseLabel(warehouse)}</option>
-                        ))}
-                      </select>
-                    </label>
-                    {selectedWarehouse ? (
-                      <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                          <WarehouseIcon className="h-4 w-4" />
-                        </div>
-                        <div className="min-w-0 space-y-1">
-                          <p className="truncate text-sm font-bold text-slate-800 dark:text-white">
-                            {[selectedWarehouse.city, selectedWarehouse.country_code].filter(Boolean).join(', ') || warehouseLabel(selectedWarehouse)}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            {[
-                              Number(selectedWarehouse.total_capacity_pallets) > 0
-                                ? `${Number(selectedWarehouse.total_capacity_pallets).toLocaleString()} ${u('pallets', 'pallets')}`
-                                : '',
-                              ...(Array.isArray(selectedWarehouse.storage_types) ? selectedWarehouse.storage_types.map(String) : []),
-                            ].filter(Boolean).join(' · ') || u('Details on the warehouse profile', 'Details on the warehouse profile')}
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="rounded-xl border border-dashed border-slate-200 p-3 text-xs text-slate-500 dark:border-slate-800">
-                        {u('Technical details stay on the warehouse profile - a bid only names the facility the goods would be stored in.', 'Technical details stay on the warehouse profile - a bid only names the facility the goods would be stored in.')}
-                      </p>
-                    )}
-                  </Section>
-
-                  <Section index={5} title={u('Additional charges', 'Additional charges')} hint={u('if applicable', 'if applicable')}>
-                    <datalist id="warehouse-charge-types">
-                      {WAREHOUSE_CHARGE_TYPE_OPTIONS.map((option) => <option key={option} value={u(option, option)} />)}
-                    </datalist>
-                    <div className="space-y-2">
-                      {draft.additionalCharges.map((row, index) => (
-                        <div key={index} className="grid grid-cols-[minmax(0,1.3fr)_80px_minmax(0,1fr)_32px] items-center gap-2">
-                          <input list="warehouse-charge-types" placeholder={u('Charge', 'Charge')} value={row.type} onChange={(e) => updateChargeRow(index, { type: e.target.value })} className={cn(fieldInputClass, 'min-w-0')} />
-                          <input type="number" step="0.01" placeholder={u('Price', 'Price')} value={row.rate} onChange={(e) => updateChargeRow(index, { rate: e.target.value })} className={cn(fieldInputClass, 'min-w-0')} />
-                          <input placeholder={u('Unit', 'Unit')} value={row.unit} onChange={(e) => updateChargeRow(index, { unit: e.target.value })} className={cn(fieldInputClass, 'min-w-0')} />
-                          <button type="button" onClick={() => onDraftChange({ additionalCharges: draft.additionalCharges.filter((_, i) => i !== index) })} className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-red-500 disabled:cursor-default dark:hover:bg-slate-800">
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ))}
-                      {draft.additionalCharges.length === 0 && (
-                        <p className="rounded-xl border border-dashed border-slate-200 p-3 text-xs text-slate-500 dark:border-slate-800">
-                          {u('Anything billed on top of the rates above - inbound handling, picking, after-hours work.', 'Anything billed on top of the rates above - inbound handling, picking, after-hours work.')}
-                        </p>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => onDraftChange({ additionalCharges: [...draft.additionalCharges, createEmptyAdditionalCharge()] })}
-                        className="flex cursor-pointer items-center gap-1.5 text-sm font-bold text-primary disabled:cursor-default"
-                      >
-                        <Plus className="h-4 w-4" /> {u('Add another charge', 'Add another charge')}
-                      </button>
-                    </div>
-                  </Section>
-                </div>
+                  )}
+                </Section>
 
                 <div className="grid flex-1 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1.2fr)]">
-                  <Section index={6} title={u('Terms & notes', 'Terms & notes')} className="min-h-[190px]">
+                  <Section index={4} title={u('Terms & notes', 'Terms & notes')} className="min-h-[190px]">
                     <label className="flex flex-1 flex-col">
                       <FieldLabel>{u('Additional notes', 'Additional notes')}</FieldLabel>
                       <div className="relative flex-1">
@@ -610,6 +715,17 @@ export const WarehouseBidModal = ({
               )}
             </div>
           </div>
+
+          <AddWarehouseModal
+            open={addWarehouseOpen}
+            lang={lang}
+            onClose={() => setAddWarehouseOpen(false)}
+            onCreated={(warehouse) => {
+              setWarehouses((current) => [warehouse, ...current.filter((item) => String(item.id) !== String(warehouse.id))]);
+              selectWarehouse(String(warehouse.id), warehouse);
+              setAddWarehouseOpen(false);
+            }}
+          />
         </motion.div>
       )}
     </AnimatePresence>,

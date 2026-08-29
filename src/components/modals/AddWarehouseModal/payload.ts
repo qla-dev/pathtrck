@@ -1,4 +1,4 @@
-import { REQUIRED_DOCUMENTS, WarehouseDraft } from './types';
+import { HANDLING_CAPABILITY_OPTIONS, REQUIRED_DOCUMENTS, WarehouseDraft } from './types';
 
 const num = (value: string) => (value.trim() === '' ? 0 : Number(value.replace(/[^0-9.-]/g, '')) || 0);
 const text = (value: string) => (value.trim() === '' ? null : value.trim());
@@ -73,7 +73,11 @@ export const buildWarehousePayload = (draft: WarehouseDraft): Record<string, unk
     handheld_scanners: draft.handheldScanners,
     special_equipment_notes: text(draft.specialEquipmentNotes),
   },
-  handling_capabilities: draft.handlingCapabilities,
+  // The UI has one authoritative capability list. Populate the legacy granular column from that
+  // same selection so existing profile consumers continue to work without showing duplicate fields.
+  handling_capabilities: draft.capabilities.filter((capability) =>
+    HANDLING_CAPABILITY_OPTIONS.some((option) => option.id === capability)
+  ),
 
   operations: {
     operating_hours_template: draft.operatingHoursTemplate,

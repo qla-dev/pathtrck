@@ -5317,11 +5317,16 @@ const mapDatabaseRecordToLoad = (record: Record<string, unknown>): Load => {
   };
 };
 
-const getDefaultViewForRole = (role: Exclude<Role, null>) =>
+const getDefaultViewForRole = (
+  role: Exclude<Role, null>,
+  user?: ApiUser | null,
+) =>
   role === "driver"
     ? "feed"
     : role === "company"
-      ? "company"
+      ? user?.companies?.some((company) => Boolean(company.warehouse_first))
+        ? "warehouse-overview"
+        : "company"
       : role === "finance"
         ? "finance"
         : role === "warehouse"
@@ -5608,7 +5613,7 @@ export default function App() {
         const restoredRole = user.role.name;
         setCurrentUser(user);
         setRole(restoredRole);
-        setView(getDefaultViewForRole(restoredRole));
+        setView(getDefaultViewForRole(restoredRole, user));
         if (isSupportedLanguage(user.language)) setLang(user.language);
         setIsLanding(false);
       })
@@ -5939,9 +5944,27 @@ export default function App() {
         lang={lang}
         setLang={setLang}
         onComplete={(r, l) => {
-          setRole(r);
           setLang(l);
-          if (r) setView(getDefaultViewForRole(r));
+          if (!r) {
+            setRole(r);
+            return;
+          }
+
+          // A company can be warehouse-first, which is only known from /auth/me. Keep the app shell
+          // behind its loader until that record arrives so Company Overview never flashes first.
+          setIsAuthRestoring(true);
+          void api.auth.me()
+            .then((user) => {
+              const resolvedRole = user.role?.name || r;
+              setCurrentUser(user);
+              setRole(resolvedRole);
+              setView(getDefaultViewForRole(resolvedRole, user));
+            })
+            .catch(() => {
+              setRole(r);
+              setView(getDefaultViewForRole(r));
+            })
+            .finally(() => setIsAuthRestoring(false));
         }}
         onSwitchToSetup={() => setAuthMode("setup")}
         onClose={() => {
@@ -5959,6 +5982,13 @@ export default function App() {
   // the AI Stats screen (see the nav-items/view-render branches below). Kept as one flag so every
   // site that used to gate on 'superadmin' alone stays in sync.
   const isElevatedAdmin = role === "superadmin" || role === "master";
+  const warehouseFirst = Boolean(
+    currentUser?.companies?.some((company) =>
+      Boolean(company.warehouse_first),
+    ),
+  );
+  const isWarehouseCompany =
+    role === "warehouse" || (role === "company" && warehouseFirst);
   const roleMeta =
     role === "driver"
       ? {
@@ -5967,7 +5997,14 @@ export default function App() {
           icon: Truck,
           tone: "bg-primary/10 text-primary",
         }
-      : role === "company"
+      : isWarehouseCompany
+        ? {
+            label: u("common.warehouseCompany", "Warehouse Company"),
+            status: u("common.admin", "Admin"),
+            icon: Warehouse,
+            tone: "bg-orange-500/10 text-orange-600 dark:text-orange-400",
+          }
+        : role === "company"
         ? {
             label: u("common.logisticsCompany", "Logistics Company"),
             status: u("common.admin", "Admin"),
@@ -5984,14 +6021,7 @@ export default function App() {
               icon: Banknote,
               tone: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
             }
-          : role === "warehouse"
-            ? {
-                label: u("common.warehouseCompany", "Warehouse Company"),
-                status: u("common.admin", "Admin"),
-                icon: Warehouse,
-                tone: "bg-orange-500/10 text-orange-600 dark:text-orange-400",
-              }
-            : isElevatedAdmin
+          : isElevatedAdmin
               ? {
                   label:
                     role === "master"
@@ -6565,11 +6595,31 @@ export default function App() {
       ? [{ id: "finance", label: u("nav.finance", "Finance"), icon: Banknote }]
       : role === "company"
         ? [
-            {
-              id: "company",
-              label: u("nav.companyOverview", "Company Overview"),
-              icon: Building2,
-            },
+            ...(warehouseFirst
+              ? [
+                  {
+                    id: "warehouse-overview",
+                    label: u("nav.myWarehouse", "My Warehouse"),
+                    icon: Warehouse,
+                  },
+                  {
+                    id: "company",
+                    label: u("nav.companyOverview", "Company Overview"),
+                    icon: Building2,
+                  },
+                ]
+              : [
+                  {
+                    id: "company",
+                    label: u("nav.companyOverview", "Company Overview"),
+                    icon: Building2,
+                  },
+                  {
+                    id: "warehouse-overview",
+                    label: u("nav.myWarehouse", "My Warehouse"),
+                    icon: Warehouse,
+                  },
+                ]),
             { id: "feed", label: t.homeFeed, icon: Boxes },
             {
               id: "tracking",
@@ -6595,6 +6645,11 @@ export default function App() {
                 id: "warehouse-overview",
                 label: u("nav.myWarehouse", "Moj Warehouse"),
                 icon: Warehouse,
+              },
+              {
+                id: "company",
+                label: u("nav.companyOverview", "Company Overview"),
+                icon: Building2,
               },
               { id: "feed", label: t.homeFeed, icon: Boxes },
               {
@@ -6638,6 +6693,15 @@ export default function App() {
             ];
   const navItems = [
     ...roleNavItems,
+    ...(roleNavItems.some((item) => item.id === "admin-customers")
+      ? []
+      : [
+          {
+            id: "admin-customers",
+            label: u("nav.allCustomers", "Customers"),
+            icon: UserRound,
+          },
+        ]),
     {
       id: "tariffs-hs",
       label: u("nav.tariffsHs", "Tariffs & HS"),
@@ -6770,10 +6834,21 @@ export default function App() {
             </span>
           </div>
           <div className="flex items-center gap-4">
-            {role === "user" ||
-            role === "driver" ||
-            role === "company" ||
-            isElevatedAdmin ? (
+            {isWarehouseCompany ? (
+              <button
+                onClick={() => {
+                  setView("warehouse-overview");
+                  setWarehouseCreateSignal((current) => current + 1);
+                }}
+                className="h-10 px-4 rounded-full bg-primary text-white inline-flex items-center gap-2 text-xs font-bold hover:scale-[1.02] transition-all cursor-pointer whitespace-nowrap"
+              >
+                <Plus className="w-4 h-4" />
+                <span>{u("warehouses.create", "Add Warehouse")}</span>
+              </button>
+            ) : role === "user" ||
+              role === "driver" ||
+              role === "company" ||
+              isElevatedAdmin ? (
               <button
                 onClick={() => {
                   setLenaLoadPrefill(null);
@@ -6786,17 +6861,6 @@ export default function App() {
               >
                 <Plus className="w-4 h-4" />
                 <span>{u("common.postLoad", "Post Load")}</span>
-              </button>
-            ) : role === "warehouse" ? (
-              <button
-                onClick={() => {
-                  setView("warehouse-overview");
-                  setWarehouseCreateSignal((current) => current + 1);
-                }}
-                className="h-10 px-4 rounded-full bg-primary text-white inline-flex items-center gap-2 text-xs font-bold hover:scale-[1.02] transition-all cursor-pointer whitespace-nowrap"
-              >
-                <Plus className="w-4 h-4" />
-                <span>{u("warehouses.create", "Create Warehouse")}</span>
               </button>
             ) : null}
 

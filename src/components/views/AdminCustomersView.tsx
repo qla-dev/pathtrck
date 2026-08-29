@@ -9,7 +9,8 @@ import {
   UsersRound,
 } from "lucide-react";
 import { ApiError, api } from "../../services/api";
-import { Language, Role } from "../../types";
+import { Language, Role, type UserSubscription } from "../../types";
+import { ui } from "../../i18n";
 import { AdminField, AdminFormModal, adminFieldClass } from "./AdminFormModal";
 import { useApiList } from "../../hooks/useApiList";
 import { Button } from "../ui/Button";
@@ -18,6 +19,7 @@ import { Card } from "../ui/Card";
 import { ServerDataTable, ServerDataTableColumn } from "../ui/ServerDataTable";
 import { confirmAction, showSuccess } from "../../lib/swal";
 import { ProfileModal } from "./ProfileModal";
+import { AdminSubscriptionButton, AdminSubscriptionModal, LenaTokenCount, type AdminSubscriptionTarget } from "./AdminSubscriptionModal";
 
 const initial = {
   name: "",
@@ -30,7 +32,7 @@ const initial = {
 };
 
 export const AdminCustomersView = ({
-  lang: _lang,
+  lang,
   role,
   onOpenEmailStudio,
 }: {
@@ -38,6 +40,8 @@ export const AdminCustomersView = ({
   role: Role;
   onOpenEmailStudio?: () => void;
 }) => {
+  const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  const canManage = role === "superadmin" || role === "master";
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(initial);
   const [submitting, setSubmitting] = useState(false);
@@ -46,6 +50,7 @@ export const AdminCustomersView = ({
   const [selected, setSelected] = useState<Record<string, unknown> | null>(
     null,
   );
+  const [subscriptionTarget, setSubscriptionTarget] = useState<AdminSubscriptionTarget | null>(null);
   const customers = useApiList(api.customers.list, { limit: 500, pageno: 1 });
   const columns = useMemo<ServerDataTableColumn<Record<string, unknown>>[]>(
     () => [
@@ -94,6 +99,18 @@ export const AdminCustomersView = ({
         ),
         exportValue: (row) => Number(row.rating || row.average_rating || 0).toFixed(1),
       },
+      ...(canManage ? [{
+        key: "lena_ai",
+        header: "LenaAI",
+        render: (row) => {
+          const user = (row.user || {}) as Record<string, unknown>;
+          return <LenaTokenCount subscription={(user.subscription || null) as UserSubscription | null} />;
+        },
+        exportValue: (row) => {
+          const user = (row.user || {}) as Record<string, unknown>;
+          return Number(((user.subscription || null) as UserSubscription | null)?.remaining_tokens || 0);
+        },
+      } satisfies ServerDataTableColumn<Record<string, unknown>>] : []),
       {
         key: "joined",
         header: "Joined",
@@ -121,19 +138,19 @@ export const AdminCustomersView = ({
         header: "Actions",
         className: "text-right",
         exportable: false,
-        render: (row) => (
-          <button
-            type="button"
-            onClick={() => setSelected(row)}
-            aria-label="Open customer profile"
-            className="cursor-pointer rounded-lg bg-slate-100 p-2 transition hover:text-primary dark:bg-slate-800"
-          >
-            <Eye className="h-4 w-4" />
-          </button>
-        ),
+        render: (row) => {
+          const user = (row.user || {}) as Record<string, unknown>;
+          const userId = Number(row.user_id || user.id || 0);
+          return (
+            <div className="flex items-center justify-end gap-2">
+              {canManage && <AdminSubscriptionButton disabled={!userId} label={u('adminSubscription.shortAction', 'Sub')} ariaLabel={userId ? `${u('adminSubscription.open', 'Edit subscription')}: ${String(row.name || row.company_name || '')}` : u('adminSubscription.noAccount', 'No user account available')} onClick={() => userId && setSubscriptionTarget({ userId, name: String(row.name || row.company_name || user.name || ''), subscription: (user.subscription || null) as UserSubscription | null })} />}
+              <button type="button" onClick={() => setSelected(row)} aria-label="Open customer profile" className="cursor-pointer rounded-lg bg-slate-100 p-2 transition hover:text-primary dark:bg-slate-800"><Eye className="h-4 w-4" /></button>
+            </div>
+          );
+        },
       },
     ],
-    [],
+    [canManage, lang],
   );
   const field = (key: keyof typeof form, value: string) =>
     setForm((current) => ({ ...current, [key]: value }));
@@ -182,7 +199,7 @@ export const AdminCustomersView = ({
           icon={UserRound}
           title="Customers"
           subtitle="Manage customer accounts, access, load activity and contact information."
-          actions={
+          actions={canManage ? (
             <>
               <Button variant="outline" onClick={onOpenEmailStudio}>
                 <Mail className="mr-2 h-4 w-4" />
@@ -190,7 +207,7 @@ export const AdminCustomersView = ({
               </Button>
               <Button onClick={() => setOpen(true)}>Add customer</Button>
             </>
-          }
+          ) : undefined}
           stats={[
             {
               label: "Total customers",
@@ -231,12 +248,23 @@ export const AdminCustomersView = ({
         kind="customer"
         record={selected}
         role={role}
-        lang={_lang}
+        lang={lang}
         onClose={() => setSelected(null)}
         onAuthorized={(customer) => {
           setSelected(customer);
           void customers.refresh();
           setTableRefreshKey((current) => current + 1);
+        }}
+      />
+      <AdminSubscriptionModal
+        open={subscriptionTarget !== null}
+        target={subscriptionTarget}
+        lang={lang}
+        onClose={() => setSubscriptionTarget(null)}
+        onSaved={() => {
+          void customers.refresh();
+          setTableRefreshKey((current) => current + 1);
+          void showSuccess(u('adminSubscription.updated', 'Subscription updated'), u('adminSubscription.updatedText', 'The package, expiration and LenaAI tokens were saved.'));
         }}
       />
       <AdminFormModal

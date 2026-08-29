@@ -12,6 +12,7 @@ import { GOOGLE_CLIENT_ID } from '../../lib/googleIdentity';
 import { APPLE_CLIENT_ID } from '../../lib/appleIdentity';
 import { GoogleSignInButton } from './GoogleSignInButton';
 import { AppleSignInButton } from './AppleSignInButton';
+import { AuthVisualPanel } from './AuthVisualPanel';
 
 type PendingSocialAuth = { provider: 'google' | 'apple'; token: string; email?: string; name?: string };
 
@@ -159,19 +160,23 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
 
   return (
     <motion.div
-      className="h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 flex justify-center items-start pt-6 p-4 pb-28 relative"
+      className="relative grid h-[100dvh] overflow-hidden bg-slate-50 dark:bg-slate-950 lg:grid-cols-2"
       initial={{ opacity: 0 }}
       animate={isSwitchingToSetup ? { opacity: 0 } : { opacity: 1 }}
       transition={{ duration: 0.28, ease: 'easeOut' }}
     >
+      <AuthVisualPanel
+        title={labels.logIn}
+        subtitle={u('login.signInDesc', 'Sign in and enter the app immediately.')}
+      />
       <motion.div
-        className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 h-80 w-[32rem] rounded-full bg-primary/15 blur-3xl"
+        className="pointer-events-none absolute right-0 top-0 h-80 w-[32rem] rounded-full bg-primary/15 blur-3xl lg:w-1/2"
         initial={{ opacity: 0, y: -60, scale: 0.9 }}
         animate={{ opacity: 1, y: -20, scale: 1 }}
         transition={{ duration: 0.55, ease: 'easeOut' }}
       />
       <motion.div
-        className="max-w-md w-full z-10"
+        className="z-10 col-start-1 row-start-1 flex h-full w-full items-start justify-center overflow-y-auto px-4 pb-28 pt-6 lg:col-start-2"
         initial={{ opacity: 0, y: 34, scale: 0.965, filter: 'blur(10px)' }}
         animate={
           isSwitchingToSetup
@@ -180,7 +185,7 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
         }
         transition={{ duration: 0.45, ease: [0.2, 0.8, 0.2, 1] }}
       >
-        <Card className="w-full">
+        <Card className="w-full max-w-md">
           <div className="flex flex-col gap-6">
             <div className="flex flex-col items-center gap-4 text-center">
               <User className="w-12 h-12 text-primary" />
@@ -242,7 +247,7 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
 
               {pendingSocialAuth && (
                 <div className="grid grid-cols-2 gap-4">
-                  {roleOptions.filter((option) => option.id !== 'superadmin').map((option) => {
+                  {roleOptions.filter((option) => option.id !== 'superadmin' && option.id !== 'warehouse').map((option) => {
                     const Icon = option.icon;
                     const selected = loginData.role === option.id;
                     return (
@@ -268,7 +273,7 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
       </motion.div>
 
       <motion.div
-        className="hidden sm:flex fixed bottom-4 left-4 z-30 flex-col gap-2 w-44"
+        className="absolute bottom-3 right-[calc(50%+0.75rem)] z-30 hidden w-44 flex-col gap-2 lg:flex"
         initial={{ opacity: 0, x: -16 }}
         animate={isSwitchingToSetup ? { opacity: 0, x: -16 } : { opacity: 1, x: 0 }}
         transition={{ duration: 0.35, delay: 0.15 }}
@@ -307,7 +312,7 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
       </motion.button>
 
       <motion.div
-        className="pointer-events-none fixed bottom-0 left-0 right-0 z-[140] px-4 pb-4"
+        className="pointer-events-none fixed bottom-0 left-0 right-0 z-[140] px-4 pb-4 lg:left-1/2"
         initial={{ opacity: 0, y: 22 }}
         animate={isSwitchingToSetup ? { opacity: 0, y: 18 } : { opacity: 1, y: 0 }}
         transition={{ duration: 0.32, delay: 0.1 }}

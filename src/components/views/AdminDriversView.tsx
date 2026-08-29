@@ -12,7 +12,8 @@ import {
   UsersRound,
 } from "lucide-react";
 import { ApiError, api } from "../../services/api";
-import { Language, Role } from "../../types";
+import { Language, Role, type UserSubscription } from "../../types";
+import { ui } from "../../i18n";
 import { AdminField, AdminFormModal, adminFieldClass } from "./AdminFormModal";
 import { useApiList } from "../../hooks/useApiList";
 import { Button } from "../ui/Button";
@@ -22,6 +23,7 @@ import { confirmAction, showError, showSuccess } from "../../lib/swal";
 import { ProfileModal } from "./ProfileModal";
 import { ServerDataTable, type ServerDataTableColumn } from "../ui/ServerDataTable";
 import { IconSelect } from "../ui/IconSelect";
+import { AdminSubscriptionButton, AdminSubscriptionModal, LenaTokenCount, type AdminSubscriptionTarget } from "./AdminSubscriptionModal";
 
 type DriverStatus = "available" | "on_load" | "off_duty" | "unavailable";
 
@@ -41,6 +43,8 @@ const initial = {
 };
 
 export const AdminDriversView = ({ lang, role }: { lang: Language; role: Role }) => {
+  const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  const canManageSubscriptions = role === "superadmin" || role === "master";
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(initial);
   const [companies, setCompanies] = useState<Record<string, unknown>[]>([]);
@@ -49,6 +53,7 @@ export const AdminDriversView = ({ lang, role }: { lang: Language; role: Role })
   const [tableRefreshKey, setTableRefreshKey] = useState(0);
   const [statusSavingId, setStatusSavingId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
+  const [subscriptionTarget, setSubscriptionTarget] = useState<AdminSubscriptionTarget | null>(null);
   const drivers = useApiList(api.drivers.list, { per_page: 100 });
   const field = (key: keyof typeof form, value: string) =>
     setForm((current) => ({ ...current, [key]: value }));
@@ -85,10 +90,11 @@ export const AdminDriversView = ({ lang, role }: { lang: Language; role: Role })
     { key: "license", header: "License", render: (row) => `${String(row.license_number || "—")} · ${String(row.license_country_code || "")}` },
     { key: "location", header: "Location", render: (row) => { const user = (row.user || {}) as Record<string, unknown>; const vehicles = Array.isArray(user.assigned_vehicles) ? user.assigned_vehicles as Array<Record<string, unknown>> : []; const location = (vehicles[0]?.locations as Array<Record<string, unknown>> | undefined)?.[0]?.location_name; return <span className="flex items-center gap-1 text-sm text-slate-500"><MapPin className="h-4 w-4" />{String(location || "—")}</span>; } },
     { key: "rating", header: "Rating", render: (row) => <span className="flex items-center gap-1 font-bold"><Star className="h-4 w-4 fill-amber-400 text-amber-400" />{String(row.rating || 0)}</span> },
+    ...(canManageSubscriptions ? [{ key: "lena_ai", header: "LenaAI", render: (row) => { const user = (row.user || {}) as Record<string, unknown>; return <LenaTokenCount subscription={(user.subscription || null) as UserSubscription | null} />; }, exportValue: (row) => { const user = (row.user || {}) as Record<string, unknown>; return Number(((user.subscription || null) as UserSubscription | null)?.remaining_tokens || 0); } } satisfies ServerDataTableColumn<Record<string, unknown>>] : []),
     { key: "trips", header: "Trips", render: (row) => <span className="flex items-center gap-1"><Truck className="h-4 w-4 text-primary" />{String(row.completed_trips || 0)}</span> },
     { key: "state", header: "State", render: (row) => { const status = String(row.availability_status || "available") as DriverStatus; const saving = statusSavingId === String(row.id); return <div className="relative w-40">{saving && <Loader2 className="pointer-events-none absolute left-3 top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-primary" />}<IconSelect value={status} disabled={saving} onChange={(next) => void updateStatus(row, next as DriverStatus)} placeholder="State" ariaLabel={`Change availability for ${String(row.name || "driver")}`} icon={CircleCheckBig} className={saving ? "[&_button]:pl-9" : undefined} options={[{ value: "available", label: "Available", icon: CircleCheckBig }, { value: "on_load", label: "On load", icon: Truck }, { value: "off_duty", label: "Off duty", icon: Clock3 }, { value: "unavailable", label: "Unavailable", icon: Ban }]} /></div>; } },
-    { key: "actions", header: "", className: "text-right", exportable: false, render: (row) => <button type="button" aria-label="Open driver profile" onClick={() => setSelected(row)} className="cursor-pointer rounded-lg bg-slate-100 p-2 transition hover:text-primary dark:bg-slate-800"><Eye className="h-4 w-4" /></button> },
-  ], [statusSavingId]);
+    { key: "actions", header: "", className: "text-right", exportable: false, render: (row) => { const user = (row.user || {}) as Record<string, unknown>; const userId = Number(row.user_id || user.id || 0); return <div className="flex items-center justify-end gap-2">{canManageSubscriptions && <AdminSubscriptionButton disabled={!userId} label={u('adminSubscription.shortAction', 'Sub')} ariaLabel={userId ? `${u('adminSubscription.open', 'Edit subscription')}: ${String(row.name || user.name || '')}` : u('adminSubscription.noAccount', 'No user account available')} onClick={() => userId && setSubscriptionTarget({ userId, name: String(row.name || user.name || ''), subscription: (user.subscription || null) as UserSubscription | null })} />}<button type="button" aria-label="Open driver profile" onClick={() => setSelected(row)} className="cursor-pointer rounded-lg bg-slate-100 p-2 transition hover:text-primary dark:bg-slate-800"><Eye className="h-4 w-4" /></button></div>; } },
+  ], [canManageSubscriptions, statusSavingId, lang]);
 
   const save = async () => {
     const confirmed = await confirmAction({
@@ -165,6 +171,7 @@ export const AdminDriversView = ({ lang, role }: { lang: Language; role: Role })
         <Card className="shadow-none" contentClassName="p-0"><ServerDataTable edgeToEdge title="Drivers" request={api.drivers.list} columns={columns} refreshKey={tableRefreshKey} initialPageSize={50} emptyMessage="No drivers found." /></Card>
       </div>
       <ProfileModal open={selected !== null} kind="driver" record={selected} role={role} lang={lang} onClose={() => setSelected(null)} />
+      <AdminSubscriptionModal open={subscriptionTarget !== null} target={subscriptionTarget} lang={lang} onClose={() => setSubscriptionTarget(null)} onSaved={() => { void drivers.refresh(); setTableRefreshKey((current) => current + 1); void showSuccess(u('adminSubscription.updated', 'Subscription updated'), u('adminSubscription.updatedText', 'The package, expiration and LenaAI tokens were saved.')); }} />
       <AdminFormModal
         open={open}
         title="Add driver"

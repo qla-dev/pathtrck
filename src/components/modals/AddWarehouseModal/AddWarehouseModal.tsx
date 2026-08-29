@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   Award,
@@ -74,7 +74,6 @@ import {
   CONTACT_METHOD_OPTIONS,
   CYCLE_COUNTING_OPTIONS,
   DEPARTMENT_OPTIONS,
-  HANDLING_CAPABILITY_OPTIONS,
   INVENTORY_TRACKING_OPTIONS,
   LICENSE_TYPE_OPTIONS,
   OPERATING_HOURS_TEMPLATES,
@@ -94,6 +93,7 @@ import {
   WORKING_DAY_OPTIONS,
   WarehouseDraft,
   createWarehouseDraft,
+  warehouseDraftFromRecord,
   type RequiredDocumentId,
 } from './types';
 
@@ -111,11 +111,13 @@ const CAPABILITY_ICONS: Record<string, LucideIcon> = {
   receiving: Package,
   cross_docking: Forklift,
   storage: WarehouseIcon,
-  value_added: Layers,
   picking: PackageCheck,
   returns: Recycle,
   packing: Container,
   temperature_controlled: Snowflake,
+  repacking: Package,
+  labeling: Hash,
+  kitting: Layers,
 };
 
 // Fields that block the Next button, per step.
@@ -140,11 +142,15 @@ export const AddWarehouseModal = ({
   lang,
   onClose,
   onCreated,
+  warehouse,
+  onUpdated,
 }: {
   open: boolean;
   lang: Language;
   onClose: () => void;
-  onCreated?: () => void;
+  onCreated?: (warehouse: Record<string, unknown>) => void;
+  warehouse?: Record<string, unknown> | null;
+  onUpdated?: (warehouse: Record<string, unknown>) => void;
 }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [step, setStep] = useState<StepId>('general');
@@ -155,9 +161,18 @@ export const AddWarehouseModal = ({
   const [error, setError] = useState('');
   const fileInputs = useRef<Partial<Record<RequiredDocumentId, HTMLInputElement | null>>>({});
 
+  useEffect(() => {
+    if (!open) return;
+    setDraft(warehouse ? warehouseDraftFromRecord(warehouse) : createWarehouseDraft());
+    setStep('general');
+    setVisited(['general']);
+    setInvalid(new Set());
+    setError('');
+  }, [open, warehouse]);
+
   const setField = <K extends keyof WarehouseDraft>(key: K, value: WarehouseDraft[K]) =>
     setDraft((current) => ({ ...current, [key]: value }));
-  const toggleIn = (key: 'capabilities' | 'handlingCapabilities' | 'standards' | 'workingDays', value: string) =>
+  const toggleIn = (key: 'capabilities' | 'standards' | 'workingDays', value: string) =>
     setDraft((current) => ({
       ...current,
       [key]: current[key].includes(value) ? current[key].filter((item) => item !== value) : [...current[key], value],
@@ -209,16 +224,6 @@ export const AddWarehouseModal = ({
   const capacityPallets = Number(draft.totalCapacityPallets.replace(/[^0-9]/g, '')) || 0;
   const thresholdPallets = (percent: string) => Math.round((capacityPallets * (Number(percent) || 0)) / 100);
 
-  // The summary tile shows the envelope of every configured zone, so it only reads as a range once
-  // at least one zone has both ends filled in.
-  const temperatureRange = useMemo(() => {
-    const parse = (value: string) => (value.trim() === '' ? null : Number(value));
-    const mins = draft.temperatureZones.map((zone) => parse(zone.rangeMin)).filter((value): value is number => value !== null && !Number.isNaN(value));
-    const maxs = draft.temperatureZones.map((zone) => parse(zone.rangeMax)).filter((value): value is number => value !== null && !Number.isNaN(value));
-    if (mins.length === 0 || maxs.length === 0) return null;
-    return `${Math.min(...mins)}°C to ${Math.max(...maxs)}°C`;
-  }, [draft.temperatureZones]);
-
   const submit = async () => {
     const missing = [...missingOn('general'), ...missingOn('capacity'), ...missingOn('operations')];
     if (missing.length > 0) {
@@ -243,8 +248,17 @@ export const AddWarehouseModal = ({
           // and the operator can re-upload it from the warehouse's document tab.
         }
       }
-      await api.warehouses.create(buildWarehousePayload({ ...draft, documents: uploaded }));
-      onCreated?.();
+      const payload = buildWarehousePayload({ ...draft, documents: uploaded });
+      let saved;
+      if (warehouse?.id != null) {
+        // Verification belongs to the admin workflow; profile editing must not rewrite it.
+        delete payload.status;
+        saved = await api.warehouses.update(String(warehouse.id), payload);
+        onUpdated?.(saved.data);
+      } else {
+        saved = await api.warehouses.create(payload);
+        onCreated?.(saved.data);
+      }
       setDraft(createWarehouseDraft());
       setStep('general');
       setVisited(['general']);
@@ -375,34 +389,6 @@ export const AddWarehouseModal = ({
         </SectionCard>
       </div>
 
-      <SectionCard
-        icon={ClipboardList}
-        title={`${u('addWarehouse.summary', 'Warehouse Summary')} (${u('addWarehouse.autoPreview', 'auto-preview')})`}
-        subtitle={u('addWarehouse.summarySub', 'Overview of key information (will be updated as you fill the form)')}
-        className="bg-slate-50/60 dark:bg-slate-900/60"
-      >
-        <div className="grid gap-2 grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
-          {[
-            { icon: WarehouseIcon, label: u('addWarehouse.warehouseType', 'Warehouse Type'), value: draft.warehouseType || u('addWarehouse.notSelected', 'Not selected'), hint: '', tone: 'bg-violet-500/10 text-violet-500' },
-            { icon: Boxes, label: u('addWarehouse.totalCapacity', 'Total Capacity'), value: String(capacityPallets), hint: u('addWarehouse.palletPositions', 'Pallet Positions'), tone: 'bg-sky-500/10 text-sky-500' },
-            { icon: Ruler, label: u('addWarehouse.storageArea', 'Storage Area'), value: `${draft.storageAreaSqm || 0} m²`, hint: u('addWarehouse.totalArea', 'Total Area'), tone: 'bg-emerald-500/10 text-emerald-500' },
-            { icon: Thermometer, label: u('addWarehouse.temperatureRange', 'Temperature Range'), value: temperatureRange ?? 'N/A', hint: temperatureRange ? '' : u('addWarehouse.notSpecified', 'Not specified'), tone: 'bg-amber-500/10 text-amber-500' },
-            { icon: Clock3, label: u('addWarehouse.operatingHours', 'Operating Hours'), value: draft.operatingHoursTemplate === 'Custom Schedule' ? u('addWarehouse.notSet', 'Not set') : draft.operatingHoursTemplate, hint: u('addWarehouse.setSchedule', 'Set schedule'), tone: 'bg-blue-500/10 text-blue-500' },
-            { icon: DoorOpen, label: u('addWarehouse.dockDoors', 'Dock Doors'), value: String(draft.dockDoors), hint: u('addWarehouse.doors', 'Doors'), tone: 'bg-rose-500/10 text-rose-500' },
-          ].map((tile) => (
-            <div key={tile.label} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-800 dark:bg-slate-950">
-              <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', tile.tone)}>
-                <tile.icon className="h-4 w-4" />
-              </span>
-              <span className="min-w-0">
-                <span className="block truncate text-[10px] font-semibold uppercase tracking-wide text-slate-400">{tile.label}</span>
-                <span className="block truncate text-xs font-black text-slate-800 dark:text-white">{tile.value}</span>
-                {tile.hint && <span className="block truncate text-[10px] text-slate-400">{tile.hint}</span>}
-              </span>
-            </div>
-          ))}
-        </div>
-      </SectionCard>
     </div>
   );
 
@@ -518,7 +504,7 @@ export const AddWarehouseModal = ({
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2">
-        <SectionCard icon={Package} title={u('addWarehouse.inventoryManagement', 'Inventory Management')} subtitle={u('addWarehouse.inventoryManagementSub', 'Configure inventory tracking and control settings.')}>
+        <SectionCard className="lg:col-span-2" icon={Package} title={u('addWarehouse.inventoryManagement', 'Inventory Management')} subtitle={u('addWarehouse.inventoryManagementSub', 'Configure inventory tracking and control settings.')}>
           <div className="grid gap-3 sm:grid-cols-3">
             <div>
               <Label>{u('addWarehouse.inventoryTracking', 'Inventory Tracking')}</Label>
@@ -575,34 +561,6 @@ export const AddWarehouseModal = ({
           </div>
         </SectionCard>
 
-        <SectionCard icon={Forklift} title={u('addWarehouse.handlingEquipmentTitle', 'Handling & Equipment')} subtitle={u('addWarehouse.handlingEquipmentSub', 'Define material handling equipment and capabilities.')}>
-          <div className="grid gap-4 lg:grid-cols-[3fr_2fr]">
-            <div>
-              <p className="mb-2 text-[11px] font-semibold text-slate-500">{u('addWarehouse.equipmentAvailable', 'Equipment Available')}</p>
-              <div className="space-y-2">
-                <CounterRow icon={Forklift} label={u('addWarehouse.forklifts', 'Forklifts')} value={draft.forklifts} onChange={(value) => setField('forklifts', value)} />
-                <CounterRow icon={Package} label={u('addWarehouse.palletJacks', 'Pallet Jacks')} value={draft.palletJacks} onChange={(value) => setField('palletJacks', value)} />
-                <CounterRow icon={Truck} label={u('addWarehouse.reachTrucks', 'Reach Trucks')} value={draft.reachTrucks} onChange={(value) => setField('reachTrucks', value)} />
-                <CounterRow icon={DoorOpen} label={u('addWarehouse.dockLevellers', 'Dock Levelers')} value={draft.dockLevellers} onChange={(value) => setField('dockLevellers', value)} />
-                <CounterRow icon={Layers} label={u('addWarehouse.conveyors', 'Conveyors')} value={draft.conveyors} onChange={(value) => setField('conveyors', value)} unit="lines" />
-                <CounterRow icon={DoorOpen} label={u('addWarehouse.dockDoors', 'Dock Doors')} value={draft.dockDoors} onChange={(value) => setField('dockDoors', value)} unit="doors" />
-              </div>
-            </div>
-            <div>
-              <p className="mb-2 text-[11px] font-semibold text-slate-500">{u('addWarehouse.handlingCapabilities', 'Handling Capabilities')}</p>
-              <div className="space-y-2">
-                {HANDLING_CAPABILITY_OPTIONS.map((option) => (
-                  <CheckBox
-                    key={option.id}
-                    label={option.label}
-                    checked={draft.handlingCapabilities.includes(option.id)}
-                    onChange={() => toggleIn('handlingCapabilities', option.id)}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        </SectionCard>
       </div>
     </div>
   );
@@ -610,7 +568,7 @@ export const AddWarehouseModal = ({
   const operationsStep = (
     <div className="space-y-3">
       <div className="grid gap-3 lg:grid-cols-2">
-        <SectionCard icon={Settings2} title={u('addWarehouse.operationalSettings', 'Operational Settings')} subtitle={u('addWarehouse.operationalSettingsSub', 'Define how the warehouse will operate.')}>
+        <SectionCard className="lg:order-3" icon={Settings2} title={u('addWarehouse.operationalSettings', 'Operational Settings')} subtitle={u('addWarehouse.operationalSettingsSub', 'Define how the warehouse will operate.')}>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <Label required>{u('addWarehouse.operatingHoursTemplate', 'Operating Hours Template')}</Label>
@@ -662,23 +620,22 @@ export const AddWarehouseModal = ({
           </div>
         </SectionCard>
 
-        <SectionCard icon={Forklift} title={u('addWarehouse.handlingEquipment', 'Handling Equipment')} subtitle={u('addWarehouse.handlingEquipmentAvailable', 'Equipment and resources available.')}>
+        <SectionCard className="lg:order-2" icon={Forklift} title={u('addWarehouse.handlingEquipment', 'Handling Equipment')} subtitle={u('addWarehouse.handlingEquipmentAvailable', 'Equipment and resources available.')}>
           <div className="space-y-2">
             <CounterRow icon={Forklift} label={u('addWarehouse.forklifts', 'Forklifts')} value={draft.forklifts} onChange={(value) => setField('forklifts', value)} />
             <CounterRow icon={Package} label={u('addWarehouse.palletJacks', 'Pallet Jacks')} value={draft.palletJacks} onChange={(value) => setField('palletJacks', value)} />
+            <CounterRow icon={Truck} label={u('addWarehouse.reachTrucks', 'Reach Trucks')} value={draft.reachTrucks} onChange={(value) => setField('reachTrucks', value)} />
             <CounterRow icon={DoorOpen} label={u('addWarehouse.dockLevellers', 'Dock Levelers')} value={draft.dockLevellers} onChange={(value) => setField('dockLevellers', value)} />
             <CounterRow icon={Layers} label={u('addWarehouse.conveyors', 'Conveyors')} value={draft.conveyors} onChange={(value) => setField('conveyors', value)} unit="lines" />
             <CounterRow icon={ScanLine} label={u('addWarehouse.handheldScanners', 'Handheld Scanners')} value={draft.handheldScanners} onChange={(value) => setField('handheldScanners', value)} />
+            <CounterRow icon={DoorOpen} label={u('addWarehouse.dockDoors', 'Dock Doors')} value={draft.dockDoors} onChange={(value) => setField('dockDoors', value)} unit="doors" />
           </div>
           <div className="mt-3">
             <Label>{u('addWarehouse.specialEquipment', 'Special Equipment / Notes')}</Label>
             <TextareaField value={draft.specialEquipmentNotes} onChange={(value) => setField('specialEquipmentNotes', value)} maxLength={300} rows={2} placeholder="Enter any special equipment or operational notes..." />
           </div>
         </SectionCard>
-      </div>
-
-      <div className="grid gap-3 lg:grid-cols-2">
-        <SectionCard icon={ShieldCheck} title={u('addWarehouse.warehouseCapabilities', 'Warehouse Capabilities')} subtitle={u('addWarehouse.warehouseCapabilitiesSub', 'Define the services and capabilities available at this warehouse.')}>
+        <SectionCard className="lg:order-1" icon={ShieldCheck} title={u('addWarehouse.warehouseCapabilities', 'Warehouse Capabilities')} subtitle={u('addWarehouse.warehouseCapabilitiesSub', 'Define the services and capabilities available at this warehouse.')}>
           <div className="grid gap-2 sm:grid-cols-2">
             {CAPABILITY_OPTIONS.map((option) => (
               <CapabilityCard
@@ -693,7 +650,7 @@ export const AddWarehouseModal = ({
           </div>
         </SectionCard>
 
-        <SectionCard icon={Cpu} title={u('addWarehouse.technology', 'Technology & Systems')} subtitle={u('addWarehouse.technologySub', 'Systems and software used in operations.')}>
+        <SectionCard className="lg:order-4" icon={Cpu} title={u('addWarehouse.technology', 'Technology & Systems')} subtitle={u('addWarehouse.technologySub', 'Systems and software used in operations.')}>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <Label>{u('addWarehouse.wmsSystem', 'WMS System')}</Label>
@@ -963,7 +920,9 @@ export const AddWarehouseModal = ({
                     <WarehouseIcon className="h-4 w-4" />
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate text-base font-black leading-tight text-slate-900 dark:text-white md:text-lg">{u('warehouses.create', 'Create Warehouse')}</p>
+                    <p className="truncate text-base font-black leading-tight text-slate-900 dark:text-white md:text-lg">
+                      {warehouse ? u('warehouses.editTitle', 'Edit Warehouse') : u('warehouses.create', 'Create Warehouse')}
+                    </p>
                     <p className="hidden truncate text-xs text-slate-500 sm:block">{u('addWarehouse.subtitle', 'Register a storage facility with its capacity, operations and compliance profile')}</p>
                   </div>
                 </div>
@@ -1046,7 +1005,9 @@ export const AddWarehouseModal = ({
                 <Button variant="ghost" className="h-10" onClick={onClose} disabled={submitting}>{u('common.cancel', 'Cancel')}</Button>
                 <Button className="h-10 gap-2" onClick={() => void submit()} disabled={submitting}>
                   {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  {submitting ? u('addWarehouse.creating', 'Creating...') : u('addWarehouse.save', 'Spasi')}
+                  {submitting
+                    ? u(warehouse ? 'warehouses.saving' : 'addWarehouse.creating', warehouse ? 'Saving...' : 'Creating...')
+                    : u(warehouse ? 'warehouses.saveChanges' : 'addWarehouse.save', warehouse ? 'Save changes' : 'Save')}
                 </Button>
               </div>
             </div>

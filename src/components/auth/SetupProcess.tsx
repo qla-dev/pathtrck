@@ -21,6 +21,7 @@ import { GOOGLE_CLIENT_ID } from '../../lib/googleIdentity';
 import { APPLE_CLIENT_ID } from '../../lib/appleIdentity';
 import { GoogleSignInButton } from './GoogleSignInButton';
 import { AppleSignInButton } from './AppleSignInButton';
+import { AuthVisualPanel } from './AuthVisualPanel';
 
 type SetupLabels = {
   username: string;
@@ -172,13 +173,17 @@ export const SetupProcess = ({ lang, labels, onComplete, onClose }: SetupProcess
 
   return (
     <motion.div
-      className="h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 flex justify-center items-start pt-6 p-4 pb-28 relative"
+      className="relative grid h-[100dvh] overflow-hidden bg-slate-50 dark:bg-slate-950 lg:grid-cols-2"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.28, ease: 'easeOut' }}
     >
+      <AuthVisualPanel
+        title={u('setup.getStartedTitle', 'Get started')}
+        subtitle={u('setup.getStartedDesc', 'Create your account and configure your Freightbook workspace.')}
+      />
       <motion.div
-        className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 h-80 w-[32rem] rounded-full bg-primary/15 blur-3xl"
+        className="pointer-events-none absolute right-0 top-0 h-80 w-[32rem] rounded-full bg-primary/15 blur-3xl lg:w-1/2"
         initial={{ opacity: 0, y: -60, scale: 0.9 }}
         animate={{ opacity: 1, y: -20, scale: 1 }}
         transition={{ duration: 0.55, ease: 'easeOut' }}
@@ -187,9 +192,9 @@ export const SetupProcess = ({ lang, labels, onComplete, onClose }: SetupProcess
         initial={{ opacity: 0, y: 34, scale: 0.965, filter: 'blur(10px)' }}
         animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
         transition={{ duration: 0.45, ease: [0.2, 0.8, 0.2, 1] }}
-        className="max-w-md w-full z-10"
+        className="z-10 col-start-1 row-start-1 flex h-full w-full items-start justify-center overflow-y-auto px-4 pb-28 pt-6 lg:col-start-2"
       >
-        <Card className="w-full">
+        <Card className="w-full max-w-md">
           <div>
             <AnimatePresence mode="wait" initial={false} custom={transitionDirection}>
               <motion.div
@@ -337,7 +342,7 @@ export const SetupProcess = ({ lang, labels, onComplete, onClose }: SetupProcess
       </motion.button>
 
       <motion.div
-        className="fixed bottom-0 left-0 right-0 z-[140] px-4 pb-4"
+        className="fixed bottom-0 left-0 right-0 z-[140] px-4 pb-4 lg:left-1/2"
         initial={{ opacity: 0, y: 22 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.32, delay: 0.1 }}

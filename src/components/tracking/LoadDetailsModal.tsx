@@ -16,6 +16,7 @@ import { TrackingShipmentDetails } from './TrackingShipmentDetails';
 import { LoadStatusPicker } from '../load/LoadStatusPicker';
 import { LenaAI } from '../lena/LenaAI';
 import { type LocationSearchResult } from '../../services/locationSearch';
+import { ReviewComposer } from '../reviews/ReviewComposer';
 
 type AmenityCategory = 'toll' | 'fuel' | 'rest' | 'parking';
 
@@ -918,26 +919,13 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
       )}
 
       {rightTab === 'review' && (
-        <Card title={u('Delivery Review', 'Delivery Review')}>
-          <div className="space-y-4">
-            <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4">
-              <p className="text-xs font-bold uppercase tracking-wider text-primary">
-                {u('Service Rating', 'Service Rating')}
-              </p>
-              <div className="flex items-center gap-1 mt-2 text-amber-500">
-                <Star className="w-4 h-4 fill-current" />
-                <Star className="w-4 h-4 fill-current" />
-                <Star className="w-4 h-4 fill-current" />
-                <Star className="w-4 h-4 fill-current" />
-                <Star className="w-4 h-4" />
-              </div>
-              <p className="text-sm mt-2 text-slate-600 dark:text-slate-300">
-                {u('Write a short comment about delivery speed and quality.', 'Write a short comment about delivery speed and quality.')}
-              </p>
-            </div>
-            <Button variant="outline">{u('Write Review', 'Write Review')}</Button>
-          </div>
-        </Card>
+        <ReviewComposer
+          mode="load"
+          targetId={selectedPackage.id}
+          targetName={selectedPackage.trackingNumber || selectedPackage.description || `Load #${selectedPackage.id}`}
+          viewerRole={role}
+          lang={lang}
+        />
       )}
     </TrackingItemDetails>
     <LenaAI

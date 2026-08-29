@@ -72,7 +72,7 @@ export type WarehouseDraft = {
   defaultUom: string;
   allowNegativeInventory: boolean;
 
-  // Equipment counts - shared by the Capacity and Operations steps
+  // Equipment counts - configured once in Operations
   forklifts: number;
   palletJacks: number;
   reachTrucks: number;
@@ -90,7 +90,6 @@ export type WarehouseDraft = {
   shippingCutoff: string;
   warehouseCalendar: string;
   capabilities: string[];
-  handlingCapabilities: string[];
   wmsSystem: string;
   tmsIntegration: string;
   barcodeSystem: string;
@@ -173,17 +172,19 @@ export const CAPABILITY_OPTIONS: Array<{ id: string; label: string; description:
   { id: 'receiving', label: 'Receiving', description: 'Accept incoming shipments and goods' },
   { id: 'cross_docking', label: 'Cross Docking', description: 'Transfer goods directly between vehicles' },
   { id: 'storage', label: 'Storage', description: 'Store inventory and goods' },
-  { id: 'value_added', label: 'Value Added Services', description: 'Kitting, labeling, assembly, etc.' },
   { id: 'picking', label: 'Picking', description: 'Pick and prepare orders' },
   { id: 'returns', label: 'Returns Processing', description: 'Process returns and reverse logistics' },
   { id: 'packing', label: 'Packing', description: 'Pack orders for shipping' },
   { id: 'temperature_controlled', label: 'Temperature Controlled', description: 'Temperature sensitive storage' },
+  { id: 'repacking', label: 'Repacking', description: 'Repack goods for storage or dispatch' },
+  { id: 'labeling', label: 'Labeling', description: 'Apply product, pallet or shipment labels' },
+  { id: 'kitting', label: 'Kitting / Assembly', description: 'Assemble multiple items into ready-to-ship sets' },
 ];
 
-// Capacity step - what the material handling team can physically do.
+// Kept as a compatibility map for the backend's legacy handling_capabilities column. The form
+// presents these services only once, together with every other warehouse capability.
 export const HANDLING_CAPABILITY_OPTIONS: Array<{ id: string; label: string }> = [
   { id: 'cross_docking', label: 'Cross Docking' },
-  { id: 'value_added', label: 'Value Added Services' },
   { id: 'repacking', label: 'Repacking' },
   { id: 'labeling', label: 'Labeling' },
   { id: 'kitting', label: 'Kitting / Assembly' },
@@ -261,7 +262,6 @@ export const createWarehouseDraft = (): WarehouseDraft => ({
   shippingCutoff: '18:00',
   warehouseCalendar: 'Select calendar',
   capabilities: ['receiving', 'storage', 'picking', 'packing'],
-  handlingCapabilities: [],
   wmsSystem: '',
   tmsIntegration: 'Select TMS (optional)',
   barcodeSystem: '1D & 2D Barcode',
@@ -291,3 +291,86 @@ export const createWarehouseDraft = (): WarehouseDraft => ({
   otherStandard: '',
   documentsNotes: '',
 });
+
+const objectValue = (value: unknown): Record<string, unknown> =>
+  value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+const listValue = (value: unknown): unknown[] => Array.isArray(value) ? value : [];
+const stringValue = (value: unknown, fallback = ''): string => value == null ? fallback : String(value);
+const numberValue = (value: unknown): number => Number(value) || 0;
+const phoneParts = (value: unknown): { dial: string; number: string } => {
+  const phone = stringValue(value).trim();
+  const match = phone.match(/^(\+\d{1,4})\s*(.*)$/);
+  return { dial: match?.[1] || '+387', number: match?.[2] || phone };
+};
+
+/** Hydrates the creation wizard from an API warehouse record for edit mode. */
+export const warehouseDraftFromRecord = (record: Record<string, unknown>): WarehouseDraft => {
+  const base = createWarehouseDraft();
+  const thresholds = objectValue(record.utilization_thresholds);
+  const storage = objectValue(record.storage_config);
+  const inventory = objectValue(record.inventory_settings);
+  const equipment = objectValue(record.equipment);
+  const operations = objectValue(record.operations);
+  const technology = objectValue(record.technology);
+  const compliance = objectValue(record.compliance);
+  const contactPhone = phoneParts(record.contact_phone);
+  const alternatePhone = phoneParts(record.contact_alternate_phone);
+  const managerPhone = phoneParts(record.manager_phone);
+  const zones = listValue(record.temperature_zones).map((value, index) => {
+    const zone = objectValue(value);
+    return {
+      id: `zone-${index}-${stringValue(zone.name, 'zone')}`,
+      name: stringValue(zone.name),
+      rangeMin: stringValue(zone.temperature_min),
+      rangeMax: stringValue(zone.temperature_max),
+      areaSqm: stringValue(zone.area_sqm),
+      isDefault: Boolean(zone.is_default),
+    };
+  });
+  const defaultZone = zones.find((zone) => zone.isDefault)?.id || zones[0]?.id || '';
+  const documentSlots = { ...base.documents };
+  listValue(record.documents).forEach((value) => {
+    const document = objectValue(value);
+    const slot = stringValue(document.slot) as RequiredDocumentId;
+    if (!(slot in documentSlots)) return;
+    documentSlots[slot] = {
+      file: null,
+      fileName: stringValue(document.file_name),
+      fileSize: numberValue(document.file_size),
+      documentId: document.document_id == null ? null : numberValue(document.document_id),
+      expiresOn: stringValue(document.expires_on),
+    };
+  });
+  const rawStatus = stringValue(record.status, 'active');
+
+  return {
+    ...base,
+    name: stringValue(record.name), code: stringValue(record.code), warehouseType: stringValue(record.warehouse_type),
+    status: rawStatus === 'pending' ? 'Pending' : rawStatus === 'inactive' ? 'Inactive' : rawStatus === 'under maintenance' ? 'Under Maintenance' : 'Active',
+    description: stringValue(record.description), addressLine1: stringValue(record.address), addressLine2: stringValue(record.address_line_2),
+    city: stringValue(record.city), stateProvince: stringValue(record.state_province), postalCode: stringValue(record.postal_code), countryCode: stringValue(record.country_code).toLowerCase(),
+    contactName: stringValue(record.contact_name), contactPhoneDial: contactPhone.dial, contactPhone: contactPhone.number,
+    contactEmail: stringValue(record.contact_email), alternatePhoneDial: alternatePhone.dial, alternatePhone: alternatePhone.number,
+    department: stringValue(record.department), preferredContactMethod: stringValue(record.preferred_contact_method, base.preferredContactMethod),
+    managerName: stringValue(record.manager_name), managerEmail: stringValue(record.manager_email), managerPhoneDial: managerPhone.dial, managerPhone: managerPhone.number,
+    totalCapacityPallets: stringValue(record.total_capacity_pallets), totalCapacityCbm: stringValue(record.total_capacity_cbm), storageAreaSqm: stringValue(record.storage_area_sqm),
+    thresholdWarning: stringValue(thresholds.warning_percent, base.thresholdWarning), thresholdHigh: stringValue(thresholds.high_percent, base.thresholdHigh), thresholdCritical: stringValue(thresholds.critical_percent, base.thresholdCritical),
+    storageType: stringValue(storage.storage_type, base.storageType), rackingSystem: stringValue(storage.racking_system, base.rackingSystem), maximumHeightM: stringValue(storage.maximum_height_m),
+    temperatureZones: zones.map(({ isDefault: _isDefault, ...zone }) => zone), defaultTemperatureZoneId: defaultZone,
+    inventoryTracking: stringValue(inventory.tracking, base.inventoryTracking), cycleCounting: stringValue(inventory.cycle_counting, base.cycleCounting),
+    replenishmentAlertPercent: stringValue(inventory.replenishment_alert_percent, base.replenishmentAlertPercent), pickingMethod: stringValue(inventory.picking_method, base.pickingMethod),
+    accuracyTargetPercent: stringValue(inventory.accuracy_target_percent, base.accuracyTargetPercent), overstockAlertPercent: stringValue(inventory.overstock_alert_percent, base.overstockAlertPercent),
+    defaultUom: stringValue(inventory.default_uom, base.defaultUom), allowNegativeInventory: Boolean(inventory.allow_negative_inventory),
+    forklifts: numberValue(equipment.forklifts), palletJacks: numberValue(equipment.pallet_jacks), reachTrucks: numberValue(equipment.reach_trucks), dockLevellers: numberValue(equipment.dock_levellers),
+    conveyors: numberValue(equipment.conveyors), handheldScanners: numberValue(equipment.handheld_scanners), dockDoors: numberValue(record.dock_doors), specialEquipmentNotes: stringValue(equipment.special_equipment_notes),
+    operatingHoursTemplate: stringValue(operations.operating_hours_template, base.operatingHoursTemplate), timeZone: stringValue(operations.time_zone, base.timeZone),
+    workingDays: listValue(operations.working_days).map(String), receivingCutoff: stringValue(operations.receiving_cutoff, base.receivingCutoff), shippingCutoff: stringValue(operations.shipping_cutoff, base.shippingCutoff),
+    warehouseCalendar: stringValue(operations.calendar, base.warehouseCalendar), capabilities: listValue(record.capabilities).map(String),
+    wmsSystem: stringValue(technology.wms_system), tmsIntegration: stringValue(technology.tms_integration, base.tmsIntegration), barcodeSystem: stringValue(technology.barcode_system, base.barcodeSystem), rfidCapability: stringValue(technology.rfid_capability, base.rfidCapability),
+    operationalNotes: stringValue(record.operational_notes), documents: documentSlots,
+    operatingLicenseType: stringValue(compliance.license_type, base.operatingLicenseType), operatingLicenseNumber: stringValue(compliance.license_number), issuingAuthority: stringValue(compliance.issuing_authority),
+    licenseIssuedDate: stringValue(compliance.issued_date), licenseExpiryDate: stringValue(compliance.expiry_date), customsBonded: Boolean(compliance.customs_bonded), bondedCode: stringValue(compliance.bonded_code),
+    hazmatPermit: Boolean(compliance.hazmat_permit), hazmatPermitNumber: stringValue(compliance.hazmat_permit_number), foodGradeCertified: Boolean(compliance.food_grade_certified), foodGradeCertNumber: stringValue(compliance.food_grade_certificate_number),
+    standards: listValue(record.standards).map(String), documentsNotes: stringValue(record.documents_notes),
+  };
+};
