@@ -13,10 +13,19 @@ export type ApiUser = {
   name: string;
   email: string;
   username: string;
+  phone?: string | null;
   language: string;
+  country_code?: string | null;
+  avatar_url?: string | null;
+  headline?: string | null;
+  bio?: string | null;
   is_active: boolean;
+  email_verified_at?: string | null;
+  last_login_at?: string | null;
+  created_at?: string | null;
   role?: { id: number; name: Exclude<Role, null>; label: string };
   companies?: Array<Record<string, unknown>>;
+  driver?: Record<string, unknown> | null;
 };
 
 export type ApiLoginResult = { token: string; token_type: 'Bearer'; user: ApiUser };

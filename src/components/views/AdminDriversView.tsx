@@ -1,13 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
-import { CircleCheckBig, MapPin, Search, Star, Truck, UserRoundSearch, UsersRound } from "lucide-react";
+import {
+  CircleCheckBig,
+  Eye,
+  MapPin,
+  Star,
+  Truck,
+  UserRoundSearch,
+  UsersRound,
+} from "lucide-react";
 import { ApiError, api } from "../../services/api";
-import { Language } from "../../types";
+import { Language, Role } from "../../types";
 import { AdminField, AdminFormModal, adminFieldClass } from "./AdminFormModal";
 import { useApiList } from "../../hooks/useApiList";
 import { Button } from "../ui/Button";
-import { PageHeader } from '../ui/PageHeader';
+import { PageHeader } from "../ui/PageHeader";
 import { Card } from "../ui/Card";
 import { confirmAction, showSuccess } from "../../lib/swal";
+import { ProfileModal } from "./ProfileModal";
+import { ServerDataTable, type ServerDataTableColumn } from "../ui/ServerDataTable";
 
 const initial = {
   name: "",
@@ -24,21 +34,15 @@ const initial = {
   availability_status: "available",
 };
 
-export const AdminDriversView = ({ lang: _lang }: { lang: Language }) => {
+export const AdminDriversView = ({ lang, role }: { lang: Language; role: Role }) => {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(initial);
   const [companies, setCompanies] = useState<Record<string, unknown>[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [query, setQuery] = useState("");
+  const [tableRefreshKey, setTableRefreshKey] = useState(0);
+  const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
   const drivers = useApiList(api.drivers.list, { per_page: 100 });
-  const visible = useMemo(
-    () =>
-      drivers.items.filter((row) =>
-        JSON.stringify(row).toLowerCase().includes(query.toLowerCase()),
-      ),
-    [drivers.items, query],
-  );
   const field = (key: keyof typeof form, value: string) =>
     setForm((current) => ({ ...current, [key]: value }));
 
@@ -49,6 +53,17 @@ export const AdminDriversView = ({ lang: _lang }: { lang: Language }) => {
         .then((response) => setCompanies(response.data))
         .catch(() => setCompanies([]));
   }, [open, companies.length]);
+
+  const columns = useMemo<ServerDataTableColumn<Record<string, unknown>>[]>(() => [
+    { key: "driver", header: "Driver", render: (row) => { const user = (row.user || {}) as Record<string, unknown>; return <><p className="font-bold dark:text-white">{String(row.name || user.name || "—")}</p><p className="text-xs text-slate-500">{String(row.email || user.email || "")}</p></>; } },
+    { key: "company", header: "Company", render: (row) => String(((row.primary_company || {}) as Record<string, unknown>).name || "Independent") },
+    { key: "license", header: "License", render: (row) => `${String(row.license_number || "—")} · ${String(row.license_country_code || "")}` },
+    { key: "location", header: "Location", render: (row) => { const user = (row.user || {}) as Record<string, unknown>; const vehicles = Array.isArray(user.assigned_vehicles) ? user.assigned_vehicles as Array<Record<string, unknown>> : []; const location = (vehicles[0]?.locations as Array<Record<string, unknown>> | undefined)?.[0]?.location_name; return <span className="flex items-center gap-1 text-sm text-slate-500"><MapPin className="h-4 w-4" />{String(location || "—")}</span>; } },
+    { key: "rating", header: "Rating", render: (row) => <span className="flex items-center gap-1 font-bold"><Star className="h-4 w-4 fill-amber-400 text-amber-400" />{String(row.rating || 0)}</span> },
+    { key: "trips", header: "Trips", render: (row) => <span className="flex items-center gap-1"><Truck className="h-4 w-4 text-primary" />{String(row.completed_trips || 0)}</span> },
+    { key: "state", header: "State", render: (row) => <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-bold text-primary">{String(row.availability_status || "—")}</span> },
+    { key: "actions", header: "", className: "text-right", exportable: false, render: (row) => <button type="button" aria-label="Open driver profile" onClick={() => setSelected(row)} className="cursor-pointer rounded-lg bg-slate-100 p-2 transition hover:text-primary dark:bg-slate-800"><Eye className="h-4 w-4" /></button> },
+  ], []);
 
   const save = async () => {
     const confirmed = await confirmAction({
@@ -66,6 +81,7 @@ export const AdminDriversView = ({ lang: _lang }: { lang: Language }) => {
       setOpen(false);
       setForm(initial);
       await drivers.refresh();
+      setTableRefreshKey((current) => current + 1);
       void showSuccess(
         "Driver created",
         form.password
@@ -97,103 +113,33 @@ export const AdminDriversView = ({ lang: _lang }: { lang: Language }) => {
           subtitle="Track drivers, companies, licenses, availability and completed trips."
           actions={<Button onClick={() => setOpen(true)}>Add driver</Button>}
           stats={[
-            { label: 'Verified drivers', value: drivers.total, icon: UsersRound, tone: 'bg-sky-500/10 text-sky-500' },
-            { label: 'Available', value: drivers.items.filter((row) => row.availability_status === 'available').length, icon: CircleCheckBig, tone: 'bg-emerald-500/10 text-emerald-500' },
-            { label: 'On load', value: drivers.items.filter((row) => row.availability_status === 'on_load').length, icon: Truck, tone: 'bg-sky-500/10 text-sky-500' },
+            {
+              label: "Verified drivers",
+              value: drivers.total,
+              icon: UsersRound,
+              tone: "bg-sky-500/10 text-sky-500",
+            },
+            {
+              label: "Available",
+              value: drivers.items.filter(
+                (row) => row.availability_status === "available",
+              ).length,
+              icon: CircleCheckBig,
+              tone: "bg-emerald-500/10 text-emerald-500",
+            },
+            {
+              label: "On load",
+              value: drivers.items.filter(
+                (row) => row.availability_status === "on_load",
+              ).length,
+              icon: Truck,
+              tone: "bg-sky-500/10 text-sky-500",
+            },
           ]}
         />
-        <Card className="shadow-none">
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search driver, company or license..."
-              className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-            />
-          </div>
-          <div className="mt-5 overflow-x-auto">
-            <table className="w-full min-w-[900px] text-left">
-              <thead>
-                <tr className="border-b border-slate-200 text-xs uppercase text-slate-500 dark:border-slate-800">
-                  <th className="p-3">Driver</th>
-                  <th className="p-3">Company</th>
-                  <th className="p-3">License</th>
-                  <th className="p-3">Location</th>
-                  <th className="p-3">Rating</th>
-                  <th className="p-3">Trips</th>
-                  <th className="p-3">State</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visible.map((row) => {
-                  const user = (row.user || {}) as Record<string, unknown>;
-                  const company = (row.primary_company || {}) as Record<
-                    string,
-                    unknown
-                  >;
-                  const vehicles = Array.isArray(
-                    (user as Record<string, unknown>).assigned_vehicles,
-                  )
-                    ? ((user as Record<string, unknown>)
-                        .assigned_vehicles as Array<Record<string, unknown>>)
-                    : [];
-                  return (
-                    <tr
-                      key={String(row.id)}
-                      className="border-b border-slate-100 dark:border-slate-800"
-                    >
-                      <td className="p-3">
-                        <p className="font-bold dark:text-white">
-                          {String(row.name || user.name || "—")}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {String(row.email || user.email || "")}
-                        </p>
-                      </td>
-                      <td className="p-3">
-                        {String(company.name || "Independent")}
-                      </td>
-                      <td className="p-3">
-                        {String(row.license_number || "—")} ·{" "}
-                        {String(row.license_country_code || "")}
-                      </td>
-                      <td className="p-3">
-                        <span className="flex items-center gap-1 text-sm text-slate-500">
-                          <MapPin className="h-4 w-4" />
-                          {String(
-                            (
-                              vehicles[0]?.locations as
-                                Array<Record<string, unknown>> | undefined
-                            )?.[0]?.location_name || "—",
-                          )}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        <span className="flex items-center gap-1 font-bold">
-                          <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-                          {String(row.rating || 0)}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        <span className="flex items-center gap-1">
-                          <Truck className="h-4 w-4 text-primary" />
-                          {String(row.completed_trips || 0)}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-bold text-primary">
-                          {String(row.availability_status || "—")}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+        <Card className="shadow-none"><ServerDataTable title="Drivers" request={api.drivers.list} columns={columns} refreshKey={tableRefreshKey} initialPageSize={50} emptyMessage="No drivers found." /></Card>
       </div>
+      <ProfileModal open={selected !== null} kind="driver" record={selected} role={role} lang={lang} onClose={() => setSelected(null)} />
       <AdminFormModal
         open={open}
         title="Add driver"

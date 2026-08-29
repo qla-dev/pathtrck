@@ -1,598 +1,1031 @@
-import { useEffect, useState, type ComponentType } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
-  Award,
+  Activity,
+  AtSign,
   BadgeCheck,
-  CheckCircle2,
-  Clock3,
-  MessageSquarePlus,
+  BriefcaseBusiness,
+  Building2,
+  CalendarDays,
+  Globe2,
+  Loader2,
+  Mail,
+  MapPin,
+  PackageCheck,
+  Pencil,
+  Phone,
+  Save,
   ShieldCheck,
-  Star,
   Truck,
-  UserCircle2,
-} from 'lucide-react';
-import { Language, Role } from '../../types';
-import { ui } from '../../i18n';
-import { Button } from '../ui/Button';
-import { PageHeader } from '../ui/PageHeader';
-import { ApiUser, api } from '../../services/api';
-import { useApiList } from '../../hooks/useApiList';
+  X,
+} from "lucide-react";
 
-type ProfileStat = {
-  label: string;
-  value: string;
-  meta: string;
-  icon: ComponentType<{ className?: string }>;
-  tone: string;
+import type { Language, Role } from "../../types";
+import { ApiUser, api } from "../../services/api";
+import { useApiList } from "../../hooks/useApiList";
+import { Button } from "../ui/Button";
+import { cn } from "../../lib/cn";
+
+type CompanyProfile = {
+  id: number;
+  owner_user_id?: number;
+  name?: string;
+  email?: string | null;
+  phone?: string | null;
+  tax_number?: string | null;
+  vat_number?: string | null;
+  registration_number?: string | null;
+  country_code?: string | null;
+  city?: string | null;
+  address?: string | null;
+  website?: string | null;
+  logo_url?: string | null;
+  description?: string | null;
+  status?: string | null;
+  verified_at?: string | null;
+  created_at?: string | null;
+  pivot?: { company_role?: string; status?: string };
 };
 
-type Achievement = {
-  title: string;
-  desc: string;
-  icon: ComponentType<{ className?: string }>;
+type ProfileForm = {
+  name: string;
+  email: string;
+  phone: string;
+  countryCode: string;
+  avatarUrl: string;
+  headline: string;
+  bio: string;
+  companyName: string;
+  companyEmail: string;
+  companyPhone: string;
+  companyCountryCode: string;
+  companyCity: string;
+  companyAddress: string;
+  companyWebsite: string;
+  companyLogoUrl: string;
+  companyDescription: string;
+  companyTaxNumber: string;
+  companyVatNumber: string;
+  companyRegistrationNumber: string;
 };
 
-type Feedback = {
-  by: string;
-  route: string;
-  text: string;
-  score: string;
-};
+const COPY = {
+  en: {
+    edit: "Edit profile",
+    cancel: "Cancel",
+    save: "Save changes",
+    saving: "Saving",
+    saved: "Profile saved",
+    companyProfile: "Company profile",
+    personalProfile: "Personal profile",
+    active: "Active",
+    locationMissing: "Add a location",
+    headlineMissing: "Add a professional headline",
+    about: "About",
+    aboutMissing:
+      "Add a short introduction so partners know who they are working with.",
+    account: "Account owner",
+    companyDetails: "Company details",
+    professionalDetails: "Professional details",
+    totalLoads: "Total loads",
+    activeLoads: "Active loads",
+    completedLoads: "Completed loads",
+    rating: "Rating",
+    completedTrips: "Completed trips",
+    memberSince: "Member since",
+    lastLogin: "Last login",
+    username: "Username",
+    role: "Role",
+    status: "Status",
+    fullName: "Full name",
+    email: "Email",
+    phone: "Phone",
+    country: "Country code",
+    avatar: "Avatar URL",
+    headline: "Headline",
+    bio: "About you",
+    companyName: "Company name",
+    website: "Website",
+    logo: "Logo URL",
+    city: "City",
+    address: "Address",
+    description: "Company description",
+    taxNumber: "Tax number",
+    vatNumber: "VAT number",
+    registrationNumber: "Registration number",
+    legalIdentity: "Legal identity",
+    noValue: "Not provided",
+    personalSection: "Personal account",
+    companySection: "Company identity",
+    editHint: "Changes are saved to your real account and company records.",
+    editRestricted:
+      "Only the company owner or an administrator can edit the company identity.",
+    loadError: "The profile could not be loaded.",
+    saveError: "The profile could not be saved.",
+  },
+  bs: {
+    edit: "Uredi profil",
+    cancel: "Odustani",
+    save: "Sačuvaj izmjene",
+    saving: "Čuvanje",
+    saved: "Profil je sačuvan",
+    companyProfile: "Profil kompanije",
+    personalProfile: "Lični profil",
+    active: "Aktivno",
+    locationMissing: "Dodajte lokaciju",
+    headlineMissing: "Dodajte profesionalni naslov",
+    about: "O nama",
+    aboutMissing: "Dodajte kratak opis kako bi partneri znali s kim sarađuju.",
+    account: "Vlasnik računa",
+    companyDetails: "Podaci kompanije",
+    professionalDetails: "Profesionalni podaci",
+    totalLoads: "Ukupno tereta",
+    activeLoads: "Aktivni tereti",
+    completedLoads: "Završeni tereti",
+    rating: "Ocjena",
+    completedTrips: "Završene vožnje",
+    memberSince: "Član od",
+    lastLogin: "Posljednja prijava",
+    username: "Korisničko ime",
+    role: "Uloga",
+    status: "Status",
+    fullName: "Ime i prezime",
+    email: "E-mail",
+    phone: "Telefon",
+    country: "Kod države",
+    avatar: "URL avatara",
+    headline: "Profesionalni naslov",
+    bio: "O vama",
+    companyName: "Naziv kompanije",
+    website: "Web-stranica",
+    logo: "URL logotipa",
+    city: "Grad",
+    address: "Adresa",
+    description: "Opis kompanije",
+    taxNumber: "Porezni broj",
+    vatNumber: "PDV broj",
+    registrationNumber: "Registracijski broj",
+    legalIdentity: "Pravni identitet",
+    noValue: "Nije uneseno",
+    personalSection: "Lični račun",
+    companySection: "Identitet kompanije",
+    editHint: "Izmjene se čuvaju u stvarnim podacima vašeg računa i kompanije.",
+    editRestricted:
+      "Samo vlasnik ili administrator može uređivati identitet kompanije.",
+    loadError: "Profil nije moguće učitati.",
+    saveError: "Profil nije moguće sačuvati.",
+  },
+  de: {
+    edit: "Profil bearbeiten",
+    cancel: "Abbrechen",
+    save: "Änderungen speichern",
+    saving: "Wird gespeichert",
+    saved: "Profil gespeichert",
+    companyProfile: "Unternehmensprofil",
+    personalProfile: "Persönliches Profil",
+    active: "Aktiv",
+    locationMissing: "Standort hinzufügen",
+    headlineMissing: "Berufliche Überschrift hinzufügen",
+    about: "Über uns",
+    aboutMissing:
+      "Fügen Sie eine kurze Einführung hinzu, damit Partner wissen, mit wem sie zusammenarbeiten.",
+    account: "Kontoinhaber",
+    companyDetails: "Unternehmensdaten",
+    professionalDetails: "Berufliche Angaben",
+    totalLoads: "Ladungen gesamt",
+    activeLoads: "Aktive Ladungen",
+    completedLoads: "Abgeschlossene Ladungen",
+    rating: "Bewertung",
+    completedTrips: "Abgeschlossene Fahrten",
+    memberSince: "Mitglied seit",
+    lastLogin: "Letzte Anmeldung",
+    username: "Benutzername",
+    role: "Rolle",
+    status: "Status",
+    fullName: "Vollständiger Name",
+    email: "E-Mail",
+    phone: "Telefon",
+    country: "Ländercode",
+    avatar: "Avatar-URL",
+    headline: "Überschrift",
+    bio: "Über Sie",
+    companyName: "Unternehmensname",
+    website: "Webseite",
+    logo: "Logo-URL",
+    city: "Stadt",
+    address: "Adresse",
+    description: "Unternehmensbeschreibung",
+    taxNumber: "Steuernummer",
+    vatNumber: "USt-IdNr.",
+    registrationNumber: "Registrierungsnummer",
+    legalIdentity: "Rechtliche Identität",
+    noValue: "Nicht angegeben",
+    personalSection: "Persönliches Konto",
+    companySection: "Unternehmensidentität",
+    editHint:
+      "Änderungen werden in Ihren echten Konto- und Unternehmensdaten gespeichert.",
+    editRestricted:
+      "Nur der Unternehmenseigentümer oder ein Administrator kann die Unternehmensidentität bearbeiten.",
+    loadError: "Das Profil konnte nicht geladen werden.",
+    saveError: "Das Profil konnte nicht gespeichert werden.",
+  },
+} as const;
 
-const getProfileContent = (lang: Language, role: Role) => {
-  const u = (key: string, fallback: string) => ui(lang, key, fallback);
+const value = (input: unknown) =>
+  typeof input === "string" || typeof input === "number" ? String(input) : "";
+const initials = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "FB";
 
-  if (role === 'driver') {
-    const stats: ProfileStat[] = [
-      {
-        label: u('legacy.profile.driver.stats.finished-routes.label', 'Finished Routes'),
-        value: '428',
-        meta: u('legacy.profile.driver.stats.finished-routes.meta', '+21 this month'),
-        icon: Truck,
-        tone: 'from-sky-500/15 to-sky-600/5 text-sky-500',
-      },
-      {
-        label: u('legacy.profile.driver.stats.satisfaction.label', 'Satisfaction'),
-        value: '4.9 / 5',
-        meta: u('legacy.profile.driver.stats.satisfaction.meta', '312 verified reviews'),
-        icon: Star,
-        tone: 'from-emerald-500/15 to-emerald-600/5 text-emerald-500',
-      },
-      {
-        label: u('legacy.profile.driver.stats.trust-level.label', 'Povjerljivost Lvl'),
-        value: 'Level 5',
-        meta: u('legacy.profile.driver.stats.trust-level.meta', 'Premium trusted driver'),
-        icon: ShieldCheck,
-        tone: 'from-violet-500/15 to-violet-600/5 text-violet-500',
-      },
-    ];
+export type ProfileRecordKind = "customer" | "company" | "warehouse" | "driver";
 
-    const achievements: Achievement[] = [
-      {
-        title: u('legacy.profile.driver.achievements.zero-claim-streak.title', 'Zero claim streak'),
-        desc: u('legacy.profile.driver.achievements.zero-claim-streak.desc', '120 days'),
-        icon: BadgeCheck,
-      },
-      {
-        title: u('legacy.profile.driver.achievements.on-time-champion.title', 'On-time champion'),
-        desc: u('legacy.profile.driver.achievements.on-time-champion.desc', '97.8% on-time delivery'),
-        icon: Clock3,
-      },
-      {
-        title: u('legacy.profile.driver.achievements.top-rated-partner.title', 'Top rated partner'),
-        desc: u('legacy.profile.driver.achievements.top-rated-partner.desc', '4.9 average score'),
-        icon: Award,
-      },
-      {
-        title: u('legacy.profile.driver.achievements.safe-route-master.title', 'Safe route master'),
-        desc: u('legacy.profile.driver.achievements.safe-route-master.desc', '0 critical incidents'),
-        icon: ShieldCheck,
-      },
-      {
-        title: u('legacy.profile.driver.achievements.fuel-saver-elite.title', 'Fuel saver elite'),
-        desc: u('legacy.profile.driver.achievements.fuel-saver-elite.desc', 'Top 10% efficiency'),
-        icon: Truck,
-      },
-      {
-        title: u('legacy.profile.driver.achievements.instant-responder.title', 'Instant responder'),
-        desc: u('legacy.profile.driver.achievements.instant-responder.desc', 'Under 3 min avg reply'),
-        icon: CheckCircle2,
-      },
-    ];
-
-    const feedback: Feedback[] = [
-      {
-        by: u('legacy.profile.driver.feedback.blue-line-logistics.by', 'BlueLine Logistics'),
-        route: 'Hamburg -> Sarajevo',
-        text: u('legacy.profile.driver.feedback.blue-line-logistics.text', 'Very proactive communication and precise ETA updates.'),
-        score: '5.0',
-      },
-      {
-        by: u('legacy.profile.driver.feedback.nord-cargo.by', 'Nord Cargo'),
-        route: 'Vienna -> Zagreb',
-        text: u('legacy.profile.driver.feedback.nord-cargo.text', 'Route handled without delays and with full proof of delivery.'),
-        score: '4.8',
-      },
-      {
-        by: u('legacy.profile.driver.feedback.alpine-freight.by', 'Alpine Freight'),
-        route: 'Munich -> Cologne',
-        text: u('legacy.profile.driver.feedback.alpine-freight.text', 'Fast loading and perfect handoff notes for every checkpoint.'),
-        score: '4.9',
-      },
-      {
-        by: u('legacy.profile.driver.feedback.delta-supply.by', 'Delta Supply'),
-        route: 'Berlin -> Vienna',
-        text: u('legacy.profile.driver.feedback.delta-supply.text', 'Driver kept all SLAs and delivered with full transparency.'),
-        score: '4.7',
-      },
-    ];
-
-    return {
-      title: u('legacy.profile.driver.title', 'Driver Profile'),
-      subtitle: u('legacy.profile.driver.subtitle', 'Your trust, reviews, and route performance in one place.'),
-      rolePill: u('legacy.profile.driver.role-pill', 'Verified Driver'),
-      stats,
-      achievements,
-      feedback,
-      metrics: [
-        { label: u('legacy.profile.driver.metrics.acceptance-rate', 'Acceptance rate'), value: 96 },
-        { label: u('legacy.profile.driver.metrics.eta-precision', 'ETA precision'), value: 93 },
-        { label: u('legacy.profile.driver.metrics.customer-response', 'Customer response'), value: 89 },
-        { label: u('legacy.profile.driver.metrics.route-safety', 'Route safety'), value: 98 },
-      ],
-      primaryAction: u('legacy.profile.driver.primary-action', 'Ask for Review'),
-      secondaryAction: u('legacy.profile.driver.secondary-action', 'View All Reviews'),
-    };
-  }
-
-  const stats: ProfileStat[] = [
-    {
-      label: u('legacy.profile.customer.stats.finished-loads.label', 'Finished Loads'),
-      value: '186',
-      meta: u('legacy.profile.customer.stats.finished-loads.meta', '+12 this month'),
-      icon: CheckCircle2,
-      tone: 'from-sky-500/15 to-sky-600/5 text-sky-500',
-    },
-    {
-      label: u('legacy.profile.customer.stats.carrier-satisfaction.label', 'Carrier Satisfaction'),
-      value: '4.8 / 5',
-      meta: u('legacy.profile.customer.stats.carrier-satisfaction.meta', '247 driver reviews'),
-      icon: Star,
-      tone: 'from-emerald-500/15 to-emerald-600/5 text-emerald-500',
-    },
-    {
-      label: u('legacy.profile.customer.stats.partner-trust.label', 'Partner Trust'),
-      value: 'Level 4',
-      meta: u('legacy.profile.customer.stats.partner-trust.meta', 'Top shipper tier'),
-      icon: ShieldCheck,
-      tone: 'from-violet-500/15 to-violet-600/5 text-violet-500',
-    },
-  ];
-
-  const achievements: Achievement[] = [
-    {
-      title: u('legacy.profile.customer.achievements.fast-payout-profile.title', 'Fast payout profile'),
-      desc: u('legacy.profile.customer.achievements.fast-payout-profile.desc', 'Average payment in 24h'),
-      icon: BadgeCheck,
-    },
-    {
-      title: u('legacy.profile.customer.achievements.priority-shipper.title', 'Priority shipper'),
-      desc: u('legacy.profile.customer.achievements.priority-shipper.desc', 'Preferred by top drivers'),
-      icon: Award,
-    },
-    {
-      title: u('legacy.profile.customer.achievements.reliable-planner.title', 'Reliable planner'),
-      desc: u('legacy.profile.customer.achievements.reliable-planner.desc', 'Low cancellation rate'),
-      icon: Clock3,
-    },
-    {
-      title: u('legacy.profile.customer.achievements.trusted-by-carriers.title', 'Trusted by carriers'),
-      desc: u('legacy.profile.customer.achievements.trusted-by-carriers.desc', '98% repeat partners'),
-      icon: ShieldCheck,
-    },
-    {
-      title: u('legacy.profile.customer.achievements.accurate-documents.title', 'Accurate documents'),
-      desc: u('legacy.profile.customer.achievements.accurate-documents.desc', '99.2% no corrections'),
-      icon: CheckCircle2,
-    },
-    {
-      title: u('legacy.profile.customer.achievements.rapid-coordination.title', 'Rapid coordination'),
-      desc: u('legacy.profile.customer.achievements.rapid-coordination.desc', 'Avg assign time 7 min'),
-      icon: Truck,
-    },
-  ];
-
-  const feedback: Feedback[] = [
-    {
-      by: u('legacy.profile.customer.feedback.m-kovac.by', 'M. Kovac (Driver)'),
-      route: 'Zagreb -> Berlin',
-      text: u('legacy.profile.customer.feedback.m-kovac.text', 'Pickup process was clear and documents were ready on time.'),
-      score: '5.0',
-    },
-    {
-      by: u('legacy.profile.customer.feedback.transitpro-team.by', 'TransitPro Team'),
-      route: 'Munich -> Amsterdam',
-      text: u('legacy.profile.customer.feedback.transitpro-team.text', 'Communication was smooth and unloading instructions were precise.'),
-      score: '4.7',
-    },
-    {
-      by: u('legacy.profile.customer.feedback.l-schmidt.by', 'L. Schmidt (Driver)'),
-      route: 'Vienna -> Prague',
-      text: u('legacy.profile.customer.feedback.l-schmidt.text', 'Pickup slot was respected and docs were signed instantly.'),
-      score: '4.9',
-    },
-    {
-      by: u('legacy.profile.customer.feedback.cargojet-fleet.by', 'CargoJet Fleet'),
-      route: 'Sarajevo -> Budapest',
-      text: u('legacy.profile.customer.feedback.cargojet-fleet.text', 'Clear communication and zero waiting time at unload point.'),
-      score: '4.8',
-    },
-  ];
-
+const userFromRecord = (
+  record: Record<string, unknown>,
+  kind: ProfileRecordKind,
+): ApiUser => {
+  const linked = (
+    kind === "company" || kind === "warehouse"
+      ? record.owner
+      : record.user || {}
+  ) as Record<string, unknown>;
+  const name = String(
+    record.name ||
+      record.company_name ||
+      linked.name ||
+      (kind === "driver"
+        ? "Driver"
+        : kind === "customer"
+          ? "Customer"
+          : "Company"),
+  );
+  const email = String(
+    record.email || record.billing_email || linked.email || "",
+  );
   return {
-    title: u('legacy.profile.customer.title', 'Customer Profile'),
-    subtitle: u('legacy.profile.customer.subtitle', 'See your load success, carrier feedback, and trust reputation.'),
-    rolePill: u('legacy.profile.customer.role-pill', 'Enterprise Customer'),
-    stats,
-    achievements,
-    feedback,
-    metrics: [
-      { label: u('legacy.profile.customer.metrics.route-fill-rate', 'Route fill rate'), value: 95 },
-      { label: u('legacy.profile.customer.metrics.driver-retention', 'Driver retention'), value: 91 },
-      { label: u('legacy.profile.customer.metrics.review-response', 'Review response'), value: 87 },
-      { label: u('legacy.profile.customer.metrics.issue-free-deliveries', 'Issue-free deliveries'), value: 94 },
-    ],
-    primaryAction: u('legacy.profile.customer.primary-action', 'Give Review'),
-    secondaryAction: u('legacy.profile.customer.secondary-action', 'Manage Partners'),
+    ...linked,
+    id: Number(linked.id || record.user_id || record.id || 0),
+    role_id: Number(linked.role_id || 0),
+    name,
+    email,
+    username: String(record.username || linked.username || ""),
+    phone: String(record.phone || linked.phone || ""),
+    language: String(record.language || linked.language || "en"),
+    country_code: String(record.country_code || linked.country_code || ""),
+    avatar_url: String(record.avatar_url || linked.avatar_url || ""),
+    headline: String(
+      record.headline || record.customer_type || linked.headline || "",
+    ),
+    bio: String(record.bio || record.description || linked.bio || ""),
+    is_active: Boolean(record.is_active ?? linked.is_active ?? true),
+    email_verified_at: String(linked.email_verified_at || ""),
+    last_login_at: String(linked.last_login_at || ""),
+    created_at: String(record.created_at || linked.created_at || ""),
+    role: linked.role as ApiUser["role"],
+    companies:
+      kind === "company" || kind === "warehouse"
+        ? [record]
+        : (linked.companies as ApiUser["companies"]),
+    driver: kind === "driver" ? record : (linked.driver as ApiUser["driver"]),
   };
 };
 
-export const ProfileView = ({ role, lang }: { role: Role; lang: Language }) => {
-  const u = (key: string, fallback: string) => ui(lang, key, fallback);
-  const baseContent = getProfileContent(lang, role);
+const formFrom = (user: ApiUser, company?: CompanyProfile): ProfileForm => ({
+  name: user.name || "",
+  email: user.email || "",
+  phone: user.phone || "",
+  countryCode: user.country_code || "",
+  avatarUrl: user.avatar_url || "",
+  headline: user.headline || "",
+  bio: user.bio || "",
+  companyName: company?.name || "",
+  companyEmail: company?.email || "",
+  companyPhone: company?.phone || "",
+  companyCountryCode: company?.country_code || "",
+  companyCity: company?.city || "",
+  companyAddress: company?.address || "",
+  companyWebsite: company?.website || "",
+  companyLogoUrl: company?.logo_url || "",
+  companyDescription: company?.description || "",
+  companyTaxNumber: company?.tax_number || "",
+  companyVatNumber: company?.vat_number || "",
+  companyRegistrationNumber: company?.registration_number || "",
+});
+
+export const ProfileView = ({
+  role,
+  lang,
+  onUserUpdated,
+  profileRecord,
+  profileKind,
+  action,
+}: {
+  role: Role;
+  lang: Language;
+  onUserUpdated?: (user: ApiUser) => void;
+  profileRecord?: Record<string, unknown> | null;
+  profileKind?: ProfileRecordKind;
+  action?: ReactNode;
+}) => {
+  const text = COPY[lang === "bs" || lang === "de" ? lang : "en"];
   const loads = useApiList(api.loads.list, { per_page: 100 });
-  const routes = useApiList(api.routes.list, { per_page: 100 });
-  const [user, setUser] = useState<ApiUser | null>(null);
-  useEffect(() => { void api.auth.me().then(setUser); }, []);
-  const userRecord = (user || {}) as ApiUser & { driver?: Record<string, unknown> };
-  const profile = userRecord.driver || {};
-  const ownLoads = loads.items.filter((row) => role === 'driver' ? Number(row.assigned_driver_user_id) === user?.id : Number(row.customer_user_id) === user?.id);
-  const completed = ownLoads.filter((row) => String(row.status).toLowerCase() === 'finished').length;
-  const active = ownLoads.filter((row) => ['sent', 'in_delivery'].includes(String(row.status).toLowerCase())).length;
-  const completedRoutes = routes.items.filter((row) => String(row.status).toLowerCase() === 'completed' && (role !== 'driver' || Number(row.driver_user_id) === user?.id)).length;
-  const rating = Number(profile.rating || 0);
-  const content = {
-    ...baseContent,
-    stats: baseContent.stats.map((stat, index) => ({ ...stat, value: String([role === 'driver' ? Number(profile.completed_trips || completedRoutes) : completed, role === 'driver' ? `${rating.toFixed(2)} / 5` : active, ownLoads.length][index] ?? 0), meta: u('legacy.profile.liveDatabaseValue', 'Live account data') })),
-    achievements: [] as Achievement[], feedback: [] as Feedback[],
-    metrics: baseContent.metrics.map((metric, index) => ({ ...metric, value: [ownLoads.length ? Math.round((completed / ownLoads.length) * 100) : 0, active, completedRoutes, rating ? Math.round((rating / 5) * 100) : 0][index] ?? 0 })),
+  const [user, setUser] = useState<ApiUser | null>(() =>
+    profileRecord && profileKind
+      ? userFromRecord(profileRecord, profileKind)
+      : null,
+  );
+  const [form, setForm] = useState<ProfileForm | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [loading, setLoading] = useState(!(profileRecord && profileKind));
+  const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (profileRecord && profileKind) {
+      setUser(userFromRecord(profileRecord, profileKind));
+      setLoading(false);
+      return undefined;
+    }
+    let active = true;
+    api.auth
+      .me()
+      .then((record) => {
+        if (active) setUser(record);
+      })
+      .catch(() => {
+        if (active) setError(text.loadError);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [profileKind, profileRecord, text.loadError]);
+
+  const effectiveRole: Role = profileKind === "driver" ? "driver" : profileKind === "warehouse" ? "warehouse" : profileKind === "company" ? "company" : profileKind === "customer" ? "user" : role;
+  const company = (user?.companies?.[0] || undefined) as
+    CompanyProfile | undefined;
+  const companyMode = Boolean(
+    company &&
+    (effectiveRole === "company" ||
+      effectiveRole === "finance" ||
+      effectiveRole === "warehouse" ||
+      profileKind === "company" ||
+      profileKind === "warehouse"),
+  );
+  const canEditCompany = Boolean(
+    company &&
+    (Number(company.owner_user_id) === user?.id ||
+      company.pivot?.company_role === "admin"),
+  );
+  const driver = (user?.driver || {}) as Record<string, unknown>;
+  const displayName = companyMode
+    ? company?.name || user?.name || ""
+    : user?.name || "";
+  const imageUrl = companyMode
+    ? company?.logo_url || ""
+    : user?.avatar_url || "";
+  const headline = companyMode
+    ? company?.description || ""
+    : user?.headline || "";
+  const location = companyMode
+    ? [company?.city, company?.country_code].filter(Boolean).join(", ")
+    : user?.country_code || "";
+  const contactEmail = companyMode
+    ? company?.email || user?.email || ""
+    : user?.email || "";
+  const totalLoads = profileRecord
+    ? Number(profileRecord.loads_count || profileRecord.total_loads || 0)
+    : loads.items.length;
+  const activeLoads = loads.items.filter((item) =>
+    ["posted", "sent", "in_delivery"].includes(
+      value(item.status).toLowerCase(),
+    ),
+  ).length;
+  const completedLoads = loads.items.filter(
+    (item) => value(item.status).toLowerCase() === "finished",
+  ).length;
+
+  const stats = useMemo(
+    () =>
+      effectiveRole === "driver"
+        ? [
+            {
+              label: text.completedTrips,
+              number: value(driver.completed_trips) || String(completedLoads),
+              icon: Truck,
+            },
+            {
+              label: text.activeLoads,
+              number: String(activeLoads),
+              icon: Activity,
+            },
+            {
+              label: text.rating,
+              number: driver.rating
+                ? `${Number(driver.rating).toFixed(2)} / 5`
+                : "—",
+              icon: ShieldCheck,
+            },
+          ]
+        : [
+            {
+              label: text.totalLoads,
+              number: String(totalLoads),
+              icon: BriefcaseBusiness,
+            },
+            {
+              label: text.activeLoads,
+              number: String(activeLoads),
+              icon: Activity,
+            },
+            {
+              label: text.completedLoads,
+              number: String(completedLoads),
+              icon: PackageCheck,
+            },
+          ],
+    [
+      activeLoads,
+      completedLoads,
+      driver.completed_trips,
+      driver.rating,
+      effectiveRole,
+      text,
+      totalLoads,
+    ],
+  );
+
+  const setField = (field: keyof ProfileForm, next: string) =>
+    setForm((current) => (current ? { ...current, [field]: next } : current));
+  const openEditor = () => {
+    if (user) {
+      setForm(formFrom(user, company));
+      setNotice("");
+      setError("");
+      setEditing(true);
+    }
   };
-  const showTopReviewActions = true;
+
+  const save = async () => {
+    if (!user || !form || saving) return;
+    setSaving(true);
+    setError("");
+    setNotice("");
+    try {
+      const payload: Record<string, unknown> = {
+        name: form.name,
+        email: form.email,
+        phone: form.phone || null,
+        country_code: form.countryCode || null,
+        avatar_url: form.avatarUrl || null,
+        headline: form.headline || null,
+        bio: form.bio || null,
+      };
+      if (companyMode && company && canEditCompany)
+        payload.company = {
+          id: company.id,
+          name: form.companyName,
+          email: form.companyEmail || null,
+          phone: form.companyPhone || null,
+          country_code: form.companyCountryCode,
+          city: form.companyCity || null,
+          address: form.companyAddress || null,
+          website: form.companyWebsite || null,
+          logo_url: form.companyLogoUrl || null,
+          description: form.companyDescription || null,
+          tax_number: form.companyTaxNumber || null,
+          vat_number: form.companyVatNumber || null,
+          registration_number: form.companyRegistrationNumber || null,
+        };
+      const updated = await api.auth.updateProfile(payload);
+      setUser(updated);
+      onUserUpdated?.(updated);
+      setEditing(false);
+      setNotice(text.saved);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : text.saveError);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading)
+    return (
+      <div className="flex min-h-80 items-center justify-center">
+        <Loader2 className="h-7 w-7 animate-spin text-primary" />
+      </div>
+    );
+  if (!user)
+    return (
+      <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-600">
+        {error || text.loadError}
+      </div>
+    );
+
+  const dateLocale =
+    lang === "bs" ? "bs-BA" : lang === "de" ? "de-DE" : "en-US";
+  const formatDate = (date?: string | null) =>
+    date
+      ? new Date(date).toLocaleDateString(dateLocale, {
+          year: "numeric",
+          month: "long",
+        })
+      : text.noValue;
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        icon={UserCircle2}
-        title={content.title}
-        subtitle={content.subtitle}
-        badge={<span className="text-xs font-bold text-primary">{content.rolePill}</span>}
-      />
-
-        <div
-          className={
-            showTopReviewActions
-              ? 'mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4'
-              : 'mt-6 grid gap-4 md:grid-cols-3'
-          }
-        >
-          {content.stats.map((stat) => (
-            <article
-              key={stat.label}
-              className="relative overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/90 dark:bg-slate-900/80 p-5"
-            >
-              <div className="absolute -top-10 -right-10 h-24 w-24 rounded-full bg-primary/10 blur-2xl" />
-              <div className="relative flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{stat.label}</p>
-                <div className={`h-9 w-9 rounded-xl bg-linear-to-br flex items-center justify-center ${stat.tone}`}>
-                  <stat.icon className="w-4.5 h-4.5" />
-                </div>
-              </div>
-              <p className="relative mt-3 text-4xl leading-none font-black text-slate-900 dark:text-white">{stat.value}</p>
-              <p className="relative mt-2 inline-flex px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300">
-                {stat.meta}
-              </p>
-            </article>
-          ))}
-          {showTopReviewActions && (
-            <article className="rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 p-5">
-              <p className="text-xs uppercase tracking-[0.2em] font-bold text-primary mb-3">
-                {u('legacy.profile.review-actions.title', 'Review Actions')}
-              </p>
-              <div className="space-y-3">
-                <Button className="w-full h-11 gap-2 text-base font-bold">
-                  <MessageSquarePlus className="w-4 h-4" />
-                  {content.primaryAction}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full h-11 border-slate-300 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800"
-                >
-                  {content.secondaryAction}
-                </Button>
-              </div>
-            </article>
-          )}
+    <div className="w-full space-y-5">
+      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="relative h-36 overflow-hidden bg-slate-900 sm:h-44">
+          <img
+            src="/profile-cover-logistics.png?v=2"
+            alt=""
+            className="h-full w-full object-cover object-center"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-950/30 via-transparent to-slate-950/10" />
         </div>
-
-      <section className="space-y-6">
-        <div className="grid gap-6 lg:grid-cols-12">
-          <div className={showTopReviewActions ? 'lg:col-span-8 space-y-6' : 'lg:col-span-9'}>
-            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                {u('legacy.profile.performance-board.title', 'Performance Board')}
-              </h2>
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                {content.metrics.map((metric) => (
-                  <div key={metric.label} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{metric.label}</p>
-                      <p className="text-sm font-bold text-slate-900 dark:text-white">{metric.value}%</p>
-                    </div>
-                    <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                      <div className="h-full rounded-full bg-primary" style={{ width: `${metric.value}%` }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {showTopReviewActions && (
-              <div className="relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
-                <div className="absolute -right-12 -top-12 h-36 w-36 rounded-full bg-primary/10 blur-3xl" />
-                <div className="relative flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.2em] font-bold text-primary mb-1.5">
-                      {role === 'driver'
-                        ? u('legacy.profile.snapshot.driver-stats', 'Driver Stats Snapshot')
-                        : u('legacy.profile.snapshot.customer-stats', 'Customer Stats Snapshot')}
-                    </p>
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                      {u('legacy.profile.snapshot.weekly-performance-insights', 'Weekly Performance Insights')}
-                    </h3>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                      {u('legacy.profile.snapshot.live-kpi-summary', 'Live KPI summary from the last 7 days.')}
-                    </p>
-                  </div>
-                  <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-xs font-bold">
-                    {u('legacy.profile.snapshot.top-percentile', 'Top 8%')}
-                  </span>
-                </div>
-
-                <div className="mt-4 grid gap-3 sm:grid-cols-4">
-                  <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      {role === 'driver'
-                        ? u('legacy.profile.snapshot.completed', 'Completed')
-                        : u('legacy.profile.snapshot.posted-loads', 'Posted Loads')}
-                    </p>
-                    <p className="mt-1 text-xl font-black text-slate-900 dark:text-white">{role === 'driver' ? '34' : '51'}</p>
-                  </div>
-                  <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      {role === 'driver'
-                        ? u('legacy.profile.snapshot.on-time', 'On-time')
-                        : u('legacy.profile.snapshot.fill-rate', 'Fill Rate')}
-                    </p>
-                    <p className="mt-1 text-xl font-black text-emerald-500">{role === 'driver' ? '97.8%' : '94.1%'}</p>
-                  </div>
-                  <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      {u('legacy.profile.snapshot.avg-rating', 'Avg Rating')}
-                    </p>
-                    <p className="mt-1 text-xl font-black text-slate-900 dark:text-white">{role === 'driver' ? '4.9' : '4.8'}</p>
-                  </div>
-                  <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      {role === 'driver'
-                        ? u('legacy.profile.snapshot.claims', 'Claims')
-                        : u('legacy.profile.snapshot.disputes', 'Disputes')}
-                    </p>
-                    <p className="mt-1 text-xl font-black text-slate-900 dark:text-white">{role === 'driver' ? '0' : '1'}</p>
-                  </div>
-                </div>
-
-                <div className="mt-4 space-y-3">
-                  <div>
-                    <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
-                      <span>
-                        {role === 'driver'
-                          ? u('legacy.profile.snapshot.fuel-efficiency', 'Fuel Efficiency')
-                          : u('legacy.profile.snapshot.cost-efficiency', 'Cost Efficiency')}
-                      </span>
-                      <span>{role === 'driver' ? '91%' : '89%'}</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                      <div className={`h-full rounded-full bg-primary ${role === 'driver' ? 'w-[91%]' : 'w-[89%]'}`} />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
-                      <span>
-                        {role === 'driver'
-                          ? u('legacy.profile.snapshot.customer-feedback', 'Customer Feedback')
-                          : u('legacy.profile.snapshot.carrier-feedback', 'Carrier Feedback')}
-                      </span>
-                      <span>{role === 'driver' ? '96%' : '94%'}</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                      <div className={`h-full rounded-full bg-emerald-500 ${role === 'driver' ? 'w-[96%]' : 'w-[94%]'}`} />
-                    </div>
-                  </div>
-                </div>
-              </div>
+        <div className="relative px-5 pb-6 sm:px-8">
+          <div className="absolute -top-14 flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-slate-900 text-3xl font-black text-white shadow-lg dark:border-slate-900 sm:-top-16 sm:h-32 sm:w-32">
+            {imageUrl ? (
+              <img
+                src={imageUrl}
+                alt=""
+                className="h-full w-full object-cover"
+              />
+            ) : companyMode ? (
+              <Building2 className="h-12 w-12" />
+            ) : (
+              initials(displayName)
             )}
           </div>
-
-          {showTopReviewActions ? (
-            <div className="lg:col-span-4">
-              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 h-full flex flex-col">
-                <div className="flex-1">
-                  <p className="text-xs uppercase tracking-[0.2em] font-bold text-primary mb-3">
-                    {u('legacy.profile.achievements.title', 'Achievements')}
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {content.achievements.map((item) => (
-                      <div key={item.title} className="rounded-xl border border-slate-200 dark:border-slate-800 p-2.5 min-h-[112px] flex flex-col items-center justify-center text-center">
-                        <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mb-1.5">
-                          <item.icon className="w-4.5 h-4.5" />
-                        </div>
-                        <div className="min-h-0">
-                          <p className="font-bold text-slate-900 dark:text-white text-[13px] leading-tight">{item.title}</p>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-tight">{item.desc}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="mt-auto pt-3 grid grid-cols-2 gap-3 text-center">
-                  <div className="rounded-xl bg-slate-100 dark:bg-slate-800 p-3">
-                    <p className="text-xl font-black text-slate-900 dark:text-white">97%</p>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      {u('legacy.profile.stats.reliability', 'Reliability')}
-                    </p>
-                  </div>
-                  <div className="rounded-xl bg-slate-100 dark:bg-slate-800 p-3">
-                    <p className="text-xl font-black text-slate-900 dark:text-white">24h</p>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      {u('legacy.profile.stats.avg-response', 'Avg response')}
-                    </p>
-                  </div>
-                </div>
-              </div>
+          <div className="flex min-h-16 justify-end pt-4">
+            {!profileRecord && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={editing ? () => setEditing(false) : openEditor}
+                className="cursor-pointer gap-2"
+              >
+                {editing ? (
+                  <X className="h-4 w-4" />
+                ) : (
+                  <Pencil className="h-4 w-4" />
+                )}
+                {editing ? text.cancel : text.edit}
+              </Button>
+            )}
+          </div>
+          <div className="mt-3 max-w-3xl">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-black text-slate-950 dark:text-white sm:text-3xl">
+                {displayName}
+              </h1>
+              {(companyMode
+                ? company?.verified_at
+                : user.email_verified_at) && (
+                <BadgeCheck className="h-5 w-5 fill-primary text-white dark:text-slate-900" />
+              )}
             </div>
-          ) : (
-            <div className="lg:col-span-3">
-              <div className="rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 p-5">
-                <p className="text-xs uppercase tracking-[0.2em] font-bold text-primary mb-3">
-                  {u('legacy.profile.review-actions.title', 'Review Actions')}
-                </p>
-                <div className="space-y-3">
-                  <Button className="w-full h-11 gap-2 text-base font-bold">
-                    <MessageSquarePlus className="w-4 h-4" />
-                    {content.primaryAction}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full h-11 border-slate-300 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800"
-                  >
-                    {content.secondaryAction}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {showTopReviewActions ? (
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
-            <p className="text-xs uppercase tracking-[0.2em] font-bold text-primary mb-3">
-              {u('legacy.profile.recent-reviews.title', 'Recent Reviews')}
+            <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
+              {headline || text.headlineMissing}
             </p>
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              {content.feedback.map((item) => (
-                <article key={`${item.by}-${item.route}`} className="rounded-xl border border-slate-200 dark:border-slate-800 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="font-bold text-slate-900 dark:text-white">{item.by}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{item.route}</p>
-                    </div>
-                    <div className="px-2 py-1 rounded-lg bg-amber-500/10 text-amber-500 text-xs font-bold inline-flex items-center gap-1">
-                      <Star className="w-3.5 h-3.5 fill-current" />
-                      {item.score}
-                    </div>
-                  </div>
-                  <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">{item.text}</p>
-                </article>
-              ))}
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
+              <span className="inline-flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5" />
+                {location || text.locationMissing}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Mail className="h-3.5 w-3.5" />
+                {contactEmail}
+              </span>
+              <span className="rounded-full bg-primary/10 px-2.5 py-1 font-bold text-primary">
+                {companyMode ? text.companyProfile : text.personalProfile}
+              </span>
             </div>
           </div>
-        ) : (
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
-            <div className="grid gap-6 lg:grid-cols-12">
-              <div className="space-y-4 lg:col-span-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
-                    <UserCircle2 className="w-7 h-7" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-900 dark:text-white">John Doe</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">{content.rolePill}</p>
-                  </div>
-                </div>
+        </div>
+      </div>
 
-                <div>
-                  <p className="text-xs uppercase tracking-[0.2em] font-bold text-primary mb-3">
-                    {u('legacy.profile.achievements.title', 'Achievements')}
-                  </p>
-                  <div className="space-y-3">
-                    {content.achievements.map((item) => (
-                      <div key={item.title} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
-                        <div className="flex items-start gap-3">
-                          <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                            <item.icon className="w-4.5 h-4.5" />
-                          </div>
-                          <div>
-                            <p className="font-bold text-slate-900 dark:text-white text-sm">{item.title}</p>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">{item.desc}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+      {(notice || error) && (
+        <div
+          className={cn(
+            "rounded-xl border px-4 py-3 text-sm font-semibold",
+            error
+              ? "border-rose-200 bg-rose-50 text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10"
+              : "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300",
+          )}
+        >
+          {error || notice}
+        </div>
+      )}
 
-                <div className="mt-4 grid grid-cols-2 gap-3 text-center">
-                  <div className="rounded-xl bg-slate-100 dark:bg-slate-800 p-3">
-                    <p className="text-xl font-black text-slate-900 dark:text-white">97%</p>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      {u('legacy.profile.stats.reliability', 'Reliability')}
-                    </p>
-                  </div>
-                  <div className="rounded-xl bg-slate-100 dark:bg-slate-800 p-3">
-                    <p className="text-xl font-black text-slate-900 dark:text-white">24h</p>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      {u('legacy.profile.stats.avg-response', 'Avg response')}
-                    </p>
-                  </div>
-                </div>
-              </div>
+      {action}
 
-              <div className="lg:col-span-8">
-                <p className="text-xs uppercase tracking-[0.2em] font-bold text-primary mb-3">
-                  {u('legacy.profile.recent-reviews.title', 'Recent Reviews')}
+      {editing && form && (
+        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-7">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-black text-slate-950 dark:text-white">
+                {text.edit}
+              </h2>
+              <p className="mt-1 text-xs text-slate-500">{text.editHint}</p>
+            </div>
+            <Button
+              size="sm"
+              disabled={saving}
+              onClick={() => void save()}
+              className="cursor-pointer gap-2"
+            >
+              <Save className="h-4 w-4" />
+              {saving ? text.saving : text.save}
+            </Button>
+          </div>
+          <h3 className="mb-3 mt-6 text-xs font-black uppercase tracking-wider text-primary">
+            {text.personalSection}
+          </h3>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field
+              label={text.fullName}
+              value={form.name}
+              onChange={(next) => setField("name", next)}
+            />
+            <Field
+              label={text.email}
+              type="email"
+              value={form.email}
+              onChange={(next) => setField("email", next)}
+            />
+            <Field
+              label={text.phone}
+              value={form.phone}
+              onChange={(next) => setField("phone", next)}
+            />
+            <Field
+              label={text.country}
+              value={form.countryCode}
+              maxLength={2}
+              onChange={(next) => setField("countryCode", next.toUpperCase())}
+            />
+            <Field
+              label={text.avatar}
+              value={form.avatarUrl}
+              onChange={(next) => setField("avatarUrl", next)}
+            />
+            <Field
+              label={text.headline}
+              value={form.headline}
+              onChange={(next) => setField("headline", next)}
+            />
+            <Field
+              label={text.bio}
+              value={form.bio}
+              multiline
+              className="md:col-span-2"
+              onChange={(next) => setField("bio", next)}
+            />
+          </div>
+          {companyMode && company && (
+            <>
+              <h3 className="mb-3 mt-7 text-xs font-black uppercase tracking-wider text-primary">
+                {text.companySection}
+              </h3>
+              {!canEditCompany ? (
+                <p className="rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+                  {text.editRestricted}
                 </p>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {content.feedback.map((item) => (
-                    <article key={`${item.by}-${item.route}`} className="rounded-xl border border-slate-200 dark:border-slate-800 p-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="font-bold text-slate-900 dark:text-white">{item.by}</p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">{item.route}</p>
-                        </div>
-                        <div className="px-2 py-1 rounded-lg bg-amber-500/10 text-amber-500 text-xs font-bold inline-flex items-center gap-1">
-                          <Star className="w-3.5 h-3.5 fill-current" />
-                          {item.score}
-                        </div>
-                      </div>
-                      <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">{item.text}</p>
-                    </article>
-                  ))}
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field
+                    label={text.companyName}
+                    value={form.companyName}
+                    onChange={(next) => setField("companyName", next)}
+                  />
+                  <Field
+                    label={text.email}
+                    type="email"
+                    value={form.companyEmail}
+                    onChange={(next) => setField("companyEmail", next)}
+                  />
+                  <Field
+                    label={text.phone}
+                    value={form.companyPhone}
+                    onChange={(next) => setField("companyPhone", next)}
+                  />
+                  <Field
+                    label={text.website}
+                    value={form.companyWebsite}
+                    onChange={(next) => setField("companyWebsite", next)}
+                  />
+                  <Field
+                    label={text.logo}
+                    value={form.companyLogoUrl}
+                    onChange={(next) => setField("companyLogoUrl", next)}
+                  />
+                  <Field
+                    label={text.country}
+                    value={form.companyCountryCode}
+                    maxLength={2}
+                    onChange={(next) =>
+                      setField("companyCountryCode", next.toUpperCase())
+                    }
+                  />
+                  <Field
+                    label={text.city}
+                    value={form.companyCity}
+                    onChange={(next) => setField("companyCity", next)}
+                  />
+                  <Field
+                    label={text.address}
+                    value={form.companyAddress}
+                    onChange={(next) => setField("companyAddress", next)}
+                  />
+                  <Field
+                    label={text.taxNumber}
+                    value={form.companyTaxNumber}
+                    onChange={(next) => setField("companyTaxNumber", next)}
+                  />
+                  <Field
+                    label={text.vatNumber}
+                    value={form.companyVatNumber}
+                    onChange={(next) => setField("companyVatNumber", next)}
+                  />
+                  <Field
+                    label={text.registrationNumber}
+                    value={form.companyRegistrationNumber}
+                    onChange={(next) =>
+                      setField("companyRegistrationNumber", next)
+                    }
+                  />
+                  <Field
+                    label={text.description}
+                    value={form.companyDescription}
+                    multiline
+                    className="md:col-span-2"
+                    onChange={(next) => setField("companyDescription", next)}
+                  />
                 </div>
+              )}
+            </>
+          )}
+        </section>
+      )}
+
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
+        <div className="space-y-5">
+          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <h2 className="text-lg font-black text-slate-950 dark:text-white">
+              {text.about}
+            </h2>
+            <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-600 dark:text-slate-300">
+              {(companyMode ? company?.description : user.bio) ||
+                text.aboutMissing}
+            </p>
+          </section>
+          <section className="grid gap-3 sm:grid-cols-3">
+            {stats.map(({ label, number, icon: Icon }) => (
+              <div
+                key={label}
+                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+              >
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+                  <Icon className="h-4 w-4 text-primary" />
+                  {label}
+                </div>
+                <p className="mt-3 text-2xl font-black text-slate-950 dark:text-white">
+                  {number}
+                </p>
+              </div>
+            ))}
+          </section>
+          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <h2 className="text-lg font-black text-slate-950 dark:text-white">
+              {companyMode ? text.companyDetails : text.professionalDetails}
+            </h2>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {companyMode ? (
+                <>
+                  <Detail
+                    icon={Globe2}
+                    label={text.website}
+                    value={company?.website}
+                    empty={text.noValue}
+                  />
+                  <Detail
+                    icon={Phone}
+                    label={text.phone}
+                    value={company?.phone}
+                    empty={text.noValue}
+                  />
+                  <Detail
+                    icon={MapPin}
+                    label={text.address}
+                    value={[
+                      company?.address,
+                      company?.city,
+                      company?.country_code,
+                    ]
+                      .filter(Boolean)
+                      .join(", ")}
+                    empty={text.noValue}
+                  />
+                  <Detail
+                    icon={CalendarDays}
+                    label={text.memberSince}
+                    value={formatDate(company?.created_at)}
+                    empty={text.noValue}
+                  />
+                </>
+              ) : (
+                <>
+                  <Detail
+                    icon={AtSign}
+                    label={text.username}
+                    value={user.username}
+                    empty={text.noValue}
+                  />
+                  <Detail
+                    icon={Phone}
+                    label={text.phone}
+                    value={user.phone}
+                    empty={text.noValue}
+                  />
+                  <Detail
+                    icon={BriefcaseBusiness}
+                    label={text.role}
+                    value={user.role?.label}
+                    empty={text.noValue}
+                  />
+                  <Detail
+                    icon={CalendarDays}
+                    label={text.memberSince}
+                    value={formatDate(user.created_at)}
+                    empty={text.noValue}
+                  />
+                </>
+              )}
+            </div>
+          </section>
+        </div>
+        <aside className="space-y-5">
+          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <h2 className="font-black text-slate-950 dark:text-white">
+              {text.account}
+            </h2>
+            <div className="mt-4 flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-primary/10 font-black text-primary">
+                {user.avatar_url ? (
+                  <img
+                    src={user.avatar_url}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  initials(user.name)
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-black text-slate-900 dark:text-white">
+                  {user.name}
+                </p>
+                <p className="truncate text-xs text-slate-500">
+                  {user.role?.label}
+                </p>
               </div>
             </div>
-          </div>
-        )}
-      </section>
+            <div className="mt-4 space-y-3">
+              <Detail
+                icon={Mail}
+                label={text.email}
+                value={user.email}
+                empty={text.noValue}
+                compact
+              />
+              <Detail
+                icon={CalendarDays}
+                label={text.lastLogin}
+                value={formatDate(user.last_login_at)}
+                empty={text.noValue}
+                compact
+              />
+              <Detail
+                icon={ShieldCheck}
+                label={text.status}
+                value={user.is_active ? text.active : text.noValue}
+                empty={text.noValue}
+                compact
+              />
+            </div>
+          </section>
+          {companyMode && (
+            <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <h2 className="font-black text-slate-950 dark:text-white">
+                {text.legalIdentity}
+              </h2>
+              <div className="mt-4 space-y-3">
+                <Detail
+                  icon={Building2}
+                  label={text.taxNumber}
+                  value={company?.tax_number}
+                  empty={text.noValue}
+                  compact
+                />
+                <Detail
+                  icon={BadgeCheck}
+                  label={text.vatNumber}
+                  value={company?.vat_number}
+                  empty={text.noValue}
+                  compact
+                />
+                <Detail
+                  icon={ShieldCheck}
+                  label={text.registrationNumber}
+                  value={company?.registration_number}
+                  empty={text.noValue}
+                  compact
+                />
+              </div>
+            </section>
+          )}
+        </aside>
+      </div>
     </div>
   );
+
 };
+
+const Field = ({
+  label,
+  value,
+  onChange,
+  type = "text",
+  multiline,
+  maxLength,
+  className,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+  multiline?: boolean;
+  maxLength?: number;
+  className?: string;
+}) => (
+  <label className={cn("block", className)}>
+    <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+      {label}
+    </span>
+    {multiline ? (
+      <textarea
+        value={value}
+        maxLength={3000}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-1.5 min-h-24 w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+      />
+    ) : (
+      <input
+        type={type}
+        value={value}
+        maxLength={maxLength}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+      />
+    )}
+  </label>
+);
+
+const Detail = ({
+  icon: Icon,
+  label,
+  value: detailValue,
+  empty,
+  compact,
+}: {
+  icon: typeof Mail;
+  label: string;
+  value?: string | null;
+  empty: string;
+  compact?: boolean;
+}) => (
+  <div
+    className={cn(
+      "flex items-start gap-3 rounded-xl border border-slate-100 dark:border-slate-800",
+      compact ? "p-3" : "p-4",
+    )}
+  >
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+      <Icon className="h-4 w-4" />
+    </span>
+    <div className="min-w-0">
+      <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+        {label}
+      </p>
+      <p className="mt-0.5 break-words text-sm font-semibold text-slate-700 dark:text-slate-200">
+        {detailValue || empty}
+      </p>
+    </div>
+  </div>
+);

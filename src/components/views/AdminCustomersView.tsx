@@ -1,15 +1,22 @@
 import { useMemo, useState } from "react";
-import { CircleCheckBig, Eye, Globe2, Mail, UserRound, UsersRound } from "lucide-react";
+import {
+  CircleCheckBig,
+  Eye,
+  Globe2,
+  Mail,
+  UserRound,
+  UsersRound,
+} from "lucide-react";
 import { ApiError, api } from "../../services/api";
-import { Language } from "../../types";
+import { Language, Role } from "../../types";
 import { AdminField, AdminFormModal, adminFieldClass } from "./AdminFormModal";
 import { useApiList } from "../../hooks/useApiList";
 import { Button } from "../ui/Button";
-import { PageHeader } from '../ui/PageHeader';
+import { PageHeader } from "../ui/PageHeader";
 import { Card } from "../ui/Card";
 import { ServerDataTable, ServerDataTableColumn } from "../ui/ServerDataTable";
 import { confirmAction, showSuccess } from "../../lib/swal";
-import { CustomerDetails } from "../customer/CustomerDetails";
+import { ProfileModal } from "./ProfileModal";
 
 const initial = {
   name: "",
@@ -23,9 +30,11 @@ const initial = {
 
 export const AdminCustomersView = ({
   lang: _lang,
+  role,
   onOpenEmailStudio,
 }: {
   lang: Language;
+  role: Role;
   onOpenEmailStudio?: () => void;
 }) => {
   const [open, setOpen] = useState(false);
@@ -102,8 +111,10 @@ export const AdminCustomersView = ({
         exportable: false,
         render: (row) => (
           <button
+            type="button"
             onClick={() => setSelected(row)}
-            className="rounded-lg bg-slate-100 p-2 dark:bg-slate-800"
+            aria-label="Open customer profile"
+            className="cursor-pointer rounded-lg bg-slate-100 p-2 transition hover:text-primary dark:bg-slate-800"
           >
             <Eye className="h-4 w-4" />
           </button>
@@ -159,14 +170,36 @@ export const AdminCustomersView = ({
           icon={UserRound}
           title="Customers"
           subtitle="Manage customer accounts, access, load activity and contact information."
-          actions={<>
-            <Button variant="outline" onClick={onOpenEmailStudio}><Mail className="mr-2 h-4 w-4" />Email</Button>
-            <Button onClick={() => setOpen(true)}>Add customer</Button>
-          </>}
+          actions={
+            <>
+              <Button variant="outline" onClick={onOpenEmailStudio}>
+                <Mail className="mr-2 h-4 w-4" />
+                Email
+              </Button>
+              <Button onClick={() => setOpen(true)}>Add customer</Button>
+            </>
+          }
           stats={[
-            { label: 'Total customers', value: customers.total, icon: UsersRound, tone: 'bg-sky-500/10 text-sky-500' },
-            { label: 'Authorized', value: customers.items.filter((row) => row.is_active).length, icon: CircleCheckBig, tone: 'bg-emerald-500/10 text-emerald-500' },
-            { label: 'Countries', value: new Set(customers.items.map((row) => row.country_code).filter(Boolean)).size, icon: Globe2, tone: 'bg-violet-500/10 text-violet-500' },
+            {
+              label: "Total customers",
+              value: customers.total,
+              icon: UsersRound,
+              tone: "bg-sky-500/10 text-sky-500",
+            },
+            {
+              label: "Authorized",
+              value: customers.items.filter((row) => row.is_active).length,
+              icon: CircleCheckBig,
+              tone: "bg-emerald-500/10 text-emerald-500",
+            },
+            {
+              label: "Countries",
+              value: new Set(
+                customers.items.map((row) => row.country_code).filter(Boolean),
+              ).size,
+              icon: Globe2,
+              tone: "bg-violet-500/10 text-violet-500",
+            },
           ]}
         />
         <Card className="shadow-none">
@@ -180,9 +213,12 @@ export const AdminCustomersView = ({
           />
         </Card>
       </div>
-      <CustomerDetails
+      <ProfileModal
         open={selected !== null}
-        customer={selected}
+        kind="customer"
+        record={selected}
+        role={role}
+        lang={_lang}
         onClose={() => setSelected(null)}
         onAuthorized={(customer) => {
           setSelected(customer);
