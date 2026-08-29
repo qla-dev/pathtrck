@@ -29,6 +29,7 @@ import {
 import { Map as MapGlyphIcon } from 'lucide-react';
 
 import { cn } from '../../../lib/cn';
+import { SUPPORTED_CURRENCIES } from '../../../lib/currency';
 import { Language } from '../../../types';
 import { LoadDraft } from './types';
 import { WAREHOUSE_STORAGE_TYPE_OPTIONS, WAREHOUSE_HANDLING_REQUIREMENT_OPTIONS, WAREHOUSE_RATE_UNIT_OPTIONS } from '../loadFormOptions';
@@ -415,9 +416,7 @@ export const WarehouseTermsFields = ({ draft, setField, u }: { draft: LoadDraft;
         <div className="space-y-1">
           <FieldLabel>{u('postLoadModal.currency', 'Currency')}</FieldLabel>
           <Select value={draft.freightCurrency} onChange={(e) => setField('freightCurrency', e.target.value)}>
-            <option value="EUR">EUR</option>
-            <option value="BAM">BAM</option>
-            <option value="USD">USD</option>
+            {SUPPORTED_CURRENCIES.map((currency) => <option key={currency} value={currency}>{currency}</option>)}
           </Select>
         </div>
         <div className="col-span-2 space-y-1">

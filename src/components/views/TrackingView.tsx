@@ -10,6 +10,7 @@ import { api } from '../../services/api';
 import { useApiList } from '../../hooks/useApiList';
 import { flatpickrI18n, ui, trPackageStatus } from '../../i18n';
 import { cn } from '../../lib/cn';
+import { SUPPORTED_CURRENCIES } from '../../lib/currency';
 import { mapLoadToPackage } from '../../lib/loadDetails';
 import { LOAD_STATUS_OPTIONS, LoadStatusIcon } from '../load/LoadStatusPicker';
 import { LoadDetailsModal } from '../tracking/LoadDetailsModal';
@@ -411,7 +412,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
   const equipmentOptions: IconSelectOption[] = VEHICLE_OPTIONS.map((value) => ({ value, label: value, icon: Container }));
   const characteristicOptions: IconSelectOption[] = ROAD_CHARACTERISTIC_OPTIONS.map((value) => ({ value, label: value, icon: value === 'ADR' ? ShieldAlert : value === 'Express' ? Zap : Tags }));
   const incotermOptions: IconSelectOption[] = INCOTERM_OPTIONS.map((value) => ({ value, label: value, icon: FileText }));
-  const currencyOptions: IconSelectOption[] = ['EUR', 'USD', 'BAM', 'CHF'].map((value) => ({ value, label: value, icon: Coins }));
+  const currencyOptions: IconSelectOption[] = SUPPORTED_CURRENCIES.map((value) => ({ value, label: value, icon: Coins }));
 
   return (
     <div className={cn(layout === 'map' ? 'h-full' : 'space-y-6')}>

@@ -73,6 +73,7 @@ import {
 import { Language } from '../../../types';
 import { ui } from '../../../i18n';
 import { cn } from '../../../lib/cn';
+import { SUPPORTED_CURRENCIES } from '../../../lib/currency';
 import { confirmAction, showSuccess } from '../../../lib/swal';
 import { useOutsideClick } from '../../../hooks/useOutsideClick';
 import { searchLocations } from '../../../services/locationSearch';
@@ -2041,7 +2042,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           <div className={cn('grid w-full grid-cols-[minmax(0,1fr)_110px] gap-2', invalidClass('declaredValue'))}>
                             <Input type="number" step="100" min="0" value={draft.declaredValue} onChange={(e) => setField('declaredValue', e.target.value)} placeholder="50000" />
                             <Select value={draft.shipmentValueCurrency} onChange={(e) => setField('shipmentValueCurrency', e.target.value)}>
-                              <option value="EUR">EUR</option><option value="BAM">BAM</option><option value="USD">USD</option>
+                              {SUPPORTED_CURRENCIES.map((currency) => <option key={currency} value={currency}>{currency}</option>)}
                             </Select>
                           </div>
                         </div>
@@ -2514,9 +2515,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         <div className={cn('space-y-1', invalidClass('freightCurrency'))}>
                           {fieldLabel('freightCurrency', 'postLoadModal.currency', 'Currency')}
                           <Select value={draft.freightCurrency} onChange={(e) => setField('freightCurrency', e.target.value)}>
-                            <option value="EUR">EUR</option>
-                            <option value="BAM">BAM</option>
-                            <option value="USD">USD</option>
+                            {SUPPORTED_CURRENCIES.map((currency) => <option key={currency} value={currency}>{currency}</option>)}
                           </Select>
                         </div>
                       </div>

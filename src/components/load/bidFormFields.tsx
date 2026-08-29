@@ -2,6 +2,7 @@ import Flatpickr from 'react-flatpickr';
 import { CalendarDays, Check } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
+export { currencySymbol } from '../../lib/currency';
 import { flatpickrI18n } from '../../i18n';
 import { Language } from '../../types';
 
@@ -79,10 +80,6 @@ export const DateTimeField = ({ value, onChange, lang, placeholder }: { value: s
     )}
   />
 );
-
-const CURRENCY_SYMBOLS: Record<string, string> = { EUR: '€', USD: '$', BAM: 'KM' };
-
-export const currencySymbol = (currency: string): string => CURRENCY_SYMBOLS[currency] || currency;
 
 export const formatShortDate = (value?: string) => {
   if (!value) return '—';

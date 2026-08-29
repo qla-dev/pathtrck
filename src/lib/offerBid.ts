@@ -1,4 +1,5 @@
 import { AdditionalChargeRow, Load, Offer, PriceBreakdownRow } from '../types';
+import { SUPPORTED_CURRENCIES } from './currency';
 
 export type ChargeItem = { key: string; label: string; description: string };
 
@@ -41,7 +42,7 @@ export const PAYMENT_TERMS_OPTIONS: Array<{ value: string; label: string }> = [
 
 export const EQUIPMENT_TYPE_OPTIONS = ['Curtainsider', 'Box Truck', 'Reefer', 'Mega Trailer', 'Tautliner', 'Flatbed', 'Other'];
 
-export const CURRENCY_OPTIONS = ['EUR', 'BAM', 'USD'];
+export const CURRENCY_OPTIONS = [...SUPPORTED_CURRENCIES];
 
 // --- Warehousing bids -------------------------------------------------------------------------
 // Storage is sold per unit and per period, so a warehouse bid states a basis, a breakdown of what

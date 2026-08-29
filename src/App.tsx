@@ -89,6 +89,7 @@ import {
   trPaymentTerms,
 } from "./i18n";
 import { cn } from "./lib/cn";
+import { SUPPORTED_CURRENCIES } from "./lib/currency";
 import { Button } from "./components/ui/Button";
 import { Card } from "./components/ui/Card";
 import { LoadItem } from "./components/load/LoadItem";
@@ -5645,7 +5646,11 @@ export default function App() {
       setFeedFilterBarLoading(false);
       return;
     }
-    setDatabaseLoadsLoaded(false);
+    // Inner exchange filters use stale-while-refresh: keep the current rows mounted until the
+    // filtered response arrives. Replacing them with result skeletons on every warehouse chip
+    // toggle changes the content height and makes the entire page jump. Only a real exchange-mode
+    // change swaps the result surface because transport rows must not remain under Warehouse.
+    if (exchangeModeChanged) setDatabaseLoadsLoaded(false);
     void api.auth
       .me()
       .then(setCurrentUser)
@@ -6229,7 +6234,7 @@ export default function App() {
                 dates: { ...prev.dates, [field]: value },
               })),
             currency: exchangeFilters.currency,
-            currencyOptions: ["EUR", "USD", "BAM", "CHF"],
+            currencyOptions: [...SUPPORTED_CURRENCIES],
             onCurrencyChange: (value) =>
               setExchangeFilters((prev) => ({ ...prev, currency: value })),
             specialRequirements: exchangeFilters.specialRequirements,

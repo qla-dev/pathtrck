@@ -54,7 +54,7 @@ const SortDropdown = ({
   const activeLabel = u(SORT_MODE_KEYS[sortMode][0], SORT_MODE_KEYS[sortMode][1]);
 
   return (
-    <div className="relative">
+    <div className={cn('relative', isOpen && 'z-[100]')}>
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
@@ -67,8 +67,8 @@ const SortDropdown = ({
       </button>
       {isOpen && (
         <>
-          <div className="fixed inset-0 z-30" onClick={() => setIsOpen(false)} />
-          <div className="absolute right-0 z-40 mt-2 w-56 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-800 dark:bg-slate-900">
+          <div className="fixed inset-0 z-[90]" onClick={() => setIsOpen(false)} />
+          <div className="absolute right-0 z-[110] mt-2 w-56 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-800 dark:bg-slate-900">
             {options.map((option) => (
               <button
                 key={option.id}

@@ -257,7 +257,8 @@ const OPTION_ICONS: Record<string, LucideIcon> = {
   insurance: ShieldCheck, temperature_control: Thermometer, tracking: Navigation,
   unassigned: UserX, assigned_to_me: UserCheck, assigned_driver: User,
   available_capacity: PackageOpen, full_truck: Truck, partial_load: Boxes,
-  EUR: Banknote, USD: Banknote, BAM: Banknote, CHF: Banknote,
+  EUR: Banknote, BAM: Banknote, GBP: Banknote, USD: Banknote,
+  RSD: Banknote, CNY: Banknote, JPY: Banknote,
 };
 
 /** Vertical option list used inside every filter dropdown. */
@@ -426,16 +427,16 @@ export const FilterLoads = (props: FilterLoadsProps) => {
   const primary = isExchange ? secondary : pills;
 
   if (variant === 'storage' && storageTypeOptions.length > 0) {
-    pills.push({ id: 'storageType', label: `${u('feed.storage.type', 'Storage type')}${selectedStorageTypeIds.length ? ` (${selectedStorageTypeIds.length})` : ''}`, title: u('feed.storage.type', 'Storage type'), icon: Warehouse, isActive: selectedStorageTypeIds.length > 0, content: <ChipGroup options={storageTypeOptions} selectedIds={selectedStorageTypeIds} onToggle={onToggleStorageType} />, onClear: () => clearChipGroup(selectedStorageTypeIds, onToggleStorageType) });
+    pills.push({ id: 'storageType', label: u('feed.storage.type', 'Storage type'), title: u('feed.storage.type', 'Storage type'), icon: Warehouse, isActive: selectedStorageTypeIds.length > 0, content: <ChipGroup options={storageTypeOptions} selectedIds={selectedStorageTypeIds} onToggle={onToggleStorageType} />, onClear: () => clearChipGroup(selectedStorageTypeIds, onToggleStorageType) });
   }
   if (variant === 'storage' && palletRange) {
-    pills.push({ id: 'pallets', label: isRangeActive(palletRange) ? formatRangeSummary(palletRange) : u('feed.storage.pallets', 'Pallets'), title: u('feed.storage.pallets', 'Pallets'), icon: Boxes, isActive: isRangeActive(palletRange), content: <DualRangeControl config={palletRange} />, onClear: () => palletRange.onChange(palletRange.min, palletRange.max) });
+    pills.push({ id: 'pallets', label: u('feed.storage.pallets', 'Pallets'), title: u('feed.storage.pallets', 'Pallets'), icon: Boxes, isActive: isRangeActive(palletRange), content: <DualRangeControl config={palletRange} />, onClear: () => palletRange.onChange(palletRange.min, palletRange.max) });
   }
   if (variant === 'storage' && volumeRange) {
-    pills.push({ id: 'volume', label: isRangeActive(volumeRange) ? formatRangeSummary(volumeRange) : u('feed.storage.volume', 'Volume'), title: u('feed.storage.volume', 'Volume'), icon: Ruler, isActive: isRangeActive(volumeRange), content: <DualRangeControl config={volumeRange} />, onClear: () => volumeRange.onChange(volumeRange.min, volumeRange.max) });
+    pills.push({ id: 'volume', label: u('feed.storage.volume', 'Volume'), title: u('feed.storage.volume', 'Volume'), icon: Ruler, isActive: isRangeActive(volumeRange), content: <DualRangeControl config={volumeRange} />, onClear: () => volumeRange.onChange(volumeRange.min, volumeRange.max) });
   }
   if (variant === 'storage' && requirementOptions.length > 0) {
-    pills.push({ id: 'requirements', label: `${u('feed.storage.requirements', 'Requirements')}${selectedRequirementIds.length ? ` (${selectedRequirementIds.length})` : ''}`, title: u('feed.storage.requirements', 'Requirements'), icon: ShieldCheck, isActive: selectedRequirementIds.length > 0, content: <ChipGroup options={requirementOptions} selectedIds={selectedRequirementIds} onToggle={onToggleRequirement} />, onClear: () => clearChipGroup(selectedRequirementIds, onToggleRequirement) });
+    pills.push({ id: 'requirements', label: u('feed.storage.requirements', 'Requirements'), title: u('feed.storage.requirements', 'Requirements'), icon: ShieldCheck, isActive: selectedRequirementIds.length > 0, content: <ChipGroup options={requirementOptions} selectedIds={selectedRequirementIds} onToggle={onToggleRequirement} />, onClear: () => clearChipGroup(selectedRequirementIds, onToggleRequirement) });
   }
 
   if (modeTabs.length > 0 && activeModeTabId && onModeTabChange) {
@@ -483,7 +484,9 @@ export const FilterLoads = (props: FilterLoadsProps) => {
   if (priceTermOptions.length > 0) {
     primary.push({
       id: 'priceTerms',
-      label: `${u('legacy.sidebarFilter.priceTerms', 'Uslovi cijene')}${selectedPriceTermIds.length ? ` (${selectedPriceTermIds.length})` : ''}`,
+      label: variant === 'storage'
+        ? u('legacy.sidebarFilter.priceTerms', 'Uslovi cijene')
+        : `${u('legacy.sidebarFilter.priceTerms', 'Uslovi cijene')}${selectedPriceTermIds.length ? ` (${selectedPriceTermIds.length})` : ''}`,
       title: u('legacy.sidebarFilter.priceTerms', 'Uslovi cijene'),
       icon: Handshake,
       isActive: selectedPriceTermIds.length > 0,
@@ -556,7 +559,7 @@ export const FilterLoads = (props: FilterLoadsProps) => {
   if (temperatureRange) {
     primary.push({
       id: 'temperature',
-      label: isRangeActive(temperatureRange)
+      label: variant !== 'storage' && isRangeActive(temperatureRange)
         ? formatRangeSummary(temperatureRange)
         : u('feed.filters.temperature', 'Temperature regime'),
       title: u('feed.filters.temperature', 'Temperature regime'),
@@ -640,7 +643,7 @@ export const FilterLoads = (props: FilterLoadsProps) => {
   if (priceRange) {
     primary.push({
       id: 'price',
-      label: isRangeActive(priceRange) ? formatRangeSummary(priceRange) : u('legacy.sidebarFilter.price', 'Price'),
+      label: variant !== 'storage' && isRangeActive(priceRange) ? formatRangeSummary(priceRange) : u('legacy.sidebarFilter.price', 'Price'),
       title: u('legacy.sidebarFilter.price', 'Price'),
       icon: DollarSign,
       isActive: isRangeActive(priceRange),
@@ -870,7 +873,7 @@ export const FilterLoads = (props: FilterLoadsProps) => {
     // One wrapper, not a fragment: as siblings the search row and the pill row each picked up the
     // parent's space-y gap, which stacked with the row's own margin and made the pills sit further
     // from the search fields than from the results.
-    <div className="space-y-5">
+    <div className="w-full min-w-0 space-y-5">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
         <label className="block flex-1">
           <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -990,13 +993,13 @@ export const FilterLoads = (props: FilterLoadsProps) => {
         </button>
       </div>
 
-      <div className="relative" ref={panelBoundsRef}>
+      <div className="relative h-11 w-full min-w-0" ref={panelBoundsRef}>
         <div
           ref={pillsScrollRef}
           onScroll={updatePillsScrollState}
           // Sits above the dropdown's outside-click backdrop so switching straight from one open
           // filter to another is a single click instead of close-then-open.
-          className="relative z-50 flex items-center gap-2 overflow-x-auto py-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="relative z-50 flex h-11 w-full min-w-0 items-center gap-2 overflow-x-scroll overflow-y-hidden py-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {pills.map((pill) => (
             <button
@@ -1011,7 +1014,7 @@ export const FilterLoads = (props: FilterLoadsProps) => {
                 setOpenPanel((current) => (current === pill.id ? null : pill.id));
               }}
               className={cn(
-                'inline-flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-2 text-xs font-bold transition-all',
+                'inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 text-xs font-bold transition-colors',
                 pill.isActive
                   ? 'border-primary/40 bg-primary/10 text-primary'
                   : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600'

@@ -122,6 +122,12 @@ const COPY = {
     noValue: "Not provided",
     personalSection: "Personal account",
     companySection: "Company identity",
+    tabGeneral: "General",
+    tabOrganization: "Organization",
+    tabNetwork: "Network",
+    tabReviews: "Reviews",
+    noReviews: "No reviews yet",
+    noReviewsHint: "Verified partner reviews will appear here.",
     editHint: "Changes are saved to your real account and company records.",
     editRestricted:
       "Only the company owner or an administrator can edit the company identity.",
@@ -174,6 +180,12 @@ const COPY = {
     noValue: "Nije uneseno",
     personalSection: "Lični račun",
     companySection: "Identitet kompanije",
+    tabGeneral: "Generalno",
+    tabOrganization: "Organizacija",
+    tabNetwork: "Mreža",
+    tabReviews: "Recenzije",
+    noReviews: "Još nema recenzija",
+    noReviewsHint: "Ovdje će se prikazati potvrđene recenzije partnera.",
     editHint: "Izmjene se čuvaju u stvarnim podacima vašeg računa i kompanije.",
     editRestricted:
       "Samo vlasnik ili administrator može uređivati identitet kompanije.",
@@ -227,6 +239,12 @@ const COPY = {
     noValue: "Nicht angegeben",
     personalSection: "Persönliches Konto",
     companySection: "Unternehmensidentität",
+    tabGeneral: "Allgemein",
+    tabOrganization: "Organisation",
+    tabNetwork: "Netzwerk",
+    tabReviews: "Bewertungen",
+    noReviews: "Noch keine Bewertungen",
+    noReviewsHint: "Verifizierte Partnerbewertungen werden hier angezeigt.",
     editHint:
       "Änderungen werden in Ihren echten Konto- und Unternehmensdaten gespeichert.",
     editRestricted:
@@ -263,6 +281,7 @@ const initials = (name: string) =>
     .join("") || "FB";
 
 export type ProfileRecordKind = "customer" | "company" | "warehouse" | "driver";
+type ProfileTab = "general" | "organization" | "network" | "reviews";
 
 const userFromRecord = (
   record: Record<string, unknown>,
@@ -361,6 +380,7 @@ export const ProfileView = ({
   );
   const [form, setForm] = useState<ProfileForm | null>(null);
   const [editing, setEditing] = useState(false);
+  const [activeTab, setActiveTab] = useState<ProfileTab>("general");
   const [loading, setLoading] = useState(!(profileRecord && profileKind));
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
@@ -411,6 +431,8 @@ export const ProfileView = ({
   const detailRecord = (profileRecord || (detailKind === "customer" ? customer : detailKind === "driver" ? driver : company) || null) as Record<string, unknown> | null;
   const profileRating = Number(detailRecord?.rating ?? detailRecord?.average_rating ?? driver.rating ?? 0);
   const profileReviewCount = Number(detailRecord?.reviews_count ?? detailRecord?.review_count ?? detailRecord?.ratings_count ?? 0);
+  const profileReviews = (Array.isArray(detailRecord?.reviews) ? detailRecord.reviews : []) as Array<Record<string, unknown>>;
+  const displayedReviewCount = Math.max(profileReviewCount, profileReviews.length);
   const displayName = companyMode
     ? company?.name || user?.name || ""
     : user?.name || "";
@@ -585,7 +607,9 @@ export const ProfileView = ({
   };
 
   return (
-    <div className="w-full space-y-5">
+    <div className="w-full">
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
+      <div className="min-w-0 space-y-5">
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="relative h-36 overflow-hidden bg-slate-900 sm:h-44">
           <img
@@ -682,7 +706,38 @@ export const ProfileView = ({
         </div>
       )}
 
-      {action}
+      {!editing && (
+        <nav
+          aria-label={text.companyProfile}
+          className="flex w-full min-w-0 items-center gap-1 overflow-x-auto border-b border-slate-200 px-1 [-ms-overflow-style:none] [scrollbar-width:none] dark:border-slate-800 [&::-webkit-scrollbar]:hidden"
+        >
+          {([
+            { id: "general" as const, label: text.tabGeneral, icon: UserRound },
+            { id: "organization" as const, label: text.tabOrganization, icon: Building2 },
+            { id: "network" as const, label: text.tabNetwork, icon: Globe2 },
+            { id: "reviews" as const, label: text.tabReviews, icon: Star },
+          ]).map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              aria-current={activeTab === tab.id ? "page" : undefined}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "relative inline-flex h-11 shrink-0 cursor-pointer items-center justify-center gap-2 px-4 text-sm font-bold transition-colors",
+                activeTab === tab.id
+                  ? "text-primary after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full after:bg-primary"
+                  : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white",
+              )}
+            >
+              <tab.icon className={cn("h-4 w-4", tab.id === "reviews" && activeTab !== tab.id && "fill-amber-400 text-amber-400")} />
+              {tab.label}
+              {tab.id === "reviews" && displayedReviewCount > 0 && (
+                <span className={cn("rounded-full px-1.5 py-0.5 text-[10px]", activeTab === tab.id ? "bg-primary/10 text-primary" : "bg-slate-100 text-slate-500 dark:bg-slate-800")}>{displayedReviewCount}</span>
+              )}
+            </button>
+          ))}
+        </nav>
+      )}
 
       <AnimatePresence mode="wait" initial={false}>
       {editing && form ? (
@@ -842,13 +897,14 @@ export const ProfileView = ({
       ) : (
 
       <motion.div
-        key="profile-details"
+        key={`profile-details-${activeTab}`}
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -10 }}
         transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-        className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]"
+        className="min-w-0"
       >
+        {activeTab === "general" && (
         <div className="space-y-5">
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <h2 className="text-lg font-black text-slate-950 dark:text-white">
@@ -944,93 +1000,151 @@ export const ProfileView = ({
             </div>
           </section>
         </div>
-        <aside className="space-y-5">
+        )}
+
+        {activeTab === "organization" && detailKind && detailRecord && (
+          <ProfileRecordDetails section="organization" kind={detailKind} record={detailRecord} labels={detailText} empty={text.noValue} formatDate={formatFullDate} />
+        )}
+
+        {activeTab === "network" && detailKind && detailRecord && (
+          <ProfileRecordDetails section="network" kind={detailKind} record={detailRecord} labels={detailText} empty={text.noValue} formatDate={formatFullDate} />
+        )}
+
+        {activeTab === "reviews" && (
+          <div className="space-y-5">
+            <section className="flex flex-wrap items-center gap-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-amber-500 dark:bg-amber-500/10">
+                <Star className="h-8 w-8 fill-current" />
+              </div>
+              <div>
+                <div className="flex items-baseline gap-2">
+                  <strong className="text-3xl font-black text-slate-950 dark:text-white">{Number.isFinite(profileRating) ? profileRating.toFixed(1) : "0.0"}</strong>
+                  <span className="text-sm font-semibold text-slate-500">/ 5</span>
+                </div>
+                <p className="mt-1 text-sm text-slate-500">{displayedReviewCount.toLocaleString()} {text.tabReviews.toLowerCase()}</p>
+              </div>
+            </section>
+
+            {profileReviews.length > 0 ? (
+              <div className="grid gap-4 md:grid-cols-2">
+                {profileReviews.map((review, index) => {
+                  const reviewer = (review.reviewer || review.user || review.author || {}) as Record<string, unknown>;
+                  const reviewerName = value(reviewer.name || review.reviewer_name || review.author_name) || text.noValue;
+                  const reviewRating = Math.max(0, Math.min(5, Number(review.rating || review.score || 0)));
+                  return (
+                    <article key={value(review.id) || `${reviewerName}-${index}`} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">{initials(reviewerName)}</div>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-black text-slate-950 dark:text-white">{reviewerName}</p>
+                            <p className="text-xs text-slate-500">{formatFullDate(review.created_at || review.date)}</p>
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1 text-sm font-black text-slate-900 dark:text-white"><Star className="h-4 w-4 fill-amber-400 text-amber-400" />{reviewRating.toFixed(1)}</div>
+                      </div>
+                      <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-600 dark:text-slate-300">{value(review.comment || review.review || review.body || review.text) || text.noValue}</p>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <section className="flex min-h-64 flex-col items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-white px-6 text-center dark:border-slate-700 dark:bg-slate-900">
+                <Star className="h-9 w-9 text-slate-300 dark:text-slate-600" />
+                <h2 className="mt-4 font-black text-slate-950 dark:text-white">{text.noReviews}</h2>
+                <p className="mt-1 text-sm text-slate-500">{text.noReviewsHint}</p>
+              </section>
+            )}
+          </div>
+        )}
+      </motion.div>
+      )}
+      </AnimatePresence>
+      </div>
+
+      <aside className="min-w-0 self-start space-y-5 lg:sticky lg:top-0 lg:max-h-[calc(100dvh-7.5rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-1 lg:[scrollbar-width:thin]">
+        {action}
+        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <h2 className="font-black text-slate-950 dark:text-white">
+            {text.account}
+          </h2>
+          <div className="mt-4 flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-primary/10 font-black text-primary">
+              {user.avatar_url ? (
+                <img
+                  src={user.avatar_url}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                initials(user.name)
+              )}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-black text-slate-900 dark:text-white">
+                {user.name}
+              </p>
+              <p className="truncate text-xs text-slate-500">
+                {user.role?.label}
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 space-y-3">
+            <Detail
+              icon={Mail}
+              label={text.email}
+              value={user.email}
+              empty={text.noValue}
+              compact
+            />
+            <Detail
+              icon={CalendarDays}
+              label={text.lastLogin}
+              value={formatDate(user.last_login_at)}
+              empty={text.noValue}
+              compact
+            />
+            <Detail
+              icon={ShieldCheck}
+              label={text.status}
+              value={user.is_active ? text.active : text.noValue}
+              empty={text.noValue}
+              compact
+            />
+          </div>
+        </section>
+        {companyMode && (
           <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <h2 className="font-black text-slate-950 dark:text-white">
-              {text.account}
+              {text.legalIdentity}
             </h2>
-            <div className="mt-4 flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-primary/10 font-black text-primary">
-                {user.avatar_url ? (
-                  <img
-                    src={user.avatar_url}
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  initials(user.name)
-                )}
-              </div>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-black text-slate-900 dark:text-white">
-                  {user.name}
-                </p>
-                <p className="truncate text-xs text-slate-500">
-                  {user.role?.label}
-                </p>
-              </div>
-            </div>
             <div className="mt-4 space-y-3">
               <Detail
-                icon={Mail}
-                label={text.email}
-                value={user.email}
+                icon={Building2}
+                label={text.taxNumber}
+                value={company?.tax_number}
                 empty={text.noValue}
                 compact
               />
               <Detail
-                icon={CalendarDays}
-                label={text.lastLogin}
-                value={formatDate(user.last_login_at)}
+                icon={BadgeCheck}
+                label={text.vatNumber}
+                value={company?.vat_number}
                 empty={text.noValue}
                 compact
               />
               <Detail
                 icon={ShieldCheck}
-                label={text.status}
-                value={user.is_active ? text.active : text.noValue}
+                label={text.registrationNumber}
+                value={company?.registration_number}
                 empty={text.noValue}
                 compact
               />
             </div>
           </section>
-          {companyMode && (
-            <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-              <h2 className="font-black text-slate-950 dark:text-white">
-                {text.legalIdentity}
-              </h2>
-              <div className="mt-4 space-y-3">
-                <Detail
-                  icon={Building2}
-                  label={text.taxNumber}
-                  value={company?.tax_number}
-                  empty={text.noValue}
-                  compact
-                />
-                <Detail
-                  icon={BadgeCheck}
-                  label={text.vatNumber}
-                  value={company?.vat_number}
-                  empty={text.noValue}
-                  compact
-                />
-                <Detail
-                  icon={ShieldCheck}
-                  label={text.registrationNumber}
-                  value={company?.registration_number}
-                  empty={text.noValue}
-                  compact
-                />
-              </div>
-            </section>
-          )}
-        </aside>
-        {detailKind && detailRecord && (
-          <ProfileRecordDetails kind={detailKind} record={detailRecord} labels={detailText} empty={text.noValue} formatDate={formatFullDate} />
         )}
-      </motion.div>
-      )}
-      </AnimatePresence>
+      </aside>
+      </div>
     </div>
   );
 
@@ -1061,7 +1175,7 @@ const displayProfileValue = (input: unknown, empty: string): string => {
   return String(input);
 };
 
-const ProfileRecordDetails = ({ kind, record, labels, empty, formatDate }: { kind: ProfileRecordKind; record: Record<string, unknown>; labels: DetailLabels; empty: string; formatDate: (value: unknown) => string }) => {
+const ProfileRecordDetails = ({ section, kind, record, labels, empty, formatDate }: { section: "organization" | "network"; kind: ProfileRecordKind; record: Record<string, unknown>; labels: DetailLabels; empty: string; formatDate: (value: unknown) => string }) => {
   const owner = (record.owner || record.user || {}) as Record<string, unknown>;
   const primaryCompany = (record.primary_company || {}) as Record<string, unknown>;
   const sections: Array<{ title: string; icon: typeof Mail; rows: ProfileDetailRow[] }> = kind === "customer"
@@ -1163,7 +1277,17 @@ const ProfileRecordDetails = ({ kind, record, labels, empty, formatDate }: { kin
             ]},
           ];
 
-  return <div className="grid gap-5 lg:col-span-2 xl:grid-cols-2">{sections.map(({ title, icon: SectionIcon, rows }) => <section key={title} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"><div className="mb-4 flex items-center gap-2"><SectionIcon className="h-5 w-5 text-primary" /><h2 className="font-black text-slate-950 dark:text-white">{title}</h2></div><div className="grid gap-3 sm:grid-cols-2">{rows.map((row) => <Detail key={row.label} icon={row.icon} label={row.label} value={displayProfileValue(row.value, empty)} empty={empty} />)}</div></section>)}</div>;
+  const visibleSections = section === "network"
+    ? kind === "warehouse"
+      ? sections.slice(1, 2)
+      : kind === "driver"
+        ? sections
+        : sections.slice(1)
+    : kind === "warehouse"
+      ? sections.filter((_, index) => index !== 1)
+      : sections.slice(0, 1);
+
+  return <div className={cn("grid gap-5", visibleSections.length > 1 && "xl:grid-cols-2")}>{visibleSections.map(({ title, icon: SectionIcon, rows }) => <section key={title} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"><div className="mb-4 flex items-center gap-2"><SectionIcon className="h-5 w-5 text-primary" /><h2 className="font-black text-slate-950 dark:text-white">{title}</h2></div><div className="grid gap-3 sm:grid-cols-2">{rows.map((row) => <Detail key={row.label} icon={row.icon} label={row.label} value={displayProfileValue(row.value, empty)} empty={empty} />)}</div></section>)}</div>;
 };
 
 const Field = ({

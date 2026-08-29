@@ -110,10 +110,10 @@ export const ProfileModal = ({
   };
 
   const authorizationAction = canAuthorize ? (
-    <section className="rounded-2xl border border-sky-200 bg-sky-50 p-5 dark:border-sky-900/60 dark:bg-sky-950/30">
+    <section className="rounded-2xl border border-sky-200 bg-sky-50 p-4 dark:border-sky-900/60 dark:bg-sky-950/30">
       <form
         onSubmit={authorize}
-        className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"
+        className="space-y-4"
       >
         <div>
           <div className="flex items-center gap-2 text-primary">
@@ -125,14 +125,14 @@ export const ProfileModal = ({
             customer.
           </p>
         </div>
-        <div className="w-full max-w-xl">
+        <div className="w-full">
           <label
             htmlFor="customer-authorization-email"
             className="mb-1.5 block text-xs font-bold text-slate-600 dark:text-slate-300"
           >
             Login email
           </label>
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="flex flex-col gap-2">
             <input
               id="customer-authorization-email"
               type="email"
@@ -145,7 +145,7 @@ export const ProfileModal = ({
             <Button
               type="submit"
               disabled={authorizing}
-              className="cursor-pointer whitespace-nowrap"
+              className="w-full cursor-pointer justify-center whitespace-nowrap"
             >
               {authorizing ? (
                 <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
