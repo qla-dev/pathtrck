@@ -1286,36 +1286,53 @@ const StatCard = ({
   sub,
   icon: Icon,
   delay,
+  live = false,
+  liveLabel = "Live",
 }: {
   label: string;
   value: string;
   sub: string;
   icon: React.ComponentType<{ className?: string }>;
   delay: number;
+  live?: boolean;
+  liveLabel?: string;
 }) => {
   const { ref, controls } = useScrollDownReveal(
-    { opacity: 0, scale: 0.5 },
-    { opacity: 1, scale: 1 },
+    { opacity: 0, y: 20 },
+    { opacity: 1, y: 0 },
     0.3,
   );
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, scale: 0.5 }}
+      initial={{ opacity: 0, y: 20 }}
       animate={controls}
-      transition={{ duration: 0.5, delay }}
-      className="group"
+      transition={{ duration: 0.45, delay, ease: "easeOut" }}
+      className="group relative overflow-hidden rounded-3xl bg-white/80 px-6 py-8 text-left shadow-sm backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-200/60 dark:bg-slate-950/70 dark:hover:shadow-black/20"
     >
-      <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-primary group-hover:text-white transition-all">
-        <Icon className="w-6 h-6" />
+      <div className="mb-8 flex items-start justify-between gap-4">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-primary/15 bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
+          <Icon className="h-5 w-5" />
+        </div>
+        {live && (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            {liveLabel}
+          </span>
+        )}
       </div>
-      <p className="text-sm font-bold text-primary uppercase tracking-[0.2em] mb-4">
+      <p className="mb-3 min-h-10 text-xs font-black uppercase leading-5 tracking-[0.16em] text-slate-500 dark:text-slate-400">
         {label}
       </p>
-      <p className="text-5xl md:text-7xl font-display font-black text-slate-900 dark:text-white mb-2 group-hover:text-primary transition-colors">
+      <p
+        aria-live={live ? "polite" : undefined}
+        className="mb-2 font-display text-5xl font-black tracking-[-0.045em] text-slate-950 transition-colors group-hover:text-primary dark:text-white"
+      >
         {value}
       </p>
-      <p className="text-slate-500 dark:text-slate-400 font-medium">{sub}</p>
+      <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
+        {sub}
+      </p>
     </motion.div>
   );
 };
@@ -1492,6 +1509,9 @@ const LandingPage = ({
   const activeLang = (lang || "en") as Exclude<Language, null>;
   const currentLang =
     languages.find((l) => l.id === (lang || "en")) || languages[0];
+  const statsLocale = activeLang === "bs" ? "bs-BA" : activeLang === "de" ? "de-DE" : "en-US";
+  const formatLandingCount = (value?: number) =>
+    typeof value === "number" ? new Intl.NumberFormat(statsLocale).format(value) : "—";
   const titleMessages =
     HERO_MAIN_TITLE_MESSAGES[activeLang] || HERO_MAIN_TITLE_MESSAGES.en;
   // The modules a signed-in account meets in the sidebar. Names come from the same label sources
@@ -2703,18 +2723,18 @@ const LandingPage = ({
         )}
       >
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="max-w-3xl">
+          <div className="w-full">
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-primary sm:text-xs">
               <Boxes className="h-4 w-4" />
               {u("landing.modules.eyebrow", "One platform · every module")}
             </div>
-            <h2 className="text-4xl font-black leading-[1.05] tracking-tight text-slate-900 dark:text-white sm:text-5xl">
+            <h2 className="w-full text-4xl font-black leading-[1.02] tracking-tight text-slate-900 dark:text-white sm:text-5xl lg:text-7xl">
               {u(
                 "landing.modules.title",
                 "Every part of the operation, under one login.",
               )}
             </h2>
-            <p className="mt-5 text-base leading-7 text-slate-600 dark:text-slate-300 sm:text-lg">
+            <p className="mt-6 w-full text-base leading-7 text-slate-600 dark:text-slate-300 sm:text-xl sm:leading-8">
               {u(
                 "landing.modules.subtitle",
                 "These are the modules the product ships with - the same names you find in the sidebar once you are inside. Your role decides which ones open.",
@@ -3079,16 +3099,28 @@ const LandingPage = ({
         </div>
       </section>
 
-      {/* Stats Row - Relocated */}
+      {/* Platform statistics */}
       <section
         id="network"
         className={cn(
-          "scroll-mt-28 bg-slate-50 dark:bg-slate-900/50 relative overflow-hidden",
+          "relative scroll-mt-28 overflow-hidden border-y border-slate-100 bg-slate-50/80 dark:border-slate-800 dark:bg-slate-900/50",
           SECTION_PADDING,
         )}
       >
         <div className="max-w-7xl mx-auto px-6 relative z-10">
-          <div className="grid lg:grid-cols-4 gap-12 text-center">
+          <div className="mb-14 max-w-4xl lg:mb-16">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-primary">
+              <BarChart3 className="h-4 w-4" />
+              {u("landing.stats.eyebrow", "Platform in numbers")}
+            </div>
+            <h2 className="font-display text-4xl font-black leading-[1.05] tracking-[-0.045em] text-slate-950 sm:text-5xl lg:text-7xl dark:text-white">
+              {u(
+                "landing.stats.title",
+                "Numbers behind smarter logistics",
+              )}
+            </h2>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {[
               {
                 label: u("landing.stats.packagesTracked", "Packages Tracked"),
@@ -3097,10 +3129,11 @@ const LandingPage = ({
                 icon: PackageIcon,
               },
               {
-                label: u("landing.stats.activeDrivers", "Active Drivers"),
-                value: "850k+",
-                sub: u("landing.stats.worldwide", "Worldwide"),
-                icon: User,
+                label: u("landing.stats.recipients", "Recipients"),
+                value: formatLandingCount(landingModuleCounts?.recipients),
+                sub: u("landing.stats.recipientDatabase", "In the recipient database"),
+                icon: ContactRound,
+                live: true,
               },
               {
                 label: u("landing.stats.countriesCovered", "Countries Covered"),
@@ -3109,19 +3142,22 @@ const LandingPage = ({
                 icon: Globe,
               },
               {
-                label: u("landing.stats.uptimeSla", "Uptime SLA"),
-                value: "99.99%",
-                sub: u("landing.stats.enterpriseGrade", "Enterprise grade"),
-                icon: ShieldCheck,
+                label: u("landing.stats.tariffCodes", "Tariff Codes"),
+                value: formatLandingCount(landingModuleCounts?.tariff_codes),
+                sub: u("landing.stats.searchableHsEntries", "Searchable HS entries"),
+                icon: ScanSearch,
+                live: true,
               },
             ].map((stat, i) => (
               <StatCard
-                key={i}
+                key={stat.label}
                 label={stat.label}
                 value={stat.value}
                 sub={stat.sub}
                 icon={stat.icon}
                 delay={i * 0.1}
+                live={stat.live}
+                liveLabel={u("landing.stats.liveData", "Live data")}
               />
             ))}
           </div>
