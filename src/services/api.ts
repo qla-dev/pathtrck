@@ -67,6 +67,24 @@ export type PublicModuleCounts = {
   recipients: number;
   tariff_codes: number;
 };
+export type PublicTrackingSummary = {
+  tracking_number: string;
+  load_id?: string;
+  title: string;
+  status: string;
+  transport_type?: string | null;
+  carrier?: string | null;
+  origin?: { city: string; country_code: string } | null;
+  destination?: { city: string; country_code: string } | null;
+  estimated_delivery_at?: string | null;
+  latest_event?: {
+    status: string;
+    title: string;
+    location?: string | null;
+    occurred_at?: string | null;
+  } | null;
+  load?: Record<string, unknown>;
+};
 export type LoadPartyMatch = {
   role: string;
   name: string;
@@ -424,6 +442,7 @@ export const api = {
   },
   landing: {
     moduleCounts: () => request<PublicModuleCounts>('/public-module-counts'),
+    tracking: (trackingNumber: string) => request<PublicTrackingSummary>(`/public-tracking/${encodeURIComponent(trackingNumber)}`),
   },
   hsCodes: {
     search: (query: string, limit = 8, lang?: Language) => request<HsCodeMatch[]>(`/hs-codes?${queryString({ query, limit, lang: lang || undefined })}`),

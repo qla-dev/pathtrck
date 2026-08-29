@@ -7,13 +7,14 @@ import { ui } from '../../i18n';
 import { confirmAction } from '../../lib/swal';
 import { ChatConversationPanel } from '../chat/ChatConversationPanel';
 import { ChatSidebar } from '../chat/ChatSidebar';
+import type { Conversation } from '../chat/types';
 import { useLenaAiChat } from '../../lib/useLenaAiChat';
 import { useLenaEmbeddedMessages } from './useLenaEmbeddedMessages';
 import { lenaStepInputMask } from '../../lib/lenaStepInputMask';
 import { LenaLoadCanvas } from './LenaLoadCanvas';
 import { LENA_LOAD_FILE_ACCEPT, LenaCanvasMode, latestLoadScan } from '../../lib/lenaLoadCanvas';
 import { buildScanFieldRows, ScanFieldPatch } from '../modals/scanFieldRows';
-import { BulkLoadRow } from '../../services/api';
+import { api, BulkLoadRow, type PublicTrackingSummary } from '../../services/api';
 
 type LenaAIProps = {
   open: boolean;
@@ -28,13 +29,156 @@ type LenaAIProps = {
   initialCanvasMode?: LenaCanvasMode | null;
   onApplyLoadPrefill?: (patch: ScanFieldPatch, conversationId: string, draftId?: string | null) => void;
   onBulkImported?: (rows: BulkLoadRow[]) => void;
+  publicTrackingNumber?: string;
 };
 
 // Reusable LenaAI chat overlay — with no loadId it's a general app assistant (opened from the
 // sidebar); with a loadId it's the same per-load dispatch chat used elsewhere, plus an optional
 // embedded booking action when the backend signals booking intent.
 // Full-screen takeover with the same enter/exit animation as TrackingItemDetails.tsx.
-export function LenaAI({ open, onClose, lang, userId, companyIds, loadId, loadLabel, onBookLoad, onOpenLoad, initialCanvasMode = null, onApplyLoadPrefill, onBulkImported }: LenaAIProps) {
+export function LenaAI(props: LenaAIProps) {
+  if (props.publicTrackingNumber) {
+    return props.open
+      ? <PublicTrackingLenaAI {...props} trackingNumber={props.publicTrackingNumber} />
+      : null;
+  }
+  return <LenaAIConversation {...props} />;
+}
+
+function PublicTrackingLenaAI({ open, onClose, lang, trackingNumber }: LenaAIProps & { trackingNumber: string }) {
+  const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  const [result, setResult] = useState<PublicTrackingSummary | null>(null);
+  const [thinking, setThinking] = useState(true);
+  const [lookupVersion, setLookupVersion] = useState(0);
+
+  useEffect(() => {
+    if (!open || !trackingNumber) return undefined;
+    let active = true;
+    setResult(null);
+    setThinking(true);
+
+    const lookup = api.landing.tracking(trackingNumber).then((response) => response.data).catch(() => null);
+    const minimumThinkingTime = new Promise<void>((resolve) => window.setTimeout(resolve, 3000));
+    void Promise.all([lookup, minimumThinkingTime]).then(([trackingResult]) => {
+      if (!active) return;
+      setResult(trackingResult);
+      setThinking(false);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [lookupVersion, open, trackingNumber]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [open, onClose]);
+
+  const requestText = u('landing.tracking.request', 'Find package {number}').replace('{number}', trackingNumber);
+  const embeddedTracking = useMemo(() => {
+    if (!result) return null;
+    const nestedId = result.load?.id;
+    const idCandidate = result.load_id ?? nestedId;
+    const loadId = /^\d+$/.test(String(idCandidate ?? '')) ? String(idCandidate) : '0';
+    const load = result.load ?? {
+      id: loadId,
+      title: result.title,
+      status: result.status,
+      transport_type: result.transport_type,
+      booking_reference: result.tracking_number,
+      stops: [
+        ...(result.origin ? [{ type: 'pickup', position: 1, ...result.origin }] : []),
+        ...(result.destination ? [{ type: 'delivery', position: 2, ...result.destination }] : []),
+      ],
+      shipment: {
+        tracking_number: result.tracking_number,
+        status: result.status,
+        carrier: result.carrier,
+        estimated_delivery_at: result.estimated_delivery_at,
+        events: result.latest_event ? [result.latest_event] : [],
+      },
+    };
+    return { loadId, load };
+  }, [result]);
+  const messages = useMemo<Conversation['messages']>(() => [
+    { id: `public-track-user-${lookupVersion}`, sender: 'me', text: requestText, time: '' },
+    ...(!thinking ? [{
+      id: `public-track-answer-${lookupVersion}`,
+      sender: 'other' as const,
+      text: result
+        ? `${u('landing.tracking.found', 'I found the shipment. Here are its current details.')}\n[[LOAD_DETAILS:${embeddedTracking?.loadId ?? '0'}]]`
+        : u('landing.tracking.notFound', 'I could not find a shipment with that tracking number. Check the number and try again.'),
+      time: '',
+    }] : []),
+  ], [embeddedTracking, lookupVersion, requestText, result, thinking, lang]);
+
+  const preloadedLoads = useMemo(
+    () => embeddedTracking ? { [embeddedTracking.loadId]: embeddedTracking.load } : {},
+    [embeddedTracking],
+  );
+  const { displayMessages, renderMessageExtra, extraContentVersion } = useLenaEmbeddedMessages({
+    messages,
+    lang,
+    preloadedLoads,
+  });
+  const conversation = useMemo<Conversation>(() => ({
+    id: `public-tracking-${trackingNumber}`,
+    name: u('New LenaAI conversation', 'New LenaAI conversation'),
+    role: 'LenaAI',
+    channel: 'inapp',
+    online: true,
+    unread: 0,
+    lastTime: '',
+    messages: displayMessages,
+    isAiDispatch: true,
+  }), [displayMessages, trackingNumber, lang]);
+
+  return createPortal(
+    <AnimatePresence>
+      {open && (
+        <motion.div className="fixed inset-0 z-[300] bg-white dark:bg-slate-950" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2, ease: 'easeOut' }}>
+          <button type="button" onClick={onClose} aria-label={u('login.close', 'Close')} className="absolute right-0 top-0 z-50 flex h-10 w-10 cursor-pointer items-center justify-center rounded-bl-xl border-b border-l border-slate-200 bg-slate-100 text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+            <X className="h-5 w-5" />
+          </button>
+          <motion.div className="flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-white p-4 dark:bg-slate-950 md:p-7" initial={{ opacity: 0, y: 24, scale: 0.992 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 16, scale: 0.996 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}>
+            <ChatConversationPanel
+              activeConversation={conversation}
+              draft=""
+              onDraftChange={() => undefined}
+              onSend={() => undefined}
+              messagePlaceholder={u('Write a message...', 'Write a message...')}
+              className="min-h-[320px] min-w-0 flex-1"
+              otherTyping={thinking}
+              thinkingLabel={u('Thinking', 'Thinking')}
+              renderMessageExtra={renderMessageExtra}
+              extraContentVersion={extraContentVersion}
+              inputLocked
+              inputLockedPlaceholder={u('landing.tracking.readOnly', 'Tracking result')}
+              headerActions={(
+                <button type="button" onClick={() => {
+                  setResult(null);
+                  setThinking(true);
+                  setLookupVersion((current) => current + 1);
+                }} className="flex h-10 cursor-pointer items-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-3 text-xs font-bold text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+                  <Plus className="h-4 w-4" />
+                  {u('New chat', 'New chat')}
+                </button>
+              )}
+            />
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
+    document.body,
+  );
+}
+
+function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, loadLabel, onBookLoad, onOpenLoad, initialCanvasMode = null, onApplyLoadPrefill, onBulkImported }: LenaAIProps) {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const quickActionLabels = {
     add: u('Add a new load', 'Add a new load'),

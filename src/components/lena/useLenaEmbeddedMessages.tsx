@@ -162,6 +162,7 @@ type UseLenaEmbeddedMessagesOptions = {
   // Fired for a questionnaire pill click (including "later"/"none"), resolved deterministically -
   // never sent through onSuggestedReply/the AI path, since the value is already known and valid.
   onStepAnswer?: (step: string, value: string, displayText: string) => void;
+  preloadedLoads?: Record<string, Record<string, unknown>>;
 };
 
 export const useLenaEmbeddedMessages = ({
@@ -176,6 +177,7 @@ export const useLenaEmbeddedMessages = ({
   onSuggestedDraftChange,
   onLoadReady,
   onStepAnswer,
+  preloadedLoads = {},
 }: UseLenaEmbeddedMessagesOptions) => {
   const bookingOffers = useMemo(
     () => new Map(messages.flatMap((message) => {
@@ -258,7 +260,7 @@ export const useLenaEmbeddedMessages = ({
     if (!latestMessage || latestMessage.sender !== 'other') return new Map<string, 'pickup' | 'delivery'>();
     const step = latestMessage.text.match(LENA_STEP_MARKER_PATTERN)?.[1];
     return step === 'pickup' || step === 'delivery'
-      ? new Map([[latestMessage.id, step]])
+      ? new Map<string, 'pickup' | 'delivery'>([[latestMessage.id, step]])
       : new Map<string, 'pickup' | 'delivery'>();
   }, [messages]);
 
@@ -273,10 +275,20 @@ export const useLenaEmbeddedMessages = ({
     () => [...new Set([...loadDetailCards.values(), ...loadLocationCards.values(), ...loadMapCards.values(), ...loadStatusCards.values(), ...bookingLoadIds])],
     [bookingLoadIds, loadDetailCards, loadLocationCards, loadMapCards, loadStatusCards]
   );
-  const [embeddedLoads, setEmbeddedLoads] = useState<Record<string, Record<string, unknown>>>({});
+  const [embeddedLoads, setEmbeddedLoads] = useState<Record<string, Record<string, unknown>>>(preloadedLoads);
 
   useEffect(() => {
-    const missingIds = embeddedLoadIds.filter((id) => !embeddedLoads[id]);
+    if (Object.keys(preloadedLoads).length === 0) return;
+    setEmbeddedLoads((current) => ({ ...current, ...preloadedLoads }));
+  }, [preloadedLoads]);
+
+  const resolvedEmbeddedLoads = useMemo(
+    () => ({ ...embeddedLoads, ...preloadedLoads }),
+    [embeddedLoads, preloadedLoads],
+  );
+
+  useEffect(() => {
+    const missingIds = embeddedLoadIds.filter((id) => !resolvedEmbeddedLoads[id]);
     if (missingIds.length === 0) return undefined;
 
     let cancelled = false;
@@ -287,7 +299,7 @@ export const useLenaEmbeddedMessages = ({
       .catch(() => undefined);
 
     return () => { cancelled = true; };
-  }, [embeddedLoadIds, embeddedLoads]);
+  }, [embeddedLoadIds, resolvedEmbeddedLoads]);
 
   const displayMessages = useMemo(() => messages.map((message) => {
     const markerFreeText = message.text
@@ -309,17 +321,17 @@ export const useLenaEmbeddedMessages = ({
 
   const renderMessageExtra = useCallback((message: ChatMessage) => {
     const detailsLoadId = loadDetailCards.get(message.id);
-    const embeddedLoad = detailsLoadId ? embeddedLoads[detailsLoadId] : undefined;
+    const embeddedLoad = detailsLoadId ? resolvedEmbeddedLoads[detailsLoadId] : undefined;
     const locationLoadId = loadLocationCards.get(message.id);
-    const locationLoad = locationLoadId ? embeddedLoads[locationLoadId] : undefined;
+    const locationLoad = locationLoadId ? resolvedEmbeddedLoads[locationLoadId] : undefined;
     const mapLoadId = loadMapCards.get(message.id);
-    const mapLoad = mapLoadId ? embeddedLoads[mapLoadId] : undefined;
+    const mapLoad = mapLoadId ? resolvedEmbeddedLoads[mapLoadId] : undefined;
     const statusLoadId = loadStatusCards.get(message.id);
-    const statusLoad = statusLoadId ? embeddedLoads[statusLoadId] : undefined;
+    const statusLoad = statusLoadId ? resolvedEmbeddedLoads[statusLoadId] : undefined;
     const hasBooking = bookingOffers.has(message.id);
     const markerLoadId = bookingOffers.get(message.id);
     const offeredLoadId = markerLoadId ?? fallbackLoadId;
-    const bookingLoad = offeredLoadId ? embeddedLoads[offeredLoadId] : undefined;
+    const bookingLoad = offeredLoadId ? resolvedEmbeddedLoads[offeredLoadId] : undefined;
     const handleBook = onBookLoad
       ? () => onBookLoad(offeredLoadId)
       : (offeredLoadId && onOpenLoad ? () => onOpenLoad(offeredLoadId) : undefined);
@@ -381,9 +393,9 @@ export const useLenaEmbeddedMessages = ({
         )}
       </div>
     );
-  }, [bookingOffers, embeddedLoads, fallbackLoadId, lang, loadDetailCards, loadLocationCards, loadMapCards, loadReadyMessageIds, loadStatusCards, locationChoiceByMessage, onBookLoad, onLoadReady, onOpenLoad, onQuickAction, onStepAnswer, onSuggestedDraftChange, onSuggestedReply, questionnaireSuggestionsByMessage, quickActionLabels, quickActionsByMessage]);
+  }, [bookingOffers, resolvedEmbeddedLoads, fallbackLoadId, lang, loadDetailCards, loadLocationCards, loadMapCards, loadReadyMessageIds, loadStatusCards, locationChoiceByMessage, onBookLoad, onLoadReady, onOpenLoad, onQuickAction, onStepAnswer, onSuggestedDraftChange, onSuggestedReply, questionnaireSuggestionsByMessage, quickActionLabels, quickActionsByMessage]);
 
-  const extraContentVersion = `${embeddedLoadIds.join(',')}:${Object.keys(embeddedLoads).sort().join(',')}:${[...quickActionsByMessage.keys()].join(',')}:${[...questionnaireSuggestionsByMessage.keys()].join(',')}:${[...locationChoiceByMessage.keys()].join(',')}:${[...loadReadyMessageIds].join(',')}`;
+  const extraContentVersion = `${embeddedLoadIds.join(',')}:${Object.keys(resolvedEmbeddedLoads).sort().join(',')}:${[...quickActionsByMessage.keys()].join(',')}:${[...questionnaireSuggestionsByMessage.keys()].join(',')}:${[...locationChoiceByMessage.keys()].join(',')}:${[...loadReadyMessageIds].join(',')}`;
 
   // Lock typing only when the current step has a real selectable answer. Free-text steps also
   // render a lone "choose later" escape pill, but that skip action must never make weight,

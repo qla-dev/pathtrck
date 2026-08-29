@@ -745,7 +745,7 @@ const makeLandingTranslation = (overrides: Record<string, string>) => ({
     heroSubtitle: "Connecting drivers faster.",
     trackShipment: "Track Shipment",
     postLoad: "Post Load",
-    trackingPlaceholder: "Enter tracking number (e.g. PT-123456)",
+    trackingPlaceholder: "Enter tracking number (e.g. FB-C-26000)",
     trackButton: "Track Now",
     loadTitle: "Need to move cargo?",
     loadSubtitle:
@@ -833,7 +833,7 @@ const translations: Record<Exclude<Language, null>, Record<string, string>> = {
     heroSubtitle: "Povezujemo vozače brže.",
     trackShipment: "Prati pošiljku",
     postLoad: "Objavi teret",
-    trackingPlaceholder: "Unesite broj za praćenje (npr. PT-123456)",
+    trackingPlaceholder: "Unesite broj za praćenje (npr. FB-C-26000)",
     trackButton: "Prati odmah",
     loadTitle: "Trebate prevesti teret?",
     loadSubtitle:
@@ -875,7 +875,7 @@ const translations: Record<Exclude<Language, null>, Record<string, string>> = {
     heroSubtitle: "Fahrer schneller verbinden.",
     trackShipment: "Sendung verfolgen",
     postLoad: "Ladung posten",
-    trackingPlaceholder: "Sendungsnummer eingeben (z.B. PT-123456)",
+    trackingPlaceholder: "Sendungsnummer eingeben (z. B. FB-C-26000)",
     trackButton: "Jetzt verfolgen",
     loadTitle: "Müssen Sie Fracht bewegen?",
     loadSubtitle:
@@ -1490,6 +1490,8 @@ const LandingPage = ({
   onScrolled?: () => void;
 }) => {
   const [formType, setFormType] = useState<"track" | "load">("track");
+  const [trackingNumber, setTrackingNumber] = useState("");
+  const [trackingModalOpen, setTrackingModalOpen] = useState(false);
   const [selectedWaypoint, setSelectedWaypoint] =
     useState<FeatureRouteStop["id"]>("zagreb");
   const [messageIndex, setMessageIndex] = useState(0);
@@ -2456,6 +2458,8 @@ const LandingPage = ({
                     className="space-y-4"
                   >
                     <textarea
+                      value={trackingNumber}
+                      onChange={(event) => setTrackingNumber(event.target.value.toUpperCase())}
                       placeholder={t.trackingPlaceholder}
                       className="w-full h-24 p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-white outline-none focus:ring-2 focus:ring-primary resize-none text-sm"
                     />
@@ -2463,11 +2467,16 @@ const LandingPage = ({
                       <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
                         {u(
                           "landing.trackHint",
-                          "Numbers usually start with SWP-",
+                          "Numbers usually start with FB-",
                         )}
                       </p>
                       <Button
-                        onClick={onStart}
+                        onClick={() => {
+                          if (!trackingNumber.trim()) return;
+                          setTrackingNumber(trackingNumber.trim().toUpperCase());
+                          setTrackingModalOpen(true);
+                        }}
+                        disabled={!trackingNumber.trim()}
                         size="lg"
                         className="w-full min-[420px]:w-auto px-5 sm:px-8 rounded-full"
                       >
@@ -3877,6 +3886,12 @@ const LandingPage = ({
           </div>
         </div>
       </footer>
+      <LenaAI
+        open={trackingModalOpen}
+        publicTrackingNumber={trackingNumber.trim()}
+        lang={lang}
+        onClose={() => setTrackingModalOpen(false)}
+      />
     </div>
   );
 };
