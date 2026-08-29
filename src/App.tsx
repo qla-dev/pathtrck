@@ -5437,6 +5437,7 @@ export default function App() {
   const [exchangeMode, setExchangeMode] = useState<ExchangeMode>("transport");
   const [feedFilterBarLoading, setFeedFilterBarLoading] = useState(false);
   const prevExchangeModeRef = useRef(exchangeMode);
+  const exchangeModeTransitionTimerRef = useRef<number | null>(null);
   const [feedMyBidsOnly, setFeedMyBidsOnly] = useState(false);
   // Freight-exchange filter groups (Transport / Route / Cargo / Equipment / Date / Requirements /
   // Assignment). Kept as one object so adding a group does not mean threading another state pair.
@@ -5800,7 +5801,7 @@ export default function App() {
         .finally(() => {
           if (requestActive) {
             setDatabaseLoadsLoaded(true);
-            if (exchangeModeChanged) setFeedFilterBarLoading(false);
+            setFeedFilterBarLoading(false);
           }
         });
     }, 250);
@@ -7033,8 +7034,23 @@ export default function App() {
                   filterBarLoading={feedFilterBarLoading}
                   exchangeMode={exchangeMode}
                   onExchangeModeChange={(mode) => {
-                    setExchangeMode(mode);
-                    clearFeedFilters();
+                    if (mode === exchangeMode) {
+                      if (exchangeModeTransitionTimerRef.current !== null) {
+                        window.clearTimeout(exchangeModeTransitionTimerRef.current);
+                        exchangeModeTransitionTimerRef.current = null;
+                        setFeedFilterBarLoading(false);
+                      }
+                      return;
+                    }
+                    if (exchangeModeTransitionTimerRef.current !== null) {
+                      window.clearTimeout(exchangeModeTransitionTimerRef.current);
+                    }
+                    setFeedFilterBarLoading(true);
+                    exchangeModeTransitionTimerRef.current = window.setTimeout(() => {
+                      setExchangeMode(mode);
+                      clearFeedFilters();
+                      exchangeModeTransitionTimerRef.current = null;
+                    }, 200);
                   }}
                   myBidsOnly={feedMyBidsOnly}
                   onMyBidsOnlyChange={setFeedMyBidsOnly}

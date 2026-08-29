@@ -417,7 +417,28 @@ export const HomeFeed = ({
         </div>}
       />
 
-      {filterBar && isFilterBarOpen && (filterBarLoading ? <FilterSkeleton /> : <FilterLoads {...filterBar} />)}
+      {filterBar && isFilterBarOpen && (
+        <div className="relative">
+          <div
+            aria-hidden={filterBarLoading || undefined}
+            className={cn(
+              'transition-opacity duration-200 ease-out motion-reduce:transition-none',
+              filterBarLoading ? 'pointer-events-none opacity-0' : 'opacity-100',
+            )}
+          >
+            <FilterLoads {...filterBar} />
+          </div>
+          <div
+            aria-hidden="true"
+            className={cn(
+              'pointer-events-none absolute inset-0 z-10 overflow-hidden transition-opacity duration-200 ease-out motion-reduce:transition-none',
+              filterBarLoading ? 'opacity-100' : 'opacity-0',
+            )}
+          >
+            <FilterSkeleton />
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <ResultSkeletons layout={layout} />
