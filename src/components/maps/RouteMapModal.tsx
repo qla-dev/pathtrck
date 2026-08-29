@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { MapContainer, Marker, Polyline, TileLayer, useMap } from 'react-leaflet';
 import { Loader2, Route, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
@@ -14,15 +14,6 @@ type RouteMapModalProps = {
   onClose: () => void;
 };
 
-const drivingDistanceEstimate = (from: [number, number], to: [number, number]) => {
-  const radians = (value: number) => (value * Math.PI) / 180;
-  const [fromLat, fromLon] = from;
-  const [toLat, toLon] = to;
-  const a = Math.sin(radians(toLat - fromLat) / 2) ** 2
-    + Math.cos(radians(fromLat)) * Math.cos(radians(toLat)) * Math.sin(radians(toLon - fromLon) / 2) ** 2;
-  return Math.round(6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 1.18);
-};
-
 const FitRoute = ({ points }: { points: [number, number][] }) => {
   const map = useMap();
   useEffect(() => {
@@ -33,14 +24,13 @@ const FitRoute = ({ points }: { points: [number, number][] }) => {
 
 export const RouteMapModal = ({ open, lang, pickup, delivery, onClose }: RouteMapModalProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
-  const fallbackDistance = useMemo(() => drivingDistanceEstimate(pickup.position, delivery.position), [pickup.position, delivery.position]);
-  const [points, setPoints] = useState<[number, number][]>([pickup.position, delivery.position]);
-  const [distanceKm, setDistanceKm] = useState(fallbackDistance);
+  const [points, setPoints] = useState<[number, number][]>([]);
+  const [distanceKm, setDistanceKm] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    setPoints([pickup.position, delivery.position]);
-    setDistanceKm(fallbackDistance);
+    setPoints([]);
+    setDistanceKm(null);
     if (!open) return;
 
     const controller = new AbortController();
@@ -59,7 +49,7 @@ export const RouteMapModal = ({ open, lang, pickup, delivery, onClose }: RouteMa
       .finally(() => setLoading(false));
 
     return () => controller.abort();
-  }, [delivery.position, fallbackDistance, open, pickup.position]);
+  }, [delivery.position, open, pickup.position]);
 
   return (
     <AnimatePresence>
@@ -75,8 +65,7 @@ export const RouteMapModal = ({ open, lang, pickup, delivery, onClose }: RouteMa
       <div className="relative min-h-0 flex-1">
         <MapContainer center={pickup.position} zoom={7} className="h-full w-full">
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap contributors" />
-          <FitRoute points={points} />
-          <Polyline positions={points} pathOptions={{ color: '#0ea5e9', weight: 5, opacity: 0.9 }} />
+          {points.length >= 2 && <><FitRoute points={points} /><Polyline positions={points} pathOptions={{ color: '#0ea5e9', weight: 5, opacity: 0.9 }} /></>}
           <Marker position={pickup.position} />
           <Marker position={delivery.position} />
         </MapContainer>
@@ -86,7 +75,7 @@ export const RouteMapModal = ({ open, lang, pickup, delivery, onClose }: RouteMa
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-white"><Route className="h-5 w-5" /></span>
             <div className="min-w-0 flex-1">
               <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">{u('landing.distance', 'Distance')}</p>
-              <p className="text-lg font-black text-slate-900 dark:text-white">{distanceKm.toLocaleString()} km</p>
+              <p className="text-lg font-black text-slate-900 dark:text-white">{distanceKm === null ? '—' : `${distanceKm.toLocaleString()} km`}</p>
             </div>
             {loading && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
           </div>

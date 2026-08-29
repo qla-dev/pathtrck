@@ -7,7 +7,7 @@ type CardProps = {
   contentClassName?: string;
   title?: React.ReactNode;
   headerAction?: React.ReactNode;
-} & React.HTMLAttributes<HTMLDivElement>;
+} & Omit<React.HTMLAttributes<HTMLDivElement>, 'title'>;
 
 export const Card = ({
   children,

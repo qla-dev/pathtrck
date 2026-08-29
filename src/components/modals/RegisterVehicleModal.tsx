@@ -118,6 +118,55 @@ const buildDraft = (transportType: TransportType): AddVehicleDraft => {
   };
 };
 
+const buildDraftFromVehicle = (vehicle: Record<string, unknown>): AddVehicleDraft => {
+  const transportType: TransportType = vehicle.transport_type === 'air'
+    ? 'aircraft'
+    : vehicle.transport_type === 'sea'
+      ? 'ship'
+      : 'truck';
+  const base = buildDraft(transportType);
+  const registry = FLEET_REGISTRY[transportType];
+  const features = vehicle.features && typeof vehicle.features === 'object'
+    ? vehicle.features as Record<string, unknown>
+    : {};
+  const make = String(vehicle.make || base.make);
+  const rawModel = String(vehicle.model || base.model);
+  const modelWithoutMake = rawModel.toLowerCase().startsWith(`${make.toLowerCase()} `)
+    ? rawModel.slice(make.length + 1)
+    : rawModel;
+  const knownModels = (registry.makes as Record<string, readonly string[]>)[make] || [];
+  const model = knownModels.includes(modelWithoutMake) ? modelWithoutMake : 'Other';
+  const trailerDetails = String(features.trailer || base.trailer).split(/\s*•\s*/);
+  const trailer = trailerDetails[0] === 'Yes (2)'
+    ? 'Yes (2)'
+    : trailerDetails[0] === 'Yes (1)'
+      ? 'Yes (1)'
+      : base.trailer;
+  const status = String(vehicle.status || 'active').toLowerCase();
+
+  return {
+    ...base,
+    category: String(vehicle.vehicle_type || base.category),
+    bodyType: String(features.body_type || base.bodyType),
+    make,
+    model,
+    customModel: model === 'Other' ? rawModel : '',
+    capacity: vehicle.capacity_kg ? `${Number(vehicle.capacity_kg) / 1000} t` : base.capacity,
+    volume: vehicle.capacity_m3 ? `${vehicle.capacity_m3} m3` : base.volume,
+    configuration: String(features.configuration || base.configuration),
+    fuelType: String(features.fuel_type || base.fuelType),
+    systemName: String(features.system_name || vehicle.registration_number || ''),
+    plate: String(vehicle.registration_number || ''),
+    status: status === 'maintenance' ? 'Maintenance' : status === 'idle' ? 'Idle' : 'Active',
+    trailer,
+    trailerSystemName: String(features.trailer_system_name || (trailer.startsWith('Yes') ? 'Trailer' : '')),
+    trailerBodyType: trailerDetails[1] || base.trailerBodyType,
+    trailerPlate: trailerDetails[2] || '',
+    tailLift: features.tail_lift ? 'Yes' : 'No',
+    nextService: String(features.next_service || ''),
+  };
+};
+
 type RegisterVehicleModalProps = {
   open: boolean;
   lang: Language;
@@ -126,25 +175,27 @@ type RegisterVehicleModalProps = {
   ownerUserId?: number;
   assignedDriverUserId?: number;
   companyId?: number;
+  initialVehicle?: Record<string, unknown> | null;
 };
 
-export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUserId, assignedDriverUserId, companyId }: RegisterVehicleModalProps) => {
+export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUserId, assignedDriverUserId, companyId, initialVehicle }: RegisterVehicleModalProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState<AddVehicleDraft>(() => buildDraft('truck'));
   const [trailerStep, setTrailerStep] = useState(0);
   const [saving, setSaving] = useState(false);
+  const isEditing = Boolean(initialVehicle?.id);
 
   useEffect(() => {
     if (!open) return undefined;
-    setDraft(buildDraft('truck'));
+    setDraft(initialVehicle ? buildDraftFromVehicle(initialVehicle) : buildDraft('truck'));
     setStep(0);
-    setTrailerStep(0);
+    setTrailerStep(initialVehicle && String((initialVehicle.features as Record<string, unknown> | undefined)?.trailer || '').startsWith('Yes') ? 1 : 0);
     const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape' && !saving) onClose(); };
     window.addEventListener('keydown', closeOnEscape);
     return () => window.removeEventListener('keydown', closeOnEscape);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, initialVehicle]);
 
   if (!open) return null;
 
@@ -176,9 +227,11 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
     if (saving) return;
     const displayModel = draft.model === 'Other' ? draft.customModel : `${draft.make} ${draft.model}`.trim();
     const confirmed = await confirmAction({
-      title: u('fleet.confirmAddTitle', 'Add this vehicle?'),
-      text: `${displayModel || draft.category} (${draft.plate}) ${u('fleet.confirmAddText', 'will be added to your fleet.')}`,
-      confirmText: u('fleet.addVehicle', 'Add vehicle'),
+      title: isEditing ? u('fleet.confirmEditTitle', 'Save vehicle changes?') : u('fleet.confirmAddTitle', 'Add this vehicle?'),
+      text: isEditing
+        ? `${displayModel || draft.category} (${draft.plate})`
+        : `${displayModel || draft.category} (${draft.plate}) ${u('fleet.confirmAddText', 'will be added to your fleet.')}`,
+      confirmText: isEditing ? u('fleet.saveChanges', 'Save changes') : u('fleet.addVehicle', 'Add vehicle'),
     });
     if (!confirmed) return;
     const trailerLabel =
@@ -190,22 +243,28 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
 
     setSaving(true);
     try {
-      const response = await api.vehicles.create({
+      const payload = {
         registration_number: draft.plate,
         transport_type: draft.transportType === 'aircraft' ? 'air' : draft.transportType === 'ship' ? 'sea' : 'road',
         vehicle_type: draft.category, make: draft.make, model: displayModel, status: draft.status.toLowerCase(),
         capacity_kg: Number.parseFloat(draft.capacity.replace(/[^0-9.]/g, '')) * 1000 || null,
         capacity_m3: Number.parseFloat(draft.volume.replace(/[^0-9.]/g, '')) || null,
-        features: { system_name: draft.systemName, body_type: draft.bodyType, configuration: draft.configuration, fuel_type: draft.fuelType, trailer: trailerLabel, tail_lift: draft.tailLift === 'Yes', next_service: draft.nextService || null },
+        features: { system_name: draft.systemName, body_type: draft.bodyType, configuration: draft.configuration, fuel_type: draft.fuelType, trailer: trailerLabel, trailer_system_name: draft.trailerSystemName || null, tail_lift: draft.tailLift === 'Yes', next_service: draft.nextService || null },
         owner_user_id: ownerUserId,
         assigned_driver_user_id: assignedDriverUserId,
         company_id: companyId,
-      });
-      void showSuccess(u('fleet.vehicleAddedTitle', 'Vehicle added'), u('fleet.vehicleAddedText', 'The vehicle is now available in your fleet.'));
+      };
+      const response = isEditing
+        ? await api.vehicles.update(String(initialVehicle?.id), payload)
+        : await api.vehicles.create(payload);
+      void showSuccess(
+        isEditing ? u('fleet.vehicleUpdatedTitle', 'Vehicle updated') : u('fleet.vehicleAddedTitle', 'Vehicle added'),
+        isEditing ? u('fleet.vehicleUpdatedText', 'The vehicle changes have been saved.') : u('fleet.vehicleAddedText', 'The vehicle is now available in your fleet.'),
+      );
       onCreated(response.data);
     } catch (error) {
       void showError(
-        u('fleet.vehicleAddFailedTitle', 'Could not add vehicle'),
+        isEditing ? u('fleet.vehicleUpdateFailedTitle', 'Could not update vehicle') : u('fleet.vehicleAddFailedTitle', 'Could not add vehicle'),
         error instanceof ApiError ? error.message : undefined
       );
     } finally {
@@ -239,7 +298,7 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
                   {u('fleet.registryLabel', 'Local transport registry')}
                 </p>
                 <h2 className="mt-2 text-2xl font-black dark:text-white">
-                  {u('fleet.registryTitle', 'Register a new vehicle')}
+                  {isEditing ? u('fleet.editVehicleTitle', 'Edit vehicle') : u('fleet.registryTitle', 'Register a new vehicle')}
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
                   {u('fleet.registrySubtitle', 'Each level is separated into its own registration step for a clean fleet onboarding flow.')}
@@ -320,6 +379,7 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
                           onChange={(e) => setDraftField('category', e.target.value)}
                           className="h-12 w-full cursor-pointer appearance-none rounded-xl border border-slate-200 bg-white px-3 text-sm transition-colors hover:border-primary/40 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-white dark:hover:bg-slate-900"
                         >
+                          {!(registry.categories as readonly string[]).includes(draft.category) && <option value={draft.category}>{draft.category}</option>}
                           {registry.categories.map((option) => <option key={option} value={option}>{option}</option>)}
                         </select>
                       </div>
@@ -332,6 +392,7 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
                           onChange={(e) => setDraftField('bodyType', e.target.value)}
                           className="h-12 w-full cursor-pointer appearance-none rounded-xl border border-slate-200 bg-white px-3 text-sm transition-colors hover:border-primary/40 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-white dark:hover:bg-slate-900"
                         >
+                          {!(registry.bodyTypes as readonly string[]).includes(draft.bodyType) && <option value={draft.bodyType}>{draft.bodyType}</option>}
                           {registry.bodyTypes.map((option) => <option key={option} value={option}>{option}</option>)}
                         </select>
                       </div>
@@ -355,6 +416,7 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
                           }}
                           className="h-12 w-full cursor-pointer appearance-none rounded-xl border border-slate-200 bg-white px-3 text-sm transition-colors hover:border-primary/40 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-white dark:hover:bg-slate-900"
                         >
+                          {!makeOptions.includes(draft.make) && <option value={draft.make}>{draft.make}</option>}
                           {makeOptions.map((option) => <option key={option} value={option}>{option}</option>)}
                         </select>
                       </div>
@@ -420,6 +482,7 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
                           onChange={(e) => setDraftField('configuration', e.target.value)}
                           className="h-12 w-full cursor-pointer appearance-none rounded-xl border border-slate-200 bg-white px-3 text-sm transition-colors hover:border-primary/40 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-white dark:hover:bg-slate-900"
                         >
+                          {!(registry.specs.configurations as readonly string[]).includes(draft.configuration) && <option value={draft.configuration}>{draft.configuration}</option>}
                           {registry.specs.configurations.map((option) => <option key={option} value={option}>{option}</option>)}
                         </select>
                       </div>
@@ -432,6 +495,7 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
                           onChange={(e) => setDraftField('fuelType', e.target.value)}
                           className="h-12 w-full cursor-pointer appearance-none rounded-xl border border-slate-200 bg-white px-3 text-sm transition-colors hover:border-primary/40 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-white dark:hover:bg-slate-900"
                         >
+                          {!(registry.specs.fuelTypes as readonly string[]).includes(draft.fuelType) && <option value={draft.fuelType}>{draft.fuelType}</option>}
                           {registry.specs.fuelTypes.map((option) => <option key={option} value={option}>{option}</option>)}
                         </select>
                       </div>
@@ -654,7 +718,9 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
                 </div>
                 {step === 2 ? (
                   <Button onClick={() => void submitVehicle()} disabled={!canContinue || saving}>
-                    {saving ? u('fleet.adding', 'Adding…') : u('fleet.saveVehicle', 'Save vehicle')}
+                    {saving
+                      ? isEditing ? u('fleet.saving', 'Saving…') : u('fleet.adding', 'Adding…')
+                      : isEditing ? u('fleet.saveChanges', 'Save changes') : u('fleet.saveVehicle', 'Save vehicle')}
                   </Button>
                 ) : (
                   <Button onClick={() => setStep((prev) => prev + 1)} disabled={!canContinue}>

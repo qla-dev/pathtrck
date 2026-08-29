@@ -41,7 +41,7 @@ export const TrackingItemDetails = ({ open, headerAction, bodyClassName, onClose
             exit={{ opacity: 0, y: 16, scale: 0.996 }}
             transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
           >
-            <header className="flex h-16 shrink-0 items-center gap-4 border-b border-slate-100 px-5 dark:border-slate-800 md:px-7">
+            <header className="relative z-[1200] flex h-16 shrink-0 items-center gap-4 border-b border-slate-100 bg-white px-5 dark:border-slate-800 dark:bg-slate-950 md:px-7">
               <div className="min-w-0 flex-1">{headerNavigation}</div>
               <div className="flex shrink-0 items-center gap-2">
                 {headerAction}

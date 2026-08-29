@@ -39,9 +39,11 @@ type LoadStatusPickerProps = {
   onChange: (status: LoadStatus) => void;
   className?: string;
   compact?: boolean;
+  availableStatuses?: LoadStatus[];
+  actionLabels?: Partial<Record<LoadStatus, string>>;
 };
 
-export const LoadStatusPicker = ({ lang, status, isChanging = false, onChange, className, compact = false }: LoadStatusPickerProps) => {
+export const LoadStatusPicker = ({ lang, status, isChanging = false, onChange, className, compact = false, availableStatuses, actionLabels }: LoadStatusPickerProps) => {
   const [open, setOpen] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
 
@@ -76,9 +78,9 @@ export const LoadStatusPicker = ({ lang, status, isChanging = false, onChange, c
         ) : (
           <>
             <span className="hidden text-[10px] font-black uppercase tracking-wider opacity-65 sm:inline">Status</span>
-            <span className="flex min-w-0 flex-1 items-center gap-1.5">
-              <span className="flex items-center gap-1.5 text-sm font-bold leading-none">
-                {isChanging ? <Loader2 className="h-4 w-4 animate-spin" /> : <LoadStatusIcon status={status} />}
+            <span className="flex min-w-0 flex-1 items-center gap-2">
+              <span className="flex items-center gap-2 text-xs font-bold leading-none">
+                {isChanging ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LoadStatusIcon status={status} />}
                 {trPackageStatus(lang, status)}
               </span>
             </span>
@@ -87,8 +89,8 @@ export const LoadStatusPicker = ({ lang, status, isChanging = false, onChange, c
       </button>
 
       {open && (
-        <div role="listbox" aria-label="Shipment status" className={cn('absolute top-full z-60 mt-2 space-y-2 rounded-xl border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900', compact ? 'right-0 w-56' : 'inset-x-0 w-full')}>
-          {LOAD_STATUS_OPTIONS.map(([value, option]) => (
+        <div role="listbox" aria-label="Shipment status" className={cn('absolute top-full z-[1300] mt-2 space-y-2 rounded-xl border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900', compact ? 'right-0 w-56' : 'inset-x-0 w-full')}>
+          {LOAD_STATUS_OPTIONS.filter(([, option]) => !availableStatuses || availableStatuses.includes(option)).map(([value, option]) => (
             <button
               type="button"
               role="option"
@@ -101,7 +103,7 @@ export const LoadStatusPicker = ({ lang, status, isChanging = false, onChange, c
                 status === option && 'ring-2 ring-current ring-offset-1 dark:ring-offset-slate-900'
               )}
             >
-              <span className="flex items-center gap-2"><LoadStatusIcon status={option} /><span>{trPackageStatus(lang, option)}</span></span>
+              <span className="flex items-center gap-2"><LoadStatusIcon status={option} /><span>{actionLabels?.[option] || trPackageStatus(lang, option)}</span></span>
               {status === option && <span className="h-2 w-2 rounded-full bg-current" />}
             </button>
           ))}

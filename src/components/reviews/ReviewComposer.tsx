@@ -99,6 +99,9 @@ export const ReviewComposer = ({
   viewerRole,
   lang,
   onSummaryChange,
+  submitLabel,
+  submittingLabel,
+  onSubmitted,
 }: {
   mode: ReviewMode;
   targetId: number | string;
@@ -106,6 +109,9 @@ export const ReviewComposer = ({
   viewerRole: Role;
   lang: Language;
   onSummaryChange?: (summary: ReviewSummary) => void;
+  submitLabel?: string;
+  submittingLabel?: string;
+  onSubmitted?: (summary: ReviewSummary) => void | Promise<void>;
 }) => {
   const language = locale(lang);
   const text = COPY[language];
@@ -175,8 +181,9 @@ export const ReviewComposer = ({
       const next = summaryFrom(response);
       setSummary(next);
       onSummaryChange?.(next);
+      await onSubmitted?.(next);
       setExpanded(false);
-      void showSuccess(summary?.hasReviewed ? EDIT_COPY[language].post : text.post, text.publicText);
+      if (!submitLabel) void showSuccess(summary?.hasReviewed ? EDIT_COPY[language].post : text.post, text.publicText);
     } catch (caught) {
       const validation = caught instanceof ApiError ? Object.values(caught.errors).flat()[0] : null;
       setError(validation || (caught instanceof Error ? caught.message : text.error));
@@ -206,7 +213,7 @@ export const ReviewComposer = ({
             <SlidersHorizontal className="mr-2 h-4 w-4" />{text.adjust}
           </Button>
           <Button type="button" disabled={rating < 1 || submitting} onClick={() => void submit(false)} className="cursor-pointer justify-center px-3">
-            {submitting ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}{submitting ? (actionCopy?.posting || text.posting) : (actionCopy?.post || text.post)}
+            {submitting ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}{submitting ? (submittingLabel || actionCopy?.posting || text.posting) : (submitLabel || actionCopy?.post || text.post)}
           </Button>
         </div>
       </section>
@@ -240,7 +247,7 @@ export const ReviewComposer = ({
               </div>
               <footer className="flex shrink-0 justify-end gap-2 border-t border-slate-200 px-5 py-4 dark:border-slate-800">
                 <Button type="button" variant="outline" disabled={submitting} onClick={() => setExpanded(false)}>{text.cancel}</Button>
-                <Button type="button" disabled={submitting || rating < 1 || questions.some((question) => !criteria[question.key])} onClick={() => void submit(true)}>{submitting ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}{submitting ? (actionCopy?.posting || text.posting) : (actionCopy?.post || text.post)}</Button>
+                <Button type="button" disabled={submitting || rating < 1 || questions.some((question) => !criteria[question.key])} onClick={() => void submit(true)}>{submitting ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}{submitting ? (submittingLabel || actionCopy?.posting || text.posting) : (submitLabel || actionCopy?.post || text.post)}</Button>
               </footer>
             </motion.section>
           </motion.div>

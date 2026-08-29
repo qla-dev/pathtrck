@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, CircleMarker, Tooltip } from 'react-leaflet';
-import { MapPin, ChevronRight, Package as PackageIcon, RotateCcw, Share2, Star, Route, Lock, Coins, Loader2, Sparkles, FileBarChart2, Upload, FileSpreadsheet, Fuel, BedDouble, ParkingCircle, Landmark, ReceiptText, FileText, Printer } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import L from 'leaflet';
+import { MapContainer, TileLayer, Marker, Popup, CircleMarker, Polyline, Tooltip, useMap } from 'react-leaflet';
+import { ChevronRight, Package as PackageIcon, RotateCcw, Share2, Star, Route, Lock, Coins, Loader2, Sparkles, FileBarChart2, Upload, FileSpreadsheet, Fuel, BedDouble, ParkingCircle, Landmark, ReceiptText, FileText, Printer, Play, Pause } from 'lucide-react';
 import { Language, Package as PackageData, Role, ShipmentDetail } from '../../types';
-import { api } from '../../services/api';
+import { api, type FuelStation } from '../../services/api';
 import { useApiList } from '../../hooks/useApiList';
 import { ui, trPackageStatus } from '../../i18n';
 import { cn } from '../../lib/cn';
@@ -17,6 +18,9 @@ import { LoadStatusPicker } from '../load/LoadStatusPicker';
 import { LenaAI } from '../lena/LenaAI';
 import { type LocationSearchResult } from '../../services/locationSearch';
 import { ReviewComposer } from '../reviews/ReviewComposer';
+import { TrackingMapCard } from './TrackingMapCard';
+import { trackingMarkerIcon } from './trackingMapMarker';
+import { VehicleReturnModal } from './VehicleReturnModal';
 
 type AmenityCategory = 'toll' | 'fuel' | 'rest' | 'parking';
 
@@ -32,6 +36,86 @@ type RouteAmenity = {
 const PACKAGE_ROUTE_AMENITIES: Record<string, RouteAmenity[]> = {};
 
 const emptyPackage: PackageData = { id: '', trackingNumber: '', carrier: '', status: 'Pending', origin: '', destination: '', addedDate: '', transitDays: 0, currentLocation: [43.8563, 18.4131], history: [] };
+
+const haversineDistanceKm = (from: [number, number], to: [number, number]) => {
+  const radians = (value: number) => (value * Math.PI) / 180;
+  const latitudeDelta = radians(to[0] - from[0]);
+  const longitudeDelta = radians(to[1] - from[1]);
+  const a = Math.sin(latitudeDelta / 2) ** 2
+    + Math.cos(radians(from[0])) * Math.cos(radians(to[0])) * Math.sin(longitudeDelta / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
+// Leaflet needs actual points for an air lane. Sampling the great-circle arc keeps long-haul
+// flights accurate instead of drawing or briefly flashing a road route.
+const greatCirclePoints = (from: [number, number], to: [number, number], segments = 80): [number, number][] => {
+  const radians = (value: number) => (value * Math.PI) / 180;
+  const degrees = (value: number) => (value * 180) / Math.PI;
+  const vector = ([latitude, longitude]: [number, number]) => {
+    const lat = radians(latitude);
+    const lng = radians(longitude);
+    return [Math.cos(lat) * Math.cos(lng), Math.cos(lat) * Math.sin(lng), Math.sin(lat)];
+  };
+  const start = vector(from);
+  const end = vector(to);
+  const angle = Math.acos(Math.min(1, Math.max(-1, start.reduce((sum, value, index) => sum + value * end[index], 0))));
+  if (!angle) return [from, to];
+  const sinAngle = Math.sin(angle);
+  return Array.from({ length: segments + 1 }, (_, index) => {
+    const fraction = index / segments;
+    const startWeight = Math.sin((1 - fraction) * angle) / sinAngle;
+    const endWeight = Math.sin(fraction * angle) / sinAngle;
+    const x = startWeight * start[0] + endWeight * end[0];
+    const y = startWeight * start[1] + endWeight * end[1];
+    const z = startWeight * start[2] + endWeight * end[2];
+    return [degrees(Math.atan2(z, Math.sqrt(x * x + y * y))), degrees(Math.atan2(y, x))];
+  });
+};
+
+const FitTrackingRoute = ({ points }: { points: [number, number][] }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (points.length < 2) return;
+    map.fitBounds(points, {
+      paddingTopLeft: [48, 125],
+      paddingBottomRight: [48, 90],
+      maxZoom: 11,
+    });
+  }, [map, points]);
+  return null;
+};
+
+const FuelStationViewportLoader = ({ enabled, onBoundsChange }: { enabled: boolean; onBoundsChange: (bounds: L.LatLngBounds) => void }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (!enabled) return undefined;
+    let timer: number | undefined;
+    const refresh = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => onBoundsChange(map.getBounds()), 250);
+    };
+    refresh();
+    map.on('moveend zoomend', refresh);
+    return () => {
+      window.clearTimeout(timer);
+      map.off('moveend zoomend', refresh);
+    };
+  }, [enabled, map, onBoundsChange]);
+  return null;
+};
+
+const routeEndpointIcon = (countryCode: string | undefined, color: string) => L.divIcon({
+  className: 'tracking-route-endpoint',
+  html: `<div style="position:relative;width:32px;height:38px">
+    <div style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;overflow:hidden;border-radius:9999px;background:${color};border:3px solid white;box-shadow:0 2px 9px rgba(15,23,42,.45)">
+      ${countryCode ? `<img src="https://flagcdn.com/w80/${countryCode.toLowerCase()}.png" alt="" style="width:100%;height:100%;object-fit:cover" />` : ''}
+    </div>
+    <div style="position:absolute;left:50%;top:29px;transform:translateX(-50%);border-left:5px solid transparent;border-right:5px solid transparent;border-top:8px solid white"></div>
+  </div>`,
+  iconSize: [32, 38],
+  iconAnchor: [16, 38],
+  popupAnchor: [0, -38],
+});
 
 type LoadDetailsModalProps = {
   loadId: string;
@@ -62,7 +146,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
     return () => { cancelled = true; };
   }, [loadId, lang]);
 
-  const [rightTab, setRightTab] = useState<'tracker' | 'details' | 'map' | 'return' | 'returnRoutes' | 'reports' | 'share' | 'invoice' | 'review'>('details');
+  const [rightTab, setRightTab] = useState<'tracker' | 'details' | 'return' | 'returnRoutes' | 'reports' | 'share' | 'invoice' | 'review'>('tracker');
   const [lenaOpen, setLenaOpen] = useState(false);
   const [returnTokens, setReturnTokens] = useState(0);
   const [returnRoutesUnlocked, setReturnRoutesUnlocked] = useState(false);
@@ -72,6 +156,8 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
   const [invoiceLoading, setInvoiceLoading] = useState<'predracun' | 'a4-faktura' | null>(null);
   const [invoiceError, setInvoiceError] = useState('');
   const [statusChanging, setStatusChanging] = useState<PackageData['status'] | null>(null);
+  const [carDropOpen, setCarDropOpen] = useState(false);
+  const [receiveReviewPending, setReceiveReviewPending] = useState(false);
   const [savingDetailKey, setSavingDetailKey] = useState<string | null>(null);
   const [mapFilters, setMapFilters] = useState<Record<AmenityCategory, boolean>>({
     toll: true,
@@ -79,6 +165,58 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
     rest: false,
     parking: false,
   });
+  const [routePoints, setRoutePoints] = useState<[number, number][]>([]);
+  const [routeDistanceKm, setRouteDistanceKm] = useState<number | null>(null);
+  const [remainingDistanceKm, setRemainingDistanceKm] = useState<number | null>(null);
+  const [routeLoading, setRouteLoading] = useState(false);
+  const trackerMapRef = useRef<L.Map | null>(null);
+  const [trackerCardOpen, setTrackerCardOpen] = useState(false);
+  const [trackerCardPoint, setTrackerCardPoint] = useState<L.Point | null>(null);
+  const [liveTrackingEnabled, setLiveTrackingEnabled] = useState(false);
+  const [liveTrackingUpdatedAt, setLiveTrackingUpdatedAt] = useState<string>('');
+  const [fuelStations, setFuelStations] = useState<FuelStation[]>([]);
+  const [fuelStationsLoading, setFuelStationsLoading] = useState(false);
+
+  useEffect(() => {
+    setRightTab('tracker');
+    setTrackerCardOpen(false);
+    setReceiveReviewPending(false);
+  }, [loadId]);
+
+  useEffect(() => {
+    if (!selectedPackage.id) return;
+    setLiveTrackingEnabled(false);
+    setLiveTrackingUpdatedAt(selectedPackage.trackingUpdatedAt || '');
+  }, [selectedPackage.id, selectedPackage.trackingUpdatedAt]);
+
+  useEffect(() => {
+    const map = trackerMapRef.current;
+    if (!map || !trackerCardOpen || !selectedPackage.hasCurrentLocation || rightTab !== 'tracker') {
+      setTrackerCardPoint(null);
+      return undefined;
+    }
+    const updateCardPoint = () => setTrackerCardPoint(map.latLngToContainerPoint(selectedPackage.currentLocation));
+    updateCardPoint();
+    map.on('move zoom resize', updateCardPoint);
+    return () => { map.off('move zoom resize', updateCardPoint); };
+  }, [rightTab, selectedPackage.currentLocation, selectedPackage.hasCurrentLocation, trackerCardOpen]);
+
+  const loadFuelStations = useCallback((bounds: L.LatLngBounds) => {
+    setFuelStationsLoading(true);
+    void api.fuelStations.list({
+      south: bounds.getSouth(),
+      west: bounds.getWest(),
+      north: bounds.getNorth(),
+      east: bounds.getEast(),
+      limit: 1000,
+    }).then((response) => {
+      setFuelStations(response.data);
+    }).catch(() => {
+      setFuelStations([]);
+    }).finally(() => {
+      setFuelStationsLoading(false);
+    });
+  }, []);
   const shipmentDetailsWithoutStatus = useMemo(
     () => (selectedPackage.details || []).filter((detail) => detail.key !== 'status'),
     [selectedPackage.details]
@@ -146,12 +284,23 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
     [selectedPackage.id]
   );
 
-  const trackingStage = TRACKING_FLOW.indexOf(selectedPackage.status);
-  const trackingProgress = selectedPackage.status === 'Finished'
+  const canManageStatuses = role === 'driver' || role === 'company' || role === 'superadmin' || role === 'master';
+  const canCustomerReceive = role === 'user' && selectedPackage.status === 'In delivery';
+  const canChangeStatus = canManageStatuses || canCustomerReceive;
+  const visibleStatus = role === 'user' && selectedPackage.status === 'Finished' ? 'Received' : selectedPackage.status;
+  const trackingFlow = role === 'user' ? TRACKING_FLOW.filter((status) => status !== 'Finished') : TRACKING_FLOW;
+  const trackingStage = trackingFlow.indexOf(visibleStatus);
+  const trackingProgress = visibleStatus === trackingFlow[trackingFlow.length - 1]
     ? 100
     : trackingStage >= 0
-      ? (trackingStage / (TRACKING_FLOW.length - 1)) * 100
+      ? (trackingStage / (trackingFlow.length - 1)) * 100
       : 0;
+  const canSelectStatus = (status: PackageData['status']) => (canManageStatuses && status !== 'Received') || (role === 'user' && status === 'Received');
+  const receivedActionLabel = lang === 'bs'
+    ? 'Označi kao primljeno i ocijeni'
+    : lang === 'de'
+      ? 'Als empfangen markieren und bewerten'
+      : 'Mark as received and review';
 
   const visibleAmenities = useMemo(
     () => routeAmenities.filter((item) => mapFilters[item.category]),
@@ -169,6 +318,92 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
     { key: 'rest', label: u('tracking.amenity.rest', 'Rest'), icon: BedDouble },
     { key: 'parking', label: u('tracking.amenity.parking', 'Parking'), icon: ParkingCircle },
   ];
+
+  const trackingRouteEndpoints = useMemo(() => {
+    const stops = selectedPackage.stops || [];
+    const pickup = stops.find((stop) => String(stop.type) === 'pickup') || stops[0];
+    const delivery = stops.find((stop) => String(stop.type) === 'delivery') || stops[stops.length - 1];
+    const toPosition = (stop?: Record<string, unknown>): [number, number] | null => {
+      if (!stop || stop.latitude === null || stop.latitude === undefined || stop.longitude === null || stop.longitude === undefined) return null;
+      const latitude = Number(stop.latitude);
+      const longitude = Number(stop.longitude);
+      return Number.isFinite(latitude) && Number.isFinite(longitude) ? [latitude, longitude] : null;
+    };
+    return { pickup: toPosition(pickup), delivery: toPosition(delivery) };
+  }, [selectedPackage.stops]);
+
+  useEffect(() => {
+    const { pickup, delivery } = trackingRouteEndpoints;
+    if (!pickup || !delivery) {
+      setRoutePoints([]);
+      setRouteDistanceKm(null);
+      setRemainingDistanceKm(null);
+      setRouteLoading(false);
+      return undefined;
+    }
+
+    if (selectedPackage.transportType === 'air') {
+      setRouteLoading(false);
+      const hasCurrent = Boolean(selectedPackage.hasCurrentLocation);
+      const points = hasCurrent
+        ? [...greatCirclePoints(pickup, selectedPackage.currentLocation), ...greatCirclePoints(selectedPackage.currentLocation, delivery).slice(1)]
+        : greatCirclePoints(pickup, delivery);
+      const totalDistance = hasCurrent
+        ? haversineDistanceKm(pickup, selectedPackage.currentLocation) + haversineDistanceKm(selectedPackage.currentLocation, delivery)
+        : haversineDistanceKm(pickup, delivery);
+      setRoutePoints(points);
+      setRouteDistanceKm(Math.round(totalDistance * 10) / 10);
+      setRemainingDistanceKm(selectedPackage.hasCurrentLocation
+        ? Math.round(haversineDistanceKm(selectedPackage.currentLocation, delivery) * 10) / 10
+        : null);
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    const fetchRoute = async (positions: [number, number][], geometry: boolean) => {
+      const coordinates = positions.map(([latitude, longitude]) => `${longitude},${latitude}`).join(';');
+      const response = await fetch(
+        `https://router.project-osrm.org/route/v1/driving/${coordinates}?overview=${geometry ? 'full' : 'false'}&geometries=geojson`,
+        { signal: controller.signal },
+      );
+      if (!response.ok) throw new Error('Route unavailable');
+      return response.json() as Promise<{ routes?: Array<{ distance?: number; geometry?: { coordinates?: [number, number][] } }> }>;
+    };
+
+    setRoutePoints([]);
+    setRouteDistanceKm(null);
+    setRemainingDistanceKm(null);
+    setRouteLoading(true);
+    const remainingRouteRequest = selectedPackage.hasCurrentLocation
+      ? fetchRoute([selectedPackage.currentLocation, delivery], false)
+      : Promise.resolve(null);
+    const fullRoutePositions: [number, number][] = selectedPackage.hasCurrentLocation
+      ? [pickup, selectedPackage.currentLocation, delivery]
+      : [pickup, delivery];
+    void Promise.all([
+      fetchRoute(fullRoutePositions, true),
+      remainingRouteRequest,
+    ])
+      .then(([fullRouteData, remainingRouteData]) => {
+        const fullRoute = fullRouteData.routes?.[0];
+        const remainingRoute = remainingRouteData?.routes?.[0];
+        if (fullRoute?.geometry?.coordinates?.length) {
+          setRoutePoints(fullRoute.geometry.coordinates.map(([longitude, latitude]) => [latitude, longitude]));
+        }
+        setRouteDistanceKm(fullRoute?.distance ? Math.round(fullRoute.distance / 100) / 10 : null);
+        setRemainingDistanceKm(remainingRoute?.distance ? Math.round(remainingRoute.distance / 100) / 10 : null);
+      })
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        setRouteDistanceKm(null);
+        setRemainingDistanceKm(null);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setRouteLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [selectedPackage.currentLocation, selectedPackage.hasCurrentLocation, selectedPackage.transportType, trackingRouteEndpoints]);
 
   const exportRouteReport = () => {
     const csv = reportRows
@@ -197,7 +432,18 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
   };
 
   const changeLoadStatus = async (status: PackageData['status']) => {
-    if (role !== 'superadmin' || !selectedPackage.id || statusChanging || status === selectedPackage.status) return;
+    if (!canChangeStatus || !canSelectStatus(status) || !selectedPackage.id || statusChanging || status === selectedPackage.status) return;
+    if (status === 'Finished') {
+      setCarDropOpen(true);
+      return;
+    }
+
+    if (status === 'Received') {
+      setReceiveReviewPending(true);
+      setRightTab('review');
+      return;
+    }
+
     const label = trPackageStatus(lang, status);
     const confirmed = await confirmAction({
       title: u('tracking.changeStatusTitle', `Change status to ${label}?`),
@@ -220,6 +466,33 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
     } finally {
       setStatusChanging(null);
     }
+  };
+
+  const canControlLiveTracking = role === 'driver' || role === 'company' || role === 'superadmin' || role === 'master';
+  const handleLiveTrackingToggle = async () => {
+    if (!canControlLiveTracking) return;
+    const nextEnabled = !liveTrackingEnabled;
+    const sendsDriverRequest = role === 'company' || role === 'superadmin' || role === 'master';
+    const confirmed = await confirmAction({
+      title: nextEnabled
+        ? sendsDriverRequest
+          ? u('tracking.requestLiveTrackingTitle', "Send request to driver's app?")
+          : u('tracking.startLiveTrackingTitle', 'Start tracking in app?')
+        : u('tracking.pauseLiveTrackingTitle', 'Pause live tracking?'),
+      text: nextEnabled
+        ? sendsDriverRequest
+          ? u('tracking.requestLiveTrackingText', "A request will be sent to the driver's app to start sharing live location.")
+          : u('tracking.startLiveTrackingText', 'Your live location will be shared for this load.')
+        : u('tracking.pauseLiveTrackingText', 'Live location sharing will be paused for this load.'),
+      confirmText: nextEnabled
+        ? sendsDriverRequest
+          ? u('tracking.sendRequest', 'Send request')
+          : u('tracking.startTracking', 'Start tracking')
+        : u('tracking.pauseTracking', 'Pause tracking'),
+    });
+    if (!confirmed) return;
+    setLiveTrackingEnabled(nextEnabled);
+    setLiveTrackingUpdatedAt(new Date().toISOString());
   };
 
   const saveShipmentDetail = async (detail: ShipmentDetail, value: string | number | null) => {
@@ -342,11 +615,11 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
       onClose={() => setDetailsOpen(false)}
       onExitComplete={onClose}
       bodyClassName={
-        rightTab === 'map'
-          ? 'overflow-hidden p-0 md:p-0'
+        rightTab === 'tracker'
+          ? 'relative overflow-hidden p-0 md:p-0'
           : rightTab === 'returnRoutes' && !returnRoutesUnlocked
             ? 'overflow-hidden'
-          : undefined
+            : undefined
       }
       headerAction={(
         <>
@@ -366,13 +639,17 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
           >
             <Sparkles className="w-5 h-5" />
           </button>
-          {role === 'superadmin' && (
+          {canChangeStatus && (
             <LoadStatusPicker
               lang={lang}
-              status={selectedPackage.status}
+              status={visibleStatus}
               isChanging={statusChanging !== null}
               onChange={(status) => void changeLoadStatus(status)}
               className="[&_button]:h-10"
+              availableStatuses={role === 'user'
+                ? ['Received']
+                : ['Posted', 'Opened', 'Sent', 'In delivery', 'Finished', 'Pending', 'Cancelled']}
+              actionLabels={{ Received: receivedActionLabel }}
             />
           )}
         </>
@@ -380,16 +657,6 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
     >
       <div className="overflow-x-auto [scrollbar-width:thin] [scrollbar-color:rgb(148_163_184/0.72)_transparent] dark:[scrollbar-color:rgb(71_85_105/0.8)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-400/70 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600/80 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:bg-slate-500/90 dark:[&::-webkit-scrollbar-thumb:hover]:bg-slate-500/95">
         <div className="inline-flex h-10 min-w-full w-max items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1">
-        <button
-          onClick={() => setRightTab('details')}
-          className={cn(
-            'h-full px-3 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5',
-            rightTab === 'details' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-          )}
-        >
-          <FileSpreadsheet className="w-4 h-4" />
-          {u('tracking.shipmentDetails', 'Shipment details')}
-        </button>
         <button
           onClick={() => setRightTab('tracker')}
           className={cn(
@@ -401,14 +668,14 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
           {u('Tracker', 'Tracker')}
         </button>
         <button
-          onClick={() => setRightTab('map')}
+          onClick={() => setRightTab('details')}
           className={cn(
             'h-full px-3 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5',
-            rightTab === 'map' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+            rightTab === 'details' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
           )}
         >
-          <MapPin className="w-4 h-4" />
-          {u('Map', 'Map')}
+          <FileSpreadsheet className="w-4 h-4" />
+          {u('tracking.shipmentDetails', 'Shipment details')}
         </button>
         <button
           onClick={() => setRightTab('return')}
@@ -474,9 +741,9 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
       </div>
 
       {rightTab === 'tracker' && (
-        <div className="amazon-card">
-          <div className="amazon-header flex items-center justify-between">
-            <div className="flex gap-8">
+        <div className="absolute inset-x-0 top-0 z-[1000] border-b border-slate-200 bg-white/85 shadow-lg backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/85">
+          <div className="grid items-center gap-5 bg-white/40 px-5 py-2 text-sm font-medium dark:bg-slate-900/40 xl:grid-cols-[minmax(520px,1fr)_auto_auto]">
+            <div className="order-2 flex gap-6">
               <div>
                 <p className="text-[10px] uppercase text-slate-500">{u('Ordered on', 'Ordered on')}</p>
                 <p className="font-bold">{selectedPackage.addedDate ? new Date(selectedPackage.addedDate).toLocaleDateString() : '—'}</p>
@@ -494,50 +761,103 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
                 </p>
               </div>
             </div>
-            <div className="text-right">
-              <p className="text-[10px] uppercase text-slate-500">Order # {selectedPackage.trackingNumber}</p>
+
+            <div className="order-1 min-w-0 pt-1">
+              <div className="relative h-2 rounded-full bg-slate-100 dark:bg-slate-800">
+                <div
+                  className={cn('absolute left-0 top-0 h-full rounded-full', selectedPackage.status === 'Cancelled' ? 'bg-rose-500' : 'bg-emerald-500')}
+                  style={{ width: `${trackingProgress}%` }}
+                />
+                {trackingFlow.map((status, index) => {
+                  const position = (index / (trackingFlow.length - 1)) * 100;
+                  const active = trackingStage >= index && !['Pending', 'Cancelled'].includes(selectedPackage.status);
+                  return (
+                    <button
+                      type="button"
+                      key={status}
+                      disabled={!canChangeStatus || !canSelectStatus(status) || statusChanging !== null}
+                      onClick={() => void changeLoadStatus(status)}
+                      aria-label={`${u('tracking.changeStatusConfirm', 'Change status')}: ${trPackageStatus(lang, status)}`}
+                      className={cn(
+                        'absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white dark:border-slate-900',
+                        canChangeStatus && canSelectStatus(status) && 'cursor-pointer transition-transform hover:scale-125 focus:outline-none focus:ring-2 focus:ring-primary/40',
+                        active ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
+                      )}
+                      style={{ left: `${position}%` }}
+                    />
+                  );
+                })}
+              </div>
+              <div className="relative mt-1.5 h-7 text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                {trackingFlow.map((status, index) => {
+                  const position = (index / (trackingFlow.length - 1)) * 100;
+                  return (
+                  <span
+                    key={status}
+                    className={cn(
+                      'absolute top-0 w-1/6',
+                      index === 0
+                        ? 'left-0 text-left'
+                        : index === trackingFlow.length - 1
+                          ? 'right-0 text-right'
+                          : '-translate-x-1/2 text-center',
+                      index === trackingStage && 'text-emerald-600 dark:text-emerald-400',
+                    )}
+                    style={index > 0 && index < TRACKING_FLOW.length - 1 ? { left: `${position}%` } : undefined}
+                  >
+                    <span className="block">{trPackageStatus(lang, status)}</span>
+                    {selectedPackage.statusChange?.[apiLoadStatus(status)] && (
+                      <span className={cn(
+                        'mt-px block text-[8px] font-semibold normal-case leading-tight tracking-normal',
+                        index === trackingStage ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500',
+                      )}>
+                        {new Date(selectedPackage.statusChange[apiLoadStatus(status)]).toLocaleString()}
+                      </span>
+                    )}
+                  </span>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="order-3 text-right">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Order #</p>
+              <p className="whitespace-nowrap font-mono text-sm font-black text-primary">{selectedPackage.trackingNumber}</p>
             </div>
           </div>
-          <div className="amazon-body">
-            <h2 className="text-xl font-bold text-emerald-600 mb-4">
-              {trPackageStatus(lang, selectedPackage.status)}
-            </h2>
-            <div className="relative h-2 bg-slate-100 dark:bg-slate-800 rounded-full mb-8">
-              <div
-                className={cn('absolute top-0 left-0 h-full rounded-full', selectedPackage.status === 'Cancelled' ? 'bg-rose-500' : 'bg-emerald-500')}
-                style={{ width: `${trackingProgress}%` }}
-              />
-              {TRACKING_FLOW.map((status, index) => {
-                const position = (index / (TRACKING_FLOW.length - 1)) * 100;
-                const active = trackingStage >= index && !['Pending', 'Cancelled'].includes(selectedPackage.status);
-                return (
-                  <button
-                    type="button"
-                    key={status}
-                    disabled={role !== 'superadmin' || statusChanging !== null}
-                    onClick={() => void changeLoadStatus(status)}
-                    aria-label={`${u('tracking.changeStatusConfirm', 'Change status')}: ${trPackageStatus(lang, status)}`}
-                    className={cn(
-                      'absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white dark:border-slate-900',
-                      role === 'superadmin' && 'cursor-pointer transition-transform hover:scale-125 focus:outline-none focus:ring-2 focus:ring-primary/40',
-                      active ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
-                    )}
-                    style={{ left: `${position}%` }}
-                  />
-                );
-              })}
+
+          <div className="pointer-events-none absolute right-4 top-full mt-3 flex max-w-[calc(100%_-_2rem)] flex-wrap items-center justify-end gap-2">
+            <div className="inline-flex items-center gap-2 rounded-full bg-sky-100/90 px-3 py-1.5 text-xs font-bold text-sky-700 shadow-sm backdrop-blur dark:bg-sky-950/80 dark:text-sky-300">
+              {routeLoading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              {u('tracking.totalDistance', 'Total distance')}: {routeDistanceKm === null ? '—' : `${routeDistanceKm.toLocaleString()} km`}
             </div>
-            <div className="grid grid-cols-6 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              {TRACKING_FLOW.map((status, index) => (
-                <span key={status} className={cn(index === 0 ? 'text-left' : index === TRACKING_FLOW.length - 1 ? 'text-right' : 'text-center')}>
-                  <span className="block">{trPackageStatus(lang, status)}</span>
-                  {selectedPackage.statusChange?.[apiLoadStatus(status)] && (
-                    <span className="mt-1 block text-[9px] font-semibold normal-case tracking-normal text-slate-500">
-                      {new Date(selectedPackage.statusChange[apiLoadStatus(status)]).toLocaleString()}
-                    </span>
-                  )}
+            <div className="inline-flex items-center rounded-full bg-emerald-100/90 px-3 py-1.5 text-xs font-bold text-emerald-700 shadow-sm backdrop-blur dark:bg-emerald-950/80 dark:text-emerald-300">
+              {u('tracking.remainingDistance', 'Remaining')}: {remainingDistanceKm === null ? '—' : `${remainingDistanceKm.toLocaleString()} km`}
+            </div>
+            <div className={cn(
+              'pointer-events-auto inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold shadow-sm backdrop-blur',
+              liveTrackingEnabled
+                ? 'bg-emerald-100/90 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300'
+                : 'bg-slate-100/90 text-slate-600 dark:bg-slate-900/80 dark:text-slate-300',
+            )}>
+              <span>
+                {u('tracking.liveTracking', 'Live tracking')}: {liveTrackingEnabled ? u('tracking.active', 'Active') : u('tracking.paused', 'Paused')}
+              </span>
+              {canControlLiveTracking ? (
+                <button
+                  type="button"
+                  onClick={() => void handleLiveTrackingToggle()}
+                  title={liveTrackingEnabled ? u('tracking.pauseTracking', 'Pause tracking') : u('tracking.startTrackingInApp', 'Start tracking in app')}
+                  aria-label={liveTrackingEnabled ? u('tracking.pauseTracking', 'Pause tracking') : u('tracking.startTrackingInApp', 'Start tracking in app')}
+                  className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-white/90 text-current shadow-sm transition-transform hover:scale-110 dark:bg-slate-800"
+                >
+                  {liveTrackingEnabled ? <Pause className="h-3 w-3 fill-current" /> : <Play className="h-3 w-3 fill-current" />}
+                </button>
+              ) : role === 'user' && liveTrackingUpdatedAt ? (
+                <span className="border-l border-current/20 pl-2 text-[10px] font-semibold opacity-75">
+                  {u('tracking.lastUpdated', 'Last updated')}: {new Date(liveTrackingUpdatedAt).toLocaleString(lang === 'bs' ? 'bs-BA' : lang === 'de' ? 'de-DE' : 'en-GB')}
                 </span>
-              ))}
+              ) : null}
             </div>
           </div>
         </div>
@@ -579,67 +899,63 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
         </Card>
       )}
 
-      {rightTab === 'map' && (
-        <Card
-          className="flex h-full min-h-0 flex-col rounded-none border-0"
-          contentClassName="min-h-0 flex-1 p-0"
-          title={u('tracking.liveLocation', 'Live Location')}
-          headerAction={
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              {mapFilters.toll && (
-                <div className="inline-flex items-center rounded-full bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-600">
-                  {u('tracking.tollTotal', 'Toll total')}: EUR {tollTotal}
-                </div>
-              )}
-
-              <label className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
-                <span>{u('tracking.amenity.toll', 'Tolls')}</span>
-                <Toggle
-                  checked={mapFilters.toll}
-                  onClick={() => setMapFilters((prev) => ({ ...prev, toll: !prev.toll }))}
-                />
-              </label>
-
-              {mapFilterButtons
-                .filter((item) => item.key !== 'toll')
-                .map((item) => {
-                  const Icon = item.icon;
-                  const isActive = mapFilters[item.key];
-                  return (
-                    <button
-                      key={item.key}
-                      type="button"
-                      onClick={() => setMapFilters((prev) => ({ ...prev, [item.key]: !prev[item.key] }))}
-                      className={cn(
-                        'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-all cursor-pointer',
-                        isActive
-                          ? 'border-primary bg-primary/10 text-primary'
-                          : 'border-slate-200 bg-white text-slate-500 hover:border-primary/40 hover:text-primary dark:border-slate-700 dark:bg-slate-900'
-                      )}
-                    >
-                      <Icon className="h-3.5 w-3.5" />
-                      {item.label}
-                    </button>
-                  );
-                })}
-            </div>
-          }
-        >
-          <div className="relative h-full min-h-0 overflow-hidden">
-             <MapContainer center={selectedPackage.currentLocation} zoom={13} className="h-full w-full">
+      {rightTab === 'tracker' && (
+        <div className="absolute inset-0 overflow-hidden">
+             <MapContainer ref={trackerMapRef} center={selectedPackage.hasCurrentLocation ? selectedPackage.currentLocation : (trackingRouteEndpoints.pickup || selectedPackage.currentLocation)} zoom={13} className="h-full w-full">
                 <TileLayer
                   url="https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
                   subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
                   attribution="&copy; Google Maps"
                 />
-                <Marker position={selectedPackage.currentLocation}>
-                  <Popup>
-                    <div className="p-2">
-                      <p className="font-bold">{selectedPackage.trackingNumber}</p>
-                      <p className="text-xs text-slate-500">{trPackageStatus(lang, selectedPackage.status)}</p>
-                    </div>
-                  </Popup>
-                </Marker>
+                <FuelStationViewportLoader enabled={mapFilters.fuel} onBoundsChange={loadFuelStations} />
+                {routePoints.length >= 2 && (
+                  <>
+                    <FitTrackingRoute points={routePoints} />
+                    <Polyline positions={routePoints} pathOptions={{ color: '#0ea5e9', weight: 5, opacity: 0.92 }} />
+                  </>
+                )}
+                {trackingRouteEndpoints.pickup && (
+                  <Marker position={trackingRouteEndpoints.pickup} icon={routeEndpointIcon(selectedPackage.originCountryCode, '#10b981')}>
+                    <Popup><strong>{selectedPackage.origin}</strong><br />{u('home.pickupPoint', 'Pickup point')}</Popup>
+                  </Marker>
+                )}
+                {trackingRouteEndpoints.delivery && (
+                  <Marker position={trackingRouteEndpoints.delivery} icon={routeEndpointIcon(selectedPackage.destinationCountryCode, '#ef4444')}>
+                    <Popup><strong>{selectedPackage.destination}</strong><br />{u('home.deliveryPoint', 'Delivery point')}</Popup>
+                  </Marker>
+                )}
+                {selectedPackage.hasCurrentLocation && (
+                  <Marker
+                    position={selectedPackage.currentLocation}
+                    icon={trackingMarkerIcon(selectedPackage.transportType || 'road', selectedPackage.status)}
+                    eventHandlers={{ click: () => {
+                      setTrackerCardOpen(true);
+                      trackerMapRef.current?.panInside(L.latLng(selectedPackage.currentLocation), {
+                        paddingTopLeft: [140, 340],
+                        paddingBottomRight: [140, 60],
+                      });
+                    } }}
+                  />
+                )}
+
+                {mapFilters.fuel && fuelStations.map((station) => (
+                  <CircleMarker
+                    key={`${station.source_type}-${station.source_id}`}
+                    center={[Number(station.latitude), Number(station.longitude)]}
+                    radius={6}
+                    pathOptions={{ color: '#0369a1', fillColor: '#06b6d4', fillOpacity: 0.95, weight: 2 }}
+                  >
+                    <Tooltip direction="top" offset={[0, -5]} opacity={1}>
+                      <div className="min-w-36 space-y-1">
+                        <p className="text-xs font-black text-slate-900">{station.name || station.brand || station.operator || u('tracking.amenity.fuel', 'Fuel station')}</p>
+                        {station.address && <p className="text-[10px] text-slate-500">{station.address}</p>}
+                        {station.opening_hours && <p className="text-[10px] text-slate-500">{station.opening_hours}</p>}
+                        {station.fuel_types?.length ? <p className="text-[10px] text-slate-500">{station.fuel_types.join(' · ')}</p> : null}
+                        {station.hgv && <p className="text-[10px] font-bold text-emerald-600">HGV</p>}
+                      </div>
+                    </Tooltip>
+                  </CircleMarker>
+                ))}
 
                 {visibleAmenities.map((amenity) => (
                   <CircleMarker
@@ -672,8 +988,73 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
                   </CircleMarker>
                 ))}
              </MapContainer>
+
+          {trackerCardOpen && trackerCardPoint && (
+            <div
+              className="pointer-events-auto absolute z-[1400] -translate-x-1/2 -translate-y-full pb-1.5 after:absolute after:bottom-0 after:left-1/2 after:h-3 after:w-3 after:-translate-x-1/2 after:rotate-45 after:border-b after:border-r after:border-slate-200 after:bg-white dark:after:border-white/10 dark:after:bg-slate-950"
+              style={{ left: trackerCardPoint.x, top: trackerCardPoint.y }}
+            >
+              <TrackingMapCard
+                pkg={selectedPackage}
+                lang={lang}
+                onOpenDetails={() => { setTrackerCardOpen(false); setRightTab('details'); }}
+                onClose={() => setTrackerCardOpen(false)}
+              />
+            </div>
+          )}
+
+          {mapFilters.fuel && (
+            <a
+              href="https://de.fuelo.net/"
+              target="_blank"
+              rel="noreferrer"
+              className="absolute bottom-20 right-3 z-[1000] rounded bg-white/85 px-2 py-1 text-[9px] font-semibold text-slate-600 shadow backdrop-blur hover:text-primary dark:bg-slate-900/85 dark:text-slate-300"
+            >
+              {fuelStationsLoading ? `${u('tracking.amenity.fuel', 'Fuel')}…` : `Fuelo.net · ${fuelStations.length}`}
+            </a>
+          )}
+
+          <div className="pointer-events-none absolute inset-x-4 bottom-4 z-[1000] flex justify-start">
+            <div className="pointer-events-auto flex max-w-full flex-wrap items-center justify-start gap-2 rounded-2xl border border-white/60 bg-white/80 p-2 shadow-xl backdrop-blur-xl dark:border-slate-700/70 dark:bg-slate-900/80">
+              {mapFilters.toll && (
+                <div className="inline-flex items-center rounded-full bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-600">
+                  {u('tracking.tollTotal', 'Toll total')}: EUR {tollTotal}
+                </div>
+              )}
+
+              <label className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                <span>{u('tracking.amenity.toll', 'Tolls')}</span>
+                <Toggle
+                  checked={mapFilters.toll}
+                  onClick={() => setMapFilters((prev) => ({ ...prev, toll: !prev.toll }))}
+                />
+              </label>
+
+              {mapFilterButtons
+                .filter((item) => item.key !== 'toll')
+                .map((item) => {
+                  const Icon = item.icon;
+                  const isActive = mapFilters[item.key];
+                  return (
+                    <button
+                      key={item.key}
+                      type="button"
+                      onClick={() => setMapFilters((prev) => ({ ...prev, [item.key]: !prev[item.key] }))}
+                      className={cn(
+                        'inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-all',
+                        isActive
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-slate-200 bg-white text-slate-500 hover:border-primary/40 hover:text-primary dark:border-slate-700 dark:bg-slate-900'
+                      )}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      {item.label}
+                    </button>
+                  );
+                })}
+            </div>
           </div>
-        </Card>
+        </div>
       )}
 
       {rightTab === 'return' && (
@@ -925,9 +1306,35 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
           targetName={selectedPackage.trackingNumber || selectedPackage.description || `Load #${selectedPackage.id}`}
           viewerRole={role}
           lang={lang}
+          submitLabel={receiveReviewPending ? (lang === 'bs' ? 'Označi kao primljeno i pošalji' : lang === 'de' ? 'Als empfangen markieren und senden' : 'Mark as received and send') : undefined}
+          submittingLabel={receiveReviewPending ? (lang === 'bs' ? 'Slanje i označavanje…' : lang === 'de' ? 'Wird gesendet…' : 'Sending and marking…') : undefined}
+          onSubmitted={receiveReviewPending ? async () => {
+            setStatusChanging('Received');
+            try {
+              await api.loads.updateStatus(selectedPackage.id, 'received');
+              await refreshPackage();
+              onChanged?.();
+              setReceiveReviewPending(false);
+            } finally {
+              setStatusChanging(null);
+            }
+          } : undefined}
         />
       )}
     </TrackingItemDetails>
+    <VehicleReturnModal
+      open={carDropOpen}
+      loadId={selectedPackage.id}
+      vehicleId={selectedPackage.vehicleId}
+      vehicleName={selectedPackage.vehicleName}
+      lang={lang}
+      onClose={() => setCarDropOpen(false)}
+      onCompleted={async () => {
+        await refreshPackage();
+        onChanged?.();
+        setCarDropOpen(false);
+      }}
+    />
     <LenaAI
       open={lenaOpen}
       onClose={() => setLenaOpen(false)}

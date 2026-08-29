@@ -15,6 +15,7 @@ type AddressMapModalProps = {
   title: string;
   initialQuery?: string;
   initialPosition?: [number, number] | null;
+  viewOnly?: boolean;
   onClose: () => void;
   onSelect: (location: LocationSearchResult) => void;
 };
@@ -32,7 +33,7 @@ const MapSelection = ({ onSelect }: { onSelect: (latitude: number, longitude: nu
   return null;
 };
 
-export const AddressMapModal = ({ open, lang, title, initialQuery = '', initialPosition, onClose, onSelect }: AddressMapModalProps) => {
+export const AddressMapModal = ({ open, lang, title, initialQuery = '', initialPosition, viewOnly = false, onClose, onSelect }: AddressMapModalProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const defaultPosition: [number, number] = initialPosition || [43.8563, 18.4131];
   const [query, setQuery] = useState(initialQuery);
@@ -75,7 +76,7 @@ export const AddressMapModal = ({ open, lang, title, initialQuery = '', initialP
       {open && <motion.div className="fixed inset-0 z-[300] flex h-[100dvh] flex-col bg-white dark:bg-slate-950" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2, ease: 'easeOut' }}>
       <header className="flex h-16 shrink-0 items-center gap-4 border-b border-slate-200 px-5 dark:border-slate-800">
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-black uppercase tracking-wider text-primary leading-none">{u('map.chooseLocation', 'Choose location')}</p>
+          <p className="text-[10px] font-black uppercase tracking-wider text-primary leading-none">{viewOnly ? u('map.location', 'Location') : u('map.chooseLocation', 'Choose location')}</p>
           <h2 className="truncate text-base font-black text-slate-900 dark:text-white leading-tight mt-0.5">{title}</h2>
         </div>
         <button type="button" onClick={onClose} className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-900">
@@ -87,11 +88,11 @@ export const AddressMapModal = ({ open, lang, title, initialQuery = '', initialP
         <MapContainer center={position} zoom={initialPosition ? 15 : 7} className="h-full w-full">
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap contributors" />
           <MapViewport position={position} />
-          <MapSelection onSelect={selectMapPoint} />
+          {!viewOnly && <MapSelection onSelect={selectMapPoint} />}
           {(selected || initialPosition) && <Marker position={position} />}
         </MapContainer>
 
-        <div className="absolute left-1/2 top-5 z-[1000] w-[min(720px,calc(100%-2rem))] -translate-x-1/2">
+        {!viewOnly && <div className="absolute left-1/2 top-5 z-[1000] w-[min(720px,calc(100%-2rem))] -translate-x-1/2">
           <div className="relative rounded-2xl border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900">
             <Search className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
             <input
@@ -117,15 +118,15 @@ export const AddressMapModal = ({ open, lang, title, initialQuery = '', initialP
               ))}
             </div>
           )}
-        </div>
+        </div>}
       </div>
 
-      <footer className="flex shrink-0 items-center justify-between gap-4 border-t border-slate-200 bg-white px-5 py-4 dark:border-slate-800 dark:bg-slate-950">
+      {!viewOnly && <footer className="flex shrink-0 items-center justify-between gap-4 border-t border-slate-200 bg-white px-5 py-4 dark:border-slate-800 dark:bg-slate-950">
         <p className="min-w-0 truncate text-sm text-slate-500">{locationToUse?.label || u('map.clickHint', 'Search or click the map to select an exact location.')}</p>
         <Button disabled={!locationToUse || loading || mapPointLoading} onClick={() => locationToUse && onSelect(locationToUse)} className="shrink-0 gap-2">
           <Check className="h-4 w-4" /> {u('map.useLocation', 'Use location')}
         </Button>
-      </footer>
+      </footer>}
       </motion.div>}
     </AnimatePresence>
   );

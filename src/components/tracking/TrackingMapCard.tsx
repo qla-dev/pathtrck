@@ -83,6 +83,8 @@ export const TrackingMapCard = ({ pkg, lang, onOpenDetails, onClose }: TrackingM
           value={pkg.transitDays ? `${pkg.transitDays} ${u('tracking.days', 'days')}` : u('tracking.notScheduled', 'Not scheduled')}
           valueClassName="text-violet-600 dark:text-violet-300"
         />
+        <Mini label={u('pricing.role.driver', 'Driver')} value={pkg.assignedDriverName || '—'} />
+        <Mini label={u('fleet.table.vehicle', 'Vehicle')} value={pkg.vehicleName || '—'} />
       </div>
 
       <div className="px-3 pb-3 pt-2">

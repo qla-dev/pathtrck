@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { motion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import {
   Plus,
   Truck,
@@ -24,6 +24,7 @@ import { Card } from '../ui/Card';
 import { PageHeader } from '../ui/PageHeader';
 import { api } from '../../services/api';
 import { RegisterVehicleModal } from '../modals/RegisterVehicleModal';
+import { AddressMapModal } from '../maps/AddressMapModal';
 
 type TransportType = 'truck' | 'aircraft' | 'ship';
 
@@ -47,6 +48,7 @@ type FleetVehicle = {
   configuration: string;
   capacityKg: number;
   volumeM3: number;
+  source?: Record<string, unknown>;
 };
 
 const INITIAL_VEHICLES: FleetVehicle[] = [
@@ -120,12 +122,26 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
   const [vehicles, setVehicles] = useState<FleetVehicle[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [sharedAccess, setSharedAccess] = useState<Record<string, boolean>>({});
+  const [fleetSection, setFleetSection] = useState<'vehicles' | 'statistics'>('vehicles');
+  const [editingVehicle, setEditingVehicle] = useState<Record<string, unknown> | null>(null);
+  const [mapVehicle, setMapVehicle] = useState<FleetVehicle | null>(null);
 
   const loadVehicles = async () => {
     const response = await api.vehicles.list({ per_page: 100 });
     const scopedRows = response.data.filter((row) => {
       if (role === 'company' && companyIds.length > 0) return companyIds.includes(Number(row.company_id));
-      if (role === 'driver' && userId) return Number(row.owner_user_id) === userId || Number(row.assigned_driver_user_id) === userId;
+      if (role === 'driver' && userId) {
+        const permittedUsers = Array.isArray(row.permitted_users)
+          ? row.permitted_users as Array<Record<string, unknown>>
+          : [];
+        const hasViewGrant = permittedUsers.some((permittedUser) => {
+          const pivot = permittedUser.pivot && typeof permittedUser.pivot === 'object'
+            ? permittedUser.pivot as Record<string, unknown>
+            : {};
+          return Number(permittedUser.id) === userId && Boolean(pivot.can_view);
+        });
+        return Number(row.owner_user_id) === userId || hasViewGrant;
+      }
       return true;
     });
     setVehicles(scopedRows.map((row) => {
@@ -144,6 +160,7 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
         category: String(row.vehicle_type || '—'), bodyType: String(features.body_type || row.vehicle_type || '—'),
         capacity: row.capacity_kg ? `${Number(row.capacity_kg).toLocaleString()} kg` : '—', volume: row.capacity_m3 ? `${row.capacity_m3} m³` : '—',
         configuration: String(features.configuration || '—'), capacityKg: Number(row.capacity_kg || 0), volumeM3: Number(row.capacity_m3 || 0),
+        source: row,
       };
     }));
   };
@@ -191,8 +208,18 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
     [vehicles, lang]
   );
 
-  const openAddVehicle = () => setIsAddModalOpen(true);
-  const closeAddVehicle = () => setIsAddModalOpen(false);
+  const openAddVehicle = () => {
+    setEditingVehicle(null);
+    setIsAddModalOpen(true);
+  };
+  const openEditVehicle = (vehicle: FleetVehicle) => {
+    setEditingVehicle(vehicle.source || null);
+    setIsAddModalOpen(true);
+  };
+  const closeAddVehicle = () => {
+    setIsAddModalOpen(false);
+    setEditingVehicle(null);
+  };
 
   return (
     <motion.div
@@ -204,13 +231,54 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
         icon={Truck}
         title={u('fleet.title', 'My Fleet')}
         subtitle={u('fleet.subtitle', 'Manage and monitor your vehicle assets')}
-        actions={<Button className="rounded-full" onClick={openAddVehicle}>
-          <Plus className="w-4 h-4 mr-2" /> {u('fleet.addVehicle', 'Add Vehicle')}
-        </Button>}
+        actions={(
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <div className="inline-flex items-center rounded-full border border-sky-200/80 bg-sky-50/70 p-1 dark:border-slate-700 dark:bg-slate-900">
+              <button
+                type="button"
+                onClick={() => setFleetSection('vehicles')}
+                className={cn(
+                  'inline-flex cursor-pointer items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all active:scale-95',
+                  fleetSection === 'vehicles'
+                    ? 'bg-primary text-white shadow-md shadow-primary/20'
+                    : 'text-slate-500 hover:text-primary dark:text-slate-300',
+                )}
+              >
+                <Truck className="h-4 w-4" />
+                {u('fleet.tabs.vehicles', 'Vehicles')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setFleetSection('statistics')}
+                className={cn(
+                  'inline-flex cursor-pointer items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all active:scale-95',
+                  fleetSection === 'statistics'
+                    ? 'bg-primary text-white shadow-md shadow-primary/20'
+                    : 'text-slate-500 hover:text-primary dark:text-slate-300',
+                )}
+              >
+                <BarChart3 className="h-4 w-4" />
+                {u('fleet.tabs.statistics', 'Statistics')}
+              </button>
+            </div>
+            <Button className="rounded-full" onClick={openAddVehicle}>
+              <Plus className="mr-2 h-4 w-4" /> {u('fleet.addVehicle', 'Add Vehicle')}
+            </Button>
+          </div>
+        )}
         stats={fleetStats}
       />
 
-      <section className="grid gap-3 xl:grid-cols-12">
+      <AnimatePresence initial={false} mode="popLayout">
+      <motion.div
+        key={fleetSection}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -8 }}
+        transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+        className="space-y-3"
+      >
+      {fleetSection === 'statistics' && <section className="grid gap-3 xl:grid-cols-12">
         <Card className="shadow-none xl:col-span-3" contentClassName="p-4">
           <div className="flex items-center gap-2"><Gauge className="h-4 w-4 text-emerald-500" /><div><p className="text-sm font-black dark:text-white">{u('fleet.statusMix', 'Fleet readiness')}</p><p className="text-[11px] text-slate-500">{u('fleet.statusMixSub', 'Vehicles grouped by live status')}</p></div></div>
           <div className="mt-2 h-56"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={statusData} dataKey="value" nameKey="name" innerRadius={48} outerRadius={76} paddingAngle={3}><Cell fill="#10b981" /><Cell fill="#f59e0b" /><Cell fill="#64748b" /></Pie><Tooltip contentStyle={chartTooltip} itemStyle={{ color: '#e2e8f0' }} labelStyle={{ color: '#e2e8f0' }} /><Legend iconType="circle" wrapperStyle={{ fontSize: '10px' }} /></PieChart></ResponsiveContainer></div>
@@ -223,9 +291,9 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
           <div className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-violet-500" /><div><p className="text-sm font-black dark:text-white">{u('fleet.capacityProfile', 'Fleet capacity profile')}</p><p className="text-[11px] text-slate-500">{u('fleet.capacityProfileSub', 'Registered payload and volume by vehicle')}</p></div></div>
           <div className="mt-3 h-56"><ResponsiveContainer width="100%" height="100%"><BarChart data={capacityData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}><CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" opacity={0.35} vertical={false} /><XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} /><YAxis yAxisId="kg" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} /><YAxis yAxisId="m3" orientation="right" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} /><Tooltip cursor={false} contentStyle={chartTooltip} /><Legend wrapperStyle={{ fontSize: '11px' }} /><Bar yAxisId="kg" dataKey="capacity" name="Payload kg" fill="#8b5cf6" radius={[5, 5, 0, 0]} /><Bar yAxisId="m3" dataKey="volume" name="Volume m³" fill="#0ea5e9" radius={[5, 5, 0, 0]} /></BarChart></ResponsiveContainer></div>
         </Card>
-      </section>
+      </section>}
 
-      {(role === 'company' || role === 'driver' || role === 'superadmin') && (
+      {fleetSection === 'vehicles' && (role === 'company' || role === 'driver' || role === 'superadmin' || role === 'master') && (
         <Card>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -261,7 +329,7 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
         </Card>
       )}
 
-      <div className="grid gap-3 lg:grid-cols-3">
+      {fleetSection === 'statistics' && <div className="grid gap-3 lg:grid-cols-3">
         <Card title={u('fleet.fuelEfficiencyTitle', 'Fuel Consumption & Efficiency')} className="lg:col-span-2">
           <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -314,9 +382,9 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
             </div>
           </div>
         </Card>
-      </div>
+      </div>}
 
-      <Card title={u('fleet.vehicleStatus', 'Vehicle Status & Live Tracking')}>
+      {fleetSection === 'vehicles' && <Card contentClassName="p-0">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -380,10 +448,22 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
                     <td className="p-4 text-sm text-slate-500">{v.nextService}</td>
                     <td className="p-4">
                       <div className="flex gap-2">
-                        <button className="p-2 hover:bg-primary/10 hover:text-primary rounded-lg transition-colors">
+                        <button
+                          type="button"
+                          onClick={() => setMapVehicle(v)}
+                          title={u('fleet.openVehicleMap', 'Open vehicle map')}
+                          aria-label={u('fleet.openVehicleMap', 'Open vehicle map')}
+                          className="cursor-pointer rounded-lg bg-slate-100 p-2 transition hover:text-primary dark:bg-slate-800"
+                        >
                           <MapIcon className="w-4 h-4" />
                         </button>
-                        <button className="p-2 hover:bg-primary/10 hover:text-primary rounded-lg transition-colors">
+                        <button
+                          type="button"
+                          onClick={() => openEditVehicle(v)}
+                          title={u('fleet.editVehicleTitle', 'Edit vehicle')}
+                          aria-label={u('fleet.editVehicleTitle', 'Edit vehicle')}
+                          className="cursor-pointer rounded-lg bg-slate-100 p-2 transition hover:text-primary dark:bg-slate-800"
+                        >
                           <Settings className="w-4 h-4" />
                         </button>
                       </div>
@@ -394,7 +474,9 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
             </tbody>
           </table>
         </div>
-      </Card>
+      </Card>}
+      </motion.div>
+      </AnimatePresence>
 
       <RegisterVehicleModal
         open={isAddModalOpen}
@@ -402,11 +484,21 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
         ownerUserId={role === 'driver' ? userId : undefined}
         assignedDriverUserId={role === 'driver' ? userId : undefined}
         companyId={role === 'company' ? companyIds[0] : undefined}
+        initialVehicle={editingVehicle}
         onClose={closeAddVehicle}
         onCreated={() => {
           closeAddVehicle();
           void loadVehicles();
         }}
+      />
+      <AddressMapModal
+        open={Boolean(mapVehicle)}
+        lang={lang}
+        title={mapVehicle ? `${mapVehicle.systemName} · ${mapVehicle.plate}` : u('fleet.vehicleLocation', 'Vehicle location')}
+        initialPosition={mapVehicle?.location || null}
+        viewOnly
+        onClose={() => setMapVehicle(null)}
+        onSelect={() => setMapVehicle(null)}
       />
     </motion.div>
   );

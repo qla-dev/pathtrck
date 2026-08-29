@@ -1,6 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Flatpickr from 'react-flatpickr';
-import { renderToStaticMarkup } from 'react-dom/server';
 import L from 'leaflet';
 import { MapContainer, TileLayer, Marker, ZoomControl, useMap } from 'react-leaflet';
 import { Search, MapPin, ChevronRight, Package as PackageIcon, Coins, Truck, Plane, Ship, Train, Filter, CalendarDays, Trash2, List, LayoutGrid, Map as MapIcon, LocateFixed, Route, BriefcaseBusiness, Navigation, CalendarRange, BadgeEuro, Building2, Container, Tags, FileText, SlidersHorizontal, ShieldAlert, Zap, X, Weight, Box, Layers, Thermometer, ShieldCheck, Stamp, Lock } from 'lucide-react';
@@ -15,6 +14,7 @@ import { mapLoadToPackage } from '../../lib/loadDetails';
 import { LOAD_STATUS_OPTIONS, LoadStatusIcon } from '../load/LoadStatusPicker';
 import { LoadDetailsModal } from '../tracking/LoadDetailsModal';
 import { TrackingMapCard } from '../tracking/TrackingMapCard';
+import { trackingMarkerIcon } from '../tracking/trackingMapMarker';
 import { INCOTERM_OPTIONS, ROAD_CHARACTERISTIC_OPTIONS, VEHICLE_OPTIONS } from '../modals/loadFormOptions';
 import { IconSelect, type IconSelectOption } from '../ui/IconSelect';
 
@@ -23,7 +23,7 @@ export type TrackingLayoutMode = 'list' | 'grid' | 'map';
 
 const countryFlagUrl = (countryCode: string) => `https://flagcdn.com/w40/${countryCode.toLowerCase()}.png`;
 
-const TRACKING_STATUS_FILTERS = LOAD_STATUS_OPTIONS
+const BASE_TRACKING_STATUS_FILTERS = LOAD_STATUS_OPTIONS
   .map(([, status]) => status)
   .filter((status) => status !== 'Posted');
 
@@ -103,39 +103,6 @@ const TrackingCardsSkeleton = ({ layout }: { layout: TrackingLayoutMode }) => (
   </div>
 );
 
-const STATUS_MARKER_COLORS: Record<PackageData['status'], string> = {
-  Posted: '#64748b', Opened: '#06b6d4', Sent: '#3b82f6', 'In delivery': '#f59e0b',
-  Received: '#8b5cf6', Finished: '#10b981', Pending: '#fb923c', Cancelled: '#f43f5e',
-};
-
-const TRANSPORT_MARKER_ICONS = { air: Plane, sea: Ship, rail: Train, road: Truck } as const;
-
-// Leaflet wants raw HTML, and the glyph/colour pair only varies by transport+status - so render
-// each combination once and reuse the icon across every marker that shares it.
-const markerIconCache = new Map<string, L.DivIcon>();
-
-const trackingMarkerIcon = (transportType: string, status: PackageData['status']) => {
-  const key = `${transportType}|${status}`;
-  const cached = markerIconCache.get(key);
-  if (cached) return cached;
-
-  const color = STATUS_MARKER_COLORS[status] || '#64748b';
-  const Icon = TRANSPORT_MARKER_ICONS[transportType as keyof typeof TRANSPORT_MARKER_ICONS] || Truck;
-  const glyph = renderToStaticMarkup(<Icon width={16} height={16} color="#ffffff" strokeWidth={2.4} />);
-  const icon = L.divIcon({
-    className: 'tracking-map-marker',
-    html: `<div style="position:relative;width:32px;height:38px;">
-      <div style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:9999px;background:${color};border:2.5px solid #fff;box-shadow:0 2px 8px rgba(15,23,42,0.45);">${glyph}</div>
-      <div style="position:absolute;left:50%;top:29px;transform:translateX(-50%);width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:8px solid #fff;"></div>
-    </div>`,
-    iconSize: [32, 38],
-    iconAnchor: [16, 38],
-    popupAnchor: [0, -40],
-  });
-  markerIconCache.set(key, icon);
-  return icon;
-};
-
 const TrackingMapBounds = ({ points }: { points: [number, number][] }) => {
   const map = useMap();
 
@@ -192,11 +159,16 @@ type TrackingViewProps = {
 export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutModeChange, requestedLayout, requestedLayoutNonce }: TrackingViewProps) => {
   const TRUCK_CAPACITY_KG = 48000;
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  const trackingStatusFilters = useMemo(
+    () => role === 'user' ? BASE_TRACKING_STATUS_FILTERS.filter((status) => status !== 'Finished') : BASE_TRACKING_STATUS_FILTERS,
+    [role],
+  );
   const mapRef = useRef<L.Map | null>(null);
   const moreFiltersRef = useRef<HTMLDivElement>(null);
   const dateCellRef = useRef<HTMLDivElement>(null);
   const [openLoadId, setOpenLoadId] = useState<string | null>(null);
   const [mapSelectedId, setMapSelectedId] = useState<string | null>(null);
+  const [mapCardPoint, setMapCardPoint] = useState<L.Point | null>(null);
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<TrackingStatusFilter>('all');
@@ -305,14 +277,18 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
   const loadsResult = useApiList(api.loads.list, {
     ...trackingFilterParams,
     per_page: 500,
-    status: statusFilter === 'all' ? undefined : statusFilter.toLowerCase().replaceAll(' ', '_'),
+    status: statusFilter === 'all' || (role === 'user' && statusFilter === 'Received') ? undefined : statusFilter.toLowerCase().replaceAll(' ', '_'),
+    statuses: role === 'user' && statusFilter === 'Received' ? 'received,finished' : undefined,
     sort: 'date_desc',
   });
   const statusCountsResult = useApiList(api.loads.trackingStatusCounts, trackingFilterParams);
   const capacityResult = useApiList(api.loads.list, { per_page: 500, tracking: true, for_storage: false, statuses: 'sent,in_delivery' });
   const packages = useMemo<PackageData[]>(
-    () => loadsResult.items.map((load) => mapLoadToPackage(load, lang)),
-    [lang, loadsResult.items]
+    () => loadsResult.items.map((load) => {
+      const pkg = mapLoadToPackage(load, lang);
+      return role === 'user' && pkg.status === 'Finished' ? { ...pkg, status: 'Received' as const } : pkg;
+    }),
+    [lang, loadsResult.items, role]
   );
   const trackingMapPoints = useMemo<[number, number][]>(
     () => packages.map((pkg) => pkg.currentLocation),
@@ -322,15 +298,34 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
     () => packages.find((pkg) => pkg.id === mapSelectedId),
     [packages, mapSelectedId]
   );
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapSelectedPackage || layout !== 'map') {
+      setMapCardPoint(null);
+      return undefined;
+    }
+
+    const updateCardPoint = () => {
+      setMapCardPoint(map.latLngToContainerPoint(mapSelectedPackage.currentLocation));
+    };
+    updateCardPoint();
+    map.on('move zoom resize', updateCardPoint);
+    return () => {
+      map.off('move zoom resize', updateCardPoint);
+    };
+  }, [layout, mapSelectedPackage]);
   const statusCounts = useMemo(() => {
-    const counts = Object.fromEntries(TRACKING_STATUS_FILTERS.map((status) => [status, 0])) as Record<TrackingStatusFilter, number>;
+    const counts = Object.fromEntries(trackingStatusFilters.map((status) => [status, 0])) as Record<TrackingStatusFilter, number>;
     statusCountsResult.items.forEach((row) => {
-      const mapped = TRACKING_STATUS_FILTERS.find((status) => status.toLowerCase().replaceAll(' ', '_') === String(row.status || '').toLowerCase());
-      if (mapped) counts[mapped] = Number(row.count || 0);
+      const rawStatus = String(row.status || '').toLowerCase();
+      const mapped = role === 'user' && rawStatus === 'finished'
+        ? 'Received'
+        : trackingStatusFilters.find((status) => status.toLowerCase().replaceAll(' ', '_') === rawStatus);
+      if (mapped) counts[mapped] = Number(counts[mapped] || 0) + Number(row.count || 0);
     });
-    counts.all = TRACKING_STATUS_FILTERS.reduce((sum, status) => sum + (counts[status] || 0), 0);
+    counts.all = trackingStatusFilters.reduce((sum, status) => sum + (counts[status] || 0), 0);
     return counts;
-  }, [statusCountsResult.items]);
+  }, [role, statusCountsResult.items, trackingStatusFilters]);
 
   const loadCapacity = useMemo(() => {
     const roleLoads = capacityResult.items.filter((load) => {
@@ -410,7 +405,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
   ];
   const serviceOptions: IconSelectOption[] = TRACKING_SERVICES.map((value) => ({ value, label: value, icon: value === 'Express' || value === 'Priority' ? Zap : PackageIcon }));
   const equipmentOptions: IconSelectOption[] = VEHICLE_OPTIONS.map((value) => ({ value, label: value, icon: Container }));
-  const characteristicOptions: IconSelectOption[] = ROAD_CHARACTERISTIC_OPTIONS.map((value) => ({ value, label: value, icon: value === 'ADR' ? ShieldAlert : value === 'Express' ? Zap : Tags }));
+  const characteristicOptions: IconSelectOption[] = ROAD_CHARACTERISTIC_OPTIONS.map((value) => ({ value, label: value, icon: String(value) === 'ADR' ? ShieldAlert : String(value) === 'Express' ? Zap : Tags }));
   const incotermOptions: IconSelectOption[] = INCOTERM_OPTIONS.map((value) => ({ value, label: value, icon: FileText }));
   const currencyOptions: IconSelectOption[] = SUPPORTED_CURRENCIES.map((value) => ({ value, label: value, icon: Coins }));
 
@@ -484,16 +479,24 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
                     key={pkg.id}
                     position={pkg.currentLocation}
                     icon={trackingMarkerIcon(pkg.transportType || 'road', pkg.status)}
-                    eventHandlers={{ click: () => setMapSelectedId(pkg.id) }}
+                    eventHandlers={{ click: () => {
+                      setMapSelectedId(pkg.id);
+                      mapRef.current?.panInside(L.latLng(pkg.currentLocation), {
+                        paddingTopLeft: [140, 260],
+                        paddingBottomRight: [140, 70],
+                      });
+                    } }}
                   />
                 ))}
               </MapContainer>
 
-              {/* Leaflet keeps every pane inside .leaflet-map-pane, so a real popup can never paint
-                  above the filter overlay that sits next to the map. Render the card as its own
-                  sibling instead, where it can own a higher z-index than the filters. */}
-              {mapSelectedPackage && (
-                <div className="pointer-events-auto absolute bottom-4 left-4 z-30">
+              {/* Keep the card outside Leaflet's panes so it stays above the filter overlay, but
+                  position it from the selected marker's live container point. */}
+              {mapSelectedPackage && mapCardPoint && (
+                <div
+                  className="pointer-events-auto absolute z-30 -translate-x-1/2 -translate-y-full pb-3 after:absolute after:bottom-1 after:left-1/2 after:h-4 after:w-4 after:-translate-x-1/2 after:rotate-45 after:border-b after:border-r after:border-slate-200 after:bg-white dark:after:border-white/10 dark:after:bg-slate-950"
+                  style={{ left: mapCardPoint.x, top: mapCardPoint.y }}
+                >
                   <TrackingMapCard
                     pkg={mapSelectedPackage}
                     lang={lang}
@@ -516,7 +519,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
 
           <div className={cn(layout === 'map' ? 'pointer-events-none absolute inset-x-0 top-0 z-10 space-y-3 overflow-visible p-4' : undefined)}>
         <div className={cn('mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8', layout === 'map' && 'pointer-events-auto gap-2')}>
-          {(['all', ...TRACKING_STATUS_FILTERS] as TrackingStatusFilter[]).map((status) => (
+          {(['all', ...trackingStatusFilters] as TrackingStatusFilter[]).map((status) => (
             <button type="button" key={status} onClick={() => setStatusFilter(status)} className={cn('flex cursor-pointer items-center justify-center gap-2 rounded-full border text-sm font-bold transition-all hover:-translate-y-0.5', layout === 'map' ? 'h-9 gap-1.5 px-3 text-xs' : 'h-14 px-4', statusCardColors(status), layout === 'map'
               ? statusFilter === status
                 ? 'bg-white shadow-md ring-2 ring-current ring-offset-2 ring-offset-white/40 dark:bg-slate-900 dark:ring-offset-slate-900/40'

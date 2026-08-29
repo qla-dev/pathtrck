@@ -3,7 +3,7 @@ import { Language, Role } from '../types';
 export type ApiEnvelope<T> = {
   message: string;
   data: T;
-  meta?: { current_page?: number; page_no?: number; last_page?: number; per_page?: number; limit?: number; total?: number; categories?: number; coded?: number; selectable?: number; email_sent?: boolean; has_more?: boolean; unlimited?: boolean; average_rating?: number; has_reviewed?: boolean; can_review?: boolean; my_review?: Record<string, unknown> | null };
+  meta?: { current_page?: number; page_no?: number; last_page?: number; per_page?: number; limit?: number; total?: number; count?: number; attribution?: string; source_url?: string; categories?: number; coded?: number; selectable?: number; email_sent?: boolean; has_more?: boolean; unlimited?: boolean; average_rating?: number; has_reviewed?: boolean; can_review?: boolean; my_review?: Record<string, unknown> | null };
   errors?: Record<string, string[]>;
 };
 
@@ -32,6 +32,43 @@ export type ApiUser = {
 export type ApiLoginResult = { token: string; token_type: 'Bearer'; user: ApiUser };
 export type SocialAuthResult = ApiLoginResult | { needs_registration: true; email?: string; name?: string };
 export type ListParams = Record<string, string | number | boolean | undefined>;
+export type FuelStation = {
+  id: number;
+  source: 'fuelo';
+  source_type: string;
+  source_id: string;
+  name?: string | null;
+  brand?: string | null;
+  operator?: string | null;
+  address?: string | null;
+  latitude: number;
+  longitude: number;
+  opening_hours?: string | null;
+  hgv?: boolean | null;
+  fuel_types?: string[] | null;
+  last_synced_at?: string | null;
+};
+
+export type VehicleReturnPhoto = {
+  id: number;
+  name: string;
+  mime_type: string;
+  size_bytes: number;
+};
+
+export type VehicleReturnInspection = {
+  id: number;
+  vehicle_id: number;
+  load_id?: number | null;
+  mileage_km: number;
+  fuel_level_percent: number;
+  has_damage: boolean;
+  damage_notes?: string | null;
+  parking_location?: string | null;
+  inspected_at: string;
+  recorded_by?: { id: number; name: string } | null;
+  photos: VehicleReturnPhoto[];
+};
 
 export const AI_DISPATCH_SUBJECT_PREFIX = 'AI Dispatch — ';
 
@@ -276,6 +313,17 @@ const fetchAttachmentBlob = async (path: string, name: string): Promise<Blob> =>
   return response.blob();
 };
 
+const fetchAuthenticatedBlob = async (path: string): Promise<Blob> => {
+  const headers = new Headers();
+  const token = getToken();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  const response = await fetch(`${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`, {
+    credentials: 'omit', headers,
+  });
+  if (!response.ok) throw new ApiError(`File could not be loaded (${response.status}).`, response.status);
+  return response.blob();
+};
+
 const openMessageAttachment = async (path: string, name: string, inline: boolean): Promise<void> => {
   if (!inline) {
     const blob = await fetchAttachmentBlob(path, name);
@@ -348,6 +396,24 @@ export const resourceApi = <T extends Record<string, unknown>>(resource: string)
 
 export const api = {
   health: () => request<{ status: string; timestamp: string }>('/health'),
+  fuelStations: {
+    list: (params: { south: number; west: number; north: number; east: number; limit?: number }) =>
+      request<FuelStation[]>(`/fuel-stations?${queryString(params)}`),
+  },
+  vehicleReturns: {
+    history: (vehicleId: number | string) => request<VehicleReturnInspection[]>(`/vehicles/${vehicleId}/return-inspections`),
+    create: (loadId: number | string, data: { mileageKm: number; fuelLevelPercent: number; hasDamage: boolean; damageNotes?: string; parkingLocation?: string; photos: File[] }) => {
+      const form = new FormData();
+      form.append('mileage_km', String(data.mileageKm));
+      form.append('fuel_level_percent', String(data.fuelLevelPercent));
+      form.append('has_damage', data.hasDamage ? '1' : '0');
+      if (data.damageNotes) form.append('damage_notes', data.damageNotes);
+      if (data.parkingLocation) form.append('parking_location', data.parkingLocation);
+      data.photos.forEach((photo) => form.append('photos[]', photo));
+      return request<VehicleReturnInspection>(`/loads/${loadId}/vehicle-return`, { method: 'POST', body: form });
+    },
+    photo: (photoId: number | string) => fetchAuthenticatedBlob(`/vehicle-return-photos/${photoId}`),
+  },
   auth: {
     hasSession: () => Boolean(getToken()),
     login: async (login: string, password: string) => {

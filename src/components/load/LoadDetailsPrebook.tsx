@@ -618,6 +618,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                     status={currentStatus}
                     isChanging={statusChanging}
                     onChange={(status) => void changeStatus(status)}
+                    availableStatuses={['Posted', 'Opened', 'Sent', 'In delivery', 'Pending', 'Cancelled']}
                     className="hidden w-44 lg:block [&_button]:h-10"
                   />
                   <LoadStatusPicker
@@ -626,6 +627,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                     status={currentStatus}
                     isChanging={statusChanging}
                     onChange={(status) => void changeStatus(status)}
+                    availableStatuses={['Posted', 'Opened', 'Sent', 'In delivery', 'Pending', 'Cancelled']}
                     className="lg:hidden"
                   />
                 </>

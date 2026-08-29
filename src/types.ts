@@ -22,6 +22,10 @@ export interface Package {
   carrier: string;
   status: LoadStatus;
   recipient?: string;
+  assignedDriverUserId?: number;
+  assignedDriverName?: string;
+  vehicleName?: string;
+  vehicleId?: number;
   shipmentId?: string;
   totalAmount?: string;
   transportType?: string;
@@ -39,6 +43,8 @@ export interface Package {
   transitDays: number;
   description?: string;
   currentLocation: [number, number];
+  hasCurrentLocation?: boolean;
+  trackingUpdatedAt?: string;
   history: { date: string; status: string; location: string }[];
 }
 

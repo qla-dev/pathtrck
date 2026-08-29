@@ -44,15 +44,29 @@ export const mapLoadToPackage = (load: Record<string, unknown>, lang: Language):
   const events = Array.isArray(shipment.events) ? shipment.events as Array<Record<string, unknown>> : [];
   const consignee = (load.consignee || {}) as Record<string, unknown>;
   const company = (load.company || {}) as Record<string, unknown>;
+  const assignedDriver = (load.assigned_driver || load.assignedDriver || {}) as Record<string, unknown>;
+  const assignedDriverProfile = (assignedDriver.driver || {}) as Record<string, unknown>;
+  const vehicle = (load.vehicle || {}) as Record<string, unknown>;
   const mappedStatus = mapLoadStatus(load.status);
   const estimatedDeliveryAt = String(shipment.estimated_delivery_at || stops[stops.length - 1]?.window_ends_at || Date.now());
   const origin = String(stops[0]?.city || '—');
   const destination = String(stops[stops.length - 1]?.city || '—');
   const sourcePrice = String(load.price_insurance || '').trim();
+  const hasCurrentLocation = shipment.current_latitude !== null && shipment.current_latitude !== undefined
+    && shipment.current_longitude !== null && shipment.current_longitude !== undefined;
 
   return {
     recipient: String(consignee.company_name || consignee.name || '—'),
     id: String(load.id),
+    assignedDriverUserId: load.assigned_driver_user_id ? Number(load.assigned_driver_user_id) : undefined,
+    assignedDriverName: String(assignedDriver.name || assignedDriverProfile.name || '').trim() || undefined,
+    vehicleName: String(
+      vehicle.registration_number
+      || vehicle.name
+      || [vehicle.make, vehicle.model].filter(Boolean).join(' ')
+      || ''
+    ).trim() || undefined,
+    vehicleId: vehicle.id ? Number(vehicle.id) : undefined,
     shipmentId: shipment.id ? String(shipment.id) : undefined,
     trackingNumber: String(shipment.tracking_number || ''),
     carrier: String(shipment.carrier || company.name || '—'),
@@ -68,7 +82,12 @@ export const mapLoadToPackage = (load: Record<string, unknown>, lang: Language):
     originCountryCode: String(stops[0]?.country_code || '').toUpperCase(),
     destinationCountryCode: String(stops[stops.length - 1]?.country_code || '').toUpperCase(),
     addedDate: String(load.published_at || load.created_at || ''), transitDays: Math.max(0, Math.ceil((new Date(estimatedDeliveryAt).getTime() - Date.now()) / 86400000)),
-    description: String(load.title || load.cargo_type || ''), currentLocation: [Number(shipment.current_latitude || 43.8563), Number(shipment.current_longitude || 18.4131)],
+    description: String(load.title || load.cargo_type || ''),
+    currentLocation: hasCurrentLocation
+      ? [Number(shipment.current_latitude), Number(shipment.current_longitude)]
+      : [43.8563, 18.4131],
+    hasCurrentLocation,
+    trackingUpdatedAt: String(shipment.updated_at || events[0]?.occurred_at || events[0]?.created_at || ''),
     history: events.map((event) => ({ date: String(event.recorded_at || event.created_at || ''), status: String(event.status || event.event_type || ''), location: String(event.location_name || '') })),
     consigneeRecord: consignee,
     stops,
