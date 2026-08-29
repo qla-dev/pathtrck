@@ -310,7 +310,7 @@ export const UsageView = ({
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                     <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
-                    <Tooltip />
+                    <Tooltip cursor={false} />
                     <Bar dataKey="messages" fill="#00AEEF" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>

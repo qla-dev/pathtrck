@@ -381,6 +381,10 @@ export const api = {
       const query = queryString(params);
       return request<Record<string, unknown>[]>(query ? `/loads/tracking-status-counts?${query}` : '/loads/tracking-status-counts');
     },
+    profileStatusCounts: async (params: ListParams = {}) => {
+      const query = queryString(params);
+      return request<Record<string, unknown>[]>(query ? `/loads/profile-status-counts?${query}` : '/loads/profile-status-counts');
+    },
     publicList: () => request<Record<string, unknown>[]>('/public-loads'),
     updateStatus: (id: number | string, status: string) => request<Record<string, unknown>>(`/loads/${id}/status`, {
       method: 'PATCH',

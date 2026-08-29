@@ -177,7 +177,7 @@ export const AdminCustomersView = ({
   };
   return (
     <>
-      <div className="space-y-6">
+      <div className="space-y-3">
         <PageHeader
           icon={UserRound}
           title="Customers"
@@ -214,8 +214,9 @@ export const AdminCustomersView = ({
             },
           ]}
         />
-        <Card className="shadow-none">
+        <Card className="shadow-none" contentClassName="p-0">
           <ServerDataTable
+            edgeToEdge
             title="Customers"
             request={api.customers.list}
             columns={columns}

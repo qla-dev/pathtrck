@@ -283,7 +283,7 @@ export const WarehouseOverviewView = ({
                     <Cell key={item.name} fill={item.color} />
                   ))}
                 </Pie>
-                <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #1e293b', background: '#0f172a', color: '#e2e8f0' }} />
+                <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #1e293b', background: '#0f172a', color: '#e2e8f0' }} itemStyle={{ color: '#e2e8f0' }} labelStyle={{ color: '#e2e8f0' }} />
               </PieChart>
             </ResponsiveContainer>
           </div>

@@ -157,7 +157,7 @@ export const AdminWarehouseCompaniesView = ({
 
   return (
     <>
-      <div className="space-y-6">
+      <div className="space-y-3">
         <PageHeader
           icon={WarehouseIcon}
           tone="orange"
@@ -197,7 +197,7 @@ export const AdminWarehouseCompaniesView = ({
           ]}
         />
 
-        <Card className="shadow-none"><ServerDataTable title="Warehouse companies" request={api.warehouses.list} columns={columns} refreshKey={tableRefreshKey} initialPageSize={50} emptyMessage="No warehouse companies found." /></Card>
+        <Card className="shadow-none" contentClassName="p-0"><ServerDataTable edgeToEdge title="Warehouse companies" request={api.warehouses.list} columns={columns} refreshKey={tableRefreshKey} initialPageSize={50} emptyMessage="No warehouse companies found." /></Card>
 
       </div>
 

@@ -83,6 +83,9 @@ const COPY = {
     saved: "Profile saved",
     companyProfile: "Company profile",
     personalProfile: "Personal profile",
+    customerProfile: "Customer profile",
+    driverProfile: "Driver profile",
+    warehouseProfile: "Warehouse profile",
     active: "Active",
     locationMissing: "Add a location",
     headlineMissing: "Add a professional headline",
@@ -142,6 +145,9 @@ const COPY = {
     saved: "Profil je sačuvan",
     companyProfile: "Profil kompanije",
     personalProfile: "Lični profil",
+    customerProfile: "Profil korisnika",
+    driverProfile: "Profil vozača",
+    warehouseProfile: "Profil skladišta",
     active: "Aktivno",
     locationMissing: "Dodajte lokaciju",
     headlineMissing: "Dodajte profesionalni naslov",
@@ -200,6 +206,9 @@ const COPY = {
     saved: "Profil gespeichert",
     companyProfile: "Unternehmensprofil",
     personalProfile: "Persönliches Profil",
+    customerProfile: "Kundenprofil",
+    driverProfile: "Fahrerprofil",
+    warehouseProfile: "Lagerprofil",
     active: "Aktiv",
     locationMissing: "Standort hinzufügen",
     headlineMissing: "Berufliche Überschrift hinzufügen",
@@ -372,7 +381,22 @@ export const ProfileView = ({
 }) => {
   const text = COPY[lang === "bs" || lang === "de" ? lang : "en"];
   const detailText = DETAIL_COPY[lang === "bs" || lang === "de" ? lang : "en"];
-  const loads = useApiList(api.loads.list, { per_page: 100 });
+  const profileLoadScope = useMemo<Record<string, number>>(() => {
+    if (!profileRecord || !profileKind) return {};
+    const linkedUser = (profileRecord.user || profileRecord.owner || {}) as Record<string, unknown>;
+    if (profileKind === "customer") {
+      return { profile_customer_id: Number(profileRecord.id) };
+    }
+    if (profileKind === "company") {
+      return { profile_company_id: Number(profileRecord.id) };
+    }
+    if (profileKind === "driver") {
+      const driverUserId = Number(profileRecord.user_id || linkedUser.id || 0);
+      return driverUserId ? { profile_driver_user_id: driverUserId } : {};
+    }
+    return {};
+  }, [profileKind, profileRecord]);
+  const loadStatusCounts = useApiList(api.loads.profileStatusCounts, profileLoadScope);
   const [user, setUser] = useState<ApiUser | null>(() =>
     profileRecord && profileKind
       ? userFromRecord(profileRecord, profileKind)
@@ -411,6 +435,16 @@ export const ProfileView = ({
 
   const effectiveRole: Role = profileKind === "driver" ? "driver" : profileKind === "warehouse" ? "warehouse" : profileKind === "company" ? "company" : profileKind === "customer" ? "user" : role;
   const detailKind: ProfileRecordKind | null = profileKind || (effectiveRole === "driver" ? "driver" : effectiveRole === "warehouse" ? "warehouse" : effectiveRole === "company" || effectiveRole === "finance" ? "company" : effectiveRole === "user" ? "customer" : null);
+  const profileType = detailKind === "company"
+    ? { label: text.companyProfile, icon: Building2, tone: "bg-violet-50 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300" }
+    : detailKind === "warehouse"
+      ? { label: text.warehouseProfile, icon: Warehouse, tone: "bg-orange-50 text-orange-600 dark:bg-orange-500/15 dark:text-orange-300" }
+      : detailKind === "driver"
+        ? { label: text.driverProfile, icon: Truck, tone: "bg-sky-50 text-sky-600 dark:bg-sky-500/15 dark:text-sky-300" }
+        : detailKind === "customer"
+          ? { label: text.customerProfile, icon: UserRound, tone: "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300" }
+          : { label: user?.role?.label || text.personalProfile, icon: UserRound, tone: "bg-slate-50 text-slate-600 dark:bg-slate-700 dark:text-slate-200" };
+  const ProfileTypeIcon = profileType.icon;
   const company = (user?.companies?.[0] || undefined) as
     CompanyProfile | undefined;
   const companyMode = Boolean(
@@ -448,17 +482,13 @@ export const ProfileView = ({
     ? company?.email || user?.email || ""
     : user?.email || "";
   const profileTaxNumber = value(detailRecord?.tax_number || company?.tax_number || customer.tax_number);
-  const totalLoads = profileRecord
-    ? Number(profileRecord.loads_count || profileRecord.total_loads || 0)
-    : loads.items.length;
-  const activeLoads = loads.items.filter((item) =>
-    ["posted", "sent", "in_delivery"].includes(
-      value(item.status).toLowerCase(),
-    ),
-  ).length;
-  const completedLoads = loads.items.filter(
-    (item) => value(item.status).toLowerCase() === "finished",
-  ).length;
+  const statusCount = (statuses: string[]) => loadStatusCounts.items.reduce(
+    (sum, item) => statuses.includes(value(item.status).toLowerCase()) ? sum + Number(item.count || 0) : sum,
+    0,
+  );
+  const totalLoads = loadStatusCounts.items.reduce((sum, item) => sum + Number(item.count || 0), 0);
+  const activeLoads = statusCount(["posted", "opened", "sent", "in_delivery", "received", "pending"]);
+  const completedLoads = statusCount(["finished"]);
 
   const stats = useMemo(
     () => {
@@ -618,6 +648,10 @@ export const ProfileView = ({
             className="h-full w-full object-cover object-center"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-slate-950/30 via-transparent to-slate-950/10" />
+          <span className={cn("absolute right-4 top-4 z-10 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black shadow-sm backdrop-blur-sm", profileType.tone)}>
+            <ProfileTypeIcon className="h-4 w-4" />
+            {profileType.label}
+          </span>
         </div>
         <div className="relative px-5 pb-6 sm:px-8">
           <div className="absolute -top-14 flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-slate-100 text-3xl font-black text-slate-800 shadow-lg dark:border-slate-900 dark:bg-slate-200 dark:text-slate-900 sm:-top-16 sm:h-32 sm:w-32">
@@ -681,11 +715,6 @@ export const ProfileView = ({
                 <span className="inline-flex items-center gap-1.5">
                   <BriefcaseBusiness className="h-3.5 w-3.5" />
                   {profileTaxNumber}
-                </span>
-              )}
-              {companyMode && (
-                <span className="rounded-full bg-primary/10 px-2.5 py-1 font-bold text-primary">
-                  {text.companyProfile}
                 </span>
               )}
             </div>

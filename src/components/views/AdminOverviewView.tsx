@@ -196,7 +196,7 @@ export const AdminOverviewView = ({ lang: _lang }: { lang: Language }) => {
                 <Pie data={loadStatusData} dataKey="value" nameKey="name" innerRadius={48} outerRadius={76} paddingAngle={3}>
                   {loadStatusData.map((item, index) => <Cell key={item.name} fill={CHART_COLORS[index % CHART_COLORS.length]} />)}
                 </Pie>
-                <Tooltip contentStyle={tooltipStyle} />
+                <Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#e2e8f0' }} labelStyle={{ color: '#e2e8f0' }} />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', textTransform: 'capitalize' }} />
               </PieChart>
             </ResponsiveContainer>
@@ -211,7 +211,7 @@ export const AdminOverviewView = ({ lang: _lang }: { lang: Language }) => {
                 <Pie data={capacityData} dataKey="value" nameKey="name" innerRadius={48} outerRadius={76} paddingAngle={3}>
                   <Cell fill="#f97316" /><Cell fill="#e2e8f0" />
                 </Pie>
-                <Tooltip contentStyle={tooltipStyle} />
+                <Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#e2e8f0' }} labelStyle={{ color: '#e2e8f0' }} />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: '10px' }} />
               </PieChart>
             </ResponsiveContainer>
@@ -228,7 +228,7 @@ export const AdminOverviewView = ({ lang: _lang }: { lang: Language }) => {
                 <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" opacity={0.35} horizontal={false} />
                 <XAxis type="number" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
                 <YAxis type="category" dataKey="name" width={125} tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={tooltipStyle} />
+                <Tooltip cursor={false} contentStyle={tooltipStyle} />
                 <Legend wrapperStyle={{ fontSize: '11px' }} />
                 <Bar dataKey="occupied" name="Occupied" stackId="capacity" fill="#f97316" radius={[4, 0, 0, 4]} />
                 <Bar dataKey="available" name="Available" stackId="capacity" fill="#cbd5e1" radius={[0, 4, 4, 0]} />
@@ -245,7 +245,7 @@ export const AdminOverviewView = ({ lang: _lang }: { lang: Language }) => {
                 <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" opacity={0.35} vertical={false} />
                 <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
                 <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={tooltipStyle} />
+                <Tooltip cursor={false} contentStyle={tooltipStyle} />
                 <Bar dataKey="value" name="Companies" fill="#8b5cf6" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -260,7 +260,7 @@ export const AdminOverviewView = ({ lang: _lang }: { lang: Language }) => {
                 <Pie data={invoiceData} dataKey="value" nameKey="name" innerRadius={48} outerRadius={78} paddingAngle={3}>
                   {invoiceData.map((item, index) => <Cell key={item.name} fill={['#10b981', '#f59e0b', '#f43f5e', '#64748b'][index % 4]} />)}
                 </Pie>
-                <Tooltip contentStyle={tooltipStyle} />
+                <Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#e2e8f0' }} labelStyle={{ color: '#e2e8f0' }} />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', textTransform: 'capitalize' }} />
               </PieChart>
             </ResponsiveContainer>

@@ -38,6 +38,8 @@ type ServerDataTableProps<T extends Record<string, unknown>> = {
   // button - clicks on an interactive element inside the row (a button, a link) don't bubble into
   // this since those stop propagation themselves.
   onRowClick?: (row: T, index: number) => void;
+  /** Lets section borders reach a padding-free parent card while retaining inner spacing. */
+  edgeToEdge?: boolean;
 };
 
 const csvCell = (value: unknown) =>
@@ -69,6 +71,7 @@ export const ServerDataTable = <T extends Record<string, unknown>>({
   rowKey = (row) => String(row.id),
   emptyMessage = "No results found.",
   onRowClick,
+  edgeToEdge = false,
 }: ServerDataTableProps<T>) => {
   const [rows, setRows] = useState<T[]>([]);
   const [page, setPage] = useState(1);
@@ -209,7 +212,12 @@ export const ServerDataTable = <T extends Record<string, unknown>>({
 
   return (
     <div>
-      <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 dark:border-slate-800 xl:flex-row xl:items-center xl:justify-between">
+      <div
+        className={cn(
+          "flex flex-col gap-3 border-b border-slate-200 dark:border-slate-800 xl:flex-row xl:items-center xl:justify-between",
+          edgeToEdge ? "px-6 py-5" : "pb-4",
+        )}
+      >
         <div className="relative w-full max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
@@ -314,11 +322,11 @@ export const ServerDataTable = <T extends Record<string, unknown>>({
       </div>
 
       {error && (
-        <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400">
+        <div className={cn("mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400", edgeToEdge && "mx-6")}>
           {error}
         </div>
       )}
-      <div className="relative mt-4 overflow-x-auto">
+      <div className={cn("relative overflow-x-auto", !edgeToEdge && "mt-4")}>
         {loading && (
           <div className="absolute inset-0 z-10 flex min-h-40 items-center justify-center bg-white/75 text-sm font-bold text-slate-500 backdrop-blur-sm dark:bg-slate-900/75">
             Loading...
@@ -340,7 +348,7 @@ export const ServerDataTable = <T extends Record<string, unknown>>({
                 key={rowKey(row)}
                 onClick={onRowClick ? () => onRowClick(row, (page - 1) * pageSize + rowIndex) : undefined}
                 className={cn(
-                  "border-b border-slate-100 dark:border-slate-800",
+                  "border-b border-slate-100 last:border-b-0 dark:border-slate-800",
                   onRowClick && "cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60"
                 )}
               >
@@ -360,7 +368,12 @@ export const ServerDataTable = <T extends Record<string, unknown>>({
         )}
       </div>
 
-      <div className="mt-4 flex flex-col gap-3 border-t border-slate-200 pt-4 text-sm text-slate-500 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
+      <div
+        className={cn(
+          "flex flex-col gap-3 border-t border-slate-200 text-sm text-slate-500 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between",
+          edgeToEdge ? "px-6 py-3" : "mt-4 pt-4",
+        )}
+      >
         <p>
           Showing {start}–{end} of {total}
         </p>

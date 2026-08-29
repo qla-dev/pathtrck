@@ -131,7 +131,7 @@ export const AdminDriversView = ({ lang, role }: { lang: Language; role: Role })
 
   return (
     <>
-      <div className="space-y-6">
+      <div className="space-y-3">
         <PageHeader
           icon={UserRoundSearch}
           title="Drivers"
@@ -162,7 +162,7 @@ export const AdminDriversView = ({ lang, role }: { lang: Language; role: Role })
             },
           ]}
         />
-        <Card className="shadow-none"><ServerDataTable title="Drivers" request={api.drivers.list} columns={columns} refreshKey={tableRefreshKey} initialPageSize={50} emptyMessage="No drivers found." /></Card>
+        <Card className="shadow-none" contentClassName="p-0"><ServerDataTable edgeToEdge title="Drivers" request={api.drivers.list} columns={columns} refreshKey={tableRefreshKey} initialPageSize={50} emptyMessage="No drivers found." /></Card>
       </div>
       <ProfileModal open={selected !== null} kind="driver" record={selected} role={role} lang={lang} onClose={() => setSelected(null)} />
       <AdminFormModal

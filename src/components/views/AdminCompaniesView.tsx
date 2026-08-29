@@ -116,7 +116,7 @@ export const AdminCompaniesView = ({
   };
   return (
     <>
-      <div className="space-y-6">
+      <div className="space-y-3">
         <PageHeader
           icon={Building2}
           tone="violet"
@@ -154,7 +154,7 @@ export const AdminCompaniesView = ({
             },
           ]}
         />
-        <Card className="shadow-none"><ServerDataTable title="Logistics companies" request={api.companies.list} columns={columns} refreshKey={tableRefreshKey} initialPageSize={50} emptyMessage="No companies found." /></Card>
+        <Card className="shadow-none" contentClassName="p-0"><ServerDataTable edgeToEdge title="Logistics companies" request={api.companies.list} columns={columns} refreshKey={tableRefreshKey} initialPageSize={50} emptyMessage="No companies found." /></Card>
       </div>
       <ProfileModal open={selected !== null} kind="company" record={selected} role={role} lang={lang} onClose={() => setSelected(null)} />
       <AdminFormModal

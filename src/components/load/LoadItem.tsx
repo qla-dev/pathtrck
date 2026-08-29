@@ -1,7 +1,8 @@
-import { ArrowRight, Boxes, CalendarDays, ChevronRight, MapPin, Plane, Scale, Ship, Train, Truck, Warehouse } from 'lucide-react';
+import { ArrowRight, Boxes, CalendarDays, ChevronRight, MapPin, Plane, Scale, Ship, Star, Train, Truck, Warehouse } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
 import { countryFlagUrl, getCountryCode } from '../../lib/loadGeo';
+import { formatShortDate } from '../../lib/loadDetails';
 import { getBidState, getOfferLabel } from '../../lib/offerBid';
 import { trGoodsType, trPaymentTerms, ui } from '../../i18n';
 import { Language, Load } from '../../types';
@@ -36,9 +37,10 @@ export const LoadItem = ({
 }: LoadItemProps) => {
   const isMap = layout === 'map';
   const isGrid = layout === 'grid';
+  const displayDate = formatShortDate(load.date);
   const sourceLine = hideSource
-    ? `${load.cargoType} - ${load.weight} kg - ${load.date}`
-    : `${load.author} - ${load.date}`;
+    ? `${load.cargoType} - ${load.weight} kg - ${displayDate}`
+    : `${load.author} - ${displayDate}`;
   const goodsTone =
     load.goodsType === 'Flammable'
       ? 'bg-amber-500/10 text-amber-500 border-amber-500/30'
@@ -103,10 +105,16 @@ export const LoadItem = ({
 
         <div className="ml-auto max-w-[34%] shrink-0 whitespace-nowrap flex flex-col items-end gap-2">
           {!hideSource && (
-            <div className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/90 px-2.5 py-1 text-[11px] font-bold text-slate-600 dark:text-slate-200 shadow-sm">
-              {isStorage ? <Boxes className="w-3.5 h-3.5 text-primary" /> : <Scale className="w-3.5 h-3.5 text-primary" />}
-              <span>{isStorage ? `${load.pallets || 0} pal.` : `${load.weight} kg`}</span>
-            </div>
+            <>
+              <div className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/90 px-2.5 py-1 text-[11px] font-bold text-slate-600 dark:text-slate-200 shadow-sm">
+                {isStorage ? <Boxes className="w-3.5 h-3.5 text-primary" /> : <Scale className="w-3.5 h-3.5 text-primary" />}
+                <span>{isStorage ? `${load.pallets || 0} pal.` : `${load.weight} kg`}</span>
+              </div>
+              <span className="inline-flex items-center gap-1 text-xs font-black text-slate-700 dark:text-slate-200" aria-label={`${u('profile.rating', 'Rating')} ${Number(load.providerRating || 0).toFixed(1)}`}>
+                <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                {Number(load.providerRating || 0).toFixed(1)}
+              </span>
+            </>
           )}
           {hideSource && (
             <span
