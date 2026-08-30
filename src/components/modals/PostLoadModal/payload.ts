@@ -182,6 +182,7 @@ export const buildWarehouseLoadPayload = (draft: LoadDraft) => ({
   storage_end_date: draft.warehouseIsOngoing ? null : toApiDate(draft.deliveryDateTo || draft.warehouseEndDate || draft.deliveryDate),
   is_storage_ongoing: draft.warehouseIsOngoing,
   handling_requirements: draft.loadingEquipment,
+  handling_equipment: draft.warehouseEquipment,
   // The range comes from the Cargo step's "Temperature controlled" block, the same one every other
   // transport type uses - the warehouse-specific pair it read before is never filled in on a new
   // request, so a stated range was silently dropped.

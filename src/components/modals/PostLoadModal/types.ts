@@ -119,6 +119,7 @@ export type LoadDraft = {
   // Sea only - Bill of Lading type, replaces the road-only CMR toggle.
   blType: string;
   // Warehouse only - storage-service request fields (pallet/CBM/duration, not route-shaped).
+  warehouseEquipment: string[];
   warehouseStorageType: string;
   warehouseStartDate: string;
   warehouseEndDate: string;
@@ -242,6 +243,7 @@ export const INITIAL_DRAFT: LoadDraft = {
   oogHeightM: '',
   oogWeightKg: '',
   blType: '',
+  warehouseEquipment: [],
   warehouseStorageType: 'Ambient',
   warehouseStartDate: '',
   warehouseEndDate: '',

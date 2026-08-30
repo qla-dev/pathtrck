@@ -19,6 +19,7 @@ import { ResponsiveContainer, AreaChart, BarChart, Bar, CartesianGrid, XAxis, YA
 import { Language, Role } from '../../types';
 import { ui, trFuelType, trVehicleStatus } from '../../i18n';
 import { cn } from '../../lib/cn';
+import { confirmAction } from '../../lib/swal';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { PageHeader } from '../ui/PageHeader';
@@ -123,6 +124,24 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
   const [vehicles, setVehicles] = useState<FleetVehicle[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [sharedAccess, setSharedAccess] = useState<Record<string, boolean>>({});
+
+  // Sharing exposes a vehicle to every dispatcher and driver and unsharing pulls it back out of
+  // their view, so both directions confirm first.
+  const toggleSharedAccess = async (vehicle: FleetVehicle) => {
+    const shared = Boolean(sharedAccess[vehicle.id]);
+    const confirmed = await confirmAction({
+      title: shared
+        ? u('fleet.confirmUnshareTitle', 'Stop sharing this vehicle?')
+        : u('fleet.confirmShareTitle', 'Share this vehicle?'),
+      text: `${vehicle.systemName} (${vehicle.plate}) ${shared
+        ? u('fleet.confirmUnshareText', 'will be visible to admins only.')
+        : u('fleet.confirmShareText', 'will be visible to dispatchers and drivers.')}`,
+      confirmText: shared ? u('fleet.stopSharing', 'Stop sharing') : u('fleet.share', 'Share'),
+      icon: shared ? 'warning' : 'question',
+    });
+    if (!confirmed) return;
+    setSharedAccess((current) => ({ ...current, [vehicle.id]: !shared }));
+  };
   const [fleetSection, setFleetSection] = useState<'vehicles' | 'statistics'>('vehicles');
   const [editingVehicle, setEditingVehicle] = useState<Record<string, unknown> | null>(null);
   const [mapVehicle, setMapVehicle] = useState<FleetVehicle | null>(null);
@@ -320,8 +339,8 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 dark:bg-slate-800"><VehicleIcon className="h-5 w-5" /></div>
                     <div className="min-w-0"><p className="truncate text-sm font-bold text-slate-900 dark:text-white">{vehicle.systemName}</p><p className="truncate text-xs text-slate-500">{vehicle.plate} · {shared ? 'Team access' : 'Admins only'}</p></div>
                   </div>
-                  <button type="button" onClick={() => setSharedAccess((current) => ({ ...current, [vehicle.id]: !shared }))} className={cn('shrink-0 rounded-xl px-3 py-2 text-xs font-bold transition-colors', shared ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300')}>
-                    {shared ? 'Shared' : 'Share'}
+                  <button type="button" onClick={() => void toggleSharedAccess(vehicle)} className={cn('shrink-0 cursor-pointer rounded-xl px-3 py-2 text-xs font-bold transition-colors', shared ? 'bg-primary text-white hover:bg-primary/90' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700')}>
+                    {shared ? u('fleet.shared', 'Shared') : u('fleet.share', 'Share')}
                   </button>
                 </div>
               );

@@ -51,6 +51,8 @@ type PageHeaderProps = {
   badge?: ReactNode;
   actions?: ReactNode;
   filters?: PageHeaderFilter[];
+  /** Rendered right-aligned on the filter row - counters, "live" indicators. */
+  filtersAside?: ReactNode;
   activeFilter?: string | number;
   onFilterChange?: (id: string | number) => void;
   stats?: PageHeaderStat[];
@@ -124,6 +126,7 @@ export const PageHeader = ({
   badge,
   actions,
   filters,
+  filtersAside,
   activeFilter,
   onFilterChange,
   stats,
@@ -157,9 +160,9 @@ export const PageHeader = ({
         )}
       </section>
 
-      {filters && filters.length > 1 && (
-        <div className="flex flex-wrap gap-2">
-          {filters.map((filter) => (
+      {((filters && filters.length > 1) || filtersAside) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {filters && filters.length > 1 && filters.map((filter) => (
             <button
               key={filter.id}
               type="button"
@@ -174,6 +177,7 @@ export const PageHeader = ({
               {filter.label}{filter.count === undefined ? '' : ` (${filter.count})`}
             </button>
           ))}
+          {filtersAside && <div className="ml-auto flex items-center">{filtersAside}</div>}
         </div>
       )}
 

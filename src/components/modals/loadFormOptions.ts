@@ -45,5 +45,9 @@ export const WAREHOUSE_STORAGE_TYPE_OPTIONS = ['Ambient', 'Chilled', 'Frozen', '
 // The handling a customer asks for on top of plain storage. Storage / Loading / Unloading lead the
 // list because they are what every storage request is priced on first, and the warehousing bid form
 // resolves these same labels into the services it marks REQUESTED.
+// The physical handling equipment a stored load needs on site. Mirrors the Handling Equipment
+// section a warehouse fills in when it is registered (AddWarehouseModal), so a request can be
+// matched against what a warehouse actually declared having.
+export const WAREHOUSE_EQUIPMENT_OPTIONS = ['Forklifts', 'Pallet Jacks', 'Reach Trucks', 'Dock Levellers', 'Conveyors', 'Handheld Scanners', 'Dock Doors'] as const;
 export const WAREHOUSE_HANDLING_REQUIREMENT_OPTIONS = ['Storage', 'Loading', 'Unloading', 'Cross-docking', 'Pick & Pack', 'Labeling', 'Kitting', 'Palletizing', 'Repackaging', 'Goods inspection', 'Customs handling', 'Distribution'] as const;
 export const WAREHOUSE_RATE_UNIT_OPTIONS = ['per_pallet_month', 'per_m3_month', 'per_month'] as const;

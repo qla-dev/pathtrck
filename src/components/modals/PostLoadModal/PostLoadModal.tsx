@@ -15,6 +15,7 @@ import {
   Coins,
   Cpu,
   Diamond,
+  DoorOpen,
   Droplet,
   FileText,
   FlaskConical,
@@ -46,6 +47,7 @@ import {
   Save,
   Scissors,
   ScanEye,
+  ScanLine,
   Send,
   Shirt,
   ShieldAlert,
@@ -111,6 +113,7 @@ import {
   RAIL_DOCUMENT_TYPE_OPTIONS,
   SEA_PAYMENT_TERMS_OPTIONS,
   WAREHOUSE_STORAGE_TYPE_OPTIONS,
+  WAREHOUSE_EQUIPMENT_OPTIONS,
   WAREHOUSE_HANDLING_REQUIREMENT_OPTIONS,
   WAREHOUSE_RATE_UNIT_OPTIONS,
 } from '../loadFormOptions';
@@ -155,6 +158,16 @@ const STEPS: Array<{ id: StepId; icon: typeof MapPin }> = [
   { id: 'contact', icon: UserRound },
   { id: 'review', icon: CheckCircle2 },
 ];
+
+const WAREHOUSE_EQUIPMENT_ICONS: Record<(typeof WAREHOUSE_EQUIPMENT_OPTIONS)[number], LucideIcon> = {
+  Forklifts: Forklift,
+  'Pallet Jacks': Package,
+  'Reach Trucks': Truck,
+  'Dock Levellers': PanelBottom,
+  Conveyors: Layers,
+  'Handheld Scanners': ScanLine,
+  'Dock Doors': DoorOpen,
+};
 
 const BODY_TYPE_ICONS: Record<(typeof BODY_TYPE_OPTIONS)[number], LucideIcon> = {
   Curtain: Blinds,
@@ -549,6 +562,15 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       {u(labelKey, fallback)}
     </FieldLabel>
   );
+
+  const toggleWarehouseEquipment = (value: string) => {
+    setDraft((prev) => ({
+      ...prev,
+      warehouseEquipment: prev.warehouseEquipment.includes(value)
+        ? prev.warehouseEquipment.filter((item) => item !== value)
+        : [...prev.warehouseEquipment, value],
+    }));
+  };
 
   const toggleBodyType = (value: string) => {
     setDraft((prev) => ({
@@ -2033,6 +2055,271 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                     </div>
 
                     <div className="flex flex-col gap-3">
+
+                      <div className="space-y-3 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+                        <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
+                          {draft.transportType === 'warehouse' ? <Warehouse className="h-4 w-4" /> : <Truck className="h-4 w-4" />}
+                          <span>{u('postLoadModal.equipmentTitle', 'Equipment & requirements')}</span>
+                        </div>
+                        {draft.transportType === 'warehouse' ? (
+                          <div className="space-y-1">
+                            <FieldLabel>{u('postLoadModal.warehouseEquipment', 'Handling equipment')}</FieldLabel>
+                            <div className="flex min-h-10 items-center rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950">
+                              <div className="flex flex-wrap gap-2">
+                                {WAREHOUSE_EQUIPMENT_OPTIONS.map((option) => {
+                                  const EquipmentIcon = WAREHOUSE_EQUIPMENT_ICONS[option];
+                                  return (
+                                    <button
+                                      key={option}
+                                      type="button"
+                                      onClick={() => toggleWarehouseEquipment(option)}
+                                      className={cn('inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold leading-none transition-colors', draft.warehouseEquipment.includes(option) ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200')}
+                                    >
+                                      <EquipmentIcon className="h-3.5 w-3.5 shrink-0" />
+                                      <span className="leading-none">{u(`postLoadModal.warehouseEquipment.${option}`, option)}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        ) : draft.transportType === 'air' ? (
+                          <div className="space-y-4">
+                            <div className="space-y-1"><FieldLabel>{u('postLoadModal.specialRequirements', 'Special requirements')}</FieldLabel><div className="flex min-h-10 items-center rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950"><div className="flex flex-wrap gap-2">{(draft.pickupPlaceType === 'Address' || draft.deliveryPlaceType === 'Address + Last Mile Delivery' ? [...AIR_SPECIAL_REQUIREMENT_OPTIONS, AIR_TAIL_LIFT_REQUIREMENT] : AIR_SPECIAL_REQUIREMENT_OPTIONS).map((option) => { const RequirementIcon = AIR_SPECIAL_REQUIREMENT_ICONS[option]; return <button key={option} type="button" onClick={() => toggleSpecialRequirement(option)} className={cn('inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold leading-none transition-colors', draft.specialRequirements.includes(option) ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200')}><RequirementIcon className="h-3.5 w-3.5 shrink-0" /><span className="leading-none">{u(option, option)}</span></button>; })}</div></div></div>
+                          </div>
+                        ) : isContainerTransport(draft.transportType) ? (
+                          <div className="space-y-1">
+                            <FieldLabel>{u('postLoadModal.containerTypes', 'Container types')}</FieldLabel>
+                            <div className="space-y-2">
+                              {draft.containerSelections.map((row, index) => (
+                                <div key={index} className="flex items-center gap-2">
+                                  <Select value={row.type} onChange={(e) => updateContainerSelection(index, { type: e.target.value })} className="flex-1">
+                                    {(['Standard', 'Open Top', 'Reefer', 'Flat Rack', 'Platform'] as SeaContainerCategory[]).map((category) => (
+                                      <optgroup key={category} label={category}>
+                                        {SEA_CONTAINER_TYPES.filter((c) => c.category === category).map((c) => (
+                                          <option key={c.code} value={c.code}>{c.label}</option>
+                                        ))}
+                                      </optgroup>
+                                    ))}
+                                  </Select>
+                                  <Input type="number" min="1" value={row.quantity} onChange={(e) => updateContainerSelection(index, { quantity: e.target.value })} className="w-20 shrink-0" placeholder={u('postLoadModal.qty', 'Qty')} />
+                                  <button type="button" onClick={() => removeContainerSelection(index)} className="shrink-0 rounded-lg p-2.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-red-500 dark:hover:bg-slate-800">
+                                    <X className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              ))}
+                              <Button type="button" variant="outline" size="sm" onClick={addContainerSelection} className="gap-1.5">
+                                <Plus className="h-3.5 w-3.5" />
+                                {u('postLoadModal.addContainerType', 'Add container')}
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className={cn('space-y-1', invalidClass('bodyTypes'))}>{fieldLabel('bodyTypes', 'postLoadModal.bodyTypes', 'Body types')}<div className="flex min-h-10 items-center rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950"><div className="flex flex-wrap gap-2">{BODY_TYPE_OPTIONS.map((option) => { const BodyTypeIcon = BODY_TYPE_ICONS[option]; return <button key={option} type="button" onClick={() => toggleBodyType(option)} className={cn('inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold leading-none transition-colors', draft.bodyTypes.includes(option) ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200')}><BodyTypeIcon className="h-3.5 w-3.5 shrink-0" /><span className="leading-none">{u(`postLoadModal.bodyType.${option}`, option)}</span></button>; })}</div></div></div>
+                        )}
+
+                        {draft.transportType === 'air' && <div className="space-y-1"><FieldLabel>{u('postLoadModal.deliveryProof', 'Delivery proof')}</FieldLabel><div className="grid grid-cols-2 gap-3"><ChoiceCard compact active={draft.deliveryProof === 'POD'} title="POD" description="Proof of Delivery" icon={FileText} onClick={() => setField('deliveryProof', 'POD')} /><ChoiceCard compact active={draft.deliveryProof === 'AOD'} title="AOD" description="Arrival on Delivery" icon={CheckCircle2} onClick={() => setField('deliveryProof', 'AOD')} /></div></div>}
+
+                        {/* Both modes name the transport document they move under, so they share the
+                            field - a Bill of Lading at sea, a CIM/SMGS consignment note on rail. */}
+                        {isContainerTransport(draft.transportType) && (
+                          <div className="space-y-1">
+                            <FieldLabel>
+                              {draft.transportType === 'rail'
+                                ? u('postLoadModal.railDocumentType', 'Rail transport document type')
+                                : u('postLoadModal.blType', 'B/L type')}
+                            </FieldLabel>
+                            <div className={cn('grid gap-2', draft.transportType === 'rail' ? 'grid-cols-4' : 'grid-cols-3')}>
+                              {(draft.transportType === 'rail' ? RAIL_DOCUMENT_TYPE_OPTIONS : SEA_BL_TYPE_OPTIONS).map((option) => (
+                                <ChoiceCard key={option} compact active={draft.blType === option} title={u(`postLoadModal.blType.${option}`, option)} icon={FileText} onClick={() => setField('blType', option)} />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                      </div>
+
+                    <div className="flex-1 space-y-3 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+                      <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
+                        <ShieldCheck className="h-4 w-4" />
+                        <span>{u('postLoadModal.characteristicsAndRequirements', 'Characteristics, certificates & requirements')}</span>
+                      </div>
+                      {!isContainerTransport(draft.transportType) && (
+                        <div className={cn('space-y-1', invalidClass('temperatureControlled'))}>
+                          {fieldLabel('temperatureControlled', 'postLoadModal.temperature', 'Temperature controlled')}
+                          <div className="grid grid-cols-2 gap-2">
+                            <ChoiceCard compact active={!draft.temperatureControlled} title={u('common.no', 'No')} description="Ambient conditions" icon={Package} onClick={() => setField('temperatureControlled', false)} />
+                            <ChoiceCard compact active={draft.temperatureControlled} title={u('common.yes', 'Yes')} description="Set a temperature range" icon={ThermometerSnowflake} onClick={() => setField('temperatureControlled', true)} />
+                          </div>
+                        </div>
+                      )}
+                      {draft.temperatureControlled && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <FieldLabel>{u('postLoadModal.temperatureMin', 'From (°C)')}</FieldLabel>
+                            <Input type="number" value={draft.temperatureMin} onChange={(e) => setField('temperatureMin', e.target.value)} placeholder="2" />
+                          </div>
+                          <div className="space-y-1">
+                            <FieldLabel>{u('postLoadModal.temperatureMax', 'To (°C)')}</FieldLabel>
+                            <Input type="number" value={draft.temperatureMax} onChange={(e) => setField('temperatureMax', e.target.value)} placeholder="8" />
+                          </div>
+                        </div>
+                      )}
+                      <div className="grid md:grid-cols-3 gap-3">
+                        {(isContainerTransport(draft.transportType) ? SEA_CHARACTERISTIC_OPTIONS : draft.transportType === 'air' ? AIR_CHARACTERISTIC_OPTIONS : ROAD_CHARACTERISTIC_OPTIONS).map((option) => (
+                          characteristicDetail(option) ? (
+                            <DetailToggleCard
+                              key={option}
+                              active={draft.characteristics.includes(option)}
+                              onToggle={() => {
+                                if (draft.characteristics.includes(option)) clearCharacteristicDetail(option);
+                                toggleCharacteristic(option);
+                              }}
+                              onClear={() => clearCharacteristicDetail(option)}
+                              icon={characteristicIcon(option)}
+                              title={option}
+                              description={u(`postLoadModal.characteristicDesc.${option}`, CHARACTERISTIC_DESCRIPTIONS[option] || '')}
+                              summary={characteristicSummary(option)}
+                              emptyHint={u('postLoadModal.addDetails', 'Add details')}
+                              clearLabel={u('tracking.clearAll', 'Clear all')}
+                            >
+                              {characteristicDetail(option)}
+                            </DetailToggleCard>
+                          ) : (
+                            <ToggleCard
+                              key={option}
+                              active={draft.characteristics.includes(option)}
+                              onClick={() => toggleCharacteristic(option)}
+                              icon={characteristicIcon(option)}
+                              title={option}
+                              description={u(`postLoadModal.characteristicDesc.${option}`, CHARACTERISTIC_DESCRIPTIONS[option] || '')}
+                            />
+                          )
+                        ))}
+                        {!isContainerTransport(draft.transportType) && (
+                          <ToggleCard
+                            active={draft.requiresAdr}
+                            onClick={() => setField('requiresAdr', !draft.requiresAdr)}
+                            icon={ShieldAlert}
+                            title={draft.transportType === 'air' ? u('postLoadModal.dgr', 'DGR / certified') : u('postLoadModal.adr', 'ADR / certified')}
+                            description={u('postLoadModal.adrDesc', 'Hazardous goods compliance required')}
+                          />
+                        )}
+                        {!isContainerTransport(draft.transportType) && !equipmentCovers('requiresTailLift') && (
+                          <ToggleCard
+                            active={draft.requiresTailLift}
+                            onClick={() => setField('requiresTailLift', !draft.requiresTailLift)}
+                            icon={ArrowDownToLine}
+                            title={u('postLoadModal.tailLift', 'Tail lift')}
+                            description={u('postLoadModal.tailLiftDesc', 'Required for pickup or delivery')}
+                          />
+                        )}
+                        <ToggleCard
+                          active={draft.urgent}
+                          onClick={() => setField('urgent', !draft.urgent)}
+                          icon={Zap}
+                          title={u('postLoadModal.urgent', 'Priority load')}
+                          description={u('postLoadModal.urgentDesc', 'Higher urgency and faster acceptance')}
+                        />
+                        {draft.transportType === 'road' && (
+                          <>
+                            <ToggleCard
+                              active={draft.tollRoadsIncluded}
+                              onClick={() => setField('tollRoadsIncluded', !draft.tollRoadsIncluded)}
+                              icon={Route}
+                              title={u('postLoadModal.tollRoads', 'Toll roads')}
+                              description={u('postLoadModal.tollRoadsDesc', 'Route includes toll roads or motorways')}
+                            />
+                            <ToggleCard
+                              active={draft.ferryIncluded}
+                              onClick={() => setField('ferryIncluded', !draft.ferryIncluded)}
+                              icon={Ship}
+                              title={u('postLoadModal.ferry', 'Ferry')}
+                              description={u('postLoadModal.ferryDesc', 'Route includes a ferry / RoRo crossing')}
+                            />
+                            <ToggleCard
+                              active={draft.cmrRequired}
+                              onClick={() => setField('cmrRequired', !draft.cmrRequired)}
+                              icon={FileText}
+                              title={u('postLoadModal.cmr', 'CMR')}
+                              description={u('postLoadModal.cmrDesc', 'CMR consignment note required')}
+                            />
+                            <ToggleCard
+                              active={draft.palletExchangeRequired}
+                              onClick={() => setField('palletExchangeRequired', !draft.palletExchangeRequired)}
+                              icon={Package}
+                              title={u('postLoadModal.palletExchange', 'Pallet exchange')}
+                              description={u('postLoadModal.palletExchangeDesc', 'Pallets must be swapped on delivery')}
+                            />
+                          </>
+                        )}
+                        {!equipmentCovers('customsRequired') && (
+                          <ToggleCard
+                            active={draft.customsRequired}
+                            onClick={() => setField('customsRequired', !draft.customsRequired)}
+                            icon={Landmark}
+                            title={u('postLoadModal.customs', 'Customs')}
+                            description={u('postLoadModal.customsDesc', 'Customs clearance required')}
+                          />
+                        )}
+                        <ToggleCard
+                          active={draft.insuranceRequired}
+                          onClick={() => setField('insuranceRequired', !draft.insuranceRequired)}
+                          icon={ShieldCheck}
+                          title={u('postLoadModal.insurance', 'Insurance')}
+                          description={u('postLoadModal.insuranceDesc', 'Cargo insurance required')}
+                        />
+                        <ToggleCard
+                          active={draft.certificationRequired}
+                          onClick={() => setField('certificationRequired', !draft.certificationRequired)}
+                          icon={BadgeCheck}
+                          title={u('postLoadModal.certification', 'Certification')}
+                          description={u('postLoadModal.certificationDesc', 'Certification documents required')}
+                        />
+                        {!equipmentCovers('inspectionServicesRequired') && (
+                          <ToggleCard
+                            active={draft.inspectionServicesRequired}
+                            onClick={() => setField('inspectionServicesRequired', !draft.inspectionServicesRequired)}
+                            icon={ScanEye}
+                            title={u('postLoadModal.inspectionServices', 'Inspection services')}
+                            description={u('postLoadModal.inspectionServicesDesc', 'Cargo inspection required')}
+                          />
+                        )}
+                        <ToggleCard
+                          active={draft.mustBeTrackable}
+                          onClick={() => setField('mustBeTrackable', !draft.mustBeTrackable)}
+                          icon={Radar}
+                          title={u('postLoadModal.mustBeTrackable', 'Must be trackable')}
+                          description={u('postLoadModal.mustBeTrackableDesc', 'Must be trackable via the Smart Logistics System')}
+                        />
+                        {/* Storage-only: a warehouse either holds a food-grade / pharma licence or
+                            it does not, and fragile goods decide how the space is racked - neither
+                            has an equivalent among the transport requirements above. */}
+                        {draft.transportType === 'warehouse' && (
+                          <>
+                            <ToggleCard
+                              active={draft.warehouseFoodPharma}
+                              onClick={() => setField('warehouseFoodPharma', !draft.warehouseFoodPharma)}
+                              icon={Pill}
+                              title={u('postLoadModal.foodPharma', 'Food / Pharma')}
+                              description={u('postLoadModal.foodPharmaDesc', 'Food or pharmaceutical goods')}
+                            />
+                            <ToggleCard
+                              active={draft.warehouseFragile}
+                              onClick={() => setField('warehouseFragile', !draft.warehouseFragile)}
+                              icon={Wine}
+                              title={u('postLoadModal.fragileGoods', 'Fragile / sensitive goods')}
+                              description={u('postLoadModal.fragileGoodsDesc', 'Careful handling required')}
+                            />
+                          </>
+                        )}
+                        </div>
+
+                    </div>
+
+                    </div>
+
+                    <div className="flex flex-col gap-3">
                       <div className={cn('space-y-3 rounded-2xl border border-slate-200 dark:border-slate-800 p-4', draft.transportType === 'warehouse' && 'flex-1')}>
                         <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
                           <Package className="h-4 w-4" />
@@ -2199,252 +2486,6 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         onChange={(documents) => setField('customsDocuments', documents)}
                         lang={lang}
                       />
-                    </div>
-
-                    <div className="flex flex-col gap-3">
-
-                      {draft.transportType !== 'warehouse' && (
-                      <div className="flex-1 space-y-3 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
-                        <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
-                          <Truck className="h-4 w-4" />
-                          <span>{u('postLoadModal.equipmentTitle', 'Equipment & requirements')}</span>
-                        </div>
-                        {draft.transportType === 'air' ? (
-                          <div className="space-y-4">
-                            <div className="space-y-1"><FieldLabel>{u('postLoadModal.specialRequirements', 'Special requirements')}</FieldLabel><div className="flex min-h-10 items-center rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950"><div className="flex flex-wrap gap-2">{(draft.pickupPlaceType === 'Address' || draft.deliveryPlaceType === 'Address + Last Mile Delivery' ? [...AIR_SPECIAL_REQUIREMENT_OPTIONS, AIR_TAIL_LIFT_REQUIREMENT] : AIR_SPECIAL_REQUIREMENT_OPTIONS).map((option) => { const RequirementIcon = AIR_SPECIAL_REQUIREMENT_ICONS[option]; return <button key={option} type="button" onClick={() => toggleSpecialRequirement(option)} className={cn('inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold leading-none transition-colors', draft.specialRequirements.includes(option) ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200')}><RequirementIcon className="h-3.5 w-3.5 shrink-0" /><span className="leading-none">{u(option, option)}</span></button>; })}</div></div></div>
-                          </div>
-                        ) : isContainerTransport(draft.transportType) ? (
-                          <div className="space-y-1">
-                            <FieldLabel>{u('postLoadModal.containerTypes', 'Container types')}</FieldLabel>
-                            <div className="space-y-2">
-                              {draft.containerSelections.map((row, index) => (
-                                <div key={index} className="flex items-center gap-2">
-                                  <Select value={row.type} onChange={(e) => updateContainerSelection(index, { type: e.target.value })} className="flex-1">
-                                    {(['Standard', 'Open Top', 'Reefer', 'Flat Rack', 'Platform'] as SeaContainerCategory[]).map((category) => (
-                                      <optgroup key={category} label={category}>
-                                        {SEA_CONTAINER_TYPES.filter((c) => c.category === category).map((c) => (
-                                          <option key={c.code} value={c.code}>{c.label}</option>
-                                        ))}
-                                      </optgroup>
-                                    ))}
-                                  </Select>
-                                  <Input type="number" min="1" value={row.quantity} onChange={(e) => updateContainerSelection(index, { quantity: e.target.value })} className="w-20 shrink-0" placeholder={u('postLoadModal.qty', 'Qty')} />
-                                  <button type="button" onClick={() => removeContainerSelection(index)} className="shrink-0 rounded-lg p-2.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-red-500 dark:hover:bg-slate-800">
-                                    <X className="h-4 w-4" />
-                                  </button>
-                                </div>
-                              ))}
-                              <Button type="button" variant="outline" size="sm" onClick={addContainerSelection} className="gap-1.5">
-                                <Plus className="h-3.5 w-3.5" />
-                                {u('postLoadModal.addContainerType', 'Add container')}
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className={cn('space-y-1', invalidClass('bodyTypes'))}>{fieldLabel('bodyTypes', 'postLoadModal.bodyTypes', 'Body types')}<div className="flex min-h-10 items-center rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950"><div className="flex flex-wrap gap-2">{BODY_TYPE_OPTIONS.map((option) => { const BodyTypeIcon = BODY_TYPE_ICONS[option]; return <button key={option} type="button" onClick={() => toggleBodyType(option)} className={cn('inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold leading-none transition-colors', draft.bodyTypes.includes(option) ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200')}><BodyTypeIcon className="h-3.5 w-3.5 shrink-0" /><span className="leading-none">{u(`postLoadModal.bodyType.${option}`, option)}</span></button>; })}</div></div></div>
-                        )}
-
-                        {draft.transportType === 'air' && <div className="space-y-1"><FieldLabel>{u('postLoadModal.deliveryProof', 'Delivery proof')}</FieldLabel><div className="grid grid-cols-2 gap-3"><ChoiceCard compact active={draft.deliveryProof === 'POD'} title="POD" description="Proof of Delivery" icon={FileText} onClick={() => setField('deliveryProof', 'POD')} /><ChoiceCard compact active={draft.deliveryProof === 'AOD'} title="AOD" description="Arrival on Delivery" icon={CheckCircle2} onClick={() => setField('deliveryProof', 'AOD')} /></div></div>}
-
-                        {/* Both modes name the transport document they move under, so they share the
-                            field - a Bill of Lading at sea, a CIM/SMGS consignment note on rail. */}
-                        {isContainerTransport(draft.transportType) && (
-                          <div className="space-y-1">
-                            <FieldLabel>
-                              {draft.transportType === 'rail'
-                                ? u('postLoadModal.railDocumentType', 'Rail transport document type')
-                                : u('postLoadModal.blType', 'B/L type')}
-                            </FieldLabel>
-                            <div className={cn('grid gap-2', draft.transportType === 'rail' ? 'grid-cols-4' : 'grid-cols-3')}>
-                              {(draft.transportType === 'rail' ? RAIL_DOCUMENT_TYPE_OPTIONS : SEA_BL_TYPE_OPTIONS).map((option) => (
-                                <ChoiceCard key={option} compact active={draft.blType === option} title={u(`postLoadModal.blType.${option}`, option)} icon={FileText} onClick={() => setField('blType', option)} />
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                      </div>
-                      )}
-
-                    <div className="space-y-3 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
-                      <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
-                        <ShieldCheck className="h-4 w-4" />
-                        <span>{u('postLoadModal.characteristicsAndRequirements', 'Characteristics, certificates & requirements')}</span>
-                      </div>
-                      <div className="grid md:grid-cols-3 gap-3">
-                        {(isContainerTransport(draft.transportType) ? SEA_CHARACTERISTIC_OPTIONS : draft.transportType === 'air' ? AIR_CHARACTERISTIC_OPTIONS : ROAD_CHARACTERISTIC_OPTIONS).map((option) => (
-                          characteristicDetail(option) ? (
-                            <DetailToggleCard
-                              key={option}
-                              active={draft.characteristics.includes(option)}
-                              onToggle={() => {
-                                if (draft.characteristics.includes(option)) clearCharacteristicDetail(option);
-                                toggleCharacteristic(option);
-                              }}
-                              onClear={() => clearCharacteristicDetail(option)}
-                              icon={characteristicIcon(option)}
-                              title={option}
-                              description={u(`postLoadModal.characteristicDesc.${option}`, CHARACTERISTIC_DESCRIPTIONS[option] || '')}
-                              summary={characteristicSummary(option)}
-                              emptyHint={u('postLoadModal.addDetails', 'Add details')}
-                              clearLabel={u('tracking.clearAll', 'Clear all')}
-                            >
-                              {characteristicDetail(option)}
-                            </DetailToggleCard>
-                          ) : (
-                            <ToggleCard
-                              key={option}
-                              active={draft.characteristics.includes(option)}
-                              onClick={() => toggleCharacteristic(option)}
-                              icon={characteristicIcon(option)}
-                              title={option}
-                              description={u(`postLoadModal.characteristicDesc.${option}`, CHARACTERISTIC_DESCRIPTIONS[option] || '')}
-                            />
-                          )
-                        ))}
-                        {!isContainerTransport(draft.transportType) && (
-                          <ToggleCard
-                            active={draft.requiresAdr}
-                            onClick={() => setField('requiresAdr', !draft.requiresAdr)}
-                            icon={ShieldAlert}
-                            title={draft.transportType === 'air' ? u('postLoadModal.dgr', 'DGR / certified') : u('postLoadModal.adr', 'ADR / certified')}
-                            description={u('postLoadModal.adrDesc', 'Hazardous goods compliance required')}
-                          />
-                        )}
-                        {!isContainerTransport(draft.transportType) && !equipmentCovers('requiresTailLift') && (
-                          <ToggleCard
-                            active={draft.requiresTailLift}
-                            onClick={() => setField('requiresTailLift', !draft.requiresTailLift)}
-                            icon={ArrowDownToLine}
-                            title={u('postLoadModal.tailLift', 'Tail lift')}
-                            description={u('postLoadModal.tailLiftDesc', 'Required for pickup or delivery')}
-                          />
-                        )}
-                        <ToggleCard
-                          active={draft.urgent}
-                          onClick={() => setField('urgent', !draft.urgent)}
-                          icon={Zap}
-                          title={u('postLoadModal.urgent', 'Priority load')}
-                          description={u('postLoadModal.urgentDesc', 'Higher urgency and faster acceptance')}
-                        />
-                        {draft.transportType === 'road' && (
-                          <>
-                            <ToggleCard
-                              active={draft.tollRoadsIncluded}
-                              onClick={() => setField('tollRoadsIncluded', !draft.tollRoadsIncluded)}
-                              icon={Route}
-                              title={u('postLoadModal.tollRoads', 'Toll roads')}
-                              description={u('postLoadModal.tollRoadsDesc', 'Route includes toll roads or motorways')}
-                            />
-                            <ToggleCard
-                              active={draft.ferryIncluded}
-                              onClick={() => setField('ferryIncluded', !draft.ferryIncluded)}
-                              icon={Ship}
-                              title={u('postLoadModal.ferry', 'Ferry')}
-                              description={u('postLoadModal.ferryDesc', 'Route includes a ferry / RoRo crossing')}
-                            />
-                            <ToggleCard
-                              active={draft.cmrRequired}
-                              onClick={() => setField('cmrRequired', !draft.cmrRequired)}
-                              icon={FileText}
-                              title={u('postLoadModal.cmr', 'CMR')}
-                              description={u('postLoadModal.cmrDesc', 'CMR consignment note required')}
-                            />
-                            <ToggleCard
-                              active={draft.palletExchangeRequired}
-                              onClick={() => setField('palletExchangeRequired', !draft.palletExchangeRequired)}
-                              icon={Package}
-                              title={u('postLoadModal.palletExchange', 'Pallet exchange')}
-                              description={u('postLoadModal.palletExchangeDesc', 'Pallets must be swapped on delivery')}
-                            />
-                          </>
-                        )}
-                        {!equipmentCovers('customsRequired') && (
-                          <ToggleCard
-                            active={draft.customsRequired}
-                            onClick={() => setField('customsRequired', !draft.customsRequired)}
-                            icon={Landmark}
-                            title={u('postLoadModal.customs', 'Customs')}
-                            description={u('postLoadModal.customsDesc', 'Customs clearance required')}
-                          />
-                        )}
-                        <ToggleCard
-                          active={draft.insuranceRequired}
-                          onClick={() => setField('insuranceRequired', !draft.insuranceRequired)}
-                          icon={ShieldCheck}
-                          title={u('postLoadModal.insurance', 'Insurance')}
-                          description={u('postLoadModal.insuranceDesc', 'Cargo insurance required')}
-                        />
-                        <ToggleCard
-                          active={draft.certificationRequired}
-                          onClick={() => setField('certificationRequired', !draft.certificationRequired)}
-                          icon={BadgeCheck}
-                          title={u('postLoadModal.certification', 'Certification')}
-                          description={u('postLoadModal.certificationDesc', 'Certification documents required')}
-                        />
-                        {!equipmentCovers('inspectionServicesRequired') && (
-                          <ToggleCard
-                            active={draft.inspectionServicesRequired}
-                            onClick={() => setField('inspectionServicesRequired', !draft.inspectionServicesRequired)}
-                            icon={ScanEye}
-                            title={u('postLoadModal.inspectionServices', 'Inspection services')}
-                            description={u('postLoadModal.inspectionServicesDesc', 'Cargo inspection required')}
-                          />
-                        )}
-                        <ToggleCard
-                          active={draft.mustBeTrackable}
-                          onClick={() => setField('mustBeTrackable', !draft.mustBeTrackable)}
-                          icon={Radar}
-                          title={u('postLoadModal.mustBeTrackable', 'Must be trackable')}
-                          description={u('postLoadModal.mustBeTrackableDesc', 'Must be trackable via the Smart Logistics System')}
-                        />
-                        {/* Storage-only: a warehouse either holds a food-grade / pharma licence or
-                            it does not, and fragile goods decide how the space is racked - neither
-                            has an equivalent among the transport requirements above. */}
-                        {draft.transportType === 'warehouse' && (
-                          <>
-                            <ToggleCard
-                              active={draft.warehouseFoodPharma}
-                              onClick={() => setField('warehouseFoodPharma', !draft.warehouseFoodPharma)}
-                              icon={Pill}
-                              title={u('postLoadModal.foodPharma', 'Food / Pharma')}
-                              description={u('postLoadModal.foodPharmaDesc', 'Food or pharmaceutical goods')}
-                            />
-                            <ToggleCard
-                              active={draft.warehouseFragile}
-                              onClick={() => setField('warehouseFragile', !draft.warehouseFragile)}
-                              icon={Wine}
-                              title={u('postLoadModal.fragileGoods', 'Fragile / sensitive goods')}
-                              description={u('postLoadModal.fragileGoodsDesc', 'Careful handling required')}
-                            />
-                          </>
-                        )}
-                        </div>
-
-                      {!isContainerTransport(draft.transportType) && (
-                        <div className={cn('space-y-1', invalidClass('temperatureControlled'))}>
-                          {fieldLabel('temperatureControlled', 'postLoadModal.temperature', 'Temperature controlled')}
-                          <div className="grid grid-cols-2 gap-2">
-                            <ChoiceCard compact active={!draft.temperatureControlled} title={u('common.no', 'No')} description="Ambient conditions" icon={Package} onClick={() => setField('temperatureControlled', false)} />
-                            <ChoiceCard compact active={draft.temperatureControlled} title={u('common.yes', 'Yes')} description="Set a temperature range" icon={ThermometerSnowflake} onClick={() => setField('temperatureControlled', true)} />
-                          </div>
-                        </div>
-                      )}
-                      {draft.temperatureControlled && (
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <FieldLabel>{u('postLoadModal.temperatureMin', 'From (°C)')}</FieldLabel>
-                            <Input type="number" value={draft.temperatureMin} onChange={(e) => setField('temperatureMin', e.target.value)} placeholder="2" />
-                          </div>
-                          <div className="space-y-1">
-                            <FieldLabel>{u('postLoadModal.temperatureMax', 'To (°C)')}</FieldLabel>
-                            <Input type="number" value={draft.temperatureMax} onChange={(e) => setField('temperatureMax', e.target.value)} placeholder="8" />
-                          </div>
-                        </div>
-                      )}
-
-                    </div>
-
                     </div>
 
                   </div>

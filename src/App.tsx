@@ -89,6 +89,7 @@ import {
   trPaymentTerms,
 } from "./i18n";
 import { cn } from "./lib/cn";
+import { setDocumentMeta } from "./lib/documentMeta";
 import { SUPPORTED_CURRENCIES } from "./lib/currency";
 import { Button } from "./components/ui/Button";
 import { Card } from "./components/ui/Card";
@@ -2372,7 +2373,7 @@ const LandingPage = ({
           >
             <div className="inline-flex max-w-full items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-primary sm:px-4 sm:text-xs sm:tracking-[0.2em] mb-5 sm:mb-8 w-fit">
               <Globe className="w-3 h-3" />
-              {u("landing.globalStandard", "Global Logistics Standard")}
+              {u("landing.digitalStandard", "Digital Logistics Standard")}
             </div>
             <h1 className="text-[clamp(2.25rem,10vw,3.5rem)] sm:text-6xl md:text-8xl font-display font-black text-slate-900 dark:text-white leading-[1.02] sm:leading-[0.9] mb-6 sm:mb-8 h-[3.1em] sm:h-[2.7em] overflow-hidden [overflow-wrap:anywhere]">
               <span>{typedBeforeKeyword}</span>
@@ -5443,6 +5444,11 @@ export default function App() {
   useEffect(() => {
     viewContentRef.current?.scrollTo({ top: 0 });
   }, [view]);
+  // Title and social-preview tags follow the chosen language, so a shared link previews in the
+  // language the visitor was reading.
+  useEffect(() => {
+    setDocumentMeta(lang);
+  }, [lang]);
   const [openLoadDetailsId, setOpenLoadDetailsId] = useState<string | null>(
     null,
   );

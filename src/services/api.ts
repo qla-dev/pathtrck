@@ -575,6 +575,9 @@ export const api = {
     onboard: (data: Record<string, unknown>) => request<Record<string, unknown>>('/warehouses/onboard', { method: 'POST', body: JSON.stringify(data) }),
   },
   warehouse: {
+    // One facility in full: its record, occupancy, what is stored inside right now, and its
+    // recent inbound/outbound movements.
+    status: (warehouseId: number | string) => request<Record<string, unknown>>(`/warehouses/${warehouseId}/status`),
     // No warehouse_id means the combined view across every facility the account operates.
     overview: (params: { warehouse_id?: number | string } = {}) => {
       const query = queryString(params);

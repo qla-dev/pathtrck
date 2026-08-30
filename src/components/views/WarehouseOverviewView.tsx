@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
+  Activity,
   ArrowDownToLine,
   ArrowUpFromLine,
   BadgeCheck,
@@ -30,6 +31,7 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { PageHeader } from '../ui/PageHeader';
 import { AddWarehouseModal } from '../modals/AddWarehouseModal/AddWarehouseModal';
+import { WarehouseStatusModal } from '../modals/WarehouseStatusModal';
 import { showError, showSuccess } from '../../lib/swal';
 import { IconSelect } from '../ui/IconSelect';
 import { DataTable } from '../ui/DataTable';
@@ -92,6 +94,7 @@ export const WarehouseOverviewView = ({
   const [editingWarehouse, setEditingWarehouse] = useState<Record<string, unknown> | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [statusSavingId, setStatusSavingId] = useState<number | null>(null);
+  const [statusWarehouseId, setStatusWarehouseId] = useState<number | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   // 'all' keeps every facility the account operates in one set of figures; an id narrows every
   // panel below to that one warehouse. The server does the aggregating either way.
@@ -185,6 +188,13 @@ export const WarehouseOverviewView = ({
   };
 
   const editModal = (
+    <>
+    <WarehouseStatusModal
+      open={statusWarehouseId !== null}
+      lang={lang}
+      warehouseId={statusWarehouseId}
+      onClose={() => setStatusWarehouseId(null)}
+    />
     <AddWarehouseModal
       open={Boolean(editingWarehouse)}
       lang={lang}
@@ -196,6 +206,7 @@ export const WarehouseOverviewView = ({
         void showSuccess(u('warehouses.updated', 'Warehouse updated'), u('warehouses.updatedText', 'The facility profile has been saved.'));
       }}
     />
+    </>
   );
 
   const updateStatus = async (facility: WarehouseFacility, status: WarehouseStatus) => {
@@ -268,6 +279,13 @@ export const WarehouseOverviewView = ({
   const availablePallets = Number(stats.available_pallets || 0);
   const totalCapacity = Number(stats.total_capacity_pallets || 0);
 
+  const occupancyRamp = (percent: number) =>
+    percent >= 90
+      ? { fill: 'bg-rose-500', track: 'bg-rose-100 dark:bg-rose-500/15', ink: 'text-rose-600 dark:text-rose-400' }
+      : percent >= 70
+        ? { fill: 'bg-amber-500', track: 'bg-amber-100 dark:bg-amber-500/15', ink: 'text-amber-600 dark:text-amber-400' }
+        : { fill: 'bg-emerald-500', track: 'bg-emerald-100 dark:bg-emerald-500/15', ink: 'text-emerald-600 dark:text-emerald-400' };
+
   const occupancyData = [
     { name: u('warehouseView.occupied', 'Zauzeto'), value: occupiedPallets, color: '#f97316' },
     { name: u('warehouseView.available', 'Dostupno'), value: Math.max(0, availablePallets), color: '#e2e8f0' },
@@ -315,18 +333,46 @@ export const WarehouseOverviewView = ({
         title={networkView ? u('nav.allWarehouseCompanies', 'Warehouse Companies') : u('warehouseView.title', 'Moj Warehouse')}
         subtitle={scopeLabel}
         subtitleIcon={MapPin}
-        badge={<>
-          <span className="flex items-center gap-1 text-[11px] font-bold uppercase text-emerald-600 dark:text-emerald-400"><Radio className="h-3 w-3 animate-pulse" />{u('common.live', 'Live')}</span>
-          <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{occupiedPallets} / {totalCapacity} {u('warehouseView.palletsUnit', 'paleta')}</span>
-        </>}
-        actions={<div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={() => setEditMode((current) => !current)}>
-            {editMode ? <BarChart3 className="mr-1.5 h-4 w-4" /> : <Pencil className="mr-1.5 h-4 w-4" />}
-            {editMode ? u('warehouses.statistics', 'Statistics') : u('warehouses.edit', 'Edit')}
-          </Button>
-          <Button size="sm" onClick={() => setCreateOpen(true)}><Plus className="mr-1.5 h-4 w-4" />{u('warehouses.create', 'Create Warehouse')}</Button>
+        actions={<div className="flex flex-wrap items-center justify-end gap-2">
+          {/* Same segmented control as My Fleet's Vehicles / Statistics switch, so both views
+              change section the same way. */}
+          <div className="inline-flex items-center rounded-full border border-sky-200/80 bg-sky-50/70 p-1 dark:border-slate-700 dark:bg-slate-900">
+            <button
+              type="button"
+              onClick={() => setEditMode(true)}
+              className={cn(
+                'inline-flex cursor-pointer items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all active:scale-95',
+                editMode
+                  ? 'bg-primary text-white shadow-md shadow-primary/20'
+                  : 'text-slate-500 hover:text-primary dark:text-slate-300',
+              )}
+            >
+              <WarehouseIcon className="h-4 w-4" />
+              {u('warehouses.tabs.overview', 'Overview')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditMode(false)}
+              className={cn(
+                'inline-flex cursor-pointer items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all active:scale-95',
+                !editMode
+                  ? 'bg-primary text-white shadow-md shadow-primary/20'
+                  : 'text-slate-500 hover:text-primary dark:text-slate-300',
+              )}
+            >
+              <BarChart3 className="h-4 w-4" />
+              {u('warehouses.statistics', 'Statistics')}
+            </button>
+          </div>
+          <Button className="rounded-full" onClick={() => setCreateOpen(true)}><Plus className="mr-2 h-4 w-4" />{u('warehouses.create', 'Create Warehouse')}</Button>
         </div>}
         filters={[{ id: 'all', label: u('warehouseView.allFacilities', 'Sva skladišta'), count: facilities.length }, ...facilities.map((facility) => ({ id: facility.id, label: facility.name || '—' }))]}
+        filtersAside={(
+          <div className="flex items-center gap-2 rounded-xl border border-orange-200 bg-white/70 px-3 py-1.5 dark:border-white/10 dark:bg-white/5">
+            <span className="flex items-center gap-1 text-[11px] font-bold uppercase text-emerald-600 dark:text-emerald-400"><Radio className="h-3 w-3 animate-pulse" />{u('common.live', 'Live')}</span>
+            <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{occupiedPallets} / {totalCapacity} {u('warehouseView.palletsUnit', 'paleta')}</span>
+          </div>
+        )}
         activeFilter={scope}
         onFilterChange={(id) => setScope(id === 'all' ? 'all' : Number(id))}
         stats={statCards}
@@ -342,12 +388,13 @@ export const WarehouseOverviewView = ({
         >
         <Card className="shadow-none" contentClassName="p-0">
           <div className="overflow-x-auto">
-            <DataTable className="min-w-[700px] text-sm">
+            <DataTable className="min-w-[960px] text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-xs uppercase text-slate-500 dark:border-slate-800">
                   <th className="p-3">{u('warehouses.colName', 'Warehouse')}</th>
                   <th className="p-3">{u('warehouses.colLocation', 'Location')}</th>
                   <th className="p-3">{u('warehouses.colCapacity', 'Capacity')}</th>
+                  <th className="p-3">{u('warehouseView.occupancy', 'Occupancy')}</th>
                   <th className="p-3">{u('warehouses.colStatus', 'Status')}</th>
                   <th className="p-3 text-right">{u('Action', 'Action')}</th>
                 </tr>
@@ -358,6 +405,29 @@ export const WarehouseOverviewView = ({
                     <td className="p-3 font-bold text-slate-900 dark:text-white">{facility.name || '—'}</td>
                     <td className="p-3 text-slate-500">{[facility.city, facility.country_code].filter(Boolean).join(', ') || '—'}</td>
                     <td className="p-3 text-slate-700 dark:text-slate-300">{facility.total_capacity_pallets.toLocaleString()} {u('warehouseView.palletsUnit', 'paleta')}</td>
+                    <td className="p-3">
+                      {(() => {
+                        const percent = Math.max(0, Math.min(100, Number(facility.occupancy_percent) || 0));
+                        const ramp = occupancyRamp(percent);
+                        return (
+                          <div className="w-32">
+                            <div className="flex items-baseline justify-between gap-2">
+                              <span className={cn('text-xs font-bold tabular-nums', ramp.ink)}>{percent}%</span>
+                              <span className="text-[11px] tabular-nums text-slate-500">
+                                {facility.occupied_pallets.toLocaleString()} / {facility.total_capacity_pallets.toLocaleString()}
+                              </span>
+                            </div>
+                            <div
+                              className={cn('mt-1 h-1.5 w-full overflow-hidden rounded-full', ramp.track)}
+                              role="img"
+                              aria-label={`${u('warehouseView.occupancy', 'Occupancy')}: ${percent}%`}
+                            >
+                              <div className={cn('h-full rounded-full', ramp.fill)} style={{ width: `${percent}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </td>
                     <td className="p-3">
                       <div className="relative w-40">
                         {statusSavingId === facility.id && <Loader2 className="pointer-events-none absolute left-3 top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-primary" />}
@@ -377,10 +447,15 @@ export const WarehouseOverviewView = ({
                         />
                       </div>
                     </td>
-                    <td className="p-3 text-right">
-                      <Button size="sm" variant="outline" disabled={editingId === facility.id} onClick={() => void editWarehouse(facility.id)}>
-                        <Pencil className="mr-1.5 h-3.5 w-3.5" />{u('warehouses.edit', 'Edit')}
-                      </Button>
+                    <td className="p-3">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button size="sm" variant="outline" onClick={() => setStatusWarehouseId(facility.id)}>
+                          <Activity className="mr-1.5 h-3.5 w-3.5" />{u('warehouses.colStatus', 'Status')}
+                        </Button>
+                        <Button size="sm" variant="outline" disabled={editingId === facility.id} onClick={() => void editWarehouse(facility.id)}>
+                          <Pencil className="mr-1.5 h-3.5 w-3.5" />{u('warehouses.edit', 'Edit')}
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
