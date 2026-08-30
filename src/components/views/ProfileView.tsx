@@ -8,6 +8,7 @@ import {
   BriefcaseBusiness,
   Building2,
   CalendarDays,
+  ChevronRight,
   Globe2,
   Loader2,
   Mail,
@@ -29,6 +30,7 @@ import { ApiUser, api } from "../../services/api";
 import { useApiList } from "../../hooks/useApiList";
 import { Button } from "../ui/Button";
 import { cn } from "../../lib/cn";
+import { DriverVerificationModal } from "../modals/DriverVerificationModal";
 import { flatpickrI18n } from "../../i18n";
 
 type CompanyProfile = {
@@ -135,6 +137,8 @@ const COPY = {
     editRestricted:
       "Only the company owner or an administrator can edit the company identity.",
     loadError: "The profile could not be loaded.",
+    driverVerification: "Driver verification",
+    driverVerificationHint: "Licence, Code 95, ID and certificates",
     saveError: "The profile could not be saved.",
   },
   bs: {
@@ -196,6 +200,8 @@ const COPY = {
     editRestricted:
       "Samo vlasnik ili administrator može uređivati identitet kompanije.",
     loadError: "Profil nije moguće učitati.",
+    driverVerification: "Verifikacija vozača",
+    driverVerificationHint: "Dozvola, Code 95, ID i certifikati",
     saveError: "Profil nije moguće sačuvati.",
   },
   de: {
@@ -259,6 +265,8 @@ const COPY = {
     editRestricted:
       "Nur der Unternehmenseigentümer oder ein Administrator kann die Unternehmensidentität bearbeiten.",
     loadError: "Das Profil konnte nicht geladen werden.",
+    driverVerification: "Fahrerverifizierung",
+    driverVerificationHint: "Führerschein, Code 95, Ausweis und Zertifikate",
     saveError: "Das Profil konnte nicht gespeichert werden.",
   },
 } as const;
@@ -408,6 +416,7 @@ export const ProfileView = ({
   const [loading, setLoading] = useState(!(profileRecord && profileKind));
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
+  const [verificationOpen, setVerificationOpen] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -1146,6 +1155,22 @@ export const ProfileView = ({
               compact
             />
           </div>
+          {detailKind === "driver" && (
+            <button
+              type="button"
+              onClick={() => setVerificationOpen(true)}
+              className="mt-4 flex w-full cursor-pointer items-center gap-3 rounded-2xl border border-sky-200 bg-sky-50/70 p-3 text-left transition-colors hover:border-primary hover:bg-primary/5 dark:border-slate-700 dark:bg-slate-950 dark:hover:bg-slate-800"
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-white">
+                <ShieldCheck className="h-4 w-4" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-bold text-slate-900 dark:text-white">{text.driverVerification}</span>
+                <span className="block truncate text-xs text-slate-500">{text.driverVerificationHint}</span>
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+            </button>
+          )}
         </section>
         {companyMode && (
           <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -1178,6 +1203,13 @@ export const ProfileView = ({
           </section>
         )}
       </aside>
+
+      <DriverVerificationModal
+        open={verificationOpen}
+        lang={lang}
+        userId={user?.id ? Number(user.id) : null}
+        onClose={() => setVerificationOpen(false)}
+      />
       </div>
     </div>
   );

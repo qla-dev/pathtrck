@@ -17,11 +17,11 @@ export const setDocumentMeta = (lang: Language) => {
   if (typeof document === 'undefined') return;
 
   const tagline = ui(lang, 'landing.digitalStandard', 'Digital Logistics Standard');
-  const title = `${BRAND} — ${tagline}`;
+  const title = `${BRAND} │ ${tagline}`;
   const description = ui(
     lang,
     'landing.metaDescription',
-    'Freightbook.ai — the digital logistics standard. Post loads, book capacity and track freight across road, air, sea, rail and warehousing.'
+    'Freightbook.ai │ the digital logistics standard. Post loads, book capacity and track freight across road, air, sea, rail and warehousing.'
   );
 
   document.title = title;

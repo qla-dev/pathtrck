@@ -135,6 +135,27 @@ import { PricingPlanCard } from "./components/pricing/PricingPlanCard";
 import { SetupProcess } from "./components/auth/SetupProcess";
 import { LoginProcess } from "./components/auth/LoginProcess";
 import { AiRouteCalculatorCard } from "./components/ai_automattions/AiRouteCalculatorCard";
+import { FleetOnboardingPreview } from "./components/landing/FleetOnboardingPreview";
+import { WarehouseOnboardingPreview } from "./components/landing/WarehouseOnboardingPreview";
+import { LenaLoadDetailsCard } from "./components/lena/LenaEmbeddedCards";
+
+// The shipment the hero map draws. Shaped like an API load so the real Lena card renders it
+// unchanged rather than needing a marketing-only variant.
+const HERO_DEMO_LOAD: Record<string, unknown> = {
+  id: 214,
+  title: "HAM-SJJ-214",
+  booking_reference: "HAM-SJJ-214",
+  status: "in_transit",
+  weight_kg: 24000,
+  cargo_type: "FTL",
+  goods_type: "General",
+  budget: 2450,
+  currency: "EUR",
+  stops: [
+    { type: "pickup", city: "Hamburg", country_code: "DE" },
+    { type: "delivery", city: "Sarajevo", country_code: "BA", window_starts_at: "2026-03-03T14:20" },
+  ],
+};
 import { LenaScenarioSections } from "./components/landing/LenaScenarioSections";
 
 const LANGUAGE_STORAGE_KEY = "pathtrck.language";
@@ -1343,6 +1364,8 @@ type LandingModule = {
   description: string;
   icon: React.ComponentType<{ className?: string }>;
   tone: string;
+  /** Id of the landing section this module is told in full. Omitted when it has none yet. */
+  anchor?: string;
   points: Array<{
     icon: React.ComponentType<{ className?: string }>;
     label: string;
@@ -1352,9 +1375,11 @@ type LandingModule = {
 const LandingModuleCard = ({
   module,
   index,
+  seeMoreLabel,
 }: {
   module: LandingModule;
   index: number;
+  seeMoreLabel: string;
 }) => {
   const { ref, controls } = useScrollDownReveal(
     { opacity: 0, y: 24, scale: 0.98 },
@@ -1402,6 +1427,25 @@ const LandingModuleCard = ({
           </li>
         ))}
       </ul>
+      {/* Every card carries the same footer so the grid stays even. A module whose section does
+          not exist yet renders it inert rather than scrolling nowhere. */}
+      <button
+        type="button"
+        onClick={() => {
+          if (!module.anchor) return;
+          document.getElementById(module.anchor)?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }}
+        aria-disabled={!module.anchor}
+        className={cn(
+          "mt-4 flex w-full items-center justify-between gap-2 border-t border-slate-100 pt-4 text-xs font-black uppercase tracking-wider transition-colors dark:border-slate-800",
+          module.anchor
+            ? "cursor-pointer text-primary hover:text-primary-dark"
+            : "cursor-default text-slate-300 dark:text-slate-700",
+        )}
+      >
+        {seeMoreLabel}
+        <ChevronRight className="h-4 w-4 shrink-0" />
+      </button>
     </motion.div>
   );
 };
@@ -1620,6 +1664,7 @@ const LandingPage = ({
     },
     {
       name: u("nav.warehouse", "Warehouse"),
+      anchor: "smart-warehouses",
       description: u(
         "landing.modules.warehouse",
         "Storage capacity, dock schedule and occupancy per facility.",
@@ -1667,6 +1712,7 @@ const LandingPage = ({
     },
     {
       name: t.myFleet,
+      anchor: "smart-fleet",
       description: u(
         "landing.modules.fleet",
         "Vehicles, drivers and registry coverage in one register.",
@@ -2638,10 +2684,15 @@ const LandingPage = ({
                   attributionControl={false}
                   className="h-full w-full grayscale-[0.05] contrast-110 brightness-95 dark:brightness-75"
                 >
-                  <HeroRouteFitBounds points={HERO_ROUTE_POINTS} />
+                  <HeroRouteFitBounds
+                    points={HERO_ROUTE_POINTS}
+                    paddingTopLeft={[28, 64]}
+                    paddingBottomRight={[28, 72]}
+                    maxZoom={8}
+                  />
                   <TileLayer
-                    url="https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png"
-                    subdomains={["a", "b", "c", "d"]}
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    attribution="&copy; OpenStreetMap contributors"
                   />
                   <Polyline
                     positions={HERO_ROUTE_POINTS}
@@ -2655,7 +2706,6 @@ const LandingPage = ({
                   </Marker>
                 </MapContainer>
 
-                {/* Map Chips - Screenshot Inspired */}
                 <div className="absolute top-3 right-3 sm:top-6 sm:right-6 z-[1000] flex max-w-[calc(100%-1.5rem)] flex-col gap-3">
                   <div className="min-w-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur px-2.5 sm:px-4 py-2 rounded-2xl shadow-xl border border-white/20 flex items-center gap-2 animate-bounce">
                     <Clock className="text-primary w-4 h-4" />
@@ -2665,53 +2715,25 @@ const LandingPage = ({
                   </div>
                 </div>
 
-                <div className="absolute bottom-3 left-3 right-3 sm:bottom-8 sm:left-8 sm:right-8 z-[1000] flex min-w-0 flex-col gap-2 sm:gap-4">
-                  <div className="flex gap-3">
-                    <div className="min-w-0 max-w-full bg-white/90 dark:bg-slate-900/90 backdrop-blur px-2.5 sm:px-4 py-2 rounded-2xl shadow-xl border border-white/20 flex items-center gap-2 sm:gap-3 cursor-pointer hover:bg-primary hover:text-white transition-all group">
-                      <div className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 rounded-full overflow-hidden border-2 border-primary">
-                        <img
-                          src="https://picsum.photos/seed/driver/100/100"
-                          alt="Driver"
-                          referrerPolicy="no-referrer"
-                        />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <MessageSquare className="w-4 h-4 text-primary group-hover:text-white" />
-                        <span className="truncate text-[10px] sm:text-xs font-bold uppercase tracking-wider">
-                          {u("landing.routeConfirmed", "Route Confirmed")}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="min-w-0 bg-white/80 dark:bg-white/10 backdrop-blur-2xl p-3 sm:p-6 rounded-2xl sm:rounded-3xl border border-white/30 dark:border-white/20">
-                    <div className="flex items-center justify-between gap-2 mb-2 sm:mb-4">
-                      <span className="px-3 py-1 rounded-full bg-primary text-[10px] font-black uppercase tracking-widest text-white">
-                        {u("landing.liveRoute", "Live Route")}
+                <div className="absolute bottom-3 left-3 right-3 sm:bottom-8 sm:left-8 sm:right-8 z-[1000] flex min-w-0">
+                  <div className="min-w-0 max-w-full bg-white/90 dark:bg-slate-900/90 backdrop-blur px-2.5 sm:px-4 py-2 rounded-2xl shadow-xl border border-white/20 flex items-center gap-2 sm:gap-3 cursor-pointer hover:bg-primary hover:text-white transition-all group">
+                    <span className="flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-full bg-primary text-white">
+                      <Truck className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4 text-primary group-hover:text-white" />
+                      <span className="truncate text-[10px] sm:text-xs font-bold uppercase tracking-wider">
+                        {u("landing.routeConfirmed", "Route Confirmed")}
                       </span>
-                      <span className="text-xs font-bold text-slate-700 dark:text-white/70">
-                        {u("landing.etaMarch3", "ETA Mar 3, 14:20")}
-                      </span>
-                    </div>
-                    <div className="flex min-w-0 items-center gap-2 sm:gap-4">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 bg-white rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg">
-                        <Truck className="text-primary w-5 h-5 sm:w-6 sm:h-6" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
-                          HAM-SJJ-214
-                        </p>
-                        <p className="truncate text-xs sm:text-sm text-slate-700 dark:text-white/60">
-                          {u(
-                            "landing.heroRouteMeta",
-                            "1,545 km | Hamburg Port -> Sarajevo Hub",
-                          )}
-                        </p>
-                      </div>
                     </div>
                   </div>
                 </div>
               </div>
+            </div>
+            {/* The same embedded card Lena posts into a chat when she is asked about a route -
+                the real component, fed the hero's demo shipment. */}
+            <div className="relative z-10 mt-4 overflow-hidden rounded-2xl bg-white dark:bg-slate-900">
+              <LenaLoadDetailsCard lang={lang} load={HERO_DEMO_LOAD} />
             </div>
             <div className="relative z-10 mt-4 flex items-center gap-2 rounded-2xl bg-primary px-5 py-4 text-sm font-black text-white shadow-lg shadow-primary/20">
               <CheckCircle2 className="h-4 w-4 shrink-0" />
@@ -2758,6 +2780,7 @@ const LandingPage = ({
                 key={module.name}
                 module={module}
                 index={index}
+                seeMoreLabel={u("landing.modules.seeMore", "See more")}
               />
             ))}
           </div>
@@ -3129,6 +3152,12 @@ const LandingPage = ({
                 "Numbers behind smarter logistics",
               )}
             </h2>
+            <p className="mt-5 max-w-2xl text-lg text-slate-500 dark:text-slate-400">
+              {u(
+                "landing.stats.subtitle",
+                "Live figures from the shipments, fleets and warehouses running on Freightbook.ai every day.",
+              )}
+            </p>
           </div>
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {[
@@ -3295,8 +3324,8 @@ const LandingPage = ({
                     points={FEATURE_ROUTE_POINTS_WITH_STOPS}
                   />
                   <TileLayer
-                    url="https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png"
-                    subdomains={["a", "b", "c", "d"]}
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    attribution="&copy; OpenStreetMap contributors"
                   />
                   <Polyline
                     positions={FEATURE_ROUTE_POINTS_WITH_STOPS}
@@ -3427,21 +3456,22 @@ const LandingPage = ({
 
       {/* Section 4: How it Works - Vertical Timeline */}
       <section
-        className={cn("bg-slate-50 dark:bg-slate-900/50", SECTION_PADDING)}
+        id="smart-fleet"
+        className={cn("scroll-mt-20 bg-slate-50 dark:bg-slate-900/50", SECTION_PADDING)}
       >
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-20">
             <div>
               <h2 className="text-4xl md:text-6xl font-display font-black mb-8 dark:text-white leading-tight">
-                {u("landing.howItWorksTitle1", "How Smartfreight.ai")} <br />{" "}
-                <span className="text-primary">
-                  {u("landing.howItWorksTitle2", "Works.")}
+                {u("landing.smartFleetTitle1", "Smart")} <br />{" "}
+                <span className="text-emerald-500">
+                  {u("landing.smartFleetTitle2", "fleet.")}
                 </span>
               </h2>
               <p className="text-slate-500 dark:text-slate-400 text-lg mb-12">
                 {u(
-                  "landing.howItWorksDesc",
-                  "We've simplified the complex world of global logistics into three simple steps.",
+                  "landing.smartFleetDesc",
+                  "Register a vehicle, let the AI plan its route, and follow every kilometre - in three simple steps.",
                 )}
               </p>
               <div className="space-y-12 relative">
@@ -3488,7 +3518,7 @@ const LandingPage = ({
                     viewport={{ once: true }}
                     className="flex gap-10 relative z-10"
                   >
-                    <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white font-bold shrink-0 shadow-lg shadow-primary/20">
+                    <div className="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold shrink-0 shadow-lg shadow-emerald-500/20">
                       {s.step}
                     </div>
                     <div>
@@ -3505,28 +3535,92 @@ const LandingPage = ({
             </div>
             <div className="relative">
               <div className="sticky top-32">
-                <img
-                  src="https://picsum.photos/seed/logistics/800/1000"
-                  alt="Logistics"
-                  className="rounded-[3rem] shadow-2xl"
-                  referrerPolicy="no-referrer"
-                />
-                <div className="absolute -bottom-10 -right-10 bg-white dark:bg-slate-800 p-8 rounded-3xl border border-slate-100 dark:border-slate-800 max-w-xs">
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center">
-                      <CheckCircle2 className="text-emerald-500 w-6 h-6" />
+                <FleetOnboardingPreview lang={lang} />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Section 4b: the same story for storage - mirrored, so the two read as a pair */}
+      <section id="smart-warehouses" className={cn("scroll-mt-20 bg-white dark:bg-slate-950", SECTION_PADDING)}>
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="grid lg:grid-cols-2 gap-20">
+            <div className="relative order-last lg:order-first">
+              <div className="sticky top-32">
+                <WarehouseOnboardingPreview lang={lang} />
+              </div>
+            </div>
+            <div>
+              <h2 className="text-4xl md:text-6xl font-display font-black mb-8 dark:text-white leading-tight">
+                {u("landing.smartWarehouseTitle1", "Smart")} <br />{" "}
+                <span className="text-orange-500">
+                  {u("landing.smartWarehouseTitle2", "warehouses.")}
+                </span>
+              </h2>
+              <p className="text-slate-500 dark:text-slate-400 text-lg mb-12">
+                {u(
+                  "landing.smartWarehouseDesc",
+                  "Publish your space, take storage requests, and watch every pallet move - in three simple steps.",
+                )}
+              </p>
+              <div className="space-y-12 relative">
+                <div className="absolute left-6 top-0 bottom-0 w-px bg-slate-200 dark:bg-slate-800" />
+                {[
+                  {
+                    step: "01",
+                    title: u(
+                      "landing.warehouseSteps.listSpace.title",
+                      "List your space",
+                    ),
+                    desc: u(
+                      "landing.warehouseSteps.listSpace.desc",
+                      "Capacity, storage types, certificates and handling equipment - registered once.",
+                    ),
+                  },
+                  {
+                    step: "02",
+                    title: u(
+                      "landing.warehouseSteps.matchRequests.title",
+                      "Match storage requests",
+                    ),
+                    desc: u(
+                      "landing.warehouseSteps.matchRequests.desc",
+                      "Requests reach you already filtered by what your facility can actually take.",
+                    ),
+                  },
+                  {
+                    step: "03",
+                    title: u(
+                      "landing.warehouseSteps.trackStock.title",
+                      "Track every pallet",
+                    ),
+                    desc: u(
+                      "landing.warehouseSteps.trackStock.desc",
+                      "Inbound and outbound movements keep occupancy live, with the goods inside always visible.",
+                    ),
+                  },
+                ].map((s, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, x: 20 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    className="flex gap-10 relative z-10"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold shrink-0 shadow-lg shadow-orange-500/20">
+                      {s.step}
                     </div>
-                    <p className="font-bold dark:text-white">
-                      {u("landing.routeOptimized", "Route Optimized")}
-                    </p>
-                  </div>
-                  <p className="text-xs text-slate-500">
-                    {u(
-                      "landing.routeOptimizedDesc",
-                      "AI reduced delivery time by 24% for this route.",
-                    )}
-                  </p>
-                </div>
+                    <div>
+                      <h4 className="text-2xl font-bold mb-2 dark:text-white">
+                        {s.title}
+                      </h4>
+                      <p className="text-slate-500 dark:text-slate-400 leading-relaxed">
+                        {s.desc}
+                      </p>
+                    </div>
+                  </motion.div>
+                ))}
               </div>
             </div>
           </div>
@@ -3542,24 +3636,8 @@ const LandingPage = ({
         )}
       >
         <div className="max-w-7xl mx-auto mx-4 sm:mx-6 xl:mx-auto rounded-[2.5rem] bg-slate-900 px-6 py-12 sm:p-12 lg:p-16 relative z-10">
-          <div className="grid lg:grid-cols-2 gap-20 items-center">
-            <div className="relative order-2 lg:order-1">
-              <motion.div
-                initial={{ x: -100, opacity: 0 }}
-                whileInView={{ x: 0, opacity: 1 }}
-                transition={{ duration: 0.8 }}
-                className="bg-slate-800 rounded-[2.5rem] p-4 border border-slate-700"
-              >
-                <img
-                  src="https://picsum.photos/seed/dashboard/1000/800"
-                  alt="Dashboard"
-                  className="rounded-[2rem] shadow-2xl"
-                  referrerPolicy="no-referrer"
-                />
-              </motion.div>
-              <div className="absolute -top-10 -left-10 w-40 h-40 bg-primary rounded-full blur-[80px] opacity-30" />
-            </div>
-            <div className="order-1 lg:order-2">
+          <div className="grid gap-20 items-center">
+            <div>
               <h2 className="text-4xl md:text-6xl font-display font-black text-white mb-8 leading-tight">
                 {u("landing.controlOperationTitle1", "Control your entire")}{" "}
                 <br />{" "}
@@ -5402,6 +5480,10 @@ export default function App() {
   const [databaseLoads, setDatabaseLoads] = useState<Load[]>([]);
   const [databaseLoadsLoaded, setDatabaseLoadsLoaded] = useState(false);
   const [lang, setLang] = useState<Language>(() => getInitialLanguage());
+  // A driver counts as verified once the two unconditionally required documents are filed. The
+  // conditional ones (attestation, ADR) depend on what the driver states applies to them, so they
+  // never hold the badge back on their own.
+  const [driverVerified, setDriverVerified] = useState<boolean | null>(null);
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [view, setView] = useState("tracking");
   const [trackingMapActive, setTrackingMapActive] = useState(false);
@@ -5444,6 +5526,22 @@ export default function App() {
   useEffect(() => {
     viewContentRef.current?.scrollTo({ top: 0 });
   }, [view]);
+  useEffect(() => {
+    if (role !== "driver" || !currentUser?.id) {
+      setDriverVerified(null);
+      return;
+    }
+    let cancelled = false;
+    void api.documents
+      .list({ user_id: currentUser.id, per_page: 200 })
+      .then((response) => {
+        if (cancelled) return;
+        const types = new Set(response.data.map((row) => String(row.type || "")));
+        setDriverVerified(types.has("DRIVING_LICENCE") && types.has("PASSPORT_ID"));
+      })
+      .catch(() => { if (!cancelled) setDriverVerified(false); });
+    return () => { cancelled = true; };
+  }, [role, currentUser?.id, view]);
   // Title and social-preview tags follow the chosen language, so a shared link previews in the
   // language the visitor was reading.
   useEffect(() => {
@@ -6053,9 +6151,17 @@ export default function App() {
     role === "driver"
       ? {
           label: u("common.driverLicense", "Driver License"),
-          status: u("common.verified", "Verified"),
+          status: driverVerified
+            ? u("common.verified", "Verified")
+            : driverVerified === false
+              ? u("common.verifyNow", "Verify now")
+              : u("common.checking", "Checking"),
           icon: Truck,
-          tone: "bg-primary/10 text-primary",
+          tone: driverVerified
+            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+            : driverVerified === false
+              ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+              : "bg-primary/10 text-primary",
         }
       : isWarehouseCompany
         ? {
@@ -6883,15 +6989,18 @@ export default function App() {
             <BrandWordmark className="text-lg" />
           </div>
           <div className="flex items-center gap-3">
-            <span
+            <button
+              type="button"
+              onClick={() => setView("profile")}
+              title={u("common.openProfile", "Open my profile")}
               className={cn(
-                "hidden md:inline-flex h-10 px-3 rounded-full items-center gap-2 text-xs font-bold whitespace-nowrap",
+                "hidden md:inline-flex h-10 cursor-pointer items-center gap-2 whitespace-nowrap rounded-full px-3 text-xs font-bold transition-all hover:brightness-95 active:scale-95",
                 roleMeta.tone,
               )}
             >
               <RoleStatusIcon className="w-4 h-4" />
               {roleMeta.label} • {roleMeta.status}
-            </span>
+            </button>
           </div>
           <div className="flex items-center gap-4">
             {isWarehouseCompany ? (
