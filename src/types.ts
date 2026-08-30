@@ -46,6 +46,7 @@ export interface Package {
   hasCurrentLocation?: boolean;
   trackingUpdatedAt?: string;
   history: { date: string; status: string; location: string }[];
+  customsDocuments?: Array<{ code: string; label: string; downloadable: boolean; formType?: 'dis' | 'osi' | 'dv1' | 'znp' | null; source?: 'matched' | 'manual' }>;
 }
 
 export type ShipmentDetailInput = 'text' | 'number' | 'date' | 'status' | 'customer' | 'select';
@@ -90,6 +91,7 @@ export interface Load {
   cargoType: string;
   goodsType: string;
   hsCodes?: Array<{ code: string; description: string; confidence?: number }>;
+  customsDocuments?: Array<{ code: string; label: string; downloadable: boolean; formType?: 'dis' | 'osi' | 'dv1' | 'znp' | null; source?: 'matched' | 'manual' }>;
   paymentTerms: string;
   paymentDueDays?: number;
   eta: string;

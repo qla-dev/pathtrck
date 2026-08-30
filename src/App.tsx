@@ -5263,6 +5263,9 @@ const mapDatabaseRecordToLoad = (record: Record<string, unknown>): Load => {
           confidence?: number;
         }>)
       : [],
+    customsDocuments: Array.isArray(record.customs_documents)
+      ? record.customs_documents as Load['customsDocuments']
+      : [],
     paymentTerms,
     paymentDueDays:
       record.payment_due_days == null

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import { MapContainer, TileLayer, Marker, Popup, CircleMarker, Polyline, Tooltip, useMap } from 'react-leaflet';
-import { ChevronRight, Package as PackageIcon, RotateCcw, Share2, Star, Route, Lock, Coins, Loader2, Sparkles, FileBarChart2, Upload, FileSpreadsheet, Fuel, BedDouble, ParkingCircle, Landmark, ReceiptText, FileText, Printer, Play, Pause } from 'lucide-react';
+import { ChevronRight, Package as PackageIcon, RotateCcw, Share2, Star, Route, Lock, Coins, Loader2, Sparkles, FileBarChart2, Upload, FileSpreadsheet, Fuel, BedDouble, ParkingCircle, Landmark, ReceiptText, FileText, FileCheck2, Printer, Play, Pause } from 'lucide-react';
 import { Language, Package as PackageData, Role, ShipmentDetail } from '../../types';
 import { api, type FuelStation } from '../../services/api';
 import { useApiList } from '../../hooks/useApiList';
@@ -21,6 +21,7 @@ import { ReviewComposer } from '../reviews/ReviewComposer';
 import { TrackingMapCard } from './TrackingMapCard';
 import { trackingMarkerIcon } from './trackingMapMarker';
 import { VehicleReturnModal } from './VehicleReturnModal';
+import { CustomsDocumentList } from '../load/CustomsDocumentList';
 
 type AmenityCategory = 'toll' | 'fuel' | 'rest' | 'parking';
 
@@ -146,7 +147,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
     return () => { cancelled = true; };
   }, [loadId, lang]);
 
-  const [rightTab, setRightTab] = useState<'tracker' | 'details' | 'return' | 'returnRoutes' | 'reports' | 'share' | 'invoice' | 'review'>('tracker');
+  const [rightTab, setRightTab] = useState<'tracker' | 'details' | 'return' | 'returnRoutes' | 'reports' | 'share' | 'documents' | 'invoice' | 'review'>('tracker');
   const [lenaOpen, setLenaOpen] = useState(false);
   const [returnTokens, setReturnTokens] = useState(0);
   const [returnRoutesUnlocked, setReturnRoutesUnlocked] = useState(false);
@@ -625,6 +626,22 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
         <>
           <button
             type="button"
+            onClick={() => setRightTab('invoice')}
+            className="hidden sm:inline-flex h-10 items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 text-xs font-bold text-primary transition-all hover:bg-primary/10 cursor-pointer"
+          >
+            <ReceiptText className="h-4 w-4" />
+            {u('Invoice', 'Invoice')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setRightTab('invoice')}
+            aria-label={u('Invoice', 'Invoice')}
+            className="sm:hidden h-10 w-10 rounded-xl border border-primary/30 bg-primary/5 text-primary flex items-center justify-center hover:bg-primary/10 transition-all cursor-pointer"
+          >
+            <ReceiptText className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
             onClick={() => setLenaOpen(true)}
             className="hidden sm:inline-flex h-10 items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 text-xs font-bold text-primary transition-all hover:bg-primary/10 cursor-pointer"
           >
@@ -718,14 +735,14 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
           {u('Share', 'Share')}
         </button>
         <button
-          onClick={() => setRightTab('invoice')}
+          onClick={() => setRightTab('documents')}
           className={cn(
             'h-full px-3 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5',
-            rightTab === 'invoice' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+            rightTab === 'documents' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
           )}
         >
-          <ReceiptText className="w-4 h-4" />
-          {u('Invoice', 'Invoice')}
+          <FileCheck2 className="w-4 h-4" />
+          {u('tracking.attachedDocuments', 'Attached documents')}
         </button>
         <button
           onClick={() => setRightTab('review')}
@@ -1231,6 +1248,12 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
             </div>
             {invoiceError && <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 dark:bg-rose-950/30 dark:text-rose-300">{invoiceError}</p>}
           </div>
+        </Card>
+      )}
+
+      {rightTab === 'documents' && (
+        <Card title={u('tracking.attachedDocuments', 'Attached documents')}>
+          <CustomsDocumentList loadId={selectedPackage.id} documents={selectedPackage.customsDocuments} lang={lang} />
         </Card>
       )}
 

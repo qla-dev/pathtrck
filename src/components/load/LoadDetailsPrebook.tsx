@@ -58,6 +58,7 @@ import { LoadAssignmentModal } from './LoadAssignmentModal';
 import { LoadBidModal } from './LoadBidModal';
 import { WarehouseBidModal, seedWarehouseDraft } from './WarehouseBidModal';
 import { LoadOffersPanel } from './LoadOffersPanel';
+import { CustomsDocumentList } from './CustomsDocumentList';
 
 type LoadDetailsPrebookProps = {
   open: boolean;
@@ -932,7 +933,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
               </div>
 
               <div className="grid gap-4 xl:grid-cols-12">
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 xl:col-span-12">
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 xl:col-span-6">
                   <p className="mb-2.5 text-[10px] font-black uppercase tracking-wider text-primary">
                     {u('legacy.loadDetails.handlingCompliance', 'Handling & Compliance')}
                   </p>
@@ -951,6 +952,12 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                       </p>
                     </div>
                   </div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 xl:col-span-6">
+                  <p className="mb-2.5 text-[10px] font-black uppercase tracking-wider text-primary">
+                    {u('tracking.attachedDocuments', 'Attached documents')}
+                  </p>
+                  <CustomsDocumentList loadId={load.id} documents={load.customsDocuments} lang={lang} />
                 </div>
               </div>
             </div>

@@ -89,6 +89,9 @@ export const mapLoadToPackage = (load: Record<string, unknown>, lang: Language):
     hasCurrentLocation,
     trackingUpdatedAt: String(shipment.updated_at || events[0]?.occurred_at || events[0]?.created_at || ''),
     history: events.map((event) => ({ date: String(event.recorded_at || event.created_at || ''), status: String(event.status || event.event_type || ''), location: String(event.location_name || '') })),
+    customsDocuments: Array.isArray(load.customs_documents)
+      ? load.customs_documents as PackageData['customsDocuments']
+      : [],
     consigneeRecord: consignee,
     stops,
     details: [

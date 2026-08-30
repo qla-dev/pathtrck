@@ -1,6 +1,6 @@
 import { Language } from '../../../types';
 import { CustomerOption } from '../../customer/CustomerSelect';
-import { HsCodeMatch, LoadScanResult } from '../../../services/api';
+import { CustomsDocument, HsCodeMatch, LoadScanResult } from '../../../services/api';
 import { ScanFieldPatch } from '../scanFieldRows';
 
 export type PostLoadModalProps = {
@@ -86,6 +86,7 @@ export type LoadDraft = {
   cargoType: string;
   goodsType: string;
   hsCodes: HsCodeMatch[];
+  customsDocuments: CustomsDocument[];
   weightKg: string;
   pallets: string;
   quantityMeasure: string;
@@ -214,6 +215,7 @@ export const INITIAL_DRAFT: LoadDraft = {
   cargoType: 'FTL',
   goodsType: 'General',
   hsCodes: [],
+  customsDocuments: [],
   weightKg: '',
   pallets: '',
   quantityMeasure: '',

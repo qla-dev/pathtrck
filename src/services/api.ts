@@ -100,6 +100,13 @@ export type TariffCategory = {
   count: number;
   selectableCount: number;
 };
+export type CustomsDocument = {
+  code: string;
+  label: string;
+  downloadable: boolean;
+  formType?: 'dis' | 'osi' | 'dv1' | 'znp' | null;
+  source?: 'matched' | 'manual';
+};
 export type PublicModuleCounts = {
   recipients: number;
   tariff_codes: number;
@@ -313,15 +320,27 @@ const fetchAttachmentBlob = async (path: string, name: string): Promise<Blob> =>
   return response.blob();
 };
 
-const fetchAuthenticatedBlob = async (path: string): Promise<Blob> => {
+const fetchAuthenticatedBlob = async (path: string, init?: RequestInit): Promise<Blob> => {
   const headers = new Headers();
   const token = getToken();
   if (token) headers.set('Authorization', `Bearer ${token}`);
+  if (init?.body) headers.set('Content-Type', 'application/json');
   const response = await fetch(`${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`, {
-    credentials: 'omit', headers,
+    ...init, credentials: 'omit', headers,
   });
   if (!response.ok) throw new ApiError(`File could not be loaded (${response.status}).`, response.status);
   return response.blob();
+};
+
+const downloadAuthenticatedFile = async (path: string, name: string, init?: RequestInit): Promise<void> => {
+  const objectUrl = URL.createObjectURL(await fetchAuthenticatedBlob(path, init));
+  const link = document.createElement('a');
+  link.href = objectUrl;
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
 };
 
 const openMessageAttachment = async (path: string, name: string, inline: boolean): Promise<void> => {
@@ -513,6 +532,18 @@ export const api = {
   hsCodes: {
     search: (query: string, limit = 8, lang?: Language) => request<HsCodeMatch[]>(`/hs-codes?${queryString({ query, limit, lang: lang || undefined })}`),
     bulk: (codes: string[], lang?: Language) => request<HsCodeMatch[]>('/hs-codes/bulk', { method: 'POST', body: JSON.stringify({ codes, lang: lang || undefined }) }),
+  },
+  customsDocuments: {
+    catalog: (search?: string) => request<CustomsDocument[]>(`/customs-documents?${queryString({ search })}`),
+    match: (codes: string[]) => request<CustomsDocument[]>('/customs-documents/match', {
+      method: 'POST',
+      body: JSON.stringify({ codes }),
+    }),
+    download: (loadId: string | number, code: string, formData: Record<string, string | boolean> = {}) => downloadAuthenticatedFile(
+      `/loads/${encodeURIComponent(loadId)}/customs-documents/${encodeURIComponent(code)}/download`,
+      `${code}.docx`,
+      { method: 'POST', body: JSON.stringify({ form_data: formData }) },
+    ),
   },
   tariffs: {
     categories: (lang?: Language, section?: string) => request<TariffCategory[]>(`/tariffs/categories?${queryString({ lang: lang || undefined, section })}`),

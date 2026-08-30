@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Flatpickr from 'react-flatpickr';
 import L from 'leaflet';
 import { MapContainer, TileLayer, Marker, ZoomControl, useMap } from 'react-leaflet';
-import { Search, MapPin, ChevronRight, Package as PackageIcon, Coins, Truck, Plane, Ship, Train, Filter, CalendarDays, Trash2, List, LayoutGrid, Map as MapIcon, LocateFixed, Route, BriefcaseBusiness, Navigation, CalendarRange, BadgeEuro, Building2, Container, Tags, FileText, SlidersHorizontal, ShieldAlert, Zap, X, Weight, Box, Layers, Thermometer, ShieldCheck, Stamp, Lock } from 'lucide-react';
+import { Search, MapPin, ChevronRight, Package as PackageIcon, Coins, Truck, Plane, Ship, Train, Filter, CalendarDays, Trash2, List, LayoutGrid, Map as MapIcon, LocateFixed, Route, BriefcaseBusiness, Navigation, CalendarRange, BadgeEuro, Building2, Container, Tags, FileText, SlidersHorizontal, ShieldAlert, Zap, X, Weight, Box, Layers, Thermometer, ShieldCheck, Stamp, Lock, UserRound } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Language, Package as PackageData, Role } from '../../types';
 import { api } from '../../services/api';
@@ -693,13 +693,23 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
                   <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{u('tracking.carrier', 'Carrier')}</p><p className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{pkg.carrier || '—'}</p></div>
                 </div>
                 <div className="flex min-w-0 items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-950">
-                  <Coins className="h-4 w-4 shrink-0 text-emerald-500" />
-                  <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{u('Amount', 'Amount')}</p><p className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{pkg.totalAmount || '—'}</p></div>
+                  <UserRound className="h-4 w-4 shrink-0 text-sky-500" />
+                  <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{u('tracking.driver', 'Driver')}</p><p className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{pkg.assignedDriverName || '—'}</p></div>
                 </div>
                 <div className="flex min-w-0 items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-950">
-                  <CalendarDays className="h-4 w-4 shrink-0 text-violet-500" />
-                  <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{u('tracking.transit', 'Transit')}</p><p className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{pkg.transitDays ? `${pkg.transitDays} ${u('tracking.days', 'days')}` : u('tracking.notScheduled', 'Not scheduled')}</p></div>
+                  <Truck className="h-4 w-4 shrink-0 text-violet-500" />
+                  <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{u('tracking.vehicle', 'Vehicle')}</p><p className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{pkg.vehicleName || '—'}</p></div>
                 </div>
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                  <div className="flex min-w-0 items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-950">
+                    <Coins className="h-4 w-4 shrink-0 text-emerald-500" />
+                    <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{u('Amount', 'Amount')}</p><p className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{pkg.totalAmount || '—'}</p></div>
+                  </div>
+                  <div className="flex min-w-0 items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-950">
+                    <CalendarDays className="h-4 w-4 shrink-0 text-violet-500" />
+                    <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{u('tracking.transit', 'Transit')}</p><p className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{pkg.transitDays ? `${pkg.transitDays} ${u('tracking.days', 'days')}` : u('tracking.notScheduled', 'Not scheduled')}</p></div>
+                  </div>
               </div>
             </button>
           ))}

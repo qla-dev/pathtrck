@@ -4,17 +4,19 @@ import { Archive, Camera, Download, FileText, Search, Trash2, Upload } from 'luc
 import { ui } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { Language } from '../../types';
-import { api } from '../../services/api';
+import { api, type CustomsDocument } from '../../services/api';
 import { Card } from '../ui/Card';
 import { DataTable } from '../ui/DataTable';
 import { DOCUMENT_TYPES, documentTypeLabel, documentTypeTone } from './documentTypes';
+import { CustomsDocumentList } from '../load/CustomsDocumentList';
+import { RecordTypeSelect } from './RecordTypeSelect';
 
 /** The "no load" option in the attach-to picker: the company's own archive. */
 export const ARCHIVE = 'archive';
 
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
-export type LoadOption = { id: string; label: string };
+export type LoadOption = { id: string; label: string; customsDocuments?: CustomsDocument[] };
 
 export type DocumentRow = {
   id: string;
@@ -46,18 +48,17 @@ const labelClass = 'mb-1 block text-[10px] font-black uppercase tracking-wider t
  */
 export const DocumentUploadCard = ({
   lang,
-  loadOptions,
+  attachTo,
   onUploaded,
 }: {
   lang: Language;
-  loadOptions: LoadOption[];
+  attachTo: string;
   onUploaded: () => Promise<void>;
 }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  const [attachTo, setAttachTo] = useState<string>(ARCHIVE);
   const [documentType, setDocumentType] = useState<string>('');
   const [pending, setPending] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -87,7 +88,7 @@ export const DocumentUploadCard = ({
   };
 
   const upload = async () => {
-    if (!pending || uploading) return;
+    if (!pending || uploading || attachTo === 'all') return;
     setUploading(true);
     setUploadError('');
     try {
@@ -108,7 +109,7 @@ export const DocumentUploadCard = ({
 
   return (
       <Card className="shadow-none" contentClassName="p-3.5">
-        <div className="grid items-stretch gap-3 lg:grid-cols-2">
+        <div className="flex flex-col gap-3">
           {/* The drop zone stretches to whatever height the fields beside it need, so the row has
               no dead space under it. */}
           <div className="flex flex-col">
@@ -155,36 +156,24 @@ export const DocumentUploadCard = ({
 
           <div className="flex flex-col gap-2.5">
             <div>
-              <p className={labelClass}>{u('documents.attachTo', 'Attach to load')}</p>
-              <select value={attachTo} onChange={(event) => setAttachTo(event.target.value)} className={cn(inputClass, 'cursor-pointer')}>
-                <option value={ARCHIVE}>{u('documents.noLoadArchive', 'No load — company archive')}</option>
-                {loadOptions.map((load) => (
-                  <option key={load.id} value={load.id}>{load.label}</option>
-                ))}
-              </select>
-              {attachTo === ARCHIVE && (
-                <p className="mt-1 inline-flex items-center gap-1 text-[10px] text-slate-500">
-                  <Archive className="h-3 w-3" />
-                  {u('documents.archiveHint', 'The document is filed in your archive and is not tied to any load.')}
-                </p>
-              )}
-            </div>
-
-            <div>
               <p className={labelClass}>{u('documents.documentType', 'Document type')}</p>
-              <select value={documentType} onChange={(event) => setDocumentType(event.target.value)} className={cn(inputClass, 'cursor-pointer')}>
-                <option value="">{u('documents.selectType', 'Select document type')}</option>
-                {DOCUMENT_TYPES.map((option) => (
-                  <option key={option.value} value={option.value}>{documentTypeLabel(lang, option.value)}</option>
-                ))}
-              </select>
+              <RecordTypeSelect
+                value={documentType}
+                onChange={setDocumentType}
+                options={[
+                  { value: '', label: u('documents.selectType', 'Select document type'), kind: 'all' },
+                  ...DOCUMENT_TYPES.map((option) => ({ value: option.value, label: documentTypeLabel(lang, option.value), kind: 'document' as const })),
+                ]}
+                searchPlaceholder={u('documents.searchDocumentTypes', 'Search document types')}
+                noResults={u('documents.noTypesFound', 'No types found.')}
+              />
             </div>
 
             {uploadError && <p className="text-[11px] font-semibold text-rose-600">{uploadError}</p>}
 
             <button
               type="button"
-              disabled={!pending || uploading}
+              disabled={!pending || uploading || attachTo === 'all'}
               onClick={() => void upload()}
               className="mt-auto inline-flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-primary text-[13px] font-bold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-primary/40"
             >
@@ -193,6 +182,7 @@ export const DocumentUploadCard = ({
             </button>
           </div>
         </div>
+
       </Card>
   );
 };
@@ -206,18 +196,22 @@ export const LoadDocumentsPanel = ({
   loadOptions,
   documents,
   loading,
+  loadFilter,
   onRefresh,
 }: {
   lang: Language;
   loadOptions: LoadOption[];
   documents: DocumentRow[];
   loading: boolean;
+  loadFilter: string;
   onRefresh: () => Promise<void>;
 }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [query, setQuery] = useState('');
-  const [loadFilter, setLoadFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const selectedLoad = loadFilter === 'all' || loadFilter === ARCHIVE
+    ? undefined
+    : loadOptions.find((load) => load.id === loadFilter);
 
   const loadLabelById = useMemo(
     () => Object.fromEntries(loadOptions.map((load) => [load.id, load.label])),
@@ -248,7 +242,7 @@ export const LoadDocumentsPanel = ({
 
   return (
       <Card className="shadow-none" contentClassName="p-3.5">
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_minmax(160px,0.7fr)_minmax(160px,0.7fr)]">
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_minmax(160px,0.7fr)]">
           <label className="relative flex-1">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
             <input
@@ -258,13 +252,6 @@ export const LoadDocumentsPanel = ({
               className={cn(inputClass, 'pl-8')}
             />
           </label>
-          <select value={loadFilter} onChange={(event) => setLoadFilter(event.target.value)} className={cn(inputClass, 'cursor-pointer')}>
-            <option value="all">{u('documents.allLoads', 'All loads')}</option>
-            <option value={ARCHIVE}>{u('documents.archiveOnly', 'Archive only (no load)')}</option>
-            {loadOptions.map((load) => (
-              <option key={load.id} value={load.id}>{load.label}</option>
-            ))}
-          </select>
           <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className={cn(inputClass, 'cursor-pointer')}>
             <option value="all">{u('documents.allTypes', 'All document types')}</option>
             {DOCUMENT_TYPES.map((option) => (
@@ -272,6 +259,13 @@ export const LoadDocumentsPanel = ({
             ))}
           </select>
         </div>
+
+        {selectedLoad && (
+          <div className="mt-3 border-t border-slate-100 pt-3 dark:border-slate-800">
+            <p className={labelClass}>{u('documents.matchingCustomsDocuments', 'Matching customs documents')}</p>
+            <CustomsDocumentList loadId={selectedLoad.id} documents={selectedLoad.customsDocuments} lang={lang} />
+          </div>
+        )}
 
         <div className="mt-2.5 overflow-x-auto">
           <DataTable className="min-w-[680px] text-[13px]">

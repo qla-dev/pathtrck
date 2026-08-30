@@ -1,5 +1,5 @@
-import { ChevronDown, Check } from 'lucide-react';
-import { useEffect, useRef, useState, type ComponentType, type KeyboardEvent } from 'react';
+import { ChevronDown, Check, Search } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type ComponentType, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 
 import { cn } from '../../lib/cn';
@@ -21,16 +21,24 @@ type IconSelectProps = {
   ariaLabel?: string;
   className?: string;
   disabled?: boolean;
+  searchable?: boolean;
+  searchPlaceholder?: string;
+  noResults?: string;
 };
 
-export const IconSelect = ({ value, onChange, options, placeholder, icon: FieldIcon, ariaLabel, className, disabled = false }: IconSelectProps) => {
+export const IconSelect = ({ value, onChange, options, placeholder, icon: FieldIcon, ariaLabel, className, disabled = false, searchable = false, searchPlaceholder = 'Search...', noResults = 'No options found.' }: IconSelectProps) => {
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
   const [panelPosition, setPanelPosition] = useState<{ left: number; width: number; top?: number; bottom?: number; maxHeight: number } | null>(null);
   const selectedIndex = options.findIndex((option) => option.value === value);
   const [highlightedIndex, setHighlightedIndex] = useState(Math.max(0, selectedIndex));
   const selected = selectedIndex >= 0 ? options[selectedIndex] : null;
+  const filteredOptions = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return searchable && needle ? options.filter((option) => option.label.toLowerCase().includes(needle)) : options;
+  }, [options, query, searchable]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -76,6 +84,7 @@ export const IconSelect = ({ value, onChange, options, placeholder, icon: FieldI
     if (disabled) return;
     onChange(nextValue);
     setOpen(false);
+    setQuery('');
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
@@ -90,12 +99,12 @@ export const IconSelect = ({ value, onChange, options, placeholder, icon: FieldI
         return;
       }
       const direction = event.key === 'ArrowDown' ? 1 : -1;
-      setHighlightedIndex((current) => (current + direction + options.length) % options.length);
+      if (filteredOptions.length) setHighlightedIndex((current) => (current + direction + filteredOptions.length) % filteredOptions.length);
       return;
     }
     if ((event.key === 'Enter' || event.key === ' ') && open) {
       event.preventDefault();
-      choose(options[highlightedIndex]?.value || '');
+      choose(filteredOptions[highlightedIndex]?.value || '');
     }
   };
 
@@ -117,7 +126,8 @@ export const IconSelect = ({ value, onChange, options, placeholder, icon: FieldI
       </button>
       {open && panelPosition && createPortal(
         <div ref={panelRef} role="listbox" style={panelPosition} className="fixed z-[320] overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-900">
-          {options.map((option, index) => (
+          {searchable && <div className="sticky top-0 z-10 mb-1 flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 dark:border-slate-700 dark:bg-slate-950"><Search className="h-3.5 w-3.5 text-slate-400" /><input autoFocus value={query} onChange={(event) => { setQuery(event.target.value); setHighlightedIndex(0) }} placeholder={searchPlaceholder} className="h-9 min-w-0 flex-1 bg-transparent text-xs outline-none dark:text-white" /></div>}
+          {filteredOptions.map((option, index) => (
             <button
               type="button"
               role="option"
@@ -136,6 +146,7 @@ export const IconSelect = ({ value, onChange, options, placeholder, icon: FieldI
               {option.value === value && <Check className="h-3.5 w-3.5 shrink-0" />}
             </button>
           ))}
+          {filteredOptions.length === 0 && <p className="px-3 py-6 text-center text-xs text-slate-500">{noResults}</p>}
         </div>,
         document.body,
       )}
