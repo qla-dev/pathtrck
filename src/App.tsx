@@ -134,9 +134,10 @@ import { BrandWordmark, FreightbookMark } from "./components/ui/BrandWordmark";
 import { PricingPlanCard } from "./components/pricing/PricingPlanCard";
 import { SetupProcess } from "./components/auth/SetupProcess";
 import { LoginProcess } from "./components/auth/LoginProcess";
-import { AiRouteCalculatorCard } from "./components/ai_automattions/AiRouteCalculatorCard";
 import { FleetOnboardingPreview } from "./components/landing/FleetOnboardingPreview";
 import { WarehouseOnboardingPreview } from "./components/landing/WarehouseOnboardingPreview";
+import { LandingLoadExchange } from "./components/landing/LandingLoadExchange";
+import { LANDING_DEMO_LOADS } from "./components/landing/landingDemoLoads";
 import { LenaLoadDetailsCard } from "./components/lena/LenaEmbeddedCards";
 
 // The shipment the hero map draws. Shaped like an API load so the real Lena card renders it
@@ -3221,15 +3222,15 @@ const LandingPage = ({
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-20">
             <h2 className="text-4xl md:text-6xl font-display font-black mb-6 dark:text-white tracking-tight">
-              {u("landing.builtFor", "Built for the")} <br />{" "}
+              {u("landing.trackingTitle1", "Tracking that")} <br />{" "}
               <span className="text-primary">
-                {u("landing.modernFleet", "Modern Fleet.")}
+                {u("landing.trackingTitle2", "never blinks.")}
               </span>
             </h2>
             <p className="text-slate-500 dark:text-slate-400 max-w-2xl mx-auto text-lg">
               {u(
-                "landing.modernFleetDesc",
-                "Everything you need to manage global logistics at scale, from real-time tracking to AI-powered route optimization.",
+                "landing.trackingDesc",
+                "Follow every vehicle, stop and waypoint in real time - from the pickup window to the final drop.",
               )}
             </p>
           </div>
@@ -3376,6 +3377,37 @@ const LandingPage = ({
                   ))}
                 </div>
               </div>
+
+              <div className="mt-4 space-y-2 border-t border-slate-100 pt-4 dark:border-slate-800">
+                {LANDING_DEMO_LOADS.slice(1, 3).map((demo) => {
+                  const stops = Array.isArray(demo.stops)
+                    ? (demo.stops as Record<string, unknown>[])
+                    : [];
+                  const from = stops[0];
+                  const to = stops[stops.length - 1];
+                  return (
+                    <div
+                      key={String(demo.id)}
+                      className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950"
+                    >
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                        <Truck className="h-4 w-4" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-xs font-black text-slate-900 dark:text-white">
+                          {String(demo.booking_reference)}
+                        </span>
+                        <span className="block truncate text-[11px] text-slate-500">
+                          {String(from?.city || "")} → {String(to?.city || "")}
+                        </span>
+                      </span>
+                      <span className="shrink-0 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-500">
+                        {trPackageStatus(lang, "In Transit")}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Bottom Feature 1 */}
@@ -3448,9 +3480,38 @@ const LandingPage = ({
               </div>
             </div>
 
-            {/* Bottom Feature 2 */}
-            <AiRouteCalculatorCard lang={lang} className="md:col-span-8" />
           </div>
+        </div>
+      </section>
+
+      {/* Section 3b: the load exchange, on its own so it can breathe */}
+      <section
+        id="exchange"
+        className={cn(
+          "scroll-mt-28 border-y border-slate-100 bg-slate-50/60 dark:border-slate-900 dark:bg-slate-900/20",
+          SECTION_PADDING,
+        )}
+      >
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-primary sm:text-xs">
+              <Boxes className="h-4 w-4" />
+              {u("landing.exchange.eyebrow", "Load exchange")}
+            </p>
+            <h2 className="text-4xl md:text-6xl font-display font-black mb-6 dark:text-white tracking-tight">
+              {u("landing.exchange.title1", "Interactive view of the")} <br />{" "}
+              <span className="text-primary">
+                {u("landing.exchange.title2", "load exchange, with filters.")}
+              </span>
+            </h2>
+            <p className="text-slate-500 dark:text-slate-400 max-w-2xl mx-auto text-lg">
+              {u(
+                "landing.exchange.desc",
+                "Road, air, sea, rail and storage - posted by real operators, opened with one click.",
+              )}
+            </p>
+          </div>
+          <LandingLoadExchange lang={lang} />
         </div>
       </section>
 
