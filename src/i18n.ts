@@ -8403,6 +8403,75 @@ Object.assign(UI.de, {
   'feed.filterBar.searchTrackingNumber': 'FB-Sendungsnummer suchen...',
 });
 
+Object.assign(UI.en, {
+  'fleet.registrySubtitle': 'Add vehicle details and required operating documents.',
+  'fleet.stepRegistry': 'Vehicle type',
+  'fleet.stepSpecs': 'Specifications',
+  'fleet.stepNaming': 'Operating details',
+  'fleet.stepDocuments': 'Documents',
+  'fleet.vehicleDocuments': 'Vehicle documents',
+  'fleet.vehicleDocumentsHelp': 'Upload the documents required for this vehicle. PDF and image files are supported.',
+  'fleet.adrApplicable': 'ADR applies to this vehicle',
+  'fleet.document.vehicleRegistration': 'Vehicle registration certificate',
+  'fleet.document.trailerRegistration': 'Trailer/semi-trailer registration certificate',
+  'fleet.document.insurancePolicy': 'Insurance policy',
+  'fleet.document.communityLicence': 'Community Licence copy',
+  'fleet.document.technicalInspection': 'Technical inspection certificate',
+  'fleet.document.atpCertificate': 'ATP certificate',
+  'fleet.document.adrCertificate': 'Vehicle ADR certificate',
+  'fleet.document.otherPermit': 'Other permits',
+  'fleet.documentAlreadyUploaded': 'Already uploaded — choose a file to replace',
+  'fleet.chooseDocument': 'Choose PDF or image',
+  'fleet.roadDocumentsOnly': 'These road-vehicle documents do not apply to aircraft or ships.',
+  'fleet.requiredDocumentsHelp': 'Upload every document marked with * to save the vehicle.',
+});
+
+Object.assign(UI.bs, {
+  'fleet.registrySubtitle': 'Dodajte podatke o vozilu i potrebnu operativnu dokumentaciju.',
+  'fleet.stepRegistry': 'Vrsta vozila',
+  'fleet.stepSpecs': 'Specifikacije',
+  'fleet.stepNaming': 'Operativni podaci',
+  'fleet.stepDocuments': 'Dokumenti',
+  'fleet.vehicleDocuments': 'Dokumenti vozila',
+  'fleet.vehicleDocumentsHelp': 'Priložite dokumente potrebne za ovo vozilo. Podržani su PDF i slikovni fajlovi.',
+  'fleet.adrApplicable': 'ADR se primjenjuje na ovo vozilo',
+  'fleet.document.vehicleRegistration': 'Saobraćajna dozvola vozila',
+  'fleet.document.trailerRegistration': 'Saobraćajna dozvola prikolice/poluprikolice',
+  'fleet.document.insurancePolicy': 'Polisa osiguranja',
+  'fleet.document.communityLicence': 'Kopija Community Licence / Licenca Zajednice',
+  'fleet.document.technicalInspection': 'Potvrda o tehničkom pregledu',
+  'fleet.document.atpCertificate': 'ATP certifikat',
+  'fleet.document.adrCertificate': 'ADR certifikat vozila',
+  'fleet.document.otherPermit': 'Ostale dozvole',
+  'fleet.documentAlreadyUploaded': 'Već priloženo — odaberite fajl za zamjenu',
+  'fleet.chooseDocument': 'Odaberite PDF ili sliku',
+  'fleet.roadDocumentsOnly': 'Ovi dokumenti za drumska vozila ne primjenjuju se na avione ili brodove.',
+  'fleet.requiredDocumentsHelp': 'Priložite svaki dokument označen sa * kako biste sačuvali vozilo.',
+});
+
+Object.assign(UI.de, {
+  'fleet.registrySubtitle': 'Fahrzeugdaten und erforderliche Betriebsdokumente hinzufügen.',
+  'fleet.stepRegistry': 'Fahrzeugart',
+  'fleet.stepSpecs': 'Spezifikationen',
+  'fleet.stepNaming': 'Betriebsdaten',
+  'fleet.stepDocuments': 'Dokumente',
+  'fleet.vehicleDocuments': 'Fahrzeugdokumente',
+  'fleet.vehicleDocumentsHelp': 'Laden Sie die für dieses Fahrzeug erforderlichen Dokumente hoch. PDF- und Bilddateien werden unterstützt.',
+  'fleet.adrApplicable': 'ADR gilt für dieses Fahrzeug',
+  'fleet.document.vehicleRegistration': 'Fahrzeugschein',
+  'fleet.document.trailerRegistration': 'Fahrzeugschein des Anhängers/Sattelaufliegers',
+  'fleet.document.insurancePolicy': 'Versicherungspolice',
+  'fleet.document.communityLicence': 'Kopie der Gemeinschaftslizenz',
+  'fleet.document.technicalInspection': 'Bescheinigung der technischen Untersuchung',
+  'fleet.document.atpCertificate': 'ATP-Zertifikat',
+  'fleet.document.adrCertificate': 'ADR-Zertifikat des Fahrzeugs',
+  'fleet.document.otherPermit': 'Sonstige Genehmigungen',
+  'fleet.documentAlreadyUploaded': 'Bereits hochgeladen — Datei zum Ersetzen auswählen',
+  'fleet.chooseDocument': 'PDF oder Bild auswählen',
+  'fleet.roadDocumentsOnly': 'Diese Dokumente für Straßenfahrzeuge gelten nicht für Flugzeuge oder Schiffe.',
+  'fleet.requiredDocumentsHelp': 'Laden Sie alle mit * markierten Dokumente hoch, um das Fahrzeug zu speichern.',
+});
+
 const replaceBrand = (value: string) => value.replace(/smartfreight\.ai/gi, 'Freightbook.ai').replace(/smartfreight/gi, 'Freightbook.ai');
 
 export const ui = (lang: Language, key: string, fallback: string) => {

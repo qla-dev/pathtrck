@@ -616,12 +616,14 @@ export const api = {
   documents: {
     ...resourceApi<Record<string, unknown>>('documents'),
     /** Uploads the file and creates its row in one call. Omitting `loadId` files it in the archive. */
-    upload: async (input: { file: File; loadId?: string | null; type?: string; name?: string }) => {
+    upload: async (input: { file: File; loadId?: string | null; vehicleId?: string | number | null; type?: string; name?: string; expiresAt?: string | null }) => {
       const form = new FormData();
       form.append('file', input.file);
       if (input.loadId) form.append('load_id', input.loadId);
+      if (input.vehicleId) form.append('vehicle_id', String(input.vehicleId));
       if (input.type) form.append('type', input.type);
       if (input.name) form.append('name', input.name);
+      if (input.expiresAt) form.append('expires_at', input.expiresAt);
       return (await request<Record<string, unknown>>('/documents/upload', { method: 'POST', body: form })).data;
     },
     open: (id: string | number, name: string, inline: boolean) => openLoadDocument(id, name, inline),

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
-import { Truck, Plane, Ship, X } from 'lucide-react';
+import { CheckCircle2, FileText, Plane, Ship, Truck, Upload, X } from 'lucide-react';
 import { Language } from '../../types';
 import { ui } from '../../i18n';
 import { cn } from '../../lib/cn';
@@ -10,6 +10,18 @@ import { api, ApiError } from '../../services/api';
 import { Button } from '../ui/Button';
 
 type TransportType = 'truck' | 'aircraft' | 'ship';
+
+type VehicleDocumentType =
+  | 'VEHICLE_REGISTRATION'
+  | 'TRAILER_REGISTRATION'
+  | 'INSURANCE_POLICY'
+  | 'COMMUNITY_LICENCE'
+  | 'TECHNICAL_INSPECTION'
+  | 'ATP_CERTIFICATE'
+  | 'ADR_CERTIFICATE'
+  | 'OTHER_PERMIT';
+
+type PendingVehicleDocuments = Partial<Record<VehicleDocumentType, File[]>>;
 
 type AddVehicleDraft = {
   transportType: TransportType;
@@ -184,13 +196,24 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
   const [draft, setDraft] = useState<AddVehicleDraft>(() => buildDraft('truck'));
   const [trailerStep, setTrailerStep] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [pendingDocuments, setPendingDocuments] = useState<PendingVehicleDocuments>({});
+  const [existingDocumentTypes, setExistingDocumentTypes] = useState<Set<string>>(new Set());
+  const [adrApplicable, setAdrApplicable] = useState(false);
   const isEditing = Boolean(initialVehicle?.id);
 
   useEffect(() => {
     if (!open) return undefined;
     setDraft(initialVehicle ? buildDraftFromVehicle(initialVehicle) : buildDraft('truck'));
     setStep(0);
+    setPendingDocuments({});
+    setExistingDocumentTypes(new Set());
+    setAdrApplicable(Boolean((initialVehicle?.features as Record<string, unknown> | undefined)?.adr_applicable));
     setTrailerStep(initialVehicle && String((initialVehicle.features as Record<string, unknown> | undefined)?.trailer || '').startsWith('Yes') ? 1 : 0);
+    if (initialVehicle?.id) {
+      void api.documents.list({ vehicle_id: Number(initialVehicle.id) }).then((response) => {
+        setExistingDocumentTypes(new Set(response.data.map((document) => String(document.type || ''))));
+      }).catch(() => setExistingDocumentTypes(new Set()));
+    }
     const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape' && !saving) onClose(); };
     window.addEventListener('keydown', closeOnEscape);
     return () => window.removeEventListener('keydown', closeOnEscape);
@@ -213,6 +236,18 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
   };
 
   const hasTrailer = draft.transportType === 'truck' && draft.trailer !== 'No';
+  const atpApplicable = draft.transportType === 'truck' && /refrigerated|reefer/i.test(`${draft.bodyType} ${hasTrailer ? draft.trailerBodyType : ''}`);
+  const hasDocument = (type: VehicleDocumentType) => Boolean(pendingDocuments[type]?.length || existingDocumentTypes.has(type));
+  const requiredDocumentTypes: VehicleDocumentType[] = draft.transportType === 'truck'
+    ? [
+        'VEHICLE_REGISTRATION',
+        ...(hasTrailer ? ['TRAILER_REGISTRATION' as VehicleDocumentType] : []),
+        'COMMUNITY_LICENCE',
+        'TECHNICAL_INSPECTION',
+        ...(atpApplicable ? ['ATP_CERTIFICATE' as VehicleDocumentType] : []),
+        ...(adrApplicable ? ['ADR_CERTIFICATE' as VehicleDocumentType] : []),
+      ]
+    : [];
 
   const canContinue =
     (step === 0 && Boolean(draft.transportType && draft.category && draft.bodyType)) ||
@@ -221,7 +256,8 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
       Boolean(draft.systemName && draft.plate) &&
       (draft.transportType !== 'truck' ||
         draft.trailer === 'No' ||
-        (trailerStep === 1 && draft.trailerSystemName && draft.trailerPlate && draft.trailerBodyType)));
+        (trailerStep === 1 && draft.trailerSystemName && draft.trailerPlate && draft.trailerBodyType))) ||
+    (step === 3 && requiredDocumentTypes.every(hasDocument));
 
   const submitVehicle = async () => {
     if (saving) return;
@@ -249,7 +285,7 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
         vehicle_type: draft.category, make: draft.make, model: displayModel, status: draft.status.toLowerCase(),
         capacity_kg: Number.parseFloat(draft.capacity.replace(/[^0-9.]/g, '')) * 1000 || null,
         capacity_m3: Number.parseFloat(draft.volume.replace(/[^0-9.]/g, '')) || null,
-        features: { system_name: draft.systemName, body_type: draft.bodyType, configuration: draft.configuration, fuel_type: draft.fuelType, trailer: trailerLabel, trailer_system_name: draft.trailerSystemName || null, tail_lift: draft.tailLift === 'Yes', next_service: draft.nextService || null },
+        features: { system_name: draft.systemName, body_type: draft.bodyType, configuration: draft.configuration, fuel_type: draft.fuelType, trailer: trailerLabel, trailer_system_name: draft.trailerSystemName || null, tail_lift: draft.tailLift === 'Yes', next_service: draft.nextService || null, adr_applicable: adrApplicable },
         owner_user_id: ownerUserId,
         assigned_driver_user_id: assignedDriverUserId,
         company_id: companyId,
@@ -257,6 +293,13 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
       const response = isEditing
         ? await api.vehicles.update(String(initialVehicle?.id), payload)
         : await api.vehicles.create(payload);
+      const vehicleId = Number(response.data.id);
+      await Promise.all(Object.entries(pendingDocuments).flatMap(([type, files]) => files.map((file) => api.documents.upload({
+          file,
+          vehicleId,
+          type,
+          name: file.name,
+        }))));
       void showSuccess(
         isEditing ? u('fleet.vehicleUpdatedTitle', 'Vehicle updated') : u('fleet.vehicleAddedTitle', 'Vehicle added'),
         isEditing ? u('fleet.vehicleUpdatedText', 'The vehicle changes have been saved.') : u('fleet.vehicleAddedText', 'The vehicle is now available in your fleet.'),
@@ -276,7 +319,7 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[220] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[220] flex items-stretch justify-center overflow-hidden bg-slate-950/70 backdrop-blur-sm"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -286,22 +329,19 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
           <motion.div
             role="dialog"
             aria-modal="true"
-            className="w-full max-w-4xl overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900"
+            className="flex h-[100dvh] max-h-[100dvh] w-full flex-col overflow-hidden bg-white shadow-2xl dark:bg-slate-900"
             initial={{ opacity: 0, y: 16, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 12, scale: 0.98 }}
             transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
           >
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5 dark:border-slate-800">
+            <div className="flex h-16 shrink-0 items-center justify-between border-b border-slate-100 px-5 dark:border-slate-800 md:px-7">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-primary">
-                  {u('fleet.registryLabel', 'Local transport registry')}
-                </p>
-                <h2 className="mt-2 text-2xl font-black dark:text-white">
+                <h2 className="text-lg font-black dark:text-white">
                   {isEditing ? u('fleet.editVehicleTitle', 'Edit vehicle') : u('fleet.registryTitle', 'Register a new vehicle')}
                 </h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  {u('fleet.registrySubtitle', 'Each level is separated into its own registration step for a clean fleet onboarding flow.')}
+                <p className="hidden text-xs text-slate-500 sm:block">
+                  {u('fleet.registrySubtitle', 'Add vehicle details and required operating documents.')}
                 </p>
               </div>
               <button
@@ -314,17 +354,20 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
               </button>
             </div>
 
-            <div className="grid lg:grid-cols-[250px_minmax(0,1fr)]">
-              <aside className="space-y-3 border-r border-slate-100 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-950/50">
+            <div className="flex min-h-0 flex-1 flex-col">
+              <aside className="grid shrink-0 grid-cols-2 gap-2 border-b border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/50 md:grid-cols-4 md:px-7">
                 {[
-                  u('fleet.stepRegistry', 'Base transport list'),
-                  u('fleet.stepSpecs', 'Brand, model and specifications'),
-                  u('fleet.stepNaming', 'System name and operating details'),
+                  u('fleet.stepRegistry', 'Vehicle type'),
+                  u('fleet.stepSpecs', 'Specifications'),
+                  u('fleet.stepNaming', 'Operating details'),
+                  u('fleet.stepDocuments', 'Documents'),
                 ].map((label, index) => (
-                  <div
+                  <button
                     key={label}
+                    type="button"
+                    onClick={() => { if (index <= step) setStep(index); }}
                     className={cn(
-                      'rounded-2xl border p-4',
+                      'flex min-w-0 cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 text-left',
                       step === index
                         ? 'border-primary bg-primary/5'
                         : index < step
@@ -332,17 +375,16 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
                           : 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900'
                     )}
                   >
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                      {u('fleet.step', 'Step')} {index + 1}
-                    </p>
-                    <p className="mt-1 text-sm font-bold dark:text-white">{label}</p>
-                  </div>
+                    <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-black', index < step ? 'bg-emerald-500 text-white' : step === index ? 'bg-primary text-white' : 'bg-slate-100 text-slate-500 dark:bg-slate-800')}>{index < step ? <CheckCircle2 className="h-4 w-4" /> : index + 1}</span>
+                    <p className="truncate text-xs font-bold dark:text-white">{label}</p>
+                  </button>
                 ))}
               </aside>
 
-              <div className="space-y-6 p-6">
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <div className="mx-auto w-full max-w-6xl space-y-4 p-4 [&_input]:!h-10 [&_select]:!h-10 md:p-6">
                 {step === 0 && (
-                  <div className="space-y-6">
+                  <div className="space-y-4">
                     <div className="grid gap-3 sm:grid-cols-3">
                       {(Object.keys(FLEET_REGISTRY) as TransportType[]).map((type) => {
                         const item = FLEET_REGISTRY[type];
@@ -401,7 +443,7 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
                 )}
 
                 {step === 1 && (
-                  <div className="space-y-6">
+                  <div className="space-y-4">
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div>
                         <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -504,7 +546,7 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
                 )}
 
                 {step === 2 && (
-                  <div className="space-y-6">
+                  <div className="space-y-4">
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div>
                         <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -705,18 +747,77 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
                     )}
                   </div>
                 )}
+                {step === 3 && (
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-base font-black text-slate-900 dark:text-white">{u('fleet.vehicleDocuments', 'Vehicle documents')}</h3>
+                        <p className="mt-1 text-xs text-slate-500">{u('fleet.vehicleDocumentsHelp', 'Upload the documents required for this vehicle. PDF and image files are supported.')}</p>
+                      </div>
+                      {draft.transportType === 'truck' && (
+                        <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold dark:border-slate-800 dark:bg-slate-950">
+                          <input type="checkbox" checked={adrApplicable} onChange={(event) => setAdrApplicable(event.target.checked)} className="h-4 w-4 accent-primary" />
+                          {u('fleet.adrApplicable', 'ADR applies to this vehicle')}
+                        </label>
+                      )}
+                    </div>
+
+                    {draft.transportType === 'truck' ? (
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {([
+                          { type: 'VEHICLE_REGISTRATION', label: u('fleet.document.vehicleRegistration', 'Vehicle registration certificate'), required: true, visible: true },
+                          { type: 'TRAILER_REGISTRATION', label: u('fleet.document.trailerRegistration', 'Trailer/semi-trailer registration certificate'), required: true, visible: hasTrailer },
+                          { type: 'INSURANCE_POLICY', label: u('fleet.document.insurancePolicy', 'Insurance policy'), required: false, visible: true },
+                          { type: 'COMMUNITY_LICENCE', label: u('fleet.document.communityLicence', 'Community Licence copy'), required: true, visible: true },
+                          { type: 'TECHNICAL_INSPECTION', label: u('fleet.document.technicalInspection', 'Technical inspection certificate'), required: true, visible: true },
+                          { type: 'ATP_CERTIFICATE', label: u('fleet.document.atpCertificate', 'ATP certificate'), required: true, visible: atpApplicable },
+                          { type: 'ADR_CERTIFICATE', label: u('fleet.document.adrCertificate', 'Vehicle ADR certificate'), required: true, visible: adrApplicable },
+                          { type: 'OTHER_PERMIT', label: u('fleet.document.otherPermit', 'Other permits'), required: false, visible: true },
+                        ] as { type: VehicleDocumentType; label: string; required: boolean; visible: boolean }[]).filter((item) => item.visible).map((item) => {
+                          const files = pendingDocuments[item.type] || [];
+                          const alreadyUploaded = existingDocumentTypes.has(item.type);
+                          return (
+                            <label key={item.type} className={cn('group flex min-h-20 cursor-pointer items-center gap-3 rounded-2xl border border-dashed px-4 py-3 transition-colors hover:border-primary hover:bg-primary/5', hasDocument(item.type) ? 'border-emerald-300 bg-emerald-50/60 dark:bg-emerald-950/10' : 'border-slate-300 dark:border-slate-700')}>
+                              <input type="file" multiple={item.type === 'OTHER_PERMIT'} accept=".pdf,.jpg,.jpeg,.png,.webp" className="sr-only" onChange={(event) => {
+                                const selected = Array.from(event.target.files || []);
+                                if (selected.length) setPendingDocuments((current) => ({ ...current, [item.type]: selected }));
+                                event.target.value = '';
+                              }} />
+                              <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', hasDocument(item.type) ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30' : 'bg-primary/10 text-primary')}>
+                                {hasDocument(item.type) ? <CheckCircle2 className="h-5 w-5" /> : <Upload className="h-5 w-5" />}
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block text-xs font-black text-slate-800 dark:text-white">{item.label}{item.required ? ' *' : ''}</span>
+                                <span className="mt-1 block truncate text-xs text-slate-500">{files.map((file) => file.name).join(', ') || (alreadyUploaded ? u('fleet.documentAlreadyUploaded', 'Already uploaded — choose a file to replace') : u('fleet.chooseDocument', 'Choose PDF or image'))}</span>
+                              </span>
+                              <FileText className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-primary" />
+                            </label>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-950/40">
+                        {u('fleet.roadDocumentsOnly', 'These road-vehicle documents do not apply to aircraft or ships.')}
+                      </div>
+                    )}
+                    {requiredDocumentTypes.some((type) => !hasDocument(type)) && (
+                      <p className="text-xs font-bold text-amber-600">{u('fleet.requiredDocumentsHelp', 'Upload every document marked with * to save the vehicle.')}</p>
+                    )}
+                  </div>
+                )}
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-between gap-3 border-t border-slate-100 bg-slate-50 px-6 py-5 dark:border-slate-800 dark:bg-slate-950/40">
+            <div className="flex h-16 shrink-0 items-center justify-between gap-3 border-t border-slate-100 bg-slate-50 px-5 dark:border-slate-800 dark:bg-slate-950/40 md:px-7">
               <Button variant="outline" disabled={saving} onClick={step === 0 ? onClose : () => setStep((prev) => prev - 1)}>
                 {step === 0 ? u('common.cancel', 'Cancel') : u('common.back', 'Back')}
               </Button>
               <div className="flex items-center gap-3">
                 <div className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
-                  {u('fleet.step', 'Step')} {step + 1}/3
+                  {u('fleet.step', 'Step')} {step + 1}/4
                 </div>
-                {step === 2 ? (
+                {step === 3 ? (
                   <Button onClick={() => void submitVehicle()} disabled={!canContinue || saving}>
                     {saving
                       ? isEditing ? u('fleet.saving', 'Saving…') : u('fleet.adding', 'Adding…')
