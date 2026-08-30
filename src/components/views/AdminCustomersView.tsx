@@ -121,7 +121,7 @@ export const AdminCustomersView = ({
         ),
         exportValue: (row) => String(row.created_at || "").slice(0, 10),
       },
-      {
+      ...(canManage ? [{
         key: "status",
         header: "Status",
         render: (row) => (
@@ -132,7 +132,7 @@ export const AdminCustomersView = ({
           </span>
         ),
         exportValue: (row) => (row.is_active ? "Active" : "Not authorized"),
-      },
+      } satisfies ServerDataTableColumn<Record<string, unknown>>] : []),
       {
         key: "actions",
         header: "Actions",
