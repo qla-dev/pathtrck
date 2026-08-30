@@ -18,6 +18,7 @@ import { cn } from '../../lib/cn';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { PageHeader } from '../ui/PageHeader';
+import { DataTable } from '../ui/DataTable';
 import { api } from '../../services/api';
 import { useApiList } from '../../hooks/useApiList';
 
@@ -129,7 +130,7 @@ export const FinanceView = ({ lang: _lang }: { lang: Language }) => {
         </div>
 
         <div className="mt-5 overflow-x-auto">
-          <table className="w-full min-w-[860px] text-left">
+          <DataTable className="min-w-[860px]">
             <thead>
               <tr className="border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 dark:border-slate-800">
                 <th className="px-3 py-3">Invoice</th><th className="px-3 py-3">Company</th><th className="px-3 py-3">Route</th><th className="px-3 py-3">Due</th><th className="px-3 py-3">Amount</th><th className="px-3 py-3">Status</th><th className="px-3 py-3 text-right">Action</th>
@@ -150,7 +151,7 @@ export const FinanceView = ({ lang: _lang }: { lang: Language }) => {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </DataTable>
         </div>
       </Card>
 
@@ -182,4 +183,3 @@ export const FinanceView = ({ lang: _lang }: { lang: Language }) => {
     </div>
   );
 };
-

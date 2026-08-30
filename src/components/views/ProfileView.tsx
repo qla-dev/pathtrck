@@ -463,6 +463,10 @@ export const ProfileView = ({
   const customer = (profileKind === "customer" ? profileRecord : user?.customer_profile || {}) as Record<string, unknown>;
   const driver = (profileKind === "driver" ? profileRecord : user?.driver || {}) as Record<string, unknown>;
   const detailRecord = (profileRecord || (detailKind === "customer" ? customer : detailKind === "driver" ? driver : company) || null) as Record<string, unknown> | null;
+  const detailOwner = (detailRecord?.owner || detailRecord?.user || {}) as Record<string, unknown>;
+  const detailSubscription = (detailOwner.subscription || {}) as Record<string, unknown>;
+  const detailSubscriptionPackage = (detailSubscription.subscription_package || {}) as Record<string, unknown>;
+  const detailPlan = value(detailSubscriptionPackage.name) || "—";
   const profileRating = Number(detailRecord?.rating ?? detailRecord?.average_rating ?? driver.rating ?? 0);
   const profileReviewCount = Number(detailRecord?.reviews_count ?? detailRecord?.review_count ?? detailRecord?.ratings_count ?? 0);
   const profileReviews = (Array.isArray(detailRecord?.reviews) ? detailRecord.reviews : []) as Array<Record<string, unknown>>;
@@ -495,7 +499,7 @@ export const ProfileView = ({
       if (detailKind === "company" && detailRecord) return [
         { label: detailText.fleet, number: String(Array.isArray(detailRecord.vehicles) ? detailRecord.vehicles.length : detailRecord.vehicles_count || 0), icon: Truck },
         { label: detailText.members, number: String(Array.isArray(detailRecord.users) ? detailRecord.users.length : detailRecord.users_count || 0), icon: UserRound },
-        { label: detailText.plan, number: value(detailRecord.plan) || "—", icon: PackageCheck },
+        { label: detailText.plan, number: detailPlan, icon: PackageCheck },
       ];
       if (detailKind === "warehouse" && detailRecord) return [
         { label: detailText.pallets, number: Number(detailRecord.total_capacity_pallets || 0).toLocaleString(), icon: Boxes },
@@ -548,6 +552,7 @@ export const ProfileView = ({
       effectiveRole,
       detailKind,
       detailRecord,
+      detailPlan,
       detailText,
       text,
       totalLoads,
@@ -1206,6 +1211,9 @@ const displayProfileValue = (input: unknown, empty: string): string => {
 
 const ProfileRecordDetails = ({ section, kind, record, labels, empty, formatDate }: { section: "organization" | "network"; kind: ProfileRecordKind; record: Record<string, unknown>; labels: DetailLabels; empty: string; formatDate: (value: unknown) => string }) => {
   const owner = (record.owner || record.user || {}) as Record<string, unknown>;
+  const subscription = (owner.subscription || {}) as Record<string, unknown>;
+  const subscriptionPackage = (subscription.subscription_package || {}) as Record<string, unknown>;
+  const subscriptionPlan = subscriptionPackage.name || null;
   const primaryCompany = (record.primary_company || {}) as Record<string, unknown>;
   const sections: Array<{ title: string; icon: typeof Mail; rows: ProfileDetailRow[] }> = kind === "customer"
     ? [
@@ -1237,7 +1245,7 @@ const ProfileRecordDetails = ({ section, kind, record, labels, empty, formatDate
             { label: labels.country, value: record.country_code, icon: Globe2 },
             { label: labels.taxNumber, value: record.tax_number, icon: BriefcaseBusiness },
             { label: labels.vatNumber, value: record.vat_number, icon: BadgeCheck },
-            { label: labels.plan, value: record.plan, icon: PackageCheck },
+            { label: labels.plan, value: subscriptionPlan, icon: PackageCheck },
             { label: labels.status, value: record.status, icon: ShieldCheck },
           ]},
           { title: labels.network, icon: Truck, rows: [
@@ -1300,7 +1308,7 @@ const ProfileRecordDetails = ({ section, kind, record, labels, empty, formatDate
               { label: labels.manager, value: record.manager_name || owner.name, icon: UserRound },
               { label: labels.billingEmail, value: record.manager_email || owner.email, icon: Mail },
               { label: labels.alternatePhone, value: record.manager_phone || owner.phone, icon: Phone },
-              { label: labels.plan, value: record.plan, icon: PackageCheck },
+              { label: labels.plan, value: subscriptionPlan, icon: PackageCheck },
               { label: labels.verified, value: formatDate(record.verified_at), icon: BadgeCheck },
               { label: labels.updated, value: formatDate(record.updated_at), icon: CalendarDays },
             ]},

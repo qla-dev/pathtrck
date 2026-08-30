@@ -79,13 +79,13 @@ export const AdminCompaniesView = ({
   const columns = useMemo<ServerDataTableColumn<Record<string, unknown>>[]>(() => [
     { key: "company", header: "Company", render: (row) => <><p className="font-bold dark:text-white">{String(row.name || "—")}</p><p className="text-xs text-slate-500">{String(row.country_code || "—")} · {String(row.email || "—")}</p></> },
     { key: "owner", header: "Owner", render: (row) => String(((row.owner || {}) as Record<string, unknown>).name || "—") },
-    { key: "plan", header: "Plan", render: (row) => <span className="font-bold text-violet-500">{String(row.plan || "—")}</span> },
+    { key: "plan", header: "Plan", render: (row) => { const owner = (row.owner || {}) as Record<string, unknown>; const subscription = (owner.subscription || null) as UserSubscription | null; return <span className="font-bold text-violet-500">{subscription?.subscription_package?.name || "—"}</span>; }, exportValue: (row) => { const owner = (row.owner || {}) as Record<string, unknown>; const subscription = (owner.subscription || null) as UserSubscription | null; return subscription?.subscription_package?.name || ""; } },
     { key: "fleet", header: "Fleet", render: (row) => Array.isArray(row.vehicles) ? row.vehicles.length : 0 },
     { key: "members", header: "Members", render: (row) => Array.isArray(row.users) ? row.users.length : 0 },
     { key: "rating", header: "Rating", render: (row) => <span className="inline-flex items-center gap-1 font-bold"><Star className="h-4 w-4 fill-amber-400 text-amber-400" />{Number(row.rating || row.average_rating || 0).toFixed(1)}</span>, exportValue: (row) => Number(row.rating || row.average_rating || 0).toFixed(1) },
     ...(canManageSubscriptions ? [{ key: "lena_ai", header: "LenaAI", render: (row) => { const owner = (row.owner || {}) as Record<string, unknown>; return <LenaTokenCount subscription={(owner.subscription || null) as UserSubscription | null} />; }, exportValue: (row) => { const owner = (row.owner || {}) as Record<string, unknown>; const subscription = (owner.subscription || null) as UserSubscription | null; return Number(subscription?.remaining_tokens || 0); } } satisfies ServerDataTableColumn<Record<string, unknown>>] : []),
     { key: "status", header: "Status", render: (row) => { const status = String(row.status || "pending") as CompanyStatus; const saving = statusSavingId === String(row.id); return <div className="relative w-40">{saving && <Loader2 className="pointer-events-none absolute left-3 top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-primary" />}<IconSelect value={status} disabled={saving} onChange={(next) => void updateStatus(row, next as CompanyStatus)} placeholder="Status" ariaLabel={`Change status for ${String(row.name || "company")}`} icon={Clock3} className={saving ? "[&_button]:pl-9" : undefined} options={[{ value: "pending", label: "Pending", icon: Clock3 }, { value: "verified", label: "Verified", icon: BadgeCheck }, { value: "suspended", label: "Suspended", icon: Ban }]} /></div>; } },
-    { key: "actions", header: "", className: "text-right", exportable: false, render: (row) => { const owner = (row.owner || {}) as Record<string, unknown>; const userId = Number(row.owner_user_id || owner.id || 0); return <div className="flex items-center justify-end gap-2">{canManageSubscriptions && <AdminSubscriptionButton disabled={!userId} label={u('adminSubscription.shortAction', 'Sub')} ariaLabel={userId ? `${u('adminSubscription.open', 'Edit subscription')}: ${String(row.name || '')}` : u('adminSubscription.noAccount', 'No user account available')} onClick={() => userId && setSubscriptionTarget({ userId, name: String(row.name || owner.name || ''), subscription: (owner.subscription || null) as UserSubscription | null })} />}<button type="button" aria-label="Open company profile" onClick={() => setSelected(row)} className="cursor-pointer rounded-lg bg-slate-100 p-2 transition hover:text-primary dark:bg-slate-800"><Eye className="h-4 w-4" /></button></div>; } },
+    { key: "actions", header: u('Action', 'Action'), className: "text-right", exportable: false, render: (row) => { const owner = (row.owner || {}) as Record<string, unknown>; const userId = Number(row.owner_user_id || owner.id || 0); return <div className="flex items-center justify-end gap-2">{canManageSubscriptions && <AdminSubscriptionButton disabled={!userId} ariaLabel={userId ? `${u('adminSubscription.open', 'Edit subscription')}: ${String(row.name || '')}` : u('adminSubscription.noAccount', 'No user account available')} onClick={() => userId && setSubscriptionTarget({ userId, name: String(row.name || owner.name || ''), subscription: (owner.subscription || null) as UserSubscription | null })} />}<button type="button" aria-label="Open company profile" onClick={() => setSelected(row)} className="cursor-pointer rounded-lg bg-slate-100 p-2 transition hover:text-primary dark:bg-slate-800"><Eye className="h-4 w-4" /></button></div>; } },
   ], [canManageSubscriptions, statusSavingId, lang]);
   const field = (key: keyof typeof form, value: string) =>
     setForm((current) => ({ ...current, [key]: value }));
@@ -155,9 +155,12 @@ export const AdminCompaniesView = ({
               tone: "bg-amber-500/10 text-amber-500",
             },
             {
-              label: "Enterprise accounts",
-              value: companies.items.filter((row) => row.plan === "enterprise")
-                .length,
+              label: "Business accounts",
+              value: companies.items.filter((row) => {
+                const owner = (row.owner || {}) as Record<string, unknown>;
+                const subscription = (owner.subscription || null) as UserSubscription | null;
+                return subscription?.subscription_package?.slug === "business";
+              }).length,
               icon: Crown,
               tone: "bg-violet-500/10 text-violet-500",
             },

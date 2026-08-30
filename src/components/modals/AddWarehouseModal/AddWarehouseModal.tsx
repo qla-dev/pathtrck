@@ -52,6 +52,7 @@ import { ui } from '../../../i18n';
 import { cn } from '../../../lib/cn';
 import { Button } from '../../ui/Button';
 import { Toggle } from '../../ui/Toggle';
+import { DataTable } from '../../ui/DataTable';
 import { CountrySelect } from '../../location/CountrySelect';
 import {
   CapabilityCard,
@@ -453,7 +454,7 @@ export const AddWarehouseModal = ({
 
           <p className="mb-1.5 mt-4 text-[11px] font-semibold text-slate-500">{u('addWarehouse.temperatureZones', 'Temperature Zones')}</p>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[520px] text-left">
+            <DataTable className="min-w-[520px]">
               <thead>
                 <tr className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
                   <th className="pb-1.5 pr-2">{u('addWarehouse.zoneName', 'Zone Name')}</th>
@@ -495,7 +496,7 @@ export const AddWarehouseModal = ({
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </DataTable>
           </div>
           <button type="button" onClick={addZone} className="mt-2 inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-bold text-primary hover:bg-primary/10">
             <Plus className="h-3.5 w-3.5" />{u('addWarehouse.addTemperatureZone', 'Add Temperature Zone')}
@@ -807,7 +808,7 @@ export const AddWarehouseModal = ({
         </SectionCard>
 
         <SectionCard icon={CalendarDays} title={u('addWarehouse.expiryOverview', 'Document Expiry Overview')} subtitle={u('addWarehouse.expiryOverviewSub', 'Keep track of document validity and renewals.')}>
-          <table className="w-full text-left text-xs">
+          <DataTable className="text-xs">
             <tbody>
               {[
                 { label: u('addWarehouse.operatingLicense', 'Warehouse Operating License'), date: draft.licenseExpiryDate },
@@ -836,7 +837,7 @@ export const AddWarehouseModal = ({
                 );
               })}
             </tbody>
-          </table>
+          </DataTable>
         </SectionCard>
       </div>
     </div>

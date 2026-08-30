@@ -6,6 +6,7 @@ import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { PageHeader } from '../ui/PageHeader';
 import { InlineDataState } from '../ui/InlineDataState';
+import { DataTable } from '../ui/DataTable';
 
 type Row = Record<string, unknown>;
 type Column = { label: string; value: (row: Row) => unknown };
@@ -31,6 +32,6 @@ export const ApiRegistryView = ({ eyebrow, title, description, icon: Icon, reque
         { label: 'API status', value: result.loading ? 'Loading' : result.error ? 'Unavailable' : 'Connected', icon: result.error ? PlugZap : ShieldCheck, tone: result.error ? 'bg-rose-500/10 text-rose-500' : 'bg-emerald-500/10 text-emerald-500' },
       ]}
     />
-    <Card><div className="relative max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${title.toLowerCase()}...`} className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white" /></div>{result.loading || result.error || rows.length === 0 ? <InlineDataState loading={result.loading} error={result.error} empty={empty} onRetry={result.refresh} /> : <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[760px] text-left"><thead><tr className="border-b border-slate-200 text-xs uppercase text-slate-500 dark:border-slate-800">{columns.map((column) => <th key={column.label} className="p-3">{column.label}</th>)}</tr></thead><tbody>{rows.map((row) => <tr key={String(row.id)} className="border-b border-slate-100 dark:border-slate-800">{columns.map((column) => <td key={column.label} className="p-3 text-sm text-slate-600 first:font-bold first:text-slate-900 dark:text-slate-300 dark:first:text-white">{String(column.value(row) || '—')}</td>)}</tr>)}</tbody></table></div>}</Card>
+    <Card><div className="relative max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${title.toLowerCase()}...`} className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white" /></div>{result.loading || result.error || rows.length === 0 ? <InlineDataState loading={result.loading} error={result.error} empty={empty} onRetry={result.refresh} /> : <div className="mt-5 overflow-x-auto"><DataTable className="min-w-[760px]"><thead><tr>{columns.map((column) => <th key={column.label}>{column.label}</th>)}</tr></thead><tbody>{rows.map((row) => <tr key={String(row.id)}>{columns.map((column) => <td key={column.label} className="text-sm text-slate-600 first:font-bold first:text-slate-900 dark:text-slate-300 dark:first:text-white">{String(column.value(row) || '—')}</td>)}</tr>)}</tbody></DataTable></div>}</Card>
   </div>;
 };

@@ -6783,8 +6783,8 @@ export default function App() {
             </div>
           )}
           <button
-            aria-label={isSidebarOpen ? "Collapse sidebar" : "Open sidebar"}
-            title={isSidebarOpen ? "Collapse sidebar" : "Open sidebar"}
+            aria-label={isSidebarOpen ? u("nav.collapseSidebar", "Collapse sidebar") : u("nav.openSidebar", "Open sidebar")}
+            title={isSidebarOpen ? u("nav.collapseSidebar", "Collapse sidebar") : u("nav.openSidebar", "Open sidebar")}
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer"
           >

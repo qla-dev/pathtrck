@@ -88,6 +88,16 @@ export const AdminCustomersView = ({
         render: (row) => String(row.country_code || "—"),
         exportValue: (row) => String(row.country_code || ""),
       },
+      ...(canManage ? [{
+        key: "joined",
+        header: "Joined",
+        render: (row) => (
+          <span className="text-sm text-slate-500">
+            {String(row.created_at || "").slice(0, 10)}
+          </span>
+        ),
+        exportValue: (row) => String(row.created_at || "").slice(0, 10),
+      } satisfies ServerDataTableColumn<Record<string, unknown>>] : []),
       {
         key: "rating",
         header: "Rating",
@@ -111,16 +121,6 @@ export const AdminCustomersView = ({
           return Number(((user.subscription || null) as UserSubscription | null)?.remaining_tokens || 0);
         },
       } satisfies ServerDataTableColumn<Record<string, unknown>>] : []),
-      {
-        key: "joined",
-        header: "Joined",
-        render: (row) => (
-          <span className="text-sm text-slate-500">
-            {String(row.created_at || "").slice(0, 10)}
-          </span>
-        ),
-        exportValue: (row) => String(row.created_at || "").slice(0, 10),
-      },
       ...(canManage ? [{
         key: "status",
         header: "Status",
@@ -135,7 +135,7 @@ export const AdminCustomersView = ({
       } satisfies ServerDataTableColumn<Record<string, unknown>>] : []),
       {
         key: "actions",
-        header: "Actions",
+        header: u('Action', 'Action'),
         className: "text-right",
         exportable: false,
         render: (row) => {
@@ -143,7 +143,7 @@ export const AdminCustomersView = ({
           const userId = Number(row.user_id || user.id || 0);
           return (
             <div className="flex items-center justify-end gap-2">
-              {canManage && <AdminSubscriptionButton disabled={!userId} label={u('adminSubscription.shortAction', 'Sub')} ariaLabel={userId ? `${u('adminSubscription.open', 'Edit subscription')}: ${String(row.name || row.company_name || '')}` : u('adminSubscription.noAccount', 'No user account available')} onClick={() => userId && setSubscriptionTarget({ userId, name: String(row.name || row.company_name || user.name || ''), subscription: (user.subscription || null) as UserSubscription | null })} />}
+              {canManage && <AdminSubscriptionButton disabled={!userId} ariaLabel={userId ? `${u('adminSubscription.open', 'Edit subscription')}: ${String(row.name || row.company_name || '')}` : u('adminSubscription.noAccount', 'No user account available')} onClick={() => userId && setSubscriptionTarget({ userId, name: String(row.name || row.company_name || user.name || ''), subscription: (user.subscription || null) as UserSubscription | null })} />}
               <button type="button" onClick={() => setSelected(row)} aria-label="Open customer profile" className="cursor-pointer rounded-lg bg-slate-100 p-2 transition hover:text-primary dark:bg-slate-800"><Eye className="h-4 w-4" /></button>
             </div>
           );

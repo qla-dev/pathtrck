@@ -22,6 +22,7 @@ import { cn } from '../../lib/cn';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { PageHeader } from '../ui/PageHeader';
+import { DataTable } from '../ui/DataTable';
 import { api } from '../../services/api';
 import { RegisterVehicleModal } from '../modals/RegisterVehicleModal';
 import { AddressMapModal } from '../maps/AddressMapModal';
@@ -386,41 +387,41 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
 
       {fleetSection === 'vehicles' && <Card contentClassName="p-0">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <DataTable>
             <thead>
-              <tr className="text-left border-b border-slate-100 dark:border-slate-800">
-                <th className="p-4 text-[10px] font-bold uppercase text-slate-400 tracking-widest">{u('fleet.table.vehicle', 'Vehicle')}</th>
-                <th className="p-4 text-[10px] font-bold uppercase text-slate-400 tracking-widest">{u('fleet.table.licensePlate', 'Registry / Plate')}</th>
-                <th className="p-4 text-[10px] font-bold uppercase text-slate-400 tracking-widest">{u('fleet.table.fuelType', 'Fuel Type')}</th>
-                <th className="p-4 text-[10px] font-bold uppercase text-slate-400 tracking-widest">{u('fleet.table.trailer', 'Trailer')}</th>
-                <th className="p-4 text-[10px] font-bold uppercase text-slate-400 tracking-widest">{u('fleet.table.tailLift', 'Tail Lift')}</th>
-                <th className="p-4 text-[10px] font-bold uppercase text-slate-400 tracking-widest">{u('fleet.table.status', 'Status')}</th>
-                <th className="p-4 text-[10px] font-bold uppercase text-slate-400 tracking-widest">{u('fleet.table.fuelLevel', 'Fuel Level')}</th>
-                <th className="p-4 text-[10px] font-bold uppercase text-slate-400 tracking-widest">{u('fleet.table.nextService', 'Next Service')}</th>
-                <th className="p-4 text-[10px] font-bold uppercase text-slate-400 tracking-widest">{u('fleet.table.actions', 'Actions')}</th>
+              <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500 dark:border-slate-800">
+                <th className="p-3">{u('fleet.table.vehicle', 'Vehicle')}</th>
+                <th className="p-3">{u('fleet.table.licensePlate', 'Registry / Plate')}</th>
+                <th className="p-3">{u('fleet.table.fuelType', 'Fuel Type')}</th>
+                <th className="p-3">{u('fleet.table.trailer', 'Trailer')}</th>
+                <th className="p-3">{u('fleet.table.tailLift', 'Tail Lift')}</th>
+                <th className="p-3">{u('fleet.table.status', 'Status')}</th>
+                <th className="p-3">{u('fleet.table.fuelLevel', 'Fuel Level')}</th>
+                <th className="p-3">{u('fleet.table.nextService', 'Next Service')}</th>
+                <th className="p-3">{u('Action', 'Action')}</th>
               </tr>
             </thead>
             <tbody>
               {vehicles.map((v) => {
                 const Icon = vehicleTypeIcon[v.transportType];
                 return (
-                  <tr key={v.id} className="border-b border-slate-50 dark:border-slate-900 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
-                    <td className="p-4">
+                  <tr key={v.id} className="border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900/50">
+                    <td className="p-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800">
                           <Icon className="w-4 h-4 text-slate-500" />
                         </div>
-                        <div>
-                          <span className="text-sm font-bold dark:text-white block">{v.systemName}</span>
-                          <span className="text-xs text-slate-500">{v.model}</span>
+                        <div className="min-w-0">
+                          <p className="truncate font-bold dark:text-white">{v.systemName}</p>
+                          <p className="truncate text-xs text-slate-500">{v.model}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="p-4 text-sm text-slate-500 font-mono">{v.plate}</td>
-                    <td className="p-4 text-sm text-slate-500">{trFuelType(lang, v.fuelType)}</td>
-                    <td className="p-4 text-sm text-slate-500">{v.trailer}</td>
-                    <td className="p-4 text-sm text-slate-500">{v.tailLift}</td>
-                    <td className="p-4">
+                    <td className="p-3 text-sm text-slate-500 font-mono">{v.plate}</td>
+                    <td className="p-3 text-sm text-slate-500">{trFuelType(lang, v.fuelType)}</td>
+                    <td className="p-3 text-sm text-slate-500">{v.trailer}</td>
+                    <td className="p-3 text-sm text-slate-500">{v.tailLift}</td>
+                    <td className="p-3">
                       <span
                         className={cn(
                           'px-2 py-1 rounded-full text-[10px] font-bold uppercase',
@@ -434,7 +435,7 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
                         {trVehicleStatus(lang, v.status)}
                       </span>
                     </td>
-                    <td className="p-4">
+                    <td className="p-3">
                       <div className="flex items-center gap-2">
                         <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden max-w-[60px]">
                           <div
@@ -445,8 +446,8 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
                         <span className="text-xs font-bold dark:text-white">{v.fuel}</span>
                       </div>
                     </td>
-                    <td className="p-4 text-sm text-slate-500">{v.nextService}</td>
-                    <td className="p-4">
+                    <td className="p-3 text-sm text-slate-500">{v.nextService}</td>
+                    <td className="p-3">
                       <div className="flex gap-2">
                         <button
                           type="button"
@@ -472,7 +473,7 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
                 );
               })}
             </tbody>
-          </table>
+          </DataTable>
         </div>
       </Card>}
       </motion.div>

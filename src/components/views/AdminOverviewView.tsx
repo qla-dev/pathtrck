@@ -33,9 +33,17 @@ import {
 import { useApiList } from '../../hooks/useApiList';
 import { api } from '../../services/api';
 import { Language } from '../../types';
+
+const companySubscriptionPlan = (company: Record<string, unknown>) => {
+  const owner = (company.owner || {}) as Record<string, unknown>;
+  const subscription = (owner.subscription || {}) as Record<string, unknown>;
+  const subscriptionPackage = (subscription.subscription_package || {}) as Record<string, unknown>;
+  return String(subscriptionPackage.name || 'Unassigned');
+};
 import { Card } from '../ui/Card';
 import { HeaderStatCard, PageHeader } from '../ui/PageHeader';
 import { InlineDataState } from '../ui/InlineDataState';
+import { DataTable } from '../ui/DataTable';
 
 const page = { per_page: 100 };
 const CHART_COLORS = ['#0ea5e9', '#8b5cf6', '#10b981', '#f97316', '#f43f5e', '#f59e0b', '#64748b'];
@@ -99,7 +107,10 @@ export const AdminOverviewView = ({ lang: _lang }: { lang: Language }) => {
   const pendingWarehouses = warehouses.items.filter((warehouse) => String(warehouse.status).toLowerCase() === 'pending');
 
   const loadStatusData = useMemo(() => groupBy(loads.items, 'status', 'unknown'), [loads.items]);
-  const planData = useMemo(() => groupBy(companies.items, 'plan', 'unassigned'), [companies.items]);
+  const planData = useMemo(
+    () => groupBy(companies.items.map((company) => ({ ...company, subscription_plan: companySubscriptionPlan(company) })), 'subscription_plan', 'Unassigned'),
+    [companies.items],
+  );
   const invoiceData = useMemo(() => groupBy(invoices.items, 'status', 'open'), [invoices.items]);
   const capacityData = [
     { name: 'Occupied', value: occupiedWarehouseCapacity },
@@ -275,10 +286,10 @@ export const AdminOverviewView = ({ lang: _lang }: { lang: Language }) => {
             <InlineDataState loading={companies.loading} error={companies.error} empty="No companies in the database yet." onRetry={companies.refresh} />
           ) : (
             <div className="mt-2 overflow-x-auto">
-              <table className="w-full min-w-[640px] text-left">
+              <DataTable className="min-w-[640px]">
                 <thead><tr className="border-b border-slate-200 text-[11px] uppercase text-slate-500 dark:border-slate-800"><th className="p-2">Company</th><th className="p-2">Country</th><th className="p-2">Fleet</th><th className="p-2">Plan</th><th className="p-2">Status</th></tr></thead>
-                <tbody>{companies.items.map((company) => <tr key={String(company.id)} className="border-b border-slate-100 dark:border-slate-800"><td className="p-2 text-sm font-bold dark:text-white">{String(company.name || '')}</td><td className="p-2 text-xs">{String(company.country_code || '—')}</td><td className="p-2 text-xs">{Array.isArray(company.vehicles) ? company.vehicles.length : 0}</td><td className="p-2 text-xs">{String(company.plan || '—')}</td><td className="p-2 text-xs">{String(company.status || '—')}</td></tr>)}</tbody>
-              </table>
+                <tbody>{companies.items.map((company) => <tr key={String(company.id)} className="border-b border-slate-100 dark:border-slate-800"><td className="p-2 text-sm font-bold dark:text-white">{String(company.name || '')}</td><td className="p-2 text-xs">{String(company.country_code || '—')}</td><td className="p-2 text-xs">{Array.isArray(company.vehicles) ? company.vehicles.length : 0}</td><td className="p-2 text-xs">{companySubscriptionPlan(company)}</td><td className="p-2 text-xs">{String(company.status || '—')}</td></tr>)}</tbody>
+              </DataTable>
             </div>
           )}
         </Card>

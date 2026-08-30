@@ -32,6 +32,7 @@ import { PageHeader } from '../ui/PageHeader';
 import { AddWarehouseModal } from '../modals/AddWarehouseModal/AddWarehouseModal';
 import { showError, showSuccess } from '../../lib/swal';
 import { IconSelect } from '../ui/IconSelect';
+import { DataTable } from '../ui/DataTable';
 
 type WarehouseStatus = 'pending' | 'verified' | 'suspended';
 
@@ -341,23 +342,23 @@ export const WarehouseOverviewView = ({
         >
         <Card className="shadow-none" contentClassName="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[700px] text-left text-sm">
+            <DataTable className="min-w-[700px] text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-800">
-                  <th className="px-5 py-3">{u('warehouses.colName', 'Warehouse')}</th>
-                  <th className="px-5 py-3">{u('warehouses.colLocation', 'Location')}</th>
-                  <th className="px-5 py-3">{u('warehouses.colCapacity', 'Capacity')}</th>
-                  <th className="px-5 py-3">{u('warehouses.colStatus', 'Status')}</th>
-                  <th className="px-5 py-3 text-right">{u('warehouses.colActions', 'Actions')}</th>
+                <tr className="border-b border-slate-200 text-xs uppercase text-slate-500 dark:border-slate-800">
+                  <th className="p-3">{u('warehouses.colName', 'Warehouse')}</th>
+                  <th className="p-3">{u('warehouses.colLocation', 'Location')}</th>
+                  <th className="p-3">{u('warehouses.colCapacity', 'Capacity')}</th>
+                  <th className="p-3">{u('warehouses.colStatus', 'Status')}</th>
+                  <th className="p-3 text-right">{u('Action', 'Action')}</th>
                 </tr>
               </thead>
               <tbody>
                 {facilities.map((facility) => (
                   <tr key={facility.id} className="border-b border-slate-100 last:border-b-0 dark:border-slate-800">
-                    <td className="px-5 py-4 font-black text-slate-900 dark:text-white">{facility.name || '—'}</td>
-                    <td className="px-5 py-4 text-slate-500">{[facility.city, facility.country_code].filter(Boolean).join(', ') || '—'}</td>
-                    <td className="px-5 py-4 text-slate-700 dark:text-slate-300">{facility.total_capacity_pallets.toLocaleString()} {u('warehouseView.palletsUnit', 'paleta')}</td>
-                    <td className="px-5 py-4">
+                    <td className="p-3 font-bold text-slate-900 dark:text-white">{facility.name || '—'}</td>
+                    <td className="p-3 text-slate-500">{[facility.city, facility.country_code].filter(Boolean).join(', ') || '—'}</td>
+                    <td className="p-3 text-slate-700 dark:text-slate-300">{facility.total_capacity_pallets.toLocaleString()} {u('warehouseView.palletsUnit', 'paleta')}</td>
+                    <td className="p-3">
                       <div className="relative w-40">
                         {statusSavingId === facility.id && <Loader2 className="pointer-events-none absolute left-3 top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-primary" />}
                         <IconSelect
@@ -376,7 +377,7 @@ export const WarehouseOverviewView = ({
                         />
                       </div>
                     </td>
-                    <td className="px-5 py-4 text-right">
+                    <td className="p-3 text-right">
                       <Button size="sm" variant="outline" disabled={editingId === facility.id} onClick={() => void editWarehouse(facility.id)}>
                         <Pencil className="mr-1.5 h-3.5 w-3.5" />{u('warehouses.edit', 'Edit')}
                       </Button>
@@ -384,7 +385,7 @@ export const WarehouseOverviewView = ({
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </DataTable>
           </div>
         </Card>
         </motion.div>
@@ -452,7 +453,7 @@ export const WarehouseOverviewView = ({
         <Card className={cn('shadow-none', facilities.length > 1 ? 'xl:col-span-6' : 'xl:col-span-9')} contentClassName="p-4">
           {panelTitle(ArrowDownToLine, u('warehouseView.dockSchedule', 'Raspored dokova - danas'))}
           <div className="mt-2 overflow-x-auto">
-            <table className="w-full min-w-[480px] text-left text-xs">
+            <DataTable className="min-w-[480px] text-xs">
               <thead>
                 <tr className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                   <th className="pb-1.5 pr-3">{u('warehouseView.colTime', 'Vrijeme')}</th>
@@ -492,7 +493,7 @@ export const WarehouseOverviewView = ({
                   );
                 })}
               </tbody>
-            </table>
+            </DataTable>
           </div>
         </Card>
       </div>
@@ -529,7 +530,7 @@ export const WarehouseOverviewView = ({
       <Card className="shadow-none" contentClassName="p-4">
         {panelTitle(PackageCheck, u('warehouseView.recentArrivals', 'Nedavno primljene pošiljke'))}
         <div className="mt-2 overflow-x-auto">
-          <table className="w-full min-w-[480px] text-left text-xs">
+          <DataTable className="min-w-[480px] text-xs">
             <thead>
               <tr className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 <th className="pb-1.5 pr-3">{u('warehouseView.colDate', 'Datum')}</th>
@@ -555,7 +556,7 @@ export const WarehouseOverviewView = ({
                 </tr>
               ))}
             </tbody>
-          </table>
+          </DataTable>
         </div>
       </Card>
       </motion.div>}

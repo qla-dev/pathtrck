@@ -40,6 +40,7 @@ import { getBidState, getOfferLabel } from '../../lib/offerBid';
 import { cn } from '../../lib/cn';
 import { Language, Load } from '../../types';
 import { Button } from '../ui/Button';
+import { DataTable } from '../ui/DataTable';
 
 type TableSortKey =
   | 'tracking'
@@ -292,7 +293,7 @@ export const LoadsTable = ({ lang, loads, userId, onOpenDetails }: LoadsTablePro
         onScroll={handleWrapperScroll}
         className="w-full overflow-x-auto rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
       >
-      <table className="w-full min-w-[1080px] text-left text-sm">
+      <DataTable className="min-w-[1080px] text-sm">
         <thead ref={theadRef}>
           <tr className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
             {columns.map((column, index) => (
@@ -476,7 +477,7 @@ export const LoadsTable = ({ lang, loads, userId, onOpenDetails }: LoadsTablePro
             );
           })}
         </tbody>
-      </table>
+      </DataTable>
       </div>
     </div>
   );

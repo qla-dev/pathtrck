@@ -6,6 +6,7 @@ import { cn } from '../../lib/cn';
 import { Language } from '../../types';
 import { api } from '../../services/api';
 import { Card } from '../ui/Card';
+import { DataTable } from '../ui/DataTable';
 import { DOCUMENT_TYPES, documentTypeLabel, documentTypeTone } from './documentTypes';
 
 /** The "no load" option in the attach-to picker: the company's own archive. */
@@ -273,7 +274,7 @@ export const LoadDocumentsPanel = ({
         </div>
 
         <div className="mt-2.5 overflow-x-auto">
-          <table className="w-full min-w-[680px] text-left text-[13px]">
+          <DataTable className="min-w-[680px] text-[13px]">
             <thead>
               <tr className="border-b border-slate-100 text-[10px] font-black uppercase tracking-wider text-slate-400 dark:border-slate-800">
                 <th className="pb-1.5 pr-3">{u('documents.column.name', 'Document name')}</th>
@@ -334,7 +335,7 @@ export const LoadDocumentsPanel = ({
                 </tr>
               ))}
             </tbody>
-          </table>
+          </DataTable>
 
           {filteredDocuments.length === 0 && (
             <p className="py-5 text-center text-[13px] text-slate-500">

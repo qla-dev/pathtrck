@@ -12,6 +12,7 @@ import {
 
 import { ApiEnvelope } from "../../services/api";
 import { cn } from "../../lib/cn";
+import { DataTable } from "./DataTable";
 
 export type ServerDataTableColumn<T> = {
   key: string;
@@ -332,7 +333,7 @@ export const ServerDataTable = <T extends Record<string, unknown>>({
             Loading...
           </div>
         )}
-        <table className="w-full min-w-[760px] text-left">
+        <DataTable className="min-w-[760px]">
           <thead>
             <tr className="border-b border-slate-200 text-xs uppercase text-slate-500 dark:border-slate-800">
               {visibleColumns.map((column) => (
@@ -360,7 +361,7 @@ export const ServerDataTable = <T extends Record<string, unknown>>({
               </tr>
             ))}
           </tbody>
-        </table>
+        </DataTable>
         {!loading && rows.length === 0 && !error && (
           <div className="py-12 text-center text-sm text-slate-500">
             {emptyMessage}

@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { CalendarDays, CreditCard, Loader2, PackageCheck, Save, Sparkles, X } from 'lucide-react';
+import Flatpickr from 'react-flatpickr';
 
 import { api } from '../../services/api';
-import { ui } from '../../i18n';
+import { flatpickrI18n, ui } from '../../i18n';
+import { fromFlatpickrDateTime, toFlatpickrDateTime } from '../../lib/offerBid';
 import type { Language, UserSubscription } from '../../types';
 import { Button } from '../ui/Button';
 
@@ -16,8 +18,7 @@ export type AdminSubscriptionTarget = {
 const dateTimeInputValue = (value?: string | null) => {
   const date = value ? new Date(value) : new Date(Date.now() + 30 * 86_400_000);
   if (Number.isNaN(date.getTime())) return '';
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 16);
+  return toFlatpickrDateTime(date.toISOString());
 };
 
 export const LenaTokenCount = ({ subscription }: { subscription?: UserSubscription | null }) => (
@@ -29,12 +30,10 @@ export const LenaTokenCount = ({ subscription }: { subscription?: UserSubscripti
 
 export const AdminSubscriptionButton = ({
   disabled,
-  label,
   ariaLabel,
   onClick,
 }: {
   disabled?: boolean;
-  label: string;
   ariaLabel: string;
   onClick: () => void;
 }) => (
@@ -44,10 +43,9 @@ export const AdminSubscriptionButton = ({
     title={disabled ? ariaLabel : undefined}
     aria-label={ariaLabel}
     onClick={onClick}
-    className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 text-xs font-bold text-primary transition hover:bg-primary/15 disabled:cursor-not-allowed disabled:opacity-40"
+    className="inline-flex cursor-pointer items-center rounded-lg bg-slate-100 p-2 transition hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 dark:bg-slate-800"
   >
     <CreditCard className="h-4 w-4" />
-    {label}
   </button>
 );
 
@@ -95,7 +93,8 @@ export const AdminSubscriptionModal = ({
   }, [open, target]);
 
   const save = async () => {
-    if (!target || !packageId || !expiresAt) {
+    const parsedExpiresAt = fromFlatpickrDateTime(expiresAt);
+    if (!target || !packageId || !parsedExpiresAt) {
       setError(u('adminSubscription.required', 'Package and expiration date are required.'));
       return;
     }
@@ -110,7 +109,7 @@ export const AdminSubscriptionModal = ({
       const response = await api.subscriptions.assign(target.userId, {
         subscription_package_id: Number(packageId),
         active: target.subscription?.active ?? true,
-        expires_at: new Date(expiresAt).toISOString(),
+        expires_at: new Date(parsedExpiresAt.replace(' ', 'T')).toISOString(),
         remaining_tokens: tokens,
       });
       onSaved(response.data as unknown as UserSubscription);
@@ -176,7 +175,28 @@ export const AdminSubscriptionModal = ({
               </label>
               <label className="space-y-2">
                 <span className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-slate-500"><CalendarDays className="h-4 w-4 text-primary" />{u('adminSubscription.expiresAt', 'Subscription ends')}</span>
-                <input type="datetime-local" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
+                <Flatpickr
+                  value={expiresAt}
+                  options={{
+                    enableTime: true,
+                    dateFormat: 'd.m.Y H:i',
+                    time_24hr: true,
+                    locale: flatpickrI18n(lang),
+                    allowInput: true,
+                  }}
+                  onChange={(_, dateString) => setExpiresAt(dateString)}
+                  render={(_, ref) => (
+                    <div className="relative">
+                      <input
+                        ref={ref}
+                        value={expiresAt}
+                        onChange={() => undefined}
+                        className="h-12 w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 pr-10 text-sm font-semibold outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                      />
+                      <CalendarDays className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" />
+                    </div>
+                  )}
+                />
               </label>
               <label className="space-y-2 sm:col-span-2">
                 <span className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-slate-500"><Sparkles className="h-4 w-4 text-primary" />{u('adminSubscription.tokens', 'LenaAI token count')}</span>

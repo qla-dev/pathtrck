@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { api } from "../../services/api";
 import { Language, Role } from "../../types";
+import { ui } from "../../i18n";
 import { confirmAction, showError } from "../../lib/swal";
 import { useApiList } from "../../hooks/useApiList";
 import { Card } from "../ui/Card";
@@ -403,7 +404,7 @@ const ConversationCallsModal = ({
   );
 };
 
-export const AiStatsView = ({ lang: _lang, role }: { lang: Language; role?: Role }) => {
+export const AiStatsView = ({ lang, role }: { lang: Language; role?: Role }) => {
   const [tableRefreshKey] = useState(0);
   const [serviceFilter, setServiceFilter] = useState("");
   const [modelFilter, setModelFilter] = useState("");
@@ -643,7 +644,7 @@ export const AiStatsView = ({ lang: _lang, role }: { lang: Language; role?: Role
       },
       {
         key: "actions",
-        header: "Actions",
+        header: ui(lang, 'Action', 'Action'),
         className: "w-px text-right whitespace-nowrap",
         exportable: false,
         render: (row) => (
@@ -656,7 +657,7 @@ export const AiStatsView = ({ lang: _lang, role }: { lang: Language; role?: Role
         ),
       },
     ],
-    [role],
+    [lang, role],
   );
 
   const conversationColumns = useMemo<ServerDataTableColumn<Record<string, unknown>>[]>(
@@ -738,7 +739,7 @@ export const AiStatsView = ({ lang: _lang, role }: { lang: Language; role?: Role
       },
       {
         key: "actions",
-        header: "Actions",
+        header: ui(lang, 'Action', 'Action'),
         className: "w-px text-right whitespace-nowrap",
         exportable: false,
         render: (row) => (
@@ -762,7 +763,7 @@ export const AiStatsView = ({ lang: _lang, role }: { lang: Language; role?: Role
         ),
       },
     ],
-    [role],
+    [lang, role],
   );
 
   return (

@@ -8,6 +8,7 @@ import { useApiList } from '../../hooks/useApiList';
 import { Button } from '../ui/Button';
 import { PageHeader } from '../ui/PageHeader';
 import { Card } from '../ui/Card';
+import { DataTable } from '../ui/DataTable';
 import { showError, showSuccess } from '../../lib/swal';
 import { cn } from '../../lib/cn';
 import { AddWarehouseModal } from '../modals/AddWarehouseModal/AddWarehouseModal';
@@ -86,7 +87,7 @@ export const WarehousesView = ({ lang, role }: { lang: Language; role: Role }) =
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={u('warehouses.search', 'Search warehouses...')} className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
         </div>
         <div className="mt-3 overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left text-sm">
+          <DataTable className="min-w-[640px] text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500 dark:border-slate-800">
                 <th className="py-2 pr-3">{u('warehouses.colName', 'Warehouse')}</th>
@@ -123,7 +124,7 @@ export const WarehousesView = ({ lang, role }: { lang: Language; role: Role }) =
                 </tr>
               ))}
             </tbody>
-          </table>
+          </DataTable>
         </div>
       </Card>
     </div>

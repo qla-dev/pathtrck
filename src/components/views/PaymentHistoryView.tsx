@@ -5,6 +5,7 @@ import { ui, flatpickrI18n } from '../../i18n';
 import { Card } from '../ui/Card';
 import { PageHeader } from '../ui/PageHeader';
 import { InlineDataState } from '../ui/InlineDataState';
+import { DataTable } from '../ui/DataTable';
 import { api } from '../../services/api';
 import { planName } from '../pricing/PricingPlanCard';
 
@@ -85,7 +86,7 @@ export const PaymentHistoryView = ({ lang }: { lang: Language }) => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[840px] text-left">
+            <DataTable className="min-w-[840px]">
               <thead>
                 <tr className="border-b border-slate-200 text-xs uppercase text-slate-500 dark:border-slate-800">
                   <th className="p-4">{u('payments.history.date', 'Date')}</th>
@@ -127,7 +128,7 @@ export const PaymentHistoryView = ({ lang }: { lang: Language }) => {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </DataTable>
           </div>
         )}
       </Card>
