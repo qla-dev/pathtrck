@@ -9027,6 +9027,36 @@ Object.assign(UI.de, {
   'fleet.requiredDocumentsHelp': 'Laden Sie alle mit * markierten Dokumente hoch, um das Fahrzeug zu speichern.',
 });
 
+Object.assign(UI.en, {
+  'login.companyOwner': 'Logistics Company Owner',
+  'login.companyManager': 'Logistics Company Manager',
+  'login.dispatcher': 'Dispatcher',
+  'login.customsOfficer': 'Customs Officer',
+  'login.warehouseOwner': 'Warehouse Company Owner',
+  'login.warehouseManager': 'Warehouse Manager',
+  'login.driverRole': 'Driver',
+});
+
+Object.assign(UI.de, {
+  'login.companyOwner': 'Inhaber des Logistikunternehmens',
+  'login.companyManager': 'Manager des Logistikunternehmens',
+  'login.dispatcher': 'Disponent',
+  'login.customsOfficer': 'Zollsachbearbeiter',
+  'login.warehouseOwner': 'Inhaber des Lagerunternehmens',
+  'login.warehouseManager': 'Lagermanager',
+  'login.driverRole': 'Fahrer',
+});
+
+Object.assign(UI.bs, {
+  'login.companyOwner': 'Vlasnik logističke kompanije',
+  'login.companyManager': 'Menadžer logističke kompanije',
+  'login.dispatcher': 'Dispečer',
+  'login.customsOfficer': 'Carinski službenik',
+  'login.warehouseOwner': 'Vlasnik skladišne kompanije',
+  'login.warehouseManager': 'Menadžer skladišne kompanije',
+  'login.driverRole': 'Vozač',
+});
+
 const replaceBrand = (value: string) => value.replace(/smartfreight\.ai/gi, 'Freightbook.ai').replace(/smartfreight/gi, 'Freightbook.ai');
 
 export const ui = (lang: Language, key: string, fallback: string) => {

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Banknote, Building2, Crown, RefreshCw, Truck, User, Warehouse, X } from 'lucide-react';
+import { Banknote, Building2, Crown, FileCheck2, Radio, RefreshCw, Truck, User, Users, Warehouse, X } from 'lucide-react';
 
 import { Language, Role } from '../../types';
 import { ui } from '../../i18n';
@@ -15,6 +15,14 @@ import { AppleSignInButton } from './AppleSignInButton';
 import { AuthVisualPanel } from './AuthVisualPanel';
 
 type PendingSocialAuth = { provider: 'google' | 'apple'; token: string; email?: string; name?: string };
+type QuickLoginOption = {
+  key: string;
+  role: Exclude<Role, null>;
+  username: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  dividerBefore?: boolean;
+};
 
 type LoginLabels = {
   logIn: string;
@@ -41,6 +49,18 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
     { id: 'finance' as const, label: u('login.financeAdministration', 'Finance & Administration'), icon: Banknote },
     { id: 'warehouse' as const, label: u('login.warehouseCompany', 'Warehouse Company'), icon: Warehouse },
   ];
+  const quickLoginOptions: QuickLoginOption[] = [
+    { key: 'superadmin', role: 'superadmin', username: 'superadmin_demo', label: u('login.superadmin', 'Superadmin'), icon: Crown },
+    { key: 'company-owner', role: 'company', username: 'company_demo', label: u('login.logisticsCompany', 'Logistics Company'), icon: Building2, dividerBefore: true },
+    { key: 'warehouse-owner', role: 'company', username: 'warehouse_demo', label: u('login.warehouseCompany', 'Warehouse Company'), icon: Warehouse },
+    { key: 'company-manager', role: 'manager', username: 'manager_demo', label: u('login.companyManager', 'Logistics Company Manager'), icon: Users, dividerBefore: true },
+    { key: 'warehouse-manager', role: 'manager', username: 'warehouse_manager_demo', label: u('login.warehouseManager', 'Warehouse Manager'), icon: Users },
+    { key: 'customer', role: 'user', username: 'customer_demo', label: u('common.customer', 'Customer'), icon: User, dividerBefore: true },
+    { key: 'driver', role: 'driver', username: 'driver_demo', label: u('login.driverRole', 'Driver'), icon: Truck },
+    { key: 'dispatcher', role: 'dispatcher', username: 'dispatcher_demo', label: u('login.dispatcher', 'Dispatcher'), icon: Radio },
+    { key: 'customs-officer', role: 'customs_officer', username: 'customs_officer_demo', label: u('login.customsOfficer', 'Customs Officer'), icon: FileCheck2 },
+    { key: 'finance', role: 'finance', username: 'finance_demo', label: u('login.financeAdministration', 'Finance & Administration'), icon: Banknote },
+  ];
   const [loginData, setLoginData] = useState({
     username: 'superadmin_demo',
     password: 'demo12345',
@@ -50,7 +70,7 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [pendingSocialAuth, setPendingSocialAuth] = useState<PendingSocialAuth | null>(null);
-  const [quickLoginRole, setQuickLoginRole] = useState<Role>(null);
+  const [quickLoginKey, setQuickLoginKey] = useState<string | null>(null);
 
   const canProceed = pendingSocialAuth
     ? Boolean(loginData.role && loginData.role !== 'superadmin')
@@ -61,21 +81,20 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
     setTimeout(() => onGetStarted(), 260);
   };
 
-  const quickRoleLogin = async (roleId: Exclude<Role, null>) => {
+  const quickRoleLogin = async (option: QuickLoginOption) => {
     if (isSubmitting) return;
-    const demoUsername = roleId === 'user' ? 'customer_demo' : `${roleId}_demo`;
-    setQuickLoginRole(roleId);
+    setQuickLoginKey(option.key);
     setIsSubmitting(true);
     setLoginError('');
     try {
-      const result = await api.auth.login(demoUsername, 'demo12345');
+      const result = await api.auth.login(option.username, 'demo12345');
       const authenticatedRole = result.user.role?.name as Role;
-      onComplete(authenticatedRole || roleId, lang);
+      onComplete(authenticatedRole || option.role, lang);
     } catch (error) {
       setLoginError(error instanceof ApiError ? error.message : u('login.connectionError', 'Could not connect to the API.'));
     } finally {
       setIsSubmitting(false);
-      setQuickLoginRole(null);
+      setQuickLoginKey(null);
     }
   };
 
@@ -273,7 +292,7 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
       </motion.div>
 
       <motion.div
-        className="absolute bottom-3 right-[calc(50%+0.75rem)] z-30 hidden w-44 flex-col gap-2 lg:flex"
+        className="absolute bottom-3 right-[calc(50%+0.75rem)] z-30 hidden max-h-[calc(100dvh-1.5rem)] w-52 flex-col gap-2 overflow-y-auto pr-1 lg:flex"
         initial={{ opacity: 0, x: -16 }}
         animate={isSwitchingToSetup ? { opacity: 0, x: -16 } : { opacity: 1, x: 0 }}
         transition={{ duration: 0.35, delay: 0.15 }}
@@ -281,20 +300,22 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
         <span className="pl-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">
           {u('login.quickLogin', 'Quick login')}
         </span>
-        {roleOptions.map((option) => {
+        {quickLoginOptions.map((option) => {
           const Icon = option.icon;
-          const isLoading = quickLoginRole === option.id;
+          const isLoading = quickLoginKey === option.key;
           return (
-            <button
-              key={option.id}
-              type="button"
-              onClick={() => void quickRoleLogin(option.id)}
-              disabled={isSubmitting || isSwitchingToSetup}
-              className="flex w-full min-h-12 cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-3 py-2.5 text-left text-sm font-bold text-slate-600 shadow-lg backdrop-blur-xl transition-all hover:border-primary/40 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-300"
-            >
-              {isLoading ? <RefreshCw className="h-4 w-4 shrink-0 animate-spin" /> : <Icon className="h-4 w-4 shrink-0" />}
-              <span className="leading-tight">{option.label}</span>
-            </button>
+            <React.Fragment key={option.key}>
+              {option.dividerBefore && <div className="my-1 h-px w-full shrink-0 bg-white/35 dark:bg-slate-600/70" aria-hidden="true" />}
+              <button
+                type="button"
+                onClick={() => void quickRoleLogin(option)}
+                disabled={isSubmitting || isSwitchingToSetup}
+                className="flex w-full min-h-12 cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-3 py-2.5 text-left text-sm font-bold text-slate-600 shadow-lg backdrop-blur-xl transition-all hover:border-primary/40 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-300"
+              >
+                {isLoading ? <RefreshCw className="h-4 w-4 shrink-0 animate-spin" /> : <Icon className="h-4 w-4 shrink-0" />}
+                <span className="leading-tight">{option.label}</span>
+              </button>
+            </React.Fragment>
           );
         })}
       </motion.div>

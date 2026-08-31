@@ -5895,7 +5895,10 @@ export default function App() {
   // 'master' sits above 'superadmin' - identical permissions everywhere, plus exclusive access to
   // the AI Stats screen (see the nav-items/view-render branches below). Kept as one flag so every
   // site that used to gate on 'superadmin' alone stays in sync.
-  const isElevatedAdmin = role === "superadmin" || role === "master";
+  const authenticatedRole = (currentUser?.role?.name as Role | undefined) || role;
+  const isElevatedAdmin = authenticatedRole === "superadmin" || authenticatedRole === "master";
+  const canManageTeam = authenticatedRole === "company" || authenticatedRole === "manager" || isElevatedAdmin;
+  const canViewFinance = authenticatedRole === "company" || authenticatedRole === "manager" || authenticatedRole === "finance" || isElevatedAdmin;
   const warehouseFirst = Boolean(
     currentUser?.companies?.some((company) =>
       Boolean(company.warehouse_first),
@@ -5919,19 +5922,48 @@ export default function App() {
               ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
               : "bg-primary/10 text-primary",
         }
+      : role === "dispatcher"
+        ? {
+            label: u("login.dispatcher", "Dispatcher"),
+            status: u("common.active", "Active"),
+            icon: MessageSquare,
+            tone: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
+          }
+      : role === "customs_officer"
+        ? {
+            label: u("login.customsOfficer", "Customs Officer"),
+            status: u("common.active", "Active"),
+            icon: ShieldCheck,
+            tone: "bg-teal-500/10 text-teal-600 dark:text-teal-400",
+          }
+      : role === "manager"
+        ? {
+            label: warehouseFirst
+              ? u("login.warehouseManager", "Warehouse Manager")
+              : u("login.companyManager", "Logistics Company Manager"),
+            status: u("common.active", "Active"),
+            icon: warehouseFirst ? Warehouse : Users,
+            tone: warehouseFirst
+              ? "bg-orange-500/10 text-orange-600 dark:text-orange-400"
+              : "bg-violet-500/10 text-violet-600 dark:text-violet-400",
+          }
+      : role === "company"
+        ? {
+            label: warehouseFirst
+              ? u("login.warehouseOwner", "Warehouse Company Owner")
+              : u("login.companyOwner", "Logistics Company Owner"),
+            status: u("common.active", "Active"),
+            icon: warehouseFirst ? Warehouse : Building2,
+            tone: warehouseFirst
+              ? "bg-orange-500/10 text-orange-600 dark:text-orange-400"
+              : "bg-violet-500/10 text-violet-600 dark:text-violet-400",
+          }
       : isWarehouseCompany
         ? {
             label: u("common.warehouseCompany", "Warehouse Company"),
             status: u("common.admin", "Admin"),
             icon: Warehouse,
             tone: "bg-orange-500/10 text-orange-600 dark:text-orange-400",
-          }
-        : isCompanyOperationsRole(role)
-        ? {
-            label: u("common.logisticsCompany", "Logistics Company"),
-            status: u("common.admin", "Admin"),
-            icon: Building2,
-            tone: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
           }
         : role === "finance"
           ? {
@@ -6549,10 +6581,10 @@ export default function App() {
               icon: PackageIcon,
             },
             { id: "fleet", label: t.myFleet, icon: Truck },
-            ...((role === "company" || role === "manager")
+            ...(canManageTeam
               ? [{ id: "company-team", label: u("nav.teamPermissions", "Team & Permissions"), icon: Users }]
               : []),
-            ...((role === "company" || role === "manager")
+            ...(canViewFinance
               ? [{ id: "finance", label: u("nav.finance", "Finance"), icon: Banknote }]
               : []),
             // A company keeps its own paperwork archive, so it reaches this page like a driver does.
@@ -6630,7 +6662,7 @@ export default function App() {
       label: u("nav.tariffsHs", "Tariffs & HS"),
       icon: ScanSearch,
     },
-  ];
+  ].filter((item) => (item.id !== "company-team" || canManageTeam) && (item.id !== "finance" || canViewFinance));
 
   return (
     <div className="h-screen bg-slate-50 dark:bg-slate-950 flex overflow-hidden">
@@ -7179,8 +7211,8 @@ export default function App() {
                 ) : (
                   <WarehousesView lang={lang} role={role} />
                 ))}
-              {view === "company-team" && (role === "company" || role === "manager" || isElevatedAdmin) && <CompanyTeamView lang={lang} />}
-              {view === "finance" && (role === "company" || role === "manager" || role === "finance" || isElevatedAdmin) && <FinanceView lang={lang} />}
+              {view === "company-team" && canManageTeam && <CompanyTeamView lang={lang} />}
+              {view === "finance" && canViewFinance && <FinanceView lang={lang} />}
               {view === "automations" && <AutomationsView lang={lang} />}
               {view === "fleet" && (
                 <FleetView
