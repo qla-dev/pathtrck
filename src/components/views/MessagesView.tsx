@@ -18,6 +18,7 @@ import { analyzeLenaAttachment, latestLoadScan, LENA_LOAD_FILE_ACCEPT, LenaAttac
 import { LENA_AI_GENERAL_SUBJECT, LenaQuickAction, lenaConversationSubjectTitle, lenaQuickActionFromMessage, lenaQuickActionMarker } from '../../lib/useLenaAiChat';
 import { withMinDelay } from '../../lib/timing';
 import { lenaStepInputMask, MASKABLE_GUIDED_STEPS } from '../../lib/lenaStepInputMask';
+import { useLenaTokenBalance } from '../../lib/useLenaTokenBalance';
 
 type MessagesViewProps = {
   lang: Language;
@@ -36,6 +37,9 @@ type MessagesViewProps = {
   // conversation of its own - selects it instead of leaving the generic chat list showing.
   openConversationId?: string | null;
   onConversationOpened?: () => void;
+  // Actions offered by the out-of-messages card once the plan's LenaAI allowance is spent.
+  onUpgrade?: () => void;
+  onTopUp?: () => void;
 };
 
 type OptimisticMessage = {
@@ -88,7 +92,7 @@ const isDraftCreatedMessageBody = (body: string): boolean =>
 // "your draft was created" message carries a welcome- prefixed id too, but it is a real message.
 const isSyntheticWelcomeId = (id: string): boolean => id.startsWith('welcome-') && !id.startsWith('welcome-draft-');
 
-export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill, onBulkImported, refreshSignal, newChatSignal, openConversationId, onConversationOpened }: MessagesViewProps) => {
+export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill, onBulkImported, refreshSignal, newChatSignal, openConversationId, onConversationOpened, onUpgrade, onTopUp }: MessagesViewProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const quickActionLabels = useMemo<Record<LenaQuickAction, string>>(() => ({
     add: u('Add a new load', 'Add a new load'),
@@ -115,6 +119,9 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
   }, [refreshSignal]);
   const [user, setUser] = useState<ApiUser | null>(null);
   useEffect(() => { void api.auth.me().then(setUser); }, []);
+  // LenaAI runs on the plan's message allowance: with none left the AI is never called, here or in
+  // the standalone overlay (see useLenaTokenBalance).
+  const { outOfTokens, tokenResetAt, blockedMessages, blockedMessagesFor, denyOutOfTokens } = useLenaTokenBalance({ userId: user?.id });
   const mapServerMessage = useCallback((message: Record<string, unknown>, isAiDispatch: boolean): Conversation['messages'][number] => {
     const body = String(message.body || '');
     const action = isAiDispatch ? lenaQuickActionFromMessage(body) : undefined;
@@ -381,8 +388,9 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
                 : () => void sendMessageValue(message.rawText, message.displayText, message.id, message.conversationId))
           : undefined,
       }));
-    return pending.length ? { ...greetedBase, messages: [...greetedBase.messages, ...pending] } : greetedBase;
-  }, [filteredConversations, activeId, displayedConversations, messageHistory, optimisticMessages, dismissedWelcomeIds, generalWelcome, u]);
+    const blocked = blockedMessagesFor(greetedBase.id || EMPTY_LENA_CONVERSATION_ID);
+    return pending.length || blocked.length ? { ...greetedBase, messages: [...greetedBase.messages, ...pending, ...blocked] } : greetedBase;
+  }, [filteredConversations, activeId, displayedConversations, messageHistory, optimisticMessages, blockedMessages, dismissedWelcomeIds, generalWelcome, u]);
 
   const [canvasPanelOpen, setCanvasPanelOpen] = useState(false);
   const previousCanvas = useRef({ conversationId: '', active: false });
@@ -418,12 +426,24 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     onStepAnswer: (step, value, displayText) => void sendGuidedAnswerValue(step, value, displayText),
     onSuggestedDraftChange: setDraft,
     onLoadReady: () => setCanvasPanelOpen(true),
+    outOfTokensResetAt: tokenResetAt,
+    onUpgrade,
+    onTopUp,
   });
 
   const displayConversation = useMemo(() => ({
     ...activeConversation,
     messages: displayMessages,
   }), [activeConversation, displayMessages]);
+
+  // Answers the turn locally with the out-of-messages card instead of creating a conversation,
+  // storing anything, or calling the AI. Returns true when it took over the send.
+  const denyIfOutOfTokens = (displayText: string) => {
+    if (!outOfTokens) return false;
+    setDraft('');
+    denyOutOfTokens(displayText, activeConversation.id || EMPTY_LENA_CONVERSATION_ID);
+    return true;
+  };
 
   async function sendMessageValue(rawText: string, displayText = rawText, retryId?: string, targetConversationId?: string) {
     const text = rawText.trim();
@@ -433,6 +453,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     const optimisticId = retryId || `optimistic-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const optimisticTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
     const isAiDispatch = Boolean(activeConversation.isAiDispatch);
+    if (isAiDispatch && denyIfOutOfTokens(displayText)) return;
     setDraft('');
     setOptimisticMessages((messages) => retryId
       ? messages.map((message) => message.id === retryId ? { ...message, status: 'sending', time: optimisticTime } : message)
@@ -487,6 +508,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     const conversationId = targetConversationId || activeConversation.id;
     if (!conversationId || !user || messageSending || aiReplying) return;
     const skip = rawText.startsWith('[[LENA_SKIP:');
+    if (denyIfOutOfTokens(displayText)) return;
     setDraft('');
 
     const optimisticId = retryId || `optimistic-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -524,6 +546,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
   // this instead of calling sendMessageValue directly, so clicking one with no conversation open
   // starts it first instead of silently doing nothing.
   const sendQuickMessage = async (rawText: string, displayText = rawText) => {
+    if (denyIfOutOfTokens(displayText)) return;
     const conversationId = await ensureConversationId();
     if (!conversationId) return;
     return sendMessageValue(rawText, displayText, undefined, conversationId);
@@ -532,6 +555,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
   const sendMessage = async () => {
     const trimmed = draft.trim();
     if (!trimmed) return;
+    if (activeConversation.isAiDispatch && denyIfOutOfTokens(trimmed)) return;
     const conversationId = await ensureConversationId();
     if (!conversationId) return;
     if (activeConversation.canvas && pendingStep && MASKABLE_GUIDED_STEPS.includes(pendingStep)) {
@@ -544,6 +568,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     const conversationId = targetConversationId || activeConversation.id;
     const isAiDispatch = targetConversationId ? true : Boolean(activeConversation.isAiDispatch);
     if (!user || !conversationId || !isAiDispatch || messageSending || aiReplying || (processingAttachment && !retryId)) return;
+    if (denyIfOutOfTokens(file.name)) return;
 
     const optimisticId = retryId || `optimistic-attachment-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const optimisticTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });

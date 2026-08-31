@@ -482,7 +482,13 @@ export const api = {
     onboard: (data: Record<string, unknown>) => request<Record<string, unknown>>('/companies/onboard', { method: 'POST', body: JSON.stringify(data) }),
   },
   companyMemberships: resourceApi<Record<string, unknown>>('company-memberships'),
-  companyInvitations: resourceApi<Record<string, unknown>>('company-invitations'),
+  companyInvitations: {
+    ...resourceApi<Record<string, unknown>>('company-invitations'),
+    availableUsers: (params: ListParams = {}) => {
+      const query = queryString(params);
+      return request<Record<string, unknown>[]>(query ? `/company-invitations/available-users?${query}` : '/company-invitations/available-users');
+    },
+  },
   drivers: resourceApi<Record<string, unknown>>('drivers'),
   vehicles: resourceApi<Record<string, unknown>>('vehicles'),
   fleetAccess: resourceApi<Record<string, unknown>>('fleet-access'),

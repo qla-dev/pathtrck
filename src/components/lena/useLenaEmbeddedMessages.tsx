@@ -5,6 +5,7 @@ import { api } from '../../services/api';
 import { Language } from '../../types';
 import { ChatMessage } from '../chat/types';
 import { LenaBookingCard, LenaLoadDetailsCard, LenaLoadMapCard, LenaLoadStatusCard, LenaLocationCard, LenaLocationChoiceCard } from './LenaEmbeddedCards';
+import { LenaOutOfTokensCard } from './LenaOutOfTokensCard';
 import { LenaQuickAction } from '../../lib/useLenaAiChat';
 import {
   AIR_CHARACTERISTIC_OPTIONS,
@@ -37,6 +38,9 @@ const LOAD_READY_MARKER_GLOBAL = /\[\[LOAD_READY_TO_POST(?::complete)?\]\]/g;
 const LENA_STEP_MARKER_PATTERN = /\[\[LENA_STEP:([a-zA-Z]+)\]\]/;
 const LENA_STEP_MARKER_GLOBAL = /\[\[LENA_STEP:[a-zA-Z]+\]\]/g;
 const LENA_SKIP_MARKER_GLOBAL = /\[\[LENA_SKIP:[a-zA-Z]+\]\]/g;
+
+const LENA_OUT_OF_TOKENS_PATTERN = /\[\[LENA_OUT_OF_TOKENS\]\]/;
+const LENA_OUT_OF_TOKENS_GLOBAL = /\[\[LENA_OUT_OF_TOKENS\]\]/g;
 
 const removeVisibleMarkdownAsterisks = (text: string): string => text
   .replace(/\*\*([^*\n]+)\*\*/g, '$1')
@@ -163,6 +167,11 @@ type UseLenaEmbeddedMessagesOptions = {
   // never sent through onSuggestedReply/the AI path, since the value is already known and valid.
   onStepAnswer?: (step: string, value: string, displayText: string) => void;
   preloadedLoads?: Record<string, Record<string, unknown>>;
+  // When the plan's LenaAI allowance is spent, the reply is replaced by the out-of-messages card:
+  // these drive its renewal date and its two actions.
+  outOfTokensResetAt?: string | null;
+  onUpgrade?: () => void;
+  onTopUp?: () => void;
 };
 
 export const useLenaEmbeddedMessages = ({
@@ -178,6 +187,9 @@ export const useLenaEmbeddedMessages = ({
   onLoadReady,
   onStepAnswer,
   preloadedLoads = {},
+  outOfTokensResetAt,
+  onUpgrade,
+  onTopUp,
 }: UseLenaEmbeddedMessagesOptions) => {
   const bookingOffers = useMemo(
     () => new Map(messages.flatMap((message) => {
@@ -232,6 +244,10 @@ export const useLenaEmbeddedMessages = ({
       const hasUserAnswerAfter = messages.slice(index + 1).some((laterMessage) => laterMessage.sender === 'me');
       return actions?.length && !hasUserAnswerAfter ? [[message.id, actions] as const] : [];
     })),
+    [messages]
+  );
+  const outOfTokensMessageIds = useMemo(
+    () => new Set(messages.filter((message) => LENA_OUT_OF_TOKENS_PATTERN.test(message.text)).map((message) => message.id)),
     [messages]
   );
   const loadReadyMessageIds = useMemo(
@@ -311,6 +327,7 @@ export const useLenaEmbeddedMessages = ({
       .replace(LENA_OPTIONS_GLOBAL_PATTERN, '')
       .replace(LOAD_READY_MARKER_GLOBAL, '')
       .replace(LENA_STEP_MARKER_GLOBAL, '')
+      .replace(LENA_OUT_OF_TOKENS_GLOBAL, '')
       .replace(LENA_SKIP_MARKER_GLOBAL, lang === 'bs' ? 'Odaberi kasnije' : lang === 'de' ? 'Später auswählen' : 'Choose later')
       .trim();
     return {
@@ -340,7 +357,8 @@ export const useLenaEmbeddedMessages = ({
     const suggestedReplies = questionnaireSuggestionsByMessage.get(message.id);
     const locationChoice = locationChoiceByMessage.get(message.id);
     const loadReady = loadReadyMessageIds.has(message.id);
-    if (!embeddedLoad && !locationLoad && !mapLoad && !statusLoad && (!hasBooking || !handleBook) && quickActions.length === 0 && !suggestedReplies && !locationChoice && !loadReady) return null;
+    const outOfTokens = outOfTokensMessageIds.has(message.id);
+    if (!embeddedLoad && !locationLoad && !mapLoad && !statusLoad && (!hasBooking || !handleBook) && quickActions.length === 0 && !suggestedReplies && !locationChoice && !loadReady && !outOfTokens) return null;
 
     // Messages that show a timestamp get its (invisible-until-hover, but still laid out) line as
     // extra breathing room above this block for free; messages without one (e.g. the welcome
@@ -348,6 +366,7 @@ export const useLenaEmbeddedMessages = ({
     // visual distance from the text instead of looking cramped.
     return (
       <div className={`flex w-full max-w-xl flex-col gap-2 ${message.time ? 'mt-2' : 'mt-[27px]'}`}>
+        {outOfTokens && <LenaOutOfTokensCard lang={lang} resetAt={outOfTokensResetAt} onUpgrade={onUpgrade} onTopUp={onTopUp} />}
         {embeddedLoad && (
           <LenaLoadDetailsCard
             lang={lang}
@@ -393,9 +412,9 @@ export const useLenaEmbeddedMessages = ({
         )}
       </div>
     );
-  }, [bookingOffers, resolvedEmbeddedLoads, fallbackLoadId, lang, loadDetailCards, loadLocationCards, loadMapCards, loadReadyMessageIds, loadStatusCards, locationChoiceByMessage, onBookLoad, onLoadReady, onOpenLoad, onQuickAction, onStepAnswer, onSuggestedDraftChange, onSuggestedReply, questionnaireSuggestionsByMessage, quickActionLabels, quickActionsByMessage]);
+  }, [bookingOffers, resolvedEmbeddedLoads, fallbackLoadId, lang, loadDetailCards, loadLocationCards, loadMapCards, loadReadyMessageIds, loadStatusCards, locationChoiceByMessage, onBookLoad, onLoadReady, onOpenLoad, onQuickAction, onStepAnswer, onSuggestedDraftChange, onSuggestedReply, onTopUp, onUpgrade, outOfTokensMessageIds, outOfTokensResetAt, questionnaireSuggestionsByMessage, quickActionLabels, quickActionsByMessage]);
 
-  const extraContentVersion = `${embeddedLoadIds.join(',')}:${Object.keys(resolvedEmbeddedLoads).sort().join(',')}:${[...quickActionsByMessage.keys()].join(',')}:${[...questionnaireSuggestionsByMessage.keys()].join(',')}:${[...locationChoiceByMessage.keys()].join(',')}:${[...loadReadyMessageIds].join(',')}`;
+  const extraContentVersion = `${embeddedLoadIds.join(',')}:${Object.keys(resolvedEmbeddedLoads).sort().join(',')}:${[...quickActionsByMessage.keys()].join(',')}:${[...questionnaireSuggestionsByMessage.keys()].join(',')}:${[...locationChoiceByMessage.keys()].join(',')}:${[...loadReadyMessageIds].join(',')}:${[...outOfTokensMessageIds].join(',')}`;
 
   // Lock typing only when the current step has a real selectable answer. Free-text steps also
   // render a lone "choose later" escape pill, but that skip action must never make weight,

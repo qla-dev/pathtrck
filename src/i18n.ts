@@ -588,6 +588,11 @@ const UI_EN: Record<string, string> = {
   'pricing.godModeSubtitle': 'Your role has unlimited access to every feature and LenaAI message, no plan required.',
   'pricing.currentPlan': 'Current plan',
   'pricing.tokensLeft': 'LenaAI messages left',
+  'lena.outOfTokens.title': 'You are out of LenaAI messages',
+  'lena.outOfTokens.body': 'Your message limit resets on {date}. To keep using LenaAI, add credits or upgrade your plan today.',
+  'lena.outOfTokens.bodyNoReset': 'To keep using LenaAI, add credits or upgrade your plan today.',
+  'lena.outOfTokens.upgrade': 'Upgrade',
+  'lena.outOfTokens.addCredits': 'Add credits',
   'pricing.empty': 'No plans available yet.',
   'pricing.mostPopular': 'Most Popular',
   'pricing.month': 'mo',
@@ -756,6 +761,11 @@ const UI: Record<Locale, Record<string, string>> = {
     'pricing.godModeSubtitle': 'Vaša uloga ima neograničen pristup svim funkcijama i LenaAI porukama, paket nije potreban.',
     'pricing.currentPlan': 'Trenutni paket',
     'pricing.tokensLeft': 'preostalih LenaAI poruka',
+    'lena.outOfTokens.title': 'Potrošili ste sve LenaAI poruke',
+    'lena.outOfTokens.body': 'Vaš limit poruka se obnavlja {date}. Da nastavite koristiti LenaAI, dodajte kredite ili nadogradite paket.',
+    'lena.outOfTokens.bodyNoReset': 'Da nastavite koristiti LenaAI, dodajte kredite ili nadogradite paket.',
+    'lena.outOfTokens.upgrade': 'Nadogradi paket',
+    'lena.outOfTokens.addCredits': 'Dodaj kredite',
     'pricing.empty': 'Trenutno nema dostupnih paketa.',
     'pricing.mostPopular': 'Najpopularniji',
     'pricing.month': 'mj.',
@@ -1473,6 +1483,11 @@ const UI: Record<Locale, Record<string, string>> = {
     'pricing.godModeSubtitle': 'Ihre Rolle hat unbegrenzten Zugriff auf alle Funktionen und LenaAI-Nachrichten, kein Tarif erforderlich.',
     'pricing.currentPlan': 'Aktueller Tarif',
     'pricing.tokensLeft': 'verbleibende LenaAI-Nachrichten',
+    'lena.outOfTokens.title': 'Ihre LenaAI-Nachrichten sind aufgebraucht',
+    'lena.outOfTokens.body': 'Ihr Nachrichtenlimit wird am {date} zurückgesetzt. Um LenaAI weiter zu nutzen, laden Sie Guthaben auf oder wechseln Sie den Tarif.',
+    'lena.outOfTokens.bodyNoReset': 'Um LenaAI weiter zu nutzen, laden Sie Guthaben auf oder wechseln Sie den Tarif.',
+    'lena.outOfTokens.upgrade': 'Tarif upgraden',
+    'lena.outOfTokens.addCredits': 'Guthaben aufladen',
     'pricing.empty': 'Derzeit sind keine Tarife verfügbar.',
     'pricing.mostPopular': 'Am beliebtesten',
     'pricing.month': 'Monat',
@@ -9035,6 +9050,13 @@ Object.assign(UI.en, {
   'login.warehouseOwner': 'Warehouse Company Owner',
   'login.warehouseManager': 'Warehouse Manager',
   'login.driverRole': 'Driver',
+  'team.tabs.members': 'Members',
+  'team.tabs.statistics': 'Statistics',
+  'team.tabs.roles': 'Roles',
+  'team.tabs.invite': 'Invite',
+  'team.invite.orFindUser': 'Or find an existing user',
+  'team.invite.searchPlaceholder': 'Search name, email or username...',
+  'team.invite.noUsers': 'No unassigned users found.',
 });
 
 Object.assign(UI.de, {
@@ -9045,6 +9067,13 @@ Object.assign(UI.de, {
   'login.warehouseOwner': 'Inhaber des Lagerunternehmens',
   'login.warehouseManager': 'Lagermanager',
   'login.driverRole': 'Fahrer',
+  'team.tabs.members': 'Mitglieder',
+  'team.tabs.statistics': 'Statistik',
+  'team.tabs.roles': 'Rollen',
+  'team.tabs.invite': 'Einladen',
+  'team.invite.orFindUser': 'Oder einen bestehenden Benutzer suchen',
+  'team.invite.searchPlaceholder': 'Name, E-Mail oder Benutzername suchen...',
+  'team.invite.noUsers': 'Keine nicht zugeordneten Benutzer gefunden.',
 });
 
 Object.assign(UI.bs, {
@@ -9055,6 +9084,13 @@ Object.assign(UI.bs, {
   'login.warehouseOwner': 'Vlasnik skladišne kompanije',
   'login.warehouseManager': 'Menadžer skladišne kompanije',
   'login.driverRole': 'Vozač',
+  'team.tabs.members': 'Članovi',
+  'team.tabs.statistics': 'Statistika',
+  'team.tabs.roles': 'Uloge',
+  'team.tabs.invite': 'Invite',
+  'team.invite.orFindUser': 'Ili pronađi postojećeg korisnika',
+  'team.invite.searchPlaceholder': 'Pretraži ime, email ili korisničko ime...',
+  'team.invite.noUsers': 'Nema korisnika bez dodijeljene kompanije.',
 });
 
 const replaceBrand = (value: string) => value.replace(/smartfreight\.ai/gi, 'Freightbook.ai').replace(/smartfreight/gi, 'Freightbook.ai');

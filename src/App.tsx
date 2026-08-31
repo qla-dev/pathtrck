@@ -1304,6 +1304,72 @@ const myCargoLabels: Record<Exclude<Language, null>, string> = {
   pt: "Minha carga",
 };
 
+const ClickDropdown = ({
+  trigger,
+  triggerClassName,
+  menuClassName,
+  ariaLabel,
+  title,
+  children,
+}: {
+  trigger: React.ReactNode;
+  triggerClassName: string;
+  menuClassName: string;
+  ariaLabel: string;
+  title?: string;
+  children: React.ReactNode;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setIsOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsOpen(false);
+    };
+
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeOnOutsideClick);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [isOpen]);
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        aria-label={ariaLabel}
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        title={title}
+        onClick={() => setIsOpen((open) => !open)}
+        className={triggerClassName}
+      >
+        {trigger}
+      </button>
+      <div
+        role="menu"
+        onClick={() => setIsOpen(false)}
+        className={cn(
+          menuClassName,
+          "transition-all",
+          isOpen
+            ? "visible translate-y-0 opacity-100"
+            : "invisible -translate-y-1 opacity-0 pointer-events-none",
+        )}
+      >
+        {children}
+      </div>
+    </div>
+  );
+};
+
 const StatCard = ({
   label,
   value,
@@ -2338,12 +2404,11 @@ const LandingPage = ({
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
             {/* Language Switcher */}
-            <div className="relative group">
-              <button
-                aria-label="Language switcher"
-                title={currentLang.label}
-                className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary hover:scale-105 transition-all cursor-pointer flex items-center justify-center"
-              >
+            <ClickDropdown
+              ariaLabel="Language switcher"
+              title={currentLang.label}
+              triggerClassName="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary hover:scale-105 transition-all cursor-pointer flex items-center justify-center"
+              trigger={
                 <img
                   src={getFlagUrl(currentLang.id)}
                   srcSet={`${getFlagUrl(currentLang.id, 40)} 2x`}
@@ -2351,8 +2416,9 @@ const LandingPage = ({
                   className="h-4 w-4 sm:h-5 sm:w-5 rounded-full object-cover"
                   loading="lazy"
                 />
-              </button>
-              <div className="absolute top-full right-0 mt-2 w-40 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all p-2 z-[110]">
+              }
+              menuClassName="absolute top-full right-0 mt-2 w-40 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 p-2 z-[110]"
+            >
                 {languages.map((l) => (
                   <button
                     key={l.id}
@@ -2374,8 +2440,7 @@ const LandingPage = ({
                     <span>{l.label}</span>
                   </button>
                 ))}
-              </div>
-            </div>
+            </ClickDropdown>
 
             {/* Dark Mode Toggle */}
             <button
@@ -6835,12 +6900,11 @@ export default function App() {
               <MapIcon className="w-5 h-5" />
             </button>
 
-            <div className="relative group">
-              <button
-                aria-label="Language switcher"
-                title={currentLang.label}
-                className="h-10 w-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary hover:scale-105 transition-all cursor-pointer flex items-center justify-center"
-              >
+            <ClickDropdown
+              ariaLabel="Language switcher"
+              title={currentLang.label}
+              triggerClassName="h-10 w-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary hover:scale-105 transition-all cursor-pointer flex items-center justify-center"
+              trigger={
                 <img
                   src={getFlagUrl(currentLang.id)}
                   srcSet={`${getFlagUrl(currentLang.id, 40)} 2x`}
@@ -6848,8 +6912,9 @@ export default function App() {
                   className="h-5 w-5 rounded-full object-cover"
                   loading="lazy"
                 />
-              </button>
-              <div className="absolute top-full right-0 mt-2 w-40 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all p-2 z-[110]">
+              }
+              menuClassName="absolute top-full right-0 mt-2 w-40 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 p-2 z-[110]"
+            >
                 {languages.map((l) => (
                   <button
                     key={l.id}
@@ -6871,8 +6936,7 @@ export default function App() {
                     <span>{l.label}</span>
                   </button>
                 ))}
-              </div>
-            </div>
+            </ClickDropdown>
 
             <button
               onClick={() => setView("pricing")}
@@ -6933,11 +6997,12 @@ export default function App() {
             </button>
 
             {/* User Avatar Dropdown */}
-            <div className="relative group">
-              <button className="h-10 w-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary hover:scale-105 transition-all cursor-pointer flex items-center justify-center">
-                <User className="w-5 h-5 text-primary" />
-              </button>
-              <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all p-2 z-[100]">
+            <ClickDropdown
+              ariaLabel={u("nav.accountMenu", "Account menu")}
+              triggerClassName="h-10 w-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary hover:scale-105 transition-all cursor-pointer flex items-center justify-center"
+              trigger={<User className="w-5 h-5 text-primary" />}
+              menuClassName="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 p-2 z-[100]"
+            >
                 <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 mb-2">
                   <p className="text-sm font-bold dark:text-white">
                     {currentUser?.name || currentUser?.username || "—"}
@@ -7000,8 +7065,7 @@ export default function App() {
                   <X className="w-4 h-4" />
                   {t.logOut}
                 </button>
-              </div>
-            </div>
+            </ClickDropdown>
           </div>
         </header>
 
@@ -7150,6 +7214,11 @@ export default function App() {
                   onBulkImported={() =>
                     setLoadRefreshKey((current) => current + 1)
                   }
+                  onUpgrade={() => setView("pricing")}
+                  onTopUp={() => {
+                    setCheckoutPackageId(null);
+                    setPaymentModalOpen(true);
+                  }}
                   refreshSignal={messagesRefreshSignal}
                   newChatSignal={messagesNewChatSignal}
                   openConversationId={openMessagesConversationId}
@@ -7306,6 +7375,17 @@ export default function App() {
           userId={currentUser?.id}
           companyIds={trackingCompanyIds}
           initialCanvasMode={lenaCanvasMode}
+          onUpgrade={() => {
+            setLenaAiOpen(false);
+            setLenaCanvasMode(null);
+            setView("pricing");
+          }}
+          onTopUp={() => {
+            setLenaAiOpen(false);
+            setLenaCanvasMode(null);
+            setCheckoutPackageId(null);
+            setPaymentModalOpen(true);
+          }}
           onApplyLoadPrefill={(patch, conversationId, draftId) => {
             setLenaLoadPrefill(patch);
             setLenaSourceConversationId(conversationId);

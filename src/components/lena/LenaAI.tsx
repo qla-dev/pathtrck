@@ -30,6 +30,9 @@ type LenaAIProps = {
   onApplyLoadPrefill?: (patch: ScanFieldPatch, conversationId: string, draftId?: string | null) => void;
   onBulkImported?: (rows: BulkLoadRow[]) => void;
   publicTrackingNumber?: string;
+  // Actions offered by the out-of-messages card once the plan's LenaAI allowance is spent.
+  onUpgrade?: () => void;
+  onTopUp?: () => void;
 };
 
 // Reusable LenaAI chat overlay — with no loadId it's a general app assistant (opened from the
@@ -178,7 +181,7 @@ function PublicTrackingLenaAI({ open, onClose, lang, trackingNumber }: LenaAIPro
   );
 }
 
-function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, loadLabel, onBookLoad, onOpenLoad, initialCanvasMode = null, onApplyLoadPrefill, onBulkImported }: LenaAIProps) {
+function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, loadLabel, onBookLoad, onOpenLoad, initialCanvasMode = null, onApplyLoadPrefill, onBulkImported, onUpgrade, onTopUp }: LenaAIProps) {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const quickActionLabels = {
     add: u('Add a new load', 'Add a new load'),
@@ -204,7 +207,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [open, onClose]);
 
-  const { conversation, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId } = useLenaAiChat({
+  const { tokenResetAt, conversation, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId } = useLenaAiChat({
     userId,
     companyIds,
     loadId,
@@ -219,6 +222,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
     newConversationLabel: u('New LenaAI conversation', 'New LenaAI conversation'),
     initialCanvasMode,
     quickActionLabels,
+    active: open,
   });
   const [canvasPanelOpen, setCanvasPanelOpen] = useState(false);
   const previousCanvas = useRef({ conversationId: '', active: false });
@@ -248,6 +252,9 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
     onSuggestedReply: (value, displayText) => void sendSuggestedReply(value, displayText),
     onStepAnswer: (step, value, displayText) => void sendGuidedAnswer(step, value, displayText),
     onSuggestedDraftChange: setDraft,
+    outOfTokensResetAt: tokenResetAt,
+    onUpgrade,
+    onTopUp,
     onLoadReady: () => {
       void setCanvasEnabled(true);
       setCanvasPanelOpen(true);

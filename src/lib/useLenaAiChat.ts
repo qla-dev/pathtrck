@@ -9,6 +9,7 @@ import { MASKABLE_GUIDED_STEPS } from './lenaStepInputMask';
 import { withMinDelay } from './timing';
 import { ui } from '../i18n';
 import { buildScanFieldRows } from '../components/modals/scanFieldRows';
+import { useLenaTokenBalance } from './useLenaTokenBalance';
 
 export const LENA_AI_GENERAL_SUBJECT = `${AI_DISPATCH_SUBJECT_PREFIX}General`;
 const LENA_STEP_MARKER_PATTERN = /\[\[LENA_STEP:([a-zA-Z]+)\]\]/;
@@ -39,6 +40,9 @@ type UseLenaAiChatOptions = {
   newConversationLabel: string;
   initialCanvasMode?: LenaCanvasMode | null;
   quickActionLabels: Record<LenaQuickAction, string>;
+  // False while the chat overlay is closed - the plan's remaining-message count is re-read every
+  // time it opens, so a top-up made elsewhere in the app unblocks LenaAI without a page reload.
+  active?: boolean;
 };
 
 type OptimisticLenaMessage = {
@@ -59,7 +63,7 @@ type OptimisticLenaMessage = {
 // Shared conversation logic behind the reusable LenaAI chat (frontend/src/components/lena/LenaAI.tsx).
 // Mirrors the find-or-create/send/reply flow already proven in LoadDetailsModal.tsx's AI Dispatch
 // tab, generalized to also support a load-less "general" conversation (load_id: null).
-export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang, welcomeText, welcomeRole, sendFailedTitle, replyFailedTitle, newConversationLabel, initialCanvasMode = null, quickActionLabels }: UseLenaAiChatOptions) => {
+export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang, welcomeText, welcomeRole, sendFailedTitle, replyFailedTitle, newConversationLabel, initialCanvasMode = null, quickActionLabels, active = true }: UseLenaAiChatOptions) => {
   const result = useApiList(
     api.conversations.list,
     loadId ? { load_id: Number(loadId), per_page: 50 } : { per_page: 100 }
@@ -103,6 +107,8 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
   const [sending, setSending] = useState(false);
   const [optimisticMessages, setOptimisticMessages] = useState<OptimisticLenaMessage[]>([]);
 
+  const { outOfTokens, tokenResetAt, blockedMessages, denyOutOfTokens, clearBlockedMessages } = useLenaTokenBalance({ userId, active });
+
   const conversation = useMemo<Conversation>(() => {
     const rowMessages = row && Array.isArray(row.messages) ? row.messages as Array<Record<string, unknown>> : [];
     const messages: Conversation['messages'] = row
@@ -130,6 +136,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
               : () => void sendMessage(message.rawText, message.displayText, message.id, message.conversationId))
         : undefined,
     }));
+    blockedMessages.forEach((message) => messages.push(message));
     const firstBody = String(rowMessages.find((message) => String(message.body || '').trim())?.body || '').trim();
     const firstAction = lenaQuickActionFromMessage(firstBody);
     const conversationName = row
@@ -150,7 +157,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
       isAiDispatch: true,
       canvas: !loadId && (canvasOverride ?? Boolean(row?.canvas)),
     };
-  }, [row, userId, optimisticMessages, welcomeText, welcomeRole, newChatVersion, canvasOverride, newConversationLabel, quickActionLabels]);
+  }, [row, userId, optimisticMessages, blockedMessages, welcomeText, welcomeRole, newChatVersion, canvasOverride, newConversationLabel, quickActionLabels]);
 
   const canvasEnabled = !loadId && (canvasOverride ?? Boolean(row?.canvas));
   const canvasAttachments = useMemo(() => {
@@ -202,6 +209,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
   const startNewChat = () => {
     setDraft('');
     setOptimisticMessages([]);
+    clearBlockedMessages();
     setStartingNewChat(true);
     setCanvasOverride(false);
     setCanvasMode('new_load');
@@ -241,6 +249,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
 
   const selectConversation = (id: string) => {
     setOptimisticMessages([]);
+    clearBlockedMessages();
     setStartingNewChat(false);
     setSelectedConversationId(id);
     setCanvasOverride(null);
@@ -264,6 +273,10 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
   async function sendMessage(rawText: string, displayText = rawText, retryId?: string, retryConversationId?: number) {
     const text = rawText.trim();
     if (!text || !userId || sending) return;
+    if (outOfTokens) {
+      setDraft('');
+      return denyOutOfTokens(displayText === rawText ? text : displayText);
+    }
 
     const optimisticId = retryId || `optimistic-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const optimisticTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -346,6 +359,10 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
   // answers still go through sendMessage's AI pipeline.
   const sendGuidedAnswer = async (step: string, value: string, displayText: string, retryId?: string) => {
     if (!userId || sending) return;
+    if (outOfTokens) {
+      setDraft('');
+      return denyOutOfTokens(displayText);
+    }
     const skip = value.startsWith('[[LENA_SKIP:');
     setDraft('');
 
@@ -382,6 +399,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
 
   const attachFileValue = async (file: File, retryId?: string) => {
     if (!userId || sending || (processingAttachment && !retryId)) return;
+    if (outOfTokens) return denyOutOfTokens(file.name);
 
     const attachmentOpensCanvas = !loadId && canvasEnabled;
     const body = !attachmentOpensCanvas
@@ -451,5 +469,5 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
 
   const loadDraftId = row?.load_draft_id ? String(row.load_draft_id) : null;
 
-  return { conversation, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, hasActiveConversation: Boolean(row), canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId };
+  return { outOfTokens, tokenResetAt, conversation, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, hasActiveConversation: Boolean(row), canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId };
 };
