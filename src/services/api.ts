@@ -455,6 +455,7 @@ export const api = {
     },
   },
   roles: resourceApi<Record<string, unknown>>('roles'),
+  teamRoleOptions: resourceApi<Record<string, unknown>>('team-role-options'),
   reviews: {
     list: (reviewableType: string, reviewableId: number | string) => request<Record<string, unknown>[]>(`/reviews?${queryString({ reviewable_type: reviewableType, reviewable_id: reviewableId })}`),
     create: (data: { reviewable_type: string; reviewable_id: number | string; rating: number; criteria: Record<string, number>; comment?: string }) => request<Record<string, unknown>[]>('/reviews', {

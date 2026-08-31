@@ -5203,13 +5203,16 @@ const mapDatabaseRecordToLoad = (record: Record<string, unknown>): Load => {
   };
 };
 
+const isCompanyOperationsRole = (role: Role): boolean =>
+  role === "company" || role === "manager" || role === "dispatcher" || role === "customs_officer";
+
 const getDefaultViewForRole = (
   role: Exclude<Role, null>,
   user?: ApiUser | null,
 ) =>
   role === "driver"
     ? "feed"
-    : role === "company"
+    : isCompanyOperationsRole(role)
       ? user?.companies?.some((company) => Boolean(company.warehouse_first))
         ? "warehouse-overview"
         : "company"
@@ -5899,7 +5902,7 @@ export default function App() {
     ),
   );
   const isWarehouseCompany =
-    role === "warehouse" || (role === "company" && warehouseFirst);
+    role === "warehouse" || (isCompanyOperationsRole(role) && warehouseFirst);
   const roleMeta =
     role === "driver"
       ? {
@@ -5923,7 +5926,7 @@ export default function App() {
             icon: Warehouse,
             tone: "bg-orange-500/10 text-orange-600 dark:text-orange-400",
           }
-        : role === "company"
+        : isCompanyOperationsRole(role)
         ? {
             label: u("common.logisticsCompany", "Logistics Company"),
             status: u("common.admin", "Admin"),
@@ -6512,7 +6515,7 @@ export default function App() {
       ]
     : role === "finance"
       ? [{ id: "finance", label: u("nav.finance", "Finance"), icon: Banknote }]
-      : role === "company"
+      : isCompanyOperationsRole(role)
         ? [
             ...(warehouseFirst
               ? [
@@ -6546,11 +6549,12 @@ export default function App() {
               icon: PackageIcon,
             },
             { id: "fleet", label: t.myFleet, icon: Truck },
-            {
-              id: "company-team",
-              label: u("nav.teamPermissions", "Team & Permissions"),
-              icon: Users,
-            },
+            ...((role === "company" || role === "manager")
+              ? [{ id: "company-team", label: u("nav.teamPermissions", "Team & Permissions"), icon: Users }]
+              : []),
+            ...((role === "company" || role === "manager")
+              ? [{ id: "finance", label: u("nav.finance", "Finance"), icon: Banknote }]
+              : []),
             // A company keeps its own paperwork archive, so it reaches this page like a driver does.
             {
               id: "notes",
@@ -6769,7 +6773,7 @@ export default function App() {
               </button>
             ) : role === "user" ||
               role === "driver" ||
-              role === "company" ||
+              isCompanyOperationsRole(role) ||
               isElevatedAdmin ? (
               <button
                 onClick={() => {
@@ -7175,8 +7179,8 @@ export default function App() {
                 ) : (
                   <WarehousesView lang={lang} role={role} />
                 ))}
-              {view === "company-team" && <CompanyTeamView lang={lang} />}
-              {view === "finance" && <FinanceView lang={lang} />}
+              {view === "company-team" && (role === "company" || role === "manager" || isElevatedAdmin) && <CompanyTeamView lang={lang} />}
+              {view === "finance" && (role === "company" || role === "manager" || role === "finance" || isElevatedAdmin) && <FinanceView lang={lang} />}
               {view === "automations" && <AutomationsView lang={lang} />}
               {view === "fleet" && (
                 <FleetView

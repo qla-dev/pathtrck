@@ -48,6 +48,7 @@ import {
 import { confirmAction, showError, showSuccess } from '../../lib/swal';
 import { Language, Load, Offer } from '../../types';
 import { Role } from '../../types';
+import { isCompanyOperationsRole } from '../../lib/roles';
 import { api, ApiError } from '../../services/api';
 import { ui } from '../../i18n';
 import { Button } from '../ui/Button';
@@ -248,13 +249,13 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
   }, [open, load?.id]);
 
   useEffect(() => {
-    if (!open || !load || (role !== 'superadmin' && role !== 'driver' && role !== 'company')) return undefined;
+    if (!open || !load || (role !== 'superadmin' && role !== 'driver' && !isCompanyOperationsRole(role))) return undefined;
     let active = true;
     setOffersLoading(true);
     setActionMessage('');
     (async () => {
       try {
-        if (role === 'superadmin' || role === 'driver' || role === 'company') {
+        if (role === 'superadmin' || role === 'driver' || isCompanyOperationsRole(role)) {
           const offerResponse = await api.offers.list({ per_page: 100 });
           const loadOffers = offerResponse.data.filter((offer) => String(offer.load_id) === String(load.id));
           if (!active) return;
@@ -263,7 +264,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
             setSelectedDrivers(Object.fromEntries(loadOffers.flatMap((offer) => offer.driver_user_id ? [[String(offer.id), Number(offer.driver_user_id)]] : [])));
           }
         }
-        if (role === 'superadmin' || role === 'company') {
+        if (role === 'superadmin' || isCompanyOperationsRole(role)) {
           // Backend already scopes this: superadmin sees every driver, a company sees only its own.
           const driverResponse = await api.drivers.list({ per_page: 100 });
           if (!active) return;
@@ -401,7 +402,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
       } else {
         await api.offers.create({
           load_id: Number(load.id),
-          company_id: role === 'company' ? companyIds[0] : undefined,
+          company_id: isCompanyOperationsRole(role) ? companyIds[0] : undefined,
           driver_user_id: role === 'driver' ? userId : undefined,
           created_by_user_id: userId,
           ...payload,
@@ -725,7 +726,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                         </div>
                       </div>
                     )}
-                  </> : role === 'company' ? (
+                  </> : isCompanyOperationsRole(role) ? (
                     currentStatus === 'Posted' ? (
                       <div className="space-y-3">
                         {bookingSummary}
@@ -966,11 +967,11 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
         </motion.div>
       </div>
 
-      {(role === 'company' || role === 'superadmin') && (
+      {(isCompanyOperationsRole(role) || role === 'superadmin') && (
         <LoadAssignmentModal
           open={assignmentOpen}
           lang={lang}
-          mode={role}
+          mode={role === 'superadmin' ? 'superadmin' : 'company'}
           companies={companies.map((company) => ({
             id: String(company.id),
             label: String(company.name || `Company ${company.id}`),
@@ -997,7 +998,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
         />
       )}
 
-      {(role === 'company' || role === 'driver' || role === 'superadmin' || role === 'warehouse') && (
+      {(isCompanyOperationsRole(role) || role === 'driver' || role === 'superadmin' || role === 'warehouse') && (
         isStorage ? (
           <WarehouseBidModal
             open={showOfferForm}

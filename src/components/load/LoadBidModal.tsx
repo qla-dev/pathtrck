@@ -26,6 +26,7 @@ import {
 } from '../../lib/offerBid';
 import { ui } from '../../i18n';
 import { AdditionalChargeRow, Language, Load, Offer, Role } from '../../types';
+import { isCompanyOperationsRole } from '../../lib/roles';
 import { api } from '../../services/api';
 import { Button } from '../ui/Button';
 import { RegisterVehicleModal } from '../modals/RegisterVehicleModal';
@@ -203,7 +204,7 @@ export const LoadBidModal = ({
         }
         const scoped = response.data.filter((vehicle) => {
           const inMyCompany = companyIds.length > 0 && companyIds.includes(Number(vehicle.company_id));
-          if (role === 'company') return inMyCompany;
+          if (isCompanyOperationsRole(role)) return inMyCompany;
           if (role === 'driver') {
             const isMine = Number(vehicle.assigned_driver_user_id) === userId || Number(vehicle.owner_user_id) === userId;
             return isMine || inMyCompany;
@@ -621,7 +622,7 @@ export const LoadBidModal = ({
             lang={lang}
             ownerUserId={role === 'driver' ? userId : undefined}
             assignedDriverUserId={role === 'driver' ? userId : undefined}
-            companyId={role === 'company' ? companyIds[0] : undefined}
+            companyId={isCompanyOperationsRole(role) ? companyIds[0] : undefined}
             onClose={() => setAddVehicleOpen(false)}
             onCreated={(vehicle) => {
               setVehicles((current) => [vehicle, ...current]);

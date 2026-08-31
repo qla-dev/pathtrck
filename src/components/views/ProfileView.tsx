@@ -30,6 +30,7 @@ import { ApiUser, api } from "../../services/api";
 import { useApiList } from "../../hooks/useApiList";
 import { Button } from "../ui/Button";
 import { cn } from "../../lib/cn";
+import { isCompanyOperationsRole } from "../../lib/roles";
 import { DriverVerificationModal } from "../modals/DriverVerificationModal";
 import { flatpickrI18n } from "../../i18n";
 
@@ -51,7 +52,7 @@ type CompanyProfile = {
   status?: string | null;
   verified_at?: string | null;
   created_at?: string | null;
-  pivot?: { company_role?: string; status?: string };
+  pivot?: { status?: string };
 };
 
 type ProfileForm = {
@@ -443,7 +444,7 @@ export const ProfileView = ({
   }, [profileKind, profileRecord, text.loadError]);
 
   const effectiveRole: Role = profileKind === "driver" ? "driver" : profileKind === "warehouse" ? "warehouse" : profileKind === "company" ? "company" : profileKind === "customer" ? "user" : role;
-  const detailKind: ProfileRecordKind | null = profileKind || (effectiveRole === "driver" ? "driver" : effectiveRole === "warehouse" ? "warehouse" : effectiveRole === "company" || effectiveRole === "finance" ? "company" : effectiveRole === "user" ? "customer" : null);
+  const detailKind: ProfileRecordKind | null = profileKind || (effectiveRole === "driver" ? "driver" : effectiveRole === "warehouse" ? "warehouse" : isCompanyOperationsRole(effectiveRole) || effectiveRole === "finance" ? "company" : effectiveRole === "user" ? "customer" : null);
   const profileType = detailKind === "company"
     ? { label: text.companyProfile, icon: Building2, tone: "bg-violet-50 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300" }
     : detailKind === "warehouse"
@@ -458,7 +459,7 @@ export const ProfileView = ({
     CompanyProfile | undefined;
   const companyMode = Boolean(
     company &&
-    (effectiveRole === "company" ||
+    (isCompanyOperationsRole(effectiveRole) ||
       effectiveRole === "finance" ||
       effectiveRole === "warehouse" ||
       profileKind === "company" ||
@@ -466,8 +467,7 @@ export const ProfileView = ({
   );
   const canEditCompany = Boolean(
     company &&
-    (Number(company.owner_user_id) === user?.id ||
-      company.pivot?.company_role === "admin"),
+    (Number(company.owner_user_id) === user?.id || effectiveRole === "manager"),
   );
   const customer = (profileKind === "customer" ? profileRecord : user?.customer_profile || {}) as Record<string, unknown>;
   const driver = (profileKind === "driver" ? profileRecord : user?.driver || {}) as Record<string, unknown>;

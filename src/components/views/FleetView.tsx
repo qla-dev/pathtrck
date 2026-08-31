@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, Area, Line, PieChart, Pie, Cell, Legend } from 'recharts';
 import { Language, Role } from '../../types';
+import { isCompanyOperationsRole } from '../../lib/roles';
 import { ui, trFuelType, trVehicleStatus } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { confirmAction } from '../../lib/swal';
@@ -149,7 +150,7 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
   const loadVehicles = async () => {
     const response = await api.vehicles.list({ per_page: 100 });
     const scopedRows = response.data.filter((row) => {
-      if (role === 'company' && companyIds.length > 0) return companyIds.includes(Number(row.company_id));
+      if (isCompanyOperationsRole(role) && companyIds.length > 0) return companyIds.includes(Number(row.company_id));
       if (role === 'driver' && userId) {
         const permittedUsers = Array.isArray(row.permitted_users)
           ? row.permitted_users as Array<Record<string, unknown>>
@@ -313,7 +314,7 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
         </Card>
       </section>}
 
-      {fleetSection === 'vehicles' && (role === 'company' || role === 'driver' || role === 'superadmin' || role === 'master') && (
+      {fleetSection === 'vehicles' && (isCompanyOperationsRole(role) || role === 'driver' || role === 'superadmin' || role === 'master') && (
         <Card>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -503,7 +504,7 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
         lang={lang}
         ownerUserId={role === 'driver' ? userId : undefined}
         assignedDriverUserId={role === 'driver' ? userId : undefined}
-        companyId={role === 'company' ? companyIds[0] : undefined}
+        companyId={isCompanyOperationsRole(role) ? companyIds[0] : undefined}
         initialVehicle={editingVehicle}
         onClose={closeAddVehicle}
         onCreated={() => {

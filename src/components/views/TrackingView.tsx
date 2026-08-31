@@ -5,6 +5,7 @@ import { MapContainer, TileLayer, Marker, ZoomControl, useMap } from 'react-leaf
 import { Search, MapPin, ChevronRight, Package as PackageIcon, Coins, Truck, Plane, Ship, Train, Filter, CalendarDays, Trash2, List, LayoutGrid, Map as MapIcon, LocateFixed, Route, BriefcaseBusiness, Navigation, CalendarRange, BadgeEuro, Building2, Container, Tags, FileText, SlidersHorizontal, ShieldAlert, Zap, X, Weight, Box, Layers, Thermometer, ShieldCheck, Stamp, Lock, UserRound } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Language, Package as PackageData, Role } from '../../types';
+import { isCompanyOperationsRole } from '../../lib/roles';
 import { api } from '../../services/api';
 import { useApiList } from '../../hooks/useApiList';
 import { flatpickrI18n, ui, trPackageStatus } from '../../i18n';
@@ -330,7 +331,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
   const loadCapacity = useMemo(() => {
     const roleLoads = capacityResult.items.filter((load) => {
       if (role === 'driver') return Boolean(userId) && Number(load.assigned_driver_user_id) === userId;
-      if (role === 'company') {
+      if (isCompanyOperationsRole(role)) {
         return (
           (Boolean(userId) && Number(load.customer_user_id) === userId) ||
           companyIds.includes(Number(load.company_id))
@@ -414,7 +415,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
       <div className={cn('w-full', layout === 'map' && 'h-full')}>
       {/* Sidebar List */}
       <div className={cn('w-full', layout === 'map' && 'h-full')}>
-        {(role === 'company' || role === 'driver') && layout !== 'map' && (
+        {(isCompanyOperationsRole(role) || role === 'driver') && layout !== 'map' && (
           <div className="mb-5 rounded-2xl border border-slate-200 bg-white px-4 py-4 dark:border-slate-800 dark:bg-slate-900">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">

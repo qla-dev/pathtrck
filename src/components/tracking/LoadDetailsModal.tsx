@@ -3,6 +3,7 @@ import L from 'leaflet';
 import { MapContainer, TileLayer, Marker, Popup, CircleMarker, Polyline, Tooltip, useMap } from 'react-leaflet';
 import { ChevronRight, Package as PackageIcon, RotateCcw, Share2, Star, Route, Lock, Coins, Loader2, Sparkles, FileBarChart2, Upload, FileSpreadsheet, Fuel, BedDouble, ParkingCircle, Landmark, ReceiptText, FileText, FileCheck2, Printer, Play, Pause } from 'lucide-react';
 import { Language, Package as PackageData, Role, ShipmentDetail } from '../../types';
+import { isCompanyOperationsRole } from '../../lib/roles';
 import { api, type FuelStation } from '../../services/api';
 import { useApiList } from '../../hooks/useApiList';
 import { ui, trPackageStatus } from '../../i18n';
@@ -285,7 +286,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
     [selectedPackage.id]
   );
 
-  const canManageStatuses = role === 'driver' || role === 'company' || role === 'superadmin' || role === 'master';
+  const canManageStatuses = role === 'driver' || isCompanyOperationsRole(role) || role === 'superadmin' || role === 'master';
   const canCustomerReceive = role === 'user' && selectedPackage.status === 'In delivery';
   const canChangeStatus = canManageStatuses || canCustomerReceive;
   const visibleStatus = role === 'user' && selectedPackage.status === 'Finished' ? 'Received' : selectedPackage.status;
@@ -469,11 +470,11 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
     }
   };
 
-  const canControlLiveTracking = role === 'driver' || role === 'company' || role === 'superadmin' || role === 'master';
+  const canControlLiveTracking = role === 'driver' || isCompanyOperationsRole(role) || role === 'superadmin' || role === 'master';
   const handleLiveTrackingToggle = async () => {
     if (!canControlLiveTracking) return;
     const nextEnabled = !liveTrackingEnabled;
-    const sendsDriverRequest = role === 'company' || role === 'superadmin' || role === 'master';
+    const sendsDriverRequest = isCompanyOperationsRole(role) || role === 'superadmin' || role === 'master';
     const confirmed = await confirmAction({
       title: nextEnabled
         ? sendsDriverRequest

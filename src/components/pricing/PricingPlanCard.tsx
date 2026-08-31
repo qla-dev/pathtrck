@@ -37,7 +37,7 @@ export const FEATURE_ICONS: Record<string, IconComponent> = {
 };
 
 const ROLE_LABELS: Record<string, string> = {
-  user: 'Customer', driver: 'Driver', company: 'Company', finance: 'Finance', superadmin: 'Admin', master: 'Admin',
+  user: 'Customer', driver: 'Driver', company: 'Company', manager: 'Manager', dispatcher: 'Dispatcher', customs_officer: 'Customs Officer', finance: 'Finance', superadmin: 'Admin', master: 'Admin',
 };
 
 export const planName = (u: (key: string, fallback: string) => string, pkg: SubscriptionPackage) =>

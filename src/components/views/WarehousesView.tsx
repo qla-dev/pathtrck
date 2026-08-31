@@ -3,6 +3,7 @@ import { Boxes, Check, MapPin, Plus, Search, Warehouse as WarehouseIcon, X } fro
 
 import { api } from '../../services/api';
 import { Language, Role } from '../../types';
+import { isCompanyOperationsRole } from '../../lib/roles';
 import { ui } from '../../i18n';
 import { useApiList } from '../../hooks/useApiList';
 import { Button } from '../ui/Button';
@@ -33,7 +34,7 @@ export const WarehousesView = ({ lang, role }: { lang: Language; role: Role }) =
   const [savingId, setSavingId] = useState<string | null>(null);
   const warehouses = useApiList(api.warehouses.list, { per_page: 100 });
   // Warehouses belong to users, so every operational role that may own one gets the create action.
-  const canCreate = role === 'superadmin' || role === 'master' || role === 'user' || role === 'driver' || role === 'warehouse' || role === 'company';
+  const canCreate = role === 'superadmin' || role === 'master' || role === 'user' || role === 'driver' || role === 'warehouse' || isCompanyOperationsRole(role);
   // The backend drops status writes from anyone else, so only admins get the enable/disable control.
   const canVerify = role === 'superadmin' || role === 'master';
 

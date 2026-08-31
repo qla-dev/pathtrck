@@ -11,12 +11,14 @@ import { ApiUser, api } from '../../services/api';
 import { useApiList } from '../../hooks/useApiList';
 import { confirmAction, showSuccess } from '../../lib/swal';
 
-type CompanyRole = 'Company Admin' | 'Dispatcher' | 'Driver' | 'Finance';
-type Member = { id: string; databaseId: number; name: string; email: string; role: CompanyRole; status: 'Active' | 'Invited'; source: 'membership' | 'invitation' };
+type CompanyRole = 'Company Owner' | 'Manager' | 'Dispatcher' | 'Customs Officer' | 'Driver' | 'Finance';
+type Member = { id: string; databaseId: number; name: string; email: string; role: CompanyRole; isOwner: boolean; status: 'Active' | 'Invited'; source: 'membership' | 'invitation' };
 
 const ROLE_PERMISSIONS: Record<CompanyRole, string[]> = {
-  'Company Admin': ['Manage fleet sharing', 'Invite and remove users', 'Assign all roles', 'View all company data'],
+  'Company Owner': ['Own the company workspace', 'Manage all company data', 'Manage team roles', 'View finance'],
+  Manager: ['Manage fleet sharing', 'Invite and remove users', 'Assign all roles', 'View all company data'],
   Dispatcher: ['Assign loads and vehicles', 'Message drivers', 'View live fleet', 'Update route status'],
+  'Customs Officer': ['Assign loads and vehicles', 'Message drivers', 'View live fleet', 'Update route status'],
   Driver: ['View assigned loads', 'Update delivery status', 'Add route notes', 'Message dispatch'],
   Finance: ['View invoices and payouts', 'Export finance records', 'Approve payouts', 'No fleet editing'],
 };
@@ -24,14 +26,14 @@ const ROLE_PERMISSIONS: Record<CompanyRole, string[]> = {
 export const CompanyTeamView = ({ lang: _lang }: { lang: Language }) => {
   const memberships = useApiList(api.companyMemberships.list, { per_page: 100 });
   const invitations = useApiList(api.companyInvitations.list, { per_page: 100 });
-  const roles = useApiList(api.roles.list, { per_page: 100 });
+  const roles = useApiList(api.teamRoleOptions.list, { per_page: 100 });
   const [user, setUser] = useState<ApiUser | null>(null);
   useEffect(() => { void api.auth.me().then(setUser); }, []);
   const companyId = Number((user?.companies?.[0] as Record<string, unknown> | undefined)?.id || 0);
-  const roleLabel = (value: unknown): CompanyRole => { const role = String(value || '').toLowerCase(); return role === 'admin' || role === 'company' ? 'Company Admin' : role === 'dispatcher' ? 'Dispatcher' : role === 'finance' ? 'Finance' : 'Driver'; };
+  const roleLabel = (value: unknown, isOwner = false): CompanyRole => { const role = String(value || '').toLowerCase(); return isOwner ? 'Company Owner' : role === 'manager' || role === 'company' ? 'Manager' : role === 'dispatcher' ? 'Dispatcher' : role === 'customs_officer' ? 'Customs Officer' : role === 'finance' ? 'Finance' : 'Driver'; };
   const members = useMemo<Member[]>(() => [
-    ...memberships.items.filter((row) => !companyId || Number(row.company_id) === companyId).map((row) => { const member = (row.user || {}) as Record<string, unknown>; return { id: `m-${row.id}`, databaseId: Number(row.id), name: String(member.name || '—'), email: String(member.email || ''), role: roleLabel(row.company_role), status: 'Active' as const, source: 'membership' as const }; }),
-    ...invitations.items.filter((row) => (!companyId || Number(row.company_id) === companyId) && String(row.status).toLowerCase() === 'pending').map((row) => ({ id: `i-${row.id}`, databaseId: Number(row.id), name: String(row.email || '').split('@')[0], email: String(row.email || ''), role: roleLabel(((row.role || {}) as Record<string, unknown>).name), status: 'Invited' as const, source: 'invitation' as const })),
+    ...memberships.items.filter((row) => !companyId || Number(row.company_id) === companyId).map((row) => { const member = (row.user || {}) as Record<string, unknown>; const memberRole = (member.role || {}) as Record<string, unknown>; const company = (row.company || {}) as Record<string, unknown>; const isOwner = Number(company.owner_user_id) === Number(member.id); return { id: `m-${row.id}`, databaseId: Number(row.id), name: String(member.name || '—'), email: String(member.email || ''), role: roleLabel(memberRole.name, isOwner), isOwner, status: 'Active' as const, source: 'membership' as const }; }),
+    ...invitations.items.filter((row) => (!companyId || Number(row.company_id) === companyId) && String(row.status).toLowerCase() === 'pending').map((row) => ({ id: `i-${row.id}`, databaseId: Number(row.id), name: String(row.email || '').split('@')[0], email: String(row.email || ''), role: roleLabel(((row.role || {}) as Record<string, unknown>).name), isOwner: false, status: 'Invited' as const, source: 'invitation' as const })),
   ], [memberships.items, invitations.items, companyId]);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<CompanyRole>('Driver');
@@ -48,7 +50,7 @@ export const CompanyTeamView = ({ lang: _lang }: { lang: Language }) => {
     if (!/^\S+@\S+\.\S+$/.test(trimmed)) { setMessage('Enter a valid email address.'); return; }
     if (!companyId || !user) { setMessage('No company is connected to this account.'); return; }
     if (members.some((member) => member.email.toLowerCase() === trimmed.toLowerCase())) { setMessage('This person is already part of the company.'); return; }
-    const globalRoleName = role === 'Finance' ? 'finance' : role === 'Driver' ? 'driver' : 'company';
+    const globalRoleName = role === 'Customs Officer' ? 'customs_officer' : role.toLowerCase();
     const selectedRole = roles.items.find((item) => item.name === globalRoleName);
     if (!selectedRole) { setMessage('Selected role is unavailable.'); return; }
     const confirmed = await confirmAction({ title: 'Invite this team member?', text: `${trimmed} will be invited as ${role}.`, confirmText: 'Send invite' });
@@ -73,7 +75,7 @@ export const CompanyTeamView = ({ lang: _lang }: { lang: Language }) => {
           { label: 'People & invitations', value: members.length, icon: Users, tone: 'bg-violet-500/10 text-violet-500' },
           { label: 'Active members', value: statusData[0].value, icon: UserCheck, tone: 'bg-emerald-500/10 text-emerald-500' },
           { label: 'Pending invitations', value: statusData[1].value, icon: Clock3, tone: 'bg-amber-500/10 text-amber-500' },
-          { label: 'Company admins', value: members.filter((member) => member.role === 'Company Admin').length, icon: Crown, tone: 'bg-primary/10 text-primary' },
+          { label: 'Managers', value: members.filter((member) => member.role === 'Manager').length, icon: Crown, tone: 'bg-primary/10 text-primary' },
         ]}
       />
 
@@ -82,7 +84,7 @@ export const CompanyTeamView = ({ lang: _lang }: { lang: Language }) => {
         <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_auto]">
           <input type="email" value={email} onChange={(event) => { setEmail(event.target.value); setMessage(''); }} onKeyDown={(event) => { if (event.key === 'Enter') invite(); }} placeholder="teammate@company.com" className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
           <select value={role} onChange={(event) => setRole(event.target.value as CompanyRole)} className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white">
-            <option>Driver</option><option>Dispatcher</option><option>Finance</option><option>Company Admin</option>
+            <option>Driver</option><option>Dispatcher</option><option>Customs Officer</option><option>Finance</option><option>Manager</option>
           </select>
           <Button onClick={invite} className="h-11 gap-2"><Send className="h-4 w-4" /> Send invite</Button>
         </div>
@@ -108,7 +110,7 @@ export const CompanyTeamView = ({ lang: _lang }: { lang: Language }) => {
               <div key={member.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                 <div className="flex min-w-0 items-center gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 dark:bg-slate-800"><UserRoundCog className="h-5 w-5" /></div><div className="min-w-0"><p className="truncate text-sm font-bold text-slate-900 dark:text-white">{member.name}</p><p className="truncate text-xs text-slate-500">{member.email}</p></div></div>
                 <div className="flex items-center gap-2">
-                  <select value={member.role} onChange={(event) => { if (member.source === 'membership') void api.companyMemberships.update(member.databaseId, { company_role: event.target.value === 'Company Admin' ? 'admin' : event.target.value.toLowerCase() }).then(() => memberships.refresh()); }} className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs font-bold dark:border-slate-700 dark:bg-slate-950 dark:text-white"><option>Driver</option><option>Dispatcher</option><option>Finance</option><option>Company Admin</option></select>
+                  <select disabled={member.isOwner} value={member.role} onChange={(event) => { if (member.source === 'membership') { const selectedName = event.target.value === 'Customs Officer' ? 'customs_officer' : event.target.value.toLowerCase(); const selectedRole = roles.items.find((item) => item.name === selectedName); if (selectedRole) void api.companyMemberships.update(member.databaseId, { role_id: Number(selectedRole.id) }).then(() => memberships.refresh()); } }} className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-white"><option disabled>Company Owner</option><option>Driver</option><option>Dispatcher</option><option>Customs Officer</option><option>Finance</option><option>Manager</option></select>
                   <span className={cn('rounded-full px-2.5 py-1 text-xs font-bold', member.status === 'Active' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-600')}>{member.status}</span>
                 </div>
               </div>

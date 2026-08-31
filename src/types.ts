@@ -1,4 +1,4 @@
-export type Role = 'user' | 'driver' | 'company' | 'finance' | 'warehouse' | 'superadmin' | 'master' | null;
+export type Role = 'user' | 'driver' | 'company' | 'manager' | 'dispatcher' | 'customs_officer' | 'finance' | 'warehouse' | 'superadmin' | 'master' | null;
 export type Language =
   | 'en'
   | 'bs'
