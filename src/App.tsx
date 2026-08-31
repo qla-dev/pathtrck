@@ -137,6 +137,7 @@ import { LoginProcess } from "./components/auth/LoginProcess";
 import { FleetOnboardingPreview } from "./components/landing/FleetOnboardingPreview";
 import { WarehouseOnboardingPreview } from "./components/landing/WarehouseOnboardingPreview";
 import { LandingLoadExchange } from "./components/landing/LandingLoadExchange";
+import { LandingTrackingBoard } from "./components/landing/LandingTrackingBoard";
 import { LANDING_DEMO_LOADS } from "./components/landing/landingDemoLoads";
 import { LenaLoadDetailsCard } from "./components/lena/LenaEmbeddedCards";
 
@@ -1440,7 +1441,8 @@ const LandingModuleCard = ({
         className={cn(
           "mt-4 flex w-full items-center justify-between gap-2 border-t border-slate-100 pt-4 text-xs font-black uppercase tracking-wider transition-colors dark:border-slate-800",
           module.anchor
-            ? "cursor-pointer text-primary hover:text-primary-dark"
+            // The tone carries a background too, which this row does not want - only its ink.
+            ? cn("cursor-pointer hover:opacity-80", module.tone.split(" ").filter((part) => part.startsWith("text-")).join(" "))
             : "cursor-default text-slate-300 dark:text-slate-700",
         )}
       >
@@ -1568,6 +1570,7 @@ const LandingPage = ({
   const appModules = [
     {
       name: t.homeFeed,
+      anchor: "exchange",
       description: u(
         "landing.modules.exchange",
         "Post loads and bid on freight across road, sea, air and rail.",
@@ -1618,6 +1621,7 @@ const LandingPage = ({
     },
     {
       name: myCargoLabels[activeLang],
+      anchor: "exchange",
       description: u(
         "landing.modules.tracking",
         "Follow every shipment from pickup to proof of delivery.",
@@ -2327,12 +2331,6 @@ const LandingPage = ({
             </a>
             <a href="#network" className="hover:text-primary transition-colors">
               {t.network}
-            </a>
-            <a
-              href="#enterprise"
-              className="hover:text-primary transition-colors"
-            >
-              {t.enterprise}
             </a>
             <a href="#pricing" className="hover:text-primary transition-colors">
               {t.pricing}
@@ -3211,279 +3209,6 @@ const LandingPage = ({
         />
       </section>
 
-      {/* Section 3: Bento Features Grid */}
-      <section
-        id="features"
-        className={cn(
-          "scroll-mt-28 bg-white dark:bg-slate-950",
-          SECTION_PADDING,
-        )}
-      >
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-20">
-            <h2 className="text-4xl md:text-6xl font-display font-black mb-6 dark:text-white tracking-tight">
-              {u("landing.trackingTitle1", "Tracking that")} <br />{" "}
-              <span className="text-primary">
-                {u("landing.trackingTitle2", "never blinks.")}
-              </span>
-            </h2>
-            <p className="text-slate-500 dark:text-slate-400 max-w-2xl mx-auto text-lg">
-              {u(
-                "landing.trackingDesc",
-                "Follow every vehicle, stop and waypoint in real time - from the pickup window to the final drop.",
-              )}
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-12 gap-6">
-            {/* Main Feature */}
-            <div className="md:col-span-8 bg-slate-50 dark:bg-slate-900 rounded-[2.5rem] p-12 flex border border-slate-100 dark:border-slate-800 group overflow-hidden relative transition-all duration-500">
-              <div className="relative z-10 flex flex-1 flex-col">
-                <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mb-10 shadow-lg shadow-primary/30 group-hover:scale-110 transition-transform">
-                  <MapIcon className="text-white w-8 h-8" />
-                </div>
-                <h3 className="text-4xl font-bold mb-6 dark:text-white tracking-tight">
-                  {u(
-                    "landing.realTimeGlobalVisibility",
-                    "Real-time Global Visibility",
-                  )}
-                </h3>
-                <p className="text-slate-500 dark:text-slate-400 max-w-md text-xl leading-relaxed">
-                  {u(
-                    "landing.realTimeGlobalVisibilityDesc",
-                    "Track every package, vehicle, and asset in real-time with sub-meter precision across 180+ countries.",
-                  )}
-                </p>
-                <div className="mt-auto pt-8 flex gap-4">
-                  <div className="px-4 py-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700 flex items-center gap-2">
-                    <div className="w-2 h-2 min-w-2 min-h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-xs font-bold dark:text-white">
-                      99.9% Accuracy
-                    </span>
-                  </div>
-                  <div className="px-4 py-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700 flex items-center gap-2">
-                    <Globe className="w-4 h-4 text-primary" />
-                    <span className="text-xs font-bold dark:text-white">
-                      {u("landing.globalCoverage", "Global Coverage")}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Side Feature 1 */}
-            <div className="md:col-span-4 bg-white dark:bg-slate-900 rounded-[2.5rem] p-6 border border-slate-100 dark:border-slate-800 relative overflow-hidden">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.2em] font-black text-primary inline-flex items-center gap-1.5">
-                    <Truck className="w-3.5 h-3.5" />
-                    {u("landing.liveTracker", "Live Tracker")}
-                  </p>
-                  <p className="text-2xl font-black dark:text-white">
-                    ZAG-AMS-881
-                  </p>
-                </div>
-                <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-black uppercase tracking-wider">
-                  {trPackageStatus(lang, "In Transit")}
-                </span>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-3 mb-4">
-                <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
-                  <span>
-                    {u("landing.routeProgress.startHub", "Zagreb Hub")}
-                  </span>
-                  <span>
-                    {u("landing.routeProgress.endHub", "Amsterdam DC")}
-                  </span>
-                </div>
-                <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-                  <div className="h-full w-[44%] bg-primary rounded-full" />
-                </div>
-                <div className="mt-2 flex items-center justify-between text-xs font-bold">
-                  <span className="text-primary">
-                    {u("landing.routeProgress.completed", "612 km completed")}
-                  </span>
-                  <span className="text-slate-500">
-                    {u("landing.routeProgress.left", "779 km left")}
-                  </span>
-                </div>
-              </div>
-
-              <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 relative">
-                <MapContainer
-                  center={[50.2, 10.4]}
-                  zoom={5}
-                  dragging={false}
-                  scrollWheelZoom={false}
-                  doubleClickZoom={false}
-                  zoomControl={false}
-                  attributionControl={false}
-                  className="h-60 w-full grayscale-[0.03] dark:brightness-75"
-                >
-                  <HeroRouteFitBounds
-                    points={FEATURE_ROUTE_POINTS_WITH_STOPS}
-                  />
-                  <TileLayer
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    attribution="&copy; OpenStreetMap contributors"
-                  />
-                  <Polyline
-                    positions={FEATURE_ROUTE_POINTS_WITH_STOPS}
-                    pathOptions={{ color: "#00AEEF", weight: 4, opacity: 0.9 }}
-                  />
-                  <Marker position={FEATURE_ROUTE_START} />
-                  <Marker position={FEATURE_ROUTE_STOP_1} />
-                  <Marker position={FEATURE_ROUTE_STOP_2} />
-                  <Marker position={FEATURE_ROUTE_END} />
-                </MapContainer>
-                <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-slate-900/80 text-white text-[10px] font-black uppercase tracking-wider z-[1000]">
-                  Zagreb → Amsterdam
-                </div>
-              </div>
-
-              <div className="mt-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-3">
-                <p className="text-[10px] uppercase tracking-[0.2em] font-black text-primary mb-3">
-                  {u("landing.routeTimeline", "Route Timeline")}
-                </p>
-                <div className="space-y-3">
-                  {trackerTimeline.map((event, index) => (
-                    <div
-                      key={`${event.time}-${index}`}
-                      className="flex items-start gap-3"
-                    >
-                      <div
-                        className={cn(
-                          "mt-0.5 w-6 h-6 rounded-lg shrink-0 flex items-center justify-center",
-                          event.iconClass,
-                        )}
-                      >
-                        <event.icon className="w-3.5 h-3.5" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs font-bold dark:text-white truncate">
-                            {event.title}
-                          </p>
-                          <span className="text-[10px] font-semibold text-slate-500 shrink-0">
-                            {event.time}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                          {event.note}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-4 space-y-2 border-t border-slate-100 pt-4 dark:border-slate-800">
-                {LANDING_DEMO_LOADS.slice(1, 3).map((demo) => {
-                  const stops = Array.isArray(demo.stops)
-                    ? (demo.stops as Record<string, unknown>[])
-                    : [];
-                  const from = stops[0];
-                  const to = stops[stops.length - 1];
-                  return (
-                    <div
-                      key={String(demo.id)}
-                      className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950"
-                    >
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                        <Truck className="h-4 w-4" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-xs font-black text-slate-900 dark:text-white">
-                          {String(demo.booking_reference)}
-                        </span>
-                        <span className="block truncate text-[11px] text-slate-500">
-                          {String(from?.city || "")} → {String(to?.city || "")}
-                        </span>
-                      </span>
-                      <span className="shrink-0 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-500">
-                        {trPackageStatus(lang, "In Transit")}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Bottom Feature 1 */}
-            <div className="md:col-span-4 bg-slate-50 dark:bg-slate-900 rounded-[2.5rem] p-8 flex flex-col justify-between border border-slate-100 dark:border-slate-800 transition-all">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary inline-flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5" />
-                    {u("landing.routeStops", "Route Stops")}
-                  </p>
-                  <h3 className="text-2xl font-bold dark:text-white tracking-tight">
-                    {u("landing.waypointPlanner", "Waypoint Planner")}
-                  </h3>
-                </div>
-                <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase tracking-wider">
-                  {u("landing.fourMarkers", "4 Markers")}
-                </span>
-              </div>
-
-              <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 relative">
-                <MapContainer
-                  center={[50.2, 10.4]}
-                  zoom={5}
-                  dragging={false}
-                  scrollWheelZoom={false}
-                  doubleClickZoom={false}
-                  zoomControl={false}
-                  attributionControl={false}
-                  className="h-56 min-h-[14rem] w-full grayscale-[0.03] dark:brightness-75"
-                >
-                  <HeroRouteFitBounds
-                    points={FEATURE_ROUTE_POINTS_WITH_STOPS}
-                    paddingTopLeft={[20, 20]}
-                    paddingBottomRight={[20, 20]}
-                    maxZoom={5}
-                  />
-                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                  <Polyline
-                    positions={FEATURE_ROUTE_POINTS_WITH_STOPS}
-                    pathOptions={{ color: "#00AEEF", weight: 4, opacity: 0.9 }}
-                  />
-                  {FEATURE_ROUTE_STOPS.map((stop) => (
-                    <Marker
-                      key={stop.id}
-                      position={stop.position}
-                      icon={getWaypointMarkerIcon(selectedWaypoint === stop.id)}
-                    />
-                  ))}
-                </MapContainer>
-              </div>
-
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                {FEATURE_ROUTE_STOPS.map((stop) => (
-                  <button
-                    key={stop.id}
-                    onClick={() => setSelectedWaypoint(stop.id)}
-                    className={cn(
-                      "h-9 rounded-xl border px-3 flex items-center gap-2 transition-colors cursor-pointer",
-                      selectedWaypoint === stop.id
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-500 dark:text-slate-400 hover:border-primary/50",
-                    )}
-                  >
-                    <MapPin className="w-3.5 h-3.5 shrink-0" />
-                    <span className="text-xs font-bold truncate">
-                      {stop.label}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </section>
-
       {/* Section 3b: the load exchange, on its own so it can breathe */}
       <section
         id="exchange"
@@ -3512,6 +3237,38 @@ const LandingPage = ({
             </p>
           </div>
           <LandingLoadExchange lang={lang} />
+        </div>
+      </section>
+
+      {/* Section 3: Bento Features Grid */}
+      <section
+        id="features"
+        className={cn(
+          "scroll-mt-28 bg-white dark:bg-slate-950",
+          SECTION_PADDING,
+        )}
+      >
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-20">
+            <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-violet-500 sm:text-xs">
+              <PackageIcon className="h-4 w-4" />
+              {u("landing.tracking.eyebrow", "My Cargo")}
+            </p>
+            <h2 className="text-4xl md:text-6xl font-display font-black mb-6 dark:text-white tracking-tight">
+              {u("landing.trackingTitle1", "Tracking that")} <br />{" "}
+              <span className="text-violet-500">
+                {u("landing.trackingTitle2", "never blinks.")}
+              </span>
+            </h2>
+            <p className="text-slate-500 dark:text-slate-400 max-w-2xl mx-auto text-lg">
+              {u(
+                "landing.trackingDesc",
+                "Follow every vehicle, stop and waypoint in real time - from the pickup window to the final drop.",
+              )}
+            </p>
+          </div>
+
+          <LandingTrackingBoard lang={lang} />
         </div>
       </section>
 
@@ -3688,75 +3445,6 @@ const LandingPage = ({
         </div>
       </section>
 
-      {/* Section 5: The Experience / Dashboard Preview */}
-      <section
-        id="enterprise"
-        className={cn(
-          "scroll-mt-28 bg-white dark:bg-slate-950 overflow-hidden relative",
-          SECTION_PADDING,
-        )}
-      >
-        <div className="max-w-7xl mx-auto mx-4 sm:mx-6 xl:mx-auto rounded-[2.5rem] bg-slate-900 px-6 py-12 sm:p-12 lg:p-16 relative z-10">
-          <div className="grid gap-20 items-center">
-            <div>
-              <h2 className="text-4xl md:text-6xl font-display font-black text-white mb-8 leading-tight">
-                {u("landing.controlOperationTitle1", "Control your entire")}{" "}
-                <br />{" "}
-                <span className="text-primary">
-                  {u("landing.controlOperationTitle2", "Operation.")}
-                </span>
-              </h2>
-              <div className="space-y-8">
-                {[
-                  {
-                    title: u(
-                      "landing.enterprise.unifiedDashboard.title",
-                      "Unified Dashboard",
-                    ),
-                    desc: u(
-                      "landing.enterprise.unifiedDashboard.desc",
-                      "One screen to rule them all. Manage drivers, loads, and tracking in one place.",
-                    ),
-                  },
-                  {
-                    title: u(
-                      "landing.enterprise.smartNotifications.title",
-                      "Smart Notifications",
-                    ),
-                    desc: u(
-                      "landing.enterprise.smartNotifications.desc",
-                      "Get alerted before delays happen with our predictive analytics engine.",
-                    ),
-                  },
-                  {
-                    title: u(
-                      "landing.enterprise.automatedReporting.title",
-                      "Automated Reporting",
-                    ),
-                    desc: u(
-                      "landing.enterprise.automatedReporting.desc",
-                      "Generate complex logistics reports in seconds, not hours.",
-                    ),
-                  },
-                ].map((item, i) => (
-                  <div key={i} className="flex gap-6">
-                    <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                      <CheckCircle2 className="text-primary w-6 h-6" />
-                    </div>
-                    <div>
-                      <h4 className="text-xl font-bold text-white mb-2">
-                        {item.title}
-                      </h4>
-                      <p className="text-slate-400">{item.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Section 6: Pricing - Modern Cards */}
       <section
         id="pricing"
@@ -3925,12 +3613,7 @@ const LandingPage = ({
       </section>
 
       {/* Footer */}
-      <footer
-        className={cn(
-          "bg-white dark:bg-slate-950 border-t border-slate-100 dark:border-slate-900",
-          SECTION_PADDING,
-        )}
-      >
+      <footer className="bg-white dark:bg-slate-950 border-t border-slate-100 dark:border-slate-900 pt-20 pb-10 sm:pt-24 lg:pt-32">
         <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-4 gap-12">
           <div className="col-span-2">
             <div className="flex items-center mb-8">
@@ -4022,6 +3705,15 @@ const LandingPage = ({
             </a>
             <a href="#" className="hover:text-primary transition-colors">
               {u("footer.termsOfService", "Terms of Service")}
+            </a>
+            <a
+              href="https://qla.dev"
+              target="_blank"
+              rel="noreferrer noopener"
+              title="qla.dev"
+              className="font-brand text-base font-bold normal-case leading-none tracking-tight text-slate-900 transition-opacity hover:opacity-80 dark:text-white"
+            >
+              qla<span className="text-primary">.dev</span>
             </a>
           </div>
         </div>

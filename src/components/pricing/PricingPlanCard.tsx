@@ -17,6 +17,7 @@ import {
   Navigation,
   Navigation2,
   Bell,
+  IdCard,
   Check,
   ArrowRight,
 } from 'lucide-react';
@@ -32,7 +33,7 @@ export const PACKAGE_ICONS: Record<string, IconComponent> = { Rocket, Gem, Build
 
 export const FEATURE_ICONS: Record<string, IconComponent> = {
   Boxes, Package: PackageIcon, Map: MapIcon, Truck, Sparkles, MessageSquare, BarChart3, Globe, Banknote, Users,
-  Smartphone, Navigation, Navigation2, Bell,
+  Smartphone, Navigation, Navigation2, Bell, IdCard,
 };
 
 const ROLE_LABELS: Record<string, string> = {
