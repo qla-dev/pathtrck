@@ -309,7 +309,9 @@ export const ChatConversationPanel = ({
         const turnChanged = index > 0 && previousSender !== undefined && previousSender !== m.sender;
         return (
         <div key={m.id} className={cn('group relative', index > 0 && (turnChanged ? 'mt-14' : 'mt-3'), isAiAnswer ? 'w-full' : 'w-fit max-w-[min(85%,36rem)]', m.sender === 'me' ? 'ml-auto' : m.sender === 'system' ? 'mx-auto' : 'mr-auto')}>
-          {m.sender === 'other' && typingMessageId !== m.id && !m.id.startsWith('welcome-') && (
+          {/* The greeting and the out-of-messages card carry no copyable answer of their own, so
+              neither offers the copy affordance - both are recognised by their message id. */}
+          {m.sender === 'other' && typingMessageId !== m.id && !m.id.startsWith('welcome-') && !m.id.startsWith('blocked-') && (
             <button
               type="button"
               onClick={() => void copyMessage(m.id, m.text)}

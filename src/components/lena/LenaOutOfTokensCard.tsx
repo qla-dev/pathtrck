@@ -1,4 +1,5 @@
 import { CreditCard, Sparkles, Zap } from 'lucide-react';
+import { motion } from 'motion/react';
 
 import { flatpickrI18n, ui } from '../../i18n';
 import { Language } from '../../types';
@@ -34,7 +35,16 @@ export const LenaOutOfTokensCard = ({ lang, resetAt, onUpgrade, onTopUp }: LenaO
     : u('lena.outOfTokens.bodyNoReset', 'To keep using LenaAI, add credits or upgrade your plan today.');
 
   return (
-    <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    // Pops in rather than fading: this replaces an answer the user was waiting for, so it should
+    // read as an interruption, not as another line of chat. select-none keeps it out of a drag
+    // selection - it is a notice, not a message worth copying (the copy affordance is hidden for
+    // it in ChatConversationPanel).
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9, y: 8 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={{ type: 'spring', stiffness: 420, damping: 26, mass: 0.7 }}
+      className="w-full max-w-sm select-none rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+    >
       <div className="flex items-center gap-2.5">
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400"><Sparkles className="h-4 w-4" /></span>
         <p className="text-sm font-black text-slate-900 dark:text-white">{u('lena.outOfTokens.title', 'You are out of LenaAI messages')}</p>
@@ -50,6 +60,6 @@ export const LenaOutOfTokensCard = ({ lang, resetAt, onUpgrade, onTopUp }: LenaO
           {u('lena.outOfTokens.addCredits', 'Add credits')}
         </button>
       </div>
-    </div>
+    </motion.div>
   );
 };
