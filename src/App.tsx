@@ -41,6 +41,8 @@ import {
   RefreshCw,
   ScanSearch,
   Gem,
+  Rocket,
+  CircleAlert,
   History,
   Zap,
   Factory,
@@ -131,7 +133,7 @@ import { PaymentHistoryView } from "./components/views/PaymentHistoryView";
 import { TariffsHsView } from "./components/views/TariffsHsView";
 import { PaymentModal } from "./components/modals/PaymentModal";
 import { BrandWordmark, FreightbookMark } from "./components/ui/BrandWordmark";
-import { PricingPlanCard } from "./components/pricing/PricingPlanCard";
+import { PACKAGE_ICONS, PricingPlanCard } from "./components/pricing/PricingPlanCard";
 import { SetupProcess } from "./components/auth/SetupProcess";
 import { LoginProcess } from "./components/auth/LoginProcess";
 import { FleetOnboardingPreview } from "./components/landing/FleetOnboardingPreview";
@@ -5343,6 +5345,32 @@ export default function App() {
   );
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [pricingRefreshSignal, setPricingRefreshSignal] = useState(0);
+  // The plan the signed-in user is actually on, so the topbar pricing button can wear that plan's
+  // own icon instead of a fixed one. Re-read after a checkout (pricingRefreshSignal) so switching
+  // plans updates the button straight away.
+  const [activePlan, setActivePlan] = useState<{ icon: string | null; unlimited: boolean } | null>(
+    null,
+  );
+  useEffect(() => {
+    if (!currentUser?.id) return undefined;
+    let cancelled = false;
+    void api.subscriptions
+      .mine()
+      .then((response) => {
+        if (cancelled) return;
+        const data = (response.data || null) as Record<string, unknown> | null;
+        const subscriptionPackage = (data?.subscription_package ||
+          null) as Record<string, unknown> | null;
+        setActivePlan({
+          icon: subscriptionPackage?.icon ? String(subscriptionPackage.icon) : null,
+          unlimited: Boolean(response.meta?.unlimited),
+        });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser?.id, pricingRefreshSignal]);
   const viewContentRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     viewContentRef.current?.scrollTo({ top: 0 });
@@ -5962,6 +5990,15 @@ export default function App() {
   // site that used to gate on 'superadmin' alone stays in sync.
   const authenticatedRole = (currentUser?.role?.name as Role | undefined) || role;
   const isElevatedAdmin = authenticatedRole === "superadmin" || authenticatedRole === "master";
+  // God Mode roles carry no subscription row but are not planless, so they keep the generic Gem;
+  // a real plan shows its own icon (unknown names fall back like the pricing cards do), and only
+  // having no plan at all turns the button into a warning.
+  const ActivePlanIcon =
+    !activePlan || activePlan.unlimited
+      ? Gem
+      : activePlan.icon
+        ? PACKAGE_ICONS[activePlan.icon] || Rocket
+        : CircleAlert;
   const canManageTeam = authenticatedRole === "company" || authenticatedRole === "manager" || isElevatedAdmin;
   const canViewFinance = authenticatedRole === "company" || authenticatedRole === "manager" || authenticatedRole === "finance" || isElevatedAdmin;
   const warehouseFirst = Boolean(
@@ -6948,7 +6985,7 @@ export default function App() {
                   : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary hover:scale-105",
               )}
             >
-              <Gem className="w-5 h-5" />
+              <ActivePlanIcon className="w-5 h-5" />
             </button>
 
             {isElevatedAdmin && (

@@ -121,7 +121,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
   useEffect(() => { void api.auth.me().then(setUser); }, []);
   // LenaAI runs on the plan's message allowance: with none left the AI is never called, here or in
   // the standalone overlay (see useLenaTokenBalance).
-  const { outOfTokens, tokenResetAt, blockedMessages, blockedMessagesFor, denyOutOfTokens } = useLenaTokenBalance({ userId: user?.id });
+  const { outOfTokens, tokenResetAt, tokenPackageIcon, tokenPackageColor, blockedMessages, blockedMessagesFor, denyOutOfTokens } = useLenaTokenBalance({ userId: user?.id });
   const mapServerMessage = useCallback((message: Record<string, unknown>, isAiDispatch: boolean): Conversation['messages'][number] => {
     const body = String(message.body || '');
     const action = isAiDispatch ? lenaQuickActionFromMessage(body) : undefined;
@@ -427,6 +427,8 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     onSuggestedDraftChange: setDraft,
     onLoadReady: () => setCanvasPanelOpen(true),
     outOfTokensResetAt: tokenResetAt,
+    outOfTokensPackageIcon: tokenPackageIcon,
+    outOfTokensPackageColor: tokenPackageColor,
     onUpgrade,
     onTopUp,
   });

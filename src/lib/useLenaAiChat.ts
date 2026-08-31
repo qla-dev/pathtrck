@@ -107,7 +107,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
   const [sending, setSending] = useState(false);
   const [optimisticMessages, setOptimisticMessages] = useState<OptimisticLenaMessage[]>([]);
 
-  const { outOfTokens, tokenResetAt, blockedMessages, denyOutOfTokens, clearBlockedMessages } = useLenaTokenBalance({ userId, active });
+  const { outOfTokens, tokenResetAt, tokenPackageIcon, tokenPackageColor, blockedMessages, denyOutOfTokens, clearBlockedMessages } = useLenaTokenBalance({ userId, active });
 
   const conversation = useMemo<Conversation>(() => {
     const rowMessages = row && Array.isArray(row.messages) ? row.messages as Array<Record<string, unknown>> : [];
@@ -469,5 +469,5 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
 
   const loadDraftId = row?.load_draft_id ? String(row.load_draft_id) : null;
 
-  return { outOfTokens, tokenResetAt, conversation, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, hasActiveConversation: Boolean(row), canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId };
+  return { outOfTokens, tokenResetAt, tokenPackageIcon, tokenPackageColor, conversation, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, hasActiveConversation: Boolean(row), canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId };
 };

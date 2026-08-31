@@ -170,6 +170,10 @@ type UseLenaEmbeddedMessagesOptions = {
   // When the plan's LenaAI allowance is spent, the reply is replaced by the out-of-messages card:
   // these drive its renewal date and its two actions.
   outOfTokensResetAt?: string | null;
+  // The active plan's own icon/colour (SubscriptionPackage.icon/color) - absent means no plan at
+  // all, which the card marks with an exclamation instead.
+  outOfTokensPackageIcon?: string | null;
+  outOfTokensPackageColor?: string | null;
   onUpgrade?: () => void;
   onTopUp?: () => void;
 };
@@ -188,6 +192,8 @@ export const useLenaEmbeddedMessages = ({
   onStepAnswer,
   preloadedLoads = {},
   outOfTokensResetAt,
+  outOfTokensPackageIcon,
+  outOfTokensPackageColor,
   onUpgrade,
   onTopUp,
 }: UseLenaEmbeddedMessagesOptions) => {
@@ -366,7 +372,7 @@ export const useLenaEmbeddedMessages = ({
     // visual distance from the text instead of looking cramped.
     return (
       <div className={`flex w-full max-w-xl flex-col gap-2 ${message.time ? 'mt-2' : 'mt-[27px]'}`}>
-        {outOfTokens && <LenaOutOfTokensCard lang={lang} resetAt={outOfTokensResetAt} onUpgrade={onUpgrade} onTopUp={onTopUp} />}
+        {outOfTokens && <LenaOutOfTokensCard lang={lang} resetAt={outOfTokensResetAt} packageIcon={outOfTokensPackageIcon} packageColor={outOfTokensPackageColor} onUpgrade={onUpgrade} onTopUp={onTopUp} />}
         {embeddedLoad && (
           <LenaLoadDetailsCard
             lang={lang}
@@ -412,7 +418,7 @@ export const useLenaEmbeddedMessages = ({
         )}
       </div>
     );
-  }, [bookingOffers, resolvedEmbeddedLoads, fallbackLoadId, lang, loadDetailCards, loadLocationCards, loadMapCards, loadReadyMessageIds, loadStatusCards, locationChoiceByMessage, onBookLoad, onLoadReady, onOpenLoad, onQuickAction, onStepAnswer, onSuggestedDraftChange, onSuggestedReply, onTopUp, onUpgrade, outOfTokensMessageIds, outOfTokensResetAt, questionnaireSuggestionsByMessage, quickActionLabels, quickActionsByMessage]);
+  }, [bookingOffers, resolvedEmbeddedLoads, fallbackLoadId, lang, loadDetailCards, loadLocationCards, loadMapCards, loadReadyMessageIds, loadStatusCards, locationChoiceByMessage, onBookLoad, onLoadReady, onOpenLoad, onQuickAction, onStepAnswer, onSuggestedDraftChange, onSuggestedReply, onTopUp, onUpgrade, outOfTokensMessageIds, outOfTokensPackageColor, outOfTokensPackageIcon, outOfTokensResetAt, questionnaireSuggestionsByMessage, quickActionLabels, quickActionsByMessage]);
 
   const extraContentVersion = `${embeddedLoadIds.join(',')}:${Object.keys(resolvedEmbeddedLoads).sort().join(',')}:${[...quickActionsByMessage.keys()].join(',')}:${[...questionnaireSuggestionsByMessage.keys()].join(',')}:${[...locationChoiceByMessage.keys()].join(',')}:${[...loadReadyMessageIds].join(',')}:${[...outOfTokensMessageIds].join(',')}`;
 

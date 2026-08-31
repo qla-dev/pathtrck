@@ -207,7 +207,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [open, onClose]);
 
-  const { tokenResetAt, conversation, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId } = useLenaAiChat({
+  const { tokenResetAt, tokenPackageIcon, tokenPackageColor, conversation, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId } = useLenaAiChat({
     userId,
     companyIds,
     loadId,
@@ -253,6 +253,8 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
     onStepAnswer: (step, value, displayText) => void sendGuidedAnswer(step, value, displayText),
     onSuggestedDraftChange: setDraft,
     outOfTokensResetAt: tokenResetAt,
+    outOfTokensPackageIcon: tokenPackageIcon,
+    outOfTokensPackageColor: tokenPackageColor,
     onUpgrade,
     onTopUp,
     onLoadReady: () => {

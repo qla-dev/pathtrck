@@ -1,22 +1,31 @@
-import { CreditCard, Sparkles, Zap } from 'lucide-react';
+import { CircleAlert, CreditCard, Rocket, Zap } from 'lucide-react';
 import { motion } from 'motion/react';
 
 import { flatpickrI18n, ui } from '../../i18n';
+import { cn } from '../../lib/cn';
 import { Language } from '../../types';
+import { PACKAGE_ICONS } from '../pricing/PricingPlanCard';
 
 type LenaOutOfTokensCardProps = {
   lang: Language;
   // UserSubscription.expires_at - when the plan's message allowance renews. Optional: a plan can be
   // open-ended, in which case the card drops the "resets on ..." sentence instead of inventing one.
   resetAt?: string | null;
+  // SubscriptionPackage.icon/color of the plan whose allowance ran out, so the card is badged with
+  // the plan the user actually holds. No icon means no active plan - flagged with an exclamation.
+  packageIcon?: string | null;
+  packageColor?: string | null;
   onUpgrade?: () => void;
   onTopUp?: () => void;
 };
 
 // Shown inside the LenaAI chat instead of an AI reply once the user's plan has no LenaAI messages
 // left - the user's message still lands in the thread, this card answers it, and no AI call is made.
-export const LenaOutOfTokensCard = ({ lang, resetAt, onUpgrade, onTopUp }: LenaOutOfTokensCardProps) => {
+export const LenaOutOfTokensCard = ({ lang, resetAt, packageIcon, packageColor, onUpgrade, onTopUp }: LenaOutOfTokensCardProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  // An unknown icon name still means a real plan, so it falls back to the same Rocket the pricing
+  // cards use - only the absence of a plan turns the badge into a warning.
+  const PlanIcon = packageIcon ? PACKAGE_ICONS[packageIcon] || Rocket : CircleAlert;
 
   // bs-BA has poor ICU coverage in most JS runtimes, so the month name comes from the app's own
   // translated flatpickr locale data rather than Intl (same approach as UsageView.tsx).
@@ -46,7 +55,7 @@ export const LenaOutOfTokensCard = ({ lang, resetAt, onUpgrade, onTopUp }: LenaO
       className="w-full max-w-sm select-none rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"
     >
       <div className="flex items-center gap-2.5">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400"><Sparkles className="h-4 w-4" /></span>
+        <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-xl', packageIcon ? packageColor || 'bg-primary/10 text-primary' : 'bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400')}><PlanIcon className="h-4 w-4" /></span>
         <p className="text-sm font-black text-slate-900 dark:text-white">{u('lena.outOfTokens.title', 'You are out of LenaAI messages')}</p>
       </div>
       <p className="mt-2.5 text-xs leading-5 text-slate-500 dark:text-slate-400">{body}</p>

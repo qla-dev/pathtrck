@@ -23,7 +23,7 @@ type UseLenaTokenBalanceOptions = {
 // AI. Only God Mode roles, which report `unlimited` and carry no subscription row, are never
 // blocked.
 export const useLenaTokenBalance = ({ userId, active = true }: UseLenaTokenBalanceOptions) => {
-  const [balance, setBalance] = useState<{ unlimited: boolean; remaining: number; resetAt: string | null } | null>(null);
+  const [balance, setBalance] = useState<{ unlimited: boolean; remaining: number; resetAt: string | null; packageIcon: string | null; packageColor: string | null } | null>(null);
   const [blockedMessages, setBlockedMessages] = useState<BlockedMessage[]>([]);
 
   useEffect(() => {
@@ -34,10 +34,13 @@ export const useLenaTokenBalance = ({ userId, active = true }: UseLenaTokenBalan
       .then((response) => {
         if (cancelled) return;
         const data = (response.data || null) as Record<string, unknown> | null;
+        const subscriptionPackage = (data?.subscription_package || null) as Record<string, unknown> | null;
         setBalance({
           unlimited: Boolean(response.meta?.unlimited),
           remaining: Number(data?.remaining_tokens ?? 0),
           resetAt: data?.expires_at ? String(data.expires_at) : null,
+          packageIcon: subscriptionPackage?.icon ? String(subscriptionPackage.icon) : null,
+          packageColor: subscriptionPackage?.color ? String(subscriptionPackage.color) : null,
         });
       })
       .catch(() => undefined);
@@ -65,6 +68,8 @@ export const useLenaTokenBalance = ({ userId, active = true }: UseLenaTokenBalan
   return {
     outOfTokens,
     tokenResetAt: balance?.resetAt ?? null,
+    tokenPackageIcon: balance?.packageIcon ?? null,
+    tokenPackageColor: balance?.packageColor ?? null,
     blockedMessages,
     blockedMessagesFor,
     denyOutOfTokens,
