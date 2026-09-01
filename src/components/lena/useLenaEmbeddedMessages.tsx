@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { BadgeCheck, Banknote, CheckCircle2, CircleDot, CircleOff, Clock3, FileSearch, FileText, FileUp, Forklift, Handshake, Landmark, MapPinned, MessageCircle, Package, Plane, Radar, ReceiptText, Route, Ruler, ScanEye, ShieldCheck, Ship, Thermometer, Truck, UserRound, Zap, type LucideIcon } from 'lucide-react';
+import { BadgeCheck, Banknote, CheckCircle2, CircleDot, CircleOff, Clock3, FileSearch, FileText, FileUp, Forklift, Handshake, Landmark, MapPinned, MessageCircle, Package, Plane, Radar, ReceiptText, Route, Ruler, ScanEye, ShieldCheck, Ship, Thermometer, Truck, UserRound, Warehouse, Zap, type LucideIcon } from 'lucide-react';
 
 import { api } from '../../services/api';
 import { Language } from '../../types';
@@ -49,6 +49,7 @@ const removeVisibleMarkdownAsterisks = (text: string): string => text
 
 type SuggestedReply = { label: string; value: string; icon: LucideIcon; skip?: boolean };
 type SuggestedReplyGroup = { options: SuggestedReply[]; multiple?: boolean; exclusiveValue?: string };
+type WarehouseChoice = { id: string; name: string };
 
 const questionnaireOptionIcon = (step: string, value: string): LucideIcon => {
   const normalized = value.toLowerCase();
@@ -80,12 +81,12 @@ const questionnaireOptionIcon = (step: string, value: string): LucideIcon => {
   return CircleDot;
 };
 
-const questionnaireSuggestions = (step: string, lang: Language): SuggestedReplyGroup => {
+const questionnaireSuggestions = (step: string, lang: Language, warehouses: WarehouseChoice[] = []): SuggestedReplyGroup => {
   const labels = lang === 'bs'
-    ? { road: 'Cestovni', air: 'Zračni', sea: 'Pomorski', fixed: 'Fiksna cijena', negotiable: 'Otvoreno za ponude', none: 'Nije potrebno', unknown: 'Nije poznato', noPreference: 'Bez preferencije' }
+    ? { road: 'Cestovni', air: 'Zračni', sea: 'Pomorski', warehouse: 'Skladištenje', fixed: 'Fiksna cijena', negotiable: 'Otvoreno za ponude', none: 'Nije potrebno', unknown: 'Nije poznato', noPreference: 'Bez preferencije' }
     : lang === 'de'
-      ? { road: 'Straße', air: 'Luft', sea: 'See', fixed: 'Festpreis', negotiable: 'Offen für Angebote', none: 'Nicht erforderlich', unknown: 'Unbekannt', noPreference: 'Keine Präferenz' }
-      : { road: 'Road', air: 'Air', sea: 'Sea', fixed: 'Fixed price', negotiable: 'Open to offers', none: 'Not needed', unknown: 'Unknown', noPreference: 'No preference' };
+      ? { road: 'Straße', air: 'Luft', sea: 'See', warehouse: 'Lagerung', fixed: 'Festpreis', negotiable: 'Offen für Angebote', none: 'Nicht erforderlich', unknown: 'Unbekannt', noPreference: 'Keine Präferenz' }
+      : { road: 'Road', air: 'Air', sea: 'Sea', warehouse: 'Storage', fixed: 'Fixed price', negotiable: 'Open to offers', none: 'Not needed', unknown: 'Unknown', noPreference: 'No preference' };
   const option = (label: string, value: string = label, icon = questionnaireOptionIcon(step, value)): SuggestedReply => ({ label, value, icon });
   const laterLabel = lang === 'bs' ? 'Odaberi kasnije' : lang === 'de' ? 'Später auswählen' : 'Choose later';
   const skipValue = `[[LENA_SKIP:${step}]]`;
@@ -99,10 +100,17 @@ const questionnaireSuggestions = (step: string, lang: Language): SuggestedReplyG
   const withLater = (options: SuggestedReply[], settings: Omit<SuggestedReplyGroup, 'options'> = {}): SuggestedReplyGroup => ({ options: [...options, later], ...settings });
 
   switch (step) {
+    case 'storageTarget': return withLater([
+      option(lang === 'bs' ? 'Moje skladište' : lang === 'de' ? 'Mein Lager' : 'My warehouse', 'own', Warehouse),
+      option(lang === 'bs' ? 'Berza skladišta' : lang === 'de' ? 'Lagerbörse' : 'Warehouse exchange', 'exchange', Landmark),
+    ]);
+    case 'warehouse': return withLater(warehouses.map((warehouse) => option(warehouse.name, warehouse.id, Warehouse)));
     case 'transportType': return withLater([
       option(labels.road, 'road', Truck),
       option(labels.air, 'air', Plane),
       option(labels.sea, 'sea', Ship),
+      // Goods that stay put rather than travel - the same storage request the posting form files.
+      option(labels.warehouse, 'warehouse', Warehouse),
     ]);
     case 'bodyType': return withLater([...BODY_TYPE_OPTIONS.map((value) => option(value)), noneOption(labels.none)]);
     case 'vehicleType': return withLater([...VEHICLE_OPTIONS.map((value) => option(value)), noneOption(labels.noPreference)]);
@@ -197,6 +205,20 @@ export const useLenaEmbeddedMessages = ({
   onUpgrade,
   onTopUp,
 }: UseLenaEmbeddedMessagesOptions) => {
+  const latestStep = messages.at(-1)?.text.match(LENA_STEP_MARKER_PATTERN)?.[1] ?? null;
+  const [warehouseChoices, setWarehouseChoices] = useState<WarehouseChoice[]>([]);
+
+  useEffect(() => {
+    if (latestStep !== 'warehouse') return undefined;
+    let cancelled = false;
+    void api.warehouse.overview().then((response) => {
+      if (cancelled) return;
+      const rows = Array.isArray(response.data.warehouses) ? response.data.warehouses : [];
+      setWarehouseChoices(rows.map((row) => ({ id: String(row.id), name: String(row.name || `#${row.id}`) })));
+    }).catch(() => setWarehouseChoices([]));
+    return () => { cancelled = true; };
+  }, [latestStep]);
+
   const bookingOffers = useMemo(
     () => new Map(messages.flatMap((message) => {
       const match = message.text.match(BOOKING_MARKER_PATTERN);
@@ -264,11 +286,11 @@ export const useLenaEmbeddedMessages = ({
     const latestMessage = messages.at(-1);
     if (!latestMessage || latestMessage.sender !== 'other') return new Map<string, { step: string; group: SuggestedReplyGroup }>();
     const step = latestMessage.text.match(LENA_STEP_MARKER_PATTERN)?.[1];
-    const suggestions = step ? questionnaireSuggestions(step, lang) : { options: [] };
+    const suggestions = step ? questionnaireSuggestions(step, lang, warehouseChoices) : { options: [] };
     return suggestions.options.length && step
       ? new Map([[latestMessage.id, { step, group: suggestions }]])
       : new Map<string, { step: string; group: SuggestedReplyGroup }>();
-  }, [lang, messages]);
+  }, [lang, messages, warehouseChoices]);
   // The step LenaAI is currently waiting on, regardless of whether it has pills - drives the chat
   // input's live formatting/unit hint (see lenaStepInputMask.ts) for free-text steps like weight
   // or dimensions, not just the pill-driven ones above.
@@ -387,7 +409,7 @@ export const useLenaEmbeddedMessages = ({
         {quickActions.length > 0 && quickActionLabels && onQuickAction && (
           <div className="flex flex-wrap gap-2">
             {quickActions.map((action) => {
-              const Icon = action === 'add' ? FileUp : action === 'tracking' ? MapPinned : action === 'booking' ? ReceiptText : action === 'free' ? MessageCircle : FileSearch;
+              const Icon = action === 'add' ? FileUp : action === 'storage' ? Warehouse : action === 'tracking' ? MapPinned : action === 'booking' ? ReceiptText : action === 'free' ? MessageCircle : FileSearch;
               return <button key={action} type="button" onClick={() => onQuickAction(action)} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-primary/20 bg-white px-3 py-1.5 text-xs font-bold text-primary shadow-sm transition-colors hover:border-primary hover:bg-primary hover:text-white dark:bg-slate-900">
                 <Icon className="h-3.5 w-3.5" />{quickActionLabels[action]}
               </button>;

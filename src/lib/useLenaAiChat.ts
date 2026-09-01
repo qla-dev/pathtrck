@@ -14,9 +14,9 @@ import { useLenaTokenBalance } from './useLenaTokenBalance';
 export const LENA_AI_GENERAL_SUBJECT = `${AI_DISPATCH_SUBJECT_PREFIX}General`;
 const LENA_STEP_MARKER_PATTERN = /\[\[LENA_STEP:([a-zA-Z]+)\]\]/;
 
-export type LenaQuickAction = 'add' | 'tracking' | 'booking' | 'hs' | 'free' | 'upload_yes' | 'upload_no' | 'start_add_yes' | 'start_add_no' | 'continue_add_yes' | 'continue_add_no';
+export type LenaQuickAction = 'add' | 'storage' | 'tracking' | 'booking' | 'hs' | 'free' | 'upload_yes' | 'upload_no' | 'start_add_yes' | 'start_add_no' | 'continue_add_yes' | 'continue_add_no';
 export const lenaQuickActionMarker = (action: LenaQuickAction) => `[[LENA_ACTION:${action}]]`;
-const LENA_QUICK_ACTION_PATTERN = /^\[\[LENA_ACTION:(add|tracking|booking|hs|free|upload_yes|upload_no|start_add_yes|start_add_no|continue_add_yes|continue_add_no)\]\]$/;
+const LENA_QUICK_ACTION_PATTERN = /^\[\[LENA_ACTION:(add|storage|tracking|booking|hs|free|upload_yes|upload_no|start_add_yes|start_add_no|continue_add_yes|continue_add_no)\]\]$/;
 export const lenaQuickActionFromMessage = (text: string): LenaQuickAction | undefined =>
   text.match(LENA_QUICK_ACTION_PATTERN)?.[1] as LenaQuickAction | undefined;
 export const lenaConversationSubjectTitle = (subject: unknown): string => {

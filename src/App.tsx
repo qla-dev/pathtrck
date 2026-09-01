@@ -6637,6 +6637,11 @@ export default function App() {
           icon: Warehouse,
         },
         {
+          id: "docks",
+          label: u("nav.myDocks", "My docks"),
+          icon: ArrowDownToLine,
+        },
+        {
           id: "fleet",
           label: u("nav.globalFleet", "Global Fleet"),
           icon: Truck,
@@ -6678,21 +6683,20 @@ export default function App() {
                   },
                 ]),
             { id: "feed", label: t.homeFeed, icon: Boxes },
-            ...(warehouseFirst
+            {
+              id: "docks",
+              label: u("nav.myDocks", "My docks"),
+              icon: ArrowDownToLine,
+            },
+            ...(!warehouseFirst
               ? [
-                  {
-                    id: "docks",
-                    label: u("nav.myDocks", "My docks"),
-                    icon: ArrowDownToLine,
-                  },
-                ]
-              : [
                   {
                     id: "tracking",
                     label: myCargoLabels[lang || "en"],
                     icon: PackageIcon,
                   },
-                ]),
+                ]
+              : []),
             { id: "fleet", label: t.myFleet, icon: Truck },
             ...(canManageTeam
               ? [{ id: "company-team", label: u("nav.teamPermissions", "Team & Permissions"), icon: Users }]
@@ -6903,13 +6907,17 @@ export default function App() {
             {isWarehouseCompany ? (
               <button
                 onClick={() => {
-                  setView("warehouse-overview");
-                  setWarehouseCreateSignal((current) => current + 1);
+                  setLenaLoadPrefill({ transportType: "warehouse", storageTarget: "own" });
+                  setLenaSourceConversationId(null);
+                  setLenaSourceDraftId(null);
+                  setEditLoadId(null);
+                  setPostLoadTransportType("warehouse");
+                  setIsPostLoadOpen(true);
                 }}
                 className="h-10 px-4 rounded-full bg-primary text-white inline-flex items-center gap-2 text-xs font-bold hover:scale-[1.02] transition-all cursor-pointer whitespace-nowrap"
               >
-                <Plus className="w-4 h-4" />
-                <span>{u("warehouses.create", "Add Warehouse")}</span>
+                <ArrowDownToLine className="w-4 h-4" />
+                <span>{u("warehouseDocks.receiveGoods", "Receive goods")}</span>
               </button>
             ) : role === "user" ||
               role === "driver" ||
@@ -7319,6 +7327,10 @@ export default function App() {
                     setIsPostLoadOpen(true);
                   }}
                   onReceiveGoods={() => {
+                    setLenaLoadPrefill({ transportType: "warehouse", storageTarget: "own" });
+                    setLenaSourceConversationId(null);
+                    setLenaSourceDraftId(null);
+                    setEditLoadId(null);
                     setPostLoadTransportType("warehouse");
                     setIsPostLoadOpen(true);
                   }}

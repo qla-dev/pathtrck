@@ -56,6 +56,9 @@ export type ScanFieldPatch = Partial<{
   bookingReference: string;
   loadTitle: string;
   transportType: 'road' | 'air' | 'sea' | 'rail' | 'warehouse';
+  storageTarget: 'own' | 'exchange';
+  warehouseId: string;
+  warehouseName: string;
   goodsType: string;
   hsCodes: LoadScanResult['hsCodes'];
   weightKg: string;

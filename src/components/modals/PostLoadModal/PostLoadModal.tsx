@@ -261,6 +261,16 @@ const STEP_AI_FIELDS: Record<StepId, Array<keyof ScanFieldPatch & keyof LoadDraf
   review: [],
 };
 
+type OwnedWarehouse = {
+  id: number;
+  name: string;
+  city: string;
+  countryCode: string;
+  address: string;
+  latitude: string;
+  longitude: string;
+};
+
 
 export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSaved, initialPrefill = null, lockedTransportType = null, onOpenLenaAI, sourceConversationId = null, initialDraftId = null, onDraftConversationCreated }: PostLoadModalProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
@@ -358,9 +368,43 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   const [savingDraft, setSavingDraft] = useState(false);
   const [draftSavedAt, setDraftSavedAt] = useState<Date | null>(null);
   const [currentUser, setCurrentUser] = useState<ApiUser | null>(null);
+  const [ownedWarehouses, setOwnedWarehouses] = useState<OwnedWarehouse[]>([]);
   useEffect(() => { void api.auth.me().then(setCurrentUser); }, []);
+  useEffect(() => {
+    if (!isOpen || draft.transportType !== 'warehouse') return undefined;
+    let cancelled = false;
+    void api.warehouse.overview().then((response) => {
+      if (cancelled) return;
+      const rows = Array.isArray(response.data.warehouses) ? response.data.warehouses : [];
+      setOwnedWarehouses(rows.map((row) => ({
+        id: Number(row.id),
+        name: String(row.name || `#${row.id}`),
+        city: String(row.city || ''),
+        countryCode: String(row.country_code || ''),
+        address: String(row.address || ''),
+        latitude: String(row.latitude ?? ''),
+        longitude: String(row.longitude ?? ''),
+      })).filter((row) => row.id > 0));
+    }).catch(() => setOwnedWarehouses([]));
+    return () => { cancelled = true; };
+  }, [draft.transportType, isOpen]);
   const hsSearchRef = useRef<HTMLDivElement>(null);
   useOutsideClick(hsSearchRef, () => setHsSuggestions([]), hsSuggestions.length > 0);
+
+  const selectOwnedWarehouse = (warehouse: OwnedWarehouse) => {
+    setDraft((current) => ({
+      ...current,
+      storageTarget: 'own',
+      warehouseId: String(warehouse.id),
+      warehouseName: warehouse.name,
+      deliveryPlaceType: 'Warehouse',
+      deliveryCity: warehouse.city,
+      deliveryCountry: warehouse.countryCode,
+      deliveryAddress: warehouse.address,
+      deliveryLatitude: warehouse.latitude,
+      deliveryLongitude: warehouse.longitude,
+    }));
+  };
 
   const resetDraftState = () => {
     setStep('cargo');
@@ -1085,9 +1129,74 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     }
   };
 
+  const publishOwnWarehouseReceipt = async (): Promise<boolean> => {
+    const issues = validateDraft(u, draft);
+    if (issues) {
+      rejectSubmit(issues);
+      return false;
+    }
+    if (!draft.warehouseId) return false;
+    setIsSubmitting(true);
+    setSubmitError('');
+    setRejected(null);
+    try {
+      // This is an internal receipt record, not a marketplace listing. Publishing it creates the
+      // scheduled inbound movement that appears under My docks.
+      const response = await api.loads.create({
+        ...buildWarehouseLoadPayload(draft),
+        status: 'pending',
+        published_at: null,
+      });
+      await api.warehouseMovements.create({
+        warehouse_id: Number(draft.warehouseId),
+        load_id: Number(response.data.id),
+        direction: 'inbound',
+        status: 'scheduled',
+        scheduled_at: toApiDateTime(draft.deliveryDate || draft.warehouseStartDate, draft.deliveryTimeFrom) || new Date().toISOString(),
+        customer_name: currentUser?.name || null,
+        storage_type: draft.warehouseStorageType || null,
+        pallets: draft.pallets ? Number(draft.pallets) : null,
+        cbm: draft.volumeM3 ? Number(draft.volumeM3) : null,
+        weight_kg: draft.weightKg ? toApiWeightKg(draft.weightKg) : null,
+        rate: draft.budget ? Number(draft.budget) : null,
+        currency: draft.freightCurrency,
+        description: draft.loadTitle || null,
+      });
+      if (sourceConversationId) {
+        try {
+          await api.conversations.update(sourceConversationId, { load_id: response.data.id, canvas: false });
+        } catch {
+          // The receipt and dock movement already exist; linking chat history is secondary.
+        }
+      }
+      onSaved?.(response.data);
+      onClose();
+      void showSuccess(
+        u('postLoadModal.receiptScheduledTitle', 'Inbound receipt scheduled'),
+        u('postLoadModal.receiptScheduledText', 'The goods are now listed under My docks for the selected warehouse.'),
+      );
+      return true;
+    } catch (error) {
+      rejectFromApi(error, u('postLoadModal.apiError', 'The load could not be published.'));
+      return false;
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const submit = async () => {
     if (isSubmitting) return;
     if (draft.transportType === 'warehouse') {
+      if (draft.storageTarget === 'own') {
+        const confirmed = await confirmAction({
+          title: u('postLoadModal.scheduleReceiptTitle', 'Schedule warehouse receipt?'),
+          text: u('postLoadModal.scheduleReceiptText', 'This will create an inbound movement for the selected warehouse. It will not be published on the warehouse exchange.'),
+          confirmText: u('postLoadModal.scheduleReceiptConfirm', 'Schedule receipt'),
+        });
+        if (!confirmed) return;
+        await publishOwnWarehouseReceipt();
+        return;
+      }
       const confirmed = await confirmAction({
         title: u('postLoadModal.publishWarehouseTitle', 'Objava na berzu skladišta?'),
         text: editLoadId
@@ -1605,7 +1714,52 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
               {step === 'route' && (
                 <motion.div key="route" className="space-y-3" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
                   {draft.transportType === 'warehouse' ? (
-                    <WarehouseLocationFields draft={draft} setField={setField} setDraft={setDraft} u={u} lang={lang} invalidClass={invalidClass} onOpenPickupMap={() => setAddressMap({ side: 'pickup', index: 0 })} onOpenWarehouseArea={() => setAreaMapOpen(true)} routeDistanceKm={routeDistanceKm} recalculatingRoute={measuringRoute} onShowRoute={() => setRouteMapOpen(true)} />
+                    <div className="space-y-3">
+                      <div className="rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
+                        <div className="mb-3 flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
+                          <Warehouse className="h-4 w-4" />
+                          <span>{u('postLoadModal.storageTarget', 'Where should the goods be stored?')}</span>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <ChoiceCard
+                            active={draft.storageTarget === 'own'}
+                            title={u('postLoadModal.storageTargetOwn', 'One of my warehouses')}
+                            description={u('postLoadModal.storageTargetOwnDesc', 'Create an inbound receipt on your dock schedule.')}
+                            icon={ArrowDownToLine}
+                            onClick={() => setDraft((current) => ({ ...current, storageTarget: 'own' }))}
+                          />
+                          <ChoiceCard
+                            active={draft.storageTarget === 'exchange'}
+                            title={u('postLoadModal.storageTargetExchange', 'Warehouse exchange')}
+                            description={u('postLoadModal.storageTargetExchangeDesc', 'Publish a storage request for warehouse companies.')}
+                            icon={Landmark}
+                            onClick={() => setDraft((current) => ({ ...current, storageTarget: 'exchange', warehouseId: '', warehouseName: '' }))}
+                          />
+                        </div>
+                        {draft.storageTarget === 'own' && (
+                          <div className="mt-4 space-y-2">
+                            <FieldLabel>{u('postLoadModal.receivingWarehouse', 'Receiving warehouse')}</FieldLabel>
+                            <div className={cn('flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950', invalidClass('warehouseId'))}>
+                              {ownedWarehouses.map((warehouse) => (
+                                <button
+                                  key={warehouse.id}
+                                  type="button"
+                                  onClick={() => selectOwnedWarehouse(warehouse)}
+                                  className={cn('inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-2 text-xs font-bold transition-colors', draft.warehouseId === String(warehouse.id) ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200')}
+                                >
+                                  <Warehouse className="h-3.5 w-3.5" />
+                                  {warehouse.name}
+                                </button>
+                              ))}
+                              {ownedWarehouses.length === 0 && (
+                                <p className="px-1 py-2 text-xs text-slate-500">{u('postLoadModal.noOwnedWarehouses', 'No warehouse is available for this account.')}</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <WarehouseLocationFields draft={draft} setField={setField} setDraft={setDraft} u={u} lang={lang} invalidClass={invalidClass} onOpenPickupMap={() => setAddressMap({ side: 'pickup', index: 0 })} onOpenWarehouseArea={() => setAreaMapOpen(true)} routeDistanceKm={routeDistanceKm} recalculatingRoute={measuringRoute} onShowRoute={() => setRouteMapOpen(true)} />
+                    </div>
                   ) : (
                   <>
                   <div className="grid lg:grid-cols-[minmax(0,5fr)_minmax(0,5fr)_minmax(0,2fr)] gap-3">
@@ -2805,6 +2959,12 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                     {draft.transportType === 'warehouse' ? (
                     <div className="rounded-3xl border border-slate-200 dark:border-slate-800 p-4">
                       <SummaryRow label={u('postLoadModal.titleSummary', 'Title')} value={draft.loadTitle || '—'} />
+                      <SummaryRow
+                        label={u('postLoadModal.storageTarget', 'Storage destination')}
+                        value={draft.storageTarget === 'own'
+                          ? draft.warehouseName || u('postLoadModal.storageTargetOwn', 'One of my warehouses')
+                          : u('postLoadModal.storageTargetExchange', 'Warehouse exchange')}
+                      />
                       <SummaryRow label={u('postLoadModal.warehouseStorageType', 'Vrsta skladištenja')} value={u(`postLoadModal.storageType.${draft.warehouseStorageType}`, draft.warehouseStorageType)} />
                       <SummaryRow label={u('postLoadModal.pickupBlock', 'Pickup')} value={`${draft.pickupCity || '—'}, ${draft.pickupCountry || '—'}`} />
                       <SummaryRow label={u('postLoadModal.warehousePreferredLocation', 'Željena lokacija skladišta')} value={`${draft.deliveryCity || '—'}, ${draft.deliveryCountry || '—'}`} />
@@ -3057,7 +3217,9 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       : editLoadId
                         ? u('common.save', 'Save changes')
                         : draft.transportType === 'warehouse'
-                          ? u('common.postWarehouse', 'Objavi na berzu skladišta')
+                          ? draft.storageTarget === 'own'
+                            ? u('postLoadModal.scheduleReceiptConfirm', 'Schedule receipt')
+                            : u('common.postWarehouse', 'Objavi na berzu skladišta')
                           : u('common.postLoad', 'Objava na berzu tereta')}
                   </span>
                 </Button>

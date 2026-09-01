@@ -37,7 +37,12 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftI
   // attachment already reflects the full, up-to-date state of the load (see latestLoadScan).
   const mergedScan = useMemo(() => latestLoadScan(attachments) ?? null, [attachments]);
   const rows = mergedScan ? buildScanFieldRows(mergedScan) : [];
-  const patch = rows.reduce<ScanFieldPatch>((result, row) => ({ ...result, ...row.patch }), {});
+  const patch = {
+    ...rows.reduce<ScanFieldPatch>((result, row) => ({ ...result, ...row.patch }), {}),
+    ...(mergedScan?.storageTarget ? { storageTarget: mergedScan.storageTarget as 'own' | 'exchange' } : {}),
+    ...(mergedScan?.warehouseId ? { warehouseId: String(mergedScan.warehouseId) } : {}),
+    ...(mergedScan?.warehouseName ? { warehouseName: mergedScan.warehouseName } : {}),
+  };
 
   // Show when the draft was actually last saved as soon as the canvas opens, not just after the
   // user manually saves in this session - fetch its real updated_at from the server.

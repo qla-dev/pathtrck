@@ -151,6 +151,9 @@ export type LoadScanResult = {
   consignee: Record<string, unknown> | null;
   title: string;
   transportType: string;
+  storageTarget?: 'own' | 'exchange' | '';
+  warehouseId?: number | null;
+  warehouseName?: string;
   cargoType: string;
   goodsType: string;
   hsSearchTerms: string;

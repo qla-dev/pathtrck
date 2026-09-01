@@ -166,6 +166,9 @@ export const loadDraftRecordToScan = (record: unknown): LoadScanResult | undefin
     consignee,
     title: draftString(draft.title),
     transportType: draftString(draft.transport_type),
+    storageTarget: draftString(draft.storage_target) as LoadScanResult['storageTarget'],
+    warehouseId: draftNullableNumber(draft.warehouse_id),
+    warehouseName: draftString((draft.warehouse as Record<string, unknown> | null)?.name),
     cargoType: draftString(draft.cargo_type),
     goodsType: draftString(draft.goods_type),
     hsSearchTerms: '',
@@ -255,6 +258,8 @@ export const scanPatchToDraftPayload = (patch: ScanFieldPatch): Record<string, u
   if (patch.bookingReference !== undefined) payload.booking_reference = patch.bookingReference;
   if (patch.loadTitle !== undefined) payload.title = patch.loadTitle;
   if (patch.transportType !== undefined) payload.transport_type = patch.transportType;
+  if (patch.storageTarget !== undefined) payload.storage_target = patch.storageTarget;
+  if (patch.warehouseId !== undefined) payload.warehouse_id = patch.warehouseId ? Number(patch.warehouseId) : null;
   if (patch.goodsType !== undefined || patch.hsCodes !== undefined) {
     payload.goods_type = deriveGoodsTypeCode(patch.hsCodes, patch.goodsType || 'General');
   }

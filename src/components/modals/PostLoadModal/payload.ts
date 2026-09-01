@@ -175,6 +175,10 @@ export const buildDraftPayload = (draft: LoadDraft) => ({
   // What makes a storage request one, kept so a warehouse draft is not reduced to its generic
   // load fields. Sent only for that transport type - a road load has no storage answers to lose.
   storage_type: draft.transportType === 'warehouse' ? draft.warehouseStorageType || null : null,
+  storage_target: draft.transportType === 'warehouse' ? draft.storageTarget : null,
+  warehouse_id: draft.transportType === 'warehouse' && draft.storageTarget === 'own' && draft.warehouseId
+    ? Number(draft.warehouseId)
+    : null,
   storage_start_date: draft.transportType === 'warehouse' ? toApiDate(draft.deliveryDate || draft.warehouseStartDate) : null,
   storage_end_date: draft.transportType === 'warehouse' && !draft.warehouseIsOngoing
     ? toApiDate(draft.deliveryDateTo || draft.warehouseEndDate)

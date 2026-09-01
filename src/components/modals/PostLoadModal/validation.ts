@@ -298,6 +298,9 @@ export const validateDraft = (u: Translate, draft: LoadDraft, mode: 'publish' | 
   if (isWarehouse && !String(draft.deliveryDate || '').trim()) {
     fail(`${u('postLoadModal.warehouseStartDate', 'Storage start date')}: ${u('postLoadModal.requiredField', 'This field is required.')}`, 'deliveryDate');
   }
+  if (isWarehouse && draft.storageTarget === 'own' && !String(draft.warehouseId || '').trim()) {
+    fail(`${u('postLoadModal.receivingWarehouse', 'Receiving warehouse')}: ${u('postLoadModal.requiredField', 'This field is required.')}`, 'warehouseId');
+  }
 
   return message ? { message, fields: [...new Set(fields)] } : null;
 };

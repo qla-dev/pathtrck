@@ -96,6 +96,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const quickActionLabels = useMemo<Record<LenaQuickAction, string>>(() => ({
     add: u('Add a new load', 'Add a new load'),
+    storage: u('Store goods', 'Store goods'),
     tracking: u('Check load status', 'Check load status'),
     booking: u('Reserve a load', 'Reserve a load'),
     hs: u('Check HS code', 'Check HS code'),
@@ -107,7 +108,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     continue_add_yes: u('Yes, continue', 'Yes, continue'),
     continue_add_no: u('No, leave load creation', 'No, leave load creation'),
   }), [lang]);
-  const generalWelcome = `${u('Lena welcome general', 'Hello, I am LenaAI, your AI dispatcher in Freightbook.ai.\n\nYou can write to me in any language. I will reply exclusively in the language you use. How can I help you today?')}\n\n[[LENA_OPTIONS:add,tracking,booking,hs,free]]`;
+  const generalWelcome = `${u('Lena welcome general', 'Hello, I am LenaAI, your AI dispatcher in Freightbook.ai.\n\nYou can write to me in any language. I will reply exclusively in the language you use. How can I help you today?')}\n\n[[LENA_OPTIONS:add,storage,tracking,booking,hs,free]]`;
   const result = useApiList(api.conversations.list, { per_page: 10 });
   const isInitialRefreshSignal = useRef(true);
   useEffect(() => {
