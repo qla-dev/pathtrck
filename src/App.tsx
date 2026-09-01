@@ -7116,7 +7116,7 @@ export default function App() {
             "flex-1 min-h-0 w-full max-w-none",
             view === "map" || isTrackingMapActive
               ? "p-0"
-              : view === "warehouse-overview" || view === "warehouses"
+              : view === "warehouse-overview" || view === "warehouses" || view === "admin"
                 ? "p-4 pb-24 md:pb-4"
                 : "p-6 pb-24 md:pb-6",
             view === "messages" || view === "map"

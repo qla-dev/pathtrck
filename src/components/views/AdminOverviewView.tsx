@@ -1,308 +1,162 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  Activity,
-  BarChart3,
-  Boxes,
-  Building2,
-  CircleDollarSign,
-  Crown,
-  Gauge,
-  PackageCheck,
-  ReceiptText,
-  ShieldCheck,
-  Truck,
-  Users,
-  Warehouse,
-} from 'lucide-react';
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { Activity, AlertTriangle, Box, Building2, Check, Crown, FileClock, Gauge, MapPin, PackageCheck, ReceiptText, ShieldCheck, Truck, Users, Warehouse } from 'lucide-react';
+import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import worldMap from '@svg-maps/world';
 
 import { useApiList } from '../../hooks/useApiList';
+import { trLoadStatus } from '../../i18n';
 import { api } from '../../services/api';
 import { Language } from '../../types';
-
-const companySubscriptionPlan = (company: Record<string, unknown>) => {
-  const owner = (company.owner || {}) as Record<string, unknown>;
-  const subscription = (owner.subscription || {}) as Record<string, unknown>;
-  const subscriptionPackage = (subscription.subscription_package || {}) as Record<string, unknown>;
-  return String(subscriptionPackage.name || 'Unassigned');
-};
-import { Card } from '../ui/Card';
-import { HeaderStatCard, PageHeader } from '../ui/PageHeader';
-import { InlineDataState } from '../ui/InlineDataState';
-import { DataTable } from '../ui/DataTable';
-
-const page = { per_page: 100 };
-const CHART_COLORS = ['#0ea5e9', '#8b5cf6', '#10b981', '#f97316', '#f43f5e', '#f59e0b', '#64748b'];
-const tooltipStyle = { borderRadius: '12px', border: '1px solid #334155', background: '#0f172a', color: '#e2e8f0', fontSize: '12px' };
 
 type WarehouseOverview = {
   warehouses?: Array<Record<string, unknown>>;
   stats?: Record<string, unknown>;
+  dock_schedule?: Array<Record<string, unknown>>;
+  recent_arrivals?: Array<Record<string, unknown>>;
 };
 
-const groupBy = (rows: Array<Record<string, unknown>>, key: string, fallback: string) => {
-  const grouped = new Map<string, number>();
-  rows.forEach((row) => {
-    const label = String(row[key] || fallback).replaceAll('_', ' ');
-    grouped.set(label, (grouped.get(label) || 0) + 1);
-  });
-  return Array.from(grouped, ([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-};
+const COPY = {
+  en: {
+    title: 'Platform Command Center', subtitle: 'Live visibility across logistics and warehouse operations stored in Freightbook.ai.', connected: 'DATABASE CONNECTED', logistics: 'Logistics companies', warehouseCompanies: 'Warehouse companies', drivers: 'Drivers', customers: 'Customers', transit: 'In transit', exchange: 'In exchange', events: 'Tracking events', invoices: 'Open invoices', capacity: 'Warehouse capacity', pending: 'Pending warehouses', vehicles: 'Fleet vehicles', active: 'Active loads', utilization: 'Driver utilization', delivery: 'On-time delivery', loadActivity: 'Load activity', last7: 'Last 7 days', loadStatus: 'Load status overview', driverPerformance: 'Driver performance', activeDrivers: 'Active drivers', utilizationRate: 'Utilization rate', topDrivers: 'Top drivers by deliveries', seeDrivers: 'View all drivers', fleetStatus: 'Fleet status overview', totalVehicles: 'Total vehicles', vehicleUtilization: 'Vehicle utilization', averageUtilization: 'Average utilization', vehicleTypes: 'Top vehicle types', routeRegion: 'Loads by route region', warehouseUtilization: 'Warehouse utilization (by occupancy)', incomingOutgoing: 'Incoming vs Outgoing pallets', recentTracking: 'Recent tracking events', alerts: 'Alerts & notifications', seeWarehouses: 'View all warehouses', seeTracking: 'View all tracking', seeAlerts: 'View all alerts', occupied: 'Occupied', available: 'Available', todayIncoming: 'Today incoming', todayOutgoing: 'Today outgoing', stockChange: 'In stock change', thisMonth: 'This month', warehouse: 'Warehouse', incoming: 'Incoming', outgoing: 'Outgoing', totalLoads: 'Total loads',
+  },
+  bs: {
+    title: 'Komandni centar platforme', subtitle: 'Pregled logističkih i skladišnih operacija uživo u Freightbook.ai.', connected: 'BAZA POVEZANA', logistics: 'Logističke kompanije', warehouseCompanies: 'Skladišne kompanije', drivers: 'Vozači', customers: 'Kupci', transit: 'U tranzitu', exchange: 'Na berzi', events: 'Praćenja', invoices: 'Otvorene fakture', capacity: 'Kapacitet skladišta', pending: 'Skladišta na čekanju', vehicles: 'Vozila flote', active: 'Aktivni tereti', utilization: 'Iskorištenost vozača', delivery: 'Isporuka na vrijeme', loadActivity: 'Aktivnost tereta', last7: 'Zadnjih 7 dana', loadStatus: 'Pregled statusa tereta', driverPerformance: 'Učinak vozača', activeDrivers: 'Aktivni vozači', utilizationRate: 'Stopa iskorištenosti', topDrivers: 'Najbolji vozači po isporukama', seeDrivers: 'Pogledaj sve vozače', fleetStatus: 'Pregled statusa flote', totalVehicles: 'Ukupno vozila', vehicleUtilization: 'Iskorištenost vozila', averageUtilization: 'Prosječna iskorištenost', vehicleTypes: 'Najčešći tipovi vozila', routeRegion: 'Tereti po regiji rute', warehouseUtilization: 'Iskorištenost skladišta (po zauzeću)', incomingOutgoing: 'Ulazne i izlazne palete', recentTracking: 'Nedavna praćenja', alerts: 'Upozorenja i obavijesti', seeWarehouses: 'Pogledaj sva skladišta', seeTracking: 'Pogledaj sva praćenja', seeAlerts: 'Pogledaj sva upozorenja', occupied: 'Zauzeto', available: 'Dostupno', todayIncoming: 'Danas ulaz', todayOutgoing: 'Danas izlaz', stockChange: 'Promjena zaliha', thisMonth: 'Ovaj mjesec', warehouse: 'Skladište', incoming: 'Ulaz', outgoing: 'Izlaz', totalLoads: 'Ukupno tereta',
+  },
+  de: {
+    title: 'Plattform-Kommandozentrale', subtitle: 'Live-Überblick über Logistik- und Lagerabläufe in Freightbook.ai.', connected: 'DATENBANK VERBUNDEN', logistics: 'Logistikunternehmen', warehouseCompanies: 'Lagerunternehmen', drivers: 'Fahrer', customers: 'Kunden', transit: 'Im Transport', exchange: 'In der Börse', events: 'Tracking-Ereignisse', invoices: 'Offene Rechnungen', capacity: 'Lagerkapazität', pending: 'Ausstehende Lager', vehicles: 'Flottenfahrzeuge', active: 'Aktive Ladungen', utilization: 'Fahrerauslastung', delivery: 'Pünktliche Lieferung', loadActivity: 'Ladungsaktivität', last7: 'Letzte 7 Tage', loadStatus: 'Ladungsstatus', driverPerformance: 'Fahrerleistung', activeDrivers: 'Aktive Fahrer', utilizationRate: 'Auslastungsrate', topDrivers: 'Top-Fahrer nach Lieferungen', seeDrivers: 'Alle Fahrer anzeigen', fleetStatus: 'Flottenstatus', totalVehicles: 'Fahrzeuge gesamt', vehicleUtilization: 'Fahrzeugauslastung', averageUtilization: 'Durchschnittliche Auslastung', vehicleTypes: 'Top-Fahrzeugtypen', routeRegion: 'Ladungen nach Routenregion', warehouseUtilization: 'Lagernutzung (nach Belegung)', incomingOutgoing: 'Ein- und ausgehende Paletten', recentTracking: 'Neueste Tracking-Ereignisse', alerts: 'Warnungen & Benachrichtigungen', seeWarehouses: 'Alle Lager anzeigen', seeTracking: 'Alle Trackings anzeigen', seeAlerts: 'Alle Warnungen anzeigen', occupied: 'Belegt', available: 'Verfügbar', todayIncoming: 'Heute eingehend', todayOutgoing: 'Heute ausgehend', stockChange: 'Bestandsänderung', thisMonth: 'Dieser Monat', warehouse: 'Lager', incoming: 'Eingehend', outgoing: 'Ausgehend', totalLoads: 'Ladungen gesamt',
+  },
+} as const;
 
-const eventDate = (row: Record<string, unknown>) => {
-  const value = row.occurred_at || row.event_at || row.created_at || row.updated_at;
+const tipStyle = { borderRadius: 10, border: '1px solid #e2e8f0', boxShadow: '0 8px 24px rgb(15 23 42 / .12)', fontSize: 11 };
+const number = (value: number) => value.toLocaleString('en-US');
+const EUROPE_CODES = new Set(['ad','al','am','at','az','ba','be','bg','by','ch','cy','cz','de','dk','ee','es','fi','fr','gb','ge','gr','hr','hu','ie','is','it','li','lt','lu','lv','mc','md','me','mk','mt','nl','no','pl','pt','ro','rs','ru','se','si','sk','sm','tr','ua','va','xk']);
+const COUNTRY_NAMES = new Intl.DisplayNames(['en'], { type: 'region' });
+const age = (value: unknown) => {
   const date = value ? new Date(String(value)) : null;
-  return date && !Number.isNaN(date.getTime()) ? date.toISOString().slice(0, 10) : null;
+  if (!date || Number.isNaN(date.getTime())) return '—';
+  const minutes = Math.max(0, Math.floor((Date.now() - date.getTime()) / 60000));
+  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 1440) return `${Math.floor(minutes / 60)}h ago`;
+  return `${Math.floor(minutes / 1440)}d ago`;
 };
+const rowDate = (row: Record<string, unknown>) => new Date(String(row.occurred_at || row.completed_at || row.created_at || row.updated_at || 0));
+const statusTone = (status: string) => status.includes('cancel') ? '#f43f4f' : status.includes('finish') || status.includes('deliver') || status.includes('receive') ? '#57b976' : status.includes('post') || status.includes('pending') ? '#f49a36' : '#2d84e9';
+const canonicalStatus = (status: string) => ({
+  posted: 'Posted', opened: 'Opened', sent: 'Sent', in_delivery: 'In delivery',
+  received: 'Received', finished: 'Finished', pending: 'Pending', cancelled: 'Cancelled',
+} as Record<string, string>)[status.toLowerCase()] || status.replaceAll('_', ' ');
 
-const PanelTitle = ({ icon: Icon, title, subtitle }: { icon: typeof Activity; title: string; subtitle?: string }) => (
-  <div className="flex items-start gap-2">
-    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Icon className="h-4 w-4" /></span>
-    <div>
-      <p className="text-sm font-black text-slate-900 dark:text-white">{title}</p>
-      {subtitle && <p className="text-[11px] text-slate-500">{subtitle}</p>}
-    </div>
+const Panel = ({ title, aside, children, className = '' }: { title: string; aside?: React.ReactNode; children: React.ReactNode; className?: string }) => (
+  <section className={`relative min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_1px_4px_rgb(15_23_42/.04)] [&>div.text-primary]:absolute [&>div.text-primary]:bottom-[10px] [&>div.text-primary]:right-[10px] dark:border-slate-800 dark:bg-slate-900 ${className}`}>
+    <div className="mb-3 flex items-center justify-between gap-2"><h2 className="text-[13px] font-black text-slate-900 dark:text-white">{title}</h2>{aside}</div>{children}
+  </section>
+);
+
+const Metric = ({ label, value, icon: Icon, tone }: { label: string; value: string; icon: typeof Users; tone: string }) => (
+  <div className="flex min-w-0 items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-[0_1px_4px_rgb(15_23_42/.04)] dark:border-slate-800 dark:bg-slate-900">
+    <div className="min-w-0"><div className="truncate text-[8px] font-black uppercase tracking-wide text-slate-500">{label}</div><div className="mt-0.5 text-[16px] font-black leading-none text-slate-950 dark:text-white">{value}</div></div>
+    <span className={`ml-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${tone}`}><Icon className="h-3.5 w-3.5" /></span>
   </div>
 );
 
-export const AdminOverviewView = ({ lang: _lang }: { lang: Language }) => {
-  const companies = useApiList(api.companies.list, page);
+const DotLegend = ({ rows }: { rows: Array<readonly [string, number, string]> }) => <div className="space-y-2.5">{rows.map(([label, value, color]) => <div key={label} className="flex items-center text-[10px]"><i className="mr-2 h-2 w-2 rounded-full" style={{ background: color }} /><span className="text-slate-600 dark:text-slate-300">{label}</span><b className="ml-auto text-slate-900 dark:text-white">{value}</b></div>)}</div>;
+
+const GaugeChart = ({ value, label }: { value: number; label: string }) => (
+  <div className="relative mx-auto h-[95px] w-[150px] overflow-hidden"><div className="absolute left-[13px] top-[12px] h-[124px] w-[124px] rounded-full border-[16px] border-slate-100 dark:border-slate-800" /><div className="absolute left-[13px] top-[12px] h-[124px] w-[124px] rotate-[45deg] rounded-full border-[16px] border-transparent border-l-cyan-500 border-t-cyan-500" /><div className="absolute inset-x-0 bottom-0 text-center"><strong className="text-2xl font-black">{value}%</strong><p className="text-[9px] text-slate-500">{label}</p></div></div>
+);
+
+const EuropeMap = ({ values }: { values: Map<string, number> }) => {
+  const peak = Math.max(1, ...values.values());
+  return <svg viewBox="420 188 195 178" className="h-[132px] w-full" role="img" aria-label="Europe loads by country">
+    <g stroke="#fff" strokeWidth="0.8" strokeLinejoin="round">
+      {worldMap.locations.filter((country) => EUROPE_CODES.has(country.id)).map((country) => {
+        const count = values.get(country.id.toUpperCase()) || 0;
+        const strength = count / peak;
+        const fill = count === 0 ? '#e7edf4' : strength > .7 ? '#1478c9' : strength > .35 ? '#3095e5' : '#86c5f4';
+        return <path key={country.id} d={country.path} fill={fill} className="transition-colors hover:fill-cyan-500"><title>{country.name}: {count}</title></path>;
+      })}
+    </g>
+  </svg>;
+};
+
+export const AdminOverviewView = ({ lang }: { lang: Language }) => {
+  const t = COPY[lang === 'bs' || lang === 'de' ? lang : 'en'];
+  const companies = useApiList(api.companies.list, { per_page: 500 });
   const customers = useApiList(api.customers.list, { limit: 1 });
-  const drivers = useApiList(api.drivers.list, page);
-  const loads = useApiList(api.loads.list, page);
-  const vehicles = useApiList(api.vehicles.list, page);
-  const invoices = useApiList(api.invoices.list, page);
-  const events = useApiList(api.trackingEvents.list, { per_page: 100 });
-  const warehouses = useApiList(api.warehouses.list, page);
+  const drivers = useApiList(api.drivers.list, { per_page: 500 });
+  const loads = useApiList(api.loads.list, { per_page: 500 });
+  const vehicles = useApiList(api.vehicles.list, { per_page: 500 });
+  const invoices = useApiList(api.invoices.list, { per_page: 500 });
+  const events = useApiList(api.trackingEvents.list, { per_page: 500 });
+  const warehouses = useApiList(api.warehouses.list, { per_page: 500 });
   const [warehouseOverview, setWarehouseOverview] = useState<WarehouseOverview>({});
+  useEffect(() => { void api.warehouse.overview().then((r) => setWarehouseOverview(r.data as WarehouseOverview)).catch(() => undefined); }, []);
 
-  useEffect(() => {
-    void api.warehouse.overview().then((response) => setWarehouseOverview(response.data as WarehouseOverview)).catch(() => setWarehouseOverview({}));
-  }, []);
+  const statusCount = (statuses: string[]) => loads.items.filter((x) => statuses.includes(String(x.status).toLowerCase())).length;
+  const inTransit = statusCount(['in_delivery', 'in transit']);
+  const inExchange = statusCount(['posted', 'opened']);
+  const openInvoices = invoices.items.filter((x) => String(x.status).toLowerCase() !== 'paid').length;
+  const totalCapacity = Number(warehouseOverview.stats?.total_capacity_pallets || 0) || warehouses.items.reduce((sum, x) => sum + Number(x.total_capacity_pallets || 0), 0);
+  const pendingWarehouses = warehouses.items.filter((x) => String(x.status).toLowerCase() === 'pending').length;
+  const activeLoads = loads.items.filter((x) => !['finished', 'received', 'cancelled'].includes(String(x.status).toLowerCase())).length;
+  const activeDrivers = drivers.items.filter((x) => Boolean(x.is_active) && String(x.availability_status).toLowerCase() !== 'off_duty').length;
+  const busyDrivers = drivers.items.filter((x) => String(x.availability_status).toLowerCase() === 'on_load').length;
+  const driverUtilization = drivers.total ? Math.round((busyDrivers / drivers.total) * 100) : 0;
+  const utilizedVehicles = vehicles.items.filter((x) => ['active', 'on_the_road', 'in_use'].includes(String(x.status).toLowerCase())).length;
+  const vehicleUtilization = vehicles.total ? Math.round((utilizedVehicles / vehicles.total) * 100) : 0;
+  const completedShipments = loads.items.map((x) => x.shipment as Record<string, unknown> | undefined).filter((x) => x?.delivered_at);
+  const onTimeShipments = completedShipments.filter((x) => !x?.estimated_delivery_at || new Date(String(x.delivered_at)) <= new Date(String(x.estimated_delivery_at))).length;
+  const onTimeDelivery = completedShipments.length ? Math.round((onTimeShipments / completedShipments.length) * 100) : 0;
+  const totals = { companies: companies.total, warehouses: warehouses.total, drivers: drivers.total, customers: customers.total, transit: inTransit, exchange: inExchange, events: events.total, invoices: openInvoices, capacity: totalCapacity, pending: pendingWarehouses, vehicles: vehicles.total, loads: activeLoads };
+  const metrics = [[t.logistics, number(totals.companies), Building2, 'bg-violet-100 text-violet-500'], [t.warehouseCompanies, number(totals.warehouses), Warehouse, 'bg-orange-100 text-orange-500'], [t.drivers, number(totals.drivers), Users, 'bg-sky-100 text-sky-500'], [t.customers, number(totals.customers), Users, 'bg-fuchsia-100 text-fuchsia-500'], [t.transit, number(totals.transit), Box, 'bg-cyan-100 text-cyan-500'], [t.exchange, number(totals.exchange), PackageCheck, 'bg-emerald-100 text-emerald-500'], [t.events, number(totals.events), Activity, 'bg-blue-100 text-blue-500'], [t.invoices, number(totals.invoices), ReceiptText, 'bg-amber-100 text-amber-500']] as const;
+  const operations = [[t.capacity, `${number(totals.capacity)} pal.`, Warehouse, 'bg-violet-100 text-violet-500'], [t.pending, number(totals.pending), MapPin, 'bg-orange-100 text-orange-500'], [t.vehicles, number(totals.vehicles), Truck, 'bg-amber-100 text-amber-500'], [t.active, number(totals.loads), Box, 'bg-blue-100 text-blue-500'], [t.utilization, `${driverUtilization}%`, Gauge, 'bg-violet-100 text-violet-500'], [t.delivery, `${onTimeDelivery}%`, ShieldCheck, 'bg-teal-100 text-teal-500']] as const;
 
-  const sources = [companies, customers, drivers, loads, vehicles, invoices, events, warehouses];
-  const loading = sources.some((source) => source.loading);
-  const error = sources.find((source) => source.error)?.error;
-  const loadsInTransit = loads.items.filter((load) => String(load.status).toLowerCase() === 'in_delivery');
-  const loadsInExchange = loads.items.filter((load) => String(load.status).toLowerCase() === 'posted');
-  const openInvoices = invoices.items.filter((invoice) => String(invoice.status).toLowerCase() !== 'paid');
-  const totalWarehouseCapacity = Number(warehouseOverview.stats?.total_capacity_pallets)
-    || warehouses.items.reduce((total, warehouse) => total + Number(warehouse.total_capacity_pallets || 0), 0);
-  const occupiedWarehouseCapacity = Number(warehouseOverview.stats?.occupied_pallets || 0);
-  const availableWarehouseCapacity = Math.max(0, Number(warehouseOverview.stats?.available_pallets ?? totalWarehouseCapacity - occupiedWarehouseCapacity));
-  const pendingWarehouses = warehouses.items.filter((warehouse) => String(warehouse.status).toLowerCase() === 'pending');
+  const loadPie = useMemo(() => Object.entries(loads.items.reduce<Record<string, number>>((result, row) => { const status = String(row.status || 'unknown').toLowerCase(); result[status] = (result[status] || 0) + 1; return result; }, {})).map(([status, value]) => ({ name: trLoadStatus(lang, canonicalStatus(status)), value, color: statusTone(status) })).sort((a, b) => b.value - a.value), [lang, loads.items]);
+  const fleetPie = useMemo(() => Object.entries(vehicles.items.reduce<Record<string, number>>((result, row) => { const status = String(row.status || 'unknown').replaceAll('_', ' '); result[status] = (result[status] || 0) + 1; return result; }, {})).map(([name, value], index) => ({ name, value, color: ['#19ad78', '#3288ed', '#fb823d', '#aebbc9'][index % 4] })), [vehicles.items]);
+  const activity = useMemo(() => Array.from({ length: 7 }, (_, index) => { const date = new Date(); date.setHours(0, 0, 0, 0); date.setDate(date.getDate() - (6 - index)); const next = new Date(date); next.setDate(next.getDate() + 1); const rows = loads.items.filter((row) => { const created = rowDate(row); return created >= date && created < next; }); return { day: date.toLocaleDateString(lang || 'en', { weekday: 'short' }), loads: rows.length, transit: rows.filter((x) => String(x.status) === 'in_delivery').length, delivered: rows.filter((x) => ['finished', 'received'].includes(String(x.status))).length, cancelled: rows.filter((x) => String(x.status) === 'cancelled').length }; }), [lang, loads.items]);
+  const driverRows = useMemo(() => drivers.items.map((row) => { const user = (row.user || {}) as Record<string, unknown>; return [String(row.name || user.name || '—'), Number(row.completed_trips || 0)] as const; }).sort((a, b) => b[1] - a[1]).slice(0, 5), [drivers.items]);
+  const vehicleTypes = useMemo(() => Object.entries(vehicles.items.reduce<Record<string, number>>((result, row) => { const type = String(row.vehicle_type || row.transport_type || 'Other'); result[type] = (result[type] || 0) + 1; return result; }, {})).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([label, value]) => [label, value, vehicles.total ? Math.round(value / vehicles.total * 100) : 0] as const), [vehicles.items, vehicles.total]);
+  const countryCounts = useMemo(() => loads.items.reduce<Map<string, number>>((result, row) => { const stops = Array.isArray(row.stops) ? row.stops as Array<Record<string, unknown>> : []; const destination = [...stops].reverse().find((stop) => String(stop.type).toLowerCase() === 'delivery') || stops.at(-1); const code = String(destination?.country_code || row.warehouse_country_code || '').toUpperCase(); if (code && code !== 'XX') result.set(code, (result.get(code) || 0) + 1); return result; }, new Map()), [loads.items]);
+  const regions = useMemo(() => Array.from(countryCounts, ([code, value]) => ({ code, label: COUNTRY_NAMES.of(code) || code, value })).sort((a, b) => b.value - a.value).slice(0, 6).map((row, index) => ({ ...row, percent: loads.total ? Math.round(row.value / loads.total * 100) : 0, color: ['#168bea', '#0ea5c6', '#24a9a3', '#3eaf87', '#7ab99e', '#94a3b8'][index] })), [countryCounts, loads.total]);
+  const warehouseRows = useMemo(() => (warehouseOverview.warehouses || warehouses.items).map((row) => { const capacity = Number(row.total_capacity_pallets || 0); const occupied = Number(row.occupied_pallets || 0); return [String(row.name || '—'), occupied, Number(row.available_pallets ?? Math.max(0, capacity - occupied)), Number(row.occupancy_percent ?? (capacity ? Math.round(occupied / capacity * 100) : 0))] as const; }).sort((a, b) => b[3] - a[3]).slice(0, 5), [warehouseOverview.warehouses, warehouses.items]);
+  const palletFlow = useMemo(() => Array.from({ length: 7 }, (_, index) => { const date = new Date(); date.setHours(0, 0, 0, 0); date.setDate(date.getDate() - (6 - index)); const next = new Date(date); next.setDate(next.getDate() + 1); const movements = [...(warehouseOverview.recent_arrivals || []), ...(warehouseOverview.dock_schedule || [])].filter((row) => { const when = new Date(String(row.completed_at || row.scheduled_at || 0)); return when >= date && when < next; }); return { day: date.toLocaleDateString(lang || 'en', { weekday: 'short' }), incoming: movements.filter((x) => x.direction === 'inbound').reduce((sum, x) => sum + Number(x.pallets || 0), 0), outgoing: movements.filter((x) => x.direction === 'outbound').reduce((sum, x) => sum + Number(x.pallets || 0), 0) }; }), [lang, warehouseOverview.dock_schedule, warehouseOverview.recent_arrivals]);
+  const todayFlow = palletFlow.at(-1) || { incoming: 0, outgoing: 0 };
+  const recentEvents = useMemo(() => [...events.items].sort((a, b) => rowDate(b).getTime() - rowDate(a).getTime()).slice(0, 5), [events.items]);
+  const alerts = useMemo(() => {
+    const rows: Array<{ title: string; note: string; time: string; tone: string; bg: string; icon: typeof AlertTriangle }> = [];
+    const crowded = warehouseRows.filter((row) => row[3] >= 90).length;
+    const maintenance = vehicles.items.filter((row) => String(row.status).toLowerCase().includes('maintenance')).length;
+    const overdue = invoices.items.filter((row) => String(row.status).toLowerCase() !== 'paid' && row.due_at && new Date(String(row.due_at)) < new Date()).length;
+    if (crowded) rows.push({ title: 'High warehouse occupancy', note: `${crowded} warehouse${crowded === 1 ? '' : 's'} over 90% capacity`, time: 'live', tone: 'text-red-500', bg: 'bg-red-50', icon: AlertTriangle });
+    if (maintenance) rows.push({ title: 'Maintenance due', note: `${maintenance} vehicle${maintenance === 1 ? '' : 's'} require maintenance`, time: 'live', tone: 'text-orange-500', bg: 'bg-orange-50', icon: AlertTriangle });
+    if (overdue) rows.push({ title: 'Overdue invoices', note: `${overdue} invoice${overdue === 1 ? '' : 's'} past due`, time: 'live', tone: 'text-blue-500', bg: 'bg-blue-50', icon: FileClock });
+    if (pendingWarehouses) rows.push({ title: 'Warehouse approval', note: `${pendingWarehouses} warehouse${pendingWarehouses === 1 ? '' : 's'} pending review`, time: 'live', tone: 'text-amber-500', bg: 'bg-amber-50', icon: Warehouse });
+    return rows;
+  }, [invoices.items, pendingWarehouses, vehicles.items, warehouseRows]);
 
-  const loadStatusData = useMemo(() => groupBy(loads.items, 'status', 'unknown'), [loads.items]);
-  const planData = useMemo(
-    () => groupBy(companies.items.map((company) => ({ ...company, subscription_plan: companySubscriptionPlan(company) })), 'subscription_plan', 'Unassigned'),
-    [companies.items],
-  );
-  const invoiceData = useMemo(() => groupBy(invoices.items, 'status', 'open'), [invoices.items]);
-  const capacityData = [
-    { name: 'Occupied', value: occupiedWarehouseCapacity },
-    { name: 'Available', value: availableWarehouseCapacity },
-  ];
-  const facilityData = useMemo(() => {
-    const rows = warehouseOverview.warehouses?.length ? warehouseOverview.warehouses : warehouses.items;
-    return rows.slice(0, 10).map((row) => {
-      const capacity = Number(row.total_capacity_pallets || 0);
-      const occupied = Number(row.occupied_pallets || 0);
-      return {
-        name: String(row.name || `Warehouse ${row.id || ''}`),
-        occupied,
-        available: Math.max(0, Number(row.available_pallets ?? capacity - occupied)),
-      };
-    });
-  }, [warehouseOverview.warehouses, warehouses.items]);
-  const activityData = useMemo(() => {
-    const days = Array.from({ length: 7 }, (_, offset) => {
-      const date = new Date();
-      date.setDate(date.getDate() - (6 - offset));
-      const key = date.toISOString().slice(0, 10);
-      return { key, day: date.toLocaleDateString(undefined, { weekday: 'short' }), loads: 0, events: 0, invoices: 0 };
-    });
-    const index = new Map(days.map((day) => [day.key, day]));
-    loads.items.forEach((row) => { const day = index.get(eventDate(row) || ''); if (day) day.loads += 1; });
-    events.items.forEach((row) => { const day = index.get(eventDate(row) || ''); if (day) day.events += 1; });
-    invoices.items.forEach((row) => { const day = index.get(eventDate(row) || ''); if (day) day.invoices += 1; });
-    return days;
-  }, [events.items, invoices.items, loads.items]);
+  return <div className="mx-auto max-w-[1920px] space-y-3 text-slate-800 dark:text-slate-100">
+    <section className="flex items-center justify-between gap-3 rounded-2xl border border-sky-100 bg-gradient-to-r from-white to-sky-50 px-4 py-3 dark:border-slate-800 dark:from-slate-900 dark:to-sky-950"><div className="flex min-w-0 items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-white"><Crown className="h-4 w-4" /></span><div className="min-w-0"><h1 className="truncate text-base font-black">{t.title}</h1><p className="truncate text-[10px] text-slate-500">{t.subtitle}</p></div></div><span className="flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-[9px] font-black text-emerald-600 dark:bg-slate-900"><ShieldCheck className="h-3 w-3" />{t.connected}</span></section>
+    <section className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-8">{metrics.map(([label, value, icon, tone]) => <Metric key={label} label={label} value={value} icon={icon} tone={tone} />)}</section>
+    <section className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">{operations.map(([label, value, icon, tone]) => <Metric key={label} label={label} value={value} icon={icon} tone={tone} />)}</section>
 
-  const headerStats = [
-    { label: 'Logistics companies', value: loading ? '—' : companies.total, icon: Building2, tone: 'bg-violet-500/10 text-violet-500' },
-    { label: 'Warehouse companies', value: loading ? '—' : warehouses.total, icon: Warehouse, tone: 'bg-orange-500/10 text-orange-500' },
-    { label: 'Drivers', value: loading ? '—' : drivers.total, icon: Users, tone: 'bg-sky-500/10 text-sky-500' },
-    { label: 'Customers', value: loading ? '—' : customers.total, icon: Users, tone: 'bg-fuchsia-500/10 text-fuchsia-500' },
-    { label: 'In transit', value: loading ? '—' : loadsInTransit.length, icon: PackageCheck, tone: 'bg-cyan-500/10 text-cyan-500' },
-    { label: 'In exchange', value: loading ? '—' : loadsInExchange.length, icon: Boxes, tone: 'bg-emerald-500/10 text-emerald-500' },
-    { label: 'Tracking events', value: loading ? '—' : events.total, icon: Activity, tone: 'bg-primary/10 text-primary' },
-    { label: 'Open invoices', value: loading ? '—' : openInvoices.length, icon: ReceiptText, tone: 'bg-amber-500/10 text-amber-500' },
-  ];
+    <section className="grid gap-3 xl:grid-cols-12">
+      <Panel title={t.loadActivity} aside={<span className="text-[9px] text-slate-400">({t.last7})</span>} className="xl:col-span-5"><div className="mb-1 grid grid-cols-4 gap-2 text-[9px]">{[[t.totalLoads, loads.total, '#2686ef'], [trLoadStatus(lang, 'In delivery'), inTransit, '#0ab4d7'], [trLoadStatus(lang, 'Finished'), statusCount(['finished', 'received']), '#19b978'], [trLoadStatus(lang, 'Cancelled'), statusCount(['cancelled']), '#f43f4f']].map(([label, value, color]) => <div key={String(label)} className="border-l-2 pl-2" style={{ borderColor: String(color) }}><span className="text-slate-500">{label}</span><b className="block text-[12px] text-slate-900 dark:text-white">{value}</b></div>)}</div><div className="h-[145px]"><ResponsiveContainer width="100%" height="100%"><LineChart data={activity} margin={{ top: 12, right: 4, left: -28, bottom: 0 }}><CartesianGrid vertical={false} stroke="#e8edf3"/><XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#64748b' }}/><YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fontSize: 8, fill: '#94a3b8' }}/><Tooltip contentStyle={tipStyle}/><Line dataKey="loads" name={t.totalLoads} stroke="#2686ef" strokeWidth={1.5} dot={{ r: 2 }}/><Line dataKey="transit" name={trLoadStatus(lang, 'In delivery')} stroke="#10b9c8" strokeWidth={1.2} dot={{ r: 2 }}/><Line dataKey="delivered" name={trLoadStatus(lang, 'Finished')} stroke="#22b573" strokeWidth={1.2} dot={{ r: 2 }}/><Line dataKey="cancelled" name={trLoadStatus(lang, 'Cancelled')} stroke="#f43f4f" strokeWidth={1.2} dot={{ r: 1.5 }}/></LineChart></ResponsiveContainer></div></Panel>
+      <Panel title={t.loadStatus} className="xl:col-span-4"><div className="flex h-[190px] items-center gap-4"><div className="relative h-full min-w-0 flex-1"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={loadPie} dataKey="value" innerRadius={45} outerRadius={70} strokeWidth={0}>{loadPie.map(x => <Cell key={x.name} fill={x.color}/>)}</Pie></PieChart></ResponsiveContainer><div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"><b className="text-xl font-black">{number(loads.total)}</b><span className="text-[9px] text-slate-500">{t.totalLoads}</span></div></div><div className="max-h-[180px] w-[43%] overflow-y-auto"><DotLegend rows={loadPie.map(x => [x.name, x.value, x.color] as const)}/></div></div></Panel>
+      <Panel title={t.driverPerformance} aside={<span className="rounded-lg border border-slate-200 px-2 py-1 text-[9px] dark:border-slate-700">{t.thisMonth}</span>} className="xl:col-span-3"><div className="grid h-[185px] grid-cols-2 gap-4"><div><p className="text-[9px] text-slate-500">{t.activeDrivers}</p><div className="mt-1 flex items-center justify-between border-l-2 border-cyan-400 pl-2"><b className="text-lg">{number(activeDrivers)}</b><Users className="h-4 w-4 text-primary"/></div><p className="mt-6 text-[9px] text-slate-500">{t.utilizationRate}</p><b className="text-sm">{driverUtilization}%</b><div className="mt-2 h-1.5 rounded-full bg-slate-100"><div className="h-full rounded-full bg-cyan-500" style={{ width: `${driverUtilization}%` }}/></div></div><div><p className="mb-2 text-[9px] font-bold">{t.topDrivers}</p>{driverRows.length ? driverRows.map(([name, amount], i) => <div key={name} className="flex items-center border-b border-slate-100 py-1 text-[9px] last:border-0 dark:border-slate-800"><i className="mr-2 flex h-4 w-4 items-center justify-center rounded-full bg-slate-100 not-italic dark:bg-slate-800">{i + 1}</i><b className="truncate">{name}</b><b className="ml-auto">{amount}</b></div>) : <p className="text-[9px] text-slate-400">No drivers</p>}</div></div><div className="mt-1 text-right text-[9px] font-bold text-primary">{t.seeDrivers} →</div></Panel>
+    </section>
 
-  const operationsStats = [
-    { label: 'Warehouse capacity', value: loading ? '—' : `${totalWarehouseCapacity.toLocaleString()} pal.`, icon: Warehouse, tone: 'bg-orange-500/10 text-orange-500' },
-    { label: 'Pending warehouses', value: loading ? '—' : pendingWarehouses.length, icon: ShieldCheck, tone: 'bg-amber-500/10 text-amber-500' },
-    { label: 'Fleet vehicles', value: loading ? '—' : vehicles.total, icon: Truck, tone: 'bg-sky-500/10 text-sky-500' },
-    { label: 'Database resources', value: loading ? '—' : sources.length, icon: ShieldCheck, tone: 'bg-emerald-500/10 text-emerald-500' },
-  ];
+    <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-12">
+      <Panel title={t.fleetStatus} className="xl:col-span-3"><div className="flex h-[140px] items-center"><div className="relative h-full flex-1"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={fleetPie} dataKey="value" innerRadius={35} outerRadius={54} strokeWidth={0}>{fleetPie.map(x => <Cell key={x.name} fill={x.color}/>)}</Pie></PieChart></ResponsiveContainer><div className="absolute inset-0 flex flex-col items-center justify-center"><b className="text-lg">{number(vehicles.total)}</b><span className="text-[8px] text-slate-500">{t.totalVehicles}</span></div></div><div className="w-1/2">{fleetPie.length ? <DotLegend rows={fleetPie.map(x => [x.name, x.value, x.color] as const)}/> : <p className="text-[9px] text-slate-400">No vehicles</p>}</div></div></Panel>
+      <Panel title={t.vehicleUtilization} className="xl:col-span-2"><div className="flex h-[140px] items-center"><div className="w-full"><GaugeChart value={vehicleUtilization} label={t.averageUtilization}/><div className="mt-2 flex justify-between text-[8px] text-slate-400"><span>0%</span><span>100%</span></div></div></div></Panel>
+      <Panel title={t.vehicleTypes} className="xl:col-span-3"><div className="space-y-3 pt-1">{vehicleTypes.map(([label, value, percent]) => <div key={label} className="grid grid-cols-[86px_minmax(0,1fr)_72px] items-center gap-2 text-[9px]"><span className="truncate">{label}</span><div className="h-1.5 min-w-0 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-full rounded-full bg-blue-500" style={{ width: `${percent}%` }}/></div><b className="whitespace-nowrap text-right">{value} ({percent}%)</b></div>)}</div></Panel>
+      <Panel title={t.routeRegion} className="xl:col-span-4"><div className="flex h-[140px] items-center"><div className="min-w-0 flex-1"><EuropeMap values={countryCounts}/></div><div className="w-[38%]">{regions.length ? regions.map(({ code, label, value, percent, color }) => <div key={code} className="flex items-center py-1 text-[9px]"><i className="mr-2 h-2 w-2 rounded-full" style={{ background: color }}/><b className="truncate">{label}</b><span className="ml-auto shrink-0">{value} ({percent}%)</span></div>) : <p className="text-[9px] text-slate-400">No route countries</p>}</div></div></Panel>
+    </section>
 
-  return <div className="space-y-3">
-    <PageHeader
-      icon={Crown}
-      title="Platform Command Center"
-      subtitle="Live visibility across logistics and warehouse operations stored in Freightbook.ai."
-      badge={<span className="flex items-center gap-1.5 text-xs font-black text-emerald-600 dark:text-emerald-400"><ShieldCheck className="h-3.5 w-3.5" /> DATABASE CONNECTED</span>}
-      stats={headerStats}
-    />
-
-    {error ? (
-      <Card><InlineDataState loading={false} error={error} empty="" onRetry={() => sources.forEach((source) => void source.refresh())} /></Card>
-    ) : <>
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {operationsStats.map((metric) => <HeaderStatCard key={metric.label} {...metric} />)}
-      </section>
-
-      <section className="grid gap-3 xl:grid-cols-12">
-        <Card className="shadow-none xl:col-span-6" contentClassName="p-4">
-          <PanelTitle icon={Activity} title="Platform activity" subtitle="Loads, tracking events and invoices created during the last 7 days" />
-          <div className="mt-3 h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={activityData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="adminLoads" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.35} /><stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} /></linearGradient>
-                  <linearGradient id="adminEvents" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} /><stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} /></linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" opacity={0.35} />
-                <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={tooltipStyle} />
-                <Legend wrapperStyle={{ fontSize: '11px' }} />
-                <Area type="monotone" dataKey="loads" name="Loads" stroke="#0ea5e9" fill="url(#adminLoads)" strokeWidth={2} />
-                <Area type="monotone" dataKey="events" name="Tracking events" stroke="#8b5cf6" fill="url(#adminEvents)" strokeWidth={2} />
-                <Area type="monotone" dataKey="invoices" name="Invoices" stroke="#f59e0b" fill="transparent" strokeWidth={2} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-
-        <Card className="shadow-none xl:col-span-3" contentClassName="p-4">
-          <PanelTitle icon={PackageCheck} title="Load pipeline" subtitle="Current distribution by status" />
-          <div className="mt-2 h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={loadStatusData} dataKey="value" nameKey="name" innerRadius={48} outerRadius={76} paddingAngle={3}>
-                  {loadStatusData.map((item, index) => <Cell key={item.name} fill={CHART_COLORS[index % CHART_COLORS.length]} />)}
-                </Pie>
-                <Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#e2e8f0' }} labelStyle={{ color: '#e2e8f0' }} />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', textTransform: 'capitalize' }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-
-        <Card className="shadow-none xl:col-span-3" contentClassName="p-4">
-          <PanelTitle icon={Gauge} title="Warehouse capacity" subtitle={`${occupiedWarehouseCapacity.toLocaleString()} of ${totalWarehouseCapacity.toLocaleString()} pallets occupied`} />
-          <div className="mt-2 h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={capacityData} dataKey="value" nameKey="name" innerRadius={48} outerRadius={76} paddingAngle={3}>
-                  <Cell fill="#f97316" /><Cell fill="#e2e8f0" />
-                </Pie>
-                <Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#e2e8f0' }} labelStyle={{ color: '#e2e8f0' }} />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: '10px' }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-      </section>
-
-      <section className="grid gap-3 xl:grid-cols-12">
-        <Card className="shadow-none xl:col-span-6" contentClassName="p-4">
-          <PanelTitle icon={Warehouse} title="Capacity by warehouse" subtitle="Occupied and available pallets across the largest facilities" />
-          <div className="mt-3 h-60">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={facilityData} layout="vertical" margin={{ top: 0, right: 10, left: 10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" opacity={0.35} horizontal={false} />
-                <XAxis type="number" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="name" width={125} tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <Tooltip cursor={false} contentStyle={tooltipStyle} />
-                <Legend wrapperStyle={{ fontSize: '11px' }} />
-                <Bar dataKey="occupied" name="Occupied" stackId="capacity" fill="#f97316" radius={[4, 0, 0, 4]} />
-                <Bar dataKey="available" name="Available" stackId="capacity" fill="#cbd5e1" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-
-        <Card className="shadow-none xl:col-span-3" contentClassName="p-4">
-          <PanelTitle icon={BarChart3} title="Subscription mix" subtitle="Logistics companies by plan" />
-          <div className="mt-2 h-60">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={planData} margin={{ top: 10, right: 5, left: -25, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" opacity={0.35} vertical={false} />
-                <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <Tooltip cursor={false} contentStyle={tooltipStyle} />
-                <Bar dataKey="value" name="Companies" fill="#8b5cf6" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-
-        <Card className="shadow-none xl:col-span-3" contentClassName="p-4">
-          <PanelTitle icon={CircleDollarSign} title="Invoice health" subtitle="Invoices grouped by payment status" />
-          <div className="mt-2 h-60">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={invoiceData} dataKey="value" nameKey="name" innerRadius={48} outerRadius={78} paddingAngle={3}>
-                  {invoiceData.map((item, index) => <Cell key={item.name} fill={['#10b981', '#f59e0b', '#f43f5e', '#64748b'][index % 4]} />)}
-                </Pie>
-                <Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#e2e8f0' }} labelStyle={{ color: '#e2e8f0' }} />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', textTransform: 'capitalize' }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-      </section>
-
-      <div className="grid gap-3 xl:grid-cols-12">
-        <Card className="shadow-none xl:col-span-8" contentClassName="p-4">
-          <PanelTitle icon={Building2} title="Company operations" subtitle="Live company, fleet, plan and verification overview" />
-          {companies.loading || companies.items.length === 0 ? (
-            <InlineDataState loading={companies.loading} error={companies.error} empty="No companies in the database yet." onRetry={companies.refresh} />
-          ) : (
-            <div className="mt-2 overflow-x-auto">
-              <DataTable className="min-w-[640px]">
-                <thead><tr className="border-b border-slate-200 text-[11px] uppercase text-slate-500 dark:border-slate-800"><th className="p-2">Company</th><th className="p-2">Country</th><th className="p-2">Fleet</th><th className="p-2">Plan</th><th className="p-2">Status</th></tr></thead>
-                <tbody>{companies.items.map((company) => <tr key={String(company.id)} className="border-b border-slate-100 dark:border-slate-800"><td className="p-2 text-sm font-bold dark:text-white">{String(company.name || '')}</td><td className="p-2 text-xs">{String(company.country_code || '—')}</td><td className="p-2 text-xs">{Array.isArray(company.vehicles) ? company.vehicles.length : 0}</td><td className="p-2 text-xs">{companySubscriptionPlan(company)}</td><td className="p-2 text-xs">{String(company.status || '—')}</td></tr>)}</tbody>
-              </DataTable>
-            </div>
-          )}
-        </Card>
-
-        <Card className="shadow-none xl:col-span-4" contentClassName="p-4">
-          <PanelTitle icon={Activity} title="Latest tracking events" subtitle="Newest operational signals across the platform" />
-          {events.loading || events.items.length === 0 ? (
-            <InlineDataState loading={events.loading} error={events.error} empty="No tracking events yet." onRetry={events.refresh} />
-          ) : (
-            <div className="mt-3 max-h-64 space-y-2 overflow-y-auto pr-1">{events.items.slice(0, 8).map((event) => <div key={String(event.id)} className="flex items-start gap-2 rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-950"><span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" /><div><p className="text-xs font-bold dark:text-white">{String(event.title || event.status || 'Tracking event')}</p><p className="text-[11px] text-slate-500">{String(event.location || '')}</p></div></div>)}</div>
-          )}
-        </Card>
-      </div>
-    </>}
+    <section className="grid gap-3 xl:grid-cols-12">
+      <Panel title={t.warehouseUtilization} className="xl:col-span-4"><div className="grid grid-cols-[1fr_54px_54px_1fr] gap-2 border-b border-slate-100 pb-2 text-[8px] font-black uppercase text-slate-400 dark:border-slate-800"><span>{t.warehouse}</span><span>{t.occupied}</span><span>{t.available}</span><span>Utilization</span></div><div className="space-y-3 pt-3">{warehouseRows.length ? warehouseRows.map(([name, occupied, available, percent]) => <div key={name} className="grid grid-cols-[1fr_54px_54px_1fr] items-center gap-2 text-[9px]"><b className="truncate">{name}</b><span>{occupied} pal.</span><span>{available} pal.</span><div className="flex items-center gap-2"><div className="h-2 flex-1 rounded-full bg-slate-100"><div className={`h-full rounded-full ${percent >= 90 ? 'bg-red-500' : percent >= 70 ? 'bg-orange-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min(100, percent)}%` }}/></div><b>{percent}%</b></div></div>) : <p className="text-[9px] text-slate-400">No warehouses</p>}</div><div className="mt-10 text-right text-[9px] font-bold text-primary">{t.seeWarehouses} →</div></Panel>
+      <Panel title={t.incomingOutgoing} aside={<span className="text-[9px] text-slate-400">({t.last7})</span>} className="xl:col-span-3"><div className="mb-1 flex gap-5 text-[9px]"><span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-blue-500"/>{t.incoming}</span><span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-emerald-500"/>{t.outgoing}</span></div><div className="h-[130px]"><ResponsiveContainer width="100%" height="100%"><BarChart data={palletFlow} barGap={3} margin={{ left: -28, right: 0 }}><CartesianGrid vertical={false} stroke="#e8edf3"/><XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 8 }}/><YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fontSize: 8 }}/><Bar dataKey="incoming" fill="#3b82f6" radius={[2,2,0,0]} barSize={7}/><Bar dataKey="outgoing" fill="#21b98a" radius={[2,2,0,0]} barSize={7}/></BarChart></ResponsiveContainer></div><div className="grid grid-cols-3 gap-2">{[[t.todayIncoming, `${todayFlow.incoming} pal.`], [t.todayOutgoing, `${todayFlow.outgoing} pal.`], [t.stockChange, `${todayFlow.incoming - todayFlow.outgoing >= 0 ? '+' : ''}${todayFlow.incoming - todayFlow.outgoing} pal.`]].map(([label, value], i) => <div key={label} className="rounded-lg border border-slate-200 p-2 dark:border-slate-700"><p className="text-[8px] text-slate-500">{label}</p><b className={`text-[11px] ${i === 2 ? 'text-emerald-600' : ''}`}>{value}</b></div>)}</div></Panel>
+      <Panel title={t.recentTracking} className="xl:col-span-3"><div className="space-y-1">{recentEvents.length ? recentEvents.map((event) => { const status = String(event.status || '').toLowerCase(); const Icon = status.includes('deliver') ? Check : status.includes('transit') ? Truck : MapPin; return <div key={String(event.id)} className="flex items-center gap-2 border-b border-slate-100 py-1.5 last:border-0 dark:border-slate-800"><span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-50 dark:bg-slate-800"><Icon className="h-3 w-3 text-primary"/></span><div className="min-w-0"><b className="block truncate text-[9px]">{String(event.title || event.status || 'Tracking event')}</b><span className="text-[8px] text-slate-400">{String(event.location || '—')}</span></div><span className="ml-auto shrink-0 text-[8px] text-slate-400">{age(event.occurred_at || event.created_at)}</span></div>; }) : <p className="text-[9px] text-slate-400">No tracking events</p>}</div><div className="mt-5 text-right text-[9px] font-bold text-primary">{t.seeTracking} →</div></Panel>
+      <Panel title={t.alerts} className="xl:col-span-2"><div className="space-y-1">{alerts.length ? alerts.map(({ icon: Icon, title, note, time, tone, bg }) => <div key={title} className="flex items-start gap-2 border-b border-slate-100 py-2 last:border-0 dark:border-slate-800"><span className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${bg}`}><Icon className={`h-3 w-3 ${tone}`}/></span><div className="min-w-0"><b className="block truncate text-[9px]">{title}</b><span className="block text-[8px] leading-tight text-slate-400">{note}</span></div><span className="ml-auto shrink-0 text-[8px] text-slate-400">{time}</span></div>) : <div className="flex items-center gap-2 py-2 text-[9px] text-emerald-600"><Check className="h-4 w-4"/>No active alerts</div>}</div><div className="mt-4 text-right text-[9px] font-bold text-primary">{t.seeAlerts} →</div></Panel>
+    </section>
   </div>;
 };
