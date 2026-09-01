@@ -20,6 +20,7 @@ import {
   Camera,
   MessageSquare,
   Boxes,
+  ArrowDownToLine,
   ArrowRight,
   CheckCircle2,
   Coins,
@@ -116,6 +117,7 @@ import { ScanFieldPatch } from "./components/modals/scanFieldRows";
 import { LenaCanvasMode } from "./lib/lenaLoadCanvas";
 import { LoadNotesView } from "./components/views/LoadNotesView";
 import { CompanyWorkspaceView } from "./components/views/CompanyWorkspaceView";
+import { WarehouseDocksView } from "./components/views/WarehouseDocksView";
 import { WarehouseOverviewView } from "./components/views/WarehouseOverviewView";
 import { WarehousesView } from "./components/views/WarehousesView";
 import { AdminWarehouseCompaniesView } from "./components/views/AdminWarehouseCompaniesView";
@@ -5435,6 +5437,9 @@ export default function App() {
     getInitialSidebarState(),
   );
   const [isPostLoadOpen, setIsPostLoadOpen] = useState(false);
+  // Set when the form is opened for one kind of request only - a warehouse receiving goods can
+  // only be filing a storage request, so it never sees the transport-type picker.
+  const [postLoadTransportType, setPostLoadTransportType] = useState<"warehouse" | null>(null);
   const [warehouseCreateSignal, setWarehouseCreateSignal] = useState(0);
   const [editLoadId, setEditLoadId] = useState<string | null>(null);
   const [loadRefreshKey, setLoadRefreshKey] = useState(0);
@@ -6659,11 +6664,6 @@ export default function App() {
                     label: u("nav.myWarehouse", "My Warehouse"),
                     icon: Warehouse,
                   },
-                  {
-                    id: "company",
-                    label: u("nav.companyOverview", "Company Overview"),
-                    icon: Building2,
-                  },
                 ]
               : [
                   {
@@ -6678,11 +6678,21 @@ export default function App() {
                   },
                 ]),
             { id: "feed", label: t.homeFeed, icon: Boxes },
-            {
-              id: "tracking",
-              label: myCargoLabels[lang || "en"],
-              icon: PackageIcon,
-            },
+            ...(warehouseFirst
+              ? [
+                  {
+                    id: "docks",
+                    label: u("nav.myDocks", "My docks"),
+                    icon: ArrowDownToLine,
+                  },
+                ]
+              : [
+                  {
+                    id: "tracking",
+                    label: myCargoLabels[lang || "en"],
+                    icon: PackageIcon,
+                  },
+                ]),
             { id: "fleet", label: t.myFleet, icon: Truck },
             ...(canManageTeam
               ? [{ id: "company-team", label: u("nav.teamPermissions", "Team & Permissions"), icon: Users }]
@@ -6704,16 +6714,11 @@ export default function App() {
                 label: u("nav.myWarehouse", "Moj Warehouse"),
                 icon: Warehouse,
               },
-              {
-                id: "company",
-                label: u("nav.companyOverview", "Company Overview"),
-                icon: Building2,
-              },
               { id: "feed", label: t.homeFeed, icon: Boxes },
               {
-                id: "tracking",
-                label: myCargoLabels[lang || "en"],
-                icon: PackageIcon,
+                id: "docks",
+                label: u("nav.myDocks", "My docks"),
+                icon: ArrowDownToLine,
               },
               { id: "fleet", label: t.myFleet, icon: Truck },
               {
@@ -7117,7 +7122,7 @@ export default function App() {
             "flex-1 min-h-0 w-full max-w-none",
             view === "map" || isTrackingMapActive
               ? "p-0"
-              : view === "warehouse-overview" || view === "warehouses" || view === "admin"
+              : view === "warehouse-overview" || view === "warehouses" || view === "docks" || view === "admin"
                 ? "p-4 pb-24 md:pb-4"
                 : "p-6 pb-24 md:pb-6",
             view === "messages" || view === "map"
@@ -7306,6 +7311,15 @@ export default function App() {
                   }}
                 />
               )}
+              {view === "docks" && (
+                <WarehouseDocksView
+                  lang={lang}
+                  onReceiveGoods={() => {
+                    setPostLoadTransportType("warehouse");
+                    setIsPostLoadOpen(true);
+                  }}
+                />
+              )}
               {view === "warehouse-overview" && (
                 <WarehouseOverviewView
                   lang={lang}
@@ -7446,6 +7460,7 @@ export default function App() {
         />
         <PostLoadModal
           isOpen={isPostLoadOpen}
+          lockedTransportType={postLoadTransportType}
           editLoadId={editLoadId}
           initialPrefill={lenaLoadPrefill}
           sourceConversationId={lenaSourceConversationId}
@@ -7470,6 +7485,7 @@ export default function App() {
           }}
           onClose={() => {
             setIsPostLoadOpen(false);
+            setPostLoadTransportType(null);
             setEditLoadId(null);
             setLenaLoadPrefill(null);
             setLenaSourceConversationId(null);

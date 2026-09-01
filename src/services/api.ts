@@ -584,6 +584,8 @@ export const api = {
     ...resourceApi<Record<string, unknown>>('warehouses'),
     onboard: (data: Record<string, unknown>) => request<Record<string, unknown>>('/warehouses/onboard', { method: 'POST', body: JSON.stringify(data) }),
   },
+  // The dock ledger behind the warehouse dashboard's schedule panel, as a list of its own.
+  warehouseMovements: resourceApi<Record<string, unknown>>('warehouse-movements'),
   warehouse: {
     // One facility in full: its record, occupancy, what is stored inside right now, and its
     // recent inbound/outbound movements.

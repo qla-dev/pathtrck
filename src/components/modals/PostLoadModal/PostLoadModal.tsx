@@ -262,7 +262,7 @@ const STEP_AI_FIELDS: Record<StepId, Array<keyof ScanFieldPatch & keyof LoadDraf
 };
 
 
-export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSaved, initialPrefill = null, onOpenLenaAI, sourceConversationId = null, initialDraftId = null, onDraftConversationCreated }: PostLoadModalProps) => {
+export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSaved, initialPrefill = null, lockedTransportType = null, onOpenLenaAI, sourceConversationId = null, initialDraftId = null, onDraftConversationCreated }: PostLoadModalProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const transportOptions = [
     {
@@ -364,7 +364,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
 
   const resetDraftState = () => {
     setStep('cargo');
-    setDraft(INITIAL_DRAFT);
+    // A locked mode is what the form opens as, so it survives the reset the way the blank draft does.
+    setDraft(lockedTransportType ? { ...INITIAL_DRAFT, transportType: lockedTransportType } : INITIAL_DRAFT);
     setSubmitError('');
     setScannedDocuments([]);
     setViewingDocId(null);
@@ -379,8 +380,9 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       setDraftSavedAt(null);
     } else {
       setDraftId(initialDraftId);
+      if (lockedTransportType) setDraft((current) => ({ ...current, transportType: lockedTransportType }));
     }
-  }, [isOpen]);
+  }, [isOpen, lockedTransportType]);
 
   // Show when the draft was actually last saved as soon as the modal opens with an existing
   // draft, not just after the user manually saves in this session - mirrors LenaLoadCanvas.tsx.
@@ -2016,7 +2018,9 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                   {(
                   <div className="grid lg:grid-cols-3 gap-3">
                     <div className="space-y-3 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
-                      <fieldset>
+                      {/* Hidden when the caller already decided the mode - a warehouse receiving
+                          goods has no other kind of request to make. */}
+                      <fieldset className={cn(lockedTransportType && 'hidden')}>
                         <legend className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
                           <Route className="h-4 w-4" />
                           {u('postLoadModal.transportType', 'Transport types and services')}
@@ -3013,7 +3017,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                 variant="secondary"
                 className="w-full h-11 gap-2 border border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 dark:bg-primary/15 dark:hover:bg-primary/20"
                 onClick={onOpenLenaAI ?? (() => setDropzoneOpen(true))}
-                disabled={isSubmitting || draft.transportType === 'warehouse'}
+                disabled={isSubmitting}
               >
                 <Sparkles className="w-4 h-4 shrink-0" />
                 <span className="truncate">{u('postLoadModal.fillWithLenaAI', 'Popuni pomoću LenaAI')}</span>
@@ -3022,7 +3026,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                 variant="secondary"
                 className="w-full h-11 gap-2 border border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 dark:bg-primary/15 dark:hover:bg-primary/20"
                 onClick={() => void saveDraft()}
-                disabled={isSubmitting || savingDraft || draft.transportType === 'warehouse'}
+                disabled={isSubmitting || savingDraft}
               >
                 <Save className="w-4 h-4 shrink-0" />
                 <span className="truncate">

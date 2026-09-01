@@ -172,6 +172,21 @@ export const buildDraftPayload = (draft: LoadDraft) => ({
   delivery_date_to: toApiDate(draft.deliveryDateTo || draft.deliveryDate),
   delivery_time_from: draft.deliveryTimeFrom || null,
   delivery_time_to: draft.deliveryTimeTo || draft.deliveryTimeFrom || null,
+  // What makes a storage request one, kept so a warehouse draft is not reduced to its generic
+  // load fields. Sent only for that transport type - a road load has no storage answers to lose.
+  storage_type: draft.transportType === 'warehouse' ? draft.warehouseStorageType || null : null,
+  storage_start_date: draft.transportType === 'warehouse' ? toApiDate(draft.deliveryDate || draft.warehouseStartDate) : null,
+  storage_end_date: draft.transportType === 'warehouse' && !draft.warehouseIsOngoing
+    ? toApiDate(draft.deliveryDateTo || draft.warehouseEndDate)
+    : null,
+  is_storage_ongoing: draft.transportType === 'warehouse' ? draft.warehouseIsOngoing : null,
+  rate_unit: draft.transportType === 'warehouse' ? draft.warehouseRateUnit || null : null,
+  requires_customs_bonded: draft.transportType === 'warehouse' ? draft.warehouseRequiresCustomsBonded : null,
+  requires_racking: draft.transportType === 'warehouse' ? draft.warehouseRequiresRacking : null,
+  requires_security: draft.transportType === 'warehouse' ? draft.warehouseRequiresSecurity : null,
+  requires_food_grade: draft.transportType === 'warehouse' ? draft.warehouseFoodPharma : null,
+  is_fragile: draft.transportType === 'warehouse' ? draft.warehouseFragile : null,
+  handling_equipment: draft.transportType === 'warehouse' ? draft.warehouseEquipment : [],
   // Stop 1 of each side has flat columns of its own above; a multi-drop road route's remaining
   // stops ride along as JSON, since a draft has no load_stops table behind it to spread them over.
   extra_stops: [

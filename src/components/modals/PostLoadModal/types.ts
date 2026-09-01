@@ -10,6 +10,14 @@ export type PostLoadModalProps = {
   editLoadId?: number | string | null;
   onSaved?: (load: Record<string, unknown>) => void;
   initialPrefill?: ScanFieldPatch | null;
+  /**
+   * Opens the form already set to one transport type and hides the picker for it.
+   *
+   * A warehouse booking its own inbound goods is always a storage request - offering it road, air,
+   * sea and rail would be asking a question that has one answer. Everything else about the form is
+   * unchanged; this only decides what it opens as.
+   */
+  lockedTransportType?: TransportType | null;
   onOpenLenaAI?: () => void;
   // The conversation this draft came from (if opened via the LenaAI canvas's "Spasi kao draft i
   // nastavi sa objavom" button) and its already-persisted load_drafts row id, if any.

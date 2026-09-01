@@ -9180,6 +9180,58 @@ Object.assign(UI.de, {
   'postLoadModal.bookingReferenceHint': 'Die Auftrags- oder Buchungsnummer, unter der der Absender diese Sendung führt.',
 });
 
+// "My docks" - the warehouse counterpart of a carrier's "My cargo" page.
+Object.assign(UI.en, {
+  'nav.myDocks': 'My docks',
+  'warehouseDocks.receiveGoods': 'Receive goods',
+  'warehouseDocks.subtitle': 'Everything booked in and out of your docks.',
+  'warehouseDocks.searchPlaceholder': 'Search customer, dock or storage type...',
+  'warehouseDocks.allFacilities': 'All warehouses',
+  'warehouseDocks.empty': 'No dock movements match this filter.',
+  'warehouseDocks.colDock': 'Dock',
+  'warehouseDocks.stat.movements': 'Movements',
+  'warehouseDocks.stat.palletsIn': 'Pallets in',
+  'warehouseDocks.stat.palletsOut': 'Pallets out',
+  'warehouseDocks.status.scheduled': 'Scheduled',
+  'warehouseDocks.status.inProgress': 'In progress',
+  'warehouseDocks.status.completed': 'Completed',
+  'warehouseDocks.status.cancelled': 'Cancelled',
+});
+
+Object.assign(UI.bs, {
+  'nav.myDocks': 'Moji dokovi',
+  'warehouseDocks.receiveGoods': 'Zaprimi robu',
+  'warehouseDocks.subtitle': 'Sve što je zakazano za prijem i otpremu na vašim dokovima.',
+  'warehouseDocks.searchPlaceholder': 'Pretraži klijenta, dok ili vrstu skladištenja...',
+  'warehouseDocks.allFacilities': 'Sva skladišta',
+  'warehouseDocks.empty': 'Nema kretanja na dokovima za ovaj filter.',
+  'warehouseDocks.colDock': 'Dok',
+  'warehouseDocks.stat.movements': 'Kretanja',
+  'warehouseDocks.stat.palletsIn': 'Palete ulaz',
+  'warehouseDocks.stat.palletsOut': 'Palete izlaz',
+  'warehouseDocks.status.scheduled': 'Zakazano',
+  'warehouseDocks.status.inProgress': 'U toku',
+  'warehouseDocks.status.completed': 'Završeno',
+  'warehouseDocks.status.cancelled': 'Otkazano',
+});
+
+Object.assign(UI.de, {
+  'nav.myDocks': 'Meine Rampen',
+  'warehouseDocks.receiveGoods': 'Ware annehmen',
+  'warehouseDocks.subtitle': 'Alles, was an Ihren Rampen ein- und ausgeht.',
+  'warehouseDocks.searchPlaceholder': 'Kunde, Rampe oder Lagerart suchen...',
+  'warehouseDocks.allFacilities': 'Alle Lager',
+  'warehouseDocks.empty': 'Keine Rampenbewegungen für diesen Filter.',
+  'warehouseDocks.colDock': 'Rampe',
+  'warehouseDocks.stat.movements': 'Bewegungen',
+  'warehouseDocks.stat.palletsIn': 'Paletten Eingang',
+  'warehouseDocks.stat.palletsOut': 'Paletten Ausgang',
+  'warehouseDocks.status.scheduled': 'Geplant',
+  'warehouseDocks.status.inProgress': 'In Bearbeitung',
+  'warehouseDocks.status.completed': 'Abgeschlossen',
+  'warehouseDocks.status.cancelled': 'Storniert',
+});
+
 const replaceBrand = (value: string) => value.replace(/smartfreight\.ai/gi, 'Freightbook.ai').replace(/smartfreight/gi, 'Freightbook.ai');
 
 export const ui = (lang: Language, key: string, fallback: string) => {
