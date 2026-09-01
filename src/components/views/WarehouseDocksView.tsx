@@ -25,6 +25,7 @@ import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { DataTable } from '../ui/DataTable';
 import { PageHeader } from '../ui/PageHeader';
+import { DockMovementModal } from './DockMovementModal';
 
 type Direction = 'inbound' | 'outbound';
 type MovementStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
@@ -76,7 +77,7 @@ const toDateInput = (date: Date) => date.toISOString().slice(0, 10);
  * ledger as a page you can work from - filter by direction and status, search a customer, widen the
  * date window past today - laid out the way the cargo page is so the two feel like one product.
  */
-export const WarehouseDocksView = ({ lang, onReceiveGoods }: { lang: Language; onReceiveGoods?: () => void }) => {
+export const WarehouseDocksView = ({ lang, onReceiveGoods, onOpenLoad }: { lang: Language; onReceiveGoods?: () => void; onOpenLoad?: (loadId: string) => void }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const today = toDateInput(new Date());
   const [dateFrom, setDateFrom] = useState(today);
@@ -85,7 +86,11 @@ export const WarehouseDocksView = ({ lang, onReceiveGoods }: { lang: Language; o
   const [statusFilter, setStatusFilter] = useState<'all' | MovementStatus>('all');
   const [warehouseId, setWarehouseId] = useState<'all' | string>('all');
   const [query, setQuery] = useState('');
-  const [layout, setLayout] = useState<'list' | 'grid'>('list');
+  // Cards by default: a dock movement is read one at a time (who, when, how many pallets), which
+  // the card shows at a glance where the table makes you track across columns for it.
+  const [layout, setLayout] = useState<'list' | 'grid'>('grid');
+  // Which movement is open in full - the dock equivalent of opening a shipment from the cargo page.
+  const [openMovementId, setOpenMovementId] = useState<string | null>(null);
 
   const movementsResult = useApiList(api.warehouseMovements.list, {
     per_page: 200,
@@ -315,7 +320,11 @@ export const WarehouseDocksView = ({ lang, onReceiveGoods }: { lang: Language; o
               </thead>
               <tbody>
                 {visible.map((row) => (
-                  <tr key={row.id} className="border-b border-slate-50 dark:border-slate-800/60">
+                  <tr
+                    key={row.id}
+                    onClick={() => setOpenMovementId(row.id)}
+                    className="cursor-pointer border-b border-slate-50 transition-colors hover:bg-slate-50 dark:border-slate-800/60 dark:hover:bg-slate-800/40"
+                  >
                     <td className="px-3 py-2">
                       <span className="block font-bold text-slate-800 dark:text-white">{formatTime(row.scheduledAt)}</span>
                       <span className="text-[10px] text-slate-400">{formatDay(row.scheduledAt)}</span>
@@ -335,7 +344,12 @@ export const WarehouseDocksView = ({ lang, onReceiveGoods }: { lang: Language; o
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {visible.map((row) => (
-            <Card key={row.id} className="shadow-none" contentClassName="space-y-3 p-4">
+            <Card
+              key={row.id}
+              onClick={() => setOpenMovementId(row.id)}
+              className="cursor-pointer shadow-none transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
+              contentClassName="space-y-3 p-4"
+            >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-black text-slate-900 dark:text-white">{row.customerName}</p>
@@ -368,6 +382,13 @@ export const WarehouseDocksView = ({ lang, onReceiveGoods }: { lang: Language; o
           ))}
         </div>
       )}
+      <DockMovementModal
+        open={openMovementId !== null}
+        lang={lang}
+        movementId={openMovementId}
+        onClose={() => setOpenMovementId(null)}
+        onOpenLoad={onOpenLoad}
+      />
     </div>
   );
 };

@@ -7314,6 +7314,10 @@ export default function App() {
               {view === "docks" && (
                 <WarehouseDocksView
                   lang={lang}
+                  onOpenLoad={(loadId) => {
+                    setEditLoadId(loadId);
+                    setIsPostLoadOpen(true);
+                  }}
                   onReceiveGoods={() => {
                     setPostLoadTransportType("warehouse");
                     setIsPostLoadOpen(true);
