@@ -14,7 +14,7 @@ import { trPackageStatus } from '../../i18n';
 import { useLenaEmbeddedMessages } from '../lena/useLenaEmbeddedMessages';
 import { LenaLoadCanvas } from '../lena/LenaLoadCanvas';
 import { buildScanFieldRows, ScanFieldPatch } from '../modals/scanFieldRows';
-import { analyzeLenaAttachment, latestLoadScan, LENA_LOAD_FILE_ACCEPT, LenaAttachment, loadDraftRecordToScan } from '../../lib/lenaLoadCanvas';
+import { analyzeLenaAttachment, archiveLenaAttachment, latestLoadScan, LENA_LOAD_FILE_ACCEPT, LenaAttachment, loadDraftRecordToScan } from '../../lib/lenaLoadCanvas';
 import { LENA_AI_GENERAL_SUBJECT, LenaQuickAction, lenaConversationSubjectTitle, lenaQuickActionFromMessage, lenaQuickActionMarker } from '../../lib/useLenaAiChat';
 import { withMinDelay } from '../../lib/timing';
 import { lenaStepInputMask, MASKABLE_GUIDED_STEPS } from '../../lib/lenaStepInputMask';
@@ -203,6 +203,9 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
   const [messageSending, setMessageSending] = useState(false);
   const [optimisticMessages, setOptimisticMessages] = useState<OptimisticMessage[]>([]);
   const [processingAttachment, setProcessingAttachment] = useState(false);
+  // Bumped once an attachment has been filed in the Documents archive, so the draft panel's count
+  // refreshes then rather than only on the next page load.
+  const [documentsVersion, setDocumentsVersion] = useState(0);
   const [creatingNewConversation, setCreatingNewConversation] = useState(false);
   const [pendingNewConversation, setPendingNewConversation] = useState<Conversation | null>(null);
   // Conversations whose client-only greeting has already been answered. The greeting is never
@@ -589,8 +592,10 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
 
     setProcessingAttachment(true);
     setAiReplying(true);
+    let attachmentScan: LenaAttachment | null = null;
     try {
-      const attachment = await analyzeLenaAttachment(file, 'new_load', Number(conversationId), latestLoadScan(canvasAttachments));
+      attachmentScan = await analyzeLenaAttachment(file, 'new_load', Number(conversationId), latestLoadScan(canvasAttachments));
+      const attachment = attachmentScan;
       await api.messages.create({
         conversation_id: Number(conversationId),
         sender_user_id: user.id,
@@ -616,6 +621,14 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     try {
       await api.dispatchChat.reply(Number(conversationId), lang);
       await result.refresh();
+      if (attachmentScan) {
+        // That reply is what creates the draft on a first attachment, so the draft id is read back
+        // from the server here rather than from the conversation row this closure captured.
+        const conversationRow = await api.conversations.get(Number(conversationId)).catch(() => null);
+        const draftForFile = conversationRow?.data?.load_draft_id;
+        await archiveLenaAttachment(file, draftForFile ? String(draftForFile) : null, attachmentScan.loadScan);
+        setDocumentsVersion((version) => version + 1);
+      }
     } catch (error) {
       void showError(
         u('chat.replyFailed', 'LenaAI could not reply'),
@@ -878,6 +891,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
                   attachments={canvasAttachments}
                   conversationId={activeConversation.id}
                   draftId={activeConversation.loadDraftId}
+                  documentsVersion={documentsVersion}
                   loadId={activeConversation.loadId}
                   onOpenLoad={onOpenLoad}
                   onApplyPrefill={onApplyLoadPrefill}

@@ -71,6 +71,33 @@ const spreadsheetToText = async (file: File): Promise<string> => {
   }).join('\n\n').trim();
 };
 
+/**
+ * Files a chat attachment in the Documents archive as well as in the conversation.
+ *
+ * A message attachment lives inside the conversation and is only reachable from that bubble, while
+ * the Documents page is where paperwork is looked for and downloaded. So the same file is uploaded
+ * there too - against the draft it was dropped on when there is one, otherwise as a plain archive
+ * row - and typed with whatever the scan recognised it as, so it lands in the drawer a person would
+ * have filed it in.
+ *
+ * Called by the chat flows only after the assistant has replied, because that reply is what creates
+ * the draft on the first attachment: filing before it would leave the row pointing at no draft and
+ * the draft panel counting nothing. Failures are swallowed - the chat is the flow the user is in,
+ * and it must not break because the archive copy did not take.
+ */
+export const archiveLenaAttachment = async (file: File, loadDraftId: number | string | null, scan?: LoadScanResult) => {
+  try {
+    await api.documents.upload({
+      file,
+      loadDraftId: loadDraftId || undefined,
+      type: scan?.documentType || 'OTHER',
+      name: file.name,
+    });
+  } catch {
+    // The conversation already holds the file; the archive copy is a convenience on top of it.
+  }
+};
+
 export const analyzeLenaAttachment = async (file: File, mode: LenaCanvasMode, conversationId: number, current?: LoadScanResult): Promise<LenaAttachment> => {
   if (!isSupportedLenaFile(file)) {
     throw new Error('Use an Excel, CSV, image, or PDF file.');

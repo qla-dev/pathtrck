@@ -4,7 +4,7 @@ import { Language } from '../types';
 import { AI_DISPATCH_SUBJECT_PREFIX, api } from '../services/api';
 import { useApiList } from '../hooks/useApiList';
 import { showError } from './swal';
-import { analyzeLenaAttachment, latestLoadScan, LenaAttachment, LenaCanvasMode, loadDraftRecordToScan } from './lenaLoadCanvas';
+import { analyzeLenaAttachment, archiveLenaAttachment, latestLoadScan, LenaAttachment, LenaCanvasMode, loadDraftRecordToScan } from './lenaLoadCanvas';
 import { MASKABLE_GUIDED_STEPS } from './lenaStepInputMask';
 import { withMinDelay } from './timing';
 import { ui } from '../i18n';
@@ -76,6 +76,10 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
   const [newChatVersion, setNewChatVersion] = useState(0);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [canvasOverride, setCanvasOverride] = useState<boolean | null>(initialCanvasMode ? true : null);
+  // Bumped once an attachment has been filed in the Documents archive, so the draft panel's count
+  // refreshes then rather than only on the next page load - the filing happens after the assistant
+  // has replied, which is later than any message-list refresh the panel could key off.
+  const [documentsVersion, setDocumentsVersion] = useState(0);
   const [canvasMode, setCanvasMode] = useState<LenaCanvasMode>(initialCanvasMode || 'new_load');
   const [processingAttachment, setProcessingAttachment] = useState(false);
 
@@ -422,12 +426,14 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
 
     setProcessingAttachment(true);
     let conversationId: number;
+    let attachmentScan: LenaAttachment | null = null;
     try {
       // The upload needs a real conversation id up front (unlike the AI scan), so make sure one
       // exists before reading/analyzing the file.
       conversationId = await ensureConversation(attachmentOpensCanvas);
       setOptimisticMessages((messages) => messages.map((message) => message.id === optimisticId ? { ...message, conversationId } : message));
-      const attachment = await analyzeLenaAttachment(file, canvasMode, conversationId, latestLoadScan(canvasAttachments));
+      attachmentScan = await analyzeLenaAttachment(file, canvasMode, conversationId, latestLoadScan(canvasAttachments));
+      const attachment = attachmentScan;
       await api.messages.create({
         conversation_id: conversationId,
         sender_user_id: userId,
@@ -458,6 +464,14 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
       await withMinDelay(api.dispatchChat.reply(conversationId, lang));
       await result.refresh();
       setCanvasOverride(null);
+      if (attachmentScan) {
+        // That reply is what creates the draft on a first attachment, so the draft id is read back
+        // from the server here rather than from this closure's now-stale conversation row.
+        const conversationRow = await api.conversations.get(conversationId).catch(() => null);
+        const draftForFile = conversationRow?.data?.load_draft_id;
+        await archiveLenaAttachment(file, draftForFile ? String(draftForFile) : null, attachmentScan.loadScan);
+        setDocumentsVersion((version) => version + 1);
+      }
     } catch (error) {
       void showError(replyFailedTitle, error instanceof Error ? error.message : undefined);
     } finally {
@@ -469,5 +483,5 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
 
   const loadDraftId = row?.load_draft_id ? String(row.load_draft_id) : null;
 
-  return { outOfTokens, tokenResetAt, tokenPackageIcon, tokenPackageColor, conversation, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, hasActiveConversation: Boolean(row), canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId };
+  return { outOfTokens, tokenResetAt, tokenPackageIcon, tokenPackageColor, conversation, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, hasActiveConversation: Boolean(row), canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId, documentsVersion };
 };

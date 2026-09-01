@@ -100,6 +100,7 @@ export const LoadNotesView = ({ lang }: { lang: Language }) => {
       name: String(row.name || '—'),
       type: String(row.type || 'OTHER'),
       loadId: row.load_id == null ? '' : String(row.load_id),
+      draftId: row.load_draft_id == null ? '' : String(row.load_draft_id),
       uploadedBy: String(uploader.name || '—'),
       uploadedAt: String(row.created_at || '').replace('T', ' ').slice(0, 16) || '—',
       size: Number(row.size_bytes || 0),
@@ -117,6 +118,9 @@ export const LoadNotesView = ({ lang }: { lang: Language }) => {
   const [query, setQuery] = useState('');
   const [selectedLoadId, setSelectedLoadId] = useState<string>('all');
   const [recordTypeFilter, setRecordTypeFilter] = useState<string>('all');
+  // Paperwork for loads that exist, or paperwork still sitting on an unfinished draft. Published is
+  // the default because that is the working set; a draft's files are looked up deliberately.
+  const [documentScope, setDocumentScope] = useState<'published' | 'draft'>('published');
   const [draftLoadId, setDraftLoadId] = useState<string>(ARCHIVE);
   const [draftTitle, setDraftTitle] = useState('');
   const [draftText, setDraftText] = useState('');
@@ -166,6 +170,9 @@ export const LoadNotesView = ({ lang }: { lang: Language }) => {
     return rows.filter((row) => {
       if (mode === 'documents' && row.kind !== 'document') return false;
       if (mode === 'notes' && row.kind !== 'note') return false;
+      // Only a document can belong to a draft, so notes have nothing to show under that scope.
+      if (documentScope === 'draft' && (row.kind !== 'document' || row.document.draftId === '')) return false;
+      if (documentScope === 'published' && row.kind === 'document' && row.document.draftId !== '') return false;
       if (recordTypeFilter !== 'all') {
         const rowType = row.kind === 'document' ? `document:${row.document.type}` : `note:${row.note.type}`;
         if (rowType !== recordTypeFilter) return false;
@@ -180,7 +187,7 @@ export const LoadNotesView = ({ lang }: { lang: Language }) => {
         : `${row.note.title} ${row.note.text} ${noteTypeLabel(lang, row.note.type)} ${loadsById[loadId]?.label || ''}`;
       return searchable.toLowerCase().includes(normalizedQuery);
     }).sort((a, b) => b.sortAt.localeCompare(a.sortAt));
-  }, [documents, lang, loadsById, mode, notes, query, recordTypeFilter, selectedLoadId]);
+  }, [documentScope, documents, lang, loadsById, mode, notes, query, recordTypeFilter, selectedLoadId]);
 
   // One counter row for the whole page, so documents and notes are never counted in two places.
   const counters = useMemo(
@@ -253,7 +260,7 @@ export const LoadNotesView = ({ lang }: { lang: Language }) => {
           </Card>
 
           <Card className="shadow-none" contentClassName="p-3.5">
-            <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(190px,0.55fr)]">
+            <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(190px,0.55fr)_minmax(170px,0.45fr)]">
               <label className="relative block">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
@@ -264,6 +271,14 @@ export const LoadNotesView = ({ lang }: { lang: Language }) => {
                 />
               </label>
               <RecordTypeSelect value={recordTypeFilter} onChange={setRecordTypeFilter} options={recordTypeOptions} searchPlaceholder={u('documents.searchTypes', 'Search document and note types')} noResults={u('documents.noTypesFound', 'No types found.')} />
+              <select
+                value={documentScope}
+                onChange={(event) => setDocumentScope(event.target.value as 'published' | 'draft')}
+                className="h-9 w-full cursor-pointer rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-semibold text-slate-700 outline-none transition-colors focus:border-primary dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+              >
+                <option value="published">{u('documents.scopePublished', 'Published only')}</option>
+                <option value="draft">{u('documents.scopeDraft', 'Draft')}</option>
+              </select>
             </div>
           </Card>
 
@@ -276,7 +291,7 @@ export const LoadNotesView = ({ lang }: { lang: Language }) => {
             <div className="overflow-x-auto">
               <DataTable className="min-w-[760px] text-[13px]">
                 <thead><tr className="border-b border-slate-100 text-[10px] font-black uppercase tracking-wider text-slate-400 dark:border-slate-800"><th className="px-3 py-2">{u('documents.column.name', 'Name')}</th><th className="px-3 py-2">{u('documents.column.type', 'Type')}</th><th className="px-3 py-2">{u('documents.column.load', 'Load')}</th><th className="px-3 py-2">{u('documents.column.uploadedBy', 'Created by')}</th><th className="px-3 py-2">{u('documents.column.uploadedAt', 'Date')}</th><th className="px-3 py-2 text-right">{u('documents.column.actions', 'Actions')}</th></tr></thead>
-                <tbody>{unifiedRows.map((row) => row.kind === 'document' ? <tr key={`document-${row.document.id}`} className="border-b border-slate-50 dark:border-slate-800/60"><td className="px-3 py-2"><span className="flex items-center gap-2"><FileText className="h-4 w-4 shrink-0 text-sky-500" /><span><span className="block font-bold text-slate-800 dark:text-white">{row.document.name}</span><span className="text-[10px] text-slate-400">{formatDocumentSize(row.document.size)}</span></span></span></td><td className="px-3 py-2"><span className={cn('inline-flex rounded border px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider', documentTypeTone(row.document.type))}>{documentTypeLabel(lang, row.document.type)}</span></td><td className="px-3 py-2 text-xs font-semibold text-primary">{row.document.loadId ? loadsById[row.document.loadId]?.label : u('documents.archive', 'Archive')}</td><td className="px-3 py-2 text-slate-500">{row.document.uploadedBy}</td><td className="px-3 py-2 text-xs text-slate-500">{row.document.uploadedAt}</td><td className="px-3 py-2"><span className="flex justify-end gap-1"><button type="button" title={u('documents.download', 'Download')} onClick={() => void api.documents.open(row.document.id, row.document.name, false)} className="cursor-pointer rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-primary dark:hover:bg-slate-800"><Download className="h-4 w-4" /></button><button type="button" title={u('common.delete', 'Delete')} onClick={() => void api.documents.remove(row.document.id).then(documentsResult.refresh)} className="cursor-pointer rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-red-500 dark:hover:bg-slate-800"><Trash2 className="h-4 w-4" /></button></span></td></tr> : <tr key={`note-${row.note.id}`} className="border-b border-slate-50 dark:border-slate-800/60"><td className="px-3 py-2"><span className="flex items-start gap-2"><NoteTypeIcon type={row.note.type} className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" /><span><span className="block font-bold text-slate-800 dark:text-white">{row.note.title}</span><span className="line-clamp-1 text-[11px] text-slate-500">{row.note.text}</span></span></span></td><td className="px-3 py-2"><span className={cn('inline-flex rounded border px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider', priorityTone(row.note.priority))}>{noteTypeLabel(lang, row.note.type)}</span></td><td className="px-3 py-2 text-xs font-semibold text-primary">{loadsById[row.note.loadId]?.label}</td><td className="px-3 py-2 text-slate-500">{row.note.author}</td><td className="px-3 py-2 text-xs text-slate-500">{row.note.updatedAt}</td><td className="px-3 py-2 text-right"><button type="button" onClick={() => void togglePin(row.note.id)} className={cn('cursor-pointer rounded-lg border p-2', row.note.pinned ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 text-slate-400 dark:border-slate-700')}><Pin className={cn('h-4 w-4', row.note.pinned && 'fill-current')} /></button></td></tr>)}</tbody>
+                <tbody>{unifiedRows.map((row) => row.kind === 'document' ? <tr key={`document-${row.document.id}`} className="border-b border-slate-50 dark:border-slate-800/60"><td className="px-3 py-2"><span className="flex items-center gap-2"><FileText className="h-4 w-4 shrink-0 text-sky-500" /><span><span className="block font-bold text-slate-800 dark:text-white">{row.document.name}</span><span className="text-[10px] text-slate-400">{formatDocumentSize(row.document.size)}</span></span></span></td><td className="px-3 py-2"><span className={cn('inline-flex rounded border px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider', documentTypeTone(row.document.type))}>{documentTypeLabel(lang, row.document.type)}</span></td><td className="px-3 py-2 text-xs font-semibold text-primary">{row.document.loadId ? loadsById[row.document.loadId]?.label : row.document.draftId ? `${u('documents.draft', 'Draft')} #${row.document.draftId}` : u('documents.archive', 'Archive')}</td><td className="px-3 py-2 text-slate-500">{row.document.uploadedBy}</td><td className="px-3 py-2 text-xs text-slate-500">{row.document.uploadedAt}</td><td className="px-3 py-2"><span className="flex justify-end gap-1"><button type="button" title={u('documents.download', 'Download')} onClick={() => void api.documents.open(row.document.id, row.document.name, false)} className="cursor-pointer rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-primary dark:hover:bg-slate-800"><Download className="h-4 w-4" /></button><button type="button" title={u('common.delete', 'Delete')} onClick={() => void api.documents.remove(row.document.id).then(documentsResult.refresh)} className="cursor-pointer rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-red-500 dark:hover:bg-slate-800"><Trash2 className="h-4 w-4" /></button></span></td></tr> : <tr key={`note-${row.note.id}`} className="border-b border-slate-50 dark:border-slate-800/60"><td className="px-3 py-2"><span className="flex items-start gap-2"><NoteTypeIcon type={row.note.type} className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" /><span><span className="block font-bold text-slate-800 dark:text-white">{row.note.title}</span><span className="line-clamp-1 text-[11px] text-slate-500">{row.note.text}</span></span></span></td><td className="px-3 py-2"><span className={cn('inline-flex rounded border px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider', priorityTone(row.note.priority))}>{noteTypeLabel(lang, row.note.type)}</span></td><td className="px-3 py-2 text-xs font-semibold text-primary">{loadsById[row.note.loadId]?.label}</td><td className="px-3 py-2 text-slate-500">{row.note.author}</td><td className="px-3 py-2 text-xs text-slate-500">{row.note.updatedAt}</td><td className="px-3 py-2 text-right"><button type="button" onClick={() => void togglePin(row.note.id)} className={cn('cursor-pointer rounded-lg border p-2', row.note.pinned ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 text-slate-400 dark:border-slate-700')}><Pin className={cn('h-4 w-4', row.note.pinned && 'fill-current')} /></button></td></tr>)}</tbody>
               </DataTable>
               {unifiedRows.length === 0 && <p className="py-8 text-center text-sm text-slate-500">{u('documents.emptyUnified', 'No documents or notes match this filter.')}</p>}
             </div>

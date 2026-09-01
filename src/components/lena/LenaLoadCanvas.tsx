@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, ChevronRight, FileSpreadsheet, Loader2, PackagePlus, Save, Sparkles } from 'lucide-react';
+import { Check, ChevronRight, FileSpreadsheet, FileText, Loader2, PackagePlus, Save, Sparkles } from 'lucide-react';
 import { Language } from '../../types';
 import { ui } from '../../i18n';
 import { api, BulkLoadRow } from '../../services/api';
@@ -15,6 +15,8 @@ type LenaLoadCanvasProps = {
   attachments: LenaAttachment[];
   conversationId: string;
   draftId?: string | null;
+  /** Bumped by the chat once an attachment has been filed, so the document count re-reads itself. */
+  documentsVersion?: number;
   // Set once the conversation is already linked to a real, created load (as opposed to just a
   // LoadDraft) - in that case the panel below switches from "continue the draft" to "edit load".
   loadId?: string;
@@ -23,12 +25,13 @@ type LenaLoadCanvasProps = {
   onBulkImported?: (rows: BulkLoadRow[]) => void;
 };
 
-export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftId, loadId, onOpenLoad, onApplyPrefill, onBulkImported }: LenaLoadCanvasProps) => {
+export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftId, documentsVersion = 0, loadId, onOpenLoad, onApplyPrefill, onBulkImported }: LenaLoadCanvasProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [importing, setImporting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [quickSaving, setQuickSaving] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [documentCount, setDocumentCount] = useState(0);
   const bulkRows = attachments.flatMap((attachment) => attachment.bulkRows || []);
   // The backend carries the draft forward on every scan, so the most recently scanned
   // attachment already reflects the full, up-to-date state of the load (see latestLoadScan).
@@ -55,6 +58,27 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftI
       cancelled = true;
     };
   }, [draftId]);
+
+  // Everything filed against this draft, so the panel can say how much paperwork came with it.
+  // Attachments are archived in the background after the scan returns (see archiveLenaAttachment),
+  // so the count is re-read whenever a new one lands rather than only when the panel opens.
+  useEffect(() => {
+    if (!draftId) return undefined;
+    let cancelled = false;
+    // A full page rather than a count-only request, so the fallback below is the real number when
+    // the response carries no pagination meta.
+    void api.documents.list({ load_draft_id: draftId, per_page: 100 })
+      .then((response) => {
+        if (cancelled) return;
+        setDocumentCount(response.meta?.total ?? response.data.length);
+      })
+      .catch(() => {
+        // Non-critical - the chip just stays hidden.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [documentsVersion, draftId]);
 
   const importRows = async () => {
     if (bulkRows.length === 0 || importing) return;
@@ -110,6 +134,18 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftI
             {mode === 'bulk' ? u('LenaAI bulk canvas', 'Bulk load canvas') : u('LenaAI new load canvas', 'New load canvas')}
           </p>
         </div>
+        <div className="flex shrink-0 items-center gap-2">
+        {mode !== 'bulk' && draftId && documentCount > 0 && (
+          // The paperwork already collected for this draft, in the same chip shape as the autosave
+          // badge beside it so the two read as one status line rather than two controls.
+          <span
+            title={u('documents.draftCount', 'Documents on this draft')}
+            className="flex shrink-0 items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+          >
+            <FileText className="h-3 w-3" />
+            <span className="whitespace-nowrap">{documentCount}</span>
+          </span>
+        )}
         {mode !== 'bulk' && draftId && (
           <button
             type="button"
@@ -125,6 +161,7 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftI
             </span>
           </button>
         )}
+        </div>
       </div>
 
       {bulkRows.length === 0 && rows.length === 0 && (
@@ -179,9 +216,12 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftI
             </button>
           ) : (
             <button type="button" onClick={() => void saveDraftAndContinue()} disabled={savingDraft} className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary text-xs font-black text-white transition-colors hover:bg-primary-dark disabled:opacity-60">
+              {/* The count is how much has been collected so far - the same rows listed above, so
+                  the button says what is being carried into the form rather than just where it goes. */}
               {draftId
                 ? u('postLoadModal.continueEditing', 'Nastavi sa draftom')
                 : u('postLoadModal.saveDraftAndContinue', 'Spasi draft i provjeri')}
+              {` (${rows.length})`}
               {savingDraft ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ChevronRight className="h-3.5 w-3.5" />}
             </button>
           )}

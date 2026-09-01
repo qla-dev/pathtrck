@@ -37,9 +37,10 @@ export const DetailToggleCard = ({
   /** What was filled in, shown small in the card's top-right corner. Empty renders `emptyHint`. */
   summary: string;
   emptyHint: string;
-  clearLabel: string;
+  /** Omitted when the panel only shows things (a document list), rather than fields to reset. */
+  clearLabel?: string;
   onToggle: () => void;
-  onClear: () => void;
+  onClear?: () => void;
   children: ReactNode;
 }) => {
   const [open, setOpen] = useState(false);
@@ -136,13 +137,15 @@ export const DetailToggleCard = ({
               <Icon className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">{title}</span>
             </span>
-            <button
-              type="button"
-              onClick={onClear}
-              className="shrink-0 cursor-pointer text-[10px] font-bold text-primary underline"
-            >
-              {clearLabel}
-            </button>
+            {onClear && clearLabel && (
+              <button
+                type="button"
+                onClick={onClear}
+                className="shrink-0 cursor-pointer text-[10px] font-bold text-primary underline"
+              >
+                {clearLabel}
+              </button>
+            )}
           </div>
           <div className="px-1.5 pb-1.5">{children}</div>
         </div>,

@@ -23,6 +23,8 @@ export type DocumentRow = {
   name: string;
   type: string;
   loadId: string;
+  /** Set instead of loadId while the paperwork belongs to a load that is still a draft. */
+  draftId: string;
   uploadedBy: string;
   uploadedAt: string;
   size: number;

@@ -207,7 +207,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [open, onClose]);
 
-  const { tokenResetAt, tokenPackageIcon, tokenPackageColor, conversation, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId } = useLenaAiChat({
+  const { tokenResetAt, tokenPackageIcon, tokenPackageColor, conversation, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId, documentsVersion } = useLenaAiChat({
     userId,
     companyIds,
     loadId,
@@ -389,6 +389,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
                       attachments={canvasAttachments}
                       conversationId={conversation.id}
                       draftId={loadDraftId}
+                      documentsVersion={documentsVersion}
                       onApplyPrefill={onApplyLoadPrefill}
                       onBulkImported={onBulkImported}
                     />

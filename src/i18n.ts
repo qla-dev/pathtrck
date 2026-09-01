@@ -9128,6 +9128,58 @@ Object.assign(UI.de, {
   'postLoadModal.dragStopHint': 'Zum Umsortieren ziehen',
 });
 
+// Documents that belong to a load which has not been published yet: LenaAI files every attachment
+// in the archive as it is scanned, so a draft carries its own paperwork before the load exists.
+Object.assign(UI.en, {
+  'documents.scopePublished': 'Published only',
+  'documents.scopeDraft': 'Draft',
+  'documents.draft': 'Draft',
+  'documents.draftCount': 'Documents on this draft',
+  'documents.noneAttached': 'No files yet',
+  'documents.noneAttachedHint': 'Files attached to this load appear here.',
+  'documents.openInNewTab': 'Open in a new tab',
+});
+
+Object.assign(UI.bs, {
+  'documents.scopePublished': 'Samo objavljeni',
+  'documents.scopeDraft': 'Draft',
+  'documents.draft': 'Draft',
+  'documents.draftCount': 'Dokumenti na ovom draftu',
+  'documents.noneAttached': 'Nema datoteka',
+  'documents.noneAttachedHint': 'Datoteke priložene ovom teretu prikazuju se ovdje.',
+  'documents.openInNewTab': 'Otvori u novom tabu',
+});
+
+Object.assign(UI.de, {
+  'documents.scopePublished': 'Nur veröffentlichte',
+  'documents.scopeDraft': 'Entwurf',
+  'documents.draft': 'Entwurf',
+  'documents.draftCount': 'Dokumente in diesem Entwurf',
+  'documents.noneAttached': 'Noch keine Dateien',
+  'documents.noneAttachedHint': 'Dateien zu dieser Ladung erscheinen hier.',
+  'documents.openInNewTab': 'In neuem Tab öffnen',
+});
+
+// The shipper's own order/booking number, read off the document by LenaAI into its own column
+// rather than left inside the notes sentence it was printed in.
+Object.assign(UI.en, {
+  'postLoadModal.bookingReference': 'Booking reference',
+  'postLoadModal.bookingReferencePlaceholder': 'e.g. 26-020-000991',
+  'postLoadModal.bookingReferenceHint': 'The order or booking number the sender uses for this shipment.',
+});
+
+Object.assign(UI.bs, {
+  'postLoadModal.bookingReference': 'Broj narudžbe',
+  'postLoadModal.bookingReferencePlaceholder': 'npr. 26-020-000991',
+  'postLoadModal.bookingReferenceHint': 'Broj narudžbe ili rezervacije pod kojim pošiljalac vodi ovu pošiljku.',
+});
+
+Object.assign(UI.de, {
+  'postLoadModal.bookingReference': 'Auftragsnummer',
+  'postLoadModal.bookingReferencePlaceholder': 'z. B. 26-020-000991',
+  'postLoadModal.bookingReferenceHint': 'Die Auftrags- oder Buchungsnummer, unter der der Absender diese Sendung führt.',
+});
+
 const replaceBrand = (value: string) => value.replace(/smartfreight\.ai/gi, 'Freightbook.ai').replace(/smartfreight/gi, 'Freightbook.ai');
 
 export const ui = (lang: Language, key: string, fallback: string) => {

@@ -139,6 +139,8 @@ export type LoadPartyMatch = {
 };
 export type LoadScanResult = {
   isDocument: boolean;
+  /** Which kind of paperwork the scanned file is, as a DOCUMENT_TYPES code. Empty when unclear. */
+  documentType?: string;
   sender?: LoadPartyMatch;
   receiver?: LoadPartyMatch;
   customerCandidates?: LoadPartyMatch[];
@@ -627,10 +629,11 @@ export const api = {
   documents: {
     ...resourceApi<Record<string, unknown>>('documents'),
     /** Uploads the file and creates its row in one call. Omitting `loadId` files it in the archive. */
-    upload: async (input: { file: File; loadId?: string | null; vehicleId?: string | number | null; userId?: string | number | null; type?: string; name?: string; reference?: string | null; expiresAt?: string | null }) => {
+    upload: async (input: { file: File; loadId?: string | null; loadDraftId?: string | number | null; vehicleId?: string | number | null; userId?: string | number | null; type?: string; name?: string; reference?: string | null; expiresAt?: string | null }) => {
       const form = new FormData();
       form.append('file', input.file);
       if (input.loadId) form.append('load_id', input.loadId);
+      if (input.loadDraftId) form.append('load_draft_id', String(input.loadDraftId));
       if (input.vehicleId) form.append('vehicle_id', String(input.vehicleId));
       if (input.userId) form.append('user_id', String(input.userId));
       if (input.type) form.append('type', input.type);

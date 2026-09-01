@@ -41,6 +41,7 @@ import {
   RotateCcw,
   Route,
   ArrowDownToLine,
+  Barcode,
   BadgeCheck,
   Landmark,
   Radar,
@@ -166,6 +167,7 @@ import { ChoiceCard } from './ChoiceCard';
 import { SummaryRow } from './SummaryRow';
 import { HANDLING_DESCRIPTIONS, HANDLING_ICONS, WarehouseLocationFields, WarehouseStorageTypeField } from './WarehouseFormFields';
 import { CustomsDocumentsPanel } from './CustomsDocumentsPanel';
+import { DocumentTypeToggleCard } from './DocumentTypeToggleCard';
 
 // One load_stops row as an editable stop. Only the added stops go through this - stop 1 of each
 // side is spread across the draft's flat pickup*/delivery* fields instead.
@@ -2222,6 +2224,19 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         </div>
                       )}
                       <div className="grid md:grid-cols-3 gap-3">
+                        {draft.transportType === 'road' && (
+                          <DocumentTypeToggleCard
+                            type="CMR"
+                            active={draft.cmrRequired}
+                            onToggle={() => setField('cmrRequired', !draft.cmrRequired)}
+                            icon={FileText}
+                            title={u('postLoadModal.cmr', 'CMR')}
+                            description={u('postLoadModal.cmrDesc', 'CMR consignment note required')}
+                            loadId={editLoadId}
+                            draftId={draftId}
+                            u={u}
+                          />
+                        )}
                         {(isContainerTransport(draft.transportType) ? SEA_CHARACTERISTIC_OPTIONS : draft.transportType === 'air' ? AIR_CHARACTERISTIC_OPTIONS : ROAD_CHARACTERISTIC_OPTIONS).map((option) => (
                           characteristicDetail(option) ? (
                             <DetailToggleCard
@@ -2292,13 +2307,6 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                               icon={Ship}
                               title={u('postLoadModal.ferry', 'Ferry')}
                               description={u('postLoadModal.ferryDesc', 'Route includes a ferry / RoRo crossing')}
-                            />
-                            <ToggleCard
-                              active={draft.cmrRequired}
-                              onClick={() => setField('cmrRequired', !draft.cmrRequired)}
-                              icon={FileText}
-                              title={u('postLoadModal.cmr', 'CMR')}
-                              description={u('postLoadModal.cmrDesc', 'CMR consignment note required')}
                             />
                             <ToggleCard
                               active={draft.palletExchangeRequired}
@@ -2942,6 +2950,26 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             'postLoadModal.marketReadinessDesc',
                             'More complete loads typically get faster driver responses and fewer clarification calls.'
                           )}
+                        </p>
+                      </div>
+
+                      {/* The reference the load is known by on the other side - the shipper's own
+                          order or booking number, read off the document by LenaAI. It has a column
+                          of its own, so it is corrected here rather than buried in the notes. */}
+                      <div className="rounded-3xl border border-slate-200 dark:border-slate-800 p-5 space-y-2">
+                        <div className="flex items-center gap-2 text-primary">
+                          <Barcode className="w-4 h-4" />
+                          <span className="text-xs font-black uppercase tracking-wider">
+                            {u('postLoadModal.bookingReference', 'Booking reference')}
+                          </span>
+                        </div>
+                        <Input
+                          value={draft.bookingReference}
+                          onChange={(event) => setField('bookingReference', event.target.value)}
+                          placeholder={u('postLoadModal.bookingReferencePlaceholder', 'e.g. 26-020-000991')}
+                        />
+                        <p className="text-[11px] text-slate-500">
+                          {u('postLoadModal.bookingReferenceHint', 'The order or booking number the sender uses for this shipment.')}
                         </p>
                       </div>
 

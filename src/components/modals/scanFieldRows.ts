@@ -519,14 +519,25 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
   // into notes) get their own card, but their text still rides along inside the "notes" patch
   // below since the real posting form has no dedicated slot for arbitrary custom fields.
   const customFields = (result.customFields || []).filter((item) => item.label && item.value);
-  const bookingNote = result.bookingReference ? `Booking ref: ${result.bookingReference}` : '';
-  const combinedNotes = [result.notes, bookingNote, ...customFields.map((item) => `${item.label}: ${item.value}`)]
+  // The booking reference has a column of its own on the load, so it is read back as its own row
+  // and its own patch. It used to be appended to the notes text as "Booking ref: X", which put it
+  // somewhere the posting form could never fill the dedicated field from.
+  if (result.bookingReference) {
+    rows.push({
+      key: 'bookingReference',
+      label: 'Booking reference',
+      value: result.bookingReference,
+      patch: { bookingReference: result.bookingReference },
+      icon: Barcode,
+    });
+  }
+  const combinedNotes = [result.notes, ...customFields.map((item) => `${item.label}: ${item.value}`)]
     .filter(Boolean)
     .join(' ')
     .trim();
 
   customFields.forEach((item, index) => {
-    const isLastWithoutNotesRow = index === customFields.length - 1 && !result.notes && !bookingNote;
+    const isLastWithoutNotesRow = index === customFields.length - 1 && !result.notes;
     rows.push({
       key: `custom-${index}`,
       label: item.label,
@@ -536,16 +547,12 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
     });
   });
 
-  const displayNotes = [result.notes, bookingNote].filter(Boolean).join(' ').trim();
-  if (displayNotes) {
+  if (result.notes) {
     rows.push({
       key: 'notes',
       label: 'Notes',
-      value: displayNotes,
-      patch: {
-        notes: combinedNotes,
-        ...(result.bookingReference ? { bookingReference: result.bookingReference } : {}),
-      },
+      value: result.notes,
+      patch: { notes: combinedNotes },
       icon: StickyNote,
     });
   }
