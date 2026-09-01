@@ -50,16 +50,20 @@ export const DocumentUploadCard = ({
   lang,
   attachTo,
   onUploaded,
+  defaultType = '',
+  lockType = false,
 }: {
   lang: Language;
   attachTo: string;
   onUploaded: () => Promise<void>;
+  defaultType?: string;
+  lockType?: boolean;
 }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  const [documentType, setDocumentType] = useState<string>('');
+  const [documentType, setDocumentType] = useState<string>(defaultType);
   const [pending, setPending] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -99,7 +103,7 @@ export const DocumentUploadCard = ({
       });
       await onUploaded();
       setPending(null);
-      setDocumentType('');
+      setDocumentType(defaultType);
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : u('documents.uploadFailed', 'The document could not be uploaded.'));
     } finally {
@@ -157,16 +161,16 @@ export const DocumentUploadCard = ({
           <div className="flex flex-col gap-2.5">
             <div>
               <p className={labelClass}>{u('documents.documentType', 'Document type')}</p>
-              <RecordTypeSelect
-                value={documentType}
-                onChange={setDocumentType}
-                options={[
-                  { value: '', label: u('documents.selectType', 'Select document type'), kind: 'all' },
-                  ...DOCUMENT_TYPES.map((option) => ({ value: option.value, label: documentTypeLabel(lang, option.value), kind: 'document' as const })),
-                ]}
-                searchPlaceholder={u('documents.searchDocumentTypes', 'Search document types')}
-                noResults={u('documents.noTypesFound', 'No types found.')}
-              />
+              {lockType ? <div className="flex h-9 items-center rounded-lg border border-slate-200 bg-slate-50 px-2.5 text-[13px] font-semibold text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100">{documentTypeLabel(lang, defaultType || 'OTHER')}</div> : <RecordTypeSelect
+                  value={documentType}
+                  onChange={setDocumentType}
+                  options={[
+                    { value: '', label: u('documents.selectType', 'Select document type'), kind: 'all' },
+                    ...DOCUMENT_TYPES.map((option) => ({ value: option.value, label: documentTypeLabel(lang, option.value), kind: 'document' as const })),
+                  ]}
+                  searchPlaceholder={u('documents.searchDocumentTypes', 'Search document types')}
+                  noResults={u('documents.noTypesFound', 'No types found.')}
+                />}
             </div>
 
             {uploadError && <p className="text-[11px] font-semibold text-rose-600">{uploadError}</p>}
