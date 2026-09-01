@@ -6616,7 +6616,7 @@ export default function App() {
         },
         {
           id: "admin-drivers",
-          label: u("nav.allDrivers", "Drivers"),
+          label: u("nav.allDrivers", "Carriers"),
           icon: Users,
         },
         { id: "feed", label: t.homeFeed, icon: Boxes },

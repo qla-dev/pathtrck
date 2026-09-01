@@ -44,6 +44,8 @@ const initial = {
 
 export const AdminDriversView = ({ lang, role }: { lang: Language; role: Role }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  const carrier = u('common.carrier', 'Carrier');
+  const carriers = u('common.carriers', 'Carriers');
   const canManageSubscriptions = role === "superadmin" || role === "master";
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(initial);
@@ -68,7 +70,7 @@ export const AdminDriversView = ({ lang, role }: { lang: Language; role: Role })
 
   const updateStatus = async (row: Record<string, unknown>, status: DriverStatus) => {
     if (String(row.availability_status || "available") === status) return;
-    const confirmed = await confirmAction({ title: `Change status to ${status.replace("_", " ")}?`, text: `${String(row.name || "This driver")}'s availability will be updated immediately.`, confirmText: "Change status" });
+    const confirmed = await confirmAction({ title: `Change status to ${status.replace("_", " ")}?`, text: `${String(row.name || `This ${carrier.toLowerCase()}`)}'s availability will be updated immediately.`, confirmText: "Change status" });
     if (!confirmed) return;
     const id = String(row.id);
     setStatusSavingId(id);
@@ -76,16 +78,16 @@ export const AdminDriversView = ({ lang, role }: { lang: Language; role: Role })
       await api.drivers.update(id, { availability_status: status });
       await drivers.refresh();
       setTableRefreshKey((current) => current + 1);
-      void showSuccess("Driver status updated", `${String(row.name || "Driver")} is now ${status.replace("_", " ")}.`);
+      void showSuccess(`${carrier} status updated`, `${String(row.name || carrier)} is now ${status.replace("_", " ")}.`);
     } catch (caught) {
-      void showError("Driver status could not be updated", caught instanceof Error ? caught.message : undefined);
+      void showError(`${carrier} status could not be updated`, caught instanceof Error ? caught.message : undefined);
     } finally {
       setStatusSavingId(null);
     }
   };
 
   const columns = useMemo<ServerDataTableColumn<Record<string, unknown>>[]>(() => [
-    { key: "driver", header: "Driver", render: (row) => { const user = (row.user || {}) as Record<string, unknown>; return <><p className="font-bold dark:text-white">{String(row.name || user.name || "—")}</p><p className="text-xs text-slate-500">{String(row.email || user.email || "")}</p></>; } },
+    { key: "driver", header: carrier, render: (row) => { const user = (row.user || {}) as Record<string, unknown>; return <><p className="font-bold dark:text-white">{String(row.name || user.name || "—")}</p><p className="text-xs text-slate-500">{String(row.email || user.email || "")}</p></>; } },
     { key: "company", header: "Company", render: (row) => String(((row.primary_company || {}) as Record<string, unknown>).name || "Independent") },
     { key: "license", header: "License", render: (row) => `${String(row.license_number || "—")} · ${String(row.license_country_code || "")}` },
     { key: "location", header: "Location", render: (row) => { const user = (row.user || {}) as Record<string, unknown>; const vehicles = Array.isArray(user.assigned_vehicles) ? user.assigned_vehicles as Array<Record<string, unknown>> : []; const location = (vehicles[0]?.locations as Array<Record<string, unknown>> | undefined)?.[0]?.location_name; return <span className="flex items-center gap-1 text-sm text-slate-500"><MapPin className="h-4 w-4" />{String(location || "—")}</span>; } },
@@ -93,16 +95,16 @@ export const AdminDriversView = ({ lang, role }: { lang: Language; role: Role })
     ...(canManageSubscriptions ? [{ key: "lena_ai", header: "LenaAI", render: (row) => { const user = (row.user || {}) as Record<string, unknown>; return <LenaTokenCount subscription={(user.subscription || null) as UserSubscription | null} />; }, exportValue: (row) => { const user = (row.user || {}) as Record<string, unknown>; return Number(((user.subscription || null) as UserSubscription | null)?.remaining_tokens || 0); } } satisfies ServerDataTableColumn<Record<string, unknown>>] : []),
     { key: "trips", header: "Trips", render: (row) => <span className="flex items-center gap-1"><Truck className="h-4 w-4 text-primary" />{String(row.completed_trips || 0)}</span> },
     { key: "state", header: "State", render: (row) => { const status = String(row.availability_status || "available") as DriverStatus; const saving = statusSavingId === String(row.id); return <div className="relative w-40">{saving && <Loader2 className="pointer-events-none absolute left-3 top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-primary" />}<IconSelect value={status} disabled={saving} onChange={(next) => void updateStatus(row, next as DriverStatus)} placeholder="State" ariaLabel={`Change availability for ${String(row.name || "driver")}`} icon={CircleCheckBig} className={saving ? "[&_button]:pl-9" : undefined} options={[{ value: "available", label: "Available", icon: CircleCheckBig }, { value: "on_load", label: "On load", icon: Truck }, { value: "off_duty", label: "Off duty", icon: Clock3 }, { value: "unavailable", label: "Unavailable", icon: Ban }]} /></div>; } },
-    { key: "actions", header: u('Action', 'Action'), className: "text-right", exportable: false, render: (row) => { const user = (row.user || {}) as Record<string, unknown>; const userId = Number(row.user_id || user.id || 0); return <div className="flex items-center justify-end gap-2">{canManageSubscriptions && <AdminSubscriptionButton disabled={!userId} ariaLabel={userId ? `${u('adminSubscription.open', 'Edit subscription')}: ${String(row.name || user.name || '')}` : u('adminSubscription.noAccount', 'No user account available')} onClick={() => userId && setSubscriptionTarget({ userId, name: String(row.name || user.name || ''), subscription: (user.subscription || null) as UserSubscription | null })} />}<button type="button" aria-label="Open driver profile" onClick={() => setSelected(row)} className="cursor-pointer rounded-lg bg-slate-100 p-2 transition hover:text-primary dark:bg-slate-800"><Eye className="h-4 w-4" /></button></div>; } },
-  ], [canManageSubscriptions, statusSavingId, lang]);
+    { key: "actions", header: u('Action', 'Action'), className: "text-right", exportable: false, render: (row) => { const user = (row.user || {}) as Record<string, unknown>; const userId = Number(row.user_id || user.id || 0); return <div className="flex items-center justify-end gap-2">{canManageSubscriptions && <AdminSubscriptionButton disabled={!userId} ariaLabel={userId ? `${u('adminSubscription.open', 'Edit subscription')}: ${String(row.name || user.name || '')}` : u('adminSubscription.noAccount', 'No user account available')} onClick={() => userId && setSubscriptionTarget({ userId, name: String(row.name || user.name || ''), subscription: (user.subscription || null) as UserSubscription | null })} />}<button type="button" aria-label={`Open ${carrier.toLowerCase()} profile`} onClick={() => setSelected(row)} className="cursor-pointer rounded-lg bg-slate-100 p-2 transition hover:text-primary dark:bg-slate-800"><Eye className="h-4 w-4" /></button></div>; } },
+  ], [canManageSubscriptions, carrier, statusSavingId, lang]);
 
   const save = async () => {
     const confirmed = await confirmAction({
-      title: "Create this driver?",
+      title: `Create this ${carrier.toLowerCase()}?`,
       text: form.password
         ? `A login will be created for ${form.name || form.email}.`
-        : "The driver will be saved without login access.",
-      confirmText: "Create driver",
+        : `The ${carrier.toLowerCase()} will be saved without login access.`,
+      confirmText: `Create ${carrier.toLowerCase()}`,
     });
     if (!confirmed) return;
     setSubmitting(true);
@@ -114,10 +116,10 @@ export const AdminDriversView = ({ lang, role }: { lang: Language; role: Role })
       await drivers.refresh();
       setTableRefreshKey((current) => current + 1);
       void showSuccess(
-        "Driver created",
+        `${carrier} created`,
         form.password
           ? "The driver account is ready."
-          : "The driver was saved without login access.",
+          : `The ${carrier.toLowerCase()} was saved without login access.`,
       );
     } catch (caught) {
       const validation =
@@ -128,7 +130,7 @@ export const AdminDriversView = ({ lang, role }: { lang: Language; role: Role })
         validation ||
           (caught instanceof Error
             ? caught.message
-            : "Driver could not be created."),
+            : `${carrier} could not be created.`),
       );
     } finally {
       setSubmitting(false);
@@ -140,12 +142,12 @@ export const AdminDriversView = ({ lang, role }: { lang: Language; role: Role })
       <div className="space-y-3">
         <PageHeader
           icon={UserRoundSearch}
-          title="Drivers"
-          subtitle="Track drivers, companies, licenses, availability and completed trips."
-          actions={<Button onClick={() => setOpen(true)}>Add driver</Button>}
+          title={carriers}
+          subtitle={`Track ${carriers.toLowerCase()}, companies, licenses, availability and completed trips.`}
+          actions={<Button onClick={() => setOpen(true)}>Add {carrier.toLowerCase()}</Button>}
           stats={[
             {
-              label: "Verified drivers",
+              label: `Verified ${carriers.toLowerCase()}`,
               value: drivers.total,
               icon: UsersRound,
               tone: "bg-sky-500/10 text-sky-500",
@@ -168,14 +170,14 @@ export const AdminDriversView = ({ lang, role }: { lang: Language; role: Role })
             },
           ]}
         />
-        <Card className="shadow-none" contentClassName="p-0"><ServerDataTable edgeToEdge title="Drivers" request={api.drivers.list} columns={columns} refreshKey={tableRefreshKey} initialPageSize={50} emptyMessage="No drivers found." /></Card>
+        <Card className="shadow-none" contentClassName="p-0"><ServerDataTable edgeToEdge title={carriers} request={api.drivers.list} columns={columns} refreshKey={tableRefreshKey} initialPageSize={50} emptyMessage={`No ${carriers.toLowerCase()} found.`} /></Card>
       </div>
       <ProfileModal open={selected !== null} kind="driver" record={selected} role={role} lang={lang} onClose={() => setSelected(null)} />
       <AdminSubscriptionModal open={subscriptionTarget !== null} target={subscriptionTarget} lang={lang} onClose={() => setSubscriptionTarget(null)} onSaved={() => { void drivers.refresh(); setTableRefreshKey((current) => current + 1); void showSuccess(u('adminSubscription.updated', 'Subscription updated'), u('adminSubscription.updatedText', 'The package, expiration and LenaAI tokens were saved.')); }} />
       <AdminFormModal
         open={open}
-        title="Add driver"
-        description="Create a standalone driver. Add login details only when account access is needed."
+        title={`Add ${carrier.toLowerCase()}`}
+        description={`Create a standalone ${carrier.toLowerCase()}. Add login details only when account access is needed.`}
         submitting={submitting}
         error={error}
         onClose={() => {
@@ -186,7 +188,7 @@ export const AdminDriversView = ({ lang, role }: { lang: Language; role: Role })
       >
         <div className="sm:col-span-2">
           <p className="font-black text-slate-900 dark:text-white">
-            Driver details
+            {carrier} details
           </p>
         </div>
         <AdminField label="Full name">
@@ -254,7 +256,7 @@ export const AdminDriversView = ({ lang, role }: { lang: Language; role: Role })
             }
             className={adminFieldClass}
           >
-            <option value="">Independent driver</option>
+            <option value="">Independent {carrier.toLowerCase()}</option>
             {companies.map((company) => (
               <option key={String(company.id)} value={String(company.id)}>
                 {String(company.name)}

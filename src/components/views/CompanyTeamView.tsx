@@ -35,8 +35,6 @@ const ROLE_OPTIONS: IconSelectOption[] = [
   { value: 'Driver', label: 'Driver', icon: Truck },
 ];
 
-const ASSIGNABLE_ROLE_OPTIONS = ROLE_OPTIONS.filter((option) => option.value !== 'Company Owner');
-
 const ROLE_VISUALS: Record<CompanyRole, { icon: LucideIcon; tone: string; shell: string }> = {
   'Company Owner': { icon: Crown, tone: 'bg-amber-500/15 text-amber-600 dark:text-amber-300', shell: 'border-amber-200/80 bg-gradient-to-br from-amber-50 to-white dark:border-amber-900/50 dark:from-amber-950/30 dark:to-slate-900' },
   Manager: { icon: Users, tone: 'bg-violet-500/15 text-violet-600 dark:text-violet-300', shell: 'border-violet-200/80 bg-gradient-to-br from-violet-50 to-white dark:border-violet-900/50 dark:from-violet-950/30 dark:to-slate-900' },
@@ -48,6 +46,10 @@ const ROLE_VISUALS: Record<CompanyRole, { icon: LucideIcon; tone: string; shell:
 
 export const CompanyTeamView = ({ lang }: { lang: Language }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  const carrierLabel = u('common.carrier', 'Carrier');
+  const displayRole = (role: CompanyRole) => role === 'Driver' ? carrierLabel : role;
+  const roleOptions = useMemo(() => ROLE_OPTIONS.map((option) => option.value === 'Driver' ? { ...option, label: carrierLabel } : option), [carrierLabel]);
+  const assignableRoleOptions = useMemo(() => roleOptions.filter((option) => option.value !== 'Company Owner'), [roleOptions]);
   const memberships = useApiList(api.companyMemberships.list, { per_page: 100 });
   const invitations = useApiList(api.companyInvitations.list, { per_page: 100 });
   const roles = useApiList(api.teamRoleOptions.list, { per_page: 100 });
@@ -66,7 +68,7 @@ export const CompanyTeamView = ({ lang }: { lang: Language }) => {
   const [userSearch, setUserSearch] = useState('');
   const [availableUsers, setAvailableUsers] = useState<Record<string, unknown>[]>([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
-  const roleData = useMemo(() => (Object.keys(ROLE_PERMISSIONS) as CompanyRole[]).map((name) => ({ name, value: members.filter((member) => member.role === name).length })), [members]);
+  const roleData = useMemo(() => (Object.keys(ROLE_PERMISSIONS) as CompanyRole[]).map((name) => ({ name: displayRole(name), value: members.filter((member) => member.role === name).length })), [members, carrierLabel]);
   const statusData = [
     { name: 'Active', value: members.filter((member) => member.status === 'Active').length },
     { name: 'Invited', value: members.filter((member) => member.status === 'Invited').length },
@@ -98,7 +100,7 @@ export const CompanyTeamView = ({ lang }: { lang: Language }) => {
     const globalRoleName = role === 'Customs Officer' ? 'customs_officer' : role.toLowerCase();
     const selectedRole = roles.items.find((item) => item.name === globalRoleName);
     if (!selectedRole) { setMessage('Selected role is unavailable.'); return; }
-    const confirmed = await confirmAction({ title: 'Invite this team member?', text: `${trimmed} will be invited as ${role}.`, confirmText: 'Send invite' });
+    const confirmed = await confirmAction({ title: 'Invite this team member?', text: `${trimmed} will be invited as ${displayRole(role)}.`, confirmText: 'Send invite' });
     if (!confirmed) return;
     const bytes = crypto.getRandomValues(new Uint8Array(32));
     const token = Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('');
@@ -108,7 +110,7 @@ export const CompanyTeamView = ({ lang }: { lang: Language }) => {
     setUserSearch('');
     setAvailableUsers([]);
     setMessage('Invitation saved successfully.');
-    void showSuccess('Invitation created', `${trimmed} was invited as ${role}.`);
+    void showSuccess('Invitation created', `${trimmed} was invited as ${displayRole(role)}.`);
   };
 
   const updateMemberRole = async (member: Member, nextRole: string) => {
@@ -205,7 +207,7 @@ export const CompanyTeamView = ({ lang }: { lang: Language }) => {
             </div>
           </div>
           <div className="flex flex-col justify-center gap-3 border-slate-100 dark:border-slate-800 lg:border-l lg:pl-5">
-            <IconSelect value={role} onChange={(value) => setRole(value as CompanyRole)} options={ASSIGNABLE_ROLE_OPTIONS} placeholder="Role" ariaLabel="Role for invited team member" icon={UserRoundCog} className="w-full [&_button]:h-11 [&_button]:rounded-xl [&_button]:text-sm" />
+            <IconSelect value={role} onChange={(value) => setRole(value as CompanyRole)} options={assignableRoleOptions} placeholder="Role" ariaLabel="Role for invited team member" icon={UserRoundCog} className="w-full [&_button]:h-11 [&_button]:rounded-xl [&_button]:text-sm" />
             <Button onClick={invite} className="h-11 w-full gap-2"><Send className="h-4 w-4" /> Send invite</Button>
           </div>
         </div>
@@ -247,7 +249,7 @@ export const CompanyTeamView = ({ lang }: { lang: Language }) => {
               return <div key={member.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                 <div className="flex min-w-0 items-center gap-3"><div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', visual.tone)}><MemberRoleIcon className="h-5 w-5" /></div><div className="min-w-0"><p className="truncate text-sm font-bold text-slate-900 dark:text-white">{member.name}</p><p className="truncate text-xs text-slate-500">{member.email}</p></div></div>
                 <div className="flex items-center gap-2">
-                  <IconSelect disabled={member.isOwner} value={member.role} onChange={(value) => void updateMemberRole(member, value)} options={member.isOwner ? ROLE_OPTIONS : ASSIGNABLE_ROLE_OPTIONS} placeholder="Role" ariaLabel={`Role for ${member.name}`} icon={UserRoundCog} className="w-44 [&_button]:h-8 [&_button:disabled]:cursor-not-allowed" />
+                  <IconSelect disabled={member.isOwner} value={member.role} onChange={(value) => void updateMemberRole(member, value)} options={member.isOwner ? roleOptions : assignableRoleOptions} placeholder="Role" ariaLabel={`Role for ${member.name}`} icon={UserRoundCog} className="w-44 [&_button]:h-8 [&_button:disabled]:cursor-not-allowed" />
                   <span className={cn('rounded-full px-2.5 py-1 text-xs font-bold', member.status === 'Active' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-600')}>{member.status}</span>
                 </div>
               </div>;
@@ -261,7 +263,7 @@ export const CompanyTeamView = ({ lang }: { lang: Language }) => {
           const visual = ROLE_VISUALS[roleName];
           const RoleIcon = visual.icon;
           return <Card key={roleName} className={cn('shadow-none', visual.shell)} contentClassName="p-5">
-            <div className="flex items-center gap-3"><div className={cn('flex h-11 w-11 items-center justify-center rounded-2xl', visual.tone)}><RoleIcon className="h-5 w-5" /></div><div><p className="font-black text-slate-900 dark:text-white">{roleName}</p><p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{permissions.length} permissions</p></div></div>
+            <div className="flex items-center gap-3"><div className={cn('flex h-11 w-11 items-center justify-center rounded-2xl', visual.tone)}><RoleIcon className="h-5 w-5" /></div><div><p className="font-black text-slate-900 dark:text-white">{displayRole(roleName)}</p><p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{permissions.length} permissions</p></div></div>
             <div className="mt-4 grid gap-2">{permissions.map((permission) => <p key={permission} className="flex items-start gap-2 rounded-xl bg-white/70 px-3 py-2 text-xs font-medium text-slate-600 dark:bg-slate-950/50 dark:text-slate-300"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />{permission}</p>)}</div>
           </Card>;
         })}
