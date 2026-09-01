@@ -29,6 +29,7 @@ import type { Language, Role } from "../../types";
 import { ApiUser, api } from "../../services/api";
 import { useApiList } from "../../hooks/useApiList";
 import { Button } from "../ui/Button";
+import { Toggle } from "../ui/Toggle";
 import { cn } from "../../lib/cn";
 import { isCompanyOperationsRole } from "../../lib/roles";
 import { DriverVerificationModal } from "../modals/DriverVerificationModal";
@@ -52,6 +53,7 @@ type CompanyProfile = {
   status?: string | null;
   verified_at?: string | null;
   created_at?: string | null;
+  warehouse_first?: boolean;
   pivot?: { status?: string };
 };
 
@@ -63,6 +65,7 @@ type ProfileForm = {
   avatarUrl: string;
   headline: string;
   bio: string;
+  haveFleet: boolean;
   companyName: string;
   companyEmail: string;
   companyPhone: string;
@@ -115,6 +118,9 @@ const COPY = {
     avatar: "Avatar URL",
     headline: "Headline",
     bio: "About you",
+    haveFleet: "I have a fleet",
+    haveFleetHint: "Enable this when your account owns or operates vehicles.",
+    haveFleetLocked: "Warehouse companies, warehouse managers and finance accounts cannot enable fleet ownership.",
     companyName: "Company name",
     website: "Website",
     logo: "Logo URL",
@@ -178,6 +184,9 @@ const COPY = {
     avatar: "URL avatara",
     headline: "Profesionalni naslov",
     bio: "O vama",
+    haveFleet: "Imam flotu",
+    haveFleetHint: "Uključite ako vaš račun posjeduje ili upravlja vozilima.",
+    haveFleetLocked: "Skladišne kompanije, warehouse manageri i finance računi ne mogu uključiti vlasništvo flote.",
     companyName: "Naziv kompanije",
     website: "Web-stranica",
     logo: "URL logotipa",
@@ -242,6 +251,9 @@ const COPY = {
     avatar: "Avatar-URL",
     headline: "Überschrift",
     bio: "Über Sie",
+    haveFleet: "Ich habe eine Flotte",
+    haveFleetHint: "Aktivieren, wenn Ihr Konto Fahrzeuge besitzt oder betreibt.",
+    haveFleetLocked: "Lagerunternehmen, Lagermanager und Finanzkonten können keinen Flottenbesitz aktivieren.",
     companyName: "Unternehmensname",
     website: "Webseite",
     logo: "Logo-URL",
@@ -359,6 +371,7 @@ const formFrom = (user: ApiUser, company?: CompanyProfile): ProfileForm => ({
   avatarUrl: user.avatar_url || "",
   headline: user.headline || "",
   bio: user.bio || "",
+  haveFleet: Boolean(user.have_fleet),
   companyName: company?.name || "",
   companyEmail: company?.email || "",
   companyPhone: company?.phone || "",
@@ -469,6 +482,7 @@ export const ProfileView = ({
     company &&
     (Number(company.owner_user_id) === user?.id || effectiveRole === "manager"),
   );
+  const fleetForcedOff = effectiveRole === "finance" || effectiveRole === "warehouse" || (Boolean(company?.warehouse_first) && (effectiveRole === "company" || effectiveRole === "manager"));
   const customer = (profileKind === "customer" ? profileRecord : user?.customer_profile || {}) as Record<string, unknown>;
   const driver = (profileKind === "driver" ? profileRecord : user?.driver || {}) as Record<string, unknown>;
   const detailRecord = (profileRecord || (detailKind === "customer" ? customer : detailKind === "driver" ? driver : company) || null) as Record<string, unknown> | null;
@@ -572,7 +586,8 @@ export const ProfileView = ({
     setForm((current) => (current ? { ...current, [field]: next } : current));
   const openEditor = () => {
     if (user) {
-      setForm(formFrom(user, company));
+      const nextForm = formFrom(user, company);
+      setForm({ ...nextForm, haveFleet: fleetForcedOff ? false : nextForm.haveFleet });
       setNotice("");
       setError("");
       setEditing(true);
@@ -593,6 +608,7 @@ export const ProfileView = ({
         avatar_url: form.avatarUrl || null,
         headline: form.headline || null,
         bio: form.bio || null,
+        have_fleet: fleetForcedOff ? false : form.haveFleet,
       };
       if (companyMode && company && canEditCompany)
         payload.company = {
@@ -654,7 +670,7 @@ export const ProfileView = ({
     <div className="w-full">
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
       <div className="min-w-0 space-y-5">
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      {!editing && <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="relative h-36 overflow-hidden bg-slate-900 sm:h-44">
           <img
             src="/profile-cover-logistics.png?v=2"
@@ -662,10 +678,21 @@ export const ProfileView = ({
             className="h-full w-full object-cover object-center"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-slate-950/30 via-transparent to-slate-950/10" />
-          <span className={cn("absolute right-4 top-4 z-10 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black shadow-sm backdrop-blur-sm", profileType.tone)}>
+          <span className={cn("absolute left-4 top-4 z-10 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black shadow-sm backdrop-blur-sm", profileType.tone)}>
             <ProfileTypeIcon className="h-4 w-4" />
             {profileType.label}
           </span>
+          {!profileRecord && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={editing ? () => setEditing(false) : openEditor}
+              className="absolute right-4 top-4 z-10 cursor-pointer gap-2 border-white/70 bg-white/90 shadow-sm backdrop-blur-sm hover:bg-white dark:border-slate-700 dark:bg-slate-900/90 dark:hover:bg-slate-900"
+            >
+              {editing ? <X className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+              {editing ? text.cancel : text.edit}
+            </Button>
+          )}
         </div>
         <div className="relative px-5 pb-6 sm:px-8">
           <div className="absolute -top-14 flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-slate-100 text-3xl font-black text-slate-800 shadow-lg dark:border-slate-900 dark:bg-slate-200 dark:text-slate-900 sm:-top-16 sm:h-32 sm:w-32">
@@ -681,23 +708,7 @@ export const ProfileView = ({
               initials(displayName)
             )}
           </div>
-          <div className="flex min-h-16 justify-end pt-4">
-            {!profileRecord && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={editing ? () => setEditing(false) : openEditor}
-                className="cursor-pointer gap-2"
-              >
-                {editing ? (
-                  <X className="h-4 w-4" />
-                ) : (
-                  <Pencil className="h-4 w-4" />
-                )}
-                {editing ? text.cancel : text.edit}
-              </Button>
-            )}
-          </div>
+          <div className="min-h-16 pt-4" />
           <div className="mt-3 max-w-3xl">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-black text-slate-950 dark:text-white sm:text-3xl">
@@ -734,7 +745,7 @@ export const ProfileView = ({
             </div>
           </div>
         </div>
-      </div>
+      </div>}
 
       {(notice || error) && (
         <div
@@ -799,19 +810,38 @@ export const ProfileView = ({
               </h2>
               <p className="mt-1 text-xs text-slate-500">{text.editHint}</p>
             </div>
-            <Button
-              size="sm"
-              disabled={saving}
-              onClick={() => void save()}
-              className="cursor-pointer gap-2"
-            >
-              <Save className="h-4 w-4" />
-              {saving ? text.saving : text.save}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" disabled={saving} onClick={() => setEditing(false)} className="cursor-pointer gap-2">
+                <X className="h-4 w-4" />
+                {text.cancel}
+              </Button>
+              <Button
+                size="sm"
+                disabled={saving}
+                onClick={() => void save()}
+                className="cursor-pointer gap-2"
+              >
+                <Save className="h-4 w-4" />
+                {saving ? text.saving : text.save}
+              </Button>
+            </div>
           </div>
           <h3 className="mb-3 mt-6 text-xs font-black uppercase tracking-wider text-primary">
             {text.personalSection}
           </h3>
+          <div className={cn("mb-4 flex items-center justify-between gap-4 rounded-2xl border p-4", fleetForcedOff ? "border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950" : "border-sky-200 bg-sky-50/60 dark:border-sky-900/60 dark:bg-sky-950/20")}>
+            <div className="min-w-0">
+              <p className="text-sm font-black text-slate-900 dark:text-white">{text.haveFleet}</p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">{fleetForcedOff ? text.haveFleetLocked : text.haveFleetHint}</p>
+            </div>
+            <Toggle
+              checked={!fleetForcedOff && form.haveFleet}
+              disabled={fleetForcedOff || saving}
+              aria-label={text.haveFleet}
+              onClick={() => setForm((current) => current ? { ...current, haveFleet: !current.haveFleet } : current)}
+              className={fleetForcedOff ? "cursor-not-allowed opacity-50" : undefined}
+            />
+          </div>
           <div className="grid gap-4 md:grid-cols-2">
             <Field
               label={text.fullName}

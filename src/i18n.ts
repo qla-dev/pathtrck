@@ -9099,6 +9099,35 @@ Object.assign(UI.bs, {
   'team.invite.noUsers': 'Nema korisnika bez dodijeljene kompanije.',
 });
 
+// Multi-stop road routes - a pickup or delivery column can hold several stops, so each one is
+// numbered, can be reordered and removed, and the route summary names them the same way.
+Object.assign(UI.en, {
+  'postLoadModal.origin': 'Origin',
+  'postLoadModal.destination': 'Destination',
+  'postLoadModal.addPickupStop': 'Add another pickup address',
+  'postLoadModal.addDeliveryStop': 'Add another delivery address',
+  'postLoadModal.removeStop': 'Remove this stop',
+  'postLoadModal.dragStopHint': 'Drag to reorder',
+});
+
+Object.assign(UI.bs, {
+  'postLoadModal.origin': 'Polazište',
+  'postLoadModal.destination': 'Odredište',
+  'postLoadModal.addPickupStop': 'Dodaj novu adresu preuzimanja',
+  'postLoadModal.addDeliveryStop': 'Dodaj novu adresu isporuke',
+  'postLoadModal.removeStop': 'Ukloni ovu tačku',
+  'postLoadModal.dragStopHint': 'Povucite za promjenu redoslijeda',
+});
+
+Object.assign(UI.de, {
+  'postLoadModal.origin': 'Startort',
+  'postLoadModal.destination': 'Zielort',
+  'postLoadModal.addPickupStop': 'Weitere Abholadresse hinzufügen',
+  'postLoadModal.addDeliveryStop': 'Weitere Lieferadresse hinzufügen',
+  'postLoadModal.removeStop': 'Diesen Stopp entfernen',
+  'postLoadModal.dragStopHint': 'Zum Umsortieren ziehen',
+});
+
 const replaceBrand = (value: string) => value.replace(/smartfreight\.ai/gi, 'Freightbook.ai').replace(/smartfreight/gi, 'Freightbook.ai');
 
 export const ui = (lang: Language, key: string, fallback: string) => {

@@ -1,16 +1,30 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { MapContainer, Marker, Polyline, TileLayer, useMap } from 'react-leaflet';
-import { Loader2, Route, X } from 'lucide-react';
+import { Loader2, Route, X, type LucideIcon } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 
 import { Language } from '../../types';
 import { ui } from '../../i18n';
+import { useRouteGeometry } from './useRouteGeometry';
+import { STOP_COLORS, routeStopMarker } from './routeStopMarker';
+import { routeLegs } from './routeLegs';
+
+type RouteStop = {
+  label: string;
+  position: [number, number];
+  /** Set by the post-load form, so a stop is marked by what kind of place it is and which side of
+      the route it belongs to. Callers that only know two points fall back to leaflet's own pin. */
+  kind?: 'pickup' | 'delivery';
+  icon?: LucideIcon;
+};
 
 type RouteMapModalProps = {
   open: boolean;
   lang: Language;
-  pickup: { label: string; position: [number, number] };
-  delivery: { label: string; position: [number, number] };
+  pickup: RouteStop;
+  delivery: RouteStop;
+  /** Stops driven between the first pickup and the last delivery, in visiting order. */
+  waypoints?: RouteStop[];
   onClose: () => void;
 };
 
@@ -22,34 +36,12 @@ const FitRoute = ({ points }: { points: [number, number][] }) => {
   return null;
 };
 
-export const RouteMapModal = ({ open, lang, pickup, delivery, onClose }: RouteMapModalProps) => {
+export const RouteMapModal = ({ open, lang, pickup, delivery, waypoints = [], onClose }: RouteMapModalProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
-  const [points, setPoints] = useState<[number, number][]>([]);
-  const [distanceKm, setDistanceKm] = useState<number | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    setPoints([]);
-    setDistanceKm(null);
-    if (!open) return;
-
-    const controller = new AbortController();
-    setLoading(true);
-    const [fromLat, fromLon] = pickup.position;
-    const [toLat, toLon] = delivery.position;
-    void fetch(`https://router.project-osrm.org/route/v1/driving/${fromLon},${fromLat};${toLon},${toLat}?overview=full&geometries=geojson`, { signal: controller.signal })
-      .then((response) => response.ok ? response.json() : Promise.reject(new Error('Route unavailable')))
-      .then((data: { routes?: Array<{ distance?: number; geometry?: { coordinates?: [number, number][] } }> }) => {
-        const route = data.routes?.[0];
-        if (!route?.geometry?.coordinates?.length) return;
-        setPoints(route.geometry.coordinates.map(([longitude, latitude]) => [latitude, longitude]));
-        if (route.distance) setDistanceKm(Math.round(route.distance / 1000));
-      })
-      .catch(() => undefined)
-      .finally(() => setLoading(false));
-
-    return () => controller.abort();
-  }, [delivery.position, open, pickup.position]);
+  const stops = useMemo(() => [pickup, ...waypoints, delivery], [delivery, pickup, waypoints]);
+  const positions = useMemo(() => stops.map((stop) => stop.position), [stops]);
+  const { points, legs, distanceKm, loading } = useRouteGeometry(positions, open);
+  const segments = routeLegs(positions, legs);
 
   return (
     <AnimatePresence>
@@ -57,7 +49,7 @@ export const RouteMapModal = ({ open, lang, pickup, delivery, onClose }: RouteMa
       <header className="flex h-16 shrink-0 items-center gap-4 border-b border-slate-200 px-5 dark:border-slate-800">
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-black uppercase tracking-wider text-primary leading-none">{u('postLoadModal.routeSummary', 'Route')}</p>
-          <h2 className="truncate text-base font-black text-slate-900 dark:text-white leading-tight mt-0.5">{pickup.label} → {delivery.label}</h2>
+          <h2 className="truncate text-base font-black text-slate-900 dark:text-white leading-tight mt-0.5">{stops.map((stop) => stop.label).join(' → ')}</h2>
         </div>
         <button type="button" onClick={onClose} className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-900"><X className="h-4 w-4" /></button>
       </header>
@@ -65,9 +57,24 @@ export const RouteMapModal = ({ open, lang, pickup, delivery, onClose }: RouteMa
       <div className="relative min-h-0 flex-1">
         <MapContainer center={pickup.position} zoom={7} className="h-full w-full">
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap contributors" />
-          {points.length >= 2 && <><FitRoute points={points} /><Polyline positions={points} pathOptions={{ color: '#0ea5e9', weight: 5, opacity: 0.9 }} /></>}
-          <Marker position={pickup.position} />
-          <Marker position={delivery.position} />
+          {points.length >= 2 && <FitRoute points={points} />}
+          {segments.map((segment, index) => (
+            <Polyline
+              key={index}
+              positions={segment}
+              // Each leg is drawn in the colour of the stop it leaves, so a run between two pickups
+              // stays green and only turns blue once the goods are moving between drops.
+              pathOptions={{ color: stops[index].kind ? STOP_COLORS[stops[index].kind!] : '#0ea5e9', weight: 5, opacity: 0.9 }}
+            />
+          ))}
+          {stops.map((stop, index) => (
+            <Marker
+              key={`${stop.label}-${index}`}
+              position={stop.position}
+              title={stop.label}
+              {...(stop.icon && stop.kind ? { icon: routeStopMarker(stop.kind, stop.icon, 30) } : {})}
+            />
+          ))}
         </MapContainer>
 
         <div className="absolute left-1/2 top-5 z-[1000] w-[min(720px,calc(100%-2rem))] -translate-x-1/2">

@@ -242,6 +242,7 @@ type HomeFeedProps = {
   filterBarLoading?: boolean;
   exchangeMode?: 'transport' | 'storage';
   onExchangeModeChange?: (mode: 'transport' | 'storage') => void;
+  storageOnly?: boolean;
   myBidsOnly?: boolean;
   onMyBidsOnlyChange?: (value: boolean) => void;
   onSortModeChange?: (mode: FeedSortMode) => void;
@@ -291,6 +292,7 @@ export const HomeFeed = ({
   filterBarLoading = false,
   exchangeMode = 'transport',
   onExchangeModeChange,
+  storageOnly = false,
   myBidsOnly = false,
   onMyBidsOnlyChange,
   onSortModeChange,
@@ -375,7 +377,7 @@ export const HomeFeed = ({
             </button>
           )}
           <SortDropdown lang={lang} sortMode={sortMode} onChange={onSortModeChange} />
-          <div className="inline-flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-transparent px-1 dark:border-slate-800">
+          {!storageOnly && <div className="inline-flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-transparent px-1 dark:border-slate-800">
             {([
               { id: 'transport' as const, icon: Truck, label: u('feed.exchange.transport', 'Prevoz') },
               { id: 'storage' as const, icon: Warehouse, label: u('feed.exchange.storage', 'Skladište') },
@@ -395,7 +397,7 @@ export const HomeFeed = ({
                 <span>{mode.label}</span>
               </button>
             ))}
-          </div>
+          </div>}
           <div className="inline-flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-transparent px-1 dark:border-slate-800">
             {layoutButtons.map((button) => (
               <button

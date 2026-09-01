@@ -1,4 +1,6 @@
 import { EQUIPMENT_COVERED_REQUIREMENTS, LoadDraft, isContainerTransport } from './types';
+import type { RouteStopDraft } from './types';
+import { StopSide, routeStopsOf } from './routeStops';
 import type { EquipmentCoveredRequirement } from './types';
 import { deriveGoodsTypeCode, stripHsCodesForPayload } from '../scanFieldRows';
 
@@ -116,10 +118,28 @@ export const buildLoadFieldsPayload = (draft: LoadDraft) => ({
   external_comments: draft.externalComments || null,
 });
 
-export const buildLoadStopsPayload = (draft: LoadDraft) => [
-  { type: 'pickup', position: 1, place_type: draft.pickupPlaceType, city: draft.pickupCity, postal_code: draft.pickupPostalCode || null, country_code: draft.pickupCountry, address: draft.pickupAddress || null, port: (isContainerTransport(draft.transportType) || draft.pickupPlaceType === 'Port') ? draft.pickupPort || null : null, airport: (draft.transportType === 'air' || draft.pickupPlaceType === 'Airport') ? draft.pickupAirport || null : null, latitude: draft.pickupLatitude ? Number(draft.pickupLatitude) : null, longitude: draft.pickupLongitude ? Number(draft.pickupLongitude) : null, window_starts_at: toApiDateTime(draft.pickupDate, draft.pickupTimeFrom), window_ends_at: toApiDateTime(draft.pickupDateTo || draft.pickupDate, draft.pickupTimeTo || draft.pickupTimeFrom) },
-  { type: 'delivery', position: 2, place_type: draft.deliveryPlaceType, city: draft.deliveryCity, postal_code: draft.deliveryPostalCode || null, country_code: draft.deliveryCountry, address: draft.deliveryAddress || null, port: (isContainerTransport(draft.transportType) || draft.deliveryPlaceType === 'Port') ? draft.deliveryPort || null : null, airport: (draft.transportType === 'air' || draft.deliveryPlaceType === 'Airport') ? draft.deliveryAirport || null : null, latitude: draft.deliveryLatitude ? Number(draft.deliveryLatitude) : null, longitude: draft.deliveryLongitude ? Number(draft.deliveryLongitude) : null, window_starts_at: toApiDateTime(draft.deliveryDate, draft.deliveryTimeFrom), window_ends_at: toApiDateTime(draft.deliveryDateTo || draft.deliveryDate, draft.deliveryTimeTo || draft.deliveryTimeFrom) },
-];
+// One stop as the API stores it. A port or an airport only travels with the stop that is one - a
+// road load collecting at three warehouses has neither on any of them.
+const stopPayload = (draft: LoadDraft, stop: RouteStopDraft, side: StopSide, position: number) => ({
+  type: side,
+  position,
+  place_type: stop.placeType,
+  city: stop.city,
+  postal_code: stop.postalCode || null,
+  country_code: stop.country,
+  address: stop.address || null,
+  port: (isContainerTransport(draft.transportType) || stop.placeType === 'Port') ? stop.port || null : null,
+  airport: (draft.transportType === 'air' || stop.placeType === 'Airport') ? stop.airport || null : null,
+  latitude: stop.latitude ? Number(stop.latitude) : null,
+  longitude: stop.longitude ? Number(stop.longitude) : null,
+  window_starts_at: toApiDateTime(stop.date, stop.timeFrom),
+  window_ends_at: toApiDateTime(stop.dateTo || stop.date, stop.timeTo || stop.timeFrom),
+});
+
+// Every stop in driving order - the pickups, then the deliveries. Only road can add more than one
+// of each, so for every other transport type this is still exactly the pickup/delivery pair.
+export const buildLoadStopsPayload = (draft: LoadDraft) =>
+  routeStopsOf(draft).map(({ stop, side }, index) => stopPayload(draft, stop, side, index + 1));
 
 export const buildLoadPayload = (draft: LoadDraft) => ({ ...buildLoadFieldsPayload(draft), stops: buildLoadStopsPayload(draft) });
 
@@ -152,6 +172,12 @@ export const buildDraftPayload = (draft: LoadDraft) => ({
   delivery_date_to: toApiDate(draft.deliveryDateTo || draft.deliveryDate),
   delivery_time_from: draft.deliveryTimeFrom || null,
   delivery_time_to: draft.deliveryTimeTo || draft.deliveryTimeFrom || null,
+  // Stop 1 of each side has flat columns of its own above; a multi-drop road route's remaining
+  // stops ride along as JSON, since a draft has no load_stops table behind it to spread them over.
+  extra_stops: [
+    ...draft.extraPickups.map((stop) => ({ ...stop, side: 'pickup' })),
+    ...draft.extraDeliveries.map((stop) => ({ ...stop, side: 'delivery' })),
+  ],
 });
 
 // Warehouse listings live in the same `loads` resource as transport loads and are distinguished by

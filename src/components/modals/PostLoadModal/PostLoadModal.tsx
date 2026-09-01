@@ -88,6 +88,8 @@ import { INVALID_FIELD_CLASS, describeApiErrors, stepForField, validateDraft, ty
 import { AddressMapModal } from '../../maps/AddressMapModal';
 import { AreaMapModal } from '../../maps/AreaMapModal';
 import { RouteMapModal } from '../../maps/RouteMapModal';
+import { RoutePreviewMap, type RoutePreviewStop } from '../../maps/RoutePreviewMap';
+import { useRouteGeometry } from '../../maps/useRouteGeometry';
 import { CountrySelect } from '../../location/CountrySelect';
 import { PACKAGE_TYPES } from '../../../data/packageTypes';
 import { SEA_PORTS, SeaPort } from '../../../data/seaPorts';
@@ -117,8 +119,21 @@ import {
   WAREHOUSE_HANDLING_REQUIREMENT_OPTIONS,
   WAREHOUSE_RATE_UNIT_OPTIONS,
 } from '../loadFormOptions';
-import type { PostLoadModalProps, StepId, TransportType, ScannedDocument, LoadDraft, ContainerSelection } from './types';
-import { EQUIPMENT_COVERED_REQUIREMENTS, INITIAL_DRAFT, isContainerTransport } from './types';
+import type { PostLoadModalProps, StepId, TransportType, ScannedDocument, LoadDraft, ContainerSelection, RouteStopDraft } from './types';
+import { EQUIPMENT_COVERED_REQUIREMENTS, INITIAL_DRAFT, emptyRouteStop, isContainerTransport } from './types';
+import {
+  PRIMARY_STOP_FIELDS,
+  routeStopsOf,
+  stopPosition,
+  stopsOfSide,
+  withMovedStop,
+  withStopPatch,
+  withStopsOfSide,
+  type StopSide,
+} from './routeStops';
+import { RouteStopsColumn } from './RouteStopsColumn';
+import { RouteStopTimeline } from './RouteStopTimeline';
+import { placeTypeIcon } from './placeTypeIcon';
 import type { EquipmentCoveredRequirement } from './types';
 import {
   toApiDateTime,
@@ -151,6 +166,28 @@ import { ChoiceCard } from './ChoiceCard';
 import { SummaryRow } from './SummaryRow';
 import { HANDLING_DESCRIPTIONS, HANDLING_ICONS, WarehouseLocationFields, WarehouseStorageTypeField } from './WarehouseFormFields';
 import { CustomsDocumentsPanel } from './CustomsDocumentsPanel';
+
+// One load_stops row as an editable stop. Only the added stops go through this - stop 1 of each
+// side is spread across the draft's flat pickup*/delivery* fields instead.
+const routeStopFromRecord = (record: Record<string, unknown>): RouteStopDraft => {
+  const from = fromApiDateTime(record.window_starts_at);
+  const to = fromApiDateTime(record.window_ends_at);
+  return {
+    placeType: String(record.place_type || 'Warehouse'),
+    city: String(record.city || ''),
+    postalCode: String(record.postal_code || ''),
+    country: String(record.country_code || 'BA'),
+    address: String(record.address || ''),
+    port: String(record.port || ''),
+    airport: String(record.airport || ''),
+    latitude: String(record.latitude ?? ''),
+    longitude: String(record.longitude ?? ''),
+    date: from.date,
+    dateTo: to.date,
+    timeFrom: from.time,
+    timeTo: to.time,
+  };
+};
 
 const STEPS: Array<{ id: StepId; icon: typeof MapPin }> = [
   { id: 'cargo', icon: Package },
@@ -297,7 +334,9 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingExisting, setIsLoadingExisting] = useState(false);
   const [submitError, setSubmitError] = useState('');
-  const [addressMap, setAddressMap] = useState<'pickup' | 'delivery' | null>(null);
+  // Which stop the full-screen address picker is currently choosing a point for - the side plus
+  // its position on that side, since either column can hold several stops.
+  const [addressMap, setAddressMap] = useState<{ side: StopSide; index: number } | null>(null);
   const [areaMapOpen, setAreaMapOpen] = useState(false);
   // The draft as it stood when a submit was rejected, kept alongside the fields that were
   // rejected: a field stops being outlined the moment its value changes, no matter which control
@@ -391,8 +430,12 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     api.loads.get(editLoadId).then(async (response) => {
       const record = response.data;
       const stops = Array.isArray(record.stops) ? record.stops as Array<Record<string, unknown>> : [];
-      const pickup = stops.find((item) => item.type === 'pickup') || {};
-      const delivery = [...stops].reverse().find((item) => item.type === 'delivery') || {};
+      // A road load can carry several of each; stop 1 of a side fills the flat fields the whole
+      // app reads as origin and destination, and the rest come back as the added stops they were.
+      const pickupStopRecords = stops.filter((item) => item.type === 'pickup');
+      const deliveryStopRecords = stops.filter((item) => item.type === 'delivery');
+      const pickup = pickupStopRecords[0] || {};
+      const delivery = deliveryStopRecords[0] || {};
       const pickupStart = fromApiDateTime(pickup.window_starts_at);
       const pickupEnd = fromApiDateTime(pickup.window_ends_at);
       const deliveryStart = fromApiDateTime(delivery.window_starts_at);
@@ -408,6 +451,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       const hsCodes = await resolveHsCodes(rawHsCodes, lang);
       setHsQuery('');
       setDraft({ ...INITIAL_DRAFT,
+        extraPickups: pickupStopRecords.slice(1).map(routeStopFromRecord),
+        extraDeliveries: deliveryStopRecords.slice(1).map(routeStopFromRecord),
         consignee,
         bookingReference: String(record.booking_reference || ''),
         transportType: (record.transport_type as TransportType) || 'road',
@@ -428,36 +473,76 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   const stepIndex = STEPS.findIndex((item) => item.id === step);
   const pickupRoutePosition = routePosition(draft.pickupLatitude, draft.pickupLongitude);
   const deliveryRoutePosition = routePosition(draft.deliveryLatitude, draft.deliveryLongitude);
-  const routeDistanceKm = pickupRoutePosition && deliveryRoutePosition
-    ? estimatedDrivingDistanceKm(pickupRoutePosition, deliveryRoutePosition)
+  // Every stop of the route in driving order. A road load can collect and drop at several
+  // addresses, so what used to be one pickup and one delivery is now whatever the two columns hold.
+  const routeStops = routeStopsOf(draft);
+  const pickupStops = stopsOfSide(draft, 'pickup');
+  const deliveryStops = stopsOfSide(draft, 'delivery');
+  // How a stop is named wherever the route is summarised: a single pickup is still the origin and a
+  // single delivery the destination, while a multi-stop side numbers its stops the way its cards do.
+  const routeStopName = (side: StopSide, index: number) => {
+    const total = side === 'pickup' ? pickupStops.length : deliveryStops.length;
+    if (side === 'pickup') {
+      return total > 1 ? `${u('postLoadModal.pickupBlock', 'Pickup')} ${index + 1}` : u('postLoadModal.origin', 'Origin');
+    }
+    return total > 1 ? `${u('postLoadModal.deliveryBlock', 'Delivery')} ${index + 1}` : u('postLoadModal.destination', 'Destination');
+  };
+  // Only stops that have been geocoded can be drawn or measured; the rest are still being typed.
+  const routeMapStops: Array<RoutePreviewStop & { side: StopSide }> = routeStops.flatMap(({ stop, side, index }) => {
+    const position = stopPosition(stop);
+    if (!position) return [];
+    return [{
+      label: stop.address || stop.city || stop.port || stop.airport || routeStopName(side, index),
+      position,
+      kind: side,
+      // Marked by what kind of place it is, the same icon its card and the route timeline show.
+      icon: placeTypeIcon(stop.placeType, side === 'pickup' ? MapPin : Truck),
+      side,
+    }];
+  });
+  // Whichever stop the full-screen address picker was opened from, so it can start on that point.
+  const addressMapStop = addressMap ? stopsOfSide(draft, addressMap.side)[addressMap.index] ?? null : null;
+  // Set while a stop named only by city is being geocoded, which the distance stripe waits out.
+  const [recalculatingRoute, setRecalculatingRoute] = useState(false);
+  // The whole trip as the crow flies, leg by leg, with a detour factor on top. It is arithmetic
+  // over coordinates, so it is instant and always available - but it is not a road.
+  const straightLineDistanceKm = pickupRoutePosition && deliveryRoutePosition && routeMapStops.length >= 2
+    ? routeMapStops.slice(1).reduce((total, entry, index) => total + estimatedDrivingDistanceKm(routeMapStops[index].position, entry.position), 0)
     : null;
+  // Anything that travels by road should be measured on one. The preview map already asks the
+  // router for the line it draws, and the same answer carries the distance actually driven - which
+  // is the figure the full-screen map has always shown, and the one the estimate above disagreed
+  // with. Air keeps the straight line, because that is what an aircraft flies.
+  const drivesOnRoads = draft.transportType === 'road' || draft.transportType === 'warehouse';
+  const drivenRoute = useRouteGeometry(
+    routeMapStops.map((entry) => entry.position),
+    step === 'route' && drivesOnRoads && routeMapStops.length >= 2
+  );
+  // The router is a best-effort public service: when it cannot answer, the estimate still does.
+  const routeDistanceKm = drivesOnRoads && drivenRoute.distanceKm !== null ? drivenRoute.distanceKm : straightLineDistanceKm;
+  // Nothing is shown while the real distance is on its way, rather than a number that then jumps.
+  const measuringRoute = recalculatingRoute || (drivesOnRoads && drivenRoute.loading);
 
   // AI prefill often only gives city/address text, not coordinates, so the distance stripe has
   // nothing to compute from. Geocode the missing side(s) once when the Route step is opened -
   // never when a real coordinate is already present, and not on every keystroke while editing.
-  const [recalculatingRoute, setRecalculatingRoute] = useState(false);
   useEffect(() => {
     if (step !== 'route') return;
-    const needsPickup = !pickupRoutePosition && draft.pickupCity.trim() !== '';
-    const needsDelivery = !deliveryRoutePosition && draft.deliveryCity.trim() !== '';
-    if (!needsPickup && !needsDelivery) return;
+    // Every stop named by city but not yet placed - added stops included, so a multi-drop route is
+    // measured and drawn end to end rather than skipping over the ones typed by hand.
+    const pending = routeStopsOf(draft).filter(({ stop }) => !stopPosition(stop) && stop.city.trim() !== '');
+    if (pending.length === 0) return;
 
     let cancelled = false;
     setRecalculatingRoute(true);
     (async () => {
       try {
-        if (needsPickup) {
-          const query = [draft.pickupAddress, draft.pickupCity, draft.pickupCountry].filter(Boolean).join(', ');
+        for (const { stop, side, index } of pending) {
+          if (cancelled) break;
+          const query = [stop.address, stop.city, stop.country].filter(Boolean).join(', ');
           const [result] = await searchLocations(query).catch(() => []);
           if (result && !cancelled) {
-            setDraft((current) => ({ ...current, pickupLatitude: String(result.latitude), pickupLongitude: String(result.longitude) }));
-          }
-        }
-        if (needsDelivery && !cancelled) {
-          const query = [draft.deliveryAddress, draft.deliveryCity, draft.deliveryCountry].filter(Boolean).join(', ');
-          const [result] = await searchLocations(query).catch(() => []);
-          if (result && !cancelled) {
-            setDraft((current) => ({ ...current, deliveryLatitude: String(result.latitude), deliveryLongitude: String(result.longitude) }));
+            setDraft((current) => withStopPatch(current, side, index, { latitude: String(result.latitude), longitude: String(result.longitude) }));
           }
         }
       } finally {
@@ -468,7 +553,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     return () => {
       cancelled = true;
     };
-    // Only re-run when the step is (re-)opened, not on every keystroke in pickup/delivery fields.
+    // Only re-run when the step is (re-)opened, not on every keystroke in a stop's fields.
   }, [step]);
   const stepCompletion = useMemo<Record<StepId, boolean>>(
     () => ({
@@ -526,7 +611,12 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       setSubmitError(fallbackMessage);
       return;
     }
-    const described = describeApiErrors(u, error.errors);
+    // The API names a stop by its index in the payload, which only says which card it is once it
+    // is known how many pickups came before the deliveries.
+    const described = describeApiErrors(u, error.errors, {
+      pickupCount: draft.extraPickups.length + 1,
+      deliveryCount: draft.extraDeliveries.length + 1,
+    });
     rejectSubmit({ message: described.message || error.message, fields: described.fields });
   };
 
@@ -562,6 +652,31 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       {u(labelKey, fallback)}
     </FieldLabel>
   );
+
+  // A stop card asks for its labels by the stop's own field name. Stop 1 of a side maps back onto
+  // a draft field LenaAI may have filled, so it keeps the AI-refill marker; added stops have no
+  // draft field behind them and get a plain label.
+  const stopFieldLabel = (side: StopSide, index: number, field: keyof RouteStopDraft, labelKey: string, fallback: string) =>
+    index === 0
+      ? fieldLabel(PRIMARY_STOP_FIELDS[side][field] as keyof ScanFieldPatch & keyof LoadDraft, labelKey, fallback)
+      : <FieldLabel>{u(labelKey, fallback)}</FieldLabel>;
+
+  // Likewise for the red outlines a rejected submit leaves behind - they name draft fields, which
+  // only stop 1 of each side has.
+  const stopInvalidClass = (side: StopSide, index: number, field: keyof RouteStopDraft) =>
+    index === 0 ? invalidClass(PRIMARY_STOP_FIELDS[side][field]) : '';
+
+  const addStop = (side: StopSide) => setDraft((current) => withStopsOfSide(
+    current,
+    side,
+    [...stopsOfSide(current, side), emptyRouteStop(current[PRIMARY_STOP_FIELDS[side].country] as string)]
+  ));
+
+  const removeStop = (side: StopSide, index: number) => setDraft((current) => withStopsOfSide(
+    current,
+    side,
+    stopsOfSide(current, side).filter((_, position) => position !== index)
+  ));
 
   const toggleWarehouseEquipment = (value: string) => {
     setDraft((prev) => ({
@@ -1194,47 +1309,36 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       <AddressMapModal
         open={addressMap !== null}
         lang={lang}
-        title={addressMap === 'delivery'
+        title={addressMap?.side === 'delivery'
           ? u('postLoadModal.deliveryAddress', 'Delivery address')
           : u('postLoadModal.pickupAddress', 'Pickup address')}
-        initialQuery={addressMap === 'delivery'
-          ? draft.deliveryAddress || draft.deliveryCity
-          : draft.pickupAddress || draft.pickupCity}
-        initialPosition={addressMap === 'delivery'
-          ? draft.deliveryLatitude && draft.deliveryLongitude
-            ? [Number(draft.deliveryLatitude), Number(draft.deliveryLongitude)]
-            : null
-          : draft.pickupLatitude && draft.pickupLongitude
-            ? [Number(draft.pickupLatitude), Number(draft.pickupLongitude)]
-            : null}
+        initialQuery={addressMapStop ? addressMapStop.address || addressMapStop.city : ''}
+        initialPosition={addressMapStop ? stopPosition(addressMapStop) : null}
         onClose={() => setAddressMap(null)}
         onSelect={(location) => {
-          setDraft((current) => addressMap === 'delivery'
-            ? {
-                ...current,
-                deliveryAddress: location.label,
-                deliveryCity: location.city || current.deliveryCity,
-                deliveryCountry: location.countryCode || current.deliveryCountry,
-                deliveryLatitude: String(location.latitude),
-                deliveryLongitude: String(location.longitude),
-              }
-            : {
-                ...current,
-                pickupAddress: location.label,
-                pickupCity: location.city || current.pickupCity,
-                pickupCountry: location.countryCode || current.pickupCountry,
-                pickupLatitude: String(location.latitude),
-                pickupLongitude: String(location.longitude),
-              });
+          if (!addressMap) return;
+          setDraft((current) => {
+            // A picked point can come back without a city or country name, so whatever the stop
+            // already carried is kept rather than blanked.
+            const target = stopsOfSide(current, addressMap.side)[addressMap.index];
+            return withStopPatch(current, addressMap.side, addressMap.index, {
+              address: location.label,
+              city: location.city || target?.city || '',
+              country: location.countryCode || target?.country || '',
+              latitude: String(location.latitude),
+              longitude: String(location.longitude),
+            });
+          });
           setAddressMap(null);
         }}
       />
-      {pickupRoutePosition && deliveryRoutePosition && (
+      {routeMapStops.length >= 2 && (
         <RouteMapModal
           open={routeMapOpen}
           lang={lang}
-          pickup={{ label: draft.pickupAddress || draft.pickupCity, position: pickupRoutePosition }}
-          delivery={{ label: draft.deliveryAddress || draft.deliveryCity, position: deliveryRoutePosition }}
+          pickup={routeMapStops[0]}
+          delivery={routeMapStops[routeMapStops.length - 1]}
+          waypoints={routeMapStops.slice(1, -1)}
           onClose={() => setRouteMapOpen(false)}
         />
       )}
@@ -1497,10 +1601,40 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
               {step === 'route' && (
                 <motion.div key="route" className="space-y-3" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
                   {draft.transportType === 'warehouse' ? (
-                    <WarehouseLocationFields draft={draft} setField={setField} setDraft={setDraft} u={u} lang={lang} invalidClass={invalidClass} onOpenPickupMap={() => setAddressMap('pickup')} onOpenWarehouseArea={() => setAreaMapOpen(true)} routeDistanceKm={routeDistanceKm} recalculatingRoute={recalculatingRoute} onShowRoute={() => setRouteMapOpen(true)} />
+                    <WarehouseLocationFields draft={draft} setField={setField} setDraft={setDraft} u={u} lang={lang} invalidClass={invalidClass} onOpenPickupMap={() => setAddressMap({ side: 'pickup', index: 0 })} onOpenWarehouseArea={() => setAreaMapOpen(true)} routeDistanceKm={routeDistanceKm} recalculatingRoute={measuringRoute} onShowRoute={() => setRouteMapOpen(true)} />
                   ) : (
                   <>
                   <div className="grid lg:grid-cols-[minmax(0,5fr)_minmax(0,5fr)_minmax(0,2fr)] gap-3">
+                    {/* Road is the only mode that can collect and drop at more than one address, so it
+                        gets the stop lists; every other mode keeps its single origin/destination pair,
+                        where the port and airport pickers below belong. */}
+                    {draft.transportType === 'road' ? (
+                      <>
+                        <RouteStopsColumn
+                          side="pickup"
+                          stops={pickupStops}
+                          lang={lang}
+                          u={u}
+                          onChangeStop={(index, patch) => setDraft((current) => withStopPatch(current, 'pickup', index, patch))}
+                          onAddStop={() => addStop('pickup')}
+                          onOpenMap={(index) => setAddressMap({ side: 'pickup', index })}
+                          invalidClass={(index, field) => stopInvalidClass('pickup', index, field)}
+                          renderLabel={(index, field, labelKey, fallback) => stopFieldLabel('pickup', index, field, labelKey, fallback)}
+                        />
+                        <RouteStopsColumn
+                          side="delivery"
+                          stops={deliveryStops}
+                          lang={lang}
+                          u={u}
+                          onChangeStop={(index, patch) => setDraft((current) => withStopPatch(current, 'delivery', index, patch))}
+                          onAddStop={() => addStop('delivery')}
+                          onOpenMap={(index) => setAddressMap({ side: 'delivery', index })}
+                          invalidClass={(index, field) => stopInvalidClass('delivery', index, field)}
+                          renderLabel={(index, field, labelKey, fallback) => stopFieldLabel('delivery', index, field, labelKey, fallback)}
+                        />
+                      </>
+                    ) : (
+                      <>
                     <div className="space-y-3 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
                       <div className="flex items-center gap-2 text-emerald-500">
                         <MapPin className="w-4 h-4" />
@@ -1510,7 +1644,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
                       <div className="space-y-1">
                         <FieldLabel>{isContainerTransport(draft.transportType) ? u('postLoadModal.seaOriginType', 'Origin type') : u('postLoadModal.pickupPlaceType', 'Place type')}</FieldLabel>
-                        <div className={cn('grid gap-3', draft.transportType === 'road' ? 'grid-cols-3' : 'grid-cols-2')}>
+                        <div className="grid grid-cols-2 gap-3">
                           {(isContainerTransport(draft.transportType)
                             // Rail keeps sea's leg-type values so the door/terminal logic below is
                             // shared; only the label changes, because a rail leg starts at an
@@ -1519,17 +1653,11 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                                 { value: 'Port to Port', label: draft.transportType === 'rail' ? u('postLoadModal.terminal', 'Terminal') : u('postLoadModal.portToPort', 'Port'), icon: draft.transportType === 'rail' ? TrainFront : Ship },
                                 { value: 'Door to Port', label: u('postLoadModal.doorToPort', 'Address'), icon: Truck },
                               ]
-                            : draft.transportType === 'air'
-                            ? [
+                            : [
                                 { value: 'Warehouse', label: u('postLoadModal.warehouse', 'Warehouse'), icon: Warehouse },
                                 { value: 'Terminal', label: u('postLoadModal.terminal', 'Terminal'), icon: Building2 },
                                 { value: 'AOL / Airport of loading', label: 'AOL / Airport of loading', icon: PlaneLanding },
                                 { value: 'Address', label: u('postLoadModal.address', 'Address'), icon: MapPin },
-                              ]
-                            : [
-                                { value: 'Warehouse', label: u('postLoadModal.warehouse', 'Warehouse'), icon: Warehouse },
-                                { value: 'Port', label: u('postLoadModal.portToPort', 'Port'), icon: Ship },
-                                { value: 'Airport', label: u('postLoadModal.airportPlaceType', 'Airport'), icon: PlaneLanding },
                               ]
                           ).map((option) => (
                             <ChoiceCard
@@ -1545,16 +1673,15 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
                       <div className={cn(
                         ((isContainerTransport(draft.transportType) && draft.pickupPlaceType !== 'Port to Port') ||
-                          (draft.transportType === 'air' && draft.pickupPlaceType !== 'AOL / Airport of loading') ||
-                          (draft.transportType === 'road' && (draft.pickupPlaceType === 'Port' || draft.pickupPlaceType === 'Airport'))) &&
+                          (draft.transportType === 'air' && draft.pickupPlaceType !== 'AOL / Airport of loading')) &&
                         'grid gap-3 sm:grid-cols-2'
                       )}>
-                        {(isContainerTransport(draft.transportType) || (draft.transportType === 'road' && draft.pickupPlaceType === 'Port')) && (
+                        {isContainerTransport(draft.transportType) && (
                           <div className={cn('space-y-1', invalidClass('pickupPort'))}>
                             <FieldLabel>
                               {draft.transportType === 'rail'
                                 ? u('postLoadModal.railTerminalOfLoading', 'Loading terminal')
-                                : isContainerTransport(draft.transportType) ? u('postLoadModal.pol', 'Loading Port (POL)') : u('postLoadModal.portToPort', 'Port')}
+                                : u('postLoadModal.pol', 'Loading Port (POL)')}
                             </FieldLabel>
                             {/* There is no terminal directory behind this the way SEA_PORTS backs the
                                 port picker, so rail takes the name as typed. */}
@@ -1579,9 +1706,9 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             )}
                           </div>
                         )}
-                        {(draft.transportType === 'air' || (draft.transportType === 'road' && draft.pickupPlaceType === 'Airport')) && (
+                        {draft.transportType === 'air' && (
                           <div className={cn('space-y-1', invalidClass('pickupAirport'))}>
-                            <FieldLabel>{draft.transportType === 'air' ? u('postLoadModal.aol', 'Loading Airport (AOL)') : u('postLoadModal.airportPlaceType', 'Airport')}</FieldLabel>
+                            <FieldLabel>{u('postLoadModal.aol', 'Loading Airport (AOL)')}</FieldLabel>
                             <AirportAutocompleteField
                               value={draft.pickupAirport}
                               onChange={(value) => setField('pickupAirport', value)}
@@ -1615,7 +1742,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                                 pickupLongitude: String(location.longitude),
                               }))}
                               placeholder={u('postLoadModal.pickupAddressPlaceholder', 'Search places or click the map')}
-                              onOpenMap={() => setAddressMap('pickup')}
+                              onOpenMap={() => setAddressMap({ side: 'pickup', index: 0 })}
                               mapButtonLabel={u('map.choosePickup', 'Choose pickup address on map')}
                               mapButtonIcon={MapGlyphIcon}
                               accentClassName="text-emerald-500"
@@ -1637,48 +1764,6 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           <Input value={draft.pickupCity} onChange={(event) => setField('pickupCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', 'City')} />
                         </div>
                       </div>
-                      {draft.transportType === 'road' && (
-                        <div className="grid sm:grid-cols-2 gap-3">
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className={cn('flex h-full flex-col justify-between space-y-1', invalidClass('pickupDate'))}>
-                              {fieldLabel('pickupDate', 'postLoadModal.pickupDate', 'Date from')}
-                              <DateInput
-                                value={draft.pickupDate}
-                                onChange={(value) => setField('pickupDate', value)}
-                                placeholder="dd.mm.yyyy"
-                                lang={lang}
-                              />
-                            </div>
-                            <div className={cn('flex h-full flex-col justify-between space-y-1', invalidClass('pickupDateTo'))}>
-                              <FieldLabel>{u('postLoadModal.pickupDateTo', 'Date to')}</FieldLabel>
-                              <DateInput
-                                value={draft.pickupDateTo}
-                                onChange={(value) => setField('pickupDateTo', value)}
-                                placeholder="dd.mm.yyyy"
-                                lang={lang}
-                              />
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className={cn('flex h-full flex-col justify-between space-y-1', invalidClass('pickupTimeFrom'))}>
-                              <FieldLabel>{u('postLoadModal.pickupTimeFrom', 'Time from')}</FieldLabel>
-                              <TimeInput
-                                value={draft.pickupTimeFrom}
-                                onChange={(value) => setField('pickupTimeFrom', value)}
-                                placeholder="hh:mm"
-                              />
-                            </div>
-                            <div className={cn('flex h-full flex-col justify-between space-y-1', invalidClass('pickupTimeTo'))}>
-                              <FieldLabel>{u('postLoadModal.pickupTimeTo', 'Time to')}</FieldLabel>
-                              <TimeInput
-                                value={draft.pickupTimeTo}
-                                onChange={(value) => setField('pickupTimeTo', value)}
-                                placeholder="hh:mm"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      )}
                     </div>
 
                     <div className="space-y-3 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
@@ -1690,23 +1775,17 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
                       <div className="space-y-1">
                         <FieldLabel>{isContainerTransport(draft.transportType) ? u('postLoadModal.seaDestinationType', 'Destination type') : u('postLoadModal.deliveryPlaceType', 'Place type')}</FieldLabel>
-                        <div className={cn('grid gap-3', draft.transportType === 'road' ? 'grid-cols-3' : 'grid-cols-2')}>
+                        <div className="grid grid-cols-2 gap-3">
                           {(isContainerTransport(draft.transportType)
                             ? [
                                 { value: 'Port to Port', label: draft.transportType === 'rail' ? u('postLoadModal.terminal', 'Terminal') : u('postLoadModal.portToPort', 'Port'), icon: draft.transportType === 'rail' ? TrainFront : Ship },
                                 { value: 'Port to Door', label: u('postLoadModal.portToDoor', 'Address'), icon: Truck },
                               ]
-                            : draft.transportType === 'air'
-                            ? [
+                            : [
                                 { value: 'Warehouse', label: u('postLoadModal.warehouse', 'Warehouse'), icon: Warehouse },
                                 { value: 'Terminal', label: u('postLoadModal.terminal', 'Terminal'), icon: Building2 },
                                 { value: 'AOD / Airport of delivery', label: 'AOD / Airport of delivery', icon: PlaneLanding },
                                 { value: 'Address + Last Mile Delivery', label: u('postLoadModal.addressLastMile', 'Address + Last Mile Delivery'), icon: MapPin },
-                              ]
-                            : [
-                                { value: 'Warehouse', label: u('postLoadModal.warehouse', 'Warehouse'), icon: Warehouse },
-                                { value: 'Port', label: u('postLoadModal.portToPort', 'Port'), icon: Ship },
-                                { value: 'Airport', label: u('postLoadModal.airportPlaceType', 'Airport'), icon: PlaneLanding },
                               ]
                           ).map((option) => (
                             <ChoiceCard
@@ -1722,16 +1801,15 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
                       <div className={cn(
                         ((isContainerTransport(draft.transportType) && draft.deliveryPlaceType !== 'Port to Port') ||
-                          (draft.transportType === 'air' && draft.deliveryPlaceType !== 'AOD / Airport of delivery') ||
-                          (draft.transportType === 'road' && (draft.deliveryPlaceType === 'Port' || draft.deliveryPlaceType === 'Airport'))) &&
+                          (draft.transportType === 'air' && draft.deliveryPlaceType !== 'AOD / Airport of delivery')) &&
                         'grid gap-3 sm:grid-cols-2'
                       )}>
-                        {(isContainerTransport(draft.transportType) || (draft.transportType === 'road' && draft.deliveryPlaceType === 'Port')) && (
+                        {isContainerTransport(draft.transportType) && (
                           <div className={cn('space-y-1', invalidClass('deliveryPort'))}>
                             <FieldLabel>
                               {draft.transportType === 'rail'
                                 ? u('postLoadModal.railTerminalOfDelivery', 'Destination terminal')
-                                : isContainerTransport(draft.transportType) ? u('postLoadModal.pod', 'Discharge Port (POD)') : u('postLoadModal.portToPort', 'Port')}
+                                : u('postLoadModal.pod', 'Discharge Port (POD)')}
                             </FieldLabel>
                             {draft.transportType === 'rail' ? (
                               <Input
@@ -1754,9 +1832,9 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             )}
                           </div>
                         )}
-                        {(draft.transportType === 'air' || (draft.transportType === 'road' && draft.deliveryPlaceType === 'Airport')) && (
+                        {draft.transportType === 'air' && (
                           <div className={cn('space-y-1', invalidClass('deliveryAirport'))}>
-                            <FieldLabel>{draft.transportType === 'air' ? u('postLoadModal.aod', 'Discharge Airport (AOD)') : u('postLoadModal.airportPlaceType', 'Airport')}</FieldLabel>
+                            <FieldLabel>{u('postLoadModal.aod', 'Discharge Airport (AOD)')}</FieldLabel>
                             <AirportAutocompleteField
                               value={draft.deliveryAirport}
                               onChange={(value) => setField('deliveryAirport', value)}
@@ -1790,7 +1868,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                                 deliveryLongitude: String(location.longitude),
                               }))}
                               placeholder={u('postLoadModal.deliveryAddressPlaceholder', 'Search places or click the map')}
-                              onOpenMap={() => setAddressMap('delivery')}
+                              onOpenMap={() => setAddressMap({ side: 'delivery', index: 0 })}
                               mapButtonLabel={u('map.chooseDelivery', 'Choose delivery address on map')}
                               mapButtonIcon={MapGlyphIcon}
                               accentClassName="text-blue-500"
@@ -1812,51 +1890,11 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           <Input value={draft.deliveryCity} onChange={(event) => setField('deliveryCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', 'City')} />
                         </div>
                       </div>
-                      {draft.transportType === 'road' && (
-                        <div className="grid sm:grid-cols-2 gap-3">
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className={cn('flex h-full flex-col justify-between space-y-1', invalidClass('deliveryDate'))}>
-                              {fieldLabel('deliveryDate', 'postLoadModal.deliveryDate', 'Date from')}
-                              <DateInput
-                                value={draft.deliveryDate}
-                                onChange={(value) => setField('deliveryDate', value)}
-                                placeholder="dd.mm.yyyy"
-                                lang={lang}
-                              />
-                            </div>
-                            <div className={cn('flex h-full flex-col justify-between space-y-1', invalidClass('deliveryDateTo'))}>
-                              <FieldLabel>{u('postLoadModal.deliveryDateTo', 'Date to')}</FieldLabel>
-                              <DateInput
-                                value={draft.deliveryDateTo}
-                                onChange={(value) => setField('deliveryDateTo', value)}
-                                placeholder="dd.mm.yyyy"
-                                lang={lang}
-                              />
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className={cn('flex h-full flex-col justify-between space-y-1', invalidClass('deliveryTimeFrom'))}>
-                              <FieldLabel>{u('postLoadModal.deliveryTimeFrom', 'Time from')}</FieldLabel>
-                              <TimeInput
-                                value={draft.deliveryTimeFrom}
-                                onChange={(value) => setField('deliveryTimeFrom', value)}
-                                placeholder="hh:mm"
-                              />
-                            </div>
-                            <div className={cn('flex h-full flex-col justify-between space-y-1', invalidClass('deliveryTimeTo'))}>
-                              <FieldLabel>{u('postLoadModal.deliveryTimeTo', 'Time to')}</FieldLabel>
-                              <TimeInput
-                                value={draft.deliveryTimeTo}
-                                onChange={(value) => setField('deliveryTimeTo', value)}
-                                placeholder="hh:mm"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      )}
                     </div>
+                      </>
+                    )}
 
-                    <div className="flex h-full min-w-0 flex-col space-y-3 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+                    <div className="flex h-full min-w-0 flex-col space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
                       <div className="flex items-center gap-2 text-primary">
                         <Route className="w-4 h-4" />
                         <p className="text-xs font-black uppercase tracking-wider">{u('postLoadModal.routeSummaryTitle', 'Route')}</p>
@@ -1873,10 +1911,18 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           )}
                         </div>
                       ) : (
-                        <div className="flex min-w-0 flex-1 flex-col">
-                          <VerticalRoutePoint icon={MapPin} iconClassName="bg-emerald-500 shadow-emerald-500/20" label={u('postLoadModal.origin', 'Origin')} value={draft.pickupCity || draft.pickupAddress || '—'} />
-                          <VerticalRoutePoint icon={MapPin} iconClassName="bg-blue-500 shadow-blue-500/20" label={u('postLoadModal.destination', 'Destination')} value={draft.deliveryCity || draft.deliveryAddress || '—'} last />
-                        </div>
+                        /* Every stop of the route, in the order it is driven - the pickups first,
+                           then the deliveries, each keeping the number its card carries, and each
+                           carrying the controls that change that order. */
+                        <RouteStopTimeline
+                          stops={routeStops}
+                          editable={draft.transportType === 'road'}
+                          nameOf={routeStopName}
+                          countOf={(side) => (side === 'pickup' ? pickupStops.length : deliveryStops.length)}
+                          onMoveStop={(from, target, placeAfter) => setDraft((current) => withMovedStop(current, from, target, placeAfter))}
+                          onRemove={removeStop}
+                          u={u}
+                        />
                       )}
 
                       {isContainerTransport(draft.transportType) ? (
@@ -1898,7 +1944,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         <div className="flex items-center justify-between rounded-xl border border-sky-200 bg-sky-50/50 px-3 py-2 dark:border-sky-800 dark:bg-slate-900">
                           <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">{u('landing.distance', 'Distance')}</p>
                           <p className="flex items-center gap-1 text-sm font-black text-slate-900 dark:text-white">
-                            {recalculatingRoute
+                            {measuringRoute
                               ? <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
                               : routeDistanceKm === null ? '—' : `${routeDistanceKm.toLocaleString()} km`}
                           </p>
@@ -1906,12 +1952,18 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       )}
 
                       {!isContainerTransport(draft.transportType) && (
-                        <Button type="button" disabled={!routeDistanceKm} onClick={() => setRouteMapOpen(true)} className="w-full gap-2 disabled:cursor-not-allowed disabled:bg-sky-300 disabled:text-white disabled:opacity-100 disabled:shadow-none dark:disabled:bg-sky-800"><MapGlyphIcon className="h-4 w-4" />{u('postLoadModal.showRouteMap', 'Show route')}</Button>
+                        <>
+                          {/* The route drawn small, so the order of the stops can be checked without
+                              leaving the form for the full-screen map. */}
+                          {routeMapStops.length >= 2 && <RoutePreviewMap stops={routeMapStops} legs={drivenRoute.legs} />}
+                          <Button type="button" disabled={!routeDistanceKm} onClick={() => setRouteMapOpen(true)} className="w-full gap-2 disabled:cursor-not-allowed disabled:bg-sky-300 disabled:text-white disabled:opacity-100 disabled:shadow-none dark:disabled:bg-sky-800"><MapGlyphIcon className="h-4 w-4" />{u('postLoadModal.showRouteMap', 'Show route')}</Button>
+                        </>
                       )}
                     </div>
                   </div>
 
-                  {draft.transportType !== 'road' && draft.transportType !== 'warehouse' && (
+                  {/* Warehouse never reaches this branch, so only road has to be ruled out here. */}
+                  {draft.transportType !== 'road' && (
                     <div className="space-y-3 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
                       <div className="grid gap-3 sm:grid-cols-3">
                         <div className="space-y-1">
@@ -2006,6 +2058,10 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                                   ferryIncluded: enteringAir ? false : prev.ferryIncluded,
                                   cmrRequired: enteringAir ? false : prev.cmrRequired,
                                   palletExchangeRequired: enteringAir ? false : prev.palletExchangeRequired,
+                                  // Only road collects and drops at more than one address; leaving it
+                                  // would otherwise submit stops no other mode's form can show or edit.
+                                  extraPickups: option.id === 'road' ? prev.extraPickups : [],
+                                  extraDeliveries: option.id === 'road' ? prev.extraDeliveries : [],
                                 };
                               })}
                             />
@@ -2769,7 +2825,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                     ) : (
                     <div className="rounded-3xl border border-slate-200 dark:border-slate-800 p-4">
                       <SummaryRow label={u('postLoadModal.consignee', 'Consignee (customer)')} value={draft.consignee?.text || '—'} />
-                      <SummaryRow label={u('postLoadModal.routeSummary', 'Route')} value={`${draft.pickupCity} → ${draft.deliveryCity}`} />
+                      {/* Every stop, so a multi-drop road route is reviewed as the trip it is. */}
+                      <SummaryRow label={u('postLoadModal.routeSummary', 'Route')} value={routeStops.map(({ stop }) => stop.city || stop.address || '—').join(' → ')} />
                       <SummaryRow
                         label={u('postLoadModal.transportType', 'Transport types and services')}
                         value={transportOptions.find((option) => option.id === draft.transportType)?.label || draft.transportType}

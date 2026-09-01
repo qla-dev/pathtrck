@@ -19,6 +19,7 @@ export type ApiUser = {
   avatar_url?: string | null;
   headline?: string | null;
   bio?: string | null;
+  have_fleet?: boolean;
   is_active: boolean;
   email_verified_at?: string | null;
   last_login_at?: string | null;

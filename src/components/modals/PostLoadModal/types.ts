@@ -34,6 +34,47 @@ export type TransportType = 'road' | 'air' | 'sea' | 'rail' | 'warehouse';
 export const isContainerTransport = (transportType: TransportType): boolean =>
   transportType === 'sea' || transportType === 'rail';
 
+/**
+ * One stop of a road route beyond the first pickup and the first delivery.
+ *
+ * A road load is often multi-drop: collect at two or three addresses, unload at two or three more.
+ * Stop 1 of each side stays in the flat pickup / delivery fields, because every other transport
+ * type - and everything that reads a load's origin and destination - only ever needs those two;
+ * the additional ones are appended here, in the order they are driven.
+ */
+export type RouteStopDraft = {
+  placeType: string;
+  city: string;
+  postalCode: string;
+  country: string;
+  address: string;
+  port: string;
+  airport: string;
+  latitude: string;
+  longitude: string;
+  date: string;
+  dateTo: string;
+  timeFrom: string;
+  timeTo: string;
+};
+
+/** A blank extra stop, starting in the country of the stop it was added under. */
+export const emptyRouteStop = (country: string): RouteStopDraft => ({
+  placeType: 'Warehouse',
+  city: '',
+  postalCode: '',
+  country: country || 'BA',
+  address: '',
+  port: '',
+  airport: '',
+  latitude: '',
+  longitude: '',
+  date: '',
+  dateTo: '',
+  timeFrom: '',
+  timeTo: '',
+});
+
 export type ScannedDocument = { id: string; imageDataUrl: string | null; result: LoadScanResult };
 // Sea and rail - one row of the "Container types" picker (type + how many of that type).
 export type ContainerSelection = { type: string; quantity: string };
@@ -59,6 +100,8 @@ export type LoadDraft = {
   pickupTimeFrom: string;
   pickupTimeTo: string;
   pickupWindow: string;
+  // Road only - pickups 2..n, driven after the pickup above and before any delivery.
+  extraPickups: RouteStopDraft[];
   deliveryPlaceType: string;
   deliveryCity: string;
   deliveryPostalCode: string;
@@ -79,6 +122,8 @@ export type LoadDraft = {
   deliveryTimeFrom: string;
   deliveryTimeTo: string;
   deliveryWindow: string;
+  // Road only - deliveries 2..n, driven after the delivery above.
+  extraDeliveries: RouteStopDraft[];
   // Sea only - expected transit time between the port of loading (POL) and port of discharge
   // (POD), shown instead of a road-style driving distance.
   transitDays: string;
@@ -196,6 +241,7 @@ export const INITIAL_DRAFT: LoadDraft = {
   pickupTimeFrom: '',
   pickupTimeTo: '',
   pickupWindow: '',
+  extraPickups: [],
   deliveryPlaceType: 'Warehouse',
   deliveryCity: '',
   deliveryPostalCode: '',
@@ -211,6 +257,7 @@ export const INITIAL_DRAFT: LoadDraft = {
   deliveryTimeFrom: '',
   deliveryTimeTo: '',
   deliveryWindow: '',
+  extraDeliveries: [],
   transitDays: '',
   loadTitle: '',
   cargoType: 'FTL',

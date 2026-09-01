@@ -5448,8 +5448,10 @@ export default function App() {
   const [feedSortMode, setFeedSortMode] = useState<FeedSortMode>("price_asc");
   const [feedDataMode, setFeedDataMode] = useState<FeedDataMode>("organic");
   const [exchangeMode, setExchangeMode] = useState<ExchangeMode>("transport");
+  const warehouseExchangeOnly = role === "warehouse" || (isCompanyOperationsRole(role) && Boolean(currentUser?.companies?.some((company) => company.warehouse_first)));
+  const effectiveExchangeMode: ExchangeMode = warehouseExchangeOnly ? "storage" : exchangeMode;
   const [feedFilterBarLoading, setFeedFilterBarLoading] = useState(false);
-  const prevExchangeModeRef = useRef(exchangeMode);
+  const prevExchangeModeRef = useRef(effectiveExchangeMode);
   const exchangeModeTransitionTimerRef = useRef<number | null>(null);
   const [feedMyBidsOnly, setFeedMyBidsOnly] = useState(false);
   // Freight-exchange filter groups (Transport / Route / Cargo / Equipment / Date / Requirements /
@@ -5648,8 +5650,8 @@ export default function App() {
 
   useEffect(() => {
     let requestActive = true;
-    const exchangeModeChanged = prevExchangeModeRef.current !== exchangeMode;
-    prevExchangeModeRef.current = exchangeMode;
+    const exchangeModeChanged = prevExchangeModeRef.current !== effectiveExchangeMode;
+    prevExchangeModeRef.current = effectiveExchangeMode;
     if (exchangeModeChanged) setFeedFilterBarLoading(true);
     if (!role) {
       setCurrentUser(null);
@@ -5671,7 +5673,7 @@ export default function App() {
       const params: Record<string, string | number | boolean | undefined> = {
         per_page: 100,
         status: "posted",
-        for_storage: exchangeMode === "storage",
+        for_storage: effectiveExchangeMode === "storage",
         tracking_search: feedTrackingSearch || undefined,
         sort: feedSortMode,
         my_bids: feedMyBidsOnly || undefined,
@@ -5693,7 +5695,7 @@ export default function App() {
             : undefined,
         price_terms: selectedFeedPriceTerms.join(",") || undefined,
       };
-      if (exchangeMode === "storage") {
+      if (effectiveExchangeMode === "storage") {
         Object.assign(params, {
           warehouse_location: feedStartLocation || undefined,
           pallets_min:
@@ -5829,7 +5831,7 @@ export default function App() {
   }, [
     role,
     loadRefreshKey,
-    exchangeMode,
+    effectiveExchangeMode,
     feedSortMode,
     feedMyBidsOnly,
     feedStartLocation,
@@ -6006,8 +6008,7 @@ export default function App() {
       Boolean(company.warehouse_first),
     ),
   );
-  const isWarehouseCompany =
-    role === "warehouse" || (isCompanyOperationsRole(role) && warehouseFirst);
+  const isWarehouseCompany = warehouseExchangeOnly;
   const roleMeta =
     role === "driver"
       ? {
@@ -6295,9 +6296,9 @@ export default function App() {
   };
   const feedFilterBarProps: FilterLoadsProps = {
     lang,
-    variant: exchangeMode,
+    variant: effectiveExchangeMode,
     exchange:
-      exchangeMode === "transport"
+      effectiveExchangeMode === "transport"
         ? {
             transportModes: exchangeFilters.transportModes,
             onToggleTransportMode: (id) =>
@@ -6355,7 +6356,7 @@ export default function App() {
       allowManualInput: true,
     },
     weightRange:
-      exchangeMode === "transport"
+      effectiveExchangeMode === "transport"
         ? {
             min: feedRangeBounds.weightMin,
             max: feedRangeBounds.weightMax,
@@ -6370,7 +6371,7 @@ export default function App() {
           }
         : undefined,
     dimensionRanges:
-      exchangeMode === "transport"
+      effectiveExchangeMode === "transport"
         ? {
             length: {
               min: feedRangeBounds.lengthMin,
@@ -6426,7 +6427,7 @@ export default function App() {
       allowManualInput: true,
     },
     cargoValueRange:
-      exchangeMode === "transport"
+      effectiveExchangeMode === "transport"
         ? {
             min: feedRangeBounds.cargoValueMin,
             max: feedRangeBounds.cargoValueMax,
@@ -6442,7 +6443,7 @@ export default function App() {
           }
         : undefined,
     transitRange:
-      exchangeMode === "transport"
+      effectiveExchangeMode === "transport"
         ? {
             min: feedRangeBounds.transitMin,
             max: feedRangeBounds.transitMax,
@@ -6455,18 +6456,18 @@ export default function App() {
             suffix: ` ${u("common.days", "days")}`,
           }
         : undefined,
-    goodsTypeOptions: exchangeMode === "transport" ? feedGoodsTypeOptions : [],
+    goodsTypeOptions: effectiveExchangeMode === "transport" ? feedGoodsTypeOptions : [],
     priceTermOptions: feedPriceTermOptions,
     paymentTermOptions:
-      exchangeMode === "transport" ? feedPaymentTermOptions : [],
-    adrClassOptions: exchangeMode === "transport" ? feedAdrClassOptions : [],
+      effectiveExchangeMode === "transport" ? feedPaymentTermOptions : [],
+    adrClassOptions: effectiveExchangeMode === "transport" ? feedAdrClassOptions : [],
     sensitivityOptions:
-      exchangeMode === "transport" ? feedSensitivityOptions : [],
-    urgencyOptions: exchangeMode === "transport" ? feedUrgencyOptions : [],
+      effectiveExchangeMode === "transport" ? feedSensitivityOptions : [],
+    urgencyOptions: effectiveExchangeMode === "transport" ? feedUrgencyOptions : [],
     loadingMethodOptions:
-      exchangeMode === "transport" ? feedLoadingMethodOptions : [],
+      effectiveExchangeMode === "transport" ? feedLoadingMethodOptions : [],
     palletRange:
-      exchangeMode === "storage"
+      effectiveExchangeMode === "storage"
         ? {
             min: feedRangeBounds.palletsMin,
             max: feedRangeBounds.palletsMax,
@@ -6482,7 +6483,7 @@ export default function App() {
           }
         : undefined,
     volumeRange:
-      exchangeMode === "storage"
+      effectiveExchangeMode === "storage"
         ? {
             min: feedRangeBounds.volumeMin,
             max: feedRangeBounds.volumeMax,
@@ -7160,9 +7161,10 @@ export default function App() {
                   loads={activeFeedLoads}
                   loading={!databaseLoadsLoaded}
                   filterBarLoading={feedFilterBarLoading}
-                  exchangeMode={exchangeMode}
+                  exchangeMode={effectiveExchangeMode}
+                  storageOnly={warehouseExchangeOnly}
                   onExchangeModeChange={(mode) => {
-                    if (mode === exchangeMode) {
+                    if (mode === effectiveExchangeMode) {
                       if (exchangeModeTransitionTimerRef.current !== null) {
                         window.clearTimeout(exchangeModeTransitionTimerRef.current);
                         exchangeModeTransitionTimerRef.current = null;

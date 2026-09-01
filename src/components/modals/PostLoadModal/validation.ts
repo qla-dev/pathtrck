@@ -1,4 +1,5 @@
-import { LoadDraft, StepId } from './types';
+import { LoadDraft, RouteStopDraft, StepId } from './types';
+import { stopsOfSide, type StopSide } from './routeStops';
 
 /**
  * Turns API validation errors into something the person filling in the form can act on.
@@ -63,18 +64,41 @@ const STOP_FIELDS: Record<string, { labelKey: string; label: string; pickup: Arr
 
 type Translate = (key: string, fallback: string) => string;
 
-const stopBlockLabel = (u: Translate, index: number) =>
-  index === 0 ? u('postLoadModal.pickupBlock', 'Pickup') : u('postLoadModal.deliveryBlock', 'Delivery');
+/**
+ * How many stops of each side the payload carried, so a "stops.3.city" error can be told which
+ * card on screen it belongs to. Defaults to the one-pickup, one-delivery route every transport
+ * type other than road has.
+ */
+export type RouteShape = { pickupCount: number; deliveryCount: number };
 
-const resolveKey = (u: Translate, key: string): { label: string; fields: Array<keyof LoadDraft> } | null => {
+const SINGLE_STOP_ROUTE: RouteShape = { pickupCount: 1, deliveryCount: 1 };
+
+// Stops travel as pickups first, then deliveries, so the index alone places a stop on its side.
+const stopAt = (index: number, route: RouteShape): { side: StopSide; position: number; total: number } =>
+  index < route.pickupCount
+    ? { side: 'pickup', position: index, total: route.pickupCount }
+    : { side: 'delivery', position: index - route.pickupCount, total: route.deliveryCount };
+
+const stopBlockLabel = (u: Translate, index: number, route: RouteShape) => {
+  const { side, position, total } = stopAt(index, route);
+  const block = side === 'pickup' ? u('postLoadModal.pickupBlock', 'Pickup') : u('postLoadModal.deliveryBlock', 'Delivery');
+  return total > 1 ? `${block} ${position + 1}` : block;
+};
+
+const resolveKey = (u: Translate, key: string, route: RouteShape): { label: string; fields: Array<keyof LoadDraft> } | null => {
   const stopMatch = /^stops\.(\d+)\.(.+)$/.exec(key);
   if (stopMatch) {
     const entry = STOP_FIELDS[stopMatch[2]];
     if (!entry) return null;
     const index = Number(stopMatch[1]);
+    const { side, position } = stopAt(index, route);
     return {
-      label: `${u(entry.labelKey, entry.label)} (${stopBlockLabel(u, index)})`,
-      fields: index === 0 ? entry.pickup : entry.delivery,
+      label: `${u(entry.labelKey, entry.label)} (${stopBlockLabel(u, index, route)})`,
+      // Only stop 1 of a side has draft fields to outline; an added stop is named in the message
+      // and its column is opened, which is as far as the red outlines can follow it.
+      fields: position > 0
+        ? [side === 'pickup' ? 'extraPickups' : 'extraDeliveries']
+        : side === 'pickup' ? entry.pickup : entry.delivery,
     };
   }
 
@@ -91,7 +115,7 @@ const FIELD_STEPS: Partial<Record<keyof LoadDraft, StepId>> = {
   pickupPort: 'route', pickupAirport: 'route', pickupDate: 'route', pickupDateTo: 'route', pickupTimeFrom: 'route', pickupTimeTo: 'route',
   deliveryPlaceType: 'route', deliveryCountry: 'route', deliveryCity: 'route', deliveryPostalCode: 'route', deliveryAddress: 'route',
   deliveryPort: 'route', deliveryAirport: 'route', deliveryDate: 'route', deliveryDateTo: 'route', deliveryTimeFrom: 'route', deliveryTimeTo: 'route',
-  deliveryRadiusKm: 'route', transitDays: 'route',
+  deliveryRadiusKm: 'route', transitDays: 'route', extraPickups: 'route', extraDeliveries: 'route',
   loadTitle: 'cargo', cargoType: 'cargo', goodsType: 'cargo', weightKg: 'cargo', pallets: 'cargo', volumeM3: 'cargo',
   lengthM: 'cargo', widthM: 'cargo', heightM: 'cargo', declaredValue: 'cargo', temperatureMin: 'cargo', temperatureMax: 'cargo',
   // Equipment and the storage type picker now sit in the third column of the Details & Terms step.
@@ -123,12 +147,12 @@ export type ValidationIssues = { message: string; fields: Array<keyof LoadDraft>
  * Rewrites the API's first validation message with real field names and collects every draft
  * field the API complained about, so they can all be outlined at once.
  */
-export const describeApiErrors = (u: Translate, errors: Record<string, string[]>): ValidationIssues => {
+export const describeApiErrors = (u: Translate, errors: Record<string, string[]>, route: RouteShape = SINGLE_STOP_ROUTE): ValidationIssues => {
   const fields: Array<keyof LoadDraft> = [];
   let message = '';
 
   for (const [key, messages] of Object.entries(errors)) {
-    const resolved = resolveKey(u, key);
+    const resolved = resolveKey(u, key, route);
     if (resolved) fields.push(...resolved.fields);
     if (message) continue;
     const first = messages.find(Boolean);
@@ -211,6 +235,42 @@ export const validateDraft = (u: Translate, draft: LoadDraft, mode: 'publish' | 
     }
   }
 
+  // Added stops carry the same fields as the two above, and can be just as malformed. They have
+  // no draft field of their own to outline, so the message names the card the problem is on.
+  const stopWindows: Array<[StopSide, string, string]> = [
+    ['pickup', 'postLoadModal.pickupBlock', 'Pickup'],
+    ['delivery', 'postLoadModal.deliveryBlock', 'Delivery'],
+  ];
+  for (const [side, blockKey, blockFallback] of stopWindows) {
+    const extras = side === 'pickup' ? draft.extraPickups : draft.extraDeliveries;
+    const listField: keyof LoadDraft = side === 'pickup' ? 'extraPickups' : 'extraDeliveries';
+    extras.forEach((stop, position) => {
+      // Position 1 is the flat stop checked above, so an entry at list index 0 is stop 2.
+      const stopName = `${u(blockKey, blockFallback)} ${position + 2}`;
+      const checks: Array<[keyof RouteStopDraft, string, string]> = [
+        ['timeFrom', 'postLoadModal.pickupTimeFrom', 'Time from'],
+        ['timeTo', 'postLoadModal.pickupTimeTo', 'Time to'],
+      ];
+      for (const [field, labelKey, labelFallback] of checks) {
+        const value = stop[field].trim();
+        if (value && !TIME_PATTERN.test(value)) {
+          fail(`${u(labelKey, labelFallback)} (${stopName}): ${u('postLoadModal.invalidTime', 'Enter a time between 00:00 and 23:59.')}`, listField);
+        }
+      }
+      for (const field of ['date', 'dateTo'] as const) {
+        const value = stop[field].trim();
+        if (value && !parseFormDate(value)) {
+          fail(`${stopName}: ${u('postLoadModal.invalidDate', 'Enter a date as dd.mm.yyyy.')}`, listField);
+        }
+      }
+      const from = parseFormDate(stop.date);
+      const to = parseFormDate(stop.dateTo);
+      if (from && to && to < from) {
+        fail(`${stopName}: ${u('postLoadModal.dateRangeReversed', 'The end date cannot be before the start date.')}`, listField);
+      }
+    });
+  }
+
   // A draft is allowed to be half-finished - only what is actually malformed blocks saving it.
   if (mode === 'draft') return message ? { message, fields: [...new Set(fields)] } : null;
 
@@ -222,6 +282,15 @@ export const validateDraft = (u: Translate, draft: LoadDraft, mode: 'publish' | 
   }
   if (!String(draft.deliveryCity || '').trim()) {
     fail(`${u('postLoadModal.deliveryCity', 'City')} (${isWarehouse ? u('postLoadModal.warehousePreferredLocation', 'Preferred warehouse location') : u('postLoadModal.deliveryBlock', 'Delivery')}): ${u('postLoadModal.requiredField', 'This field is required.')}`, 'deliveryCity');
+  }
+  for (const side of ['pickup', 'delivery'] as const) {
+    const listField: keyof LoadDraft = side === 'pickup' ? 'extraPickups' : 'extraDeliveries';
+    const blockLabel = side === 'pickup' ? u('postLoadModal.pickupBlock', 'Pickup') : u('postLoadModal.deliveryBlock', 'Delivery');
+    stopsOfSide(draft, side).forEach((stop, position) => {
+      if (position > 0 && !stop.city.trim()) {
+        fail(`${u(side === 'pickup' ? 'postLoadModal.pickupCity' : 'postLoadModal.deliveryCity', 'City')} (${blockLabel} ${position + 1}): ${u('postLoadModal.requiredField', 'This field is required.')}`, listField);
+      }
+    });
   }
   if (!isWarehouse && !String(draft.weightKg || '').trim()) {
     fail(`${u('postLoadModal.weight', 'Weight')}: ${u('postLoadModal.requiredField', 'This field is required.')}`, 'weightKg');
