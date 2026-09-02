@@ -246,6 +246,27 @@ export type BulkLoadRow = {
 };
 export type BulkLoadScanResult = { isDocument: boolean; rows: BulkLoadRow[]; warnings: string[] };
 
+export type LiveAircraft = {
+  hex: string;
+  type?: string;
+  flight?: string;
+  r?: string;
+  t?: string;
+  desc?: string;
+  ownOp?: string;
+  alt_baro?: number | 'ground';
+  alt_geom?: number;
+  gs?: number;
+  track?: number;
+  baro_rate?: number;
+  squawk?: string;
+  category?: string;
+  lat: number;
+  lon: number;
+  seen?: number;
+  dbFlags?: number;
+};
+
 const API_BACKENDS = {
   local: 'https://freightbook.ai/endpoints/api',
   production: 'https://freightbook.ai/endpoints/api',
@@ -421,6 +442,10 @@ export const resourceApi = <T extends Record<string, unknown>>(resource: string)
 
 export const api = {
   health: () => request<{ status: string; timestamp: string }>('/health'),
+  aircraft: {
+    list: (params: { lat: number; lon: number; dist?: number }) =>
+      request<LiveAircraft[]>(`/aircraft?${queryString(params)}`),
+  },
   fuelStations: {
     list: (params: { south: number; west: number; north: number; east: number; limit?: number }) =>
       request<FuelStation[]>(`/fuel-stations?${queryString(params)}`),

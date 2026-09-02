@@ -6,6 +6,7 @@ import {
   Plus,
   Search,
   Truck,
+  Plane,
   Map as MapIcon,
   BarChart3,
   Globe,
@@ -107,6 +108,7 @@ import { FilterLoadsProps } from "./components/load/FilterLoads";
 import { GLOBAL_OFFERS } from "./components/frights/globalOffers";
 import { MessagesView } from "./components/views/MessagesView";
 import { MapView } from "./components/views/MapView";
+import { AircraftView } from "./components/views/AircraftView";
 import { ProfileView } from "./components/views/ProfileView";
 import { AutomationsView } from "./components/views/AutomationsView";
 import { PostLoadModal } from "./components/modals/PostLoadModal";
@@ -6938,6 +6940,23 @@ export default function App() {
               </button>
             ) : null}
 
+            {isElevatedAdmin && (
+              <button
+                type="button"
+                onClick={() => navigateTo("aircraft")}
+                title={u("aircraft.title", "Live aircraft")}
+                aria-label={u("aircraft.title", "Live aircraft")}
+                className={cn(
+                  "h-10 w-10 rounded-full transition-all cursor-pointer flex items-center justify-center",
+                  view === "aircraft"
+                    ? "bg-primary text-white shadow-lg shadow-primary/30"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary hover:scale-105",
+                )}
+              >
+                <Plane className="h-5 w-5" />
+              </button>
+            )}
+
             <button
               onClick={() => navigateTo("map")}
               title={u("nav.map", "Map")}
@@ -7128,12 +7147,12 @@ export default function App() {
             // on a 2560px display (and ~950px on an ultrawide) while looking fine on a 1366px
             // laptop, so it only ever showed up on wider client machines.
             "flex-1 min-h-0 w-full max-w-none",
-            view === "map" || isTrackingMapActive
+            view === "map" || view === "aircraft" || isTrackingMapActive
               ? "p-0"
               : view === "warehouse-overview" || view === "warehouses" || view === "docks" || view === "admin"
                 ? "p-4 pb-24 md:pb-4"
                 : "p-6 pb-24 md:pb-6",
-            view === "messages" || view === "map"
+            view === "messages" || view === "map" || view === "aircraft"
               ? "overflow-hidden"
               : "overflow-y-auto",
           )}
@@ -7144,6 +7163,7 @@ export default function App() {
               className={cn(
                 (view === "messages" ||
                   view === "map" ||
+                  view === "aircraft" ||
                   isTrackingMapActive) &&
                   "h-full",
               )}
@@ -7280,6 +7300,7 @@ export default function App() {
                 />
               )}
               {view === "map" && <MapView lang={lang} />}
+              {view === "aircraft" && isElevatedAdmin && <AircraftView lang={lang} />}
               {view === "admin" && <AdminOverviewView lang={lang} />}
               {view === "admin-customers" && (
                 <AdminCustomersView
