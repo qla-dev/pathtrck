@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import { MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet';
-import { AlertTriangle, LocateFixed, Plane, RefreshCw, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import { AlertTriangle, LocateFixed, Maximize2, Minimize2, Plane, RefreshCw, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import type { Language } from '../../types';
 import { api, type LiveAircraft } from '../../services/api';
 import { ui } from '../../i18n';
@@ -85,6 +85,7 @@ const MapObserver = ({ onViewportChange }: { onViewportChange: (bounds: Viewport
 
 export const AircraftView = ({ lang }: { lang: Language }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const requestId = useRef(0);
   const traceRequestId = useRef(0);
@@ -103,6 +104,7 @@ export const AircraftView = ({ lang }: { lang: Language }) => {
   const [traceSegments, setTraceSegments] = useState<Array<Array<{ lat: number; lon: number }>>>([]);
   const [traceLoading, setTraceLoading] = useState(false);
   const [traceError, setTraceError] = useState('');
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const loadAircraft = useCallback(async () => {
     if (!viewport) return;
@@ -127,6 +129,15 @@ export const AircraftView = ({ lang }: { lang: Language }) => {
     const timer = window.setInterval(() => void loadAircraft(), 15000);
     return () => window.clearInterval(timer);
   }, [loadAircraft]);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(document.fullscreenElement === containerRef.current);
+      window.setTimeout(() => mapRef.current?.invalidateSize(), 100);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   useEffect(() => {
     const id = ++traceRequestId.current;
@@ -169,9 +180,13 @@ export const AircraftView = ({ lang }: { lang: Language }) => {
   const activeFilterCount = Number(category !== 'all') + Number(Boolean(minAltitude || maxAltitude)) + Number(airborneOnly);
   const clearFilters = () => { setCategory('all'); setQuery(''); setMinAltitude(''); setMaxAltitude(''); setAirborneOnly(false); };
   const locateMe = () => navigator.geolocation?.getCurrentPosition(({ coords }) => mapRef.current?.flyTo([coords.latitude, coords.longitude], LOCKED_ZOOM));
+  const toggleFullscreen = async () => {
+    if (document.fullscreenElement === containerRef.current) await document.exitFullscreen();
+    else await containerRef.current?.requestFullscreen();
+  };
 
   return (
-    <div className="relative h-full min-h-0 overflow-hidden bg-slate-100 dark:bg-slate-950">
+    <div ref={containerRef} className="relative h-full min-h-0 overflow-hidden bg-slate-100 dark:bg-slate-950">
       <MapContainer ref={mapRef} center={[43.8563, 18.4131]} zoom={LOCKED_ZOOM} minZoom={LOCKED_ZOOM} maxZoom={LOCKED_ZOOM} zoomControl={false} scrollWheelZoom={false} doubleClickZoom={false} touchZoom={false} boxZoom={false} keyboard={false} className="h-full w-full">
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap contributors" subdomains={['a', 'b', 'c']} />
         <MapResize />
@@ -203,6 +218,7 @@ export const AircraftView = ({ lang }: { lang: Language }) => {
             </div>
             <button type="button" onClick={() => setFiltersOpen((value) => !value)} className={cn('flex h-10 cursor-pointer items-center gap-2 rounded-xl border px-3 text-xs font-bold', filtersOpen || activeFilterCount ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300')}><SlidersHorizontal className="h-4 w-4" />{u('common.filter', 'Filters')}{activeFilterCount > 0 && <span className="rounded-full bg-primary px-1.5 py-0.5 text-[9px] text-white">{activeFilterCount}</span>}</button>
             <button type="button" onClick={() => void loadAircraft()} title={u('aircraft.refresh', 'Refresh')} className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:text-primary dark:border-slate-700 dark:text-slate-300"><RefreshCw className="h-4 w-4" /></button>
+            <button type="button" onClick={() => void toggleFullscreen()} title={isFullscreen ? u('map.exitFullscreen', 'Exit fullscreen') : u('map.fullscreen', 'Fullscreen')} aria-label={isFullscreen ? u('map.exitFullscreen', 'Exit fullscreen') : u('map.fullscreen', 'Fullscreen')} className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:text-primary dark:border-slate-700 dark:text-slate-300">{isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}</button>
           </div>
 
           {filtersOpen && (
@@ -238,7 +254,7 @@ export const AircraftView = ({ lang }: { lang: Language }) => {
         </div>
       )}
 
-      <button type="button" onClick={locateMe} title={u('tracking.locateMe', 'Locate me')} className="absolute bottom-[118px] right-2.5 z-[500] flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-2 border-black/20 bg-white text-slate-700 shadow"><LocateFixed className="h-4 w-4" /></button>
+      <button type="button" onClick={locateMe} title={u('tracking.locateMe', 'Locate me')} className="absolute bottom-3 right-3 z-[500] flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border-2 border-black/20 bg-white text-slate-700 shadow"><LocateFixed className="h-4 w-4" /></button>
     </div>
   );
 };

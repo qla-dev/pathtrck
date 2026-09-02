@@ -9381,6 +9381,8 @@ Object.assign(UI.de, {
 });
 
 Object.assign(UI.en, {
+  'map.fullscreen': 'Fullscreen',
+  'map.exitFullscreen': 'Exit fullscreen',
   'vessels.title': 'Live vessels',
   'vessels.inView': 'vessels in view',
   'vessels.search': 'Name, MMSI, call sign or destination...',
@@ -9401,6 +9403,8 @@ Object.assign(UI.en, {
 });
 
 Object.assign(UI.bs, {
+  'map.fullscreen': 'Cijeli ekran',
+  'map.exitFullscreen': 'Izađi iz cijelog ekrana',
   'vessels.title': 'Brodovi uživo',
   'vessels.inView': 'brodova u prikazu',
   'vessels.search': 'Naziv, MMSI, pozivni znak ili odredište...',
@@ -9421,6 +9425,8 @@ Object.assign(UI.bs, {
 });
 
 Object.assign(UI.de, {
+  'map.fullscreen': 'Vollbild',
+  'map.exitFullscreen': 'Vollbild beenden',
   'vessels.title': 'Schiffe live',
   'vessels.inView': 'Schiffe im Ausschnitt',
   'vessels.search': 'Name, MMSI, Rufzeichen oder Ziel...',
