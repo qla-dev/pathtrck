@@ -267,6 +267,30 @@ export type LiveAircraft = {
   dbFlags?: number;
 };
 
+export type AircraftTracePoint = {
+  lat: number;
+  lon: number;
+  altitude: number | null;
+  timestamp: number;
+};
+
+export type AircraftTrace = { segments: AircraftTracePoint[][] };
+
+export type LiveVessel = {
+  mmsi: string;
+  name?: string;
+  lat: number;
+  lon: number;
+  speed?: number;
+  course?: number;
+  heading?: number;
+  navigation_status?: number;
+  ship_type?: number;
+  destination?: string;
+  callsign?: string;
+  updated_at?: string;
+};
+
 const API_BACKENDS = {
   local: 'https://freightbook.ai/endpoints/api',
   production: 'https://freightbook.ai/endpoints/api',
@@ -443,8 +467,13 @@ export const resourceApi = <T extends Record<string, unknown>>(resource: string)
 export const api = {
   health: () => request<{ status: string; timestamp: string }>('/health'),
   aircraft: {
-    list: (params: { lat: number; lon: number; dist?: number }) =>
+    list: (params: { south: number; west: number; north: number; east: number }) =>
       request<LiveAircraft[]>(`/aircraft?${queryString(params)}`),
+    trace: (hex: string) => request<AircraftTrace>(`/aircraft/${encodeURIComponent(hex)}/trace`),
+  },
+  vessels: {
+    list: (params: { south: number; west: number; north: number; east: number }) =>
+      request<LiveVessel[]>(`/vessels?${queryString(params)}`),
   },
   fuelStations: {
     list: (params: { south: number; west: number; north: number; east: number; limit?: number }) =>

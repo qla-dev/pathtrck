@@ -376,7 +376,6 @@ const UI_EN: Record<string, string> = {
   'tracking.currentLocation': 'Current location',
   'tracking.totalDistance': 'Total distance',
   'tracking.remainingDistance': 'Remaining distance',
-  'tracking.liveTracking': 'Live tracking',
   'tracking.active': 'Active',
   'tracking.paused': 'Paused',
   'tracking.lastUpdated': 'Last updated',
@@ -1005,7 +1004,6 @@ const UI: Record<Locale, Record<string, string>> = {
     'common.verified': 'Verifikovana',
     'common.active': 'Aktivna',
     'common.days': 'dana',
-    'tracking.liveTracking': 'Praćenje uživo',
     'tracking.routeHistory': 'Historija ruta',
     'landing.downloadApp': 'Preuzmi aplikaciju',
     'landing.downloadAppstore': 'Preuzmi na App Store',
@@ -9320,6 +9318,8 @@ Object.assign(UI.en, {
   'aircraft.updated': 'Updated',
   'aircraft.unknownRegistration': 'Unknown registration',
   'aircraft.unknownType': 'Unknown type',
+  'aircraft.pathLoading': 'Loading aircraft path...',
+  'aircraft.pathUnavailable': 'Aircraft path is temporarily unavailable.',
 });
 
 Object.assign(UI.bs, {
@@ -9347,6 +9347,8 @@ Object.assign(UI.bs, {
   'aircraft.updated': 'Ažurirano',
   'aircraft.unknownRegistration': 'Nepoznata registracija',
   'aircraft.unknownType': 'Nepoznat tip',
+  'aircraft.pathLoading': 'Učitavanje putanje aviona...',
+  'aircraft.pathUnavailable': 'Putanja aviona trenutno nije dostupna.',
 });
 
 Object.assign(UI.de, {
@@ -9374,6 +9376,68 @@ Object.assign(UI.de, {
   'aircraft.updated': 'Aktualisiert',
   'aircraft.unknownRegistration': 'Unbekannte Registrierung',
   'aircraft.unknownType': 'Unbekannter Typ',
+  'aircraft.pathLoading': 'Flugzeugroute wird geladen...',
+  'aircraft.pathUnavailable': 'Die Flugzeugroute ist derzeit nicht verfügbar.',
+});
+
+Object.assign(UI.en, {
+  'vessels.title': 'Live vessels',
+  'vessels.inView': 'vessels in view',
+  'vessels.search': 'Name, MMSI, call sign or destination...',
+  'vessels.error': 'Live vessels could not be loaded.',
+  'vessels.category.all': 'All vessels',
+  'vessels.category.cargo': 'Cargo',
+  'vessels.category.tanker': 'Tankers',
+  'vessels.category.passenger': 'Passenger',
+  'vessels.category.fishing': 'Fishing',
+  'vessels.category.tug': 'Tugs',
+  'vessels.category.pleasure': 'Pleasure craft',
+  'vessels.category.fast': 'High-speed craft',
+  'vessels.category.other': 'Other',
+  'vessels.movingOnly': 'Moving only',
+  'vessels.speed': 'Speed',
+  'vessels.course': 'Course',
+  'vessels.destination': 'Destination',
+});
+
+Object.assign(UI.bs, {
+  'vessels.title': 'Brodovi uživo',
+  'vessels.inView': 'brodova u prikazu',
+  'vessels.search': 'Naziv, MMSI, pozivni znak ili odredište...',
+  'vessels.error': 'Podatke o brodovima uživo nije moguće učitati.',
+  'vessels.category.all': 'Svi brodovi',
+  'vessels.category.cargo': 'Teretni',
+  'vessels.category.tanker': 'Tankeri',
+  'vessels.category.passenger': 'Putnički',
+  'vessels.category.fishing': 'Ribarski',
+  'vessels.category.tug': 'Tegljači',
+  'vessels.category.pleasure': 'Rekreacijska plovila',
+  'vessels.category.fast': 'Brza plovila',
+  'vessels.category.other': 'Ostalo',
+  'vessels.movingOnly': 'Samo u pokretu',
+  'vessels.speed': 'Brzina',
+  'vessels.course': 'Kurs',
+  'vessels.destination': 'Odredište',
+});
+
+Object.assign(UI.de, {
+  'vessels.title': 'Schiffe live',
+  'vessels.inView': 'Schiffe im Ausschnitt',
+  'vessels.search': 'Name, MMSI, Rufzeichen oder Ziel...',
+  'vessels.error': 'Live-Schiffsdaten konnten nicht geladen werden.',
+  'vessels.category.all': 'Alle Schiffe',
+  'vessels.category.cargo': 'Frachtschiffe',
+  'vessels.category.tanker': 'Tanker',
+  'vessels.category.passenger': 'Passagierschiffe',
+  'vessels.category.fishing': 'Fischereischiffe',
+  'vessels.category.tug': 'Schlepper',
+  'vessels.category.pleasure': 'Freizeitboote',
+  'vessels.category.fast': 'Hochgeschwindigkeitsfahrzeuge',
+  'vessels.category.other': 'Sonstige',
+  'vessels.movingOnly': 'Nur in Bewegung',
+  'vessels.speed': 'Geschwindigkeit',
+  'vessels.course': 'Kurs',
+  'vessels.destination': 'Ziel',
 });
 
 const replaceBrand = (value: string) => value.replace(/smartfreight\.ai/gi, 'Freightbook.ai').replace(/smartfreight/gi, 'Freightbook.ai');
