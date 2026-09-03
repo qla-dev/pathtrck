@@ -44,7 +44,7 @@ export const EditLoadModal = ({ open, lang, role, title, details, focusKey, acti
         </button>
       </header>
 
-      <main className="min-h-0 flex-1 overflow-y-auto p-5 md:p-7">
+      <main className="min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-3 md:px-7 md:pb-7">
         <section className="mx-auto max-w-[1500px] rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:p-7">
           <TrackingShipmentDetails
             details={details}

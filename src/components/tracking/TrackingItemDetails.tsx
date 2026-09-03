@@ -55,7 +55,9 @@ export const TrackingItemDetails = ({ open, headerAction, bodyClassName, onClose
                 </button>
               </div>
             </header>
-            <div className={cn('min-h-0 flex-1 overflow-y-auto p-5 md:p-7', bodyClassName)}>{bodyContent}</div>
+            {/* The top gap matches the header's own vertical breathing room, so the first card sits
+                right under the tab bar instead of floating away from it. */}
+            <div className={cn('min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-3 md:px-7 md:pb-7', bodyClassName)}>{bodyContent}</div>
           </motion.div>
         </motion.div>
       )}

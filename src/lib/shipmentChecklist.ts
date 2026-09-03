@@ -214,6 +214,182 @@ const TASK_FIELDS: Record<string, string> = {
   departure_schedule: 'etd_at',
 };
 
+// One plain sentence per task, the way a dispatcher would explain it to a new colleague.
+const HINTS: Record<string, Record<Locale, string>> = {
+  assign_driver_and_vehicle: {
+    en: 'Pick the driver who will run this load.',
+    bs: 'Izaberi vozača koji vozi ovaj teret.',
+    de: 'Wähle den Fahrer, der diese Ladung fährt.',
+  },
+  confirm_pickup_time: {
+    en: 'Set the date the cargo gets picked up.',
+    bs: 'Postavi datum kada se roba preuzima.',
+    de: 'Lege das Datum der Abholung fest.',
+  },
+  vehicle_registrations: {
+    en: 'Pick the vehicle so its papers are on file.',
+    bs: 'Izaberi vozilo da mu dokumenti budu u dosjeu.',
+    de: 'Wähle das Fahrzeug, damit seine Papiere hinterlegt sind.',
+  },
+  cmr_and_documents: {
+    en: 'Attach the CMR and the transport papers.',
+    bs: 'Priloži CMR i prateće transportne dokumente.',
+    de: 'Lade den CMR und die Transportpapiere hoch.',
+  },
+  confirm_pickup: {
+    en: 'Set the date the cargo actually left.',
+    bs: 'Upiši datum kada je roba stvarno preuzeta.',
+    de: 'Trage ein, wann die Ware tatsächlich abgeholt wurde.',
+  },
+  tracking_and_status_updates: {
+    en: 'Start tracking so the customer can follow the trip.',
+    bs: 'Pokreni praćenje da kupac vidi gdje je teret.',
+    de: 'Starte das Tracking, damit der Kunde die Fahrt verfolgen kann.',
+  },
+  proof_of_delivery: {
+    en: 'Attach the signed delivery note.',
+    bs: 'Priloži potpisanu potvrdu o isporuci.',
+    de: 'Lade den unterschriebenen Ablieferbeleg hoch.',
+  },
+  booking_confirmation: {
+    en: 'Confirm the booking with the carrier.',
+    bs: 'Potvrdi booking kod brodara.',
+    de: 'Bestätige die Buchung bei der Reederei.',
+  },
+  shipping_line_and_agent: {
+    en: 'Name the line and the agent handling it.',
+    bs: 'Upiši brodara i agenta koji vodi posao.',
+    de: 'Nenne die Reederei und den zuständigen Agenten.',
+  },
+  vessel_and_voyage: {
+    en: 'Confirm which vessel and voyage carries it.',
+    bs: 'Potvrdi brod i broj plovidbe.',
+    de: 'Bestätige Schiff und Reisenummer.',
+  },
+  container_details: {
+    en: 'Enter the container number and type.',
+    bs: 'Upiši broj i tip kontejnera.',
+    de: 'Trage Containernummer und -typ ein.',
+  },
+  shipping_instructions: {
+    en: 'Send the carrier your shipping instructions.',
+    bs: 'Pošalji brodaru otpremne instrukcije.',
+    de: 'Sende der Reederei deine Versandanweisungen.',
+  },
+  vgm: {
+    en: 'Submit the verified gross mass.',
+    bs: 'Dostavi ovjerenu bruto masu (VGM).',
+    de: 'Übermittle die verifizierte Bruttomasse.',
+  },
+  draft_bill_of_lading: {
+    en: 'Issue the draft B/L for review.',
+    bs: 'Izdaj nacrt teretnice na pregled.',
+    de: 'Stelle den B/L-Entwurf zur Prüfung aus.',
+  },
+  approve_draft: {
+    en: 'Check the draft B/L and approve it.',
+    bs: 'Provjeri nacrt teretnice i odobri ga.',
+    de: 'Prüfe den B/L-Entwurf und gib ihn frei.',
+  },
+  final_bill_of_lading: {
+    en: 'Issue the final bill of lading.',
+    bs: 'Izdaj konačnu teretnicu.',
+    de: 'Stelle das endgültige Konnossement aus.',
+  },
+  terminal_and_cutoff: {
+    en: 'Confirm the terminal and the cut-off time.',
+    bs: 'Potvrdi terminal i cut-off vrijeme.',
+    de: 'Bestätige Terminal und Cut-off-Zeit.',
+  },
+  airline_and_agent: {
+    en: 'Name the airline and the handling agent.',
+    bs: 'Upiši avioprevoznika i agenta.',
+    de: 'Nenne die Airline und den Abfertigungsagenten.',
+  },
+  flight_details: {
+    en: 'Confirm the flight and its schedule.',
+    bs: 'Potvrdi let i njegov raspored.',
+    de: 'Bestätige den Flug und seinen Zeitplan.',
+  },
+  mawb_hawb: {
+    en: 'Issue the master and house air waybills.',
+    bs: 'Izdaj MAWB i HAWB.',
+    de: 'Stelle MAWB und HAWB aus.',
+  },
+  cargo_acceptance: {
+    en: 'Arrange for the cargo to be accepted at the terminal.',
+    bs: 'Dogovori prijem robe na terminalu.',
+    de: 'Organisiere die Warenannahme am Terminal.',
+  },
+  security_and_customs_documents: {
+    en: 'Attach the security and customs paperwork.',
+    bs: 'Priloži sigurnosne i carinske dokumente.',
+    de: 'Lade die Sicherheits- und Zollpapiere hoch.',
+  },
+  draft_awb: {
+    en: 'Issue the draft air waybill.',
+    bs: 'Izdaj nacrt AWB-a.',
+    de: 'Stelle den AWB-Entwurf aus.',
+  },
+  approve_awb: {
+    en: 'Check the draft AWB and approve it.',
+    bs: 'Provjeri nacrt AWB-a i odobri ga.',
+    de: 'Prüfe den AWB-Entwurf und gib ihn frei.',
+  },
+  departure_status: {
+    en: 'Report the shipment as departed.',
+    bs: 'Javi da je pošiljka krenula.',
+    de: 'Melde den Abflug der Sendung.',
+  },
+  arrival_status: {
+    en: 'Report the shipment as arrived.',
+    bs: 'Javi da je pošiljka stigla.',
+    de: 'Melde die Ankunft der Sendung.',
+  },
+  rail_operator: {
+    en: 'Name the rail operator running the leg.',
+    bs: 'Upiši željezničkog operatera koji vozi dionicu.',
+    de: 'Nenne den Bahnbetreiber für diesen Abschnitt.',
+  },
+  terminals: {
+    en: 'Confirm the loading and unloading terminals.',
+    bs: 'Potvrdi terminale utovara i istovara.',
+    de: 'Bestätige Verlade- und Entladeterminal.',
+  },
+  wagon_or_container: {
+    en: 'Confirm the wagon or container used.',
+    bs: 'Potvrdi vagon ili kontejner koji se koristi.',
+    de: 'Bestätige den verwendeten Waggon oder Container.',
+  },
+  rail_booking_confirmation: {
+    en: 'Confirm the rail booking.',
+    bs: 'Potvrdi željeznički booking.',
+    de: 'Bestätige die Bahnbuchung.',
+  },
+  departure_schedule: {
+    en: 'Set the departure date.',
+    bs: 'Postavi datum polaska.',
+    de: 'Lege das Abfahrtsdatum fest.',
+  },
+  transit_status: {
+    en: 'Report where the train is now.',
+    bs: 'Javi gdje je voz trenutno.',
+    de: 'Melde, wo der Zug gerade ist.',
+  },
+  arrival_and_release_documents: {
+    en: 'Provide the arrival and release papers.',
+    bs: 'Dostavi dokumente o dolasku i preuzimanju.',
+    de: 'Stelle die Ankunfts- und Freigabepapiere bereit.',
+  },
+};
+
+const STATUSES: Record<string, Record<Locale, string>> = {
+  pending: { en: 'Pending', bs: 'Na čekanju', de: 'Ausstehend' },
+  in_progress: { en: 'In progress', bs: 'U toku', de: 'In Arbeit' },
+  completed: { en: 'Completed', bs: 'Završeno', de: 'Abgeschlossen' },
+  blocked: { en: 'Blocked', bs: 'Blokirano', de: 'Blockiert' },
+};
+
 const MUST = { en: 'must', bs: 'mora', de: 'muss' } as const;
 
 const localeOf = (lang: Language): Locale => (lang === 'bs' || lang === 'de' ? lang : 'en');
@@ -236,6 +412,12 @@ export const countPendingActions = (
 
 /** The load field this task is completed in, if the task maps to one. */
 export const checklistField = (key: unknown): string | null => TASK_FIELDS[String(key)] ?? null;
+
+/** A one-line, plain-language explanation of what the task actually asks for. */
+export const checklistHint = (lang: Language, key: unknown) => HINTS[String(key)]?.[localeOf(lang)] ?? '';
+
+export const checklistStatusLabel = (lang: Language, status: unknown) =>
+  STATUSES[String(status || '').toLowerCase()]?.[localeOf(lang)] ?? humanize(String(status || '—'));
 
 export const checklistLabel = (lang: Language, key: unknown) =>
   TASKS[String(key)]?.[localeOf(lang)].label ?? humanize(String(key || ''));

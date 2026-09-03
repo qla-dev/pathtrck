@@ -2,14 +2,15 @@ import { useState, type ReactNode } from 'react';
 import {
   Activity as ActivityIcon, ArrowRight, Building2, CalendarDays, CheckCircle2, CircleDollarSign,
   ClipboardCheck, Clock3, FileText, LayoutDashboard, MapPin, Package as PackageIcon,
-  LoaderCircle, Pencil, Scale, Send, Truck, UserRound,
+  LoaderCircle, Pencil, Plane, Scale, Send, Ship, Train, Truck, UserRound,
   type LucideIcon,
 } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
 import type { Language, Package, Role } from '../../types';
 import { ui, trPackageStatus } from '../../i18n';
-import { checklistField, checklistLabel, checklistOwner, checklistSentence } from '../../lib/shipmentChecklist';
+import { formatDate } from '../../lib/dates';
+import { checklistOwner, checklistSentence, countPendingActions } from '../../lib/shipmentChecklist';
 import { ShipmentChecklistTable } from './ShipmentChecklistTable';
 
 type SubTab = 'overview' | 'operations' | 'documents' | 'activity';
@@ -27,18 +28,27 @@ type Props = {
   onSendReminder?: (message: string) => Promise<boolean>;
   initialSubTab?: SubTab;
   operationsSlot?: ReactNode;
+  documentsSlot?: ReactNode;
+  /** The booking status control, kept in the header so it reads from every sub-tab. */
+  offerStatusSlot?: ReactNode;
 };
 
 const record = (value: unknown): Record<string, unknown> => value && typeof value === 'object' ? value as Record<string, unknown> : {};
 const array = (value: unknown): Array<Record<string, unknown>> => Array.isArray(value) ? value as Array<Record<string, unknown>> : [];
 const titleCase = (value: unknown) => String(value || '—').replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
-const displayDate = (value: unknown, lang: Language, withTime = false) => {
-  const date = new Date(String(value || ''));
-  if (Number.isNaN(date.getTime())) return '—';
-  return new Intl.DateTimeFormat(lang === 'bs' ? 'bs-BA' : lang === 'de' ? 'de-DE' : 'en-GB', withTime
-    ? { dateStyle: 'medium', timeStyle: 'short' }
-    : { dateStyle: 'medium' }).format(date);
-};
+const displayDate = formatDate;
+
+// A route reads faster with the countries on it; a load with no country code simply shows none.
+const CountryFlag = ({ code }: { code?: string }) => code
+  ? (
+    <img
+      src={`https://flagcdn.com/w40/${code.toLowerCase()}.png`}
+      alt={code}
+      className="h-5 w-7 shrink-0 rounded-sm object-cover shadow-sm"
+      loading="lazy"
+    />
+  )
+  : null;
 
 const Detail = ({ icon: Icon, label, value, subvalue }: { icon: LucideIcon; label: string; value: string; subvalue?: string }) => (
   <div className="flex min-w-0 gap-3">
@@ -47,12 +57,17 @@ const Detail = ({ icon: Icon, label, value, subvalue }: { icon: LucideIcon; labe
   </div>
 );
 
-const Contact = ({ label, party, icon: Icon }: { label: string; party: Record<string, unknown>; icon: LucideIcon }) => (
+const Contact = ({ label, party, icon: Icon, lines }: { label: string; party: Record<string, unknown>; icon: LucideIcon; lines?: string[] }) => (
   <div>
     <p className="mb-2 text-xs font-black text-slate-800 dark:text-slate-100">{label}</p>
     <div className="flex gap-3">
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-white"><Icon className="h-4 w-4" /></span>
-      <div className="min-w-0"><p className="truncate text-sm font-black text-slate-900 dark:text-white">{String(party.name || party.registration_number || '—')}</p><p className="truncate text-xs text-slate-500">{String(party.email || '')}</p><p className="truncate text-xs text-slate-500">{String(party.phone || '')}</p></div>
+      <div className="min-w-0">
+        <p className="truncate text-sm font-black text-slate-900 dark:text-white">{String(party.name || party.registration_number || '—')}</p>
+        {(lines ?? [String(party.email || ''), String(party.phone || '')]).map((line, index) => (
+          <p key={`${line}-${index}`} className="truncate text-xs text-slate-500">{line}</p>
+        ))}
+      </div>
     </div>
   </div>
 );
@@ -64,7 +79,7 @@ const Panel = ({ title, icon: Icon, children }: { title: string; icon?: LucideIc
   </section>
 );
 
-export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userId, companyIds = [], onEdit, onSendReminder, initialSubTab = 'overview', operationsSlot }: Props) => {
+export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userId, companyIds = [], onEdit, onSendReminder, initialSubTab = 'overview', operationsSlot, documentsSlot, offerStatusSlot }: Props) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [subTab, setSubTab] = useState<SubTab>(initialSubTab);
   const [sendingReminder, setSendingReminder] = useState(false);
@@ -74,6 +89,7 @@ export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userI
   const provider = record(parties.provider);
   const providerContact = record(parties.provider_contact);
   const driver = record(parties.driver);
+  const vehicle = record(parties.vehicle);
   const checklist = array(workspace?.operational_checklist);
   const freightLoad = record(workspace?.freight_load);
   const documents = array(freightLoad.documents);
@@ -83,6 +99,17 @@ export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userI
   const canEdit = role === 'user' || role === 'superadmin';
   const price = shipment.totalAmount || details.get('price_insurance') || '—';
   const dueDate = displayDate(details.get('etd_at') || shipment.addedDate, lang);
+
+  // The transport mode reads as a mode, not as a database value: its own icon and a proper name.
+  const transportType = String(shipment.transportType || 'road').toLowerCase();
+  const TransportIcon = transportType === 'air' ? Plane : transportType === 'sea' ? Ship : transportType === 'rail' ? Train : Truck;
+  const transportLabel = transportType === 'air'
+    ? u('postLoadModal.transport.air', 'Air')
+    : transportType === 'sea'
+      ? u('postLoadModal.transport.sea', 'Sea')
+      : transportType === 'rail'
+        ? u('postLoadModal.transport.rail', 'Rail')
+        : u('postLoadModal.transport.road', 'Road');
 
   // Only the side that owns the next task can carry it out; the other side can nudge them for it.
   const nextTaskOwner = nextTask ? checklistOwner(nextTask.key) : 'provider';
@@ -97,14 +124,6 @@ export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userI
   const viewerOwnsNextTask = nextTask ? viewerOwns(nextTask.key) : false;
   const nextTaskSentence = nextTask ? checklistSentence(lang, nextTask.key, nextTaskOwnerLabel) : '';
 
-  // A task that is completed by filling in a load field opens the form on that field, titled after
-  // the task; the rest send the viewer to the checklist, which is as far as this screen can take them.
-  const openTask = (key: unknown) => {
-    const field = checklistField(key);
-    if (field) onEdit(field, checklistLabel(lang, key));
-    else setSubTab('operations');
-  };
-
   const sendReminder = async () => {
     if (!onSendReminder || !nextTask || sendingReminder) return;
     setSendingReminder(true);
@@ -115,9 +134,15 @@ export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userI
     }
   };
 
-  const subTabs: Array<{ key: SubTab; label: string; icon: LucideIcon; hidden?: boolean }> = [
+  const subTabs: Array<{ key: SubTab; label: string; icon: LucideIcon; hidden?: boolean; badge?: number }> = [
     { key: 'overview', label: u('shipmentDetails.overview', 'Overview'), icon: LayoutDashboard },
-    { key: 'operations', label: u('shipmentOperations.title', 'Operational checklist'), icon: ClipboardCheck, hidden: !operationsSlot },
+    {
+      key: 'operations',
+      label: u('shipmentOperations.title', 'Operational checklist'),
+      icon: ClipboardCheck,
+      hidden: !operationsSlot,
+      badge: countPendingActions(checklist),
+    },
     { key: 'documents', label: u('shipmentDetails.documents', 'Documents'), icon: FileText },
     { key: 'activity', label: u('shipmentDetails.recentActivity', 'Recent activity'), icon: ActivityIcon },
   ];
@@ -161,16 +186,26 @@ export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userI
           <div className="min-w-0">
             <p className="text-xs font-bold text-slate-500">{u('shipmentDetails.shipments', 'Shipments')} <span className="mx-2 text-slate-300">/</span> <span className="font-mono text-primary">{shipment.trackingNumber}</span></p>
             <div className="mt-2 flex flex-wrap items-center gap-3">
-              <h1 className="flex min-w-0 items-center gap-3 text-2xl font-black text-slate-950 dark:text-white md:text-3xl"><span className="truncate">{shipment.origin}</span><ArrowRight className="h-6 w-6 shrink-0 text-primary" /><span className="truncate">{shipment.destination}</span></h1>
-              <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-600"><CheckCircle2 className="h-4 w-4" />{trPackageStatus(lang, shipment.status)}</span>
+              <h1 className="flex min-w-0 items-center gap-3 text-2xl font-black text-slate-950 dark:text-white md:text-3xl">
+                <span className="flex min-w-0 items-center gap-2">
+                  <CountryFlag code={shipment.originCountryCode} />
+                  <span className="truncate">{shipment.origin}</span>
+                </span>
+                <ArrowRight className="h-6 w-6 shrink-0 text-primary" />
+                <span className="flex min-w-0 items-center gap-2">
+                  <CountryFlag code={shipment.destinationCountryCode} />
+                  <span className="truncate">{shipment.destination}</span>
+                </span>
+              </h1>
             </div>
-            <p className="mt-2 text-sm font-semibold text-slate-500">{[shipment.transportType, shipment.cargoType, shipment.carrier].filter(Boolean).join(' · ')}</p>
+            <p className="mt-2 flex items-center gap-2 text-sm font-semibold text-slate-500">
+              <TransportIcon className="h-4 w-4 shrink-0 text-primary" />
+              {[transportLabel, shipment.cargoType, shipment.carrier].filter(Boolean).join(' · ')}
+            </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             {canEdit && <button type="button" onClick={() => onEdit()} className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"><Pencil className="h-4 w-4" />{u('shipmentDetails.editLoad', 'Edit load')}</button>}
-            {operationsSlot && (
-              <button type="button" onClick={() => openTask(nextTask?.key)} className="inline-flex h-11 cursor-pointer items-center gap-3 rounded-xl bg-primary px-5 text-sm font-black text-white shadow-lg shadow-primary/20">{u('shipmentDetails.nextAction', 'Next action')}<ArrowRight className="h-4 w-4" /></button>
-            )}
+            {offerStatusSlot}
           </div>
         </div>
 
@@ -190,6 +225,11 @@ export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userI
               >
                 <tab.icon className="h-4 w-4" />
                 {tab.label}
+                {tab.badge ? (
+                  <span className="inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-black text-white">
+                    {tab.badge}
+                  </span>
+                ) : null}
               </button>
             ))}
           </div>
@@ -217,25 +257,16 @@ export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userI
               lang={lang}
               dueDate={dueDate}
               renderAction={operationsSlot
-                ? (item) => {
-                  // A task the viewer owns and that maps to a load field is edited right here;
-                  // anything else is only viewable from this screen.
-                  const editable = viewerOwns(item.key) && Boolean(checklistField(item.key));
-                  return (
-                    <button
-                      type="button"
-                      onClick={() => openTask(item.key)}
-                      className={cn(
-                        'cursor-pointer rounded-lg px-3 py-1.5 text-xs font-bold',
-                        editable
-                          ? 'bg-primary text-white hover:bg-primary/90'
-                          : 'border border-primary/40 text-primary hover:bg-primary/5'
-                      )}
-                    >
-                      {editable ? u('shipmentDetails.edit', 'Edit') : u('shipmentDetails.view', 'View')}
-                    </button>
-                  );
-                }
+                ? () => (
+                  // The overview only points at the work; the checklist tab is where it gets done.
+                  <button
+                    type="button"
+                    onClick={() => setSubTab('operations')}
+                    className="cursor-pointer rounded-lg border border-primary/40 px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary/5"
+                  >
+                    {u('shipmentDetails.view', 'View')}
+                  </button>
+                )
                 : undefined}
             />
           </main>
@@ -247,7 +278,7 @@ export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userI
                 <p className="mt-3 font-black text-slate-900 dark:text-white">{nextTaskSentence}</p>
                 {dueDate !== '—' && <p className="mt-1 text-sm text-slate-500">{u('shipmentDetails.dueDate', 'Due date')}: <span className="font-bold text-rose-500">{dueDate}</span></p>}
                 {viewerOwnsNextTask ? (
-                  operationsSlot && <button type="button" onClick={() => openTask(nextTask.key)} className="mt-4 inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary text-sm font-black text-white"><ArrowRight className="h-4 w-4" />{u('shipmentDetails.openAction', 'Open action')}</button>
+                  operationsSlot && <button type="button" onClick={() => setSubTab('operations')} className="mt-4 inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary text-sm font-black text-white"><ArrowRight className="h-4 w-4" />{u('shipmentDetails.openAction', 'Open action')}</button>
                 ) : (
                   onSendReminder && <button type="button" onClick={() => void sendReminder()} disabled={sendingReminder} className="mt-4 inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary text-sm font-black text-white disabled:opacity-60">{sendingReminder ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}{u('shipmentDetails.sendReminder', 'Send reminder')}</button>
                 )}
@@ -289,7 +320,20 @@ export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userI
               <div className="min-h-0 flex-1 space-y-5 overflow-y-auto pr-1 [scrollbar-width:thin] [scrollbar-color:rgb(148_163_184/0.72)_transparent]">
                 <Contact label={u('shipmentDetails.customer', 'Customer')} party={customer} icon={Building2} />
                 <Contact label={u('shipmentDetails.provider', 'Provider')} party={{ ...provider, email: providerContact.email || provider.email, phone: providerContact.phone || provider.phone }} icon={Building2} />
-                <div className="border-t border-slate-100 pt-4 dark:border-slate-800"><Contact label={u('shipmentDetails.assignedDriver', 'Assigned driver')} party={driver} icon={UserRound} /></div>
+                <div className="space-y-5 border-t border-slate-100 pt-4 dark:border-slate-800">
+                  <Contact
+                    label={u('shipmentDetails.assignedDriver', 'Assigned driver')}
+                    party={{ name: shipment.assignedDriverName || driver.name }}
+                    icon={UserRound}
+                    lines={[String(driver.phone || driver.email || '')]}
+                  />
+                  <Contact
+                    label={u('shipmentDetails.assignedVehicle', 'Assigned vehicle')}
+                    party={{ name: shipment.vehicleName || vehicle.registration_number }}
+                    icon={Truck}
+                    lines={[[vehicle.make, vehicle.model].filter(Boolean).join(' ') || String(vehicle.vehicle_type || '')]}
+                  />
+                </div>
               </div>
             </section>
           </aside>
@@ -299,7 +343,10 @@ export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userI
       {subTab === 'operations' && operationsSlot}
 
       {subTab === 'documents' && (
-        <Panel title={u('shipmentDetails.documents', 'Documents')} icon={FileText}>{documentsList}</Panel>
+        <div className="space-y-5">
+          <Panel title={u('shipmentDetails.documents', 'Documents')} icon={FileText}>{documentsList}</Panel>
+          {documentsSlot}
+        </div>
       )}
 
       {subTab === 'activity' && (

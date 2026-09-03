@@ -10,6 +10,7 @@ import { ui, trPackageStatus } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { confirmAction, showError, showSuccess } from '../../lib/swal';
 import { TRACKING_FLOW, apiLoadStatus, mapLoadToPackage } from '../../lib/loadDetails';
+import { countPendingActions } from '../../lib/shipmentChecklist';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Toggle } from '../ui/Toggle';
@@ -23,6 +24,7 @@ import { trackingMarkerIcon } from './trackingMapMarker';
 import { VehicleReturnModal } from './VehicleReturnModal';
 import { CustomsDocumentList } from '../load/CustomsDocumentList';
 import { ShipmentOperationsTab } from './ShipmentOperationsTab';
+import { ShipmentOfferStatus } from './ShipmentOfferStatus';
 import { ShipmentMessagesTab } from './ShipmentMessagesTab';
 import { ShipmentDetailsOverview } from './ShipmentDetailsOverview';
 import { EditLoadModal } from './EditLoadModal';
@@ -173,7 +175,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
   // The operational checklist no longer has its own top-level tab: it lives inside the
   // "Shipment details" tab, so an operations entry point opens that tab on its checklist sub-tab.
   const detailsSubTab = initialTab === 'operations' ? 'operations' : 'overview';
-  const [rightTab, setRightTab] = useState<'tracker' | 'messages' | 'details' | 'return' | 'returnRoutes' | 'reports' | 'share' | 'documents' | 'invoice' | 'review'>(initialTab === 'operations' ? 'details' : initialTab);
+  const [rightTab, setRightTab] = useState<'tracker' | 'messages' | 'details' | 'return' | 'returnRoutes' | 'reports' | 'share' | 'invoice' | 'review'>(initialTab === 'operations' ? 'details' : initialTab);
   useEffect(() => { setRightTab(initialTab === 'operations' ? 'details' : initialTab); }, [initialTab, loadId]);
   const [lenaOpen, setLenaOpen] = useState(false);
   const [returnTokens, setReturnTokens] = useState(0);
@@ -637,6 +639,13 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
     }
   };
 
+  // Every operational task still open on the booked shipment, shown as a badge on the details tab.
+  const pendingActions = useMemo(() => countPendingActions(
+    Array.isArray(shipmentWorkspace?.operational_checklist)
+      ? shipmentWorkspace.operational_checklist as Array<{ key?: unknown; status?: unknown }>
+      : undefined
+  ), [shipmentWorkspace]);
+
   // The side that does not own the next checklist task can only nudge the side that does, so the
   // reminder lands as a message in the shipment conversation and the chat opens on it.
   const sendShipmentReminder = async (body: string) => {
@@ -674,7 +683,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
         rightTab === 'tracker'
           ? 'relative overflow-hidden p-0 md:p-0'
           : rightTab === 'messages'
-            ? 'overflow-hidden p-4 md:p-5'
+            ? 'overflow-hidden px-4 pb-4 pt-3 md:px-5 md:pb-5'
           : rightTab === 'returnRoutes' && !returnRoutesUnlocked
             ? 'overflow-hidden'
             : undefined
@@ -815,16 +824,6 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
         >
           <Share2 className="w-4 h-4" />
           {u('Share', 'Share')}
-        </button>
-        <button
-          onClick={() => setRightTab('documents')}
-          className={cn(
-            'h-full px-3 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5',
-            rightTab === 'documents' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-          )}
-        >
-          <FileCheck2 className="w-4 h-4" />
-          {u('tracking.attachedDocuments', 'Attached documents')}
         </button>
         <button
           onClick={() => setRightTab('review')}
@@ -978,8 +977,21 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
               workspace={shipmentWorkspace}
               lang={lang}
               onUpdated={setShipmentWorkspace}
+              onLoadChanged={refreshPackage}
             />
           ) : undefined}
+          offerStatusSlot={shipmentWorkspace ? (
+            <ShipmentOfferStatus
+              workspace={shipmentWorkspace}
+              lang={lang}
+              onUpdated={setShipmentWorkspace}
+            />
+          ) : undefined}
+          documentsSlot={(
+            <Card title={u('tracking.attachedDocuments', 'Attached documents')}>
+              <CustomsDocumentList loadId={selectedPackage.id} documents={selectedPackage.customsDocuments} lang={lang} />
+            </Card>
+          )}
         />
       )}
 
@@ -1323,12 +1335,6 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
             </div>
             {invoiceError && <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 dark:bg-rose-950/30 dark:text-rose-300">{invoiceError}</p>}
           </div>
-        </Card>
-      )}
-
-      {rightTab === 'documents' && (
-        <Card title={u('tracking.attachedDocuments', 'Attached documents')}>
-          <CustomsDocumentList loadId={selectedPackage.id} documents={selectedPackage.customsDocuments} lang={lang} />
         </Card>
       )}
 

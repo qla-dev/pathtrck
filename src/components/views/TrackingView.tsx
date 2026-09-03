@@ -286,6 +286,9 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
   const statusCountsResult = useApiList(api.loads.trackingStatusCounts, trackingFilterParams);
   const capacityResult = useApiList(api.loads.list, { per_page: 500, tracking: true, for_storage: false, statuses: 'sent,in_delivery' });
   const fleetResult = useApiList(api.vehicles.list, { per_page: 100 });
+  // The tracking list only carries the workspace once the API ships that relation, so the checklists
+  // are fetched on their own and matched by load — the badge works either way.
+  const workspacesResult = useApiList(api.shipmentWorkspaces.list, { per_page: 200 });
   const packages = useMemo<PackageData[]>(
     () => loadsResult.items.map((load) => {
       const pkg = mapLoadToPackage(load, lang);
@@ -408,15 +411,21 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
     return cards;
   }, [TRUCK_CAPACITY_KG, fleetResult.items, loadCapacity.activeLoads, u]);
 
-  // A booked shipment carries an operational checklist; the badge counts what the viewer's own side
-  // still owes on it, so nobody is nagged about the other party's tasks.
-  const pendingActionsFor = (pkg: PackageData) => {
-    if (!pkg.operationalChecklist?.length) return 0;
-    const isCustomer = Boolean(userId) && pkg.workspaceCustomerUserId === userId;
-    const isProvider = (Boolean(userId) && pkg.workspaceProviderUserId === userId)
-      || (Boolean(pkg.workspaceProviderCompanyId) && companyIds.includes(Number(pkg.workspaceProviderCompanyId)));
-    return countPendingActions(pkg.operationalChecklist, isCustomer ? 'customer' : isProvider ? 'provider' : 'all');
-  };
+  const checklistByLoadId = useMemo(() => {
+    const byLoad = new Map<string, Array<{ key?: unknown; status?: unknown }>>();
+    workspacesResult.items.forEach((workspace) => {
+      const loadId = String(workspace.load_id || '');
+      if (loadId && Array.isArray(workspace.operational_checklist)) {
+        byLoad.set(loadId, workspace.operational_checklist as Array<{ key?: unknown; status?: unknown }>);
+      }
+    });
+    return byLoad;
+  }, [workspacesResult.items]);
+
+  // A booked shipment carries an operational checklist; the badge counts every task still open on
+  // it, whichever side owes it — the shipment is not done until all of them are.
+  const pendingActionsFor = (pkg: PackageData) =>
+    countPendingActions(pkg.operationalChecklist ?? checklistByLoadId.get(pkg.id));
 
   const clearFilters = () => {
     setQuery(''); setDebouncedQuery(''); setStatusFilter('all'); setTransportType(''); setService('');

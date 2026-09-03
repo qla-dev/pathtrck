@@ -13,9 +13,9 @@ type Props = {
 };
 
 const COPY = {
-  en: { messages: 'Messages', placeholder: 'Write a message about this shipment...', unavailable: 'Shipment chat is not available yet.' },
-  bs: { messages: 'Poruke', placeholder: 'Napišite poruku o ovom shipmentu...', unavailable: 'Chat za ovaj shipment još nije dostupan.' },
-  de: { messages: 'Nachrichten', placeholder: 'Nachricht zu dieser Sendung schreiben...', unavailable: 'Der Sendungs-Chat ist noch nicht verfügbar.' },
+  en: { messages: 'Messages', placeholder: 'Write a message about this shipment...', unavailable: 'Shipment chat is not available yet.', customer: 'Customer', provider: 'Provider', driver: 'Driver' },
+  bs: { messages: 'Poruke', placeholder: 'Napišite poruku o ovom shipmentu...', unavailable: 'Chat za ovaj shipment još nije dostupan.', customer: 'Customer', provider: 'Provider', driver: 'Vozač' },
+  de: { messages: 'Nachrichten', placeholder: 'Nachricht zu dieser Sendung schreiben...', unavailable: 'Der Sendungs-Chat ist noch nicht verfügbar.', customer: 'Kunde', provider: 'Anbieter', driver: 'Fahrer' },
 } as const;
 
 const record = (value: unknown): Record<string, unknown> => value && typeof value === 'object' ? value as Record<string, unknown> : {};
@@ -54,11 +54,22 @@ export const ShipmentMessagesTab = ({ workspace, lang, userId }: Props) => {
 
   const conversation = useMemo<Conversation>(() => {
     const participants = array(conversationRow.participants);
-    const counterpart = participants.find((participant) => Number(participant.id) !== userId) || participants[0] || {};
+    const participant = participants.find((entry) => Number(entry.id) !== userId) || participants[0] || {};
+    // Who you are talking to depends on which side you are: the customer sees the carrier, the
+    // carrier sees the customer. The workspace snapshot names both, so the header never sits empty.
+    const parties = record(workspace.parties_snapshot);
+    const viewerIsCustomer = Boolean(userId) && Number(workspace.customer_user_id) === Number(userId);
+    const counterpart = record(viewerIsCustomer ? parties.provider : parties.customer);
+    const driver = record(parties.driver);
+    const counterpartName = String(counterpart.name || participant.name || conversationRow.subject || text.messages);
+    const counterpartRole = viewerIsCustomer
+      ? [text.provider, driver.name ? `${text.driver}: ${driver.name}` : ''].filter(Boolean).join(' · ')
+      : text.customer;
+
     return {
       id: String(conversationId),
-      name: String(conversationRow.subject || counterpart.name || text.messages),
-      role: String(record(counterpart.role).label || ''),
+      name: counterpartName,
+      role: String(record(participant.role).label || counterpartRole),
       channel: 'inapp',
       online: false,
       unread: 0,
@@ -66,7 +77,7 @@ export const ShipmentMessagesTab = ({ workspace, lang, userId }: Props) => {
       messages,
       loadId: workspace.load_id ? String(workspace.load_id) : undefined,
     };
-  }, [conversationId, conversationRow, messages, text.messages, userId, workspace.load_id]);
+  }, [conversationId, conversationRow, messages, text, userId, workspace]);
 
   const sendMessage = async () => {
     const body = draft.trim();
@@ -92,7 +103,6 @@ export const ShipmentMessagesTab = ({ workspace, lang, userId }: Props) => {
           messagePlaceholder={text.placeholder}
           sendBusy={sending}
           className="h-full min-h-0 rounded-none border-0"
-          headerLeading={<MessageSquare className="h-5 w-5 text-primary" />}
         />
       ) : (
         <div className="flex h-full min-h-0 flex-col items-center justify-center gap-3 p-8 text-center text-slate-500">
