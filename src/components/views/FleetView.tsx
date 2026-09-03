@@ -147,6 +147,30 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
   const [editingVehicle, setEditingVehicle] = useState<Record<string, unknown> | null>(null);
   const [mapVehicle, setMapVehicle] = useState<FleetVehicle | null>(null);
 
+  // How full each vehicle is right now, taken from the loads it is currently carrying — the fleet
+  // equivalent of a warehouse's occupancy against its capacity.
+  const [vehicleLoads, setVehicleLoads] = useState<Record<string, { weightKg: number; loads: number }>>({});
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const response = await api.loads.list({ per_page: 500, tracking: true, statuses: 'sent,in_delivery' });
+        if (!active) return;
+        const totals: Record<string, { weightKg: number; loads: number }> = {};
+        response.data.forEach((load) => {
+          const vehicleId = String(load.vehicle_id || '');
+          if (!vehicleId) return;
+          const current = totals[vehicleId] || { weightKg: 0, loads: 0 };
+          totals[vehicleId] = { weightKg: current.weightKg + Number(load.weight_kg || 0), loads: current.loads + 1 };
+        });
+        setVehicleLoads(totals);
+      } catch {
+        // Without load data the column simply reads as empty; the fleet table still works.
+      }
+    })();
+    return () => { active = false; };
+  }, []);
+
   const loadVehicles = async () => {
     const response = await api.vehicles.list({ per_page: 100 });
     const scopedRows = response.data.filter((row) => {
@@ -416,6 +440,8 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
                 <th className="p-3">{u('fleet.table.trailer', 'Trailer')}</th>
                 <th className="p-3">{u('fleet.table.tailLift', 'Tail Lift')}</th>
                 <th className="p-3">{u('fleet.table.status', 'Status')}</th>
+                <th className="p-3">{u('tracking.capacity', 'Capacity')}</th>
+                <th className="p-3">{u('tracking.utilisation', 'Utilisation')}</th>
                 <th className="p-3">{u('fleet.table.fuelLevel', 'Fuel Level')}</th>
                 <th className="p-3">{u('fleet.table.nextService', 'Next Service')}</th>
                 <th className="p-3">{u('Action', 'Action')}</th>
@@ -454,6 +480,34 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
                       >
                         {trVehicleStatus(lang, v.status)}
                       </span>
+                    </td>
+                    <td className="p-3 text-sm text-slate-500">
+                      <p className="font-bold text-slate-700 dark:text-slate-200">{v.capacity}</p>
+                      <p className="text-xs">{v.volume}</p>
+                    </td>
+                    <td className="p-3">
+                      {(() => {
+                        const carried = vehicleLoads[v.id] || { weightKg: 0, loads: 0 };
+                        const percentage = v.capacityKg > 0
+                          ? Math.min(100, Math.round((carried.weightKg / v.capacityKg) * 100))
+                          : 0;
+                        return (
+                          <div className="min-w-[120px]">
+                            <div className="flex items-center gap-2">
+                              <div className="h-1.5 max-w-[70px] flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                                <div
+                                  className={cn('h-full rounded-full', percentage >= 90 ? 'bg-red-500' : percentage >= 70 ? 'bg-amber-500' : 'bg-primary')}
+                                  style={{ width: `${percentage}%` }}
+                                />
+                              </div>
+                              <span className="text-xs font-bold dark:text-white">{v.capacityKg > 0 ? `${percentage}%` : '—'}</span>
+                            </div>
+                            <p className="mt-1 text-xs text-slate-500">
+                              {carried.weightKg.toLocaleString()} kg · {carried.loads} {u('tracking.activeLoads', 'active loads')}
+                            </p>
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="p-3">
                       <div className="flex items-center gap-2">

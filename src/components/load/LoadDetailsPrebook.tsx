@@ -7,6 +7,7 @@ import {
   CalendarDays,
   CalendarClock,
   CheckCircle2,
+  ClipboardCheck,
   ChevronRight,
   Coins,
   FileText,
@@ -72,7 +73,7 @@ type LoadDetailsPrebookProps = {
   companyIds?: number[];
   onEdit?: (load: Load) => void;
   onChanged?: () => void;
-  onWorkspaceCreated?: (workspaceId: number, loadId: string) => void;
+  onOperationsOpen?: (workspaceId: number, loadId: string) => void;
 };
 
 type UiFn = (key: string, fallback: string) => string;
@@ -201,7 +202,7 @@ const InfoTile = ({ icon: Icon, label, value, tone = 'text-primary', surface = '
   </div>
 );
 
-export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, companyIds = [], onEdit, onChanged, onWorkspaceCreated }: LoadDetailsPrebookProps) => {
+export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, companyIds = [], onEdit, onChanged, onOperationsOpen }: LoadDetailsPrebookProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [offers, setOffers] = useState<Array<Record<string, unknown>>>([]);
   const [drivers, setDrivers] = useState<Array<Record<string, unknown>>>([]);
@@ -316,12 +317,12 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
       setCurrentStatus('Booked');
       const workspace = result.data.shipment_workspace as { id?: unknown; reference?: unknown } | undefined;
       const successText = workspace?.reference
-        ? `${u('reservation.workspaceCreated', 'Shipment Workspace created')}: ${String(workspace.reference)}`
+        ? `${u('reservation.workspaceCreated', 'Shipment created')}: ${String(workspace.reference)}`
         : u('reservation.accepted', 'Provider accepted and booking confirmed.');
       setActionMessage(successText);
       void showSuccess(u('reservation.acceptedTitle', 'Booking confirmed'), successText);
       onChanged?.();
-      if (workspace?.id && load) onWorkspaceCreated?.(Number(workspace.id), load.id);
+      if (workspace?.id && load) onOperationsOpen?.(Number(workspace.id), load.id);
     } catch (error) { setActionMessage(error instanceof Error ? error.message : 'Offer could not be approved.'); }
   };
 
@@ -725,21 +726,21 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                       {u('legacy.loadDetails.readyActions', 'Ready Actions')}
                     </p>
                   </div>
-                  {load.shipmentWorkspaceId && (
+                  {load.shipmentOperationsId && (
                     <div className="border-t border-slate-100 pt-3 dark:border-slate-800">
                       <Button
                         className="h-11 w-full rounded-xl shadow-lg shadow-primary/20"
                         onClick={() => {
                           onClose();
-                          onWorkspaceCreated?.(load.shipmentWorkspaceId!, load.id);
+                          onOperationsOpen?.(load.shipmentOperationsId!, load.id);
                         }}
                       >
-                        <Package className="mr-2 h-4 w-4" />
-                        {u('shipmentWorkspace.open', 'Open Shipment Workspace')}
+                        <ClipboardCheck className="mr-2 h-4 w-4" />
+                        {u('shipmentOperations.open', 'Open operational checklist')}
                       </Button>
-                      {load.shipmentWorkspaceReference && (
+                      {load.shipmentReference && (
                         <p className="mt-2 text-center text-[10px] font-black uppercase tracking-wider text-slate-400">
-                          {load.shipmentWorkspaceReference}
+                          {load.shipmentReference}
                         </p>
                       )}
                     </div>

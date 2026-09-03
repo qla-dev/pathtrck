@@ -5,7 +5,7 @@ import { Plane, Ship, Train, Truck } from 'lucide-react';
 import { Package as PackageData } from '../../types';
 
 const STATUS_MARKER_COLORS: Record<PackageData['status'], string> = {
-  Posted: '#64748b', Opened: '#06b6d4', Sent: '#3b82f6', 'In delivery': '#f59e0b',
+  Posted: '#64748b', Booked: '#0ea5e9', Opened: '#06b6d4', Sent: '#3b82f6', 'In delivery': '#f59e0b',
   Received: '#8b5cf6', Finished: '#10b981', Pending: '#fb923c', Cancelled: '#f43f5e',
 };
 

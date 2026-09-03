@@ -33,6 +33,10 @@ export interface Package {
   bookingReference?: string;
   shipmentWorkspaceId?: number;
   shipmentWorkspaceReference?: string;
+  operationalChecklist?: Array<{ key?: unknown; status?: unknown }>;
+  workspaceCustomerUserId?: number;
+  workspaceProviderUserId?: number;
+  workspaceProviderCompanyId?: number;
   statusChange?: Record<string, string>;
   details?: ShipmentDetail[];
   consigneeRecord?: Record<string, unknown>;
@@ -51,7 +55,7 @@ export interface Package {
   customsDocuments?: Array<{ code: string; label: string; downloadable: boolean; formType?: 'dis' | 'osi' | 'dv1' | 'znp' | null; source?: 'matched' | 'manual' }>;
 }
 
-export type ShipmentDetailInput = 'text' | 'number' | 'date' | 'status' | 'customer' | 'select';
+export type ShipmentDetailInput = 'text' | 'number' | 'date' | 'status' | 'customer' | 'select' | 'driver' | 'vehicle';
 
 export type ShipmentDetail = {
   key: string;
@@ -128,6 +132,8 @@ export interface Load {
   publicId?: string;
   // The shipment's Freightbook tracking number.
   trackingNumber?: string;
+  shipmentOperationsId?: number;
+  shipmentReference?: string;
   volume?: number;
   pallets?: number;
   truckType?: string;

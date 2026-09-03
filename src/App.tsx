@@ -5234,11 +5234,11 @@ const mapDatabaseRecordToLoad = (record: Record<string, unknown>): Load => {
       record.booking_reference == null
         ? undefined
         : String(record.booking_reference),
-    shipmentWorkspaceId:
+    shipmentOperationsId:
       (record.shipment_workspace as { id?: unknown } | undefined)?.id == null
         ? undefined
         : Number((record.shipment_workspace as { id?: unknown }).id),
-    shipmentWorkspaceReference:
+    shipmentReference:
       (record.shipment_workspace as { reference?: unknown } | undefined)?.reference == null
         ? undefined
         : String((record.shipment_workspace as { reference?: unknown }).reference),
@@ -5328,10 +5328,10 @@ export default function App() {
   const [driverVerified, setDriverVerified] = useState<boolean | null>(null);
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [view, setView] = useState("tracking");
-  const [openLoadDetailsTab, setOpenLoadDetailsTab] = useState<'tracker' | 'workspace'>('tracker');
-  const openShipmentWorkspace = (_workspaceId: number, loadId: string) => {
+  const [openLoadDetailsTab, setOpenLoadDetailsTab] = useState<'tracker' | 'operations'>('tracker');
+  const openShipmentOperations = (_workspaceId: number, loadId: string) => {
     setBookingLoad(null);
-    setOpenLoadDetailsTab('workspace');
+    setOpenLoadDetailsTab('operations');
     setOpenLoadDetailsId(loadId);
     setView("tracking");
   };
@@ -7304,7 +7304,7 @@ export default function App() {
                   onLoadChanged={() =>
                     setLoadRefreshKey((current) => current + 1)
                   }
-                  onWorkspaceCreated={openShipmentWorkspace}
+                  onOperationsOpen={openShipmentOperations}
                 />
               )}
               {view === "notes" && <LoadNotesView lang={lang} />}
@@ -7491,7 +7491,7 @@ export default function App() {
             setIsPostLoadOpen(true);
           }}
           onChanged={() => setLoadRefreshKey((current) => current + 1)}
-          onWorkspaceCreated={openShipmentWorkspace}
+          onOperationsOpen={openShipmentOperations}
           onClose={() => setBookingLoad(null)}
         />
         <LenaAI

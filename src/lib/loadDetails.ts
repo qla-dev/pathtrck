@@ -47,6 +47,7 @@ export const mapLoadToPackage = (load: Record<string, unknown>, lang: Language):
   const assignedDriver = (load.assigned_driver || load.assignedDriver || {}) as Record<string, unknown>;
   const assignedDriverProfile = (assignedDriver.driver || {}) as Record<string, unknown>;
   const vehicle = (load.vehicle || {}) as Record<string, unknown>;
+  const workspace = (load.shipment_workspace || {}) as Record<string, unknown>;
   const mappedStatus = mapLoadStatus(load.status);
   const estimatedDeliveryAt = String(shipment.estimated_delivery_at || stops[stops.length - 1]?.window_ends_at || Date.now());
   const origin = String(stops[0]?.city || '—');
@@ -68,6 +69,13 @@ export const mapLoadToPackage = (load: Record<string, unknown>, lang: Language):
     ).trim() || undefined,
     vehicleId: vehicle.id ? Number(vehicle.id) : undefined,
     shipmentId: shipment.id ? String(shipment.id) : undefined,
+    shipmentWorkspaceId: workspace.id ? Number(workspace.id) : undefined,
+    operationalChecklist: Array.isArray(workspace.operational_checklist)
+      ? workspace.operational_checklist as Array<{ key?: unknown; status?: unknown }>
+      : undefined,
+    workspaceCustomerUserId: workspace.customer_user_id ? Number(workspace.customer_user_id) : undefined,
+    workspaceProviderUserId: workspace.provider_user_id ? Number(workspace.provider_user_id) : undefined,
+    workspaceProviderCompanyId: workspace.provider_company_id ? Number(workspace.provider_company_id) : undefined,
     trackingNumber: String(shipment.tracking_number || ''),
     carrier: String(shipment.carrier || company.name || '—'),
     status: mappedStatus,
@@ -101,6 +109,8 @@ export const mapLoadToPackage = (load: Record<string, unknown>, lang: Language):
       { key: 'insurance', label: 'Insurance', value: detailValue(load.insurance), rawValue: String(load.insurance || ''), input: 'text' },
       { key: 'department', label: 'Department', value: detailValue(load.department), rawValue: String(load.department || ''), input: 'text' },
       { key: 'freight_mode', label: 'Freight mode', value: detailValue(load.freight_mode || load.transport_type), rawValue: String(load.freight_mode || load.transport_type || ''), input: 'text' },
+      { key: 'assigned_driver_user_id', label: 'Driver', value: detailValue(assignedDriver.name || assignedDriverProfile.name), rawValue: String(load.assigned_driver_user_id || ''), input: 'driver' },
+      { key: 'vehicle_id', label: 'Vehicle', value: detailValue(vehicle.registration_number || [vehicle.make, vehicle.model].filter(Boolean).join(' ')), rawValue: String(vehicle.id || ''), input: 'vehicle' },
       { key: 'consignee_customer_id', label: 'Consignee', value: detailValue(consignee.company_name || consignee.name), rawValue: String(consignee.id || ''), input: 'customer' },
       { key: 'subdepartment', label: 'Subdepartment', value: detailValue(load.subdepartment), rawValue: String(load.subdepartment || ''), input: 'text' },
       { key: 'weight_kg', label: 'KGS', value: load.weight_kg ? `${Number(load.weight_kg).toLocaleString()} kg` : '—', rawValue: String(load.weight_kg || ''), input: 'number' },

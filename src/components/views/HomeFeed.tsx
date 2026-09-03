@@ -249,7 +249,7 @@ type HomeFeedProps = {
   onSortModeChange?: (mode: FeedSortMode) => void;
   onEditLoad?: (load: Load) => void;
   onLoadChanged?: () => void;
-  onWorkspaceCreated?: (workspaceId: number, loadId: string) => void;
+  onOperationsOpen?: (workspaceId: number, loadId: string) => void;
 };
 
 export const HomeFeed = ({
@@ -301,7 +301,7 @@ export const HomeFeed = ({
   onSortModeChange,
   onEditLoad,
   onLoadChanged,
-  onWorkspaceCreated,
+  onOperationsOpen,
 }: HomeFeedProps) => {
   const [layout, setLayout] = useState<FeedLayoutMode>('table');
   const [mapSource, setMapSource] = useState<MapSource>('normal');
@@ -599,7 +599,7 @@ export const HomeFeed = ({
         companyIds={companyIds}
         onEdit={onEditLoad}
         onChanged={onLoadChanged}
-        onWorkspaceCreated={onWorkspaceCreated}
+        onOperationsOpen={onOperationsOpen}
         onClose={() => setSelectedLoad(null)}
       />
     </div>

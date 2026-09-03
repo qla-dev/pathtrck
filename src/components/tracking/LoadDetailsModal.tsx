@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import { MapContainer, TileLayer, Marker, Popup, CircleMarker, Polyline, Tooltip, useMap } from 'react-leaflet';
-import { ChevronRight, Package as PackageIcon, RotateCcw, Share2, Star, Route, Lock, Coins, Loader2, Sparkles, FileBarChart2, Upload, FileSpreadsheet, Fuel, BedDouble, ParkingCircle, Landmark, ReceiptText, FileText, FileCheck2, Printer, Play, Pause } from 'lucide-react';
+import { ChevronRight, Package as PackageIcon, RotateCcw, Share2, Star, Route, Lock, Coins, Loader2, Sparkles, FileBarChart2, Upload, FileSpreadsheet, Fuel, BedDouble, ParkingCircle, Landmark, ReceiptText, FileText, FileCheck2, Printer, Play, Pause, MessageSquare } from 'lucide-react';
 import { Language, Package as PackageData, Role, ShipmentDetail } from '../../types';
 import { isCompanyOperationsRole } from '../../lib/roles';
 import { api, type FuelStation } from '../../services/api';
@@ -14,7 +14,6 @@ import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Toggle } from '../ui/Toggle';
 import { TrackingItemDetails } from './TrackingItemDetails';
-import { TrackingShipmentDetails } from './TrackingShipmentDetails';
 import { LoadStatusPicker } from '../load/LoadStatusPicker';
 import { LenaAI } from '../lena/LenaAI';
 import { type LocationSearchResult } from '../../services/locationSearch';
@@ -23,7 +22,10 @@ import { TrackingMapCard } from './TrackingMapCard';
 import { trackingMarkerIcon } from './trackingMapMarker';
 import { VehicleReturnModal } from './VehicleReturnModal';
 import { CustomsDocumentList } from '../load/CustomsDocumentList';
-import { ShipmentWorkspaceDetail } from '../views/ShipmentWorkspacesView';
+import { ShipmentOperationsTab } from './ShipmentOperationsTab';
+import { ShipmentMessagesTab } from './ShipmentMessagesTab';
+import { ShipmentDetailsOverview } from './ShipmentDetailsOverview';
+import { EditLoadModal } from './EditLoadModal';
 
 type AmenityCategory = 'toll' | 'fuel' | 'rest' | 'parking';
 
@@ -128,13 +130,16 @@ type LoadDetailsModalProps = {
   companyIds?: number[];
   onClose: () => void;
   onChanged?: () => void;
-  initialTab?: 'tracker' | 'workspace';
+  initialTab?: 'tracker' | 'operations';
 };
 
 export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], onClose, onChanged, initialTab = 'tracker' }: LoadDetailsModalProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [selectedPackage, setSelectedPackage] = useState<PackageData>(emptyPackage);
   const [detailsOpen, setDetailsOpen] = useState(true);
+  const [editLoadOpen, setEditLoadOpen] = useState(false);
+  const [editFocusKey, setEditFocusKey] = useState<string | null>(null);
+  const [editActionTitle, setEditActionTitle] = useState<string | null>(null);
   const [shipmentWorkspace, setShipmentWorkspace] = useState<Record<string, unknown> | null>(null);
 
   const refreshPackage = async () => {
@@ -165,8 +170,11 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
     return () => { cancelled = true; };
   }, [loadId, lang]);
 
-  const [rightTab, setRightTab] = useState<'tracker' | 'workspace' | 'details' | 'return' | 'returnRoutes' | 'reports' | 'share' | 'documents' | 'invoice' | 'review'>(initialTab);
-  useEffect(() => { setRightTab(initialTab); }, [initialTab, loadId]);
+  // The operational checklist no longer has its own top-level tab: it lives inside the
+  // "Shipment details" tab, so an operations entry point opens that tab on its checklist sub-tab.
+  const detailsSubTab = initialTab === 'operations' ? 'operations' : 'overview';
+  const [rightTab, setRightTab] = useState<'tracker' | 'messages' | 'details' | 'return' | 'returnRoutes' | 'reports' | 'share' | 'documents' | 'invoice' | 'review'>(initialTab === 'operations' ? 'details' : initialTab);
+  useEffect(() => { setRightTab(initialTab === 'operations' ? 'details' : initialTab); }, [initialTab, loadId]);
   const [lenaOpen, setLenaOpen] = useState(false);
   const [returnTokens, setReturnTokens] = useState(0);
   const [returnRoutesUnlocked, setReturnRoutesUnlocked] = useState(false);
@@ -199,6 +207,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
 
   useEffect(() => {
     setRightTab('tracker');
+    setEditLoadOpen(false);
     setTrackerCardOpen(false);
     setReceiveReviewPending(false);
   }, [loadId]);
@@ -628,6 +637,33 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
     }
   };
 
+  // The side that does not own the next checklist task can only nudge the side that does, so the
+  // reminder lands as a message in the shipment conversation and the chat opens on it.
+  const sendShipmentReminder = async (body: string) => {
+    const conversationId = Number(shipmentWorkspace?.conversation_id || 0);
+    if (!conversationId || !userId) {
+      void showError(u('shipmentDetails.reminderFailed', 'Reminder could not be sent'));
+      return false;
+    }
+    try {
+      await api.messages.create({
+        conversation_id: conversationId,
+        sender_user_id: userId,
+        body,
+        sent_at: new Date().toISOString(),
+      });
+      setRightTab('messages');
+      void showSuccess(u('shipmentDetails.reminderSent', 'Reminder sent'));
+      return true;
+    } catch (error) {
+      void showError(
+        u('shipmentDetails.reminderFailed', 'Reminder could not be sent'),
+        error instanceof Error ? error.message : undefined
+      );
+      return false;
+    }
+  };
+
   return (
     <>
     <TrackingItemDetails
@@ -637,6 +673,8 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
       bodyClassName={
         rightTab === 'tracker'
           ? 'relative overflow-hidden p-0 md:p-0'
+          : rightTab === 'messages'
+            ? 'overflow-hidden p-4 md:p-5'
           : rightTab === 'returnRoutes' && !returnRoutesUnlocked
             ? 'overflow-hidden'
             : undefined
@@ -712,17 +750,28 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
         >
           <FileSpreadsheet className="w-4 h-4" />
           {u('tracking.shipmentDetails', 'Shipment details')}
+          {pendingActions > 0 && (
+            <span
+              title={u('shipmentDetails.actionsNeeded', 'Actions needed')}
+              className={cn(
+                'ml-0.5 inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full px-1.5 text-[10px] font-black',
+                rightTab === 'details' ? 'bg-white text-rose-600' : 'bg-rose-500 text-white'
+              )}
+            >
+              {pendingActions}
+            </span>
+          )}
         </button>
         {shipmentWorkspace && (
           <button
-            onClick={() => setRightTab('workspace')}
+            onClick={() => setRightTab('messages')}
             className={cn(
               'h-full px-3 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5',
-              rightTab === 'workspace' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+              rightTab === 'messages' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
             )}
           >
-            <PackageIcon className="h-4 w-4" />
-            {u('shipmentWorkspace.title', 'Shipment Workspace')}
+            <MessageSquare className="h-4 w-4" />
+            {u('shipmentDetails.messages', 'Messages')}
           </button>
         )}
         <button
@@ -735,16 +784,18 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
           <RotateCcw className="w-4 h-4" />
           {u('Return', 'Return')}
         </button>
-        <button
-          onClick={() => setRightTab('returnRoutes')}
-          className={cn(
-            'h-full px-3 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5',
-            rightTab === 'returnRoutes' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-          )}
-        >
-          <Route className="w-4 h-4" />
-          {u('Return Routes', 'Return Routes')}
-        </button>
+        {role !== 'user' && (
+          <button
+            onClick={() => setRightTab('returnRoutes')}
+            className={cn(
+              'h-full px-3 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5',
+              rightTab === 'returnRoutes' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+            )}
+          >
+            <Route className="w-4 h-4" />
+            {u('Return Routes', 'Return Routes')}
+          </button>
+        )}
         <button
           onClick={() => setRightTab('reports')}
           className={cn(
@@ -912,47 +963,31 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
       )}
 
       {rightTab === 'details' && (
-        <Card title={(
-          <div className="min-w-0">
-            <p className="text-xs font-black uppercase tracking-wider text-primary">
-              {u('tracking.shipmentDetails', 'Shipment details')}
-            </p>
-            <h2 className="flex min-w-0 items-baseline gap-2 text-xl font-black text-slate-900 dark:text-white md:text-2xl">
-              {selectedPackage.trackingNumber && (
-                <>
-                  <span className="shrink-0 font-mono text-primary">{selectedPackage.trackingNumber}</span>
-                  <span className="shrink-0 text-slate-300 dark:text-slate-600">·</span>
-                </>
-              )}
-              <span className="truncate">{selectedPackage.recipient || selectedPackage.trackingNumber || 'Tracking item'}</span>
-            </h2>
-            <p className="mt-0.5 truncate text-xs font-normal text-slate-500">
-              {selectedPackage.origin} → {selectedPackage.destination}
-            </p>
-          </div>
-        )}>
-          {role === 'superadmin' && (
-            <p className="mb-3 text-xs text-slate-400">{u('tracking.clickEdit', 'Click any field to edit.')}</p>
-          )}
-          <TrackingShipmentDetails
-            details={shipmentDetailsWithoutStatus}
-            lang={lang}
-            role={role}
-            consigneeRecord={selectedPackage.consigneeRecord}
-            stops={selectedPackage.stops}
-            savingKey={savingDetailKey}
-            onSave={saveShipmentDetail}
-            onSaveLocation={saveShipmentLocation}
-          />
-        </Card>
-      )}
-
-      {rightTab === 'workspace' && shipmentWorkspace && (
-        <ShipmentWorkspaceDetail
+        <ShipmentDetailsOverview
+          shipment={selectedPackage}
           workspace={shipmentWorkspace}
           lang={lang}
           role={role}
-          onUpdated={setShipmentWorkspace}
+          userId={userId}
+          companyIds={companyIds}
+          onEdit={(focusKey, actionTitle) => { setEditFocusKey(focusKey ?? null); setEditActionTitle(actionTitle ?? null); setEditLoadOpen(true); }}
+          onSendReminder={sendShipmentReminder}
+          initialSubTab={detailsSubTab}
+          operationsSlot={shipmentWorkspace ? (
+            <ShipmentOperationsTab
+              workspace={shipmentWorkspace}
+              lang={lang}
+              onUpdated={setShipmentWorkspace}
+            />
+          ) : undefined}
+        />
+      )}
+
+      {rightTab === 'messages' && shipmentWorkspace && (
+        <ShipmentMessagesTab
+          workspace={shipmentWorkspace}
+          lang={lang}
+          userId={userId}
         />
       )}
 
@@ -964,7 +999,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
                   subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
                   attribution="&copy; Google Maps"
                 />
-                <FuelStationViewportLoader enabled={mapFilters.fuel} onBoundsChange={loadFuelStations} />
+                {role !== 'user' && <FuelStationViewportLoader enabled={mapFilters.fuel} onBoundsChange={loadFuelStations} />}
                 {routePoints.length >= 2 && (
                   <>
                     <FitTrackingRoute points={routePoints} />
@@ -995,7 +1030,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
                   />
                 )}
 
-                {mapFilters.fuel && fuelStations.map((station) => (
+                {role !== 'user' && mapFilters.fuel && fuelStations.map((station) => (
                   <CircleMarker
                     key={`${station.source_type}-${station.source_id}`}
                     center={[Number(station.latitude), Number(station.longitude)]}
@@ -1014,7 +1049,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
                   </CircleMarker>
                 ))}
 
-                {visibleAmenities.map((amenity) => (
+                {role !== 'user' && visibleAmenities.map((amenity) => (
                   <CircleMarker
                     key={amenity.id}
                     center={amenity.position}
@@ -1060,7 +1095,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
             </div>
           )}
 
-          {mapFilters.fuel && (
+          {role !== 'user' && mapFilters.fuel && (
             <a
               href="https://de.fuelo.net/"
               target="_blank"
@@ -1071,7 +1106,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
             </a>
           )}
 
-          <div className="pointer-events-none absolute inset-x-4 bottom-4 z-[1000] flex justify-start">
+          {role !== 'user' && <div className="pointer-events-none absolute inset-x-4 bottom-4 z-[1000] flex justify-start">
             <div className="pointer-events-auto flex max-w-full flex-wrap items-center justify-start gap-2 rounded-2xl border border-white/60 bg-white/80 p-2 shadow-xl backdrop-blur-xl dark:border-slate-700/70 dark:bg-slate-900/80">
               {mapFilters.toll && (
                 <div className="inline-flex items-center rounded-full bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-600">
@@ -1110,7 +1145,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
                   );
                 })}
             </div>
-          </div>
+          </div>}
         </div>
       )}
 
@@ -1385,6 +1420,21 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
         />
       )}
     </TrackingItemDetails>
+    <EditLoadModal
+      open={editLoadOpen}
+      lang={lang}
+      role={role}
+      title={selectedPackage.recipient || selectedPackage.trackingNumber || 'Tracking item'}
+      details={shipmentDetailsWithoutStatus}
+      focusKey={editFocusKey}
+      actionTitle={editActionTitle}
+      consigneeRecord={selectedPackage.consigneeRecord}
+      stops={selectedPackage.stops}
+      savingKey={savingDetailKey}
+      onClose={() => { setEditLoadOpen(false); setEditFocusKey(null); setEditActionTitle(null); }}
+      onSave={saveShipmentDetail}
+      onSaveLocation={saveShipmentLocation}
+    />
     <VehicleReturnModal
       open={carDropOpen}
       loadId={selectedPackage.id}
