@@ -57,6 +57,7 @@ export const VesselView = ({ lang }: { lang: Language }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const requestId = useRef(0);
+  const centeredSearchRef = useRef('');
   const [viewport, setViewport] = useState<Viewport | null>(null);
   const [vessels, setVessels] = useState<LiveVessel[]>([]);
   const [selectedMmsi, setSelectedMmsi] = useState<string | null>(null);
@@ -100,8 +101,15 @@ export const VesselView = ({ lang }: { lang: Language }) => {
   }), [category, movingOnly, query, vessels]);
   const selected = vessels.find((vessel) => vessel.mmsi === selectedMmsi) || null;
   useEffect(() => {
-    if (!debouncedQuery || vessels.length !== 1) return;
+    if (!debouncedQuery) {
+      centeredSearchRef.current = '';
+      return;
+    }
+    if (vessels.length !== 1) return;
     const [result] = vessels;
+    const resultKey = `${debouncedQuery}:${result.mmsi}`;
+    if (centeredSearchRef.current === resultKey) return;
+    centeredSearchRef.current = resultKey;
     setSelectedMmsi(result.mmsi);
     mapRef.current?.flyTo([result.lat, result.lon], LOCKED_ZOOM);
   }, [debouncedQuery, vessels]);

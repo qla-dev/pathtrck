@@ -289,6 +289,8 @@ export type LiveVessel = {
   destination?: string;
   callsign?: string;
   updated_at?: string;
+  provider?: string;
+  source?: string;
 };
 
 const API_BACKENDS = {
