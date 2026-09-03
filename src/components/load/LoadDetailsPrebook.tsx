@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Coins,
   FileText,
+  Handshake,
   Hash,
   Map as MapIcon,
   MapPin,
@@ -203,7 +204,6 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [offers, setOffers] = useState<Array<Record<string, unknown>>>([]);
   const [drivers, setDrivers] = useState<Array<Record<string, unknown>>>([]);
-  const [selectedDrivers, setSelectedDrivers] = useState<Record<string, number>>({});
   const [offersLoading, setOffersLoading] = useState(false);
   const [routeMapOpen, setRouteMapOpen] = useState(false);
   const [actionMessage, setActionMessage] = useState('');
@@ -268,9 +268,6 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
           const loadOffers = offerResponse.data.filter((offer) => String(offer.load_id) === String(load.id));
           if (!active) return;
           setOffers(loadOffers);
-          if (role === 'superadmin') {
-            setSelectedDrivers(Object.fromEntries(loadOffers.flatMap((offer) => offer.driver_user_id ? [[String(offer.id), Number(offer.driver_user_id)]] : [])));
-          }
         }
         if (role === 'superadmin' || isCompanyOperationsRole(role)) {
           // Backend already scopes this: superadmin sees every driver, a company sees only its own.
@@ -294,7 +291,6 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
 
   const approveOffer = async (offer: Record<string, unknown>) => {
     const offerDriverId = Number(offer.driver_user_id || 0);
-    const driverId = offerDriverId || selectedDrivers[String(offer.id)];
     const confirmed = await confirmAction({
       title: u('reservation.acceptTitle', 'Accept this reservation request?'),
       text: u('reservation.acceptText', 'The selected carrier will be assigned and the booking will be confirmed.'),
@@ -305,7 +301,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
     if (!confirmed) return;
     setActionMessage('Approving offer...');
     try {
-      await api.offers.approve(String(offer.id), driverId || undefined);
+      await api.offers.approve(String(offer.id), offerDriverId || undefined);
       setOffers((current) => current.map((item) => ({ ...item, status: item.id === offer.id ? 'accepted' : item.status === 'pending' ? 'rejected' : item.status })));
       setActionMessage(u('reservation.accepted', 'Reservation accepted and booking confirmed.'));
       void showSuccess(u('reservation.acceptedTitle', 'Booking confirmed'), u('reservation.accepted', 'Reservation accepted and booking confirmed.'));
@@ -674,15 +670,9 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                 lang={lang}
                 load={load}
                 offers={offers}
-                drivers={drivers.flatMap((driver) => {
-                  const driverUser = driver.user as { id?: number; name?: string } | undefined;
-                  return driverUser?.id ? [{ id: driverUser.id, label: driverUser.name || `Driver ${driverUser.id}` }] : [];
-                })}
-                selectedDrivers={selectedDrivers}
                 loading={offersLoading}
                 actionMessage={actionMessage}
                 userId={userId}
-                onDriverChange={(offerId, driverId) => setSelectedDrivers((current) => ({ ...current, [offerId]: driverId }))}
                 onApprove={(offer) => void approveOffer(offer)}
                 onReject={(offer) => void rejectOffer(offer)}
                 onSendCounter={sendCounterOffer}
@@ -704,13 +694,20 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                     <InfoTile icon={Thermometer} label={u('legacy.loadDetails.temperature', 'Temperature')} value={load.temperatureMin != null || load.temperatureMax != null ? `${load.temperatureMin ?? '—'}° to ${load.temperatureMax ?? '—'}°C` : 'Ambient'} />
                     <InfoTile icon={ShieldCheck} label={u('legacy.loadDetails.handling', 'Handling')} value={load.loadingMethods?.length ? load.loadingMethods.join(', ') : load.isFragile ? 'Fragile cargo' : 'Standard handling'} />
                     <InfoTile icon={Zap} label={u('legacy.loadDetails.priority', 'Priority')} value={`${load.urgency || 'Standard'}${load.adrClass ? ` · ADR ${load.adrClass}` : ''}`} />
+                    <InfoTile
+                      icon={Handshake}
+                      label={u('home.table.priceTerms', 'Price terms')}
+                      value={load.isNegotiable === false
+                        ? u('postLoadModal.termsFixed', 'Fixed price')
+                        : u('postLoadModal.termsNegotiable', 'Negotiable')}
+                    />
                   </div>
                 </div>
 
-                <div className="xl:col-span-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-2.5">
-                  <div className="flex items-center gap-2 text-primary">
+                <div className="flex h-full flex-col justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 xl:col-span-4">
+                  <div className="flex flex-1 items-center gap-2 text-primary">
                     <CheckCircle2 className="w-4 h-4" />
-                    <p className="text-[10px] font-black uppercase tracking-wider">
+                    <p className="text-[11px] font-black uppercase tracking-wider">
                       {u('legacy.loadDetails.readyActions', 'Ready Actions')}
                     </p>
                   </div>

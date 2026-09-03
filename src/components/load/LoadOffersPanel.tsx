@@ -31,11 +31,6 @@ import { LoadBidModal } from './LoadBidModal';
 import { WarehouseBidModal } from './WarehouseBidModal';
 import { QuickCounterModal } from './QuickCounterModal';
 
-type DriverOption = {
-  id: number;
-  label: string;
-};
-
 const optionLabel = (options: Array<{ value: string; label: string }>, value: unknown): string =>
   options.find((option) => option.value === value)?.label || String(value || '—');
 
@@ -63,12 +58,9 @@ type LoadOffersPanelProps = {
   lang: Language;
   load: Load;
   offers: Array<Record<string, unknown>>;
-  drivers: DriverOption[];
-  selectedDrivers: Record<string, number>;
   loading: boolean;
   actionMessage?: string;
   userId?: number;
-  onDriverChange: (offerId: string, driverId: number) => void;
   onApprove: (offer: Record<string, unknown>) => void;
   onReject: (offer: Record<string, unknown>) => void;
   onSendCounter: (payload: Record<string, unknown>) => Promise<void>;
@@ -79,12 +71,9 @@ export const LoadOffersPanel = ({
   lang,
   load,
   offers,
-  drivers,
-  selectedDrivers,
   loading,
   actionMessage,
   userId,
-  onDriverChange,
   onApprove,
   onReject,
   onSendCounter,
@@ -133,7 +122,7 @@ export const LoadOffersPanel = ({
   return (
     <div>
       {onBack && (
-        <Button variant="outline" className="mb-4 h-10 rounded-xl" onClick={onBack}>
+        <Button variant="outline" className="mb-4 rounded-xl py-4 md:mb-5" onClick={onBack}>
           <ArrowLeft className="mr-2 h-4 w-4" />{u('offers.backToDetails', 'Back to load details')}
         </Button>
       )}
@@ -230,41 +219,30 @@ export const LoadOffersPanel = ({
                       <span className="mb-1 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-slate-500"><UserCheck className="h-3.5 w-3.5 text-primary" />{u('Driver', 'Driver')}</span>
                       <span className="text-sm font-bold text-slate-800 dark:text-white">{driver.name || `Driver #${driver.id}`}</span>
                     </div>
-                  ) : isReservation ? (
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
+                  ) : (
+                    <div className="flex flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
                       {u('reservation.driverLater', 'The company can assign a driver after approval.')}
                     </div>
-                  ) : (
-                    <label className="block">
-                      <span className="mb-1.5 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-slate-500"><UserCheck className="h-3.5 w-3.5 text-primary" />{u('Driver', 'Driver')}</span>
-                      <select
-                        value={selectedDrivers[offerId] || ''}
-                        onChange={(event) => onDriverChange(offerId, Number(event.target.value))}
-                        disabled={decided}
-                        className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-primary disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-                      >
-                        <option value="">{u('legacy.loadDetails.selectDriver', 'Select a driver')}</option>
-                        {drivers.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-                      </select>
-                    </label>
                   )}
 
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setViewingOffer(offer)}
-                      className="flex h-10 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-primary/20 bg-primary/10 text-sm font-bold text-primary transition-colors hover:bg-primary/15 dark:border-primary/30 dark:bg-primary/15"
-                    >
-                      <Eye className="h-4 w-4" /> {u('See full bid', 'See full bid')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setHistoryOfferId(offerId)}
-                      className="flex h-10 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-primary/20 bg-primary/10 text-sm font-bold text-primary transition-colors hover:bg-primary/15 dark:border-primary/30 dark:bg-primary/15"
-                    >
-                      <History className="h-4 w-4" /> {u('Bidding history', 'Bidding history')}
-                    </button>
-                  </div>
+                  {load.isNegotiable !== false && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setViewingOffer(offer)}
+                        className="flex h-10 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-primary/20 bg-primary/10 text-sm font-bold text-primary transition-colors hover:bg-primary/15 dark:border-primary/30 dark:bg-primary/15"
+                      >
+                        <Eye className="h-4 w-4" /> {u('See full bid', 'See full bid')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setHistoryOfferId(offerId)}
+                        className="flex h-10 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-primary/20 bg-primary/10 text-sm font-bold text-primary transition-colors hover:bg-primary/15 dark:border-primary/30 dark:bg-primary/15"
+                      >
+                        <History className="h-4 w-4" /> {u('Bidding history', 'Bidding history')}
+                      </button>
+                    </div>
+                  )}
 
                   {!decided && !isReservation && (
                     <div className="flex items-center gap-2">

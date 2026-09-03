@@ -47,13 +47,14 @@ type TableSortKey =
   | 'pickup'
   | 'miles'
   | 'delivery'
+  | 'priceTerms'
+  | 'rate'
   | 'provider'
   | 'equipment'
   | 'weight'
   | 'commodity'
   | 'paymentTerms'
-  | 'urgency'
-  | 'rate';
+  | 'urgency';
 type SortDirection = 'asc' | 'desc';
 type TableSortState = { key: TableSortKey; direction: SortDirection } | null;
 
@@ -75,6 +76,10 @@ const getSortValue = (load: Load, key: TableSortKey): string | number => {
       return estimateLoadDistanceKm(load.pickup, load.delivery);
     case 'delivery':
       return load.delivery.toLowerCase();
+    case 'priceTerms':
+      return load.isNegotiable === false ? 'fixed' : 'negotiable';
+    case 'rate':
+      return parseLoadPriceValue(load.price);
     case 'provider':
       return (load.shipperName || load.author || '').toLowerCase();
     case 'equipment':
@@ -87,8 +92,6 @@ const getSortValue = (load: Load, key: TableSortKey): string | number => {
       return load.paymentTerms.toLowerCase();
     case 'urgency':
       return (load.urgency || 'Standard').toLowerCase();
-    case 'rate':
-      return parseLoadPriceValue(load.price);
     default:
       return '';
   }
@@ -168,13 +171,14 @@ export const LoadsTable = ({ lang, loads, userId, ownerMode = false, onOpenDetai
     { key: 'pickup', label: u('home.table.pickup', 'Pickup'), icon: MapPin },
     { key: 'miles', label: u('home.table.distance', 'Km'), icon: Route },
     { key: 'delivery', label: u('home.table.delivery', 'Delivery'), icon: Flag },
+    { key: 'priceTerms', label: u('home.table.priceTerms', 'Price terms'), icon: Handshake },
+    { key: 'rate', label: u('home.table.rate', 'Rate'), icon: DollarSign },
     { key: 'provider', label: u('home.table.provider', 'Provider'), icon: Building2 },
     { key: 'equipment', label: u('home.table.equipment', 'Equipment'), icon: Truck },
     { key: 'weight', label: u('home.table.weight', 'Weight'), icon: Scale },
     { key: 'commodity', label: u('legacy.sidebarFilter.goodsType', 'Goods type'), icon: PackageSearch },
     { key: 'paymentTerms', label: u('legacy.sidebarFilter.paymentTerms', 'Payment terms'), icon: CreditCard },
     { key: 'urgency', label: u('feed.filters.urgency', 'Urgency'), icon: Zap },
-    { key: 'rate', label: u('home.table.rate', 'Rate'), icon: DollarSign },
   ];
 
   const toggleSort = (key: TableSortKey) => {
@@ -392,6 +396,15 @@ export const LoadsTable = ({ lang, loads, userId, ownerMode = false, onOpenDetai
                   </div>
                 </td>
                 <td className="px-4 py-3">
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    <Handshake className="h-3 w-3 shrink-0" />
+                    {load.isNegotiable === false
+                      ? u('postLoadModal.termsFixed', 'Fixed price')
+                      : u('postLoadModal.termsNegotiable', 'Negotiable')}
+                  </span>
+                </td>
+                <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{load.price}</td>
+                <td className="px-4 py-3">
                   <p className="font-medium text-slate-600 dark:text-slate-300">{load.shipperName || load.author}</p>
                   <p className="mt-0.5 inline-flex items-center gap-1 text-xs font-bold text-slate-500 dark:text-slate-400">
                     <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
@@ -463,7 +476,6 @@ export const LoadsTable = ({ lang, loads, userId, ownerMode = false, onOpenDetai
                     );
                   })()}
                 </td>
-                <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{load.price}</td>
                 <td
                   className={cn(
                     'sticky right-0 z-[1] bg-white px-4 py-3 text-right dark:bg-slate-900',
