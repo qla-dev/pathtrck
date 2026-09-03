@@ -5909,12 +5909,6 @@ export default function App() {
   }, [isSidebarOpen]);
 
   useEffect(() => {
-    if (role === "user" && view === "feed") {
-      setView("tracking");
-    }
-  }, [role, view]);
-
-  useEffect(() => {
     if (view === "frights") {
       setView("feed");
     }
@@ -6701,7 +6695,7 @@ export default function App() {
               ? [
                   {
                     id: "tracking",
-                    label: myCargoLabels[lang || "en"],
+                    label: u("nav.liveTracking", "Live tracking"),
                     icon: PackageIcon,
                   },
                 ]
@@ -6746,7 +6740,7 @@ export default function App() {
                 : []),
               {
                 id: "tracking",
-                label: myCargoLabels[lang || "en"],
+                label: u("nav.liveTracking", "Live tracking"),
                 icon: PackageIcon,
               },
               {

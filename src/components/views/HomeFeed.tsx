@@ -466,6 +466,7 @@ export const HomeFeed = ({
               load={load}
               lang={lang}
               userId={userId}
+              ownerMode={ownerMode}
               onOpenDetails={setSelectedLoad}
               viewDetailsLabel={bookLoadLabel}
             />
@@ -482,6 +483,7 @@ export const HomeFeed = ({
               load={load}
               lang={lang}
               userId={userId}
+              ownerMode={ownerMode}
               onOpenDetails={setSelectedLoad}
               viewDetailsLabel={bookLoadLabel}
             />
@@ -490,7 +492,7 @@ export const HomeFeed = ({
       )}
 
       {!loading && sortedLoads.length > 0 && layout === 'table' && (
-        <LoadsTable lang={lang} loads={sortedLoads} userId={userId} onOpenDetails={setSelectedLoad} />
+        <LoadsTable lang={lang} loads={sortedLoads} userId={userId} ownerMode={ownerMode} onOpenDetails={setSelectedLoad} />
       )}
 
       {!loading && sortedLoads.length > 0 && layout === 'map' && (
@@ -503,6 +505,7 @@ export const HomeFeed = ({
                 load={load}
                 lang={lang}
                 userId={userId}
+                ownerMode={ownerMode}
                 onOpenDetails={setSelectedLoad}
                 viewDetailsLabel={bookLoadLabel}
               />

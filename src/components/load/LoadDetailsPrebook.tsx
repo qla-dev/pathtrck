@@ -581,7 +581,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
               </h2>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              {(role === 'superadmin' || (role === 'user' && load.customerUserId === userId)) && (
+              {role === 'superadmin' && (
                 <>
                   <button
                     type="button"
@@ -684,6 +684,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                 onApprove={(offer) => void approveOffer(offer)}
                 onReject={(offer) => void rejectOffer(offer)}
                 onSendCounter={sendCounterOffer}
+                onBack={role === 'user' ? () => setBodyView('details') : undefined}
               />
             ) : (
             <div className="space-y-4">
@@ -748,7 +749,26 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                         </div>
                       </div>
                     )}
-                  </> : isCompanyOperationsRole(role) ? (
+                  </> : role === 'user' && load.customerUserId === userId ? (
+                    <div className="grid gap-2 border-t border-slate-100 pt-3 dark:border-slate-800 sm:grid-cols-2 xl:grid-cols-1">
+                      <Button
+                        variant="outline"
+                        className="h-11 w-full rounded-xl"
+                        onClick={() => onEdit?.(load)}
+                      >
+                        <Pencil className="mr-2 h-4 w-4" />
+                        {u('Edit load', 'Edit load')}
+                      </Button>
+                      <Button
+                        className="h-11 w-full rounded-xl shadow-lg shadow-primary/20"
+                        onClick={() => setBodyView('offers')}
+                      >
+                        <UsersRound className="mr-2 h-4 w-4" />
+                        {u('offers.view', 'View offers')}
+                        <span className="ml-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-white/20 px-1 text-[10px] font-black">{offers.length}</span>
+                      </Button>
+                    </div>
+                  ) : isCompanyOperationsRole(role) ? (
                     currentStatus === 'Posted' ? (
                       <div className="space-y-3">
                         {bookingSummary}

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
   AlertTriangle,
+  ArrowLeft,
   Ban,
   CalendarDays,
   CalendarClock,
@@ -71,6 +72,7 @@ type LoadOffersPanelProps = {
   onApprove: (offer: Record<string, unknown>) => void;
   onReject: (offer: Record<string, unknown>) => void;
   onSendCounter: (payload: Record<string, unknown>) => Promise<void>;
+  onBack?: () => void;
 };
 
 export const LoadOffersPanel = ({
@@ -86,6 +88,7 @@ export const LoadOffersPanel = ({
   onApprove,
   onReject,
   onSendCounter,
+  onBack,
 }: LoadOffersPanelProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   // Offers on a storage request are read and countered in the warehousing form, not the transport one.
@@ -129,6 +132,11 @@ export const LoadOffersPanel = ({
 
   return (
     <div>
+      {onBack && (
+        <Button variant="outline" className="mb-4 h-10 rounded-xl" onClick={onBack}>
+          <ArrowLeft className="mr-2 h-4 w-4" />{u('offers.backToDetails', 'Back to load details')}
+        </Button>
+      )}
       {actionMessage && (
         <div className="mb-4 rounded-xl border border-primary/15 bg-primary/5 px-4 py-3 text-sm font-semibold text-slate-600 dark:text-slate-300">
           {actionMessage}

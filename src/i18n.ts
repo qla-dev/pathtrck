@@ -9448,8 +9448,12 @@ Object.assign(UI.de, {
 
 Object.assign(UI.en, {
   'nav.myOffers': 'My offers',
+  'nav.liveTracking': 'Live tracking',
+  'offers.view': 'View offers',
+  'offers.backToDetails': 'Back to load details',
   'offer.submittedAt': 'Submitted',
   'reservation.requestTitle': 'Request booking',
+  'reservation.requestShort': 'Request reservation',
   'reservation.confirmIntro': 'By submitting this request, you confirm:',
   'reservation.fixedPrice': 'Fixed price',
   'reservation.fixedTargetPrice': 'Fixed target price',
@@ -9490,8 +9494,12 @@ Object.assign(UI.en, {
 
 Object.assign(UI.bs, {
   'nav.myOffers': 'Moje ponude',
+  'nav.liveTracking': 'Live tracking',
+  'offers.view': 'Vidi ponude',
+  'offers.backToDetails': 'Nazad na detalje tereta',
   'offer.submittedAt': 'Poslano',
   'reservation.requestTitle': 'Zahtjev za rezervaciju',
+  'reservation.requestShort': 'Zatraži rezervaciju',
   'reservation.confirmIntro': 'Slanjem ovog zahtjeva potvrđujete:',
   'reservation.fixedPrice': 'Fiksna cijena',
   'reservation.fixedTargetPrice': 'Fiksna ciljna cijena',
@@ -9532,8 +9540,12 @@ Object.assign(UI.bs, {
 
 Object.assign(UI.de, {
   'nav.myOffers': 'Meine Angebote',
+  'nav.liveTracking': 'Live-Tracking',
+  'offers.view': 'Angebote ansehen',
+  'offers.backToDetails': 'Zurück zu den Ladungsdetails',
   'offer.submittedAt': 'Eingereicht',
   'reservation.requestTitle': 'Buchung anfragen',
+  'reservation.requestShort': 'Reservierung anfragen',
   'reservation.confirmIntro': 'Mit dem Absenden bestätigen Sie:',
   'reservation.fixedPrice': 'Festpreis',
   'reservation.fixedTargetPrice': 'Fester Zielpreis',

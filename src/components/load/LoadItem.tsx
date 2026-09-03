@@ -20,6 +20,7 @@ type LoadItemProps = {
   hideSource?: boolean;
   statusLabel?: string;
   userId?: number;
+  ownerMode?: boolean;
   onOpenDetails?: (load: Load) => void;
   onOpenSetup?: () => void;
 };
@@ -32,6 +33,7 @@ export const LoadItem = ({
   hideSource = false,
   statusLabel,
   userId,
+  ownerMode = false,
   onOpenDetails,
   onOpenSetup,
 }: LoadItemProps) => {
@@ -60,8 +62,10 @@ export const LoadItem = ({
   const hasBudget = Boolean(load.budget && load.budget > 0);
   const offerCurrency = load.price.split(' ')[0] || 'EUR';
   const bidState = getBidState(load.offers, userId, load.budget);
-  const actionLabel = load.isNegotiable === false
-    ? (hasBudget ? `${u('common.bookNow', 'Book now')} · ${load.price}` : u('common.bookNow', 'Book now'))
+  const actionLabel = ownerMode
+    ? u('offers.view', 'View offers')
+    : load.isNegotiable === false
+    ? (hasBudget ? `${u('reservation.requestShort', 'Request reservation')} · ${load.price}` : u('reservation.requestShort', 'Request reservation'))
     : getOfferLabel(u, bidState, offerCurrency);
   const showChevron = load.isNegotiable === false || !bidState.myOffer;
   const isStorage = Boolean(load.forStorage || load.transportType === 'warehouse');

@@ -716,6 +716,11 @@ export const FilterLoads = (props: FilterLoadsProps) => {
       onClear: () => exchange.transportModes.forEach(exchange.onToggleTransportMode),
     });
 
+    const exchangePriceTerms = secondary.find((pill) => pill.id === 'priceTerms');
+    if (exchangePriceTerms) {
+      pills.push(exchangePriceTerms);
+    }
+
     pills.push({
       id: 'route',
       label: withCount(u('feed.exchangeFilters.route', 'Route'), routeCount),

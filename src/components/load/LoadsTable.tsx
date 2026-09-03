@@ -61,6 +61,7 @@ type LoadsTableProps = {
   lang: Language;
   loads: Load[];
   userId?: number;
+  ownerMode?: boolean;
   onOpenDetails: (load: Load) => void;
 };
 
@@ -158,7 +159,7 @@ const toTextTone = (tone: string) =>
     .filter((cls) => cls.includes('text-'))
     .join(' ');
 
-export const LoadsTable = ({ lang, loads, userId, onOpenDetails }: LoadsTableProps) => {
+export const LoadsTable = ({ lang, loads, userId, ownerMode = false, onOpenDetails }: LoadsTableProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [sort, setSort] = useState<TableSortState>(null);
 
@@ -334,8 +335,10 @@ export const LoadsTable = ({ lang, loads, userId, onOpenDetails }: LoadsTablePro
             const offerCurrency = load.price.split(' ')[0] || 'EUR';
             const bidState = getBidState(load.offers, userId, load.budget);
             const hasBudget = Boolean(load.budget && load.budget > 0);
-            const actionLabel = load.isNegotiable === false
-              ? (hasBudget ? `${u('common.bookNow', 'Book now')} · ${load.price}` : u('common.bookNow', 'Book now'))
+            const actionLabel = ownerMode
+              ? u('offers.view', 'View offers')
+              : load.isNegotiable === false
+              ? (hasBudget ? `${u('reservation.requestShort', 'Request reservation')} · ${load.price}` : u('reservation.requestShort', 'Request reservation'))
               : getOfferLabel(u, bidState, offerCurrency);
             const pickupCountryCode = getCountryCode(load.pickup);
             const deliveryCountryCode = getCountryCode(load.delivery);
