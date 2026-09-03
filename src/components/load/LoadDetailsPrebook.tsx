@@ -1062,4 +1062,23 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
           open={routeMapOpen}
           lang={lang}
           pickup={{ label: pickupLabel, position: load.pickupPosition }}
-          delivery={{ label: deliveryLabel, posi
+          delivery={{ label: deliveryLabel, position: load.deliveryPosition }}
+          onClose={() => setRouteMapOpen(false)}
+        />
+      )}
+
+      <CounterOfferReviewModal
+        open={Boolean(viewingCounter)}
+        lang={lang}
+        load={load}
+        originalOffer={myOffer}
+        counterOffer={viewingCounter}
+        loading={acceptingCounter}
+        onClose={() => setViewingCounter(null)}
+        onAccept={() => void acceptCounterOffer()}
+      />
+    </motion.div>
+    )}
+    </AnimatePresence>
+  );
+};
