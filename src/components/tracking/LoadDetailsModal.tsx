@@ -23,6 +23,7 @@ import { TrackingMapCard } from './TrackingMapCard';
 import { trackingMarkerIcon } from './trackingMapMarker';
 import { VehicleReturnModal } from './VehicleReturnModal';
 import { CustomsDocumentList } from '../load/CustomsDocumentList';
+import { ShipmentWorkspaceDetail } from '../views/ShipmentWorkspacesView';
 
 type AmenityCategory = 'toll' | 'fuel' | 'rest' | 'parking';
 
@@ -127,28 +128,45 @@ type LoadDetailsModalProps = {
   companyIds?: number[];
   onClose: () => void;
   onChanged?: () => void;
+  initialTab?: 'tracker' | 'workspace';
 };
 
-export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], onClose, onChanged }: LoadDetailsModalProps) => {
+export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], onClose, onChanged, initialTab = 'tracker' }: LoadDetailsModalProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [selectedPackage, setSelectedPackage] = useState<PackageData>(emptyPackage);
   const [detailsOpen, setDetailsOpen] = useState(true);
+  const [shipmentWorkspace, setShipmentWorkspace] = useState<Record<string, unknown> | null>(null);
 
   const refreshPackage = async () => {
     const response = await api.loads.get(loadId);
     setSelectedPackage(mapLoadToPackage(response.data, lang));
+    const workspaceId = Number((response.data.shipment_workspace as Record<string, unknown> | undefined)?.id || 0);
+    if (workspaceId) {
+      const workspaceResponse = await api.shipmentWorkspaces.get(workspaceId);
+      setShipmentWorkspace(workspaceResponse.data);
+    } else {
+      setShipmentWorkspace(null);
+    }
   };
 
   useEffect(() => {
     let cancelled = false;
     setDetailsOpen(true);
-    api.loads.get(loadId).then((response) => {
-      if (!cancelled) setSelectedPackage(mapLoadToPackage(response.data, lang));
+    setShipmentWorkspace(null);
+    api.loads.get(loadId).then(async (response) => {
+      if (cancelled) return;
+      setSelectedPackage(mapLoadToPackage(response.data, lang));
+      const workspaceId = Number((response.data.shipment_workspace as Record<string, unknown> | undefined)?.id || 0);
+      if (workspaceId) {
+        const workspaceResponse = await api.shipmentWorkspaces.get(workspaceId);
+        if (!cancelled) setShipmentWorkspace(workspaceResponse.data);
+      }
     });
     return () => { cancelled = true; };
   }, [loadId, lang]);
 
-  const [rightTab, setRightTab] = useState<'tracker' | 'details' | 'return' | 'returnRoutes' | 'reports' | 'share' | 'documents' | 'invoice' | 'review'>('tracker');
+  const [rightTab, setRightTab] = useState<'tracker' | 'workspace' | 'details' | 'return' | 'returnRoutes' | 'reports' | 'share' | 'documents' | 'invoice' | 'review'>(initialTab);
+  useEffect(() => { setRightTab(initialTab); }, [initialTab, loadId]);
   const [lenaOpen, setLenaOpen] = useState(false);
   const [returnTokens, setReturnTokens] = useState(0);
   const [returnRoutesUnlocked, setReturnRoutesUnlocked] = useState(false);
@@ -695,6 +713,18 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
           <FileSpreadsheet className="w-4 h-4" />
           {u('tracking.shipmentDetails', 'Shipment details')}
         </button>
+        {shipmentWorkspace && (
+          <button
+            onClick={() => setRightTab('workspace')}
+            className={cn(
+              'h-full px-3 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5',
+              rightTab === 'workspace' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+            )}
+          >
+            <PackageIcon className="h-4 w-4" />
+            {u('shipmentWorkspace.title', 'Shipment Workspace')}
+          </button>
+        )}
         <button
           onClick={() => setRightTab('return')}
           className={cn(
@@ -915,6 +945,15 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
             onSaveLocation={saveShipmentLocation}
           />
         </Card>
+      )}
+
+      {rightTab === 'workspace' && shipmentWorkspace && (
+        <ShipmentWorkspaceDetail
+          workspace={shipmentWorkspace}
+          lang={lang}
+          role={role}
+          onUpdated={setShipmentWorkspace}
+        />
       )}
 
       {rightTab === 'tracker' && (

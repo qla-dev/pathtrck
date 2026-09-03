@@ -72,7 +72,7 @@ type LoadDetailsPrebookProps = {
   companyIds?: number[];
   onEdit?: (load: Load) => void;
   onChanged?: () => void;
-  onWorkspaceCreated?: (workspaceId: number) => void;
+  onWorkspaceCreated?: (workspaceId: number, loadId: string) => void;
 };
 
 type UiFn = (key: string, fallback: string) => string;
@@ -321,7 +321,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
       setActionMessage(successText);
       void showSuccess(u('reservation.acceptedTitle', 'Booking confirmed'), successText);
       onChanged?.();
-      if (workspace?.id) onWorkspaceCreated?.(Number(workspace.id));
+      if (workspace?.id && load) onWorkspaceCreated?.(Number(workspace.id), load.id);
     } catch (error) { setActionMessage(error instanceof Error ? error.message : 'Offer could not be approved.'); }
   };
 
@@ -725,6 +725,25 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                       {u('legacy.loadDetails.readyActions', 'Ready Actions')}
                     </p>
                   </div>
+                  {load.shipmentWorkspaceId && (
+                    <div className="border-t border-slate-100 pt-3 dark:border-slate-800">
+                      <Button
+                        className="h-11 w-full rounded-xl shadow-lg shadow-primary/20"
+                        onClick={() => {
+                          onClose();
+                          onWorkspaceCreated?.(load.shipmentWorkspaceId!, load.id);
+                        }}
+                      >
+                        <Package className="mr-2 h-4 w-4" />
+                        {u('shipmentWorkspace.open', 'Open Shipment Workspace')}
+                      </Button>
+                      {load.shipmentWorkspaceReference && (
+                        <p className="mt-2 text-center text-[10px] font-black uppercase tracking-wider text-slate-400">
+                          {load.shipmentWorkspaceReference}
+                        </p>
+                      )}
+                    </div>
+                  )}
                   {role === 'superadmin' ? <>
                     {currentStatus === 'Posted' && load.isNegotiable !== true && (
                       <div className="space-y-3 border-t border-slate-100 pt-3 dark:border-slate-800">

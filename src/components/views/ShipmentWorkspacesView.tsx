@@ -87,14 +87,15 @@ export const ShipmentWorkspacesView = ({ lang, role, initialWorkspaceId, onIniti
               </button>;
             })}
           </aside>
-          {selected && <WorkspaceDetail workspace={selected} lang={lang} role={role} text={text} onOpenConversation={onOpenConversation} onUpdated={(updated) => setItems((current) => current.map((item) => Number(item.id) === Number(updated.id) ? updated : item))} />}
+          {selected && <ShipmentWorkspaceDetail workspace={selected} lang={lang} role={role} onOpenConversation={onOpenConversation} onUpdated={(updated) => setItems((current) => current.map((item) => Number(item.id) === Number(updated.id) ? updated : item))} />}
         </div>
       )}
     </div>
   );
 };
 
-const WorkspaceDetail = ({ workspace, lang, text, onOpenConversation, onUpdated }: { workspace: Record<string, unknown>; lang: Language; role: Role; text: typeof COPY.en | typeof COPY.bs | typeof COPY.de; onOpenConversation?: (id: number) => void; onUpdated: (workspace: Record<string, unknown>) => void }) => {
+export const ShipmentWorkspaceDetail = ({ workspace, lang, onOpenConversation, onUpdated }: { workspace: Record<string, unknown>; lang: Language; role: Role; onOpenConversation?: (id: number) => void; onUpdated: (workspace: Record<string, unknown>) => void }) => {
+  const text = COPY[lang === 'bs' || lang === 'de' ? lang : 'en'];
   const [savingStatus, setSavingStatus] = useState(false);
   const load = record(workspace.load_snapshot);
   const parties = record(workspace.parties_snapshot);

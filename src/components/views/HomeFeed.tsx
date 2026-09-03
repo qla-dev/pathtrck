@@ -249,7 +249,7 @@ type HomeFeedProps = {
   onSortModeChange?: (mode: FeedSortMode) => void;
   onEditLoad?: (load: Load) => void;
   onLoadChanged?: () => void;
-  onWorkspaceCreated?: (workspaceId: number) => void;
+  onWorkspaceCreated?: (workspaceId: number, loadId: string) => void;
 };
 
 export const HomeFeed = ({

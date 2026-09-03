@@ -31,6 +31,8 @@ export interface Package {
   transportType?: string;
   cargoType?: string;
   bookingReference?: string;
+  shipmentWorkspaceId?: number;
+  shipmentWorkspaceReference?: string;
   statusChange?: Record<string, string>;
   details?: ShipmentDetail[];
   consigneeRecord?: Record<string, unknown>;

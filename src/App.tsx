@@ -137,7 +137,6 @@ import { PricingView } from "./components/views/PricingView";
 import { UsageView } from "./components/views/UsageView";
 import { PaymentHistoryView } from "./components/views/PaymentHistoryView";
 import { TariffsHsView } from "./components/views/TariffsHsView";
-import { ShipmentWorkspacesView } from "./components/views/ShipmentWorkspacesView";
 import { PaymentModal } from "./components/modals/PaymentModal";
 import { BrandWordmark, FreightbookMark } from "./components/ui/BrandWordmark";
 import { PACKAGE_ICONS, PricingPlanCard } from "./components/pricing/PricingPlanCard";
@@ -5235,6 +5234,14 @@ const mapDatabaseRecordToLoad = (record: Record<string, unknown>): Load => {
       record.booking_reference == null
         ? undefined
         : String(record.booking_reference),
+    shipmentWorkspaceId:
+      (record.shipment_workspace as { id?: unknown } | undefined)?.id == null
+        ? undefined
+        : Number((record.shipment_workspace as { id?: unknown }).id),
+    shipmentWorkspaceReference:
+      (record.shipment_workspace as { reference?: unknown } | undefined)?.reference == null
+        ? undefined
+        : String((record.shipment_workspace as { reference?: unknown }).reference),
     incoterms: record.incoterms == null ? undefined : String(record.incoterms),
     insurance: record.insurance == null ? undefined : String(record.insurance),
     shipperName:
@@ -5321,10 +5328,12 @@ export default function App() {
   const [driverVerified, setDriverVerified] = useState<boolean | null>(null);
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [view, setView] = useState("tracking");
-  const [openShipmentWorkspaceId, setOpenShipmentWorkspaceId] = useState<number | null>(null);
-  const openShipmentWorkspace = (workspaceId: number) => {
-    setOpenShipmentWorkspaceId(workspaceId);
-    setView("shipments");
+  const [openLoadDetailsTab, setOpenLoadDetailsTab] = useState<'tracker' | 'workspace'>('tracker');
+  const openShipmentWorkspace = (_workspaceId: number, loadId: string) => {
+    setBookingLoad(null);
+    setOpenLoadDetailsTab('workspace');
+    setOpenLoadDetailsId(loadId);
+    setView("tracking");
   };
   const [trackingMapActive, setTrackingMapActive] = useState(false);
   const isTrackingMapActive =
@@ -6636,7 +6645,6 @@ export default function App() {
           icon: Users,
         },
         { id: "feed", label: t.homeFeed, icon: Boxes },
-        { id: "shipments", label: u("nav.shipments", "Shipments"), icon: PackageIcon },
         {
           id: "tracking",
           label: u("nav.globalTracking", "Global Tracking"),
@@ -6694,7 +6702,6 @@ export default function App() {
                   },
                 ]),
             { id: "feed", label: t.homeFeed, icon: Boxes },
-            { id: "shipments", label: u("nav.shipments", "Shipments"), icon: PackageIcon },
             {
               id: "docks",
               label: u("nav.myDocks", "My docks"),
@@ -6747,7 +6754,6 @@ export default function App() {
               ...(role === "driver" || role === "user"
                 ? [{ id: "feed", label: role === "user" ? u("nav.myOffers", "My offers") : t.homeFeed, icon: Boxes }]
                 : []),
-              { id: "shipments", label: u("nav.shipments", "Shipments"), icon: PackageIcon },
               {
                 id: "tracking",
                 label: u("nav.liveTracking", "Live tracking"),
@@ -7302,18 +7308,6 @@ export default function App() {
                 />
               )}
               {view === "notes" && <LoadNotesView lang={lang} />}
-              {view === "shipments" && (
-                <ShipmentWorkspacesView
-                  lang={lang}
-                  role={role}
-                  initialWorkspaceId={openShipmentWorkspaceId}
-                  onInitialWorkspaceHandled={() => setOpenShipmentWorkspaceId(null)}
-                  onOpenConversation={(conversationId) => {
-                    setOpenMessagesConversationId(conversationId);
-                    setView("messages");
-                  }}
-                />
-              )}
               {view === "messages" && (
                 <MessagesView
                   lang={lang}
@@ -7470,7 +7464,8 @@ export default function App() {
             role={role}
             userId={currentUser?.id}
             companyIds={trackingCompanyIds}
-            onClose={() => setOpenLoadDetailsId(null)}
+            initialTab={openLoadDetailsTab}
+            onClose={() => { setOpenLoadDetailsId(null); setOpenLoadDetailsTab('tracker'); }}
           />
         )}
         <PaymentModal
