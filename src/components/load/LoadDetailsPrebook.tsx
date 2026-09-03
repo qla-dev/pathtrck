@@ -134,6 +134,13 @@ const formatLoadDate = (value: string) => {
     : new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 };
 
+const escapeHtml = (value: string) => value
+  .replaceAll('&', '&amp;')
+  .replaceAll('<', '&lt;')
+  .replaceAll('>', '&gt;')
+  .replaceAll('"', '&quot;')
+  .replaceAll("'", '&#039;');
+
 const getCountryCode = (location: string) => {
   const countryCode = location.split(',').at(-1)?.trim().toUpperCase() || '';
   return /^[A-Z]{2}$/.test(countryCode) ? countryCode : '';
@@ -249,13 +256,13 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
   }, [open, load?.id]);
 
   useEffect(() => {
-    if (!open || !load || (role !== 'superadmin' && role !== 'driver' && !isCompanyOperationsRole(role))) return undefined;
+    if (!open || !load || (role !== 'superadmin' && role !== 'user' && role !== 'driver' && !isCompanyOperationsRole(role))) return undefined;
     let active = true;
     setOffersLoading(true);
     setActionMessage('');
     (async () => {
       try {
-        if (role === 'superadmin' || role === 'driver' || isCompanyOperationsRole(role)) {
+        if (role === 'superadmin' || role === 'user' || role === 'driver' || isCompanyOperationsRole(role)) {
           const offerResponse = await api.offers.list({ per_page: 100 });
           const loadOffers = offerResponse.data.filter((offer) => String(offer.load_id) === String(load.id));
           if (!active) return;
@@ -287,20 +294,20 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
   const approveOffer = async (offer: Record<string, unknown>) => {
     const offerDriverId = Number(offer.driver_user_id || 0);
     const driverId = offerDriverId || selectedDrivers[String(offer.id)];
-    if (!driverId) { setActionMessage('Select a driver before approving the offer.'); return; }
     const confirmed = await confirmAction({
-      title: 'Approve this offer?',
-      text: 'The offer will be accepted and the driver assigned.',
-      confirmText: 'Approve',
+      title: u('reservation.acceptTitle', 'Accept this reservation request?'),
+      text: u('reservation.acceptText', 'The selected carrier will be assigned and the booking will be confirmed.'),
+      confirmText: u('reservation.accept', 'Accept request'),
+      cancelText: u('common.cancel', 'Cancel'),
       icon: 'warning',
     });
     if (!confirmed) return;
     setActionMessage('Approving offer...');
     try {
-      await api.offers.approve(String(offer.id), offerDriverId ? undefined : driverId);
+      await api.offers.approve(String(offer.id), driverId || undefined);
       setOffers((current) => current.map((item) => ({ ...item, status: item.id === offer.id ? 'accepted' : item.status === 'pending' ? 'rejected' : item.status })));
-      setActionMessage('Offer approved and driver assigned.');
-      void showSuccess('Offer approved', 'The driver has been assigned to this load.');
+      setActionMessage(u('reservation.accepted', 'Reservation accepted and booking confirmed.'));
+      void showSuccess(u('reservation.acceptedTitle', 'Booking confirmed'), u('reservation.accepted', 'Reservation accepted and booking confirmed.'));
       onChanged?.();
     } catch (error) { setActionMessage(error instanceof Error ? error.message : 'Offer could not be approved.'); }
   };
@@ -348,13 +355,17 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
   const bookLoad = async (options?: { companyId?: number; driverUserId?: number }, confirmedInAssignmentModal = false) => {
     if (!load || isBooking) return;
     if (!confirmedInAssignmentModal) {
-      const assigningDriver = role === 'driver' || Boolean(options?.driverUserId);
+      const pickupWindow = [load.pickupWindowStart, load.pickupWindowEnd]
+        .filter(Boolean).map((value) => formatLoadDate(String(value))).join(' – ') || '—';
+      const deliveryWindow = [load.deliveryWindowStart, load.deliveryWindowEnd]
+        .filter(Boolean).map((value) => formatLoadDate(String(value))).join(' – ') || '—';
+      const equipment = load.bodyTypes?.join(', ') || load.truckType || '—';
+      const payment = load.paymentDueDays ? `${load.paymentDueDays} ${u('common.days', 'days')}` : load.paymentTerms;
       const confirmed = await confirmAction({
-        title: u('legacy.loadDetails.bookConfirmTitle', 'Book this load?'),
-        text: assigningDriver
-          ? u('legacy.loadDetails.bookConfirmText', 'You will be assigned as the driver for this load right away.')
-          : u('legacy.loadDetails.bookConfirmTextCompany', 'This load will be booked for your company. You can assign a driver from your team later.'),
-        confirmText: u('legacy.loadDetails.bookConfirm', 'Book now'),
+        title: u('reservation.requestTitle', 'Request booking'),
+        html: `<div style="text-align:left;line-height:1.75"><p>${escapeHtml(u('reservation.confirmIntro', 'By submitting this request, you confirm:'))}</p><ul style="margin:.5rem 0 0 1.25rem;list-style:disc"><li><strong>${escapeHtml(u('reservation.fixedPrice', 'Fixed price'))}:</strong> ${escapeHtml(load.price)}</li><li><strong>${escapeHtml(u('reservation.pickup', 'Pickup'))}:</strong> ${escapeHtml(pickupWindow)}</li><li><strong>${escapeHtml(u('reservation.delivery', 'Delivery'))}:</strong> ${escapeHtml(deliveryWindow)}</li><li><strong>${escapeHtml(u('reservation.equipment', 'Equipment'))}:</strong> ${escapeHtml(equipment)}</li><li><strong>${escapeHtml(u('reservation.payment', 'Payment'))}:</strong> ${escapeHtml(payment)}</li><li>${escapeHtml(u('reservation.available', 'Vehicle and driver are available'))}</li><li>${escapeHtml(u('reservation.requirements', 'Listed requirements are accepted'))}</li></ul></div>`,
+        confirmText: u('reservation.submit', 'Submit reservation request'),
+        cancelText: u('common.cancel', 'Cancel'),
       });
       if (!confirmed) return;
     }
@@ -362,8 +373,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
     setIsBooking(true);
     try {
       await api.loads.book(load.id, options);
-      setCurrentStatus('Sent');
-      void showSuccess(u('legacy.loadDetails.bookedTitle', 'Load booked'), u('legacy.loadDetails.bookedText', 'You have been assigned to this load.'));
+      void showSuccess(u('reservation.submittedTitle', 'Reservation request sent'), u('reservation.submittedText', 'The customer must approve it before the load is assigned.'));
       onChanged?.();
       requestClose();
     } catch (error) {
@@ -456,6 +466,12 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
   const offerCurrency = load.price.split(' ')[0] || 'EUR';
   const bidState = getBidState(offers, userId, load.budget);
   const myOffer = bidState.myOffer;
+  const myReservation = offers.find((offer) =>
+    offer.request_type === 'reservation_request'
+      && Number(offer.created_by_user_id) === Number(userId)
+      && offer.status === 'pending'
+  );
+  const reservationPending = Boolean(myReservation);
   const offerLabel = getOfferLabel(u, bidState, offerCurrency);
   const latestCounter = myOffer ? getLatestCounter(offers, String(myOffer.id), userId) : null;
 
@@ -477,13 +493,13 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
     }
   };
 
-  const bookLabel = u('legacy.loadDetails.bookNow', 'Book now');
-  const paymentTermsLabel = load.paymentTerms === 'Deferred' && load.paymentDueDays
-    ? `${load.paymentTerms} · ${load.paymentDueDays} days`
+  const bookLabel = u('reservation.requestAtPrice', `Request booking at ${load.price}`);
+  const paymentTermsLabel = load.paymentDueDays
+    ? `${load.paymentDueDays} ${u('common.days', 'days')}`
     : load.paymentTerms || '—';
   const actionPriceLabel = load.isNegotiable === true
     ? u('Highest offer', 'Highest offer')
-    : u('legacy.loadDetails.price', 'Price');
+    : u('reservation.fixedTargetPrice', 'Fixed target price');
   const actionPriceValue = load.isNegotiable === true && bidState.highestBidAmount != null
     ? `${offerCurrency} ${bidState.highestBidAmount.toLocaleString()}`
     : load.price;
@@ -494,7 +510,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
         <p className="mt-1 truncate text-base font-black text-primary">{actionPriceValue}</p>
       </div>
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-950/60">
-        <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-slate-500"><CalendarClock className="h-3.5 w-3.5 text-primary" />{u('legacy.loadDetails.terms', 'Terms')}</div>
+        <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-slate-500"><CalendarClock className="h-3.5 w-3.5 text-primary" />{u('reservation.payment', 'Payment')}</div>
         <p className="mt-1 truncate text-sm font-bold text-slate-800 dark:text-white">{paymentTermsLabel}</p>
       </div>
     </div>
@@ -559,7 +575,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
               </h2>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              {role === 'superadmin' && (
+              {(role === 'superadmin' || (role === 'user' && load.customerUserId === userId)) && (
                 <>
                   <button
                     type="button"
@@ -645,7 +661,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 md:p-5">
-            {role === 'superadmin' && bodyView === 'offers' ? (
+            {(role === 'superadmin' || (role === 'user' && load.customerUserId === userId)) && bodyView === 'offers' ? (
               <LoadOffersPanel
                 lang={lang}
                 load={load}
@@ -733,10 +749,10 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                         <div className="flex items-center gap-2">
                           <Button
                             className="h-11 flex-1 rounded-xl shadow-lg shadow-primary/20"
-                            disabled={isBooking || isSubmittingOffer}
+                            disabled={isBooking || isSubmittingOffer || (load.isNegotiable !== true && reservationPending)}
                             onClick={load.isNegotiable === true ? openBidModal : () => setAssignmentOpen(true)}
                           >
-                            {load.isNegotiable === true ? offerLabel : (isBooking ? u('legacy.loadDetails.booking', 'Booking…') : bookLabel)}
+                            {load.isNegotiable === true ? offerLabel : reservationPending ? u('reservation.pending', 'Pending customer approval') : (isBooking ? u('reservation.submitting', 'Submitting…') : bookLabel)}
                             {load.isNegotiable === true && !myOffer && <ChevronRight className="ml-1 h-4 w-4" />}
                           </Button>
                           {load.isNegotiable === true && latestCounter && (
@@ -759,13 +775,13 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                     {load.isNegotiable !== true ? (
                       <Button
                         className="h-11 w-full rounded-xl shadow-lg shadow-primary/20"
-                        disabled={isBooking || currentStatus !== 'Posted'}
+                        disabled={isBooking || currentStatus !== 'Posted' || reservationPending}
                         onClick={() => void bookLoad()}
                       >
                         {isBooking
                           ? u('legacy.loadDetails.booking', 'Booking…')
                           : currentStatus === 'Posted'
-                            ? bookLabel
+                            ? reservationPending ? u('reservation.pending', 'Pending customer approval') : bookLabel
                             : u('legacy.loadDetails.alreadyBooked', 'Already booked')}
                       </Button>
                     ) : (
@@ -994,7 +1010,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
           onConfirm={() => void bookLoad({
             companyId: role === 'superadmin' && bookingCompanyId ? Number(bookingCompanyId) : undefined,
             driverUserId: (role === 'superadmin' || assignDriverNow) && bookingDriverId ? Number(bookingDriverId) : undefined,
-          }, true)}
+          }, false)}
         />
       )}
 
@@ -1046,23 +1062,4 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
           open={routeMapOpen}
           lang={lang}
           pickup={{ label: pickupLabel, position: load.pickupPosition }}
-          delivery={{ label: deliveryLabel, position: load.deliveryPosition }}
-          onClose={() => setRouteMapOpen(false)}
-        />
-      )}
-
-      <CounterOfferReviewModal
-        open={Boolean(viewingCounter)}
-        lang={lang}
-        load={load}
-        originalOffer={myOffer}
-        counterOffer={viewingCounter}
-        loading={acceptingCounter}
-        onClose={() => setViewingCounter(null)}
-        onAccept={() => void acceptCounterOffer()}
-      />
-    </motion.div>
-    )}
-    </AnimatePresence>
-  );
-};
+          delivery={{ label: deliveryLabel, posi

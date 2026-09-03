@@ -114,6 +114,9 @@ export interface Load {
   isNegotiable?: boolean;
   budget?: number;
   offers?: Array<Record<string, unknown>>;
+  customerUserId?: number;
+  preDeliveryStatus?: 'published' | 'open_for_reservations' | 'reservation_selected' | 'booking_confirmed';
+  bookingStatus?: 'confirmed' | 'in_execution' | 'completed' | 'cancelled';
   bookingReference?: string;
   incoterms?: string;
   insurance?: string;
@@ -126,6 +129,7 @@ export interface Load {
   volume?: number;
   pallets?: number;
   truckType?: string;
+  bodyTypes?: string[];
   requiresAdr?: boolean;
   tollRoadsIncluded?: boolean;
   ferryIncluded?: boolean;

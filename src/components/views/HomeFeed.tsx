@@ -243,6 +243,7 @@ type HomeFeedProps = {
   exchangeMode?: 'transport' | 'storage';
   onExchangeModeChange?: (mode: 'transport' | 'storage') => void;
   storageOnly?: boolean;
+  ownerMode?: boolean;
   myBidsOnly?: boolean;
   onMyBidsOnlyChange?: (value: boolean) => void;
   onSortModeChange?: (mode: FeedSortMode) => void;
@@ -293,6 +294,7 @@ export const HomeFeed = ({
   exchangeMode = 'transport',
   onExchangeModeChange,
   storageOnly = false,
+  ownerMode = false,
   myBidsOnly = false,
   onMyBidsOnlyChange,
   onSortModeChange,
@@ -305,7 +307,9 @@ export const HomeFeed = ({
   const [isFilterBarOpen, setIsFilterBarOpen] = useState(true);
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const bookLoadLabel = u('common.bookLoad', 'Reserve');
-  const loadsTitle = exchangeMode === 'storage'
+  const loadsTitle = ownerMode
+    ? u('nav.myOffers', 'My offers')
+    : exchangeMode === 'storage'
     ? u('home.loadsTitle.storage', 'Warehouse Exchange')
     : u('home.loadsTitle.transport', 'Freight Exchange');
 
@@ -348,7 +352,7 @@ export const HomeFeed = ({
         title={loadsTitle}
         subtitle={`${sortedLoads.length} ${u('feed.filterBar.loadsLabel', 'loads')}`}
         actions={<div className="flex flex-wrap items-center justify-end gap-2">
-          <button
+          {!ownerMode && <button
             type="button"
             onClick={() => onMyBidsOnlyChange?.(!myBidsOnly)}
             className={cn(
@@ -360,7 +364,7 @@ export const HomeFeed = ({
           >
             <Gavel className="h-3.5 w-3.5" />
             {u('feed.filterBar.myBids', 'Moje ponude')}
-          </button>
+          </button>}
           {filterBar && (
             <button
               type="button"

@@ -5226,6 +5226,9 @@ const mapDatabaseRecordToLoad = (record: Record<string, unknown>): Load => {
     offers: Array.isArray(record.offers)
       ? (record.offers as Array<Record<string, unknown>>)
       : [],
+    customerUserId: record.customer_user_id == null ? undefined : Number(record.customer_user_id),
+    preDeliveryStatus: record.pre_delivery_status == null ? undefined : String(record.pre_delivery_status) as Load['preDeliveryStatus'],
+    bookingStatus: record.booking_status == null ? undefined : String(record.booking_status) as Load['bookingStatus'],
     bookingReference:
       record.booking_reference == null
         ? undefined
@@ -5251,6 +5254,7 @@ const mapDatabaseRecordToLoad = (record: Record<string, unknown>): Load => {
     pallets: record.pallets == null ? undefined : Number(record.pallets),
     truckType:
       record.vehicle_type == null ? undefined : String(record.vehicle_type),
+    bodyTypes: Array.isArray(record.body_types) ? record.body_types.map(String) : [],
     requiresAdr: Boolean(record.requires_adr),
     tollRoadsIncluded: Boolean(record.toll_roads_included),
     ferryIncluded: Boolean(record.ferry_included),
@@ -5686,6 +5690,7 @@ export default function App() {
         tracking_search: feedTrackingSearch || undefined,
         sort: feedSortMode,
         my_bids: feedMyBidsOnly || undefined,
+        owner_only: role === 'user' || undefined,
         budget_min:
           feedSelectedPriceMin > feedRangeBounds.priceMin
             ? feedSelectedPriceMin
@@ -6736,8 +6741,8 @@ export default function App() {
               },
             ]
           : [
-              ...(role === "driver"
-                ? [{ id: "feed", label: t.homeFeed, icon: Boxes }]
+              ...(role === "driver" || role === "user"
+                ? [{ id: "feed", label: role === "user" ? u("nav.myOffers", "My offers") : t.homeFeed, icon: Boxes }]
                 : []),
               {
                 id: "tracking",
@@ -7216,6 +7221,7 @@ export default function App() {
                   filterBarLoading={feedFilterBarLoading}
                   exchangeMode={effectiveExchangeMode}
                   storageOnly={warehouseExchangeOnly}
+                  ownerMode={role === 'user'}
                   onExchangeModeChange={(mode) => {
                     if (mode === effectiveExchangeMode) {
                       if (exchangeModeTransitionTimerRef.current !== null) {

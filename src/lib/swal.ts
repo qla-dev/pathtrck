@@ -3,19 +3,22 @@ import 'sweetalert2/dist/sweetalert2.min.css';
 
 type ConfirmActionOptions = {
   title: string;
-  text: string;
+  text?: string;
+  html?: string;
   confirmText: string;
+  cancelText?: string;
   icon?: 'question' | 'warning';
 };
 
-export const confirmAction = async ({ title, text, confirmText, icon = 'question' }: ConfirmActionOptions) => {
+export const confirmAction = async ({ title, text, html, confirmText, cancelText = 'Cancel', icon = 'question' }: ConfirmActionOptions) => {
   const result = await Swal.fire({
     title,
     text,
+    html,
     icon,
     showCancelButton: true,
     confirmButtonText: confirmText,
-    cancelButtonText: 'Cancel',
+    cancelButtonText: cancelText,
     reverseButtons: true,
     focusCancel: true,
     confirmButtonColor: '#00aee8',
