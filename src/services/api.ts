@@ -472,7 +472,7 @@ export const api = {
     trace: (hex: string) => request<AircraftTrace>(`/aircraft/${encodeURIComponent(hex)}/trace`),
   },
   vessels: {
-    list: (params: { south: number; west: number; north: number; east: number }) =>
+    list: (params: { south: number; west: number; north: number; east: number; search?: string }) =>
       request<LiveVessel[]>(`/vessels?${queryString(params)}`),
   },
   fuelStations: {

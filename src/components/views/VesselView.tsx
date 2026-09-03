@@ -62,6 +62,7 @@ export const VesselView = ({ lang }: { lang: Language }) => {
   const [selectedMmsi, setSelectedMmsi] = useState<string | null>(null);
   const [category, setCategory] = useState<VesselCategory>('all');
   const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [movingOnly, setMovingOnly] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -75,10 +76,14 @@ export const VesselView = ({ lang }: { lang: Language }) => {
   const load = useCallback(async () => {
     if (!viewport) return;
     const id = ++requestId.current; setLoading(true); setError('');
-    try { const response = await api.vessels.list(viewport); if (id === requestId.current) setVessels(response.data); }
+    try { const response = await api.vessels.list({ ...viewport, search: debouncedQuery || undefined }); if (id === requestId.current) setVessels(response.data); }
     catch (reason) { if (id === requestId.current) setError(reason instanceof Error ? reason.message : ui(lang, 'vessels.error', 'Live vessels could not be loaded.')); }
     finally { if (id === requestId.current) setLoading(false); }
-  }, [lang, viewport]);
+  }, [debouncedQuery, lang, viewport]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 400);
+    return () => window.clearTimeout(timer);
+  }, [query]);
   useEffect(() => { void load(); }, [load]);
   useEffect(() => { const timer = window.setInterval(() => void load(), 8000); return () => window.clearInterval(timer); }, [load]);
   useEffect(() => {
@@ -94,6 +99,12 @@ export const VesselView = ({ lang }: { lang: Language }) => {
     return !needle || `${vessel.name || ''} ${vessel.mmsi} ${vessel.callsign || ''} ${vessel.destination || ''}`.toLowerCase().includes(needle);
   }), [category, movingOnly, query, vessels]);
   const selected = vessels.find((vessel) => vessel.mmsi === selectedMmsi) || null;
+  useEffect(() => {
+    if (!debouncedQuery || vessels.length !== 1) return;
+    const [result] = vessels;
+    setSelectedMmsi(result.mmsi);
+    mapRef.current?.flyTo([result.lat, result.lon], LOCKED_ZOOM);
+  }, [debouncedQuery, vessels]);
   const locate = () => navigator.geolocation?.getCurrentPosition(({ coords }) => mapRef.current?.flyTo([coords.latitude, coords.longitude], LOCKED_ZOOM));
   const toggleFullscreen = async () => {
     if (document.fullscreenElement === containerRef.current) await document.exitFullscreen();
