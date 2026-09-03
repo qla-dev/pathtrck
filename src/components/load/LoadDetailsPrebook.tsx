@@ -253,6 +253,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
     setBookingCompanyId('');
     setAssignmentOpen(false);
     setBodyView('details');
+    setOffers(load?.offers ?? []);
   }, [open, load?.id]);
 
   useEffect(() => {
@@ -472,7 +473,8 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
   const offerCurrency = load.price.split(' ')[0] || 'EUR';
   const bidState = getBidState(offers, userId, load.budget);
   const myOffer = bidState.myOffer;
-  const myReservation = offers.find((offer) =>
+  const knownOffers = [...(load.offers ?? []), ...offers];
+  const myReservation = knownOffers.find((offer) =>
     offer.request_type === 'reservation_request'
       && Number(offer.created_by_user_id) === Number(userId)
       && offer.status === 'pending'
@@ -718,10 +720,14 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                         {bookingSummary}
                         <Button
                           className="h-11 w-full rounded-xl shadow-lg shadow-primary/20"
-                          disabled={isBooking}
+                          disabled={isBooking || reservationPending}
                           onClick={() => setAssignmentOpen(true)}
                         >
-                          {isBooking ? u('reservation.submitting', 'Submitting…') : bookLabel}
+                          {reservationPending
+                            ? u('reservation.pending', 'Waiting for customer confirmation')
+                            : isBooking
+                              ? u('reservation.submitting', 'Submitting…')
+                              : bookLabel}
                         </Button>
                       </div>
                     )}

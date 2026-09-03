@@ -334,8 +334,15 @@ export const LoadsTable = ({ lang, loads, userId, ownerMode = false, onOpenDetai
           {rows.map((load) => {
             const offerCurrency = load.price.split(' ')[0] || 'EUR';
             const bidState = getBidState(load.offers, userId, load.budget);
+            const reservationPending = load.isNegotiable === false && Boolean(load.offers?.some((offer) =>
+              offer.request_type === 'reservation_request'
+                && offer.status === 'pending'
+                && Number(offer.created_by_user_id) === Number(userId)
+            ));
             const hasBudget = Boolean(load.budget && load.budget > 0);
-            const actionLabel = ownerMode
+            const actionLabel = reservationPending
+              ? u('reservation.pending', 'Waiting for customer confirmation')
+              : ownerMode
               ? u('offers.view', 'View offers')
               : load.isNegotiable === false
               ? (hasBudget ? `${u('reservation.requestShort', 'Request reservation')} · ${load.price}` : u('reservation.requestShort', 'Request reservation'))
