@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   AlertTriangle,
   Ban,
+  CalendarDays,
   CalendarClock,
   CheckCircle2,
   Clock,
@@ -36,6 +37,16 @@ type DriverOption = {
 
 const optionLabel = (options: Array<{ value: string; label: string }>, value: unknown): string =>
   options.find((option) => option.value === value)?.label || String(value || '—');
+
+const formatOfferDateTime = (value: unknown, lang: Language): string => {
+  const date = new Date(String(value || ''));
+  if (Number.isNaN(date.getTime())) return '—';
+
+  return new Intl.DateTimeFormat(lang || 'en', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
+};
 
 const StatChip = ({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) => (
   <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-900">
@@ -143,12 +154,16 @@ export const LoadOffersPanel = ({
             const status = String(offer.status || 'pending').toLowerCase();
             const accepted = status === 'accepted';
             const rejected = status === 'rejected';
-            const decided = accepted || rejected;
+            const decided = ['accepted', 'rejected', 'withdrawn', 'expired', 'cancelled'].includes(status);
+            const isReservation = offer.request_type === 'reservation_request';
             const isCounter = Boolean(offer.is_counter);
             const hasExceptions = Boolean(offer.has_exceptions);
             const canPerform = offer.can_perform_as_required !== false;
             const includedCharges = Array.isArray(offer.included_charges) ? (offer.included_charges as string[]) : [];
             const excludedCharges = Array.isArray(offer.excluded_charges) ? (offer.excluded_charges as string[]) : [];
+            const statusLabel = isReservation && status === 'pending'
+              ? u('reservation.pending', 'Pending customer approval')
+              : u(`reservation.status.${status}`, status);
 
             return (
               <article key={offerId} className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-950/40 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-stretch">
@@ -157,7 +172,8 @@ export const LoadOffersPanel = ({
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="truncate text-lg font-black text-slate-900 dark:text-white">{company?.name || creator?.name || u('Independent offer', 'Independent offer')}</p>
-                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${accepted ? 'bg-emerald-500/10 text-emerald-600' : rejected ? 'bg-red-500/10 text-red-600' : 'bg-amber-500/10 text-amber-600'}`}>{status}</span>
+                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${accepted ? 'bg-emerald-500/10 text-emerald-600' : rejected ? 'bg-red-500/10 text-red-600' : 'bg-amber-500/10 text-amber-600'}`}>{statusLabel}</span>
+                        {isReservation && <span className="shrink-0 rounded-full bg-sky-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-sky-600">{u('reservation.request', 'Reservation request')}</span>}
                         {isCounter && (
                           <span className="flex shrink-0 items-center gap-1 rounded-full bg-violet-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-violet-600">
                             <Repeat className="h-3 w-3" />{u('Counter offer', 'Counter offer')}
@@ -170,7 +186,8 @@ export const LoadOffersPanel = ({
                     <p className="shrink-0 text-2xl font-black text-primary">{String(offer.currency || 'EUR')} {Number(offer.amount || 0).toLocaleString()}</p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 dark:border-slate-800 sm:grid-cols-3 xl:grid-cols-6">
+                  <div className="grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 dark:border-slate-800 sm:grid-cols-3 xl:grid-cols-7">
+                    <StatChip icon={CalendarDays} label={u('offer.submittedAt', 'Submitted')} value={formatOfferDateTime(offer.created_at, lang)} />
                     <StatChip icon={CreditCard} label={u('Payment', 'Payment')} value={optionLabel(PAYMENT_TERMS_OPTIONS, offer.payment_terms)} />
                     <StatChip icon={Clock} label={u('Valid until', 'Valid until')} value={formatShortDate(offer.valid_until)} />
                     <StatChip icon={Truck} label={u('Equipment', 'Equipment')} value={offer.equipment_type ? String(offer.equipment_type) : '—'} />
@@ -205,6 +222,10 @@ export const LoadOffersPanel = ({
                       <span className="mb-1 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-slate-500"><UserCheck className="h-3.5 w-3.5 text-primary" />{u('Driver', 'Driver')}</span>
                       <span className="text-sm font-bold text-slate-800 dark:text-white">{driver.name || `Driver #${driver.id}`}</span>
                     </div>
+                  ) : isReservation ? (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
+                      {u('reservation.driverLater', 'The company can assign a driver after approval.')}
+                    </div>
                   ) : (
                     <label className="block">
                       <span className="mb-1.5 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-slate-500"><UserCheck className="h-3.5 w-3.5 text-primary" />{u('Driver', 'Driver')}</span>
@@ -237,7 +258,7 @@ export const LoadOffersPanel = ({
                     </button>
                   </div>
 
-                  {!decided && (
+                  {!decided && !isReservation && (
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
@@ -258,7 +279,7 @@ export const LoadOffersPanel = ({
 
                   <div className="mt-auto flex items-center gap-2">
                     <Button className="h-11 flex-1 shadow-lg shadow-primary/20" disabled={decided} onClick={() => onApprove(offer)}>
-                      {accepted ? <><CheckCircle2 className="mr-2 h-4 w-4" />{u('Approved', 'Approved')}</> : u('Approve', 'Approve')}
+                      {accepted ? <><CheckCircle2 className="mr-2 h-4 w-4" />{u('Approved', 'Approved')}</> : isReservation ? u('reservation.accept', 'Accept request') : u('Approve', 'Approve')}
                     </Button>
                     {!accepted && (
                       <Button variant="outline" className="h-11 flex-1 border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900/50" disabled={decided} onClick={() => onReject(offer)}>

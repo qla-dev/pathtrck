@@ -462,6 +462,12 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
   const cargoValueLabel = load.cargoValue ? `${loadCurrency} ${load.cargoValue.toLocaleString()}` : '—';
   const pickupCountryCode = getCountryCode(load.pickup);
   const deliveryCountryCode = getCountryCode(load.delivery);
+  const preDeliveryLabel = load.preDeliveryStatus
+    ? u(`load.preDelivery.${load.preDeliveryStatus}`, load.preDeliveryStatus.replaceAll('_', ' ').replace(/^./, (letter) => letter.toUpperCase()))
+    : null;
+  const bookingStatusLabel = load.bookingStatus
+    ? u(`booking.status.${load.bookingStatus}`, load.bookingStatus.replaceAll('_', ' ').replace(/^./, (letter) => letter.toUpperCase()))
+    : null;
 
   const offerCurrency = load.price.split(' ')[0] || 'EUR';
   const bidState = getBidState(offers, userId, load.budget);
@@ -493,7 +499,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
     }
   };
 
-  const bookLabel = u('reservation.requestAtPrice', `Request booking at ${load.price}`);
+  const bookLabel = `${u('reservation.requestPrefix', 'Request booking at')} ${load.price}`;
   const paymentTermsLabel = load.paymentDueDays
     ? `${load.paymentDueDays} ${u('common.days', 'days')}`
     : load.paymentTerms || '—';
@@ -714,7 +720,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                           disabled={isBooking}
                           onClick={() => setAssignmentOpen(true)}
                         >
-                          {isBooking ? u('legacy.loadDetails.booking', 'Booking…') : u('legacy.loadDetails.bookAndDedicate', 'Book & dedicate')}
+                          {isBooking ? u('reservation.submitting', 'Submitting…') : bookLabel}
                         </Button>
                       </div>
                     )}
@@ -887,7 +893,8 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                   </div>
 
                   <div className="relative mt-2.5 flex flex-wrap items-center gap-1.5">
-                    <span className={cn('rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider', getStatusTone(currentStatus))}>{currentStatus}</span>
+                    <span className={cn('rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider', getStatusTone(currentStatus))}>{preDeliveryLabel || currentStatus}</span>
+                    {bookingStatusLabel && <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-sky-600">{bookingStatusLabel}</span>}
                     <span className={cn('rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider', getGoodsTone(load.goodsType))}>{load.goodsType}</span>
                     <span className={cn('rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider', getPaymentTone(load.paymentTerms))}>{paymentTermsLabel}</span>
                   </div>
