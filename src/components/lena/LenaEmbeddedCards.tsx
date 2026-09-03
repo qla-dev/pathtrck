@@ -60,7 +60,7 @@ export const LenaLoadStatusCard = ({ lang, load }: { lang: Language; load: Recor
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const rawStatus = String(load.status || 'pending').toLowerCase();
   const statusMap: Record<string, string> = {
-    posted: 'Posted', opened: 'Opened', sent: 'Sent', in_delivery: 'In delivery', received: 'Received', finished: 'Finished', pending: 'Pending', cancelled: 'Cancelled',
+    posted: 'Posted', booked: 'Booked', opened: 'Opened', sent: 'Sent', in_delivery: 'In delivery', received: 'Received', finished: 'Finished', pending: 'Pending', cancelled: 'Cancelled',
   };
   const status = trLoadStatus(lang, statusMap[rawStatus] || rawStatus);
   const active = ['posted', 'opened', 'sent', 'in_delivery'].includes(rawStatus);

@@ -137,6 +137,7 @@ import { PricingView } from "./components/views/PricingView";
 import { UsageView } from "./components/views/UsageView";
 import { PaymentHistoryView } from "./components/views/PaymentHistoryView";
 import { TariffsHsView } from "./components/views/TariffsHsView";
+import { ShipmentWorkspacesView } from "./components/views/ShipmentWorkspacesView";
 import { PaymentModal } from "./components/modals/PaymentModal";
 import { BrandWordmark, FreightbookMark } from "./components/ui/BrandWordmark";
 import { PACKAGE_ICONS, PricingPlanCard } from "./components/pricing/PricingPlanCard";
@@ -5086,6 +5087,7 @@ const mapDatabaseRecordToLoad = (record: Record<string, unknown>): Load => {
   const rawStatus = String(record.status || "pending").toLowerCase();
   const statusMap: Record<string, Load["status"]> = {
     posted: "Posted",
+    booked: "Booked",
     opened: "Opened",
     sent: "Sent",
     in_delivery: "In delivery",
@@ -5319,6 +5321,11 @@ export default function App() {
   const [driverVerified, setDriverVerified] = useState<boolean | null>(null);
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [view, setView] = useState("tracking");
+  const [openShipmentWorkspaceId, setOpenShipmentWorkspaceId] = useState<number | null>(null);
+  const openShipmentWorkspace = (workspaceId: number) => {
+    setOpenShipmentWorkspaceId(workspaceId);
+    setView("shipments");
+  };
   const [trackingMapActive, setTrackingMapActive] = useState(false);
   const isTrackingMapActive =
     (view === "tracking" || view === "history") && trackingMapActive;
@@ -6629,6 +6636,7 @@ export default function App() {
           icon: Users,
         },
         { id: "feed", label: t.homeFeed, icon: Boxes },
+        { id: "shipments", label: u("nav.shipments", "Shipments"), icon: PackageIcon },
         {
           id: "tracking",
           label: u("nav.globalTracking", "Global Tracking"),
@@ -6686,6 +6694,7 @@ export default function App() {
                   },
                 ]),
             { id: "feed", label: t.homeFeed, icon: Boxes },
+            { id: "shipments", label: u("nav.shipments", "Shipments"), icon: PackageIcon },
             {
               id: "docks",
               label: u("nav.myDocks", "My docks"),
@@ -6738,6 +6747,7 @@ export default function App() {
               ...(role === "driver" || role === "user"
                 ? [{ id: "feed", label: role === "user" ? u("nav.myOffers", "My offers") : t.homeFeed, icon: Boxes }]
                 : []),
+              { id: "shipments", label: u("nav.shipments", "Shipments"), icon: PackageIcon },
               {
                 id: "tracking",
                 label: u("nav.liveTracking", "Live tracking"),
@@ -7288,9 +7298,22 @@ export default function App() {
                   onLoadChanged={() =>
                     setLoadRefreshKey((current) => current + 1)
                   }
+                  onWorkspaceCreated={openShipmentWorkspace}
                 />
               )}
               {view === "notes" && <LoadNotesView lang={lang} />}
+              {view === "shipments" && (
+                <ShipmentWorkspacesView
+                  lang={lang}
+                  role={role}
+                  initialWorkspaceId={openShipmentWorkspaceId}
+                  onInitialWorkspaceHandled={() => setOpenShipmentWorkspaceId(null)}
+                  onOpenConversation={(conversationId) => {
+                    setOpenMessagesConversationId(conversationId);
+                    setView("messages");
+                  }}
+                />
+              )}
               {view === "messages" && (
                 <MessagesView
                   lang={lang}
@@ -7473,6 +7496,7 @@ export default function App() {
             setIsPostLoadOpen(true);
           }}
           onChanged={() => setLoadRefreshKey((current) => current + 1)}
+          onWorkspaceCreated={openShipmentWorkspace}
           onClose={() => setBookingLoad(null)}
         />
         <LenaAI

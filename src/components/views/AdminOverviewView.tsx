@@ -42,7 +42,7 @@ const age = (value: unknown) => {
 const rowDate = (row: Record<string, unknown>) => new Date(String(row.occurred_at || row.completed_at || row.created_at || row.updated_at || 0));
 const statusTone = (status: string) => status.includes('cancel') ? '#f43f4f' : status.includes('finish') || status.includes('deliver') || status.includes('receive') ? '#57b976' : status.includes('post') || status.includes('pending') ? '#f49a36' : '#2d84e9';
 const canonicalStatus = (status: string) => ({
-  posted: 'Posted', opened: 'Opened', sent: 'Sent', in_delivery: 'In delivery',
+  posted: 'Posted', booked: 'Booked', opened: 'Opened', sent: 'Sent', in_delivery: 'In delivery',
   received: 'Received', finished: 'Finished', pending: 'Pending', cancelled: 'Cancelled',
 } as Record<string, string>)[status.toLowerCase()] || status.replaceAll('_', ' ');
 

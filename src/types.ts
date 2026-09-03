@@ -59,7 +59,7 @@ export type ShipmentDetail = {
   input?: ShipmentDetailInput;
 };
 
-export type LoadStatus = 'Posted' | 'Opened' | 'Sent' | 'In delivery' | 'Received' | 'Finished' | 'Pending' | 'Cancelled';
+export type LoadStatus = 'Posted' | 'Booked' | 'Opened' | 'Sent' | 'In delivery' | 'Received' | 'Finished' | 'Pending' | 'Cancelled';
 
 export interface Load {
   id: string;
@@ -115,19 +115,7 @@ export interface Load {
   budget?: number;
   offers?: Array<Record<string, unknown>>;
   customerUserId?: number;
-  preDeliveryStatus?:
-    | 'published'
-    | 'open_for_reservations'
-    | 'reservation_selected'
-    | 'booking_confirmed'
-    | 'in_execution'
-    | 'completed'
-    | 'cancelled'
-    | 'expired'
-    | 'pending_customer_approval'
-    | 'accepted'
-    | 'rejected'
-    | 'withdrawn';
+  preDeliveryStatus?: 'published' | 'open_for_reservations' | 'reservation_selected' | 'booking_confirmed';
   bookingStatus?: 'confirmed' | 'in_execution' | 'completed' | 'cancelled';
   bookingReference?: string;
   incoterms?: string;

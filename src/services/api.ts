@@ -569,10 +569,6 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     }),
-    updatePreDeliveryStatus: (id: number | string, preDeliveryStatus: string) => request<Record<string, unknown>>(`/loads/${id}/status`, {
-      method: 'PATCH',
-      body: JSON.stringify({ pre_delivery_status: preDeliveryStatus }),
-    }),
     book: (id: number | string, options?: { companyId?: number; driverUserId?: number }) => request<Record<string, unknown>>(`/loads/${id}/book`, {
       method: 'POST',
       body: JSON.stringify({ company_id: options?.companyId, driver_user_id: options?.driverUserId }),
@@ -632,6 +628,13 @@ export const api = {
     }),
   },
   shipments: resourceApi<Record<string, unknown>>('shipments'),
+  shipmentWorkspaces: {
+    ...resourceApi<Record<string, unknown>>('shipment-workspaces'),
+    update: (id: number | string, data: Record<string, unknown>) => request<Record<string, unknown>>(`/shipment-workspaces/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  },
   shipmentInvoice: (shipmentId: number | string, document: 'predracun' | 'a4-faktura') =>
     openDocument(`/shipments/${shipmentId}/invoice/${document}`),
   loadInvoice: (loadId: number | string, document: 'predracun' | 'a4-faktura') =>

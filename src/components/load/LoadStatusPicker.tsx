@@ -6,12 +6,12 @@ import { cn } from '../../lib/cn';
 import { Language, LoadStatus } from '../../types';
 
 export const LOAD_STATUS_OPTIONS: Array<[string, LoadStatus]> = [
-  ['posted', 'Posted'], ['opened', 'Opened'], ['sent', 'Sent'], ['in_delivery', 'In delivery'],
+  ['posted', 'Posted'], ['booked', 'Booked'], ['opened', 'Opened'], ['sent', 'Sent'], ['in_delivery', 'In delivery'],
   ['received', 'Received'], ['finished', 'Finished'], ['pending', 'Pending'], ['cancelled', 'Cancelled'],
 ];
 
 const STATUS_ICONS: Record<LoadStatus, typeof Clock3> = {
-  Posted: Megaphone, Opened: Eye, Sent: Send, 'In delivery': Truck,
+  Posted: Megaphone, Booked: PackageCheck, Opened: Eye, Sent: Send, 'In delivery': Truck,
   Received: PackageCheck, Finished: CircleCheckBig, Pending: Clock3, Cancelled: CircleX,
 };
 
@@ -24,6 +24,7 @@ const statusPickerColors = (status: LoadStatus) => {
   switch (status) {
     case 'Opened': return 'border-cyan-400 bg-cyan-50 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-300';
     case 'Sent': return 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300';
+    case 'Booked': return 'border-emerald-400 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300';
     case 'In delivery': return 'border-amber-400 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300';
     case 'Received': return 'border-violet-500 bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300';
     case 'Finished': return 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300';
