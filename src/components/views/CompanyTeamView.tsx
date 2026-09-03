@@ -14,14 +14,14 @@ import { confirmAction, showSuccess } from '../../lib/swal';
 import { IconSelect, type IconSelectOption } from '../ui/IconSelect';
 import { ui } from '../../i18n';
 
-type CompanyRole = 'Company Owner' | 'Manager' | 'Dispatcher' | 'Customs Officer' | 'Driver' | 'Finance';
+type CompanyRole = 'Company Owner' | 'Manager' | 'Dispatcher' | 'Customs Agent' | 'Driver' | 'Finance';
 type Member = { id: string; databaseId: number; name: string; email: string; role: CompanyRole; isOwner: boolean; status: 'Active' | 'Invited'; source: 'membership' | 'invitation' };
 
 const ROLE_PERMISSIONS: Record<CompanyRole, string[]> = {
   'Company Owner': ['Own the company workspace', 'Manage all company data', 'Manage team roles', 'View finance'],
   Manager: ['Manage fleet sharing', 'Invite and remove users', 'Assign all roles', 'View all company data'],
   Dispatcher: ['Assign loads and vehicles', 'Message drivers', 'View live fleet', 'Update route status'],
-  'Customs Officer': ['Assign loads and vehicles', 'Message drivers', 'View live fleet', 'Update route status'],
+  'Customs Agent': ['Assign loads and vehicles', 'Message drivers', 'View live fleet', 'Update route status'],
   Driver: ['View assigned loads', 'Update delivery status', 'Add route notes', 'Message dispatch'],
   Finance: ['View invoices and payouts', 'Export finance records', 'Approve payouts', 'No fleet editing'],
 };
@@ -30,7 +30,7 @@ const ROLE_OPTIONS: IconSelectOption[] = [
   { value: 'Company Owner', label: 'Company Owner', icon: Crown },
   { value: 'Manager', label: 'Manager', icon: Users },
   { value: 'Dispatcher', label: 'Dispatcher', icon: Radio },
-  { value: 'Customs Officer', label: 'Customs Officer', icon: FileCheck2 },
+  { value: 'Customs Agent', label: 'Customs Agent', icon: FileCheck2 },
   { value: 'Finance', label: 'Finance', icon: Banknote },
   { value: 'Driver', label: 'Driver', icon: Truck },
 ];
@@ -39,7 +39,7 @@ const ROLE_VISUALS: Record<CompanyRole, { icon: LucideIcon; tone: string; shell:
   'Company Owner': { icon: Crown, tone: 'bg-amber-500/15 text-amber-600 dark:text-amber-300', shell: 'border-amber-200/80 bg-gradient-to-br from-amber-50 to-white dark:border-amber-900/50 dark:from-amber-950/30 dark:to-slate-900' },
   Manager: { icon: Users, tone: 'bg-violet-500/15 text-violet-600 dark:text-violet-300', shell: 'border-violet-200/80 bg-gradient-to-br from-violet-50 to-white dark:border-violet-900/50 dark:from-violet-950/30 dark:to-slate-900' },
   Dispatcher: { icon: Radio, tone: 'bg-sky-500/15 text-sky-600 dark:text-sky-300', shell: 'border-sky-200/80 bg-gradient-to-br from-sky-50 to-white dark:border-sky-900/50 dark:from-sky-950/30 dark:to-slate-900' },
-  'Customs Officer': { icon: FileCheck2, tone: 'bg-teal-500/15 text-teal-600 dark:text-teal-300', shell: 'border-teal-200/80 bg-gradient-to-br from-teal-50 to-white dark:border-teal-900/50 dark:from-teal-950/30 dark:to-slate-900' },
+  'Customs Agent': { icon: FileCheck2, tone: 'bg-teal-500/15 text-teal-600 dark:text-teal-300', shell: 'border-teal-200/80 bg-gradient-to-br from-teal-50 to-white dark:border-teal-900/50 dark:from-teal-950/30 dark:to-slate-900' },
   Finance: { icon: Banknote, tone: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300', shell: 'border-emerald-200/80 bg-gradient-to-br from-emerald-50 to-white dark:border-emerald-900/50 dark:from-emerald-950/30 dark:to-slate-900' },
   Driver: { icon: Truck, tone: 'bg-orange-500/15 text-orange-600 dark:text-orange-300', shell: 'border-orange-200/80 bg-gradient-to-br from-orange-50 to-white dark:border-orange-900/50 dark:from-orange-950/30 dark:to-slate-900' },
 };
@@ -47,8 +47,9 @@ const ROLE_VISUALS: Record<CompanyRole, { icon: LucideIcon; tone: string; shell:
 export const CompanyTeamView = ({ lang }: { lang: Language }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const carrierLabel = u('common.carrier', 'Carrier');
-  const displayRole = (role: CompanyRole) => role === 'Driver' ? carrierLabel : role;
-  const roleOptions = useMemo(() => ROLE_OPTIONS.map((option) => option.value === 'Driver' ? { ...option, label: carrierLabel } : option), [carrierLabel]);
+  const customsAgentLabel = u('login.customsOfficer', 'Customs Agent');
+  const displayRole = (role: CompanyRole) => role === 'Driver' ? carrierLabel : role === 'Customs Agent' ? customsAgentLabel : role;
+  const roleOptions = useMemo(() => ROLE_OPTIONS.map((option) => option.value === 'Driver' ? { ...option, label: carrierLabel } : option.value === 'Customs Agent' ? { ...option, label: customsAgentLabel } : option), [carrierLabel, customsAgentLabel]);
   const assignableRoleOptions = useMemo(() => roleOptions.filter((option) => option.value !== 'Company Owner'), [roleOptions]);
   const memberships = useApiList(api.companyMemberships.list, { per_page: 100 });
   const invitations = useApiList(api.companyInvitations.list, { per_page: 100 });
@@ -56,7 +57,7 @@ export const CompanyTeamView = ({ lang }: { lang: Language }) => {
   const [user, setUser] = useState<ApiUser | null>(null);
   useEffect(() => { void api.auth.me().then(setUser); }, []);
   const companyId = Number((user?.companies?.[0] as Record<string, unknown> | undefined)?.id || 0);
-  const roleLabel = (value: unknown, isOwner = false): CompanyRole => { const role = String(value || '').toLowerCase(); return isOwner ? 'Company Owner' : role === 'manager' || role === 'company' ? 'Manager' : role === 'dispatcher' ? 'Dispatcher' : role === 'customs_officer' ? 'Customs Officer' : role === 'finance' ? 'Finance' : 'Driver'; };
+  const roleLabel = (value: unknown, isOwner = false): CompanyRole => { const role = String(value || '').toLowerCase(); return isOwner ? 'Company Owner' : role === 'manager' || role === 'company' ? 'Manager' : role === 'dispatcher' ? 'Dispatcher' : role === 'customs_officer' ? 'Customs Agent' : role === 'finance' ? 'Finance' : 'Driver'; };
   const members = useMemo<Member[]>(() => [
     ...memberships.items.filter((row) => !companyId || Number(row.company_id) === companyId).map((row) => { const member = (row.user || {}) as Record<string, unknown>; const memberRole = (member.role || {}) as Record<string, unknown>; const company = (row.company || {}) as Record<string, unknown>; const isOwner = Number(company.owner_user_id) === Number(member.id); return { id: `m-${row.id}`, databaseId: Number(row.id), name: String(member.name || '—'), email: String(member.email || ''), role: roleLabel(memberRole.name, isOwner), isOwner, status: 'Active' as const, source: 'membership' as const }; }),
     ...invitations.items.filter((row) => (!companyId || Number(row.company_id) === companyId) && String(row.status).toLowerCase() === 'pending').map((row) => ({ id: `i-${row.id}`, databaseId: Number(row.id), name: String(row.email || '').split('@')[0], email: String(row.email || ''), role: roleLabel(((row.role || {}) as Record<string, unknown>).name), isOwner: false, status: 'Invited' as const, source: 'invitation' as const })),
@@ -97,7 +98,7 @@ export const CompanyTeamView = ({ lang }: { lang: Language }) => {
     if (!/^\S+@\S+\.\S+$/.test(trimmed)) { setMessage('Enter a valid email address.'); return; }
     if (!companyId || !user) { setMessage('No company is connected to this account.'); return; }
     if (members.some((member) => member.email.toLowerCase() === trimmed.toLowerCase())) { setMessage('This person is already part of the company.'); return; }
-    const globalRoleName = role === 'Customs Officer' ? 'customs_officer' : role.toLowerCase();
+    const globalRoleName = role === 'Customs Agent' ? 'customs_officer' : role.toLowerCase();
     const selectedRole = roles.items.find((item) => item.name === globalRoleName);
     if (!selectedRole) { setMessage('Selected role is unavailable.'); return; }
     const confirmed = await confirmAction({ title: 'Invite this team member?', text: `${trimmed} will be invited as ${displayRole(role)}.`, confirmText: 'Send invite' });
@@ -115,7 +116,7 @@ export const CompanyTeamView = ({ lang }: { lang: Language }) => {
 
   const updateMemberRole = async (member: Member, nextRole: string) => {
     if (member.source !== 'membership' || member.isOwner) return;
-    const selectedName = nextRole === 'Customs Officer' ? 'customs_officer' : nextRole.toLowerCase();
+    const selectedName = nextRole === 'Customs Agent' ? 'customs_officer' : nextRole.toLowerCase();
     const selectedRole = roles.items.find((item) => item.name === selectedName);
     if (!selectedRole) return;
     await api.companyMemberships.update(member.databaseId, { role_id: Number(selectedRole.id) });

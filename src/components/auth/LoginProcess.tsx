@@ -58,7 +58,7 @@ export const LoginProcess = ({ lang, labels, onComplete, onClose, onGetStarted }
     { key: 'customer', role: 'user', username: 'customer_demo', label: u('common.customer', 'Customer'), icon: User, dividerBefore: true },
     { key: 'driver', role: 'driver', username: 'driver_demo', label: u('login.driverRole', 'Driver'), icon: Truck },
     { key: 'dispatcher', role: 'dispatcher', username: 'dispatcher_demo', label: u('login.dispatcher', 'Dispatcher'), icon: Radio },
-    { key: 'customs-officer', role: 'customs_officer', username: 'customs_officer_demo', label: u('login.customsOfficer', 'Customs Officer'), icon: FileCheck2 },
+    { key: 'customs-officer', role: 'customs_officer', username: 'customs_officer_demo', label: u('login.customsOfficer', 'Customs Agent'), icon: FileCheck2 },
     { key: 'finance', role: 'finance', username: 'finance_demo', label: u('login.financeAdministration', 'Finance & Administration'), icon: Banknote },
   ];
   const [loginData, setLoginData] = useState({

@@ -6042,7 +6042,7 @@ export default function App() {
           }
       : role === "customs_officer"
         ? {
-            label: u("login.customsOfficer", "Customs Officer"),
+            label: u("login.customsOfficer", "Customs Agent"),
             status: u("common.active", "Active"),
             icon: ShieldCheck,
             tone: "bg-teal-500/10 text-teal-600 dark:text-teal-400",
