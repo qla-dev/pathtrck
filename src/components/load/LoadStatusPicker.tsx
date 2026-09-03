@@ -65,7 +65,7 @@ export const LoadStatusPicker = ({ lang, status, isChanging = false, onChange, c
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-busy={isChanging}
-        aria-label={`${trPackageStatus(lang, status)} status`}
+        aria-label={`${actionLabels?.[status] || trPackageStatus(lang, status)} status`}
         className={cn(
           compact
             ? 'flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border transition-colors disabled:cursor-wait disabled:opacity-60'
@@ -81,7 +81,7 @@ export const LoadStatusPicker = ({ lang, status, isChanging = false, onChange, c
             <span className="flex min-w-0 flex-1 items-center gap-2">
               <span className="flex items-center gap-2 text-xs font-bold leading-none">
                 {isChanging ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LoadStatusIcon status={status} />}
-                {trPackageStatus(lang, status)}
+                {actionLabels?.[status] || trPackageStatus(lang, status)}
               </span>
             </span>
           </>

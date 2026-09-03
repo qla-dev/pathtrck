@@ -115,7 +115,19 @@ export interface Load {
   budget?: number;
   offers?: Array<Record<string, unknown>>;
   customerUserId?: number;
-  preDeliveryStatus?: 'published' | 'open_for_reservations' | 'reservation_selected' | 'booking_confirmed';
+  preDeliveryStatus?:
+    | 'published'
+    | 'open_for_reservations'
+    | 'reservation_selected'
+    | 'booking_confirmed'
+    | 'in_execution'
+    | 'completed'
+    | 'cancelled'
+    | 'expired'
+    | 'pending_customer_approval'
+    | 'accepted'
+    | 'rejected'
+    | 'withdrawn';
   bookingStatus?: 'confirmed' | 'in_execution' | 'completed' | 'cancelled';
   bookingReference?: string;
   incoterms?: string;

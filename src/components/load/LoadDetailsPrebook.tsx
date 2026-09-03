@@ -75,6 +75,27 @@ type LoadDetailsPrebookProps = {
 };
 
 type UiFn = (key: string, fallback: string) => string;
+type PreDeliveryStatus = NonNullable<Load['preDeliveryStatus']>;
+
+const NEGOTIABLE_PRE_DELIVERY_STATUSES: PreDeliveryStatus[] = [
+  'published',
+  'open_for_reservations',
+  'reservation_selected',
+  'booking_confirmed',
+  'in_execution',
+  'completed',
+  'cancelled',
+  'expired',
+];
+
+const FIXED_PRE_DELIVERY_STATUSES: PreDeliveryStatus[] = [
+  'pending_customer_approval',
+  'accepted',
+  'rejected',
+  'withdrawn',
+  'expired',
+  'cancelled',
+];
 
 const getGoodsNote = (goodsType: string, u: UiFn) => {
   if (goodsType === 'Flammable') {
@@ -208,6 +229,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
   const [routeMapOpen, setRouteMapOpen] = useState(false);
   const [actionMessage, setActionMessage] = useState('');
   const [currentStatus, setCurrentStatus] = useState<Load['status']>(load?.status || 'Pending');
+  const [currentPreDeliveryStatus, setCurrentPreDeliveryStatus] = useState<PreDeliveryStatus | undefined>(load?.preDeliveryStatus);
   const [statusChanging, setStatusChanging] = useState(false);
   const [isBooking, setIsBooking] = useState(false);
   const [showOfferForm, setShowOfferForm] = useState(false);
@@ -235,8 +257,11 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
   }, [open, load?.id]);
 
   useEffect(() => {
-    if (open && load) setCurrentStatus(load.status);
-  }, [open, load?.id, load?.status]);
+    if (open && load) {
+      setCurrentStatus(load.status);
+      setCurrentPreDeliveryStatus(load.preDeliveryStatus);
+    }
+  }, [open, load?.id, load?.status, load?.preDeliveryStatus]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -344,6 +369,31 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
       onChanged?.();
     } catch (error) {
       setActionMessage(error instanceof Error ? error.message : 'Status could not be changed.');
+    } finally {
+      setStatusChanging(false);
+    }
+  };
+
+  const changePreDeliveryStatus = async (nextStatus: PreDeliveryStatus) => {
+    if (!load || statusChanging || nextStatus === currentPreDeliveryStatus) return;
+    const label = u(`load.preDelivery.${nextStatus}`, nextStatus.replaceAll('_', ' '));
+    const confirmed = await confirmAction({
+      title: `${u('load.substatus.changeTitle', 'Change substatus to')} ${label}?`,
+      text: u('load.substatus.changeText', 'The pre-delivery substatus will be saved immediately.'),
+      confirmText: u('load.substatus.change', 'Change substatus'),
+      cancelText: u('common.cancel', 'Cancel'),
+    });
+    if (!confirmed) return;
+
+    setStatusChanging(true);
+    try {
+      await api.loads.updatePreDeliveryStatus(load.id, nextStatus);
+      setCurrentPreDeliveryStatus(nextStatus);
+      setActionMessage(`${u('load.substatus.changed', 'Substatus changed to')} ${label}.`);
+      void showSuccess(u('load.substatus.changedTitle', 'Substatus changed'), label);
+      onChanged?.();
+    } catch (error) {
+      setActionMessage(error instanceof Error ? error.message : u('load.substatus.changeFailed', 'Substatus could not be changed.'));
     } finally {
       setStatusChanging(false);
     }
@@ -459,12 +509,18 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
   const cargoValueLabel = load.cargoValue ? `${loadCurrency} ${load.cargoValue.toLocaleString()}` : '—';
   const pickupCountryCode = getCountryCode(load.pickup);
   const deliveryCountryCode = getCountryCode(load.delivery);
-  const preDeliveryLabel = load.preDeliveryStatus
-    ? u(`load.preDelivery.${load.preDeliveryStatus}`, load.preDeliveryStatus.replaceAll('_', ' ').replace(/^./, (letter) => letter.toUpperCase()))
+  const preDeliveryLabel = currentPreDeliveryStatus
+    ? u(`load.preDelivery.${currentPreDeliveryStatus}`, currentPreDeliveryStatus.replaceAll('_', ' ').replace(/^./, (letter) => letter.toUpperCase()))
     : null;
   const bookingStatusLabel = load.bookingStatus
     ? u(`booking.status.${load.bookingStatus}`, load.bookingStatus.replaceAll('_', ' ').replace(/^./, (letter) => letter.toUpperCase()))
     : null;
+  const preDeliveryStatusOptions = load.isNegotiable === false
+    ? FIXED_PRE_DELIVERY_STATUSES
+    : NEGOTIABLE_PRE_DELIVERY_STATUSES;
+  const selectedPreDeliveryStatus: PreDeliveryStatus | '' = currentPreDeliveryStatus && preDeliveryStatusOptions.includes(currentPreDeliveryStatus)
+    ? currentPreDeliveryStatus
+    : '';
 
   const offerCurrency = load.price.split(' ')[0] || 'EUR';
   const bidState = getBidState(offers, userId, load.budget);
@@ -641,6 +697,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                     isChanging={statusChanging}
                     onChange={(status) => void changeStatus(status)}
                     availableStatuses={['Posted', 'Opened', 'Sent', 'In delivery', 'Pending', 'Cancelled']}
+                    actionLabels={{ Posted: u('load.main.preDelivery', 'Pre-delivery status') }}
                     className="hidden w-44 lg:block [&_button]:h-10"
                   />
                   <LoadStatusPicker
@@ -650,8 +707,29 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                     isChanging={statusChanging}
                     onChange={(status) => void changeStatus(status)}
                     availableStatuses={['Posted', 'Opened', 'Sent', 'In delivery', 'Pending', 'Cancelled']}
+                    actionLabels={{ Posted: u('load.main.preDelivery', 'Pre-delivery status') }}
                     className="lg:hidden"
                   />
+                  {currentStatus === 'Posted' && (
+                    <label className="hidden h-10 w-64 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 lg:flex">
+                      <span className="shrink-0 text-[10px] font-black uppercase tracking-wider opacity-65">
+                        {u('load.substatus', 'Substatus')}
+                      </span>
+                      <select
+                        value={selectedPreDeliveryStatus}
+                        disabled={statusChanging}
+                        onChange={(event) => void changePreDeliveryStatus(event.target.value as PreDeliveryStatus)}
+                        className="min-w-0 flex-1 cursor-pointer bg-transparent text-xs font-bold outline-none disabled:cursor-wait disabled:opacity-60 dark:[color-scheme:dark]"
+                      >
+                        <option value="" disabled>{u('load.substatus.select', 'Select substatus')}</option>
+                        {preDeliveryStatusOptions.map((status) => (
+                          <option key={status} value={status}>
+                            {u(`load.preDelivery.${status}`, status.replaceAll('_', ' '))}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
                 </>
               )}
               <button
