@@ -526,7 +526,7 @@ export const WarehouseOverviewView = ({
         </Card>
 
         <Card className={cn('shadow-none', facilities.length > 1 ? 'xl:col-span-6' : 'xl:col-span-9')} contentClassName="p-4">
-          {panelTitle(ArrowDownToLine, u('warehouseView.dockSchedule', 'Raspored dokova - danas'))}
+          {panelTitle(ArrowDownToLine, u('warehouseView.latestDockMovements', 'Latest dock movements'))}
           <div className="mt-2 overflow-x-auto">
             <DataTable className="min-w-[480px] text-xs">
               <thead>
@@ -542,14 +542,17 @@ export const WarehouseOverviewView = ({
               <tbody>
                 {dockSchedule.length === 0 && (
                   <tr>
-                    <td colSpan={showFacilityColumn ? 6 : 5} className="py-4 text-center text-slate-500">{u('warehouseView.noMovementsToday', 'Nema zakazanih kretanja danas.')}</td>
+                    <td colSpan={showFacilityColumn ? 6 : 5} className="py-4 text-center text-slate-500">{u('warehouseView.noDockMovements', 'No dock movements recorded yet.')}</td>
                   </tr>
                 )}
                 {dockSchedule.map((row) => {
                   const isInbound = row.direction === 'inbound';
                   return (
                     <tr key={String(row.id)} className="border-t border-slate-100 dark:border-slate-800">
-                      <td className="py-1.5 pr-3 font-semibold text-slate-700 dark:text-slate-300">{formatTime(row.scheduled_at)}</td>
+                      <td className="py-1.5 pr-3 text-slate-700 dark:text-slate-300">
+                        <span className="block font-semibold">{formatTime(row.scheduled_at)}</span>
+                        <span className="block text-[10px] text-slate-400">{formatDate(row.scheduled_at)}</span>
+                      </td>
                       {showFacilityColumn && <td className="py-1.5 pr-3 text-slate-500">{String(row.warehouse_name || '—')}</td>}
                       <td className="py-1.5 pr-3">
                         <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold', isInbound ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-violet-500/10 text-violet-600 dark:text-violet-400')}>
