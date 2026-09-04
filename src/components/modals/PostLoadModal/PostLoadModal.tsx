@@ -697,12 +697,17 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
 
   const isAiField = (key: keyof ScanFieldPatch) => aiFilledPatch[key] !== undefined;
 
+  // A storage request's Route step shows no pickup, so an AI-filled pickup field must not be
+  // counted there - the badge would promise fields the step has nowhere to show.
+  const countsAsAiField = (key: keyof ScanFieldPatch) =>
+    isAiField(key) && !(draft.transportType === 'warehouse' && String(key).startsWith('pickup'));
+
   const aiFieldCountByStep = useMemo(() => Object.fromEntries(
     (Object.keys(STEP_AI_FIELDS) as StepId[]).map((id) => [
       id,
-      STEP_AI_FIELDS[id].filter((key) => isAiField(key)).length,
+      STEP_AI_FIELDS[id].filter((key) => countsAsAiField(key)).length,
     ])
-  ) as Record<StepId, number>, [aiFilledPatch]);
+  ) as Record<StepId, number>, [aiFilledPatch, draft.transportType]);
 
   const reprefillField = async <K extends keyof ScanFieldPatch & keyof LoadDraft>(key: K) => {
     const aiValue = aiFilledPatch[key];
