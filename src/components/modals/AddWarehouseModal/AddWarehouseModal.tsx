@@ -222,8 +222,9 @@ export const AddWarehouseModal = ({
       temperatureZones: current.temperatureZones.map((zone) => (zone.id === id ? { ...zone, ...patch } : zone)),
     }));
 
-  const capacityPallets = Number(draft.totalCapacityPallets.replace(/[^0-9]/g, '')) || 0;
-  const thresholdPallets = (percent: string) => Math.round((capacityPallets * (Number(percent) || 0)) / 100);
+  const capacityNumber = (value: string) => Number(value.replace(/[^0-9.-]/g, '')) || 0;
+  const thresholdValue = (capacity: string, percent: string) =>
+    Math.round((capacityNumber(capacity) * (Number(percent) || 0)) / 100);
 
   const submit = async () => {
     const missing = [...missingOn('general'), ...missingOn('capacity'), ...missingOn('operations')];
@@ -414,19 +415,27 @@ export const AddWarehouseModal = ({
           <p className="mb-2 mt-4 text-[11px] font-semibold text-slate-500">{u('addWarehouse.utilizationThresholds', 'Utilization Thresholds')}</p>
           <div className="grid gap-2 sm:grid-cols-3">
             {[
-              { key: 'thresholdWarning' as const, label: u('addWarehouse.warning', 'Warning'), dot: 'bg-emerald-500' },
-              { key: 'thresholdHigh' as const, label: u('addWarehouse.high', 'High'), dot: 'bg-amber-500' },
-              { key: 'thresholdCritical' as const, label: u('addWarehouse.critical', 'Critical'), dot: 'bg-rose-500' },
-            ].map((row) => (
-              <div key={row.key} className="rounded-xl border border-slate-200 p-2.5 dark:border-slate-800">
-                <span className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-                  <span className={cn('h-2 w-2 rounded-full', row.dot)} />
-                  {row.label} ({draft[row.key]}%)
-                </span>
-                <div className="flex items-center gap-2">
-                  <TextField value={String(thresholdPallets(draft[row.key]))} readOnly className="h-9" />
-                  <span className="shrink-0 text-[11px] text-slate-400">{u('addWarehouse.pallets', 'pallets')}</span>
-                </div>
+              { capacity: draft.totalCapacityPallets, unit: u('addWarehouse.pallets', 'pallets') },
+              { capacity: draft.totalCapacityCbm, unit: 'CBM' },
+              { capacity: draft.storageAreaSqm, unit: 'm²' },
+            ].map((group) => (
+              <div key={group.unit} className="space-y-2">
+                  {[
+                    { key: 'thresholdWarning' as const, label: u('addWarehouse.warning', 'Warning'), dot: 'bg-emerald-500' },
+                    { key: 'thresholdHigh' as const, label: u('addWarehouse.high', 'High'), dot: 'bg-amber-500' },
+                    { key: 'thresholdCritical' as const, label: u('addWarehouse.critical', 'Critical'), dot: 'bg-rose-500' },
+                  ].map((row) => (
+                    <div key={row.key} className="rounded-xl border border-slate-200 p-2.5 dark:border-slate-800">
+                      <span className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                        <span className={cn('h-2 w-2 rounded-full', row.dot)} />
+                        {row.label} ({draft[row.key]}%)
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <TextField value={String(thresholdValue(group.capacity, draft[row.key]))} readOnly className="h-9" />
+                        <span className="w-12 shrink-0 text-[11px] text-slate-400">{group.unit}</span>
+                      </div>
+                    </div>
+                  ))}
               </div>
             ))}
           </div>
@@ -867,7 +876,7 @@ export const AddWarehouseModal = ({
         {reviewRow(u('addWarehouse.preferredContactMethod', 'Preferred Contact Method'), draft.preferredContactMethod)}
       </SectionCard>
       <SectionCard icon={Boxes} title={u('addWarehouse.warehouseCapacity', 'Warehouse Capacity')}>
-        {reviewRow(u('addWarehouse.totalCapacityPallets', 'Total Capacity (Pallets)'), String(capacityPallets))}
+        {reviewRow(u('addWarehouse.totalCapacityPallets', 'Total Capacity (Pallets)'), String(capacityNumber(draft.totalCapacityPallets)))}
         {reviewRow(u('addWarehouse.totalCapacityCbm', 'Total Capacity (CBM)'), draft.totalCapacityCbm)}
         {reviewRow(u('addWarehouse.storageAreaSqm', 'Storage Area (m²)'), draft.storageAreaSqm)}
         {reviewRow(u('addWarehouse.storageType', 'Storage Type'), draft.storageType)}
