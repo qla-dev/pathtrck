@@ -5,6 +5,7 @@ import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from '
 
 import { ui } from '../../i18n';
 import { cn } from '../../lib/cn';
+import { api, type TariffCategory } from '../../services/api';
 import {
   getPlaceCoord,
 } from '../../lib/loadGeo';
@@ -306,6 +307,7 @@ export const HomeFeed = ({
   const [layout, setLayout] = useState<FeedLayoutMode>('table');
   const [mapSource, setMapSource] = useState<MapSource>('normal');
   const [selectedLoad, setSelectedLoad] = useState<Load | null>(null);
+  const [tariffCategories, setTariffCategories] = useState<TariffCategory[]>([]);
   const [isFilterBarOpen, setIsFilterBarOpen] = useState(true);
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const bookLoadLabel = u('common.bookLoad', 'Reserve');
@@ -318,6 +320,19 @@ export const HomeFeed = ({
   /* Filtering and ordering are deliberately performed by GET /loads. The exchange renders the
      server result verbatim so pagination/counts cannot disagree with locally filtered data. */
   const sortedLoads = loads;
+
+  useEffect(() => {
+    if (exchangeMode !== 'transport') {
+      setTariffCategories([]);
+      return;
+    }
+
+    let active = true;
+    api.tariffs.categories(lang)
+      .then((response) => { if (active) setTariffCategories(response.data); })
+      .catch(() => { if (active) setTariffCategories([]); });
+    return () => { active = false; };
+  }, [exchangeMode, lang]);
 
   const loadsMapData = useMemo<LoadMapData[]>(
     () =>
@@ -466,6 +481,7 @@ export const HomeFeed = ({
               key={load.id}
               layout="list"
               load={load}
+              tariffCategories={tariffCategories}
               lang={lang}
               userId={userId}
               ownerMode={ownerMode}
@@ -483,6 +499,7 @@ export const HomeFeed = ({
               key={load.id}
               layout="grid"
               load={load}
+              tariffCategories={tariffCategories}
               lang={lang}
               userId={userId}
               ownerMode={ownerMode}
@@ -494,7 +511,7 @@ export const HomeFeed = ({
       )}
 
       {!loading && sortedLoads.length > 0 && layout === 'table' && (
-        <LoadsTable lang={lang} loads={sortedLoads} userId={userId} ownerMode={ownerMode} onOpenDetails={setSelectedLoad} />
+        <LoadsTable lang={lang} loads={sortedLoads} userId={userId} ownerMode={ownerMode} tariffCategories={tariffCategories} onOpenDetails={setSelectedLoad} />
       )}
 
       {!loading && sortedLoads.length > 0 && layout === 'map' && (
@@ -505,6 +522,7 @@ export const HomeFeed = ({
                 key={load.id}
                 layout="map"
                 load={load}
+                tariffCategories={tariffCategories}
                 lang={lang}
                 userId={userId}
                 ownerMode={ownerMode}

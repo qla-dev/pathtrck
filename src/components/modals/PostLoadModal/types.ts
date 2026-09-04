@@ -141,11 +141,15 @@ export type LoadDraft = {
   hsCodes: HsCodeMatch[];
   customsDocuments: CustomsDocument[];
   weightKg: string;
+  weightUnit: 't' | 'kg';
   pallets: string;
   quantityMeasure: string;
   lengthM: string;
+  lengthUnit: 'm' | 'cm' | 'mm';
   widthM: string;
+  widthUnit: 'm' | 'cm' | 'mm';
   heightM: string;
+  heightUnit: 'm' | 'cm' | 'mm';
   volumeM3: string;
   declaredValue: string;
   additionalInfo: string;
@@ -276,11 +280,15 @@ export const INITIAL_DRAFT: LoadDraft = {
   hsCodes: [],
   customsDocuments: [],
   weightKg: '',
+  weightUnit: 't',
   pallets: '',
   quantityMeasure: '',
   lengthM: '',
+  lengthUnit: 'm',
   widthM: '',
+  widthUnit: 'm',
   heightM: '',
+  heightUnit: 'm',
   volumeM3: '',
   declaredValue: '',
   additionalInfo: '',

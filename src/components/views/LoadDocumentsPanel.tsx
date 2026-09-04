@@ -21,6 +21,7 @@ export type LoadOption = { id: string; label: string; customsDocuments?: Customs
 export type DocumentRow = {
   id: string;
   name: string;
+  comment: string;
   type: string;
   loadId: string;
   /** Set instead of loadId while the paperwork belongs to a load that is still a draft. */
@@ -54,18 +55,21 @@ export const DocumentUploadCard = ({
   onUploaded,
   defaultType = '',
   lockType = false,
+  vehicleId,
 }: {
   lang: Language;
   attachTo: string;
   onUploaded: () => Promise<void>;
   defaultType?: string;
   lockType?: boolean;
+  vehicleId?: string | number | null;
 }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const [documentType, setDocumentType] = useState<string>(defaultType);
+  const [comment, setComment] = useState('');
   const [pending, setPending] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -101,11 +105,14 @@ export const DocumentUploadCard = ({
       await api.documents.upload({
         file: pending,
         loadId: attachTo === ARCHIVE ? null : attachTo,
+        vehicleId,
         type: documentType || 'OTHER',
+        comment: comment.trim() || null,
       });
       await onUploaded();
       setPending(null);
       setDocumentType(defaultType);
+      setComment('');
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : u('documents.uploadFailed', 'The document could not be uploaded.'));
     } finally {
@@ -175,6 +182,19 @@ export const DocumentUploadCard = ({
                 />}
             </div>
 
+            <div>
+              <label htmlFor="document-upload-comment" className={labelClass}>{u('documents.comment', 'Comment')}</label>
+              <textarea
+                id="document-upload-comment"
+                value={comment}
+                onChange={(event) => setComment(event.target.value)}
+                maxLength={2000}
+                rows={3}
+                placeholder={u('documents.commentPlaceholder', 'Optional note about this invoice or document...')}
+                className="min-h-20 w-full resize-y rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-[13px] text-slate-700 outline-none transition-colors placeholder:text-slate-400 focus:border-primary dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+              />
+            </div>
+
             {uploadError && <p className="text-[11px] font-semibold text-rose-600">{uploadError}</p>}
 
             <button
@@ -231,6 +251,7 @@ export const LoadDocumentsPanel = ({
       const matchesQuery =
         !needle ||
         document.name.toLowerCase().includes(needle) ||
+        document.comment.toLowerCase().includes(needle) ||
         documentTypeLabel(lang, document.type).toLowerCase().includes(needle) ||
         loadLabel.toLowerCase().includes(needle);
       const matchesLoad =
@@ -289,10 +310,15 @@ export const LoadDocumentsPanel = ({
               {filteredDocuments.map((document) => (
                 <tr key={document.id} className="border-b border-slate-50 last:border-b-0 dark:border-slate-800/60">
                   <td className="py-1.5 pr-3">
-                    <span className="flex min-w-0 items-center gap-1.5">
+                    <span className="flex min-w-0 items-start gap-1.5">
                       <FileText className="h-3.5 w-3.5 shrink-0 text-rose-500" />
-                      <span className="truncate font-semibold text-slate-800 dark:text-white">{document.name}</span>
-                      <span className="shrink-0 text-[10px] text-slate-400">{formatDocumentSize(document.size)}</span>
+                      <span className="min-w-0">
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <span className="truncate font-semibold text-slate-800 dark:text-white">{document.name}</span>
+                          <span className="shrink-0 text-[10px] text-slate-400">{formatDocumentSize(document.size)}</span>
+                        </span>
+                        {document.comment && <span className="mt-0.5 block max-w-sm whitespace-pre-wrap text-[11px] text-slate-500 dark:text-slate-400">{document.comment}</span>}
+                      </span>
                     </span>
                   </td>
                   <td className="py-1.5 pr-3">

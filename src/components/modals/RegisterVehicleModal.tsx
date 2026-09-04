@@ -1,18 +1,20 @@
 import { Fragment, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
-import { Boxes, Bus, Caravan, CheckCircle2, ClipboardList, FileText, Gauge, Layers, Plane, Ship, Truck, Upload, X } from 'lucide-react';
+import { ArrowUpFromLine, BadgeDollarSign, Boxes, Building2, Bus, CalendarClock, Caravan, CarFront, CheckCircle2, CircleEllipsis, CirclePause, ClipboardList, FileText, Fuel, Gauge, KeyRound, Landmark, Layers, Network, PackageOpen, Plane, Ship, Truck, Upload, Wrench, X } from 'lucide-react';
 import { Language } from '../../types';
-import { ui } from '../../i18n';
+import { trFuelType, trVehicleStatus, ui } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { confirmAction, showError, showSuccess } from '../../lib/swal';
 import { api, ApiError } from '../../services/api';
 import { Button } from '../ui/Button';
+import { IconSelect } from '../ui/IconSelect';
 import { ChoiceCard } from './PostLoadModal/ChoiceCard';
 import { FieldLabel } from './PostLoadModal/FieldLabel';
-import { Input, Select } from './PostLoadModal/FormFields';
+import { Input } from './PostLoadModal/FormFields';
 
 type TransportType = 'truck' | 'van' | 'aircraft' | 'ship';
+type VehicleOwnership = 'owned' | 'financed' | 'leasing' | 'rented' | 'other';
 
 // Trucks and vans are both road vehicles, so they share the tail lift, the ATP rule and the whole
 // road document set — only trailers stay truck-only.
@@ -26,6 +28,11 @@ type VehicleDocumentType =
   | 'TECHNICAL_INSPECTION'
   | 'ATP_CERTIFICATE'
   | 'ADR_CERTIFICATE'
+  | 'OWNERSHIP_CERTIFICATE'
+  | 'FINANCING_AGREEMENT'
+  | 'LEASING_AGREEMENT'
+  | 'RENTAL_AGREEMENT'
+  | 'OTHER_OWNERSHIP_DOCUMENT'
   | 'OTHER_PERMIT';
 
 type PendingVehicleDocuments = Partial<Record<VehicleDocumentType, File[]>>;
@@ -53,6 +60,42 @@ type AddVehicleDraft = {
   trailer2BodyType: string;
   tailLift: string;
   nextService: string;
+  ownershipType: VehicleOwnership;
+};
+
+const OWNERSHIP_DOCUMENT_TYPES: Record<VehicleOwnership, VehicleDocumentType> = {
+  owned: 'OWNERSHIP_CERTIFICATE',
+  financed: 'FINANCING_AGREEMENT',
+  leasing: 'LEASING_AGREEMENT',
+  rented: 'RENTAL_AGREEMENT',
+  other: 'OTHER_OWNERSHIP_DOCUMENT',
+};
+
+const BRAND_LOGO_SLUGS: Record<string, string> = {
+  Volvo: 'volvo',
+  Scania: 'scania',
+  MAN: 'man',
+  DAF: 'daf',
+  Iveco: 'iveco',
+  Volkswagen: 'volkswagen',
+  Ford: 'ford',
+  Renault: 'renault',
+  Fiat: 'fiat',
+  Boeing: 'boeing',
+  Airbus: 'airbus',
+  Hyundai: 'hyundai',
+  Samsung: 'samsung',
+};
+
+const BRAND_LOGO_OVERRIDES: Record<string, string> = {
+  'Mercedes-Benz': 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Mercedes-Benz_free_logo.svg',
+  Maersk: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/A.P.-M%C3%B8ller-M%C3%A6rsk-Logo.svg',
+};
+
+const brandLogoUrl = (brand: string): string | undefined => {
+  if (BRAND_LOGO_OVERRIDES[brand]) return BRAND_LOGO_OVERRIDES[brand];
+  const slug = BRAND_LOGO_SLUGS[brand];
+  return slug ? `https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/${slug}.svg` : undefined;
 };
 
 const FLEET_REGISTRY = {
@@ -167,6 +210,7 @@ const buildDraft = (transportType: TransportType): AddVehicleDraft => {
     trailer2BodyType: 'Box trailer',
     tailLift: isRoadVehicle(transportType) ? 'No' : 'N/A',
     nextService: '',
+    ownershipType: 'owned',
   };
 };
 
@@ -222,6 +266,9 @@ const buildDraftFromVehicle = (vehicle: Record<string, unknown>): AddVehicleDraf
     trailer2BodyType: String(features.trailer2_body_type || base.trailer2BodyType),
     tailLift: features.tail_lift ? 'Yes' : 'No',
     nextService: String(features.next_service || ''),
+    ownershipType: (['owned', 'financed', 'leasing', 'rented', 'other'].includes(String(vehicle.ownership_type))
+      ? String(vehicle.ownership_type)
+      : 'owned') as VehicleOwnership,
   };
 };
 
@@ -272,6 +319,32 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
 
   const setDraftField = <K extends keyof AddVehicleDraft>(key: K, value: AddVehicleDraft[K]) => {
     setDraft((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const ownershipOptions = [
+    { value: 'owned', label: u('fleet.ownership.owned', 'Owned vehicle'), icon: KeyRound },
+    { value: 'financed', label: u('fleet.ownership.financed', 'Financed / credit'), icon: BadgeDollarSign },
+    { value: 'leasing', label: u('fleet.ownership.leasing', 'Leasing'), icon: Landmark },
+    { value: 'rented', label: u('fleet.ownership.rented', 'Rent / hire'), icon: CalendarClock },
+    { value: 'other', label: u('fleet.ownership.other', 'Other'), icon: CircleEllipsis },
+  ];
+  const ownershipDocumentType = OWNERSHIP_DOCUMENT_TYPES[draft.ownershipType];
+  const ownershipDocumentLabel = {
+    owned: u('fleet.document.ownershipCertificate', 'Proof of ownership'),
+    financed: u('fleet.document.financingAgreement', 'Financing agreement'),
+    leasing: u('fleet.document.leasingAgreement', 'Leasing agreement'),
+    rented: u('fleet.document.rentalAgreement', 'Rental agreement'),
+    other: u('fleet.document.otherOwnership', 'Other ownership document'),
+  }[draft.ownershipType];
+
+  const handleOwnershipChange = (value: string) => {
+    const ownershipType = value as VehicleOwnership;
+    setDraftField('ownershipType', ownershipType);
+    setPendingDocuments((current) => {
+      const next = { ...current };
+      Object.values(OWNERSHIP_DOCUMENT_TYPES).forEach((type) => delete next[type]);
+      return next;
+    });
   };
 
   const handleTransportTypeChange = (transportType: TransportType) => {
@@ -338,6 +411,7 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
         vehicle_type: draft.category, make: draft.make, model: displayModel, status: draft.status.toLowerCase(),
         capacity_kg: Number.parseFloat(draft.capacity.replace(/[^0-9.]/g, '')) * 1000 || null,
         capacity_m3: Number.parseFloat(draft.volume.replace(/[^0-9.]/g, '')) || null,
+        ownership_type: draft.ownershipType,
         features: { vehicle_class: draft.transportType, system_name: draft.systemName, body_type: draft.bodyType, configuration: draft.configuration, fuel_type: draft.fuelType, trailer: trailerLabel, trailer_system_name: draft.trailerSystemName || null, trailer2_system_name: trailerCount > 1 ? draft.trailer2SystemName : null, trailer2_plate: trailerCount > 1 ? draft.trailer2Plate : null, trailer2_body_type: trailerCount > 1 ? draft.trailer2BodyType : null, tail_lift: draft.tailLift === 'Yes', next_service: draft.nextService || null, adr_applicable: adrApplicable },
         owner_user_id: ownerUserId,
         assigned_driver_user_id: assignedDriverUserId,
@@ -528,24 +602,39 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
                         <div className="grid gap-3 sm:grid-cols-2">
                           <div className="space-y-1">
                             <FieldLabel>{u('fleet.make', 'Brand / make')}</FieldLabel>
-                            <Select
+                            <IconSelect
                               value={draft.make}
-                              onChange={(e) => {
-                                const nextMake = e.target.value;
+                              onChange={(nextMake) => {
                                 const nextModels = registry.makes[nextMake as keyof typeof registry.makes];
                                 setDraft((prev) => ({ ...prev, make: nextMake, model: nextModels[0], customModel: '' }));
                               }}
-                            >
-                              {!makeOptions.includes(draft.make) && <option value={draft.make}>{draft.make}</option>}
-                              {makeOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-                            </Select>
+                              options={[
+                                ...(!makeOptions.includes(draft.make) ? [{ value: draft.make, label: draft.make, icon: Building2, logoUrl: brandLogoUrl(draft.make) }] : []),
+                                ...makeOptions.map((option) => ({ value: option, label: option, icon: Building2, logoUrl: brandLogoUrl(option) })),
+                              ]}
+                              placeholder={u('fleet.make', 'Brand / make')}
+                              ariaLabel={u('fleet.make', 'Brand / make')}
+                              icon={Building2}
+                              searchable
+                              searchPlaceholder={u('fleet.searchBrands', 'Search brands...')}
+                              noResults={u('fleet.noBrands', 'No brands found.')}
+                              className="w-full [&_button]:h-10 [&_button]:rounded-xl [&_button]:text-sm"
+                            />
                           </div>
                           <div className="space-y-1">
                             <FieldLabel>{u('fleet.model', 'Model')}</FieldLabel>
-                            <Select value={draft.model} onChange={(e) => setDraftField('model', e.target.value)}>
-                              {modelOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-                              <option value="Other">{u('fleet.other', 'Other')}</option>
-                            </Select>
+                            <IconSelect
+                              value={draft.model}
+                              onChange={(value) => setDraftField('model', value)}
+                              options={[
+                                ...modelOptions.map((option) => ({ value: option, label: option, icon: CarFront, logoUrl: brandLogoUrl(draft.make) })),
+                                { value: 'Other', label: u('fleet.other', 'Other'), icon: CircleEllipsis },
+                              ]}
+                              placeholder={u('fleet.model', 'Model')}
+                              ariaLabel={u('fleet.model', 'Model')}
+                              icon={CarFront}
+                              className="w-full [&_button]:h-10 [&_button]:rounded-xl [&_button]:text-sm"
+                            />
                           </div>
                         </div>
                         {draft.model === 'Other' && (
@@ -576,17 +665,33 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
                           </div>
                           <div className="space-y-1">
                             <FieldLabel>{u('fleet.configuration', 'Configuration')}</FieldLabel>
-                            <Select value={draft.configuration} onChange={(e) => setDraftField('configuration', e.target.value)}>
-                              {!(registry.specs.configurations as readonly string[]).includes(draft.configuration) && <option value={draft.configuration}>{draft.configuration}</option>}
-                              {registry.specs.configurations.map((option) => <option key={option} value={option}>{option}</option>)}
-                            </Select>
+                            <IconSelect
+                              value={draft.configuration}
+                              onChange={(value) => setDraftField('configuration', value)}
+                              options={[
+                                ...(!(registry.specs.configurations as readonly string[]).includes(draft.configuration) ? [{ value: draft.configuration, label: draft.configuration, icon: Network }] : []),
+                                ...registry.specs.configurations.map((option) => ({ value: option, label: option, icon: Network })),
+                              ]}
+                              placeholder={u('fleet.configuration', 'Configuration')}
+                              ariaLabel={u('fleet.configuration', 'Configuration')}
+                              icon={Network}
+                              className="w-full [&_button]:h-10 [&_button]:rounded-xl [&_button]:text-sm"
+                            />
                           </div>
                           <div className="space-y-1">
                             <FieldLabel>{u('fleet.fuelType', 'Fuel type')}</FieldLabel>
-                            <Select value={draft.fuelType} onChange={(e) => setDraftField('fuelType', e.target.value)}>
-                              {!(registry.specs.fuelTypes as readonly string[]).includes(draft.fuelType) && <option value={draft.fuelType}>{draft.fuelType}</option>}
-                              {registry.specs.fuelTypes.map((option) => <option key={option} value={option}>{option}</option>)}
-                            </Select>
+                            <IconSelect
+                              value={draft.fuelType}
+                              onChange={(value) => setDraftField('fuelType', value)}
+                              options={[
+                                ...(!(registry.specs.fuelTypes as readonly string[]).includes(draft.fuelType) ? [{ value: draft.fuelType, label: trFuelType(lang, draft.fuelType), icon: Fuel }] : []),
+                                ...registry.specs.fuelTypes.map((option) => ({ value: option, label: trFuelType(lang, option), icon: Fuel })),
+                              ]}
+                              placeholder={u('fleet.fuelType', 'Fuel type')}
+                              ariaLabel={u('fleet.fuelType', 'Fuel type')}
+                              icon={Fuel}
+                              className="w-full [&_button]:h-10 [&_button]:rounded-xl [&_button]:text-sm"
+                            />
                           </div>
                         </div>
                       </div>
@@ -616,11 +721,19 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
                           </div>
                           <div className="space-y-1">
                             <FieldLabel>{u('fleet.status', 'Status')}</FieldLabel>
-                            <Select value={draft.status} onChange={(e) => setDraftField('status', e.target.value as AddVehicleDraft['status'])}>
-                              <option value="Active">Active</option>
-                              <option value="Maintenance">Maintenance</option>
-                              <option value="Idle">Idle</option>
-                            </Select>
+                            <IconSelect
+                              value={draft.status}
+                              onChange={(value) => setDraftField('status', value as AddVehicleDraft['status'])}
+                              options={[
+                                { value: 'Active', label: trVehicleStatus(lang, 'Active'), icon: CheckCircle2, toneClass: 'text-emerald-500' },
+                                { value: 'Maintenance', label: trVehicleStatus(lang, 'Maintenance'), icon: Wrench, toneClass: 'text-amber-500' },
+                                { value: 'Idle', label: trVehicleStatus(lang, 'Idle'), icon: CirclePause, toneClass: 'text-slate-400' },
+                              ]}
+                              placeholder={u('fleet.status', 'Status')}
+                              ariaLabel={u('fleet.status', 'Status')}
+                              icon={CheckCircle2}
+                              className="w-full [&_button]:h-10 [&_button]:rounded-xl [&_button]:text-sm"
+                            />
                           </div>
                           <div className="space-y-1">
                             <FieldLabel>{u('fleet.nextService', 'Next service')}</FieldLabel>
@@ -628,6 +741,18 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
                               value={draft.nextService}
                               onChange={(e) => setDraftField('nextService', e.target.value)}
                               placeholder={u('fleet.nextServicePlaceholder', '12 May / Tomorrow / Dock inspection')}
+                            />
+                          </div>
+                          <div className="space-y-1 sm:col-span-2">
+                            <FieldLabel>{u('fleet.ownership.label', 'Ownership')}</FieldLabel>
+                            <IconSelect
+                              value={draft.ownershipType}
+                              onChange={handleOwnershipChange}
+                              options={ownershipOptions}
+                              placeholder={u('fleet.ownership.placeholder', 'Select ownership')}
+                              ariaLabel={u('fleet.ownership.label', 'Ownership')}
+                              icon={KeyRound}
+                              className="w-full [&_button]:h-10 [&_button]:rounded-xl [&_button]:text-sm"
                             />
                           </div>
                           {trailerSlots.map((slot) => (
@@ -661,35 +786,63 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
                         <div className={cn('grid gap-3 sm:grid-cols-2', isRoadVehicle(draft.transportType) && 'sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.65fr)]')}>
                           <div className="space-y-1">
                             <FieldLabel>{u('fleet.category', 'Category')}</FieldLabel>
-                            <Select value={draft.category} onChange={(e) => setDraftField('category', e.target.value)}>
-                              {!(registry.categories as readonly string[]).includes(draft.category) && <option value={draft.category}>{draft.category}</option>}
-                              {registry.categories.map((option) => <option key={option} value={option}>{option}</option>)}
-                            </Select>
+                            <IconSelect
+                              value={draft.category}
+                              onChange={(value) => setDraftField('category', value)}
+                              options={[
+                                ...(!(registry.categories as readonly string[]).includes(draft.category) ? [{ value: draft.category, label: draft.category, icon: Truck }] : []),
+                                ...registry.categories.map((option) => ({ value: option, label: option, icon: registry.icon })),
+                              ]}
+                              placeholder={u('fleet.category', 'Category')}
+                              ariaLabel={u('fleet.category', 'Category')}
+                              icon={Truck}
+                              className="w-full [&_button]:h-10 [&_button]:rounded-xl [&_button]:text-sm"
+                            />
                           </div>
                           <div className="space-y-1">
                             <FieldLabel>{u('fleet.bodyType', 'Body type')}</FieldLabel>
-                            <Select value={draft.bodyType} onChange={(e) => setDraftField('bodyType', e.target.value)}>
-                              {!(registry.bodyTypes as readonly string[]).includes(draft.bodyType) && <option value={draft.bodyType}>{draft.bodyType}</option>}
-                              {registry.bodyTypes.map((option) => <option key={option} value={option}>{option}</option>)}
-                            </Select>
+                            <IconSelect
+                              value={draft.bodyType}
+                              onChange={(value) => setDraftField('bodyType', value)}
+                              options={[
+                                ...(!(registry.bodyTypes as readonly string[]).includes(draft.bodyType) ? [{ value: draft.bodyType, label: draft.bodyType, icon: PackageOpen }] : []),
+                                ...registry.bodyTypes.map((option) => ({ value: option, label: option, icon: PackageOpen })),
+                              ]}
+                              placeholder={u('fleet.bodyType', 'Body type')}
+                              ariaLabel={u('fleet.bodyType', 'Body type')}
+                              icon={PackageOpen}
+                              className="w-full [&_button]:h-10 [&_button]:rounded-xl [&_button]:text-sm"
+                            />
                           </div>
                           {isRoadVehicle(draft.transportType) && (
                             <div className="space-y-1">
                               <FieldLabel>{u('fleet.tailLift', 'Tail lift')}</FieldLabel>
-                              <Select value={draft.tailLift} onChange={(e) => setDraftField('tailLift', e.target.value)}>
-                                <option value="No">No</option>
-                                <option value="Yes">Yes</option>
-                              </Select>
+                              <IconSelect
+                                value={draft.tailLift}
+                                onChange={(value) => setDraftField('tailLift', value)}
+                                options={[
+                                  { value: 'No', label: u('common.no', 'No'), icon: CirclePause },
+                                  { value: 'Yes', label: u('common.yes', 'Yes'), icon: ArrowUpFromLine },
+                                ]}
+                                placeholder={u('fleet.tailLift', 'Tail lift')}
+                                ariaLabel={u('fleet.tailLift', 'Tail lift')}
+                                icon={ArrowUpFromLine}
+                                className="w-full [&_button]:h-10 [&_button]:rounded-xl [&_button]:text-sm"
+                              />
                             </div>
                           )}
                           {trailerSlots.map((slot) => (
                             <div key={slot.bodyTypeKey} className="space-y-1">
                               <FieldLabel>{`${slot.prefix}${u('fleet.trailerBodyType', 'Trailer body type')}`}</FieldLabel>
-                              <Select value={draft[slot.bodyTypeKey]} onChange={(e) => setDraftField(slot.bodyTypeKey, e.target.value)}>
-                                {['Box trailer', 'Curtain trailer', 'Reefer trailer', 'Flatbed trailer', 'Container chassis'].map((option) => (
-                                  <option key={option} value={option}>{option}</option>
-                                ))}
-                              </Select>
+                              <IconSelect
+                                value={draft[slot.bodyTypeKey]}
+                                onChange={(value) => setDraftField(slot.bodyTypeKey, value)}
+                                options={['Box trailer', 'Curtain trailer', 'Reefer trailer', 'Flatbed trailer', 'Container chassis'].map((option) => ({ value: option, label: option, icon: Caravan }))}
+                                placeholder={u('fleet.trailerBodyType', 'Trailer body type')}
+                                ariaLabel={`${slot.prefix}${u('fleet.trailerBodyType', 'Trailer body type')}`}
+                                icon={Caravan}
+                                className="w-full [&_button]:h-10 [&_button]:rounded-xl [&_button]:text-sm"
+                              />
                             </div>
                           ))}
                         </div>
@@ -725,6 +878,7 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
                           { type: 'ATP_CERTIFICATE', label: u('fleet.document.atpCertificate', 'ATP certificate'), required: true, visible: atpApplicable },
                           { type: 'ADR_CERTIFICATE', label: u('fleet.document.adrCertificate', 'Vehicle ADR certificate'), required: true, visible: adrApplicable },
                           { type: 'OTHER_PERMIT', label: u('fleet.document.otherPermit', 'Other permits'), required: false, visible: true },
+                          { type: ownershipDocumentType, label: ownershipDocumentLabel, required: false, visible: true },
                         ] as { type: VehicleDocumentType; label: string; required: boolean; visible: boolean }[]).filter((item) => item.visible).map((item) => {
                           const files = pendingDocuments[item.type] || [];
                           const alreadyUploaded = existingDocumentTypes.has(item.type);
@@ -752,6 +906,23 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
                         {u('fleet.roadDocumentsOnly', 'These road-vehicle documents do not apply to aircraft or ships.')}
                       </div>
                     )}
+                    {!isRoadVehicle(draft.transportType) && <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                      <label className={cn('group flex cursor-pointer items-center gap-2.5 rounded-xl border border-dashed px-3 py-2.5 transition-colors hover:border-primary hover:bg-primary/5', hasDocument(ownershipDocumentType) ? 'border-emerald-300 bg-emerald-50/60 dark:bg-emerald-950/10' : 'border-slate-300 dark:border-slate-700')}>
+                        <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="sr-only" onChange={(event) => {
+                          const selected = Array.from(event.target.files || []);
+                          if (selected.length) setPendingDocuments((current) => ({ ...current, [ownershipDocumentType]: selected }));
+                          event.target.value = '';
+                        }} />
+                        <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', hasDocument(ownershipDocumentType) ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30' : 'bg-primary/10 text-primary')}>
+                          {hasDocument(ownershipDocumentType) ? <CheckCircle2 className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-xs font-bold text-slate-800 dark:text-white" title={ownershipDocumentLabel}>{ownershipDocumentLabel}</span>
+                          <span className="mt-0.5 block truncate text-[11px] leading-tight text-slate-500">{pendingDocuments[ownershipDocumentType]?.map((file) => file.name).join(', ') || (existingDocumentTypes.has(ownershipDocumentType) ? u('fleet.documentAlreadyUploaded', 'Already uploaded — choose a file to replace') : u('fleet.optionalDocument', 'Optional — choose PDF or image'))}</span>
+                        </span>
+                        <FileText className="h-3.5 w-3.5 shrink-0 text-slate-300 group-hover:text-primary" />
+                      </label>
+                    </div>}
                     {requiredDocumentTypes.some((type) => !hasDocument(type)) && (
                       <p className="text-[11px] font-bold text-amber-600">{u('fleet.requiredDocumentsHelp', 'Upload every document marked with * to save the vehicle.')}</p>
                     )}

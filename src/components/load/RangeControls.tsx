@@ -1,4 +1,5 @@
 import { cn } from '../../lib/cn';
+import type { LucideIcon } from 'lucide-react';
 
 export type RangeFilterConfig = {
   min: number;
@@ -16,6 +17,7 @@ export type ChipFilterOption = {
   id: string;
   label: string;
   toneClass: string;
+  icon?: LucideIcon;
 };
 
 export type DimensionRangeConfig = {

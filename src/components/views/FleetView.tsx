@@ -14,6 +14,10 @@ import {
   Share2,
   Users,
   Gauge,
+  FileArchive,
+  FileText,
+  Download,
+  Trash2,
 } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, Area, Line, PieChart, Pie, Cell, Legend } from 'recharts';
 import { Language, Role } from '../../types';
@@ -28,6 +32,9 @@ import { DataTable } from '../ui/DataTable';
 import { api } from '../../services/api';
 import { RegisterVehicleModal } from '../modals/RegisterVehicleModal';
 import { AddressMapModal } from '../maps/AddressMapModal';
+import { ARCHIVE, DocumentUploadCard, formatDocumentSize } from './LoadDocumentsPanel';
+import { documentTypeLabel, documentTypeTone } from './documentTypes';
+import { IconSelect } from '../ui/IconSelect';
 
 type TransportType = 'truck' | 'aircraft' | 'ship';
 
@@ -51,6 +58,7 @@ type FleetVehicle = {
   configuration: string;
   capacityKg: number;
   volumeM3: number;
+  ownershipType: string;
   source?: Record<string, unknown>;
 };
 
@@ -75,6 +83,7 @@ const INITIAL_VEHICLES: FleetVehicle[] = [
     configuration: '4x2',
     capacityKg: 3500,
     volumeM3: 20,
+    ownershipType: 'owned',
   },
   {
     id: 'V2',
@@ -96,6 +105,7 @@ const INITIAL_VEHICLES: FleetVehicle[] = [
     configuration: '4x2',
     capacityKg: 7500,
     volumeM3: 35,
+    ownershipType: 'owned',
   },
   {
     id: 'V3',
@@ -117,6 +127,7 @@ const INITIAL_VEHICLES: FleetVehicle[] = [
     configuration: '4x2',
     capacityKg: 3200,
     volumeM3: 22,
+    ownershipType: 'owned',
   },
 ];
 
@@ -143,9 +154,12 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
     if (!confirmed) return;
     setSharedAccess((current) => ({ ...current, [vehicle.id]: !shared }));
   };
-  const [fleetSection, setFleetSection] = useState<'vehicles' | 'statistics'>('vehicles');
+  const [fleetSection, setFleetSection] = useState<'vehicles' | 'documents' | 'statistics'>('vehicles');
   const [editingVehicle, setEditingVehicle] = useState<Record<string, unknown> | null>(null);
   const [mapVehicle, setMapVehicle] = useState<FleetVehicle | null>(null);
+  const [archiveVehicleId, setArchiveVehicleId] = useState('');
+  const [vehicleDocuments, setVehicleDocuments] = useState<Record<string, unknown>[]>([]);
+  const [vehicleDocumentsLoading, setVehicleDocumentsLoading] = useState(false);
 
   // How full each vehicle is right now, taken from the loads it is currently carrying — the fleet
   // equivalent of a warehouse's occupancy against its capacity.
@@ -205,11 +219,39 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
         category: String(row.vehicle_type || '—'), bodyType: String(features.body_type || row.vehicle_type || '—'),
         capacity: row.capacity_kg ? `${Number(row.capacity_kg).toLocaleString()} kg` : '—', volume: row.capacity_m3 ? `${row.capacity_m3} m³` : '—',
         configuration: String(features.configuration || '—'), capacityKg: Number(row.capacity_kg || 0), volumeM3: Number(row.capacity_m3 || 0),
+        ownershipType: String(row.ownership_type || 'owned'),
         source: row,
       };
     }));
   };
   useEffect(() => { void loadVehicles(); }, [role, userId, companyIds.join(',')]);
+
+  useEffect(() => {
+    if (vehicles.length === 0) {
+      setArchiveVehicleId('');
+      return;
+    }
+    if (!vehicles.some((vehicle) => vehicle.id === archiveVehicleId)) setArchiveVehicleId(vehicles[0].id);
+  }, [archiveVehicleId, vehicles]);
+
+  const loadVehicleDocuments = async () => {
+    if (!archiveVehicleId) {
+      setVehicleDocuments([]);
+      return;
+    }
+    setVehicleDocumentsLoading(true);
+    try {
+      const response = await api.documents.list({ vehicle_id: Number(archiveVehicleId), per_page: 100 });
+      setVehicleDocuments(response.data);
+    } finally {
+      setVehicleDocumentsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (fleetSection === 'documents') void loadVehicleDocuments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [archiveVehicleId, fleetSection]);
 
   const fleetData = vehicles.slice(0, 7).map((vehicle) => ({ name: vehicle.plate, fuel: vehicle.status === 'Active' ? 100 : 0, efficiency: vehicle.status === 'Maintenance' ? 0 : 100 }));
   const statusData = ['Active', 'Maintenance', 'Idle'].map((name) => ({ name, value: vehicles.filter((vehicle) => vehicle.status === name).length }));
@@ -222,6 +264,14 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
     aircraft: Plane,
     ship: Ship,
   };
+  const selectedArchiveVehicle = vehicles.find((vehicle) => vehicle.id === archiveVehicleId);
+  const ownershipLabel = (value: string) => ({
+    owned: u('fleet.ownership.owned', 'Owned vehicle'),
+    financed: u('fleet.ownership.financed', 'Financed / credit'),
+    leasing: u('fleet.ownership.leasing', 'Leasing'),
+    rented: u('fleet.ownership.rented', 'Rent / hire'),
+    other: u('fleet.ownership.other', 'Other'),
+  }[value] || value || '—');
 
   const fleetStats = useMemo(
     () => [
@@ -291,6 +341,19 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
               >
                 <Truck className="h-4 w-4" />
                 {u('fleet.tabs.vehicles', 'Vehicles')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setFleetSection('documents')}
+                className={cn(
+                  'inline-flex cursor-pointer items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all active:scale-95',
+                  fleetSection === 'documents'
+                    ? 'bg-primary text-white shadow-md shadow-primary/20'
+                    : 'text-slate-500 hover:text-primary dark:text-slate-300',
+                )}
+              >
+                <FileArchive className="h-4 w-4" />
+                {u('fleet.tabs.documentArchive', 'Document archive')}
               </button>
               <button
                 type="button"
@@ -550,6 +613,83 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
           </DataTable>
         </div>
       </Card>}
+
+      {fleetSection === 'documents' && (
+        <div className="space-y-3">
+          <Card className="shadow-none" contentClassName="p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div className="min-w-0 flex-1">
+                <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-500">{u('fleet.archive.selectVehicle', 'Vehicle archive')}</p>
+                <IconSelect
+                  value={archiveVehicleId}
+                  onChange={setArchiveVehicleId}
+                  options={vehicles.map((vehicle) => ({ value: vehicle.id, label: `${vehicle.systemName} · ${vehicle.plate}`, icon: vehicleTypeIcon[vehicle.transportType] }))}
+                  placeholder={u('fleet.archive.selectVehiclePlaceholder', 'Select a vehicle')}
+                  ariaLabel={u('fleet.archive.selectVehicle', 'Vehicle archive')}
+                  icon={Truck}
+                  searchable
+                  searchPlaceholder={u('fleet.archive.searchVehicle', 'Search vehicles...')}
+                  noResults={u('fleet.archive.noVehicles', 'No vehicles found.')}
+                  className="max-w-xl [&_button]:h-11 [&_button]:rounded-xl [&_button]:text-sm"
+                />
+              </div>
+              {selectedArchiveVehicle && (
+                <span className="inline-flex h-9 shrink-0 items-center rounded-full border border-sky-200 bg-sky-50 px-3 text-xs font-bold text-sky-700 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-300">
+                  {u('fleet.ownership.label', 'Ownership')}: {ownershipLabel(selectedArchiveVehicle.ownershipType)}
+                </span>
+              )}
+            </div>
+            <p className="mt-3 text-xs text-slate-500">{u('fleet.archive.help', 'Keep ownership papers, service records, invoices and every future document in this vehicle’s archive.')}</p>
+          </Card>
+
+          {archiveVehicleId ? (
+            <div className="grid items-start gap-3 xl:grid-cols-5">
+              <div className="xl:col-span-2">
+                <DocumentUploadCard
+                  lang={lang}
+                  attachTo={ARCHIVE}
+                  vehicleId={archiveVehicleId}
+                  onUploaded={loadVehicleDocuments}
+                />
+              </div>
+              <Card className="shadow-none xl:col-span-3" contentClassName="p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-primary"><FileArchive className="h-4 w-4" /><p className="text-xs font-black uppercase tracking-wider">{u('fleet.archive.documents', 'Vehicle documents')}</p></div>
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-500 dark:bg-slate-800">{vehicleDocuments.length}</span>
+                </div>
+                <div className="space-y-2">
+                  {vehicleDocuments.map((document) => {
+                    const id = String(document.id);
+                    const name = String(document.name || '—');
+                    const type = String(document.type || 'OTHER');
+                    const comment = String(document.comment || '');
+                    return (
+                      <div key={id} className="flex items-start gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><FileText className="h-4 w-4" /></span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-bold text-slate-800 dark:text-white" title={name}>{name}</p>
+                          <div className="mt-1 flex flex-wrap items-center gap-2">
+                            <span className={cn('rounded border px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider', documentTypeTone(type))}>{documentTypeLabel(lang, type)}</span>
+                            <span className="text-[10px] text-slate-400">{formatDocumentSize(Number(document.size_bytes || 0))} · {String(document.created_at || '').replace('T', ' ').slice(0, 16)}</span>
+                          </div>
+                          {comment && <p className="mt-1 whitespace-pre-wrap text-[11px] text-slate-500 dark:text-slate-400">{comment}</p>}
+                        </div>
+                        <div className="flex shrink-0 gap-1">
+                          <button type="button" title={u('documents.download', 'Download')} onClick={() => void api.documents.open(id, name, false)} className="cursor-pointer rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-primary dark:hover:bg-slate-800"><Download className="h-4 w-4" /></button>
+                          <button type="button" title={u('common.delete', 'Delete')} onClick={() => void api.documents.remove(id).then(loadVehicleDocuments)} className="cursor-pointer rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-red-500 dark:hover:bg-slate-800"><Trash2 className="h-4 w-4" /></button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {vehicleDocuments.length === 0 && <p className="py-8 text-center text-sm text-slate-500">{vehicleDocumentsLoading ? u('common.loading', 'Loading') : u('fleet.archive.empty', 'This vehicle has no archived documents yet.')}</p>}
+                </div>
+              </Card>
+            </div>
+          ) : (
+            <Card className="shadow-none"><p className="py-8 text-center text-sm text-slate-500">{u('fleet.archive.noVehicles', 'No vehicles found.')}</p></Card>
+          )}
+        </div>
+      )}
       </motion.div>
       </AnimatePresence>
 

@@ -197,9 +197,13 @@ export const validateDraft = (u: Translate, draft: LoadDraft, mode: 'publish' | 
     if (!message) message = nextMessage;
   };
 
+  // A storage request's Route step has no pickup on it, so nothing there can be checked or shown as
+  // wrong - whatever an earlier transport type left in those fields is ignored, not reported.
   const timeFields: Array<[keyof LoadDraft, string, string]> = [
-    ['pickupTimeFrom', 'postLoadModal.pickupTimeFrom', 'Time from'],
-    ['pickupTimeTo', 'postLoadModal.pickupTimeTo', 'Time to'],
+    ...(isWarehouse ? [] : [
+      ['pickupTimeFrom', 'postLoadModal.pickupTimeFrom', 'Time from'] as [keyof LoadDraft, string, string],
+      ['pickupTimeTo', 'postLoadModal.pickupTimeTo', 'Time to'] as [keyof LoadDraft, string, string],
+    ]),
     ['deliveryTimeFrom', 'postLoadModal.deliveryTimeFrom', 'Time from'],
     ['deliveryTimeTo', 'postLoadModal.deliveryTimeTo', 'Time to'],
   ];
@@ -211,10 +215,12 @@ export const validateDraft = (u: Translate, draft: LoadDraft, mode: 'publish' | 
   }
 
   const dateFields: Array<[keyof LoadDraft, string, string]> = [
-    ['pickupDate', 'postLoadModal.pickupDate', 'Date from'],
-    ['pickupDateTo', 'postLoadModal.pickupDateTo', 'Date to'],
-    ['deliveryDate', 'postLoadModal.deliveryDate', 'Date from'],
-    ['deliveryDateTo', 'postLoadModal.deliveryDateTo', 'Date to'],
+    ...(isWarehouse ? [] : [
+      ['pickupDate', 'postLoadModal.pickupDate', 'Date from'] as [keyof LoadDraft, string, string],
+      ['pickupDateTo', 'postLoadModal.pickupDateTo', 'Date to'] as [keyof LoadDraft, string, string],
+    ]),
+    ['deliveryDate', isWarehouse ? 'postLoadModal.warehouseStartDate' : 'postLoadModal.deliveryDate', isWarehouse ? 'Storage start date' : 'Date from'],
+    ['deliveryDateTo', isWarehouse ? 'postLoadModal.warehouseEndDate' : 'postLoadModal.deliveryDateTo', isWarehouse ? 'Storage end date' : 'Date to'],
   ];
   for (const [field, labelKey, labelFallback] of dateFields) {
     const value = String(draft[field] || '').trim();
@@ -224,7 +230,7 @@ export const validateDraft = (u: Translate, draft: LoadDraft, mode: 'publish' | 
   }
 
   const ranges: Array<[keyof LoadDraft, keyof LoadDraft, string]> = [
-    ['pickupDate', 'pickupDateTo', u('postLoadModal.pickupBlock', 'Pickup')],
+    ...(isWarehouse ? [] : [['pickupDate', 'pickupDateTo', u('postLoadModal.pickupBlock', 'Pickup')] as [keyof LoadDraft, keyof LoadDraft, string]]),
     ['deliveryDate', 'deliveryDateTo', isWarehouse ? u('postLoadModal.warehousePreferredLocation', 'Preferred warehouse location') : u('postLoadModal.deliveryBlock', 'Delivery')],
   ];
   for (const [fromField, toField, block] of ranges) {
@@ -277,7 +283,7 @@ export const validateDraft = (u: Translate, draft: LoadDraft, mode: 'publish' | 
   if (!String(draft.loadTitle || '').trim()) {
     fail(`${u('postLoadModal.loadTitleLabel', 'Load title')}: ${u('postLoadModal.requiredField', 'This field is required.')}`, 'loadTitle');
   }
-  if (!String(draft.pickupCity || '').trim()) {
+  if (!isWarehouse && !String(draft.pickupCity || '').trim()) {
     fail(`${u('postLoadModal.pickupCity', 'City')} (${u('postLoadModal.pickupBlock', 'Pickup')}): ${u('postLoadModal.requiredField', 'This field is required.')}`, 'pickupCity');
   }
   if (!String(draft.deliveryCity || '').trim()) {

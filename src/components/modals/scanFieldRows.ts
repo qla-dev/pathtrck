@@ -187,12 +187,28 @@ const HS_SECTION_ICONS: Array<{ toChapter: number; icon: LucideIcon }> = [
   { toChapter: 99, icon: Palette }, // XXI: art, antiques
 ];
 
+const HS_SECTION_TONES = [
+  'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-300',
+  'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/20 dark:bg-violet-500/10 dark:text-violet-300',
+  'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300',
+  'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300',
+];
+
+export const hsSectionIndex = (chapterCode?: string): number => {
+  const digits = String(chapterCode || '').replace(/\D/g, '');
+  const chapter = Number(digits.slice(0, 2));
+  if (!Number.isFinite(chapter) || chapter <= 0) return -1;
+  return HS_SECTION_ICONS.findIndex((section) => chapter <= section.toChapter);
+};
+
+export const hsSectionToneByIndex = (sectionIndex: number): string =>
+  HS_SECTION_TONES[Math.max(0, sectionIndex) % HS_SECTION_TONES.length];
+
 // Shared between the post-load form's editable HS chips and the LenaAI canvas's read-only preview
 // chips, so a code shows the same category icon everywhere it's rendered.
 export const hsSectionIcon = (chapterCode?: string): LucideIcon => {
-  const chapter = Number(chapterCode);
-  if (!Number.isFinite(chapter)) return Package;
-  return HS_SECTION_ICONS.find((section) => chapter <= section.toChapter)?.icon ?? Package;
+  const sectionIndex = hsSectionIndex(chapterCode);
+  return sectionIndex >= 0 ? HS_SECTION_ICONS[sectionIndex]?.icon ?? Package : Package;
 };
 
 export const hsSectionIconByIndex = (sectionIndex: number): LucideIcon =>

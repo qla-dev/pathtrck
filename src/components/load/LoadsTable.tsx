@@ -9,38 +9,34 @@ import {
   CreditCard,
   DollarSign,
   Flag,
-  Flame,
-  Gem,
   HandCoins,
   Handshake,
   Hash,
   MapPin,
-  Package,
-  PackageOpen,
   PackageSearch,
   Plane,
   Route,
   Scale,
-  ShieldAlert,
   Ship,
   Train,
-  Snowflake,
   Star,
   Timer,
   Truck,
   Wallet,
-  Weight,
   Zap,
 } from 'lucide-react';
 
-import { trGoodsType, trPaymentTerms, ui } from '../../i18n';
+import { trPaymentTerms, ui } from '../../i18n';
 import { countryFlagUrl, estimateLoadDistanceKm, getCountryCode, parseLoadPriceValue, parseLoadWeightValue } from '../../lib/loadGeo';
 import { formatShortDate } from '../../lib/loadDetails';
 import { getBidState, getOfferLabel } from '../../lib/offerBid';
 import { cn } from '../../lib/cn';
+import type { TariffCategory } from '../../services/api';
 import { Language, Load } from '../../types';
+import { hsSectionIndex } from '../modals/scanFieldRows';
 import { Button } from '../ui/Button';
 import { DataTable } from '../ui/DataTable';
+import { MainCategoryBadge } from './LoadItem';
 
 type TableSortKey =
   | 'tracking'
@@ -63,6 +59,7 @@ type LoadsTableProps = {
   loads: Load[];
   userId?: number;
   ownerMode?: boolean;
+  tariffCategories?: TariffCategory[];
   onOpenDetails: (load: Load) => void;
 };
 
@@ -87,7 +84,7 @@ const getSortValue = (load: Load, key: TableSortKey): string | number => {
     case 'weight':
       return parseLoadWeightValue(load.weight);
     case 'commodity':
-      return load.goodsType.toLowerCase();
+      return (load.hsCodes?.[0]?.section || '').toLowerCase();
     case 'paymentTerms':
       return load.paymentTerms.toLowerCase();
     case 'urgency':
@@ -96,36 +93,6 @@ const getSortValue = (load: Load, key: TableSortKey): string | number => {
       return '';
   }
 };
-
-const getGoodsTone = (value: string) =>
-  value === 'Flammable'
-    ? 'bg-amber-500/10 text-amber-500 border-amber-500/30'
-    : value === 'Fragile'
-      ? 'bg-cyan-500/10 text-cyan-500 border-cyan-500/30'
-      : value === 'High Value'
-        ? 'bg-violet-500/10 text-violet-500 border-violet-500/30'
-        : value === 'Heavy'
-          ? 'bg-slate-500/10 text-slate-600 border-slate-500/30 dark:text-slate-300'
-          : value === 'Perishable'
-            ? 'bg-sky-500/10 text-sky-500 border-sky-500/30'
-            : value === 'Hazardous'
-              ? 'bg-rose-500/10 text-rose-500 border-rose-500/30'
-              : 'bg-slate-500/10 text-slate-500 border-slate-500/30';
-
-const getGoodsIcon = (value: string): LucideIcon =>
-  value === 'Flammable'
-    ? Flame
-    : value === 'Fragile'
-      ? PackageOpen
-      : value === 'High Value'
-        ? Gem
-        : value === 'Heavy'
-          ? Weight
-          : value === 'Perishable'
-            ? Snowflake
-            : value === 'Hazardous'
-              ? ShieldAlert
-              : Package;
 
 const getPaymentTone = (value: string) =>
   value === 'In Advance'
@@ -162,7 +129,7 @@ const toTextTone = (tone: string) =>
     .filter((cls) => cls.includes('text-'))
     .join(' ');
 
-export const LoadsTable = ({ lang, loads, userId, ownerMode = false, onOpenDetails }: LoadsTableProps) => {
+export const LoadsTable = ({ lang, loads, userId, ownerMode = false, tariffCategories = [], onOpenDetails }: LoadsTableProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [sort, setSort] = useState<TableSortState>(null);
 
@@ -174,9 +141,9 @@ export const LoadsTable = ({ lang, loads, userId, ownerMode = false, onOpenDetai
     { key: 'priceTerms', label: u('home.table.priceTerms', 'Price terms'), icon: Handshake },
     { key: 'rate', label: u('home.table.rate', 'Rate'), icon: DollarSign },
     { key: 'provider', label: u('home.table.provider', 'Provider'), icon: Building2 },
+    { key: 'commodity', label: u('legacy.sidebarFilter.goodsType', 'Goods type'), icon: PackageSearch },
     { key: 'equipment', label: u('home.table.equipment', 'Equipment'), icon: Truck },
     { key: 'weight', label: u('home.table.weight', 'Weight'), icon: Scale },
-    { key: 'commodity', label: u('legacy.sidebarFilter.goodsType', 'Goods type'), icon: PackageSearch },
     { key: 'paymentTerms', label: u('legacy.sidebarFilter.paymentTerms', 'Payment terms'), icon: CreditCard },
     { key: 'urgency', label: u('feed.filters.urgency', 'Urgency'), icon: Zap },
   ];
@@ -266,7 +233,7 @@ export const LoadsTable = ({ lang, loads, userId, ownerMode = false, onOpenDetai
         >
           <div ref={cloneRowRef} className="flex text-[11px] font-bold uppercase tracking-wider text-slate-500">
             {columns.map((column, index) => (
-              <div key={column.key} style={{ width: metrics.colWidths[index] }} className="shrink-0 px-4 py-3">
+              <div key={column.key} style={{ width: metrics.colWidths[index] }} className={cn('shrink-0 px-4 py-3', column.key === 'commodity' && 'border-l border-slate-100 dark:border-slate-800')}>
                 <button
                   type="button"
                   onClick={() => toggleSort(column.key)}
@@ -305,7 +272,7 @@ export const LoadsTable = ({ lang, loads, userId, ownerMode = false, onOpenDetai
               <th
                 key={column.key}
                 ref={(el) => { thRefs.current[index] = el; }}
-                className="border-b border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900"
+                className={cn('border-b border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900', column.key === 'commodity' && 'border-l')}
               >
                 <button
                   type="button"
@@ -355,6 +322,26 @@ export const LoadsTable = ({ lang, loads, userId, ownerMode = false, onOpenDetai
             const deliveryCountryCode = getCountryCode(load.delivery);
             const isStorage = Boolean(load.forStorage || load.transportType === 'warehouse');
             const TransportIcon = load.transportType === 'air' ? Plane : load.transportType === 'sea' ? Ship : load.transportType === 'rail' ? Train : Truck;
+            const mainCategories = Array.from(
+              (load.hsCodes || []).reduce((categories, item) => {
+                const sectionIndex = hsSectionIndex(item.chapterCode || item.code);
+                if (sectionIndex < 0) return categories;
+                const existingCategory = categories.get(sectionIndex);
+                if (existingCategory) {
+                  if (!existingCategory.codes.includes(item.code)) existingCategory.codes.push(item.code);
+                  return categories;
+                }
+                const catalogCategory = tariffCategories[sectionIndex];
+                if (catalogCategory || item.section) {
+                  categories.set(sectionIndex, {
+                    id: catalogCategory?.id || String(sectionIndex),
+                    label: catalogCategory?.label || item.section || '',
+                    codes: [item.code],
+                  });
+                }
+                return categories;
+              }, new Map<number, { id: string; label: string; codes: string[] }>()).entries()
+            ).slice(0, 3).map(([sectionIndex, category]) => ({ ...category, sectionIndex }));
 
             return (
               <tr
@@ -411,6 +398,23 @@ export const LoadsTable = ({ lang, loads, userId, ownerMode = false, onOpenDetai
                     {Number(load.providerRating || 0).toFixed(1)}
                   </p>
                 </td>
+                <td className="border-l border-slate-100 px-4 py-3 dark:border-slate-800">
+                  {mainCategories.length > 0 ? (
+                    <div className="flex w-52 flex-col gap-1.5">
+                      {mainCategories.map((category) => (
+                        <MainCategoryBadge
+                          key={category.id}
+                          label={category.label}
+                          sectionIndex={category.sectionIndex}
+                          codes={category.codes}
+                          lang={lang}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-slate-400">—</span>
+                  )}
+                </td>
                 <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
                   <span className="inline-flex items-center gap-1.5">
                     <TransportIcon className="h-3.5 w-3.5 text-primary" />
@@ -422,24 +426,6 @@ export const LoadsTable = ({ lang, loads, userId, ownerMode = false, onOpenDetai
                     <Scale className="h-3.5 w-3.5 text-slate-400" />
                     {load.weight} kg
                   </span>
-                </td>
-                <td className="px-4 py-3">
-                  {(() => {
-                    const GoodsIcon = getGoodsIcon(load.goodsType);
-                    const label = trGoodsType(lang, load.goodsType);
-                    return (
-                      <span
-                        title={label}
-                        className={cn(
-                          'inline-flex w-24 items-center justify-start gap-1.5 text-[11px] font-bold uppercase tracking-wider',
-                          toTextTone(getGoodsTone(load.goodsType))
-                        )}
-                      >
-                        <GoodsIcon className="h-3 w-3 shrink-0" />
-                        <span className="min-w-0 truncate">{label}</span>
-                      </span>
-                    );
-                  })()}
                 </td>
                 <td className="px-4 py-3">
                   {(() => {

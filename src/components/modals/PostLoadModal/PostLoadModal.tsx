@@ -40,6 +40,7 @@ import {
   Recycle,
   RotateCcw,
   Route,
+  Ruler,
   ArrowDownToLine,
   Barcode,
   BadgeCheck,
@@ -142,6 +143,7 @@ import {
   fromApiDateTime,
   fromApiWeightKg,
   toApiWeightKg,
+  toApiLengthM,
   buildLoadFieldsPayload,
   buildLoadStopsPayload,
   buildLoadPayload,
@@ -165,7 +167,7 @@ import { formatTimeRangeMask } from './timeMask';
 import { ToggleCard } from './ToggleCard';
 import { ChoiceCard } from './ChoiceCard';
 import { SummaryRow } from './SummaryRow';
-import { HANDLING_DESCRIPTIONS, HANDLING_ICONS, WarehouseLocationFields, WarehouseStorageTypeField } from './WarehouseFormFields';
+import { HANDLING_DESCRIPTIONS, HANDLING_ICONS, WarehouseLocationFields, WarehouseStorageTypeField, type OwnedWarehouse } from './WarehouseFormFields';
 import { CustomsDocumentsPanel } from './CustomsDocumentsPanel';
 import { DocumentTypeToggleCard } from './DocumentTypeToggleCard';
 
@@ -259,16 +261,6 @@ const STEP_AI_FIELDS: Record<StepId, Array<keyof ScanFieldPatch & keyof LoadDraf
   cargo: ['consignee', 'bookingReference', 'loadTitle', 'lengthM', 'weightKg', 'pallets', 'volumeM3', 'widthM', 'heightM', 'temperatureControlled', 'vehicleType', 'bodyTypes'],
   contact: ['contactName', 'contactEmail', 'contactPhone', 'budget', 'freightCurrency', 'paymentDeferred', 'incoterm', 'notes'],
   review: [],
-};
-
-type OwnedWarehouse = {
-  id: number;
-  name: string;
-  city: string;
-  countryCode: string;
-  address: string;
-  latitude: string;
-  longitude: string;
 };
 
 
@@ -560,8 +552,9 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   // Anything that travels by road should be measured on one. The preview map already asks the
   // router for the line it draws, and the same answer carries the distance actually driven - which
   // is the figure the full-screen map has always shown, and the one the estimate above disagreed
-  // with. Air keeps the straight line, because that is what an aircraft flies.
-  const drivesOnRoads = draft.transportType === 'road' || draft.transportType === 'warehouse';
+  // with. Air keeps the straight line, because that is what an aircraft flies, and a storage
+  // request has no leg of its own - it names a warehouse, not a trip to one.
+  const drivesOnRoads = draft.transportType === 'road';
   const drivenRoute = useRouteGeometry(
     routeMapStops.map((entry) => entry.position),
     step === 'route' && drivesOnRoads && routeMapStops.length >= 2
@@ -605,8 +598,10 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   }, [step]);
   const stepCompletion = useMemo<Record<StepId, boolean>>(
     () => ({
+      // A storage request has no pickup to fill in, and picking one of your own warehouses is what
+      // makes its destination complete.
       route: draft.transportType === 'warehouse'
-        ? Boolean(draft.pickupCity && draft.pickupDate && draft.deliveryCity && draft.deliveryDate)
+        ? Boolean(draft.deliveryCity && draft.deliveryDate && (draft.storageTarget !== 'own' || draft.warehouseId))
         : Boolean(
           draft.pickupCity &&
             draft.pickupDate &&
@@ -638,6 +633,33 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     setDraft((prev) => ({ ...prev, [key]: value }));
   };
 
+  const conciseNumber = (value: number) => String(Number(value.toFixed(6)));
+  const changeWeightUnit = (nextUnit: LoadDraft['weightUnit']) => {
+    setDraft((current) => ({
+      ...current,
+      weightKg: current.weightKg
+        ? conciseNumber(toApiWeightKg(current.weightKg, current.weightUnit) / (nextUnit === 't' ? 1000 : 1))
+        : '',
+      weightUnit: nextUnit,
+    }));
+  };
+  const changeDimensionUnit = (nextUnit: LoadDraft['lengthUnit']) => {
+    setDraft((current) => {
+      const multiplier = ({ m: 1, cm: 100, mm: 1000 } as const)[nextUnit];
+      const convert = (value: string, unit: LoadDraft['lengthUnit']) =>
+        value ? conciseNumber(toApiLengthM(value, unit) * multiplier) : '';
+      return {
+        ...current,
+        lengthM: convert(current.lengthM, current.lengthUnit),
+        widthM: convert(current.widthM, current.widthUnit),
+        heightM: convert(current.heightM, current.heightUnit),
+        lengthUnit: nextUnit,
+        widthUnit: nextUnit,
+        heightUnit: nextUnit,
+      };
+    });
+  };
+
   const invalidFields = useMemo(
     () => new Set(rejected ? rejected.fields.filter((field) => draft[field] === rejected.draft[field]) : []),
     [draft, rejected]
@@ -661,10 +683,13 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     }
     // The API names a stop by its index in the payload, which only says which card it is once it
     // is known how many pickups came before the deliveries.
-    const described = describeApiErrors(u, error.errors, {
-      pickupCount: draft.extraPickups.length + 1,
-      deliveryCount: draft.extraDeliveries.length + 1,
-    });
+    // A storage request travels as its single warehouse stop, with no pickup ahead of it.
+    const described = describeApiErrors(u, error.errors, draft.transportType === 'warehouse'
+      ? { pickupCount: 0, deliveryCount: 1 }
+      : {
+        pickupCount: draft.extraPickups.length + 1,
+        deliveryCount: draft.extraDeliveries.length + 1,
+      });
     rejectSubmit({ message: described.message || error.message, fields: described.fields });
   };
 
@@ -1157,7 +1182,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         storage_type: draft.warehouseStorageType || null,
         pallets: draft.pallets ? Number(draft.pallets) : null,
         cbm: draft.volumeM3 ? Number(draft.volumeM3) : null,
-        weight_kg: draft.weightKg ? toApiWeightKg(draft.weightKg) : null,
+        weight_kg: draft.weightKg ? toApiWeightKg(draft.weightKg, draft.weightUnit) : null,
         rate: draft.budget ? Number(draft.budget) : null,
         currency: draft.freightCurrency,
         description: draft.loadTitle || null,
@@ -1224,7 +1249,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
 
   // Publishing a storage request only covers the storing - the goods still have to reach that
   // warehouse. Same machinery as the last-mile flow below: a pre-filled road draft plus a LenaAI
-  // conversation to finish it, so the customer never re-types the route they just entered.
+  // conversation to finish it, so the warehouse end of the trip is never re-typed. Where the goods
+  // are collected from is the one thing the storage request never asked, so the chat asks for it.
   const startWarehouseTransportDraft = async () => {
     if (!currentUser) return;
     try {
@@ -1232,17 +1258,6 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         ...INITIAL_DRAFT,
         transportType: 'road',
         loadTitle: `${draft.loadTitle || u('postLoadModal.draftFallbackTitle', 'Draft')} - ${u('postLoadModal.warehouseTransportSuffix', 'Transport to warehouse')}`,
-        pickupPlaceType: draft.pickupPlaceType,
-        pickupAddress: draft.pickupAddress,
-        pickupCity: draft.pickupCity,
-        pickupPostalCode: draft.pickupPostalCode,
-        pickupCountry: draft.pickupCountry,
-        pickupLatitude: draft.pickupLatitude,
-        pickupLongitude: draft.pickupLongitude,
-        pickupDate: draft.pickupDate,
-        pickupDateTo: draft.pickupDateTo,
-        pickupTimeFrom: draft.pickupTimeFrom,
-        pickupTimeTo: draft.pickupTimeTo,
         // Road only offers Warehouse/Terminal as delivery place types, and an area request has no
         // one address to deliver to - the picked area's label and centre are what the AI works from.
         deliveryPlaceType: 'Warehouse',
@@ -1714,52 +1729,17 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
               {step === 'route' && (
                 <motion.div key="route" className="space-y-3" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}>
                   {draft.transportType === 'warehouse' ? (
-                    <div className="space-y-3">
-                      <div className="rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
-                        <div className="mb-3 flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
-                          <Warehouse className="h-4 w-4" />
-                          <span>{u('postLoadModal.storageTarget', 'Where should the goods be stored?')}</span>
-                        </div>
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          <ChoiceCard
-                            active={draft.storageTarget === 'own'}
-                            title={u('postLoadModal.storageTargetOwn', 'One of my warehouses')}
-                            description={u('postLoadModal.storageTargetOwnDesc', 'Create an inbound receipt on your dock schedule.')}
-                            icon={ArrowDownToLine}
-                            onClick={() => setDraft((current) => ({ ...current, storageTarget: 'own' }))}
-                          />
-                          <ChoiceCard
-                            active={draft.storageTarget === 'exchange'}
-                            title={u('postLoadModal.storageTargetExchange', 'Warehouse exchange')}
-                            description={u('postLoadModal.storageTargetExchangeDesc', 'Publish a storage request for warehouse companies.')}
-                            icon={Landmark}
-                            onClick={() => setDraft((current) => ({ ...current, storageTarget: 'exchange', warehouseId: '', warehouseName: '' }))}
-                          />
-                        </div>
-                        {draft.storageTarget === 'own' && (
-                          <div className="mt-4 space-y-2">
-                            <FieldLabel>{u('postLoadModal.receivingWarehouse', 'Receiving warehouse')}</FieldLabel>
-                            <div className={cn('flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950', invalidClass('warehouseId'))}>
-                              {ownedWarehouses.map((warehouse) => (
-                                <button
-                                  key={warehouse.id}
-                                  type="button"
-                                  onClick={() => selectOwnedWarehouse(warehouse)}
-                                  className={cn('inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-2 text-xs font-bold transition-colors', draft.warehouseId === String(warehouse.id) ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200')}
-                                >
-                                  <Warehouse className="h-3.5 w-3.5" />
-                                  {warehouse.name}
-                                </button>
-                              ))}
-                              {ownedWarehouses.length === 0 && (
-                                <p className="px-1 py-2 text-xs text-slate-500">{u('postLoadModal.noOwnedWarehouses', 'No warehouse is available for this account.')}</p>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      <WarehouseLocationFields draft={draft} setField={setField} setDraft={setDraft} u={u} lang={lang} invalidClass={invalidClass} onOpenPickupMap={() => setAddressMap({ side: 'pickup', index: 0 })} onOpenWarehouseArea={() => setAreaMapOpen(true)} routeDistanceKm={routeDistanceKm} recalculatingRoute={measuringRoute} onShowRoute={() => setRouteMapOpen(true)} />
-                    </div>
+                    <WarehouseLocationFields
+                      draft={draft}
+                      setField={setField}
+                      setDraft={setDraft}
+                      u={u}
+                      lang={lang}
+                      invalidClass={invalidClass}
+                      ownedWarehouses={ownedWarehouses}
+                      onSelectOwnedWarehouse={selectOwnedWarehouse}
+                      onOpenWarehouseArea={() => setAreaMapOpen(true)}
+                    />
                   ) : (
                   <>
                   <div className="grid lg:grid-cols-[minmax(0,5fr)_minmax(0,5fr)_minmax(0,2fr)] gap-3">
@@ -2621,15 +2601,26 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         </div>
                         <div className="grid gap-3 sm:grid-cols-2">
                           <div className={cn('space-y-1', invalidClass('weightKg'))}>
-                            {fieldLabel('weightKg', 'postLoadModal.weight', 'Weight (t)')}
-                            <Input
-                              type="number"
-                              step="0.1"
-                              min="0.1"
-                              value={draft.weightKg}
-                              onChange={(e) => setField('weightKg', e.target.value)}
-                              placeholder="24.0"
-                            />
+                            {fieldLabel('weightKg', 'postLoadModal.weightValue', 'Weight')}
+                            <div className="flex gap-2">
+                              <Input
+                                type="number"
+                                step="0.1"
+                                min="0.1"
+                                value={draft.weightKg}
+                                onChange={(e) => setField('weightKg', e.target.value)}
+                                placeholder={draft.weightUnit === 't' ? '24.0' : '24000'}
+                              />
+                              <IconSelect
+                                value={draft.weightUnit}
+                                onChange={(value) => changeWeightUnit(value as LoadDraft['weightUnit'])}
+                                placeholder="t"
+                                ariaLabel={u('postLoadModal.weightUnit', 'Weight unit')}
+                                icon={Weight}
+                                className="w-24 shrink-0"
+                                options={['t', 'kg'].map((unit) => ({ value: unit, label: unit, icon: Weight }))}
+                              />
+                            </div>
                           </div>
                           <div className={cn('space-y-1', invalidClass('volumeM3'))}>
                             {fieldLabel('volumeM3', 'postLoadModal.volume', 'CBM (m³)')}
@@ -2666,32 +2657,22 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             />
                           </div>
                         </div>
-                        <div className="grid sm:grid-cols-3 gap-3">
+                        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_6rem] sm:items-end">
                           <div className={cn('space-y-1', invalidClass('lengthM'))}>
-                            {fieldLabel('lengthM', 'postLoadModal.length', 'Length (m)')}
+                            {fieldLabel('lengthM', 'postLoadModal.lengthValue', 'Length')}
                             <Input type="number" step="0.1" min="0.1" value={draft.lengthM} onChange={(e) => setField('lengthM', e.target.value)} placeholder="13.6" />
                           </div>
                           <div className={cn('space-y-1', invalidClass('widthM'))}>
-                            {fieldLabel('widthM', 'postLoadModal.width', 'Width (m)')}
-                            <Input
-                              type="number"
-                              step="0.05"
-                              min="0"
-                              value={draft.widthM}
-                              onChange={(e) => setField('widthM', e.target.value)}
-                              placeholder="2.45"
-                            />
+                            {fieldLabel('widthM', 'postLoadModal.widthValue', 'Width')}
+                            <Input type="number" step="0.05" min="0" value={draft.widthM} onChange={(e) => setField('widthM', e.target.value)} placeholder="2.45" />
                           </div>
                           <div className={cn('space-y-1', invalidClass('heightM'))}>
-                            {fieldLabel('heightM', 'postLoadModal.height', 'Height (m)')}
-                            <Input
-                              type="number"
-                              step="0.05"
-                              min="0"
-                              value={draft.heightM}
-                              onChange={(e) => setField('heightM', e.target.value)}
-                              placeholder="2.70"
-                            />
+                            {fieldLabel('heightM', 'postLoadModal.heightValue', 'Height')}
+                            <Input type="number" step="0.05" min="0" value={draft.heightM} onChange={(e) => setField('heightM', e.target.value)} placeholder="2.70" />
+                          </div>
+                          <div className="space-y-1">
+                            <FieldLabel>{u('postLoadModal.dimensionUnit', 'Unit')}</FieldLabel>
+                            <IconSelect value={draft.lengthUnit} onChange={(value) => changeDimensionUnit(value as LoadDraft['lengthUnit'])} placeholder="m" ariaLabel={u('postLoadModal.dimensionUnit', 'Dimension unit')} icon={Ruler} options={['m', 'cm', 'mm'].map((unit) => ({ value: unit, label: unit, icon: Ruler }))} />
                           </div>
                         </div>
                         <div className="space-y-1">
@@ -2966,9 +2947,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           : u('postLoadModal.storageTargetExchange', 'Warehouse exchange')}
                       />
                       <SummaryRow label={u('postLoadModal.warehouseStorageType', 'Vrsta skladištenja')} value={u(`postLoadModal.storageType.${draft.warehouseStorageType}`, draft.warehouseStorageType)} />
-                      <SummaryRow label={u('postLoadModal.pickupBlock', 'Pickup')} value={`${draft.pickupCity || '—'}, ${draft.pickupCountry || '—'}`} />
                       <SummaryRow label={u('postLoadModal.warehousePreferredLocation', 'Željena lokacija skladišta')} value={`${draft.deliveryCity || '—'}, ${draft.deliveryCountry || '—'}`} />
-                      <SummaryRow label={u('postLoadModal.specsSummary', 'Specs')} value={`${draft.pallets || '—'} pal. · ${draft.volumeM3 || '—'} CBM · ${draft.weightKg || '—'} t`} />
+                      <SummaryRow label={u('postLoadModal.specsSummary', 'Specs')} value={`${draft.pallets || '—'} pal. · ${draft.volumeM3 || '—'} CBM · ${draft.weightKg || '—'} ${draft.weightUnit}`} />
                       <SummaryRow
                         label={u('postLoadModal.warehouseDuration', 'Trajanje')}
                         value={draft.warehouseIsOngoing
@@ -3048,7 +3028,10 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       />
                       <SummaryRow label={u('postLoadModal.titleSummary', 'Title')} value={draft.loadTitle || '—'} />
                       <SummaryRow label={u('postLoadModal.cargoSummary', 'Cargo')} value={deriveGoodsTypeName(draft.hsCodes, draft.goodsType) || '—'} />
-                      <SummaryRow label={u('postLoadModal.specsSummary', 'Specs')} value={`${draft.lengthM || '—'} × ${draft.widthM || '—'} × ${draft.heightM || '—'} m · ${draft.weightKg || '—'} t · ${draft.volumeM3 || '—'} CBM · ${draft.additionalInfo || u('postLoadModal.none', 'None')}`} />
+                      <SummaryRow
+                        label={u('postLoadModal.specsSummary', 'Specs')}
+                        value={`${draft.lengthM || '—'} ${draft.lengthUnit} × ${draft.widthM || '—'} ${draft.widthUnit} × ${draft.heightM || '—'} ${draft.heightUnit} · ${draft.weightKg || '—'} ${draft.weightUnit} · ${draft.volumeM3 || '—'} CBM · ${draft.additionalInfo || u('postLoadModal.none', 'None')}`}
+                      />
                       <SummaryRow label={u('postLoadModal.packagingMethod', 'Packaging method')} value={`${selectedPackageType ? `${selectedPackageType.value} - ${selectedPackageType.label}` : draft.quantityMeasure || '—'} · ${draft.pallets || '—'} ${u('postLoadModal.unitsShort', 'units')}`} />
                       {isContainerTransport(draft.transportType) ? (
                         <SummaryRow label={u('postLoadModal.containerTypesSummary', 'Container types')} value={draft.containerSelections.length ? draft.containerSelections.map((row) => `${row.quantity}x ${containerLabel(row.type)}`).join(', ') : u('postLoadModal.none', 'None')} />

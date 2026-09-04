@@ -916,14 +916,18 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                     <p className="text-[10px] font-black uppercase tracking-wider">{u('postLoadModal.routeSummaryTitle', 'Route')}</p>
                   </div>
                   <div className="flex min-w-0 flex-1 flex-col">
-                    <RouteStop
-                      icon={MapPin}
-                      tone="bg-emerald-500 shadow-emerald-500/20"
-                      label={u('legacy.loadDetails.pickup', 'Pickup')}
-                      value={pickupLabel}
-                      countryCode={pickupCountryCode}
-                      note={load.pickupAt ? formatLoadDate(load.pickupAt) : undefined}
-                    />
+                    {/* A storage request has no pickup - it names the warehouse the goods are held
+                        in, and the trip that brings them there is a road load of its own. */}
+                    {!isStorage && (
+                      <RouteStop
+                        icon={MapPin}
+                        tone="bg-emerald-500 shadow-emerald-500/20"
+                        label={u('legacy.loadDetails.pickup', 'Pickup')}
+                        value={pickupLabel}
+                        countryCode={pickupCountryCode}
+                        note={load.pickupAt ? formatLoadDate(load.pickupAt) : undefined}
+                      />
+                    )}
                     <RouteStop
                       last
                       icon={isStorage ? Warehouse : MapPin}

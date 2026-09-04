@@ -83,7 +83,7 @@ import {
 
 // Types & Services
 import { Role, Language, Load, SubscriptionPackage } from "./types";
-import { ApiUser, api } from "./services/api";
+import { ApiUser, api, type TariffCategory } from "./services/api";
 import { MOCK_PACKAGES, MOCK_ROUTES } from "./mockData";
 import {
   ui,
@@ -117,7 +117,7 @@ import { PostLoadModal } from "./components/modals/PostLoadModal";
 import { LoadDetailsModal } from "./components/tracking/LoadDetailsModal";
 import { LoadDetailsPrebook } from "./components/load/LoadDetailsPrebook";
 import { LenaAI } from "./components/lena/LenaAI";
-import { ScanFieldPatch } from "./components/modals/scanFieldRows";
+import { hsSectionIconByIndex, hsSectionToneByIndex, ScanFieldPatch } from "./components/modals/scanFieldRows";
 import { LenaCanvasMode } from "./lib/lenaLoadCanvas";
 import { LoadNotesView } from "./components/views/LoadNotesView";
 import { CompanyWorkspaceView } from "./components/views/CompanyWorkspaceView";
@@ -5621,6 +5621,9 @@ export default function App() {
   const [selectedFeedGoodsTypes, setSelectedFeedGoodsTypes] = useState<
     string[]
   >([]);
+  const [feedTariffCategories, setFeedTariffCategories] = useState<
+    TariffCategory[]
+  >([]);
   const [selectedFeedPriceTerms, setSelectedFeedPriceTerms] = useState<
     string[]
   >([]);
@@ -5637,6 +5640,26 @@ export default function App() {
   const [selectedFeedLoadingMethods, setSelectedFeedLoadingMethods] = useState<
     string[]
   >([]);
+
+  useEffect(() => {
+    if (effectiveExchangeMode !== "transport") {
+      setFeedTariffCategories([]);
+      return;
+    }
+
+    let active = true;
+    void api.tariffs.categories(lang)
+      .then((response) => {
+        if (active) setFeedTariffCategories(response.data);
+      })
+      .catch(() => {
+        if (active) setFeedTariffCategories([]);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [effectiveExchangeMode, lang]);
 
   useEffect(() => {
     let active = true;
@@ -5805,7 +5828,7 @@ export default function App() {
             feedSelectedTransitMax < feedRangeBounds.transitMax
               ? feedSelectedTransitMax
               : undefined,
-          goods_types: selectedFeedGoodsTypes.join(",") || undefined,
+          hs_sections: selectedFeedGoodsTypes.join(",") || undefined,
           payment_terms:
             selectedFeedPaymentTerms
               .map((value) => value.toLowerCase().replaceAll(" ", "_"))
@@ -6126,26 +6149,17 @@ export default function App() {
                   tone: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
                 };
   const RoleStatusIcon = roleMeta.icon;
-  const getGoodsChipTone = (value: string) =>
-    value === "Flammable"
-      ? "bg-amber-500/10 text-amber-500 border-amber-500/30"
-      : value === "Fragile"
-        ? "bg-cyan-500/10 text-cyan-500 border-cyan-500/30"
-        : value === "High Value"
-          ? "bg-violet-500/10 text-violet-500 border-violet-500/30"
-          : "bg-slate-500/10 text-slate-500 border-slate-500/30";
   const getPaymentChipTone = (value: string) =>
     value === "In Advance"
       ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
       : value === "On Delivery"
         ? "bg-amber-500/10 text-amber-500 border-amber-500/30"
         : "bg-blue-500/10 text-blue-500 border-blue-500/30";
-  const feedGoodsTypeOptions = Array.from(
-    new Set<string>(activeFeedLoads.map((load) => String(load.goodsType))),
-  ).map((value) => ({
-    id: value,
-    label: trGoodsType(lang, value),
-    toneClass: getGoodsChipTone(value),
+  const feedGoodsTypeOptions = feedTariffCategories.map((category, index) => ({
+    id: String(index),
+    label: category.label,
+    toneClass: hsSectionToneByIndex(index),
+    icon: hsSectionIconByIndex(index),
   }));
   const feedPaymentTermOptions = Array.from(
     new Set<string>(activeFeedLoads.map((load) => String(load.paymentTerms))),

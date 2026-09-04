@@ -96,7 +96,7 @@ export interface Load {
   status: LoadStatus;
   cargoType: string;
   goodsType: string;
-  hsCodes?: Array<{ code: string; description: string; confidence?: number }>;
+  hsCodes?: Array<{ code: string; description: string; confidence?: number; section?: string; chapterCode?: string }>;
   customsDocuments?: Array<{ code: string; label: string; downloadable: boolean; formType?: 'dis' | 'osi' | 'dv1' | 'znp' | null; source?: 'matched' | 'manual' }>;
   paymentTerms: string;
   paymentDueDays?: number;

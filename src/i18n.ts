@@ -2729,6 +2729,7 @@ Object.assign(UI.zh, {
 });
 
 Object.assign(UI.en, {
+  'postLoadModal.dimensionUnit': 'Unit',
   'Booked': 'Booked',
   'common.warehouseCompany': 'Warehouse Company',
   'postLoadModal.selectWarehouse': 'Warehouse',
@@ -2745,6 +2746,7 @@ Object.assign(UI.de, {
 });
 
 Object.assign(UI.bs, {
+  'postLoadModal.dimensionUnit': 'Jedinica',
   'Booked': 'Rezervisano',
   'map.choosePickup': 'Odaberite adresu preuzimanja na mapi',
   'map.chooseDelivery': 'Odaberite adresu isporuke na mapi',
@@ -3224,6 +3226,7 @@ Object.assign(UI.bs, {
 });
 
 Object.assign(UI.de, {
+  'postLoadModal.dimensionUnit': 'Einheit',
   'Booked': 'Gebucht',
   'postLoadModal.storageType.Outdoor': 'Freilager / Yard',
   'postLoadModal.storageType.Unsure': 'Nicht sicher',
@@ -9911,3 +9914,131 @@ export const trGoodsType = (lang: Language, value: string) => translateValue(lan
 export const trPaymentTerms = (lang: Language, value: string) => translateValue(lang, value);
 
 export const trVehicleStatus = (lang: Language, value: string) => translateValue(lang, value);
+
+Object.assign(UI.en, {
+  'postLoadModal.weightValue': 'Weight', 'postLoadModal.weightUnit': 'Weight unit',
+  'postLoadModal.lengthValue': 'Length', 'postLoadModal.lengthUnit': 'Length unit',
+  'postLoadModal.widthValue': 'Width', 'postLoadModal.widthUnit': 'Width unit',
+  'postLoadModal.heightValue': 'Height', 'postLoadModal.heightUnit': 'Height unit',
+});
+Object.assign(UI.bs, {
+  'postLoadModal.weightValue': 'Težina', 'postLoadModal.weightUnit': 'Jedinica težine',
+  'postLoadModal.lengthValue': 'Dužina', 'postLoadModal.lengthUnit': 'Jedinica dužine',
+  'postLoadModal.widthValue': 'Širina', 'postLoadModal.widthUnit': 'Jedinica širine',
+  'postLoadModal.heightValue': 'Visina', 'postLoadModal.heightUnit': 'Jedinica visine',
+});
+Object.assign(UI.de, {
+  'postLoadModal.weightValue': 'Gewicht', 'postLoadModal.weightUnit': 'Gewichtseinheit',
+  'postLoadModal.lengthValue': 'Länge', 'postLoadModal.lengthUnit': 'Längeneinheit',
+  'postLoadModal.widthValue': 'Breite', 'postLoadModal.widthUnit': 'Breiteneinheit',
+  'postLoadModal.heightValue': 'Höhe', 'postLoadModal.heightUnit': 'Höheneinheit',
+});
+
+Object.assign(UI.en, {
+  'documents.comment': 'Comment',
+  'documents.commentPlaceholder': 'Optional note about this invoice or document...',
+});
+Object.assign(UI.bs, {
+  'documents.comment': 'Komentar',
+  'documents.commentPlaceholder': 'Opcionalna napomena uz ovu fakturu ili dokument...',
+});
+Object.assign(UI.de, {
+  'documents.comment': 'Kommentar',
+  'documents.commentPlaceholder': 'Optionale Notiz zu dieser Rechnung oder diesem Dokument...',
+});
+
+Object.assign(UI.en, {
+  'fleet.ownership.label': 'Ownership',
+  'fleet.ownership.placeholder': 'Select ownership',
+  'fleet.ownership.owned': 'Owned vehicle',
+  'fleet.ownership.financed': 'Financed / credit',
+  'fleet.ownership.leasing': 'Leasing',
+  'fleet.ownership.rented': 'Rent / hire',
+  'fleet.ownership.other': 'Other',
+  'fleet.document.ownershipCertificate': 'Proof of ownership',
+  'fleet.document.financingAgreement': 'Financing agreement',
+  'fleet.document.leasingAgreement': 'Leasing agreement',
+  'fleet.document.rentalAgreement': 'Rental agreement',
+  'fleet.document.otherOwnership': 'Other ownership document',
+  'fleet.optionalDocument': 'Optional — choose PDF or image',
+  'fleet.tabs.documentArchive': 'Document archive',
+  'fleet.archive.selectVehicle': 'Vehicle archive',
+  'fleet.archive.selectVehiclePlaceholder': 'Select a vehicle',
+  'fleet.archive.searchVehicle': 'Search vehicles...',
+  'fleet.archive.noVehicles': 'No vehicles found.',
+  'fleet.archive.help': 'Keep ownership papers, service records, invoices and every future document in this vehicle’s archive.',
+  'fleet.archive.documents': 'Vehicle documents',
+  'fleet.archive.empty': 'This vehicle has no archived documents yet.',
+  'fleet.searchBrands': 'Search brands...',
+  'fleet.noBrands': 'No brands found.',
+});
+Object.assign(UI.bs, {
+  'fleet.ownership.label': 'Vlasništvo',
+  'fleet.ownership.placeholder': 'Odaberite vlasništvo',
+  'fleet.ownership.owned': 'Vlastito vozilo',
+  'fleet.ownership.financed': 'Finansirano / kredit',
+  'fleet.ownership.leasing': 'Leasing',
+  'fleet.ownership.rented': 'Rent / najam',
+  'fleet.ownership.other': 'Drugo',
+  'fleet.document.ownershipCertificate': 'Vlasnički list',
+  'fleet.document.financingAgreement': 'Ugovor finansiranja',
+  'fleet.document.leasingAgreement': 'Leasing ugovor',
+  'fleet.document.rentalAgreement': 'Ugovor o najmu',
+  'fleet.document.otherOwnership': 'Ostali dokumenti vlasništva',
+  'fleet.optionalDocument': 'Opcionalno — odaberite PDF ili sliku',
+  'fleet.tabs.documentArchive': 'Arhiva dokumenata',
+  'fleet.archive.selectVehicle': 'Arhiva vozila',
+  'fleet.archive.selectVehiclePlaceholder': 'Odaberite vozilo',
+  'fleet.archive.searchVehicle': 'Pretražite vozila...',
+  'fleet.archive.noVehicles': 'Nema pronađenih vozila.',
+  'fleet.archive.help': 'Čuvajte vlasničke dokumente, servise, račune i svu buduću dokumentaciju u arhivi ovog vozila.',
+  'fleet.archive.documents': 'Dokumenti vozila',
+  'fleet.archive.empty': 'Ovo vozilo još nema arhiviranih dokumenata.',
+  'fleet.searchBrands': 'Pretražite marke...',
+  'fleet.noBrands': 'Nema pronađenih marki.',
+});
+Object.assign(UI.de, {
+  'fleet.ownership.label': 'Eigentumsart',
+  'fleet.ownership.placeholder': 'Eigentumsart auswählen',
+  'fleet.ownership.owned': 'Eigenes Fahrzeug',
+  'fleet.ownership.financed': 'Finanziert / Kredit',
+  'fleet.ownership.leasing': 'Leasing',
+  'fleet.ownership.rented': 'Miete',
+  'fleet.ownership.other': 'Sonstiges',
+  'fleet.document.ownershipCertificate': 'Eigentumsnachweis',
+  'fleet.document.financingAgreement': 'Finanzierungsvertrag',
+  'fleet.document.leasingAgreement': 'Leasingvertrag',
+  'fleet.document.rentalAgreement': 'Mietvertrag',
+  'fleet.document.otherOwnership': 'Sonstiger Eigentumsnachweis',
+  'fleet.optionalDocument': 'Optional — PDF oder Bild auswählen',
+  'fleet.tabs.documentArchive': 'Dokumentenarchiv',
+  'fleet.archive.selectVehicle': 'Fahrzeugarchiv',
+  'fleet.archive.selectVehiclePlaceholder': 'Fahrzeug auswählen',
+  'fleet.archive.searchVehicle': 'Fahrzeuge suchen...',
+  'fleet.archive.noVehicles': 'Keine Fahrzeuge gefunden.',
+  'fleet.archive.help': 'Bewahren Sie Eigentumsnachweise, Servicedokumente, Rechnungen und zukünftige Unterlagen im Archiv dieses Fahrzeugs auf.',
+  'fleet.archive.documents': 'Fahrzeugdokumente',
+  'fleet.archive.empty': 'Dieses Fahrzeug hat noch keine archivierten Dokumente.',
+  'fleet.searchBrands': 'Marken suchen...',
+  'fleet.noBrands': 'Keine Marken gefunden.',
+});
+
+// The Route step of a storage request reads back as storage, not as a route: a warehouse and the
+// period the goods are held for, with no pickup and so no leg to measure.
+Object.assign(UI.en, {
+  'postLoadModal.storageTargetQuestion': 'Where should the goods be stored?',
+  'postLoadModal.storageSummaryTitle': 'Storage',
+  'postLoadModal.storagePeriod': 'Storage period',
+});
+
+Object.assign(UI.bs, {
+  'postLoadModal.storageTargetQuestion': 'Gdje se roba treba skladištiti?',
+  'postLoadModal.storageSummaryTitle': 'Skladištenje',
+  'postLoadModal.storagePeriod': 'Period skladištenja',
+});
+
+Object.assign(UI.de, {
+  'postLoadModal.storageTargetQuestion': 'Wo soll die Ware gelagert werden?',
+  'postLoadModal.storageSummaryTitle': 'Lagerung',
+  'postLoadModal.storagePeriod': 'Lagerzeitraum',
+});

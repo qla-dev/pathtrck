@@ -48,7 +48,11 @@ export const fromApiWeightKg = (value: unknown) => {
   return String(weightKg / 1000);
 };
 
-export const toApiWeightKg = (weightTonnes: string) => Number(weightTonnes) * 1000;
+export const toApiWeightKg = (weight: string, unit: LoadDraft['weightUnit'] = 't') =>
+  Number(weight) * (unit === 't' ? 1000 : 1);
+
+export const toApiLengthM = (length: string, unit: LoadDraft['lengthUnit'] = 'm') =>
+  Number(length) / ({ m: 1, cm: 100, mm: 1000 } as const)[unit];
 
 // Shared by the real /loads payload (submit) and the /load-drafts payload (save draft) — every
 // field except the route, which the two resources store differently (loads uses a separate
@@ -62,10 +66,10 @@ export const buildLoadFieldsPayload = (draft: LoadDraft) => ({
   goods_type: deriveGoodsTypeCode(draft.hsCodes, draft.goodsType),
   hs_codes: stripHsCodesForPayload(draft.hsCodes),
   customs_documents: draft.customsDocuments,
-  weight_kg: toApiWeightKg(draft.weightKg),
-  length_m: draft.lengthM ? Number(draft.lengthM) : null,
-  width_m: draft.widthM ? Number(draft.widthM) : null,
-  height_m: draft.heightM ? Number(draft.heightM) : null,
+  weight_kg: toApiWeightKg(draft.weightKg, draft.weightUnit),
+  length_m: draft.lengthM ? toApiLengthM(draft.lengthM, draft.lengthUnit) : null,
+  width_m: draft.widthM ? toApiLengthM(draft.widthM, draft.widthUnit) : null,
+  height_m: draft.heightM ? toApiLengthM(draft.heightM, draft.heightUnit) : null,
   volume_m3: draft.volumeM3 ? Number(draft.volumeM3) : null,
   pallets: draft.pallets ? Number(draft.pallets) : null,
   quantity_measure: draft.quantityMeasure || null,
@@ -143,21 +147,25 @@ export const buildLoadStopsPayload = (draft: LoadDraft) =>
 
 export const buildLoadPayload = (draft: LoadDraft) => ({ ...buildLoadFieldsPayload(draft), stops: buildLoadStopsPayload(draft) });
 
-export const buildDraftPayload = (draft: LoadDraft) => ({
+export const buildDraftPayload = (draft: LoadDraft) => {
+// A storage draft has no pickup - the Route step never asks for one, so whatever an earlier
+// transport type left in those fields is dropped rather than saved as a phantom origin.
+const storesGoods = draft.transportType === 'warehouse';
+return {
   ...buildLoadFieldsPayload(draft),
-  pickup_place_type: draft.pickupPlaceType || null,
-  pickup_city: draft.pickupCity || null,
-  pickup_postal_code: draft.pickupPostalCode || null,
-  pickup_country_code: draft.pickupCountry || null,
-  pickup_address: draft.pickupAddress || null,
+  pickup_place_type: storesGoods ? null : draft.pickupPlaceType || null,
+  pickup_city: storesGoods ? null : draft.pickupCity || null,
+  pickup_postal_code: storesGoods ? null : draft.pickupPostalCode || null,
+  pickup_country_code: storesGoods ? null : draft.pickupCountry || null,
+  pickup_address: storesGoods ? null : draft.pickupAddress || null,
   pickup_port: (isContainerTransport(draft.transportType) || draft.pickupPlaceType === 'Port') ? draft.pickupPort || null : null,
   pickup_airport: (draft.transportType === 'air' || draft.pickupPlaceType === 'Airport') ? draft.pickupAirport || null : null,
-  pickup_latitude: draft.pickupLatitude ? Number(draft.pickupLatitude) : null,
-  pickup_longitude: draft.pickupLongitude ? Number(draft.pickupLongitude) : null,
-  pickup_date: toApiDate(draft.pickupDate),
-  pickup_date_to: toApiDate(draft.pickupDateTo || draft.pickupDate),
-  pickup_time_from: draft.pickupTimeFrom || null,
-  pickup_time_to: draft.pickupTimeTo || draft.pickupTimeFrom || null,
+  pickup_latitude: storesGoods || !draft.pickupLatitude ? null : Number(draft.pickupLatitude),
+  pickup_longitude: storesGoods || !draft.pickupLongitude ? null : Number(draft.pickupLongitude),
+  pickup_date: storesGoods ? null : toApiDate(draft.pickupDate),
+  pickup_date_to: storesGoods ? null : toApiDate(draft.pickupDateTo || draft.pickupDate),
+  pickup_time_from: storesGoods ? null : draft.pickupTimeFrom || null,
+  pickup_time_to: storesGoods ? null : draft.pickupTimeTo || draft.pickupTimeFrom || null,
   delivery_place_type: draft.deliveryPlaceType || null,
   delivery_city: draft.deliveryCity || null,
   delivery_postal_code: draft.deliveryPostalCode || null,
@@ -197,7 +205,8 @@ export const buildDraftPayload = (draft: LoadDraft) => ({
     ...draft.extraPickups.map((stop) => ({ ...stop, side: 'pickup' })),
     ...draft.extraDeliveries.map((stop) => ({ ...stop, side: 'delivery' })),
   ],
-});
+};
+};
 
 // Warehouse listings live in the same `loads` resource as transport loads and are distinguished by
 // transport_type. Their two stops preserve pickup and preferred-storage locations, while the backend
@@ -211,7 +220,7 @@ export const buildWarehouseLoadPayload = (draft: LoadDraft) => ({
   storage_type: draft.warehouseStorageType,
   pallets: draft.pallets ? Number(draft.pallets) : null,
   volume_m3: draft.volumeM3 ? Number(draft.volumeM3) : null,
-  weight_kg: draft.weightKg ? toApiWeightKg(draft.weightKg) : null,
+  weight_kg: draft.weightKg ? toApiWeightKg(draft.weightKg, draft.weightUnit) : null,
   warehouse_city: draft.deliveryCity,
   warehouse_country_code: draft.deliveryCountry,
   warehouse_address: draft.deliveryAddress || null,
@@ -219,9 +228,11 @@ export const buildWarehouseLoadPayload = (draft: LoadDraft) => ({
   warehouse_longitude: draft.deliveryLongitude ? Number(draft.deliveryLongitude) : null,
   // Only an area request carries a radius - picking one concrete warehouse means the exact point.
   warehouse_radius_km: draft.deliveryPlaceType === 'Area' && draft.deliveryRadiusKm ? Number(draft.deliveryRadiusKm) : null,
+  // A storage request has no pickup - it says where the goods are stored, not what trip brings them
+  // there, so its single stop is the warehouse (or the requested area) itself. The road load that
+  // carries the goods to it is a separate listing with a route of its own.
   stops: [
-    { type: 'pickup', position: 1, place_type: draft.pickupPlaceType, city: draft.pickupCity, postal_code: draft.pickupPostalCode || null, country_code: draft.pickupCountry, address: draft.pickupAddress || null, latitude: draft.pickupLatitude ? Number(draft.pickupLatitude) : null, longitude: draft.pickupLongitude ? Number(draft.pickupLongitude) : null, window_starts_at: toApiDateTime(draft.pickupDate, draft.pickupTimeFrom), window_ends_at: toApiDateTime(draft.pickupDateTo || draft.pickupDate, draft.pickupTimeTo || draft.pickupTimeFrom) },
-    { type: 'delivery', position: 2, place_type: draft.deliveryPlaceType, city: draft.deliveryCity, postal_code: draft.deliveryPostalCode || null, country_code: draft.deliveryCountry, address: draft.deliveryAddress || null, latitude: draft.deliveryLatitude ? Number(draft.deliveryLatitude) : null, longitude: draft.deliveryLongitude ? Number(draft.deliveryLongitude) : null, window_starts_at: toApiDateTime(draft.deliveryDate, draft.deliveryTimeFrom), window_ends_at: toApiDateTime(draft.deliveryDateTo || draft.deliveryDate, draft.deliveryTimeTo || draft.deliveryTimeFrom) },
+    { type: 'delivery', position: 1, place_type: draft.deliveryPlaceType, city: draft.deliveryCity, postal_code: draft.deliveryPostalCode || null, country_code: draft.deliveryCountry, address: draft.deliveryAddress || null, latitude: draft.deliveryLatitude ? Number(draft.deliveryLatitude) : null, longitude: draft.deliveryLongitude ? Number(draft.deliveryLongitude) : null, window_starts_at: toApiDateTime(draft.deliveryDate, draft.deliveryTimeFrom), window_ends_at: toApiDateTime(draft.deliveryDateTo || draft.deliveryDate, draft.deliveryTimeTo || draft.deliveryTimeFrom) },
   ],
   storage_start_date: toApiDate(draft.deliveryDate || draft.warehouseStartDate),
   storage_end_date: draft.warehouseIsOngoing ? null : toApiDate(draft.deliveryDateTo || draft.warehouseEndDate || draft.deliveryDate),

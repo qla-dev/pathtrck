@@ -9,14 +9,11 @@ import {
   HelpCircle,
   Landmark,
   Layers,
-  Loader2,
   Lock,
   Package,
   PackageCheck,
   PackageOpen,
-  MapPin,
   Radar,
-  Route,
   ScanEye,
   ShieldCheck,
   Snowflake,
@@ -26,7 +23,6 @@ import {
   Umbrella,
   Warehouse,
 } from 'lucide-react';
-import { Map as MapGlyphIcon } from 'lucide-react';
 
 import { cn } from '../../../lib/cn';
 import { SUPPORTED_CURRENCIES } from '../../../lib/currency';
@@ -43,7 +39,6 @@ import { TimeInput } from './TimeInput';
 import { WarehouseAutocompleteField } from './WarehouseAutocompleteField';
 import { VerticalRoutePoint } from './VerticalRoutePoint';
 import { ScrollableRow } from './ScrollableRow';
-import { Button } from '../../ui/Button';
 
 type SetField = <K extends keyof LoadDraft>(key: K, value: LoadDraft[K]) => void;
 type Setter = Dispatch<SetStateAction<LoadDraft>>;
@@ -223,30 +218,46 @@ export const WarehouseCargoFields = ({ draft, setField, setDraft, u, invalidClas
   );
 };
 
+/** One of the warehouses this account owns, offered as the receiving facility for an own-stock receipt. */
+export type OwnedWarehouse = {
+  id: number;
+  name: string;
+  city: string;
+  countryCode: string;
+  address: string;
+  latitude: string;
+  longitude: string;
+};
+
+/**
+ * The Route step of a storage request.
+ *
+ * A storage request is not a trip: the goods are described by where they are stored, not by a leg
+ * driven to get there. So there is no pickup column here - the storage destination that used to sit
+ * as a full-width row above the route takes the first column instead, the preferred warehouse
+ * location follows, and the third column reads the request back as storage rather than as a route.
+ * Getting the goods to that warehouse is its own road load, which publishing offers to prepare.
+ */
 export const WarehouseLocationFields = ({
   draft,
   setField,
   setDraft,
   u,
   lang,
-  onOpenPickupMap,
+  ownedWarehouses,
+  onSelectOwnedWarehouse,
   onOpenWarehouseArea,
   invalidClass,
-  routeDistanceKm,
-  recalculatingRoute,
-  onShowRoute,
 }: {
   draft: LoadDraft;
   setField: SetField;
   setDraft: Setter;
   u: (key: string, fallback: string) => string;
   lang: Language;
-  onOpenPickupMap: () => void;
+  ownedWarehouses: OwnedWarehouse[];
+  onSelectOwnedWarehouse: (warehouse: OwnedWarehouse) => void;
   onOpenWarehouseArea: () => void;
   invalidClass: InvalidClass;
-  routeDistanceKm: number | null;
-  recalculatingRoute: boolean;
-  onShowRoute: () => void;
 }) => {
   // Warehouse requests posted before the area picker existed carry the old 'Address' place type -
   // they are area requests in all but name, so anything that is not one concrete warehouse counts
@@ -257,55 +268,62 @@ export const WarehouseLocationFields = ({
   const warehouseTargetValue = warehouseTarget
     ? isAreaRequest ? warehouseTarget + ' · ' + radiusKm + ' km' : warehouseTarget
     : '—';
+  const storageTargetValue = draft.storageTarget === 'own'
+    ? draft.warehouseName || u('postLoadModal.storageTargetOwn', 'One of my warehouses')
+    : u('postLoadModal.storageTargetExchange', 'Warehouse exchange');
+  const storagePeriodValue = !draft.deliveryDate
+    ? '—'
+    : draft.warehouseIsOngoing
+      ? draft.deliveryDate + ' · ' + u('postLoadModal.warehouseOngoing', 'Ongoing')
+      : draft.deliveryDate + (draft.deliveryDateTo ? ' - ' + draft.deliveryDateTo : '');
 
   return (
   <div className="grid gap-3 lg:grid-cols-[minmax(0,5fr)_minmax(0,5fr)_minmax(0,2fr)]">
     <section className="space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
-      <div className="flex items-center gap-2 text-emerald-500">
-        <MapPin className="h-4 w-4" />
-        <p className="text-xs font-black uppercase tracking-wider">{u('postLoadModal.pickupBlock', 'Pickup')}</p>
+      <div className="flex items-center gap-2 text-primary">
+        <Warehouse className="h-4 w-4" />
+        <p className="text-xs font-black uppercase tracking-wider">{u('postLoadModal.storageTarget', 'Storage destination')}</p>
       </div>
       <div className="space-y-1">
-        <FieldLabel>{u('postLoadModal.pickupPlaceType', 'Place type')}</FieldLabel>
-        <div className="grid grid-cols-2 gap-2">
-          <ChoiceCard compact active={draft.pickupPlaceType === 'Warehouse'} title={u('postLoadModal.warehouse', 'Warehouse')} icon={Warehouse} onClick={() => setField('pickupPlaceType', 'Warehouse')} />
-          <ChoiceCard compact active={draft.pickupPlaceType === 'Address'} title={u('postLoadModal.address', 'Address')} icon={MapPin} onClick={() => setField('pickupPlaceType', 'Address')} />
+        <FieldLabel>{u('postLoadModal.storageTargetQuestion', 'Where should the goods be stored?')}</FieldLabel>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <ChoiceCard
+            active={draft.storageTarget === 'own'}
+            title={u('postLoadModal.storageTargetOwn', 'One of my warehouses')}
+            description={u('postLoadModal.storageTargetOwnDesc', 'Create an inbound receipt on your dock schedule.')}
+            icon={ArrowDownToLine}
+            onClick={() => setDraft((current) => ({ ...current, storageTarget: 'own' }))}
+          />
+          <ChoiceCard
+            active={draft.storageTarget === 'exchange'}
+            title={u('postLoadModal.storageTargetExchange', 'Warehouse exchange')}
+            description={u('postLoadModal.storageTargetExchangeDesc', 'Publish a storage request for warehouse companies.')}
+            icon={Landmark}
+            onClick={() => setDraft((current) => ({ ...current, storageTarget: 'exchange', warehouseId: '', warehouseName: '' }))}
+          />
         </div>
       </div>
-      <div className={cn('space-y-1', invalidClass('pickupAddress'))}>
-        <FieldLabel>{draft.pickupPlaceType === 'Warehouse' ? u('postLoadModal.selectWarehouse', 'Warehouse') : u('postLoadModal.address', 'Address')}</FieldLabel>
-        {draft.pickupPlaceType === 'Warehouse' ? (
-          <WarehouseAutocompleteField
-            value={draft.pickupAddress}
-            onChange={(value) => setField('pickupAddress', value)}
-            onSelectWarehouse={(warehouse) => setDraft((current) => ({ ...current, pickupAddress: [warehouse.name, warehouse.address].filter(Boolean).join(' — '), pickupCity: warehouse.city, pickupCountry: warehouse.countryCode || current.pickupCountry, pickupLatitude: warehouse.latitude, pickupLongitude: warehouse.longitude }))}
-            placeholder={u('postLoadModal.warehouseSearchPlaceholder', 'Search warehouses')}
-            loadingLabel={u('postLoadModal.loadingWarehouses', 'Loading warehouses...')}
-            emptyLabel={u('postLoadModal.noWarehousesFound', 'No warehouses found')}
-          />
-        ) : (
-          <AddressAutocompleteField
-            value={draft.pickupAddress}
-            onChange={(value) => setField('pickupAddress', value)}
-            onSelectLocation={(location) => setDraft((current) => ({ ...current, pickupAddress: location.label, pickupCity: location.city || current.pickupCity, pickupCountry: location.countryCode || current.pickupCountry, pickupLatitude: String(location.latitude), pickupLongitude: String(location.longitude) }))}
-            placeholder={u('postLoadModal.pickupAddressPlaceholder', 'Search places or click the map')}
-            onOpenMap={onOpenPickupMap}
-            mapButtonLabel={u('map.choosePickup', 'Choose pickup address on map')}
-            mapButtonIcon={MapGlyphIcon}
-            accentClassName="text-emerald-500"
-          />
-        )}
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className={cn('space-y-1', invalidClass('pickupCountry'))}><FieldLabel>{u('postLoadModal.country', 'Country')}</FieldLabel><CountrySelect value={draft.pickupCountry} onChange={(value) => setField('pickupCountry', value)} /></div>
-        <div className={cn('space-y-1', invalidClass('pickupCity'))}><FieldLabel>{u('postLoadModal.pickupCity', 'City')}</FieldLabel><Input value={draft.pickupCity} onChange={(event) => setField('pickupCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', 'City')} /></div>
-      </div>
-      <div className="grid grid-cols-4 gap-2">
-        <div className={cn('space-y-1', invalidClass('pickupDate'))}><FieldLabel>{u('postLoadModal.pickupDate', 'Date from')}</FieldLabel><DateInput value={draft.pickupDate} onChange={(value) => setField('pickupDate', value)} placeholder="dd.mm.yyyy" lang={lang} /></div>
-        <div className={cn('space-y-1', invalidClass('pickupDateTo'))}><FieldLabel>{u('postLoadModal.pickupDateTo', 'Date to')}</FieldLabel><DateInput value={draft.pickupDateTo} onChange={(value) => setField('pickupDateTo', value)} placeholder="dd.mm.yyyy" lang={lang} /></div>
-        <div className={cn('space-y-1', invalidClass('pickupTimeFrom'))}><FieldLabel>{u('postLoadModal.pickupTimeFrom', 'Time from')}</FieldLabel><TimeInput value={draft.pickupTimeFrom} onChange={(value) => setField('pickupTimeFrom', value)} placeholder="hh:mm" /></div>
-        <div className={cn('space-y-1', invalidClass('pickupTimeTo'))}><FieldLabel>{u('postLoadModal.pickupTimeTo', 'Time to')}</FieldLabel><TimeInput value={draft.pickupTimeTo} onChange={(value) => setField('pickupTimeTo', value)} placeholder="hh:mm" /></div>
-      </div>
+      {draft.storageTarget === 'own' && (
+        <div className="space-y-1">
+          <FieldLabel>{u('postLoadModal.receivingWarehouse', 'Receiving warehouse')}</FieldLabel>
+          <div className={cn('flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950', invalidClass('warehouseId'))}>
+            {ownedWarehouses.map((warehouse) => (
+              <button
+                key={warehouse.id}
+                type="button"
+                onClick={() => onSelectOwnedWarehouse(warehouse)}
+                className={cn('inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-2 text-xs font-bold transition-colors', draft.warehouseId === String(warehouse.id) ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200')}
+              >
+                <Warehouse className="h-3.5 w-3.5" />
+                {warehouse.name}
+              </button>
+            ))}
+            {ownedWarehouses.length === 0 && (
+              <p className="px-1 py-2 text-xs text-slate-500">{u('postLoadModal.noOwnedWarehouses', 'No warehouse is available for this account.')}</p>
+            )}
+          </div>
+        </div>
+      )}
     </section>
 
     <section className="space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
@@ -373,24 +391,26 @@ export const WarehouseLocationFields = ({
         <div className={cn('space-y-1', invalidClass('deliveryCity'))}><FieldLabel>{u('postLoadModal.deliveryCity', 'City')}</FieldLabel><Input value={draft.deliveryCity} onChange={(event) => setField('deliveryCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', 'City')} /></div>
       </div>
       <div className="grid grid-cols-4 gap-2">
-        <div className={cn('space-y-1', invalidClass('deliveryDate'))}><FieldLabel>{u('postLoadModal.deliveryDate', 'Date from')}</FieldLabel><DateInput value={draft.deliveryDate} onChange={(value) => setDraft((current) => ({ ...current, deliveryDate: value, warehouseStartDate: value }))} placeholder="dd.mm.yyyy" lang={lang} /></div>
-        <div className={cn('space-y-1', invalidClass('deliveryDateTo'))}><FieldLabel>{u('postLoadModal.deliveryDateTo', 'Date to')}</FieldLabel><DateInput value={draft.deliveryDateTo} onChange={(value) => setDraft((current) => ({ ...current, deliveryDateTo: value, warehouseEndDate: value }))} placeholder="dd.mm.yyyy" lang={lang} /></div>
+        <div className={cn('space-y-1', invalidClass('deliveryDate'))}><FieldLabel>{u('postLoadModal.warehouseStartDate', 'Storage start date')}</FieldLabel><DateInput value={draft.deliveryDate} onChange={(value) => setDraft((current) => ({ ...current, deliveryDate: value, warehouseStartDate: value }))} placeholder="dd.mm.yyyy" lang={lang} /></div>
+        <div className={cn('space-y-1', invalidClass('deliveryDateTo'))}><FieldLabel>{u('postLoadModal.warehouseEndDate', 'Storage end date')}</FieldLabel><DateInput value={draft.deliveryDateTo} onChange={(value) => setDraft((current) => ({ ...current, deliveryDateTo: value, warehouseEndDate: value }))} placeholder="dd.mm.yyyy" lang={lang} /></div>
         <div className={cn('space-y-1', invalidClass('deliveryTimeFrom'))}><FieldLabel>{u('postLoadModal.deliveryTimeFrom', 'Time from')}</FieldLabel><TimeInput value={draft.deliveryTimeFrom} onChange={(value) => setField('deliveryTimeFrom', value)} placeholder="hh:mm" /></div>
         <div className={cn('space-y-1', invalidClass('deliveryTimeTo'))}><FieldLabel>{u('postLoadModal.deliveryTimeTo', 'Time to')}</FieldLabel><TimeInput value={draft.deliveryTimeTo} onChange={(value) => setField('deliveryTimeTo', value)} placeholder="hh:mm" /></div>
       </div>
     </section>
 
+    {/* Read back as storage, not as a route: where it goes, and for how long. Without a pickup
+        there is no leg to measure, so the distance stripe and the route map belong to the road load
+        that carries the goods here, not to the storage request itself. */}
     <section className="flex h-full min-w-0 flex-col space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
-      <div className="flex items-center gap-2 text-primary"><Route className="h-4 w-4" /><p className="text-xs font-black uppercase tracking-wider">{u('postLoadModal.routeSummaryTitle', 'Route')}</p></div>
+      <div className="flex items-center gap-2 text-primary"><Warehouse className="h-4 w-4" /><p className="text-xs font-black uppercase tracking-wider">{u('postLoadModal.storageSummaryTitle', 'Storage')}</p></div>
       <div className="flex min-w-0 flex-1 flex-col">
-        <VerticalRoutePoint icon={MapPin} iconClassName="bg-emerald-500 shadow-emerald-500/20" label={u('postLoadModal.origin', 'Origin')} value={draft.pickupCity || draft.pickupAddress || '—'} />
+        <VerticalRoutePoint icon={draft.storageTarget === 'own' ? ArrowDownToLine : Landmark} iconClassName="bg-emerald-500 shadow-emerald-500/20" label={u('postLoadModal.storageTarget', 'Storage destination')} value={storageTargetValue} />
         <VerticalRoutePoint icon={isAreaRequest ? Radar : Warehouse} iconClassName="bg-blue-500 shadow-blue-500/20" label={isAreaRequest ? u('postLoadModal.warehousePreferredArea', 'Preferred area') : u('postLoadModal.warehousePreferredLocation', 'Preferred warehouse location')} value={warehouseTargetValue} last />
       </div>
-      <div className="flex items-center justify-between rounded-xl border border-sky-200 bg-sky-50/50 px-3 py-2 dark:border-sky-800 dark:bg-slate-900">
-        <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">{u('landing.distance', 'Distance')}</p>
-        <p className="flex items-center gap-1 text-sm font-black text-slate-900 dark:text-white">{recalculatingRoute ? <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" /> : routeDistanceKm === null ? '—' : `${routeDistanceKm.toLocaleString()} km`}</p>
+      <div className="rounded-xl border border-sky-200 bg-sky-50/50 px-3 py-2 dark:border-sky-800 dark:bg-slate-900">
+        <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">{u('postLoadModal.storagePeriod', 'Storage period')}</p>
+        <p className="mt-1 truncate text-sm font-black text-slate-900 dark:text-white">{storagePeriodValue}</p>
       </div>
-      <Button type="button" disabled={!routeDistanceKm} onClick={onShowRoute} className="w-full gap-2 disabled:cursor-not-allowed disabled:bg-sky-300 disabled:text-white disabled:opacity-100 disabled:shadow-none dark:disabled:bg-sky-800"><MapGlyphIcon className="h-4 w-4" />{u('postLoadModal.showRouteMap', 'Show route')}</Button>
     </section>
   </div>
   );

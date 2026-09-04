@@ -6,7 +6,7 @@ import { ui } from '../../i18n';
 import { cn } from '../../lib/cn';
 import type { Language } from '../../types';
 import { TariffTable } from '../tariffs/TariffTable';
-import { hsSectionIconByIndex } from '../modals/scanFieldRows';
+import { hsSectionIconByIndex, hsSectionToneByIndex } from '../modals/scanFieldRows';
 import { HorizontalScrollMenu } from '../ui/HorizontalScrollMenu';
 import { PageHeader } from '../ui/PageHeader';
 
@@ -16,13 +16,6 @@ type CategoryMeta = {
   coded: number;
   selectable: number;
 };
-
-const CATEGORY_TONES = [
-  'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-300',
-  'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/20 dark:bg-violet-500/10 dark:text-violet-300',
-  'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300',
-  'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300',
-];
 
 export const TariffsHsView = ({ lang }: { lang: Language }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
@@ -130,7 +123,7 @@ export const TariffsHsView = ({ lang }: { lang: Language }) => {
             : categories.map((category, index) => {
               const CategoryIcon = hsSectionIconByIndex(index);
               return (
-                <button key={category.id} type="button" onClick={() => { setSelectedSection(category.id); setSelectedChapter(''); }} className={cn('min-h-24 cursor-pointer rounded-2xl border p-4 text-left transition-all', selectedSection === category.id ? 'border-primary bg-primary text-white shadow-lg shadow-primary/15' : CATEGORY_TONES[index % CATEGORY_TONES.length])}>
+                <button key={category.id} type="button" onClick={() => { setSelectedSection(category.id); setSelectedChapter(''); }} className={cn('min-h-24 cursor-pointer rounded-2xl border p-4 text-left transition-all', selectedSection === category.id ? 'border-primary bg-primary text-white shadow-lg shadow-primary/15' : hsSectionToneByIndex(index))}>
                   <CategoryIcon className="h-5 w-5" />
                   <p title={category.label} className="mt-3 line-clamp-2 text-sm font-black leading-5">{category.label}</p>
                   <p className={cn('mt-1 text-xs', selectedSection === category.id ? 'text-white/75' : 'opacity-70')}>{category.selectableCount.toLocaleString()} {u('tariffs.selectableShort', 'selectable')}</p>

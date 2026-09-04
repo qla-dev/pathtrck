@@ -10,6 +10,8 @@ export type IconSelectOption = {
   value: string;
   label: string;
   icon: SelectIcon;
+  logoUrl?: string;
+  toneClass?: string;
 };
 
 type IconSelectProps = {
@@ -87,6 +89,23 @@ export const IconSelect = ({ value, onChange, options, placeholder, icon: FieldI
     setQuery('');
   };
 
+  const optionGraphic = (option: IconSelectOption, selectedGraphic = false) => {
+    const OptionIcon = option.icon;
+    return (
+      <span className="relative flex h-4 w-4 shrink-0 items-center justify-center">
+        <OptionIcon className={cn('h-3.5 w-3.5', option.toneClass || (selectedGraphic ? 'text-primary' : undefined))} />
+        {option.logoUrl && (
+          <img
+            src={option.logoUrl}
+            alt=""
+            className="absolute inset-0 h-4 w-4 object-contain"
+            onError={(event) => { event.currentTarget.style.display = 'none'; }}
+          />
+        )}
+      </span>
+    );
+  };
+
   const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (event.key === 'Escape') {
       setOpen(false);
@@ -120,7 +139,7 @@ export const IconSelect = ({ value, onChange, options, placeholder, icon: FieldI
         onKeyDown={onKeyDown}
         className="flex h-10 w-full cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-left text-xs font-semibold text-slate-600 outline-none focus:border-primary disabled:cursor-wait disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
       >
-        {selected ? <selected.icon className="h-3.5 w-3.5 shrink-0 text-primary" /> : <FieldIcon className="h-3.5 w-3.5 shrink-0 text-slate-400" />}
+        {selected ? optionGraphic(selected, true) : <FieldIcon className="h-3.5 w-3.5 shrink-0 text-slate-400" />}
         <span className={cn('min-w-0 flex-1 truncate', !selected && 'text-slate-400')}>{selected?.label || placeholder}</span>
         <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform', open && 'rotate-180')} />
       </button>
@@ -141,7 +160,7 @@ export const IconSelect = ({ value, onChange, options, placeholder, icon: FieldI
                 option.value === value && 'text-primary'
               )}
             >
-              <option.icon className="h-3.5 w-3.5 shrink-0" />
+              {optionGraphic(option)}
               <span className="min-w-0 flex-1 truncate">{option.label}</span>
               {option.value === value && <Check className="h-3.5 w-3.5 shrink-0" />}
             </button>

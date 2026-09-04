@@ -238,7 +238,7 @@ const ChipGroup = ({
   icon?: LucideIcon;
 }) => (
   <OptionList
-    options={options.map((option) => ({ id: option.id, label: option.label }))}
+    options={options.map((option) => ({ id: option.id, label: option.label, icon: option.icon }))}
     selectedIds={selectedIds}
     onToggle={(id) => onToggle?.(id)}
     fallbackIcon={icon}
@@ -268,7 +268,7 @@ const OptionList = ({
   onToggle,
   fallbackIcon: FallbackIcon = Layers,
 }: {
-  options: { id: string; label: string }[];
+  options: { id: string; label: string; icon?: LucideIcon }[];
   selectedIds: string[];
   onToggle: (id: string) => void;
   fallbackIcon?: LucideIcon;
@@ -276,7 +276,7 @@ const OptionList = ({
   <div role="listbox" aria-multiselectable className="max-h-64 space-y-0.5 overflow-y-auto">
     {options.map((option) => {
       const isSelected = selectedIds.includes(option.id);
-      const Icon = OPTION_ICONS[option.id] || FallbackIcon;
+      const Icon = option.icon || OPTION_ICONS[option.id] || FallbackIcon;
       return (
         <button
           key={option.id}
@@ -849,6 +849,11 @@ export const FilterLoads = (props: FilterLoadsProps) => {
       content: <OptionList options={requirementChips} selectedIds={exchange.specialRequirements} onToggle={exchange.onToggleSpecialRequirement} />,
       onClear: () => exchange.specialRequirements.forEach(exchange.onToggleSpecialRequirement),
     });
+
+    const exchangeGoodsType = secondary.find((pill) => pill.id === 'goodsType');
+    if (exchangeGoodsType) {
+      pills.push(exchangeGoodsType);
+    }
 
     pills.push({
       id: 'assignment',
