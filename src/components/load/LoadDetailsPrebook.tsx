@@ -570,8 +570,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
     <AnimatePresence onExitComplete={() => { if (isClosing) onClose(); }}>
     {open && !isClosing && (
     <motion.div
-      data-load-prebook="true"
-      className="fixed inset-0 z-[240] bg-white dark:bg-slate-950"
+      className="fixed inset-0 z-140 bg-white dark:bg-slate-950"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}

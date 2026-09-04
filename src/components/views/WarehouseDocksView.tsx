@@ -28,13 +28,14 @@ import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { DataTable } from '../ui/DataTable';
 import { PageHeader } from '../ui/PageHeader';
-import { DockMovementModal } from './DockMovementModal';
+import { WarehouseReceiveButton } from './WarehouseReceiveButton';
 
 type Direction = 'inbound' | 'outbound';
 type MovementStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
 
-type DockMovement = {
+export type DockMovement = {
   id: string;
+  loadId: string | null;
   warehouseId: string;
   warehouseName: string;
   direction: Direction;
@@ -78,7 +79,7 @@ const DIRECTION_TONE: Record<Direction, string> = {
  * ledger as a page you can work from - filter by direction and status, search a customer, widen the
  * date window when needed - laid out the way the cargo page is so the two feel like one product.
  */
-export const WarehouseDocksView = ({ lang, onReceiveGoods, onOpenLoad, refreshSignal = 0 }: { lang: Language; onReceiveGoods?: () => void; onOpenLoad?: (loadId: string, movementId?: string) => void; refreshSignal?: number }) => {
+export const WarehouseDocksView = ({ lang, onReceiveGoods, onOpenLoad, refreshSignal = 0 }: { lang: Language; onReceiveGoods?: () => void; onOpenLoad?: (movement: DockMovement) => void; refreshSignal?: number }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -89,9 +90,6 @@ export const WarehouseDocksView = ({ lang, onReceiveGoods, onOpenLoad, refreshSi
   // Cards by default: a dock movement is read one at a time (who, when, how many pallets), which
   // the card shows at a glance where the table makes you track across columns for it.
   const [layout, setLayout] = useState<'list' | 'grid'>('grid');
-  // Which movement is open in full - the dock equivalent of opening a shipment from the cargo page.
-  const [openMovementId, setOpenMovementId] = useState<string | null>(null);
-
   const movementsResult = useApiList(api.warehouseMovements.list, {
     per_page: 200,
     date_from: dateFrom || undefined,
@@ -126,6 +124,7 @@ export const WarehouseDocksView = ({ lang, onReceiveGoods, onOpenLoad, refreshSi
     const status = String(row.status || 'scheduled');
     return {
       id: String(row.id),
+      loadId: row.load_id == null ? null : String(row.load_id),
       warehouseId: String(row.warehouse_id ?? ''),
       warehouseName: String(warehouse.name || row.warehouse_name || '—'),
       direction: row.direction === 'outbound' ? 'outbound' : 'inbound',
@@ -306,6 +305,15 @@ export const WarehouseDocksView = ({ lang, onReceiveGoods, onOpenLoad, refreshSi
             className="h-10 w-36 cursor-pointer rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white"
             />
           </span>
+          <select
+            value={direction}
+            onChange={(event) => setDirection(event.target.value as 'all' | Direction)}
+            className="h-10 cursor-pointer rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+          >
+            <option value="all">{u('history.filter.all', 'All')}</option>
+            <option value="inbound">{u('warehouseView.inbound', 'Inbound')}</option>
+            <option value="outbound">{u('warehouseView.outbound', 'Outbound')}</option>
+          </select>
           {showFacilityColumn && (
             <select
               value={warehouseId}
@@ -362,14 +370,15 @@ export const WarehouseDocksView = ({ lang, onReceiveGoods, onOpenLoad, refreshSi
                   <th className="px-3 py-2">{u('warehouseView.colCustomer', 'Customer')}</th>
                   <th className="px-3 py-2">{u('warehouseView.colPallets', 'Pallets')}</th>
                   <th className="px-3 py-2">{u('warehouseView.colStatus', 'Status')}</th>
+                  <th className="px-3 py-2 text-right">{u('documents.column.actions', 'Actions')}</th>
                 </tr>
               </thead>
               <tbody>
                 {visible.map((row) => (
                   <tr
                     key={row.id}
-                    onClick={() => setOpenMovementId(row.id)}
-                    className="cursor-pointer border-b border-slate-50 transition-colors hover:bg-slate-50 dark:border-slate-800/60 dark:hover:bg-slate-800/40"
+                    onClick={() => onOpenLoad?.(row)}
+                    className={cn('border-b border-slate-50 transition-colors hover:bg-slate-50 dark:border-slate-800/60 dark:hover:bg-slate-800/40', onOpenLoad && 'cursor-pointer')}
                   >
                     <td className="px-3 py-2">
                       <span className="block font-bold text-slate-800 dark:text-white">{formatTime(row.scheduledAt)}</span>
@@ -381,6 +390,15 @@ export const WarehouseDocksView = ({ lang, onReceiveGoods, onOpenLoad, refreshSi
                     <td className="px-3 py-2 text-slate-700 dark:text-slate-300">{row.customerName}</td>
                     <td className="px-3 py-2 font-bold dark:text-white">{row.pallets}</td>
                     <td className="px-3 py-2"><StatusChip status={row.status} /></td>
+                    <td className="px-3 py-2 text-right" onClick={(event) => event.stopPropagation()}>
+                      <WarehouseReceiveButton
+                        movementId={row.id}
+                        movement={{ id: row.id, direction: row.direction, status: row.status }}
+                        lang={lang}
+                        className="ml-auto h-9 rounded-lg px-3"
+                        onReceived={() => void refreshMovements()}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -392,8 +410,8 @@ export const WarehouseDocksView = ({ lang, onReceiveGoods, onOpenLoad, refreshSi
           {visible.map((row) => (
             <Card
               key={row.id}
-              onClick={() => setOpenMovementId(row.id)}
-              className="cursor-pointer shadow-none transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
+              onClick={() => onOpenLoad?.(row)}
+              className={cn('shadow-none transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md', onOpenLoad && 'cursor-pointer')}
               contentClassName="space-y-3 p-4"
             >
               <div className="flex items-start justify-between gap-2">
@@ -424,18 +442,19 @@ export const WarehouseDocksView = ({ lang, onReceiveGoods, onOpenLoad, refreshSi
                 </p>
               )}
               {row.description && <p className="line-clamp-2 text-[11px] text-slate-500">{row.description}</p>}
+              <div onClick={(event) => event.stopPropagation()}>
+                <WarehouseReceiveButton
+                  movementId={row.id}
+                  movement={{ id: row.id, direction: row.direction, status: row.status }}
+                  lang={lang}
+                  className="h-10 w-full rounded-xl"
+                  onReceived={() => void refreshMovements()}
+                />
+              </div>
             </Card>
           ))}
         </div>
       )}
-      <DockMovementModal
-        open={openMovementId !== null}
-        lang={lang}
-        movementId={openMovementId}
-        onClose={() => setOpenMovementId(null)}
-        onOpenLoad={onOpenLoad}
-        onMovementChanged={() => void refreshMovements()}
-      />
     </div>
   );
 };

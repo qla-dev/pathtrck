@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Loader2, PackageCheck } from 'lucide-react';
+import { ArrowUpFromLine, Loader2, PackageCheck } from 'lucide-react';
 
 import { ui } from '../../i18n';
 import { confirmAction, showError, showSuccess } from '../../lib/swal';
@@ -43,17 +43,25 @@ export const WarehouseReceiveButton = ({
     return () => { cancelled = true; };
   }, [movement, movementId]);
 
-  const canReceive = movementId
-    && record?.direction === 'inbound'
+  const direction = record?.direction === 'outbound' ? 'outbound' : 'inbound';
+  const canComplete = movementId
+    && ['inbound', 'outbound'].includes(String(record?.direction || ''))
     && !['completed', 'cancelled'].includes(String(record.status || ''));
-  if (!canReceive) return null;
+  if (!canComplete) return null;
 
   const receiveNow = async () => {
     if (receiving) return;
+    const isOutbound = direction === 'outbound';
     const confirmed = await confirmAction({
-      title: u('warehouseDocks.receiveNowTitle', 'Receive these goods now?'),
-      text: u('warehouseDocks.receiveNowText', 'The inbound movement will be completed now and the goods added to warehouse occupancy.'),
-      confirmText: u('warehouseDocks.receiveNow', 'Receive now'),
+      title: isOutbound
+        ? u('warehouseDocks.dispatchNowTitle', 'Dispatch these goods now?')
+        : u('warehouseDocks.receiveNowTitle', 'Receive these goods now?'),
+      text: isOutbound
+        ? u('warehouseDocks.dispatchNowText', 'The outbound movement will be completed now and the goods removed from warehouse occupancy.')
+        : u('warehouseDocks.receiveNowText', 'The inbound movement will be completed now and the goods added to warehouse occupancy.'),
+      confirmText: isOutbound
+        ? u('warehouseDocks.dispatchNow', 'Dispatch now')
+        : u('warehouseDocks.receiveNow', 'Receive now'),
     });
     if (!confirmed) return;
 
@@ -66,12 +74,18 @@ export const WarehouseReceiveButton = ({
       setRecord(response.data);
       onReceived?.(response.data);
       void showSuccess(
-        u('warehouseDocks.receivedTitle', 'Goods received'),
-        u('warehouseDocks.receivedText', 'The inbound movement is complete and warehouse occupancy has been updated.'),
+        isOutbound
+          ? u('warehouseDocks.dispatchedTitle', 'Goods dispatched')
+          : u('warehouseDocks.receivedTitle', 'Goods received'),
+        isOutbound
+          ? u('warehouseDocks.dispatchedText', 'The outbound movement is complete and warehouse occupancy has been updated.')
+          : u('warehouseDocks.receivedText', 'The inbound movement is complete and warehouse occupancy has been updated.'),
       );
     } catch (error) {
       void showError(
-        u('warehouseDocks.receiveFailed', 'The goods could not be received'),
+        isOutbound
+          ? u('warehouseDocks.dispatchFailed', 'The goods could not be dispatched')
+          : u('warehouseDocks.receiveFailed', 'The goods could not be received'),
         error instanceof Error ? error.message : undefined,
       );
     } finally {
@@ -83,8 +97,12 @@ export const WarehouseReceiveButton = ({
     <Button className={className} disabled={receiving} onClick={() => void receiveNow()}>
       {receiving
         ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        : <PackageCheck className="mr-2 h-4 w-4" />}
-      {u('warehouseDocks.receiveNow', 'Receive now')}
+        : direction === 'outbound'
+          ? <ArrowUpFromLine className="mr-2 h-4 w-4" />
+          : <PackageCheck className="mr-2 h-4 w-4" />}
+      {direction === 'outbound'
+        ? u('warehouseDocks.dispatchNow', 'Dispatch now')
+        : u('warehouseDocks.receiveNow', 'Receive now')}
     </Button>
   );
 };

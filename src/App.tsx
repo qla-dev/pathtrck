@@ -121,7 +121,7 @@ import { ScanFieldPatch } from "./components/modals/scanFieldRows";
 import { LenaCanvasMode } from "./lib/lenaLoadCanvas";
 import { LoadNotesView } from "./components/views/LoadNotesView";
 import { CompanyWorkspaceView } from "./components/views/CompanyWorkspaceView";
-import { WarehouseDocksView } from "./components/views/WarehouseDocksView";
+import { WarehouseDocksView, type DockMovement } from "./components/views/WarehouseDocksView";
 import { WarehouseOverviewView } from "./components/views/WarehouseOverviewView";
 import { WarehousesView } from "./components/views/WarehousesView";
 import { AdminWarehouseCompaniesView } from "./components/views/AdminWarehouseCompaniesView";
@@ -7386,8 +7386,26 @@ export default function App() {
                 <WarehouseDocksView
                   lang={lang}
                   refreshSignal={warehouseDocksRefreshSignal}
-                  onOpenLoad={(loadId, movementId) => {
-                    void handleBookLoad(loadId, movementId);
+                  onOpenLoad={(movement: DockMovement) => {
+                    if (movement.loadId) {
+                      void handleBookLoad(movement.loadId, movement.id);
+                      return;
+                    }
+                    setBookingWarehouseMovementId(movement.id);
+                    setBookingLoad(mapDatabaseRecordToLoad({
+                      id: `dock-${movement.id}`,
+                      title: movement.description || movement.customerName,
+                      status: 'pending',
+                      transport_type: 'warehouse',
+                      for_storage: true,
+                      is_negotiable: false,
+                      storage_type: movement.storageType,
+                      storage_start_date: movement.scheduledAt,
+                      warehouse_city: movement.warehouseName,
+                      pallets: movement.pallets,
+                      created_at: movement.scheduledAt,
+                      company: { name: movement.customerName },
+                    }));
                   }}
                   onReceiveGoods={() => {
                     setLenaLoadPrefill({ transportType: "warehouse", storageTarget: "own" });
