@@ -1,8 +1,9 @@
-import { ReactNode, useMemo, useState } from 'react';
-import { Check, ChevronDown, Minus, Plus } from 'lucide-react';
+import { Children, isValidElement, ReactNode, useMemo, useState } from 'react';
+import { Check, ChevronDown, Layers, Minus, Plus } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 import { cn } from '../../../lib/cn';
+import { IconSelect, type IconSelectOption } from '../../ui/IconSelect';
 
 /** Rounded section card - the product's card shape, at the density of the reference screens. */
 export const SectionCard = ({
@@ -69,25 +70,35 @@ export const SelectField = ({
   invalid,
   className,
   children,
-  ...props
-}: React.SelectHTMLAttributes<HTMLSelectElement> & { icon?: LucideIcon; invalid?: boolean }) => (
-  <div className="relative">
-    {Icon && <Icon className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />}
-    <select
-      {...props}
-      className={cn(
-        controlBase,
-        'cursor-pointer appearance-none',
-        Icon ? 'pl-9 pr-9' : 'pl-3 pr-9',
-        invalid && 'border-rose-400 ring-2 ring-rose-500/20',
-        className,
-      )}
-    >
-      {children}
-    </select>
-    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-  </div>
-);
+  value,
+  onChange,
+  disabled,
+  'aria-label': ariaLabel,
+}: React.SelectHTMLAttributes<HTMLSelectElement> & { icon?: LucideIcon; invalid?: boolean }) => {
+  const OptionIcon = Icon || Layers;
+  const options = Children.toArray(children).flatMap<IconSelectOption>((child) => {
+    if (!isValidElement<{ value?: string | number; children?: ReactNode }>(child)) return [];
+    const optionValue = String(child.props.value ?? '');
+    const label = typeof child.props.children === 'string' || typeof child.props.children === 'number'
+      ? String(child.props.children)
+      : optionValue;
+    return [{ value: optionValue, label, icon: OptionIcon }];
+  });
+  const placeholder = options.find((option) => option.value === '')?.label || options[0]?.label || '';
+
+  return (
+    <IconSelect
+      value={String(value ?? '')}
+      onChange={(nextValue) => onChange?.({ target: { value: nextValue }, currentTarget: { value: nextValue } } as unknown as React.ChangeEvent<HTMLSelectElement>)}
+      options={options}
+      placeholder={placeholder}
+      icon={OptionIcon}
+      ariaLabel={ariaLabel}
+      disabled={disabled}
+      className={cn(className, invalid && '[&_button]:border-rose-400 [&_button]:ring-2 [&_button]:ring-rose-500/20')}
+    />
+  );
+};
 
 /** Textarea with the "0/500" counter the reference screens put in the bottom-right corner. */
 export const TextareaField = ({

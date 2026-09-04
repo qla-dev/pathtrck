@@ -61,6 +61,29 @@ type WarehouseOverviewData = {
   top_customers: Record<string, unknown>[];
 };
 
+const EMPTY_WAREHOUSE_OVERVIEW: WarehouseOverviewData = {
+  warehouse: null,
+  warehouses: [],
+  selected_warehouse_id: null,
+  stats: {},
+  dock_schedule: [],
+  inventory_summary: [],
+  recent_arrivals: [],
+  top_customers: [],
+};
+
+const LoadingTableRows = ({ columns, rows = 3 }: { columns: number; rows?: number }) => (
+  <>
+    {Array.from({ length: rows }, (_, row) => (
+      <tr key={row} className="animate-pulse border-t border-slate-100 dark:border-slate-800">
+        {Array.from({ length: columns }, (_, column) => (
+          <td key={column} className="py-2 pr-3"><div className="h-4 rounded bg-slate-100 dark:bg-slate-800" /></td>
+        ))}
+      </tr>
+    ))}
+  </>
+);
+
 const formatTime = (value: unknown) => {
   const date = value ? new Date(String(value)) : null;
   return date && !Number.isNaN(date.getTime()) ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
@@ -78,11 +101,13 @@ export const WarehouseOverviewView = ({
   networkView = false,
   createSignal = 0,
   onCreateSignalHandled,
+  onOpenDocks,
 }: {
   lang: Language;
   networkView?: boolean;
   createSignal?: number;
   onCreateSignalHandled?: () => void;
+  onOpenDocks?: () => void;
 }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [data, setData] = useState<WarehouseOverviewData | null>(null);
@@ -236,15 +261,7 @@ export const WarehouseOverviewView = ({
     }
   };
 
-  if (loading) {
-    return <>
-      <div className="flex h-64 items-center justify-center text-sm text-slate-500">{u('common.loading', 'Loading...')}</div>
-      {createModal}
-      {editModal}
-    </>;
-  }
-
-  if (!data || (data.warehouses || []).length === 0) {
+  if (!loading && (!data || (data.warehouses || []).length === 0)) {
     return <>
       <Card contentClassName="p-8 text-center">
         <WarehouseIcon className="mx-auto h-10 w-10 text-slate-400" />
@@ -257,7 +274,10 @@ export const WarehouseOverviewView = ({
     </>;
   }
 
-  const facilities = data.warehouses;
+  // Match Company Overview: paint the complete dashboard immediately, then hydrate every metric
+  // and panel when the API response arrives instead of blocking navigation with a page spinner.
+  const overview = data || EMPTY_WAREHOUSE_OVERVIEW;
+  const facilities = overview.warehouses;
   const scoped = scope === 'all' ? facilities : facilities.filter((row) => row.id === scope);
   const scopeLabel = scope === 'all'
     ? `${facilities.length} ${u('warehouseView.facilitiesUnit', 'objekata')}`
@@ -272,7 +292,7 @@ export const WarehouseOverviewView = ({
     : suspended.length === waiting.length
       ? { title: u('warehouseView.statusSuspended', 'Suspended'), text: u('warehouseView.statusSuspendedText', 'This facility is disabled and cannot take new bookings.'), tone: 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300' }
       : { title: u('warehouseView.statusPending', 'Pending verification'), text: u('warehouseView.statusPendingText', 'An administrator still has to enable this facility before it goes live in the network.'), tone: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300' };
-  const stats = data.stats || {};
+  const stats = overview.stats || {};
   const currency = String(stats.currency || 'EUR');
   const occupancyPercent = Number(stats.occupancy_percent || 0);
   const occupiedPallets = Number(stats.occupied_pallets || 0);
@@ -299,13 +319,16 @@ export const WarehouseOverviewView = ({
     { label: u('warehouseView.outboundToday', 'Otprema danas'), value: String(stats.outbound_today || 0), icon: ArrowUpFromLine, tone: 'bg-violet-500/10 text-violet-500' },
     { label: u('warehouseView.storageRevenue', 'Prihod od skladištenja'), value: `${currency} ${Number(stats.storage_revenue || 0).toLocaleString()}`, icon: TrendingUp, tone: 'bg-amber-500/10 text-amber-500' },
     { label: u('warehouseView.totalRevenue', 'Ukupan prihod'), value: `${currency} ${Number(stats.total_revenue || 0).toLocaleString()}`, icon: PackageCheck, tone: 'bg-rose-500/10 text-rose-500' },
-  ];
+  ].map((metric) => ({
+    ...metric,
+    value: loading ? <span className="inline-block h-5 w-16 animate-pulse rounded bg-slate-200 align-middle dark:bg-slate-700" /> : metric.value,
+  }));
 
-  const dockSchedule = data.dock_schedule || [];
+  const dockSchedule = (overview.dock_schedule || []).slice(0, 3);
   const showFacilityColumn = scope === 'all' && facilities.length > 1;
-  const inventorySummary = data.inventory_summary || [];
-  const topCustomers = data.top_customers || [];
-  const recentArrivals = data.recent_arrivals || [];
+  const inventorySummary = overview.inventory_summary || [];
+  const topCustomers = overview.top_customers || [];
+  const recentArrivals = overview.recent_arrivals || [];
 
   // Section heading shared by every panel below - compact by design so the KPI tiles plus four
   // panels stay inside one screen, the way the reference dashboard lays them out.
@@ -317,7 +340,7 @@ export const WarehouseOverviewView = ({
   );
 
   return <>
-    <div className="space-y-3" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+    <div className="space-y-3" dir={lang === 'ar' ? 'rtl' : 'ltr'} aria-busy={loading}>
       {statusNotice && (
         <div className={cn('flex items-start gap-2 rounded-2xl border px-4 py-3', statusNotice.tone)}>
           <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
@@ -331,7 +354,7 @@ export const WarehouseOverviewView = ({
         icon={WarehouseIcon}
         tone="orange"
         title={networkView ? u('nav.allWarehouseCompanies', 'Warehouse Companies') : u('warehouseView.title', 'Moj Warehouse')}
-        subtitle={scopeLabel}
+        subtitle={loading ? <span className="inline-block h-3 w-28 animate-pulse rounded bg-slate-200 dark:bg-slate-700" /> : scopeLabel}
         subtitleIcon={MapPin}
         actions={<div className="flex flex-wrap items-center justify-end gap-2">
           {/* Same segmented control as My Fleet's Vehicles / Statistics switch, so both views
@@ -370,7 +393,9 @@ export const WarehouseOverviewView = ({
         filtersAside={(
           <div className="flex items-center gap-2 rounded-xl border border-orange-200 bg-white/70 px-3 py-1.5 dark:border-white/10 dark:bg-white/5">
             <span className="flex items-center gap-1 text-[11px] font-bold uppercase text-emerald-600 dark:text-emerald-400"><Radio className="h-3 w-3 animate-pulse" />{u('common.live', 'Live')}</span>
-            <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{occupiedPallets} / {totalCapacity} {u('warehouseView.palletsUnit', 'paleta')}</span>
+            {loading
+              ? <span className="h-3 w-24 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+              : <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{occupiedPallets} / {totalCapacity} {u('warehouseView.palletsUnit', 'paleta')}</span>}
           </div>
         )}
         activeFilter={scope}
@@ -501,7 +526,9 @@ export const WarehouseOverviewView = ({
         <Card className="shadow-none xl:col-span-3" contentClassName="p-4">
           {panelTitle(Gauge, u('warehouseView.capacityTitle', 'Kapacitet skladišta'))}
           <div className="mt-1 h-[140px]">
-            <ResponsiveContainer width="100%" height="100%">
+            {loading ? (
+              <div className="mx-auto mt-3 h-28 w-28 animate-pulse rounded-full border-[18px] border-slate-100 dark:border-slate-800" />
+            ) : <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={occupancyData} dataKey="value" nameKey="name" innerRadius={42} outerRadius={62} paddingAngle={3}>
                   {occupancyData.map((item) => (
@@ -510,7 +537,7 @@ export const WarehouseOverviewView = ({
                 </Pie>
                 <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #1e293b', background: '#0f172a', color: '#e2e8f0' }} itemStyle={{ color: '#e2e8f0' }} labelStyle={{ color: '#e2e8f0' }} />
               </PieChart>
-            </ResponsiveContainer>
+            </ResponsiveContainer>}
           </div>
           <div className="space-y-1.5">
             {occupancyData.map((item) => (
@@ -526,7 +553,18 @@ export const WarehouseOverviewView = ({
         </Card>
 
         <Card className={cn('shadow-none', facilities.length > 1 ? 'xl:col-span-6' : 'xl:col-span-9')} contentClassName="p-4">
-          {panelTitle(ArrowDownToLine, u('warehouseView.latestDockMovements', 'Latest dock movements'))}
+          <div className="flex items-center justify-between gap-3">
+            {panelTitle(ArrowDownToLine, u('warehouseView.latestDockMovements', 'Latest dock movements'))}
+            {onOpenDocks && (
+              <button
+                type="button"
+                onClick={onOpenDocks}
+                className="shrink-0 cursor-pointer text-xs font-bold text-primary transition-colors hover:text-primary-dark"
+              >
+                {u('common.viewAll', 'See all')}
+              </button>
+            )}
+          </div>
           <div className="mt-2 overflow-x-auto">
             <DataTable className="min-w-[480px] text-xs">
               <thead>
@@ -540,7 +578,7 @@ export const WarehouseOverviewView = ({
                 </tr>
               </thead>
               <tbody>
-                {dockSchedule.length === 0 && (
+                {loading ? <LoadingTableRows columns={showFacilityColumn ? 6 : 5} /> : dockSchedule.length === 0 && (
                   <tr>
                     <td colSpan={showFacilityColumn ? 6 : 5} className="py-4 text-center text-slate-500">{u('warehouseView.noDockMovements', 'No dock movements recorded yet.')}</td>
                   </tr>
@@ -619,7 +657,7 @@ export const WarehouseOverviewView = ({
               </tr>
             </thead>
             <tbody>
-              {recentArrivals.length === 0 && (
+              {loading ? <LoadingTableRows columns={showFacilityColumn ? 5 : 4} /> : recentArrivals.length === 0 && (
                 <tr>
                   <td colSpan={showFacilityColumn ? 5 : 4} className="py-4 text-center text-slate-500">{u('warehouseView.noArrivals', 'Nema nedavnih pošiljki.')}</td>
                 </tr>

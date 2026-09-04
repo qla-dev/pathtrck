@@ -20,6 +20,7 @@ export type ApiUser = {
   headline?: string | null;
   bio?: string | null;
   have_fleet?: boolean;
+  have_warehouse?: boolean;
   is_active: boolean;
   email_verified_at?: string | null;
   last_login_at?: string | null;

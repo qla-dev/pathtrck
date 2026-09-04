@@ -7,9 +7,9 @@ import {
   CalendarDays,
   CheckCircle2,
   CircleSlash,
+  Eye,
   LayoutGrid,
   List,
-  Loader2,
   Package,
   Plus,
   RotateCcw,
@@ -27,6 +27,7 @@ import { useApiList } from '../../hooks/useApiList';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { DataTable } from '../ui/DataTable';
+import { IconSelect, type IconSelectOption } from '../ui/IconSelect';
 import { PageHeader } from '../ui/PageHeader';
 import { WarehouseReceiveButton } from './WarehouseReceiveButton';
 
@@ -70,6 +71,25 @@ const DIRECTION_TONE: Record<Direction, string> = {
   inbound: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
   outbound: 'bg-violet-500/10 text-violet-600 dark:text-violet-400',
 };
+
+const DockMovementsSkeleton = ({ layout }: { layout: 'list' | 'grid' }) => (
+  <div className={cn('animate-pulse gap-4', layout === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3' : 'flex flex-col')}>
+    {Array.from({ length: 6 }, (_, index) => (
+      <div key={index} className="min-h-52 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex justify-between">
+          <div className="h-4 w-28 rounded bg-slate-200 dark:bg-slate-700" />
+          <div className="h-6 w-24 rounded-full bg-slate-100 dark:bg-slate-800" />
+        </div>
+        <div className="mt-5 h-5 w-2/3 rounded bg-slate-200 dark:bg-slate-700" />
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <div className="h-10 rounded-xl bg-slate-100 dark:bg-slate-800" />
+          <div className="h-10 rounded-xl bg-slate-100 dark:bg-slate-800" />
+        </div>
+        <div className="mt-5 h-14 rounded-xl bg-slate-100 dark:bg-slate-800" />
+      </div>
+    ))}
+  </div>
+);
 
 /**
  * "My docks" - the warehouse counterpart of the carrier's "My cargo" page.
@@ -181,6 +201,15 @@ export const WarehouseDocksView = ({ lang, onReceiveGoods, onOpenLoad, refreshSi
   const inbound = visible.filter((row) => row.direction === 'inbound');
   const outbound = visible.filter((row) => row.direction === 'outbound');
   const showFacilityColumn = facilities.length > 1;
+  const directionOptions = useMemo<IconSelectOption[]>(() => [
+    { value: 'all', label: u('history.filter.all', 'All'), icon: LayoutGrid },
+    { value: 'inbound', label: u('warehouseView.inbound', 'Inbound'), icon: ArrowDownToLine },
+    { value: 'outbound', label: u('warehouseView.outbound', 'Outbound'), icon: ArrowUpFromLine },
+  ], [lang]);
+  const facilityOptions = useMemo<IconSelectOption[]>(() => [
+    { value: 'all', label: u('warehouseDocks.allFacilities', 'All warehouses'), icon: WarehouseIcon },
+    ...facilities.map((facility) => ({ value: facility.id, label: facility.name, icon: WarehouseIcon })),
+  ], [facilities, lang]);
   const resetFilters = () => {
     setDateFrom('');
     setDateTo('');
@@ -206,6 +235,31 @@ export const WarehouseDocksView = ({ lang, onReceiveGoods, onOpenLoad, refreshSi
       {directionLabel(value)}
     </span>
   );
+
+  const MovementAction = ({ row, compact = false }: { row: DockMovement; compact?: boolean }) => {
+    if (row.status === 'completed') {
+      return onOpenLoad ? (
+        <Button
+          type="button"
+          className={compact ? 'ml-auto h-9 rounded-lg px-3' : 'h-10 w-full rounded-xl'}
+          onClick={() => onOpenLoad(row)}
+        >
+          <Eye className="mr-2 h-4 w-4" />
+          {u('warehouseDocks.viewLoad', 'View load')}
+        </Button>
+      ) : null;
+    }
+
+    return (
+      <WarehouseReceiveButton
+        movementId={row.id}
+        movement={{ id: row.id, direction: row.direction, status: row.status }}
+        lang={lang}
+        className={compact ? 'ml-auto h-9 rounded-lg px-3' : 'h-10 w-full rounded-xl'}
+        onReceived={() => void refreshMovements()}
+      />
+    );
+  };
 
   return (
     <div className="space-y-3">
@@ -305,24 +359,25 @@ export const WarehouseDocksView = ({ lang, onReceiveGoods, onOpenLoad, refreshSi
             className="h-10 w-36 cursor-pointer rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white"
             />
           </span>
-          <select
+          <IconSelect
             value={direction}
-            onChange={(event) => setDirection(event.target.value as 'all' | Direction)}
-            className="h-10 cursor-pointer rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-          >
-            <option value="all">{u('history.filter.all', 'All')}</option>
-            <option value="inbound">{u('warehouseView.inbound', 'Inbound')}</option>
-            <option value="outbound">{u('warehouseView.outbound', 'Outbound')}</option>
-          </select>
+            onChange={(value) => setDirection(value as 'all' | Direction)}
+            options={directionOptions}
+            placeholder={u('history.filter.all', 'All')}
+            icon={LayoutGrid}
+            ariaLabel={u('warehouseView.colType', 'Type')}
+            className="w-32"
+          />
           {showFacilityColumn && (
-            <select
+            <IconSelect
               value={warehouseId}
-              onChange={(event) => setWarehouseId(event.target.value)}
-              className="h-10 cursor-pointer rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-            >
-              <option value="all">{u('warehouseDocks.allFacilities', 'All warehouses')}</option>
-              {facilities.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}
-            </select>
+              onChange={setWarehouseId}
+              options={facilityOptions}
+              placeholder={u('warehouseDocks.allFacilities', 'All warehouses')}
+              icon={WarehouseIcon}
+              ariaLabel={u('warehouseView.colFacility', 'Warehouse')}
+              className="min-w-44"
+            />
           )}
           <Button
             type="button"
@@ -349,10 +404,7 @@ export const WarehouseDocksView = ({ lang, onReceiveGoods, onOpenLoad, refreshSi
       </Card>
 
       {movementsResult.loading ? (
-        <Card className="shadow-none" contentClassName="flex items-center justify-center gap-2 py-12 text-sm text-slate-500">
-          <Loader2 className="h-4 w-4 animate-spin text-primary" />
-          {u('common.loading', 'Loading...')}
-        </Card>
+        <DockMovementsSkeleton layout={layout} />
       ) : visible.length === 0 ? (
         <Card className="shadow-none" contentClassName="py-12 text-center text-sm text-slate-500">
           {u('warehouseDocks.empty', 'No dock movements match this filter.')}
@@ -391,13 +443,7 @@ export const WarehouseDocksView = ({ lang, onReceiveGoods, onOpenLoad, refreshSi
                     <td className="px-3 py-2 font-bold dark:text-white">{row.pallets}</td>
                     <td className="px-3 py-2"><StatusChip status={row.status} /></td>
                     <td className="px-3 py-2 text-right" onClick={(event) => event.stopPropagation()}>
-                      <WarehouseReceiveButton
-                        movementId={row.id}
-                        movement={{ id: row.id, direction: row.direction, status: row.status }}
-                        lang={lang}
-                        className="ml-auto h-9 rounded-lg px-3"
-                        onReceived={() => void refreshMovements()}
-                      />
+                      <MovementAction row={row} compact />
                     </td>
                   </tr>
                 ))}
@@ -443,13 +489,7 @@ export const WarehouseDocksView = ({ lang, onReceiveGoods, onOpenLoad, refreshSi
               )}
               {row.description && <p className="line-clamp-2 text-[11px] text-slate-500">{row.description}</p>}
               <div onClick={(event) => event.stopPropagation()}>
-                <WarehouseReceiveButton
-                  movementId={row.id}
-                  movement={{ id: row.id, direction: row.direction, status: row.status }}
-                  lang={lang}
-                  className="h-10 w-full rounded-xl"
-                  onReceived={() => void refreshMovements()}
-                />
+                <MovementAction row={row} />
               </div>
             </Card>
           ))}

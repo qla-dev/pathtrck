@@ -10,7 +10,6 @@ import {
   CalendarDays,
   ChevronRight,
   Globe2,
-  Loader2,
   Mail,
   MapPin,
   PackageCheck,
@@ -66,6 +65,7 @@ type ProfileForm = {
   headline: string;
   bio: string;
   haveFleet: boolean;
+  haveWarehouse: boolean;
   companyName: string;
   companyEmail: string;
   companyPhone: string;
@@ -121,6 +121,9 @@ const COPY = {
     haveFleet: "I have a fleet",
     haveFleetHint: "Enable this when your account owns or operates vehicles.",
     haveFleetLocked: "Warehouse companies, warehouse managers and finance accounts cannot enable fleet ownership.",
+    haveWarehouse: "I have a warehouse",
+    haveWarehouseHint: "Enable this when your account owns or operates a warehouse.",
+    haveWarehouseLocked: "Finance accounts cannot enable warehouse ownership.",
     companyName: "Company name",
     website: "Website",
     logo: "Logo URL",
@@ -187,6 +190,9 @@ const COPY = {
     haveFleet: "Imam flotu",
     haveFleetHint: "Uključite ako vaš račun posjeduje ili upravlja vozilima.",
     haveFleetLocked: "Skladišne kompanije, warehouse manageri i finance računi ne mogu uključiti vlasništvo flote.",
+    haveWarehouse: "Imam skladište",
+    haveWarehouseHint: "Uključite ako vaš račun posjeduje ili upravlja skladištem.",
+    haveWarehouseLocked: "Finance računi ne mogu uključiti vlasništvo skladišta.",
     companyName: "Naziv kompanije",
     website: "Web-stranica",
     logo: "URL logotipa",
@@ -254,6 +260,9 @@ const COPY = {
     haveFleet: "Ich habe eine Flotte",
     haveFleetHint: "Aktivieren, wenn Ihr Konto Fahrzeuge besitzt oder betreibt.",
     haveFleetLocked: "Lagerunternehmen, Lagermanager und Finanzkonten können keinen Flottenbesitz aktivieren.",
+    haveWarehouse: "Ich habe ein Lager",
+    haveWarehouseHint: "Aktivieren, wenn Ihr Konto ein Lager besitzt oder betreibt.",
+    haveWarehouseLocked: "Finanzkonten können keinen Lagerbesitz aktivieren.",
     companyName: "Unternehmensname",
     website: "Webseite",
     logo: "Logo-URL",
@@ -372,6 +381,7 @@ const formFrom = (user: ApiUser, company?: CompanyProfile): ProfileForm => ({
   headline: user.headline || "",
   bio: user.bio || "",
   haveFleet: Boolean(user.have_fleet),
+  haveWarehouse: Boolean(user.have_warehouse),
   companyName: company?.name || "",
   companyEmail: company?.email || "",
   companyPhone: company?.phone || "",
@@ -389,6 +399,7 @@ const formFrom = (user: ApiUser, company?: CompanyProfile): ProfileForm => ({
 export const ProfileView = ({
   role,
   lang,
+  initialUser,
   onUserUpdated,
   profileRecord,
   profileKind,
@@ -396,6 +407,7 @@ export const ProfileView = ({
 }: {
   role: Role;
   lang: Language;
+  initialUser?: ApiUser | null;
   onUserUpdated?: (user: ApiUser) => void;
   profileRecord?: Record<string, unknown> | null;
   profileKind?: ProfileRecordKind;
@@ -422,12 +434,12 @@ export const ProfileView = ({
   const [user, setUser] = useState<ApiUser | null>(() =>
     profileRecord && profileKind
       ? userFromRecord(profileRecord, profileKind)
-      : null,
+      : initialUser || null,
   );
   const [form, setForm] = useState<ProfileForm | null>(null);
   const [editing, setEditing] = useState(false);
   const [activeTab, setActiveTab] = useState<ProfileTab>("general");
-  const [loading, setLoading] = useState(!(profileRecord && profileKind));
+  const [loading, setLoading] = useState(!(profileRecord && profileKind) && !initialUser);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
   const [verificationOpen, setVerificationOpen] = useState(false);
@@ -439,6 +451,7 @@ export const ProfileView = ({
       setLoading(false);
       return undefined;
     }
+    if (initialUser) setUser(initialUser);
     let active = true;
     api.auth
       .me()
@@ -454,7 +467,7 @@ export const ProfileView = ({
     return () => {
       active = false;
     };
-  }, [profileKind, profileRecord, text.loadError]);
+  }, [initialUser, profileKind, profileRecord, text.loadError]);
 
   const effectiveRole: Role = profileKind === "driver" ? "driver" : profileKind === "warehouse" ? "warehouse" : profileKind === "company" ? "company" : profileKind === "customer" ? "user" : role;
   const detailKind: ProfileRecordKind | null = profileKind || (effectiveRole === "driver" ? "driver" : effectiveRole === "warehouse" ? "warehouse" : isCompanyOperationsRole(effectiveRole) || effectiveRole === "finance" ? "company" : effectiveRole === "user" ? "customer" : null);
@@ -483,6 +496,7 @@ export const ProfileView = ({
     (Number(company.owner_user_id) === user?.id || effectiveRole === "manager"),
   );
   const fleetForcedOff = effectiveRole === "finance" || effectiveRole === "warehouse" || (Boolean(company?.warehouse_first) && (effectiveRole === "company" || effectiveRole === "manager"));
+  const warehouseForcedOff = effectiveRole === "finance";
   const customer = (profileKind === "customer" ? profileRecord : user?.customer_profile || {}) as Record<string, unknown>;
   const driver = (profileKind === "driver" ? profileRecord : user?.driver || {}) as Record<string, unknown>;
   const detailRecord = (profileRecord || (detailKind === "customer" ? customer : detailKind === "driver" ? driver : company) || null) as Record<string, unknown> | null;
@@ -587,7 +601,11 @@ export const ProfileView = ({
   const openEditor = () => {
     if (user) {
       const nextForm = formFrom(user, company);
-      setForm({ ...nextForm, haveFleet: fleetForcedOff ? false : nextForm.haveFleet });
+      setForm({
+        ...nextForm,
+        haveFleet: fleetForcedOff ? false : nextForm.haveFleet,
+        haveWarehouse: warehouseForcedOff ? false : nextForm.haveWarehouse,
+      });
       setNotice("");
       setError("");
       setEditing(true);
@@ -609,6 +627,7 @@ export const ProfileView = ({
         headline: form.headline || null,
         bio: form.bio || null,
         have_fleet: fleetForcedOff ? false : form.haveFleet,
+        have_warehouse: warehouseForcedOff ? false : form.haveWarehouse,
       };
       if (companyMode && company && canEditCompany)
         payload.company = {
@@ -640,8 +659,24 @@ export const ProfileView = ({
 
   if (loading)
     return (
-      <div className="flex min-h-80 items-center justify-center">
-        <Loader2 className="h-7 w-7 animate-spin text-primary" />
+      <div className="grid animate-pulse items-start gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]" aria-busy="true">
+        <div className="min-w-0 space-y-5">
+          <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+            <div className="h-44 bg-slate-200 dark:bg-slate-800" />
+            <div className="space-y-4 px-8 pb-7 pt-16">
+              <div className="h-7 w-52 rounded bg-slate-200 dark:bg-slate-700" />
+              <div className="h-4 w-72 max-w-full rounded bg-slate-100 dark:bg-slate-800" />
+            </div>
+          </div>
+          <div className="h-12 rounded-xl bg-slate-100 dark:bg-slate-800" />
+          <div className="grid gap-4 md:grid-cols-3">
+            {Array.from({ length: 3 }, (_, index) => <div key={index} className="h-24 rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900" />)}
+          </div>
+        </div>
+        <div className="space-y-5">
+          <div className="h-64 rounded-3xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900" />
+          <div className="h-48 rounded-3xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900" />
+        </div>
       </div>
     );
   if (!user)
@@ -840,6 +875,19 @@ export const ProfileView = ({
               aria-label={text.haveFleet}
               onClick={() => setForm((current) => current ? { ...current, haveFleet: !current.haveFleet } : current)}
               className={fleetForcedOff ? "cursor-not-allowed opacity-50" : undefined}
+            />
+          </div>
+          <div className={cn("mb-4 flex items-center justify-between gap-4 rounded-2xl border p-4", warehouseForcedOff ? "border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950" : "border-sky-200 bg-sky-50/60 dark:border-sky-900/60 dark:bg-sky-950/20")}>
+            <div className="min-w-0">
+              <p className="text-sm font-black text-slate-900 dark:text-white">{text.haveWarehouse}</p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">{warehouseForcedOff ? text.haveWarehouseLocked : text.haveWarehouseHint}</p>
+            </div>
+            <Toggle
+              checked={!warehouseForcedOff && form.haveWarehouse}
+              disabled={warehouseForcedOff || saving}
+              aria-label={text.haveWarehouse}
+              onClick={() => setForm((current) => current ? { ...current, haveWarehouse: !current.haveWarehouse } : current)}
+              className={warehouseForcedOff ? "cursor-not-allowed opacity-50" : undefined}
             />
           </div>
           <div className="grid gap-4 md:grid-cols-2">

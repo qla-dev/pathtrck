@@ -6036,6 +6036,9 @@ export default function App() {
       Boolean(company.warehouse_first),
     ),
   );
+  const hasFleet = Boolean(currentUser?.have_fleet);
+  const hasWarehouse = Boolean(currentUser?.have_warehouse);
+  const warehouseNavigationFirst = warehouseFirst && hasWarehouse;
   const isWarehouseCompany = warehouseExchangeOnly;
   const roleMeta =
     role === "driver"
@@ -6685,7 +6688,7 @@ export default function App() {
       ? [{ id: "finance", label: u("nav.finance", "Finance"), icon: Banknote }]
       : isCompanyOperationsRole(role)
         ? [
-            ...(warehouseFirst
+            ...(warehouseNavigationFirst
               ? [
                   {
                     id: "warehouse-overview",
@@ -6699,19 +6702,23 @@ export default function App() {
                     label: u("nav.companyOverview", "Company Overview"),
                     icon: Building2,
                   },
-                  {
-                    id: "warehouse-overview",
-                    label: u("nav.myWarehouse", "My Warehouse"),
-                    icon: Warehouse,
-                  },
+                  ...(hasWarehouse
+                    ? [{
+                        id: "warehouse-overview",
+                        label: u("nav.myWarehouse", "My Warehouse"),
+                        icon: Warehouse,
+                      }]
+                    : []),
                 ]),
             { id: "feed", label: t.homeFeed, icon: Boxes },
-            {
-              id: "docks",
-              label: u("nav.myDocks", "My docks"),
-              icon: ArrowDownToLine,
-            },
-            ...(!warehouseFirst
+            ...(hasWarehouse
+              ? [{
+                  id: "docks",
+                  label: u("nav.myDocks", "My docks"),
+                  icon: ArrowDownToLine,
+                }]
+              : []),
+            ...(!warehouseNavigationFirst
               ? [
                   {
                     id: "tracking",
@@ -6720,7 +6727,7 @@ export default function App() {
                   },
                 ]
               : []),
-            { id: "fleet", label: t.myFleet, icon: Truck },
+            ...(hasFleet ? [{ id: "fleet", label: t.myFleet, icon: Truck }] : []),
             ...(canManageTeam
               ? [{ id: "company-team", label: u("nav.teamPermissions", "Team & Permissions"), icon: Users }]
               : []),
@@ -6736,18 +6743,22 @@ export default function App() {
           ]
         : role === "warehouse"
           ? [
-              {
-                id: "warehouse-overview",
-                label: u("nav.myWarehouse", "Moj Warehouse"),
-                icon: Warehouse,
-              },
+              ...(hasWarehouse
+                ? [{
+                    id: "warehouse-overview",
+                    label: u("nav.myWarehouse", "Moj Warehouse"),
+                    icon: Warehouse,
+                  }]
+                : []),
               { id: "feed", label: t.homeFeed, icon: Boxes },
-              {
-                id: "docks",
-                label: u("nav.myDocks", "My docks"),
-                icon: ArrowDownToLine,
-              },
-              { id: "fleet", label: t.myFleet, icon: Truck },
+              ...(hasWarehouse
+                ? [{
+                    id: "docks",
+                    label: u("nav.myDocks", "My docks"),
+                    icon: ArrowDownToLine,
+                  }]
+                : []),
+              ...(hasFleet ? [{ id: "fleet", label: t.myFleet, icon: Truck }] : []),
               {
                 id: "notes",
                 label: ui(lang, "documents.navLabel", "Documents"),
@@ -6768,7 +6779,7 @@ export default function App() {
                 label: u("nav.warehouse", "Warehouse"),
                 icon: Warehouse,
               },
-              ...(role === "driver"
+              ...(role === "driver" && hasFleet
                 ? [{ id: "fleet", label: t.myFleet, icon: Truck }]
                 : []),
               ...(role === "driver"
@@ -7422,11 +7433,12 @@ export default function App() {
                   lang={lang}
                   createSignal={warehouseCreateSignal}
                   onCreateSignalHandled={() => setWarehouseCreateSignal(0)}
+                  onOpenDocks={() => setView("docks")}
                 />
               )}
               {view === "warehouses" &&
                 (isElevatedAdmin ? (
-                  <WarehouseOverviewView lang={lang} networkView />
+                  <WarehouseOverviewView lang={lang} networkView onOpenDocks={() => setView("docks")} />
                 ) : (
                   <WarehousesView lang={lang} role={role} />
                 ))}
@@ -7473,6 +7485,7 @@ export default function App() {
                 <ProfileView
                   role={role}
                   lang={lang}
+                  initialUser={currentUser}
                   onUserUpdated={setCurrentUser}
                 />
               )}
