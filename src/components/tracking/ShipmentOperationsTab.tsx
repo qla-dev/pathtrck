@@ -271,7 +271,7 @@ export const ShipmentOperationsTab = ({ workspace, lang, onUpdated, onLoadChange
   const valueField = (
     item: Record<string, unknown>,
     type: 'text' | 'number' | 'datetime-local' = 'text',
-    placeholder = text.enterValue,
+    placeholder: string = text.enterValue,
   ) => {
     const taskKey = String(item.key);
     return (
