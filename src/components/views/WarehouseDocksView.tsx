@@ -77,7 +77,7 @@ const toDateInput = (date: Date) => date.toISOString().slice(0, 10);
  * ledger as a page you can work from - filter by direction and status, search a customer, widen the
  * date window past today - laid out the way the cargo page is so the two feel like one product.
  */
-export const WarehouseDocksView = ({ lang, onReceiveGoods, onOpenLoad }: { lang: Language; onReceiveGoods?: () => void; onOpenLoad?: (loadId: string) => void }) => {
+export const WarehouseDocksView = ({ lang, onReceiveGoods, onOpenLoad, refreshSignal = 0 }: { lang: Language; onReceiveGoods?: () => void; onOpenLoad?: (loadId: string, movementId?: string) => void; refreshSignal?: number }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const today = toDateInput(new Date());
   const [dateFrom, setDateFrom] = useState(today);
@@ -98,6 +98,11 @@ export const WarehouseDocksView = ({ lang, onReceiveGoods, onOpenLoad }: { lang:
     date_to: dateTo || undefined,
     ...(direction === 'all' ? {} : { direction }),
   });
+  const refreshMovements = movementsResult.refresh;
+
+  useEffect(() => {
+    if (refreshSignal > 0) void refreshMovements();
+  }, [refreshMovements, refreshSignal]);
 
   // The facility filter only earns its place once the account runs more than one warehouse.
   const [facilities, setFacilities] = useState<Array<{ id: string; name: string }>>([]);

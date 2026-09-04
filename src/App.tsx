@@ -5425,6 +5425,8 @@ export default function App() {
   const [openLoadDetailsId, setOpenLoadDetailsId] = useState<string | null>(
     null,
   );
+  const [openWarehouseMovementId, setOpenWarehouseMovementId] = useState<string | null>(null);
+  const [warehouseDocksRefreshSignal, setWarehouseDocksRefreshSignal] = useState(0);
   const [bookingLoad, setBookingLoad] = useState<Load | null>(null);
   const handleBookLoad = async (loadId?: string) => {
     if (!loadId) return;
@@ -7381,9 +7383,11 @@ export default function App() {
               {view === "docks" && (
                 <WarehouseDocksView
                   lang={lang}
-                  onOpenLoad={(loadId) => {
-                    setEditLoadId(loadId);
-                    setIsPostLoadOpen(true);
+                  refreshSignal={warehouseDocksRefreshSignal}
+                  onOpenLoad={(loadId, movementId) => {
+                    setOpenWarehouseMovementId(movementId || null);
+                    setOpenLoadDetailsTab('tracker');
+                    setOpenLoadDetailsId(loadId);
                   }}
                   onReceiveGoods={() => {
                     setLenaLoadPrefill({ transportType: "warehouse", storageTarget: "own" });
@@ -7465,7 +7469,9 @@ export default function App() {
             userId={currentUser?.id}
             companyIds={trackingCompanyIds}
             initialTab={openLoadDetailsTab}
-            onClose={() => { setOpenLoadDetailsId(null); setOpenLoadDetailsTab('tracker'); }}
+            warehouseMovementId={openWarehouseMovementId}
+            onWarehouseMovementChanged={() => setWarehouseDocksRefreshSignal((current) => current + 1)}
+            onClose={() => { setOpenLoadDetailsId(null); setOpenWarehouseMovementId(null); setOpenLoadDetailsTab('tracker'); }}
           />
         )}
         <PaymentModal

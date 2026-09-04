@@ -78,7 +78,7 @@ export const DockMovementModal = ({
   lang: Language;
   movementId: string | null;
   onClose: () => void;
-  onOpenLoad?: (loadId: string) => void;
+  onOpenLoad?: (loadId: string, movementId?: string) => void;
 }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [movement, setMovement] = useState<MovementRow | null>(null);
@@ -109,7 +109,7 @@ export const DockMovementModal = ({
   useEffect(() => {
     if (!open) return undefined;
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape' && !document.querySelector('[data-tracking-item-details="true"]')) onClose();
     };
     document.addEventListener('keydown', closeOnEscape);
     return () => document.removeEventListener('keydown', closeOnEscape);
@@ -240,7 +240,7 @@ export const DockMovementModal = ({
                   {loadId !== '' && onOpenLoad && (
                     <button
                       type="button"
-                      onClick={() => onOpenLoad(loadId)}
+                      onClick={() => onOpenLoad(loadId, movementId || undefined)}
                       className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 text-left transition-colors hover:bg-primary/10"
                     >
                       <span className="min-w-0">
