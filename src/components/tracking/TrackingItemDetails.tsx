@@ -28,8 +28,7 @@ export const TrackingItemDetails = ({ open, headerAction, bodyClassName, onClose
     <AnimatePresence onExitComplete={onExitComplete}>
       {open && (
         <motion.div
-          data-tracking-item-details="true"
-          className="fixed inset-0 z-[240] bg-white dark:bg-slate-950"
+          className="fixed inset-0 z-140 bg-white dark:bg-slate-950"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

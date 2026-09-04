@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
+import Flatpickr from 'react-flatpickr';
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
   CalendarClock,
+  CalendarDays,
   CheckCircle2,
   CircleSlash,
   LayoutGrid,
@@ -10,13 +12,14 @@ import {
   Loader2,
   Package,
   Plus,
+  RotateCcw,
   Search,
   Truck,
   Warehouse as WarehouseIcon,
   type LucideIcon,
 } from 'lucide-react';
 
-import { ui } from '../../i18n';
+import { flatpickrI18n, ui } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { Language } from '../../types';
 import { api } from '../../services/api';
@@ -67,21 +70,18 @@ const DIRECTION_TONE: Record<Direction, string> = {
   outbound: 'bg-violet-500/10 text-violet-600 dark:text-violet-400',
 };
 
-const toDateInput = (date: Date) => date.toISOString().slice(0, 10);
-
 /**
  * "My docks" - the warehouse counterpart of the carrier's "My cargo" page.
  *
  * A warehouse account does not run loads, it runs a dock day: what arrives, what leaves, at which
  * gate and for whom. The dashboard already shows today's schedule as one panel; this is the same
  * ledger as a page you can work from - filter by direction and status, search a customer, widen the
- * date window past today - laid out the way the cargo page is so the two feel like one product.
+ * date window when needed - laid out the way the cargo page is so the two feel like one product.
  */
 export const WarehouseDocksView = ({ lang, onReceiveGoods, onOpenLoad, refreshSignal = 0 }: { lang: Language; onReceiveGoods?: () => void; onOpenLoad?: (loadId: string, movementId?: string) => void; refreshSignal?: number }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
-  const today = toDateInput(new Date());
-  const [dateFrom, setDateFrom] = useState(today);
-  const [dateTo, setDateTo] = useState(today);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [direction, setDirection] = useState<'all' | Direction>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | MovementStatus>('all');
   const [warehouseId, setWarehouseId] = useState<'all' | string>('all');
@@ -182,6 +182,14 @@ export const WarehouseDocksView = ({ lang, onReceiveGoods, onOpenLoad, refreshSi
   const inbound = visible.filter((row) => row.direction === 'inbound');
   const outbound = visible.filter((row) => row.direction === 'outbound');
   const showFacilityColumn = facilities.length > 1;
+  const resetFilters = () => {
+    setDateFrom('');
+    setDateTo('');
+    setDirection('all');
+    setStatusFilter('all');
+    setWarehouseId('all');
+    setQuery('');
+  };
 
   const StatusChip = ({ status }: { status: MovementStatus }) => {
     const Icon = STATUS_ICONS[status];
@@ -262,18 +270,42 @@ export const WarehouseDocksView = ({ lang, onReceiveGoods, onOpenLoad, refreshSi
               className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white"
             />
           </label>
-          <input
-            type="date"
+          <span className="relative">
+            <CalendarDays className="pointer-events-none absolute left-3 top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+            <Flatpickr
             value={dateFrom}
-            onChange={(event) => setDateFrom(event.target.value)}
-            className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-          />
-          <input
-            type="date"
+            options={{
+              dateFormat: 'Y-m-d',
+              altInput: true,
+              altInputClass: 'h-10 w-36 cursor-pointer rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white',
+              altFormat: 'd.m.Y',
+              allowInput: true,
+              locale: flatpickrI18n(lang),
+              maxDate: dateTo || undefined,
+            }}
+            onChange={(_, dateStr) => setDateFrom(dateStr)}
+            placeholder={u('warehouseDocks.dateFrom', 'Date from')}
+            className="h-10 w-36 cursor-pointer rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            />
+          </span>
+          <span className="relative">
+            <CalendarDays className="pointer-events-none absolute left-3 top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+            <Flatpickr
             value={dateTo}
-            onChange={(event) => setDateTo(event.target.value)}
-            className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-          />
+            options={{
+              dateFormat: 'Y-m-d',
+              altInput: true,
+              altInputClass: 'h-10 w-36 cursor-pointer rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white',
+              altFormat: 'd.m.Y',
+              allowInput: true,
+              locale: flatpickrI18n(lang),
+              minDate: dateFrom || undefined,
+            }}
+            onChange={(_, dateStr) => setDateTo(dateStr)}
+            placeholder={u('warehouseDocks.dateTo', 'Date to')}
+            className="h-10 w-36 cursor-pointer rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            />
+          </span>
           {showFacilityColumn && (
             <select
               value={warehouseId}
@@ -284,6 +316,15 @@ export const WarehouseDocksView = ({ lang, onReceiveGoods, onOpenLoad, refreshSi
               {facilities.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}
             </select>
           )}
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10 rounded-lg px-3"
+            onClick={resetFilters}
+          >
+            <RotateCcw className="mr-2 h-3.5 w-3.5" />
+            {u('warehouseDocks.resetFilters', 'Reset filters')}
+          </Button>
           <div className="inline-flex h-10 items-center rounded-lg border border-slate-200 p-1 dark:border-slate-800">
             {([['list', List], ['grid', LayoutGrid]] as const).map(([mode, Icon]) => (
               <button
@@ -393,6 +434,7 @@ export const WarehouseDocksView = ({ lang, onReceiveGoods, onOpenLoad, refreshSi
         movementId={openMovementId}
         onClose={() => setOpenMovementId(null)}
         onOpenLoad={onOpenLoad}
+        onMovementChanged={() => void refreshMovements()}
       />
     </div>
   );

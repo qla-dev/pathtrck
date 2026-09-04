@@ -62,6 +62,7 @@ import { LoadBidModal } from './LoadBidModal';
 import { WarehouseBidModal, seedWarehouseDraft } from './WarehouseBidModal';
 import { LoadOffersPanel } from './LoadOffersPanel';
 import { CustomsDocumentList } from './CustomsDocumentList';
+import { WarehouseReceiveButton } from '../views/WarehouseReceiveButton';
 
 type LoadDetailsPrebookProps = {
   open: boolean;
@@ -74,6 +75,8 @@ type LoadDetailsPrebookProps = {
   onEdit?: (load: Load) => void;
   onChanged?: () => void;
   onOperationsOpen?: (workspaceId: number, loadId: string) => void;
+  warehouseMovementId?: string | null;
+  onWarehouseMovementChanged?: () => void;
 };
 
 type UiFn = (key: string, fallback: string) => string;
@@ -202,7 +205,7 @@ const InfoTile = ({ icon: Icon, label, value, tone = 'text-primary', surface = '
   </div>
 );
 
-export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, companyIds = [], onEdit, onChanged, onOperationsOpen }: LoadDetailsPrebookProps) => {
+export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, companyIds = [], onEdit, onChanged, onOperationsOpen, warehouseMovementId, onWarehouseMovementChanged }: LoadDetailsPrebookProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [offers, setOffers] = useState<Array<Record<string, unknown>>>([]);
   const [drivers, setDrivers] = useState<Array<Record<string, unknown>>>([]);
@@ -567,7 +570,8 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
     <AnimatePresence onExitComplete={() => { if (isClosing) onClose(); }}>
     {open && !isClosing && (
     <motion.div
-      className="fixed inset-0 z-140 bg-white dark:bg-slate-950"
+      data-load-prebook="true"
+      className="fixed inset-0 z-[240] bg-white dark:bg-slate-950"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -726,6 +730,12 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                       {u('legacy.loadDetails.readyActions', 'Ready Actions')}
                     </p>
                   </div>
+                  <WarehouseReceiveButton
+                    movementId={warehouseMovementId || null}
+                    lang={lang}
+                    className="h-11 w-full rounded-xl shadow-lg shadow-primary/20"
+                    onReceived={() => onWarehouseMovementChanged?.()}
+                  />
                   {load.shipmentOperationsId && (
                     <div className="border-t border-slate-100 pt-3 dark:border-slate-800">
                       <Button

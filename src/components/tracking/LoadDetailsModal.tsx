@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import { MapContainer, TileLayer, Marker, Popup, CircleMarker, Polyline, Tooltip, useMap } from 'react-leaflet';
-import { ChevronRight, Package as PackageIcon, RotateCcw, Share2, Star, Route, Lock, Coins, Loader2, Sparkles, FileBarChart2, Upload, FileSpreadsheet, Fuel, BedDouble, ParkingCircle, Landmark, ReceiptText, FileText, FileCheck2, Printer, Play, Pause, MessageSquare, PackageCheck } from 'lucide-react';
+import { ChevronRight, Package as PackageIcon, RotateCcw, Share2, Star, Route, Lock, Coins, Loader2, Sparkles, FileBarChart2, Upload, FileSpreadsheet, Fuel, BedDouble, ParkingCircle, Landmark, ReceiptText, FileText, FileCheck2, Printer, Play, Pause, MessageSquare } from 'lucide-react';
 import { Language, Package as PackageData, Role, ShipmentDetail } from '../../types';
 import { isCompanyOperationsRole } from '../../lib/roles';
 import { api, type FuelStation } from '../../services/api';
@@ -133,11 +133,9 @@ type LoadDetailsModalProps = {
   onClose: () => void;
   onChanged?: () => void;
   initialTab?: 'tracker' | 'operations';
-  warehouseMovementId?: string | null;
-  onWarehouseMovementChanged?: () => void;
 };
 
-export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], onClose, onChanged, initialTab = 'tracker', warehouseMovementId, onWarehouseMovementChanged }: LoadDetailsModalProps) => {
+export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], onClose, onChanged, initialTab = 'tracker' }: LoadDetailsModalProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [selectedPackage, setSelectedPackage] = useState<PackageData>(emptyPackage);
   const [detailsOpen, setDetailsOpen] = useState(true);
@@ -145,8 +143,6 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
   const [editFocusKey, setEditFocusKey] = useState<string | null>(null);
   const [editActionTitle, setEditActionTitle] = useState<string | null>(null);
   const [shipmentWorkspace, setShipmentWorkspace] = useState<Record<string, unknown> | null>(null);
-  const [warehouseMovement, setWarehouseMovement] = useState<Record<string, unknown> | null>(null);
-  const [receivingWarehouseMovement, setReceivingWarehouseMovement] = useState(false);
 
   const refreshPackage = async () => {
     const response = await api.loads.get(loadId);
@@ -175,19 +171,6 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
     });
     return () => { cancelled = true; };
   }, [loadId, lang]);
-
-  useEffect(() => {
-    if (!warehouseMovementId) {
-      setWarehouseMovement(null);
-      return undefined;
-    }
-    let cancelled = false;
-    setWarehouseMovement(null);
-    void api.warehouseMovements.get(warehouseMovementId)
-      .then((response) => { if (!cancelled) setWarehouseMovement(response.data); })
-      .catch(() => { if (!cancelled) setWarehouseMovement(null); });
-    return () => { cancelled = true; };
-  }, [warehouseMovementId]);
 
   // The operational checklist no longer has its own top-level tab: it lives inside the
   // "Shipment details" tab, so an operations entry point opens that tab on its checklist sub-tab.
@@ -516,43 +499,6 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
     }
   };
 
-  const canReceiveWarehouseMovement = Boolean(
-    warehouseMovementId
-    && warehouseMovement?.direction === 'inbound'
-    && !['completed', 'cancelled'].includes(String(warehouseMovement.status || ''))
-  );
-
-  const receiveWarehouseMovementNow = async () => {
-    if (!warehouseMovementId || !canReceiveWarehouseMovement || receivingWarehouseMovement) return;
-    const confirmed = await confirmAction({
-      title: u('warehouseDocks.receiveNowTitle', 'Receive these goods now?'),
-      text: u('warehouseDocks.receiveNowText', 'The inbound movement will be completed now and the goods added to warehouse occupancy.'),
-      confirmText: u('warehouseDocks.receiveNow', 'Receive now'),
-    });
-    if (!confirmed) return;
-
-    setReceivingWarehouseMovement(true);
-    try {
-      const response = await api.warehouseMovements.update(warehouseMovementId, {
-        status: 'completed',
-        completed_at: new Date().toISOString(),
-      });
-      setWarehouseMovement(response.data);
-      onWarehouseMovementChanged?.();
-      void showSuccess(
-        u('warehouseDocks.receivedTitle', 'Goods received'),
-        u('warehouseDocks.receivedText', 'The inbound movement is complete and warehouse occupancy has been updated.'),
-      );
-    } catch (error) {
-      void showError(
-        u('warehouseDocks.receiveFailed', 'The goods could not be received'),
-        error instanceof Error ? error.message : undefined,
-      );
-    } finally {
-      setReceivingWarehouseMovement(false);
-    }
-  };
-
   const canControlLiveTracking = role === 'driver' || isCompanyOperationsRole(role) || role === 'superadmin' || role === 'master';
   const handleLiveTrackingToggle = async () => {
     if (!canControlLiveTracking) return;
@@ -744,18 +690,6 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
       }
       headerAction={(
         <>
-          {canReceiveWarehouseMovement && (
-            <Button
-              className="h-10"
-              disabled={receivingWarehouseMovement}
-              onClick={() => void receiveWarehouseMovementNow()}
-            >
-              {receivingWarehouseMovement
-                ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                : <PackageCheck className="mr-2 h-4 w-4" />}
-              {u('warehouseDocks.receiveNow', 'Receive now')}
-            </Button>
-          )}
           <button
             type="button"
             onClick={() => setRightTab('invoice')}

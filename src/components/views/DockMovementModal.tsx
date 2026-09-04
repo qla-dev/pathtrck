@@ -26,6 +26,7 @@ import { cn } from '../../lib/cn';
 import { Language } from '../../types';
 import { api } from '../../services/api';
 import { Card } from '../ui/Card';
+import { WarehouseReceiveButton } from './WarehouseReceiveButton';
 
 type MovementRow = Record<string, unknown>;
 
@@ -73,12 +74,14 @@ export const DockMovementModal = ({
   movementId,
   onClose,
   onOpenLoad,
+  onMovementChanged,
 }: {
   open: boolean;
   lang: Language;
   movementId: string | null;
   onClose: () => void;
   onOpenLoad?: (loadId: string, movementId?: string) => void;
+  onMovementChanged?: () => void;
 }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [movement, setMovement] = useState<MovementRow | null>(null);
@@ -109,7 +112,7 @@ export const DockMovementModal = ({
   useEffect(() => {
     if (!open) return undefined;
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !document.querySelector('[data-tracking-item-details="true"]')) onClose();
+      if (event.key === 'Escape' && !document.querySelector('[data-load-prebook="true"]')) onClose();
     };
     document.addEventListener('keydown', closeOnEscape);
     return () => document.removeEventListener('keydown', closeOnEscape);
@@ -238,21 +241,33 @@ export const DockMovementModal = ({
                   {/* Booked against a load: that load is the whole story of where the goods came
                       from or are going, so it is linked rather than half-repeated here. */}
                   {loadId !== '' && onOpenLoad && (
-                    <button
-                      type="button"
-                      onClick={() => onOpenLoad(loadId, movementId || undefined)}
-                      className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 text-left transition-colors hover:bg-primary/10"
-                    >
-                      <span className="min-w-0">
-                        <span className="block text-[10px] font-black uppercase tracking-wider text-primary">
-                          {u('warehouseDocks.linkedLoad', 'Booked against load')}
+                    <div className="space-y-2">
+                      <button
+                        type="button"
+                        onClick={() => onOpenLoad(loadId, movementId || undefined)}
+                        className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 text-left transition-colors hover:bg-primary/10"
+                      >
+                        <span className="min-w-0">
+                          <span className="block text-[10px] font-black uppercase tracking-wider text-primary">
+                            {u('warehouseDocks.linkedLoad', 'Booked against load')}
+                          </span>
+                          <span className="block truncate text-sm font-bold text-slate-900 dark:text-white">
+                            {text(freightLoad.title, `#${loadId}`)}
+                          </span>
                         </span>
-                        <span className="block truncate text-sm font-bold text-slate-900 dark:text-white">
-                          {text(freightLoad.title, `#${loadId}`)}
-                        </span>
-                      </span>
-                      <ExternalLink className="h-4 w-4 shrink-0 text-primary" />
-                    </button>
+                        <ExternalLink className="h-4 w-4 shrink-0 text-primary" />
+                      </button>
+                      <WarehouseReceiveButton
+                        movementId={movementId}
+                        movement={movement}
+                        lang={lang}
+                        className="h-11 w-full rounded-xl"
+                        onReceived={(updated) => {
+                          setMovement(updated);
+                          onMovementChanged?.();
+                        }}
+                      />
+                    </div>
                   )}
                 </div>
               )}

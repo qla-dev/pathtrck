@@ -5331,6 +5331,7 @@ export default function App() {
   const [openLoadDetailsTab, setOpenLoadDetailsTab] = useState<'tracker' | 'operations'>('tracker');
   const openShipmentOperations = (_workspaceId: number, loadId: string) => {
     setBookingLoad(null);
+    setBookingWarehouseMovementId(null);
     setOpenLoadDetailsTab('operations');
     setOpenLoadDetailsId(loadId);
     setView("tracking");
@@ -5425,12 +5426,13 @@ export default function App() {
   const [openLoadDetailsId, setOpenLoadDetailsId] = useState<string | null>(
     null,
   );
-  const [openWarehouseMovementId, setOpenWarehouseMovementId] = useState<string | null>(null);
   const [warehouseDocksRefreshSignal, setWarehouseDocksRefreshSignal] = useState(0);
   const [bookingLoad, setBookingLoad] = useState<Load | null>(null);
-  const handleBookLoad = async (loadId?: string) => {
+  const [bookingWarehouseMovementId, setBookingWarehouseMovementId] = useState<string | null>(null);
+  const handleBookLoad = async (loadId?: string, warehouseMovementId?: string) => {
     if (!loadId) return;
     const response = await api.loads.get(loadId);
+    setBookingWarehouseMovementId(warehouseMovementId || null);
     setBookingLoad(mapDatabaseRecordToLoad(response.data));
   };
   const [lenaAiOpen, setLenaAiOpen] = useState(false);
@@ -7385,9 +7387,7 @@ export default function App() {
                   lang={lang}
                   refreshSignal={warehouseDocksRefreshSignal}
                   onOpenLoad={(loadId, movementId) => {
-                    setOpenWarehouseMovementId(movementId || null);
-                    setOpenLoadDetailsTab('tracker');
-                    setOpenLoadDetailsId(loadId);
+                    void handleBookLoad(loadId, movementId);
                   }}
                   onReceiveGoods={() => {
                     setLenaLoadPrefill({ transportType: "warehouse", storageTarget: "own" });
@@ -7469,9 +7469,7 @@ export default function App() {
             userId={currentUser?.id}
             companyIds={trackingCompanyIds}
             initialTab={openLoadDetailsTab}
-            warehouseMovementId={openWarehouseMovementId}
-            onWarehouseMovementChanged={() => setWarehouseDocksRefreshSignal((current) => current + 1)}
-            onClose={() => { setOpenLoadDetailsId(null); setOpenWarehouseMovementId(null); setOpenLoadDetailsTab('tracker'); }}
+            onClose={() => { setOpenLoadDetailsId(null); setOpenLoadDetailsTab('tracker'); }}
           />
         )}
         <PaymentModal
@@ -7491,14 +7489,17 @@ export default function App() {
           role={role}
           userId={currentUser?.id}
           companyIds={trackingCompanyIds}
+          warehouseMovementId={bookingWarehouseMovementId}
+          onWarehouseMovementChanged={() => setWarehouseDocksRefreshSignal((current) => current + 1)}
           onEdit={(load) => {
             setBookingLoad(null);
+            setBookingWarehouseMovementId(null);
             setEditLoadId(load.id);
             setIsPostLoadOpen(true);
           }}
           onChanged={() => setLoadRefreshKey((current) => current + 1)}
           onOperationsOpen={openShipmentOperations}
-          onClose={() => setBookingLoad(null)}
+          onClose={() => { setBookingLoad(null); setBookingWarehouseMovementId(null); }}
         />
         <LenaAI
           open={lenaAiOpen}
