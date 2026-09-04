@@ -10025,20 +10025,34 @@ Object.assign(UI.de, {
 
 // The Route step of a storage request reads back as storage, not as a route: a warehouse and the
 // period the goods are held for, with no pickup and so no leg to measure.
+// The storage window and the warehouse target are now read out of this step directly, so the keys
+// naming them get their English and German wording rather than falling back to the Bosnian base.
 Object.assign(UI.en, {
   'postLoadModal.storageTargetQuestion': 'Where should the goods be stored?',
   'postLoadModal.storageSummaryTitle': 'Storage',
   'postLoadModal.storagePeriod': 'Storage period',
+  'postLoadModal.warehouseStartDate': 'Storage start date',
+  'postLoadModal.warehouseEndDate': 'Storage end date',
+  'postLoadModal.warehouseOngoing': 'Ongoing',
+  'postLoadModal.warehousePreferredLocation': 'Preferred warehouse location',
 });
 
 Object.assign(UI.bs, {
   'postLoadModal.storageTargetQuestion': 'Gdje se roba treba skladištiti?',
   'postLoadModal.storageSummaryTitle': 'Skladištenje',
   'postLoadModal.storagePeriod': 'Period skladištenja',
+  'postLoadModal.warehouseStartDate': 'Datum početka skladištenja',
+  'postLoadModal.warehouseEndDate': 'Datum završetka skladištenja',
+  'postLoadModal.warehouseOngoing': 'Neograničeno',
+  'postLoadModal.warehousePreferredLocation': 'Željena lokacija skladišta',
 });
 
 Object.assign(UI.de, {
   'postLoadModal.storageTargetQuestion': 'Wo soll die Ware gelagert werden?',
   'postLoadModal.storageSummaryTitle': 'Lagerung',
   'postLoadModal.storagePeriod': 'Lagerzeitraum',
+  'postLoadModal.warehouseStartDate': 'Beginn der Lagerung',
+  'postLoadModal.warehouseEndDate': 'Ende der Lagerung',
+  'postLoadModal.warehouseOngoing': 'Unbefristet',
+  'postLoadModal.warehousePreferredLocation': 'Gewünschter Lagerstandort',
 });
