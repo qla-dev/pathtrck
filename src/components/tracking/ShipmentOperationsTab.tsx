@@ -2,7 +2,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import Flatpickr from 'react-flatpickr';
 import type { Instance as FlatpickrInstance } from 'flatpickr/dist/types/instance';
-import { LoaderCircle, Upload } from 'lucide-react';
+import { Check, LoaderCircle, RotateCcw, Upload } from 'lucide-react';
 
 import type { Language } from '../../types';
 import { flatpickrI18n } from '../../i18n';
@@ -23,17 +23,23 @@ const COPY = {
   en: {
     title: 'Operational checklist', offerStatus: 'Offer status', empty: 'No operational tasks yet.', saving: 'Saving...',
     selectDriver: 'Select driver', selectVehicle: 'Select vehicle', upload: 'Upload', uploaded: 'Uploaded',
-    saveFailed: 'The change could not be saved',
+    saveFailed: 'The change could not be saved', complete: 'Complete', reopen: 'Reopen', enterValue: 'Enter value',
+    pending: 'Pending', inProgress: 'In progress', completed: 'Completed', blocked: 'Blocked',
+    terminalCutoff: 'Terminal / cut-off', flightDetails: 'Flight / schedule', cargoAcceptance: 'Acceptance date and time', arrival: 'Arrival date and time',
   },
   bs: {
     title: 'Operativna checklist', offerStatus: 'Status ponude', empty: 'Još nema operativnih zadataka.', saving: 'Spremanje...',
     selectDriver: 'Izaberi vozača', selectVehicle: 'Izaberi vozilo', upload: 'Priloži', uploaded: 'Priloženo',
-    saveFailed: 'Izmjena nije spremljena',
+    saveFailed: 'Izmjena nije spremljena', complete: 'Završi', reopen: 'Ponovo otvori', enterValue: 'Unesi podatak',
+    pending: 'Na čekanju', inProgress: 'U toku', completed: 'Završeno', blocked: 'Blokirano',
+    terminalCutoff: 'Terminal / cut-off', flightDetails: 'Let / raspored', cargoAcceptance: 'Datum i vrijeme prijema', arrival: 'Datum i vrijeme dolaska',
   },
   de: {
     title: 'Operative Checkliste', offerStatus: 'Angebotsstatus', empty: 'Noch keine operativen Aufgaben.', saving: 'Speichern...',
     selectDriver: 'Fahrer wählen', selectVehicle: 'Fahrzeug wählen', upload: 'Hochladen', uploaded: 'Hochgeladen',
-    saveFailed: 'Die Änderung konnte nicht gespeichert werden',
+    saveFailed: 'Die Änderung konnte nicht gespeichert werden', complete: 'Abschließen', reopen: 'Wieder öffnen', enterValue: 'Wert eingeben',
+    pending: 'Ausstehend', inProgress: 'In Bearbeitung', completed: 'Abgeschlossen', blocked: 'Blockiert',
+    terminalCutoff: 'Terminal / Cut-off', flightDetails: 'Flug / Flugplan', cargoAcceptance: 'Annahmedatum und -zeit', arrival: 'Ankunftsdatum und -zeit',
   },
 } as const;
 
@@ -140,6 +146,7 @@ export const ShipmentOperationsTab = ({ workspace, lang, onUpdated, onLoadChange
           key: String(item.key),
           status: String(item.status || 'pending'),
           due_date: item.due_date ?? null,
+          action_value: item.action_value ?? null,
           completed_at: item.completed_at ?? null,
           completed_by_user_id: item.completed_by_user_id ?? null,
         };
@@ -190,7 +197,11 @@ export const ShipmentOperationsTab = ({ workspace, lang, onUpdated, onLoadChange
     setBusyKey(taskKey);
     try {
       await api.documents.upload({ file, loadId, type, name: file.name });
-      await markTask(taskKey, true);
+      await patchTask(taskKey, {
+        action_value: file.name,
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+      });
       await onLoadChanged?.();
     } catch (error) {
       void showError(text.saveFailed, error instanceof Error ? error.message : undefined);
@@ -222,9 +233,12 @@ export const ShipmentOperationsTab = ({ workspace, lang, onUpdated, onLoadChange
   );
 
   const uploadField = (taskKey: string, type: string) => (
-    <label className={`${CONTROL_CLASS} inline-flex cursor-pointer items-center gap-2 hover:border-primary`}>
+    <label
+      className={`${CONTROL_CLASS} inline-flex max-w-[190px] cursor-pointer items-center gap-2 hover:border-primary`}
+      title={String(checklist.find((item) => String(item.key) === taskKey)?.action_value || '')}
+    >
       {busyKey === taskKey ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-      {text.upload}
+      <span className="truncate">{checklist.find((item) => String(item.key) === taskKey)?.action_value ? text.uploaded : text.upload}</span>
       <input
         type="file"
         className="hidden"
@@ -237,6 +251,94 @@ export const ShipmentOperationsTab = ({ workspace, lang, onUpdated, onLoadChange
       />
     </label>
   );
+
+  const saveTaskValue = async (taskKey: string, value: string) => {
+    setBusyKey(taskKey);
+    try {
+      const normalized = value.trim();
+      await patchTask(taskKey, {
+        action_value: normalized || null,
+        status: normalized ? 'completed' : 'pending',
+        completed_at: normalized ? new Date().toISOString() : null,
+      });
+    } catch (error) {
+      void showError(text.saveFailed, error instanceof Error ? error.message : undefined);
+    } finally {
+      setBusyKey(null);
+    }
+  };
+
+  const valueField = (
+    item: Record<string, unknown>,
+    type: 'text' | 'number' | 'datetime-local' = 'text',
+    placeholder = text.enterValue,
+  ) => {
+    const taskKey = String(item.key);
+    return (
+      <input
+        key={`${taskKey}-${String(item.action_value || '')}`}
+        type={type}
+        min={type === 'number' ? 0 : undefined}
+        step={type === 'number' ? '0.01' : undefined}
+        defaultValue={String(item.action_value || '')}
+        placeholder={placeholder}
+        disabled={busyKey === taskKey}
+        onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); }}
+        onBlur={(event) => {
+          if (event.target.value !== String(item.action_value || '')) void saveTaskValue(taskKey, event.target.value);
+        }}
+        className={`${CONTROL_CLASS} w-full max-w-[190px]`}
+      />
+    );
+  };
+
+  const completionButton = (item: Record<string, unknown>) => {
+    const taskKey = String(item.key);
+    const done = String(item.status) === 'completed';
+    return (
+      <button
+        type="button"
+        disabled={busyKey === taskKey}
+        onClick={() => void markTask(taskKey, !done)}
+        className={`${CONTROL_CLASS} inline-flex cursor-pointer items-center gap-1.5 hover:border-primary`}
+      >
+        {busyKey === taskKey
+          ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+          : done ? <RotateCcw className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5" />}
+        {done ? text.reopen : text.complete}
+      </button>
+    );
+  };
+
+  const statusField = (item: Record<string, unknown>) => {
+    const taskKey = String(item.key);
+    return (
+      <select
+        value={String(item.status || 'pending')}
+        disabled={busyKey === taskKey}
+        onChange={async (event) => {
+          const status = event.target.value;
+          setBusyKey(taskKey);
+          try {
+            await patchTask(taskKey, {
+              status,
+              completed_at: status === 'completed' ? new Date().toISOString() : null,
+            });
+          } catch (error) {
+            void showError(text.saveFailed, error instanceof Error ? error.message : undefined);
+          } finally {
+            setBusyKey(null);
+          }
+        }}
+        className={`${CONTROL_CLASS} w-full max-w-[160px] cursor-pointer`}
+      >
+        <option value="pending">{text.pending}</option>
+        <option value="in_progress">{text.inProgress}</option>
+        <option value="completed">{text.completed}</option>
+        <option value="blocked">{text.blocked}</option>
+      </select>
+    );
+  };
 
   // Every task can carry its own deadline, whether or not it also writes a date onto the load.
   const renderDueDate = (item: Record<string, unknown>) => {
@@ -273,8 +375,45 @@ export const ShipmentOperationsTab = ({ workspace, lang, onUpdated, onLoadChange
         return uploadField(taskKey, 'pod');
       case 'security_and_customs_documents':
         return uploadField(taskKey, 'customs');
+      case 'shipping_instructions':
+        return uploadField(taskKey, 'shipping_instructions');
+      case 'draft_bill_of_lading':
+        return uploadField(taskKey, 'draft_bill_of_lading');
+      case 'final_bill_of_lading':
+        return uploadField(taskKey, 'bill_of_lading');
+      case 'draft_awb':
+        return uploadField(taskKey, 'draft_awb');
+      case 'arrival_and_release_documents':
+        return uploadField(taskKey, 'arrival_release');
+      case 'booking_confirmation':
+      case 'shipping_line_and_agent':
+      case 'vessel_and_voyage':
+      case 'container_details':
+      case 'airline_and_agent':
+      case 'mawb_hawb':
+      case 'rail_operator':
+      case 'terminals':
+      case 'wagon_or_container':
+      case 'rail_booking_confirmation':
+        return valueField(item);
+      case 'vgm':
+        return valueField(item, 'number', 'kg');
+      case 'terminal_and_cutoff':
+        return valueField(item, 'text', text.terminalCutoff);
+      case 'flight_details':
+        return valueField(item, 'text', text.flightDetails);
+      case 'cargo_acceptance':
+        return valueField(item, 'datetime-local', text.cargoAcceptance);
+      case 'arrival_status':
+        return valueField(item, 'datetime-local', text.arrival);
+      case 'tracking_and_status_updates':
+      case 'transit_status':
+        return statusField(item);
+      case 'approve_draft':
+      case 'approve_awb':
+        return completionButton(item);
       default:
-        return <span className="text-xs text-slate-400">—</span>;
+        return completionButton(item);
     }
   };
 
