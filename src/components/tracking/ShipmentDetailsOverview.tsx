@@ -321,8 +321,8 @@ export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userI
               <h2 className="mb-5 shrink-0 font-black text-slate-900 dark:text-white">{u('shipmentDetails.partiesContacts', 'Parties & contacts')}</h2>
               <div className="min-h-0 flex-1 space-y-5 overflow-y-auto pr-1 [scrollbar-width:thin] [scrollbar-color:rgb(148_163_184/0.72)_transparent]">
                 <Contact label={u('shipmentDetails.customer', 'Customer')} party={customer} icon={Building2} />
-                <Contact label={u('shipmentDetails.provider', 'Provider')} party={{ ...provider, email: providerContact.email || provider.email, phone: providerContact.phone || provider.phone }} icon={Building2} />
-                <div className="space-y-5 border-t border-slate-100 pt-4 dark:border-slate-800">
+                <Contact label={transportType === 'warehouse' ? u('tracking.warehouseOperator', 'Warehouse operator') : u('shipmentDetails.provider', 'Provider')} party={{ ...provider, email: providerContact.email || provider.email, phone: providerContact.phone || provider.phone }} icon={transportType === 'warehouse' ? Warehouse : Building2} />
+                {transportType !== 'warehouse' && <div className="space-y-5 border-t border-slate-100 pt-4 dark:border-slate-800">
                   <Contact
                     label={u('shipmentDetails.assignedDriver', 'Assigned driver')}
                     party={{ name: shipment.assignedDriverName || driver.name }}
@@ -335,7 +335,7 @@ export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userI
                     icon={Truck}
                     lines={[[vehicle.make, vehicle.model].filter(Boolean).join(' ') || String(vehicle.vehicle_type || '')]}
                   />
-                </div>
+                </div>}
               </div>
             </section>
           </aside>

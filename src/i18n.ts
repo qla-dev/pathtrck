@@ -814,7 +814,7 @@ const UI: Record<Locale, Record<string, string>> = {
     'shipmentDetails.instruction': 'Šta uraditi',
     'shipmentDetails.noTasks': 'Još nema operativnih zadataka.',
     'shipmentDetails.partiesContacts': 'Strane i kontakti',
-    'shipmentDetails.customer': 'Customer',
+    'shipmentDetails.customer': 'Kupac',
     'shipmentDetails.assignedDriver': 'Dodijeljeni vozač',
     'shipmentDetails.assignedVehicle': 'Dodijeljeno vozilo',
     'shipmentDetails.nextRequiredAction': 'Sljedeća obavezna akcija',
@@ -871,7 +871,8 @@ const UI: Record<Locale, Record<string, string>> = {
     'pricing.availableTo': 'Dostupno za',
     'common.loading': 'Učitavanje…',
     'pricing.role.user': 'Kupce',
-    'pricing.role.driver': 'Vozače',
+    'pricing.role.driver': 'Vozači',
+    'tracking.driver': 'Vozači',
     'pricing.role.company': 'Kompanije',
     'pricing.role.finance': 'Finansije',
     'pricing.role.admin': 'Administrator',
@@ -9698,7 +9699,7 @@ Object.assign(UI.de, {
 });
 
 Object.assign(UI.en, {
-  'nav.myOffers': 'My offers',
+  'nav.myOffers': 'Pending offers',
   'feed.filterBar.myLoads': 'My cargo',
   'nav.liveTracking': 'Live tracking',
   'offers.view': 'View offers',
@@ -9772,7 +9773,7 @@ Object.assign(UI.en, {
 });
 
 Object.assign(UI.bs, {
-  'nav.myOffers': 'Moje ponude',
+  'nav.myOffers': 'Ponude na čekanju',
   'feed.filterBar.myLoads': 'Moj teret',
   'nav.liveTracking': 'Live tracking',
   'offers.view': 'Vidi ponude',
@@ -9846,7 +9847,7 @@ Object.assign(UI.bs, {
 });
 
 Object.assign(UI.de, {
-  'nav.myOffers': 'Meine Angebote',
+  'nav.myOffers': 'Ausstehende Angebote',
   'feed.filterBar.myLoads': 'Meine Fracht',
   'nav.liveTracking': 'Live-Tracking',
   'offers.view': 'Angebote ansehen',

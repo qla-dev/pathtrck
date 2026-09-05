@@ -773,11 +773,12 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
                   <span className="truncate text-xs font-bold">{pkg.destination}</span>
                 </div>
               </div>
-              <div className="mt-3 grid gap-2 border-t border-slate-100 pt-3 sm:grid-cols-3 dark:border-slate-800">
+              <div className={cn('mt-3 grid gap-2 border-t border-slate-100 pt-3 dark:border-slate-800', pkg.transportType !== 'warehouse' && 'sm:grid-cols-3')}>
                 <div className="flex min-w-0 items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-950">
                   <Building2 className="h-4 w-4 shrink-0 text-primary" />
                   <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{pkg.transportType === 'warehouse' ? u('tracking.warehouseOperator', 'Warehouse operator') : u('tracking.carrier', 'Carrier')}</p><p className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{pkg.carrier || '—'}</p></div>
                 </div>
+                {pkg.transportType !== 'warehouse' && <>
                 <div className="flex min-w-0 items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-950">
                   <UserRound className="h-4 w-4 shrink-0 text-sky-500" />
                   <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{u('tracking.driver', 'Driver')}</p><p className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{pkg.assignedDriverName || '—'}</p></div>
@@ -786,6 +787,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
                   <Truck className="h-4 w-4 shrink-0 text-violet-500" />
                   <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{u('tracking.vehicle', 'Vehicle')}</p><p className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{pkg.vehicleName || '—'}</p></div>
                 </div>
+                </>}
               </div>
               <div className="mt-2 grid grid-cols-2 gap-2">
                   <div className="flex min-w-0 items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-950">

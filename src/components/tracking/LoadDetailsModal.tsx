@@ -754,7 +754,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
           )}
         >
           <PackageIcon className="w-4 h-4" />
-          {isStorage ? u('storage.statuses', 'Statuses') : u('Tracker', 'Tracker')}
+          {u('Tracker', 'Tracker')}
         </button>
         <button
           onClick={() => setRightTab('details')}
