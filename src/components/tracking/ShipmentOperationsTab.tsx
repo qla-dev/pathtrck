@@ -13,6 +13,7 @@ import { showError } from '../../lib/swal';
 import { ShipmentChecklistTable } from './ShipmentChecklistTable';
 import { ChecklistAgentModal } from './ChecklistAgentModal';
 import { ChecklistVesselSearch } from './ChecklistVesselSearch';
+import { ChecklistAircraftSearch } from './ChecklistAircraftSearch';
 
 type Props = {
   workspace: Record<string, unknown>;
@@ -457,7 +458,12 @@ export const ShipmentOperationsTab = ({ workspace, lang, readOnly = false, onUpd
       case 'terminal_and_cutoff':
         return valueField(item, 'text', text.terminalCutoff);
       case 'flight_details':
-        return valueField(item, 'text', text.flightDetails);
+        return <ChecklistAircraftSearch key={`${workspace.id}-${taskKey}`} lang={lang} value={String(item.action_value || '')} disabled={busyKey !== null}
+          onSave={async (value) => {
+            setBusyKey(taskKey);
+            try { await patchTask(taskKey, { action_value: value, status: 'completed', completed_at: new Date().toISOString() }); }
+            finally { setBusyKey(null); }
+          }} />;
       case 'cargo_acceptance':
         return <ChecklistDatePicker fieldKey={taskKey} value={String(item.action_value || '')}
           disabled={busyKey !== null} lang={lang} enableTime
@@ -488,11 +494,11 @@ export const ShipmentOperationsTab = ({ workspace, lang, readOnly = false, onUpd
           return <span className="text-xs">{lang === 'bs' ? (value === 'yes' ? 'Da' : 'Ne') : lang === 'de' ? (value === 'yes' ? 'Ja' : 'Nein') : (value === 'yes' ? 'Yes' : 'No')}</span>;
         }
         let display = value;
-        if (['shipping_line_and_agent', 'airline_and_agent', 'vessel_and_voyage'].includes(String(item.key))) {
+        if (['shipping_line_and_agent', 'airline_and_agent', 'vessel_and_voyage', 'flight_details'].includes(String(item.key))) {
           try {
             const saved = record(JSON.parse(value));
-            display = item.key === 'vessel_and_voyage'
-              ? [saved.name, saved.mmsi].filter(Boolean).join(' · ')
+            display = ['vessel_and_voyage', 'flight_details'].includes(String(item.key))
+              ? [saved.name, saved.mmsi || saved.hex].filter(Boolean).join(' · ')
               : ['company', 'jobTitle', 'email', 'phone', 'name', 'address', 'country', 'postalCode', 'city'].map((field) => saved[field]).filter(Boolean).join(' · ');
           } catch { /* Existing plain-text entries remain readable. */ }
         }

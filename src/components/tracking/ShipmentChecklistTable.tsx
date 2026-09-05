@@ -52,11 +52,11 @@ export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolb
                 const done = ['completed', 'approved', 'done'].includes(String(item.status || '').toLowerCase());
                 let vesselConnected = false;
                 let vesselName = '';
-                if (item.key === 'vessel_and_voyage' && done) {
+                if (['vessel_and_voyage', 'flight_details'].includes(String(item.key)) && done) {
                   try {
                     const vessel = JSON.parse(String(item.action_value || ''));
-                    vesselConnected = vessel?.matched === true && /^\d{9}$/.test(String(vessel.mmsi));
-                    if (vesselConnected) vesselName = String(vessel.name || vessel.mmsi);
+                    vesselConnected = vessel?.matched === true && (item.key === 'flight_details' ? /^[a-f0-9]{6}$/i.test(String(vessel.hex)) : /^\d{9}$/.test(String(vessel.mmsi)));
+                    if (vesselConnected) vesselName = String(vessel.name || vessel.mmsi || vessel.hex);
                   } catch { /* Plain vessel names use the ordinary completed status. */ }
                 }
 
@@ -94,7 +94,9 @@ export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolb
                           : 'bg-slate-100 text-slate-500 dark:bg-slate-800'
                       )}>
                         {vesselConnected
-                          ? (lang === 'bs' ? 'Brod povezan' : lang === 'de' ? 'Schiff zugeordnet' : 'Vessel matched')
+                          ? (item.key === 'flight_details'
+                            ? (lang === 'bs' ? 'Avion povezan' : lang === 'de' ? 'Flugzeug zugeordnet' : 'Aircraft matched')
+                            : (lang === 'bs' ? 'Brod povezan' : lang === 'de' ? 'Schiff zugeordnet' : 'Vessel matched'))
                           : checklistStatusLabel(lang, item.status)}
                       </span>
                       {vesselConnected && <p className="mt-2 flex items-center gap-1 whitespace-nowrap text-xs text-slate-500">
