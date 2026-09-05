@@ -120,7 +120,7 @@ const COPY = {
     bio: "About you",
     haveFleet: "I have a fleet",
     haveFleetHint: "Enable this when your account owns or operates vehicles.",
-    haveFleetLocked: "Warehouse companies, warehouse managers and finance accounts cannot enable fleet ownership.",
+    haveFleetLocked: "Finance accounts cannot enable fleet ownership.",
     haveWarehouse: "I have a warehouse",
     haveWarehouseHint: "Enable this when your account owns or operates a warehouse.",
     haveWarehouseLocked: "Finance accounts cannot enable warehouse ownership.",
@@ -189,7 +189,7 @@ const COPY = {
     bio: "O vama",
     haveFleet: "Imam flotu",
     haveFleetHint: "Uključite ako vaš račun posjeduje ili upravlja vozilima.",
-    haveFleetLocked: "Skladišne kompanije, warehouse manageri i finance računi ne mogu uključiti vlasništvo flote.",
+    haveFleetLocked: "Finansijski računi ne mogu uključiti vlasništvo flote.",
     haveWarehouse: "Imam skladište",
     haveWarehouseHint: "Uključite ako vaš račun posjeduje ili upravlja skladištem.",
     haveWarehouseLocked: "Finance računi ne mogu uključiti vlasništvo skladišta.",
@@ -259,7 +259,7 @@ const COPY = {
     bio: "Über Sie",
     haveFleet: "Ich habe eine Flotte",
     haveFleetHint: "Aktivieren, wenn Ihr Konto Fahrzeuge besitzt oder betreibt.",
-    haveFleetLocked: "Lagerunternehmen, Lagermanager und Finanzkonten können keinen Flottenbesitz aktivieren.",
+    haveFleetLocked: "Finanzkonten können keinen Flottenbesitz aktivieren.",
     haveWarehouse: "Ich habe ein Lager",
     haveWarehouseHint: "Aktivieren, wenn Ihr Konto ein Lager besitzt oder betreibt.",
     haveWarehouseLocked: "Finanzkonten können keinen Lagerbesitz aktivieren.",
@@ -495,7 +495,7 @@ export const ProfileView = ({
     company &&
     (Number(company.owner_user_id) === user?.id || effectiveRole === "manager"),
   );
-  const fleetForcedOff = effectiveRole === "finance" || effectiveRole === "warehouse" || (Boolean(company?.warehouse_first) && (effectiveRole === "company" || effectiveRole === "manager"));
+  const fleetForcedOff = effectiveRole === "finance";
   const warehouseForcedOff = effectiveRole === "finance";
   const customer = (profileKind === "customer" ? profileRecord : user?.customer_profile || {}) as Record<string, unknown>;
   const driver = (profileKind === "driver" ? profileRecord : user?.driver || {}) as Record<string, unknown>;

@@ -6312,34 +6312,11 @@ export default function App() {
       savedLoad,
       ...databaseLoads.filter((load) => load.id !== savedLoad.id),
     ];
-    const nextBounds = buildFeedRangeBounds(nextLoads);
 
     setDatabaseLoads(nextLoads);
     setFeedDataMode("organic");
     setView("feed");
-    clearFeedLocations();
-    setFeedSelectedPriceMin(nextBounds.priceMin);
-    setFeedSelectedPriceMax(nextBounds.priceMax);
-    setFeedSelectedWeightMin(nextBounds.weightMin);
-    setFeedSelectedWeightMax(nextBounds.weightMax);
-    setFeedSelectedLengthMin(nextBounds.lengthMin);
-    setFeedSelectedLengthMax(nextBounds.lengthMax);
-    setFeedSelectedWidthMin(nextBounds.widthMin);
-    setFeedSelectedWidthMax(nextBounds.widthMax);
-    setFeedSelectedHeightMin(nextBounds.heightMin);
-    setFeedSelectedHeightMax(nextBounds.heightMax);
-    setFeedSelectedTemperatureMin(nextBounds.temperatureMin);
-    setFeedSelectedTemperatureMax(nextBounds.temperatureMax);
-    setFeedSelectedCargoValueMin(nextBounds.cargoValueMin);
-    setFeedSelectedCargoValueMax(nextBounds.cargoValueMax);
-    setFeedSelectedTransitMin(nextBounds.transitMin);
-    setFeedSelectedTransitMax(nextBounds.transitMax);
-    setSelectedFeedGoodsTypes([]);
-    setSelectedFeedPaymentTerms([]);
-    setSelectedFeedAdrClasses([]);
-    setSelectedFeedSensitivity([]);
-    setSelectedFeedUrgency([]);
-    setSelectedFeedLoadingMethods([]);
+    // Publishing refreshes the results without changing the selected filters.
     setLoadRefreshKey((current) => current + 1);
   };
   const feedFilterBarProps: FilterLoadsProps = {

@@ -233,7 +233,7 @@ export const LoadsTable = ({ lang, loads, userId, ownerMode = false, tariffCateg
         >
           <div ref={cloneRowRef} className="flex text-[11px] font-bold uppercase tracking-wider text-slate-500">
             {columns.map((column, index) => (
-              <div key={column.key} style={{ width: metrics.colWidths[index] }} className={cn('shrink-0 px-4 py-3', column.key === 'commodity' && 'border-l border-slate-100 dark:border-slate-800')}>
+              <div key={column.key} style={{ width: metrics.colWidths[index] }} className="shrink-0 px-4 py-3">
                 <button
                   type="button"
                   onClick={() => toggleSort(column.key)}
@@ -272,7 +272,7 @@ export const LoadsTable = ({ lang, loads, userId, ownerMode = false, tariffCateg
               <th
                 key={column.key}
                 ref={(el) => { thRefs.current[index] = el; }}
-                className={cn('border-b border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900', column.key === 'commodity' && 'border-l')}
+                className="border-b border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900"
               >
                 <button
                   type="button"
@@ -400,7 +400,7 @@ export const LoadsTable = ({ lang, loads, userId, ownerMode = false, tariffCateg
                     {Number(load.providerRating || 0).toFixed(1)}
                   </p>
                 </td>
-                <td className="border-l border-slate-100 px-4 py-3 dark:border-slate-800">
+                <td className="px-4 py-3">
                   {mainCategories.length > 0 ? (
                     <div className="flex w-52 flex-col gap-1.5">
                       {mainCategories.map((category) => (
