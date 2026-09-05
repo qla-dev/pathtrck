@@ -9700,6 +9700,9 @@ Object.assign(UI.de, {
 
 Object.assign(UI.en, {
   'nav.myOffers': 'Pending offers',
+  'customers.scope': 'Customer list',
+  'customers.all': 'All',
+  'customers.mine': 'My customers',
   'feed.filterBar.myLoads': 'My cargo',
   'nav.liveTracking': 'Live tracking',
   'offers.view': 'View offers',
@@ -9774,6 +9777,9 @@ Object.assign(UI.en, {
 
 Object.assign(UI.bs, {
   'nav.myOffers': 'Ponude na čekanju',
+  'customers.scope': 'Lista kupaca',
+  'customers.all': 'Svi',
+  'customers.mine': 'Moji kupci',
   'feed.filterBar.myLoads': 'Moj teret',
   'nav.liveTracking': 'Live tracking',
   'offers.view': 'Vidi ponude',
@@ -9848,6 +9854,9 @@ Object.assign(UI.bs, {
 
 Object.assign(UI.de, {
   'nav.myOffers': 'Ausstehende Angebote',
+  'customers.scope': 'Kundenliste',
+  'customers.all': 'Alle',
+  'customers.mine': 'Meine Kunden',
   'feed.filterBar.myLoads': 'Meine Fracht',
   'nav.liveTracking': 'Live-Tracking',
   'offers.view': 'Angebote ansehen',

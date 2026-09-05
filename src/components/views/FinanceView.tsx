@@ -132,7 +132,7 @@ export const FinanceView = ({ lang }: { lang: Language }) => {
   ];
 
   return <div className="space-y-3">
-    <PageHeader icon={CircleDollarSign} title={copy.title} subtitle={copy.subtitle} badge={<span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400"><ShieldCheck className="h-3.5 w-3.5" />{copy.access}</span>} actions={<><Button size="sm" onClick={showGenerator} className="gap-1.5"><Plus className="h-4 w-4" />{copy.newInvoice}</Button><Button size="sm" variant="outline" onClick={() => { setActionError(''); setUploadOpen(true); }} className="gap-1.5"><Upload className="h-4 w-4" />{copy.uploadInvoice}</Button></>} stats={metrics} />
+    <PageHeader icon={CircleDollarSign} title={copy.title} subtitle={copy.subtitle} badge={<span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400"><ShieldCheck className="h-3.5 w-3.5" />{copy.access}</span>} actions={<><Button size="sm" variant="outline" onClick={() => { setActionError(''); setUploadOpen(true); }} className="gap-1.5"><Upload className="h-4 w-4" />{copy.uploadInvoice}</Button><Button size="sm" onClick={showGenerator} className="gap-1.5"><Plus className="h-4 w-4" />{copy.newInvoice}</Button></>} stats={metrics} />
 
     <section className="grid gap-3 xl:grid-cols-12">
       <Card className="shadow-none xl:col-span-7" contentClassName="flex h-full flex-col p-4"><p className="text-sm font-black text-slate-900 dark:text-white">{copy.quick}</p><div className="mt-3 grid gap-3 md:grid-cols-3">

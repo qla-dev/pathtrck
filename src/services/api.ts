@@ -531,6 +531,7 @@ export const api = {
   },
   customers: {
     ...resourceApi<Record<string, unknown>>('customers'),
+    mine: resourceApi<Record<string, unknown>>('customers/mine').list,
     authorize: (id: number | string, email: string) => request<Record<string, unknown>>(`/customers/${id}/authorize`, {
       method: 'POST',
       body: JSON.stringify({ email }),

@@ -1,3 +1,4 @@
+import { SegmentedControl } from "../ui/SegmentedControl";
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
@@ -357,36 +358,15 @@ export const WarehouseOverviewView = ({
         subtitle={loading ? <span className="inline-block h-3 w-28 animate-pulse rounded bg-slate-200 dark:bg-slate-700" /> : scopeLabel}
         subtitleIcon={MapPin}
         actions={<div className="flex flex-wrap items-center justify-end gap-2">
-          {/* Same segmented control as My Fleet's Vehicles / Statistics switch, so both views
-              change section the same way. */}
-          <div className="inline-flex items-center rounded-full border border-sky-200/80 bg-sky-50/70 p-1 dark:border-slate-700 dark:bg-slate-900">
-            <button
-              type="button"
-              onClick={() => setEditMode(true)}
-              className={cn(
-                'inline-flex cursor-pointer items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all active:scale-95',
-                editMode
-                  ? 'bg-primary text-white shadow-md shadow-primary/20'
-                  : 'text-slate-500 hover:text-primary dark:text-slate-300',
-              )}
-            >
-              <WarehouseIcon className="h-4 w-4" />
-              {u('warehouses.tabs.overview', 'Overview')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setEditMode(false)}
-              className={cn(
-                'inline-flex cursor-pointer items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all active:scale-95',
-                !editMode
-                  ? 'bg-primary text-white shadow-md shadow-primary/20'
-                  : 'text-slate-500 hover:text-primary dark:text-slate-300',
-              )}
-            >
-              <BarChart3 className="h-4 w-4" />
-              {u('warehouses.statistics', 'Statistics')}
-            </button>
-          </div>
+          <SegmentedControl
+            value={editMode ? 'overview' : 'statistics'}
+            onChange={(value) => setEditMode(value === 'overview')}
+            label={u('warehouseView.title', 'Moj Warehouse')}
+            options={[
+              { value: 'overview', label: u('warehouses.tabs.overview', 'Overview'), icon: WarehouseIcon },
+              { value: 'statistics', label: u('warehouses.statistics', 'Statistics'), icon: BarChart3 },
+            ]}
+          />
           <Button className="rounded-full" onClick={() => setCreateOpen(true)}><Plus className="mr-2 h-4 w-4" />{u('warehouses.create', 'Create Warehouse')}</Button>
         </div>}
         filters={[{ id: 'all', label: u('warehouseView.allFacilities', 'Sva skladišta'), count: facilities.length }, ...facilities.map((facility) => ({ id: facility.id, label: facility.name || '—' }))]}

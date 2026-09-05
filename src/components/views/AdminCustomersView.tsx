@@ -1,3 +1,4 @@
+import { SegmentedControl } from "../ui/SegmentedControl";
 import { useMemo, useState } from "react";
 import {
   CircleCheckBig,
@@ -42,6 +43,8 @@ export const AdminCustomersView = ({
 }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const canManage = role === "superadmin" || role === "master";
+  const [customerScope, setCustomerScope] = useState<'all' | 'mine'>('all');
+  const customerRequest = customerScope === 'mine' ? api.customers.mine : api.customers.list;
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(initial);
   const [submitting, setSubmitting] = useState(false);
@@ -51,7 +54,7 @@ export const AdminCustomersView = ({
     null,
   );
   const [subscriptionTarget, setSubscriptionTarget] = useState<AdminSubscriptionTarget | null>(null);
-  const customers = useApiList(api.customers.list, { limit: 500, pageno: 1 });
+  const customers = useApiList(customerRequest, { limit: 500, pageno: 1 });
   const columns = useMemo<ServerDataTableColumn<Record<string, unknown>>[]>(
     () => [
       {
@@ -199,7 +202,18 @@ export const AdminCustomersView = ({
           icon={UserRound}
           title="Customers"
           subtitle="Manage customer accounts, access, load activity and contact information."
-          actions={canManage ? (
+          actions={(
+            <>
+              <SegmentedControl<'all' | 'mine'>
+                value={customerScope}
+                onChange={setCustomerScope}
+                label={u('customers.scope', 'Customer list')}
+                options={[
+                  { value: 'all', label: u('customers.all', 'All'), icon: UsersRound },
+                  { value: 'mine', label: u('customers.mine', 'My customers'), icon: UserRound },
+                ]}
+              />
+              {canManage && (
             <>
               <Button variant="outline" onClick={onOpenEmailStudio}>
                 <Mail className="mr-2 h-4 w-4" />
@@ -207,7 +221,9 @@ export const AdminCustomersView = ({
               </Button>
               <Button onClick={() => setOpen(true)}>Add customer</Button>
             </>
-          ) : undefined}
+              )}
+            </>
+          )}
           stats={[
             {
               label: "Total customers",
@@ -233,9 +249,10 @@ export const AdminCustomersView = ({
         />
         <Card className="shadow-none" contentClassName="p-0">
           <ServerDataTable
+            key={customerScope}
             edgeToEdge
             title="Customers"
-            request={api.customers.list}
+            request={customerRequest}
             columns={columns}
             refreshKey={tableRefreshKey}
             initialPageSize={50}
