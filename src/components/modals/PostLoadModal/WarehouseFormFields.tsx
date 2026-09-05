@@ -13,6 +13,7 @@ import {
   Package,
   PackageCheck,
   PackageOpen,
+  Plus,
   Radar,
   ScanEye,
   ShieldCheck,
@@ -245,6 +246,7 @@ export const WarehouseLocationFields = ({
   u,
   lang,
   ownedWarehouses,
+  onAddWarehouse,
   onSelectOwnedWarehouse,
   onOpenWarehouseArea,
   invalidClass,
@@ -255,6 +257,7 @@ export const WarehouseLocationFields = ({
   u: (key: string, fallback: string) => string;
   lang: Language;
   ownedWarehouses: OwnedWarehouse[];
+  onAddWarehouse: () => void;
   onSelectOwnedWarehouse: (warehouse: OwnedWarehouse) => void;
   onOpenWarehouseArea: () => void;
   invalidClass: InvalidClass;
@@ -278,23 +281,34 @@ export const WarehouseLocationFields = ({
       : draft.deliveryDate + (draft.deliveryDateTo ? ' - ' + draft.deliveryDateTo : '');
 
   return (
-  <div className="grid gap-3 lg:grid-cols-[minmax(0,5fr)_minmax(0,5fr)_minmax(0,2fr)]">
+  <div className="grid gap-3 lg:grid-cols-[minmax(0,10fr)_minmax(0,2fr)]">
+    <div className="min-w-0 space-y-3">
     <section className="space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
       <div className="flex items-center gap-2 text-primary">
         <Warehouse className="h-4 w-4" />
         <p className="text-xs font-black uppercase tracking-wider">{u('postLoadModal.storageTarget', 'Storage destination')}</p>
       </div>
       <div className="space-y-1">
-        <FieldLabel>{u('postLoadModal.storageTargetQuestion', 'Where should the goods be stored?')}</FieldLabel>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="relative w-[calc(50%-0.25rem)] pr-7">
+          <FieldLabel>{u('postLoadModal.storageTargetQuestion', 'What would you like to do with the cargo?')}</FieldLabel>
+          <button type="button" onClick={onAddWarehouse} aria-label={u('warehouses.create', 'Add Warehouse')} title={u('warehouses.create', 'Add Warehouse')} className="absolute -top-1 right-0 z-10 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-full bg-primary text-white shadow-sm transition-colors hover:bg-primary/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 disabled:cursor-default disabled:opacity-50">
+            <Plus className="h-3 w-3" strokeWidth={3} />
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
           <ChoiceCard
+            compact
+            disabled={ownedWarehouses.length === 0}
             active={draft.storageTarget === 'own'}
             title={u('postLoadModal.storageTargetOwn', 'One of my warehouses')}
-            description={u('postLoadModal.storageTargetOwnDesc', 'Create an inbound receipt on your dock schedule.')}
+            description={ownedWarehouses.length === 0
+              ? u('postLoadModal.noWarehousesAdded', 'You have not added any warehouses yet.')
+              : u('postLoadModal.storageTargetOwnDesc', 'Create an inbound receipt on your dock schedule.')}
             icon={ArrowDownToLine}
             onClick={() => setDraft((current) => ({ ...current, storageTarget: 'own' }))}
           />
           <ChoiceCard
+            compact
             active={draft.storageTarget === 'exchange'}
             title={u('postLoadModal.storageTargetExchange', 'Warehouse exchange')}
             description={u('postLoadModal.storageTargetExchangeDesc', 'Publish a storage request for warehouse companies.')}
@@ -390,13 +404,15 @@ export const WarehouseLocationFields = ({
         <div className={cn('space-y-1', invalidClass('deliveryCountry'))}><FieldLabel>{u('postLoadModal.country', 'Country')}</FieldLabel><CountrySelect value={draft.deliveryCountry} onChange={(value) => setField('deliveryCountry', value)} /></div>
         <div className={cn('space-y-1', invalidClass('deliveryCity'))}><FieldLabel>{u('postLoadModal.deliveryCity', 'City')}</FieldLabel><Input value={draft.deliveryCity} onChange={(event) => setField('deliveryCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', 'City')} /></div>
       </div>
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <div className={cn('space-y-1', invalidClass('deliveryDate'))}><FieldLabel>{u('postLoadModal.warehouseStartDate', 'Storage start date')}</FieldLabel><DateInput value={draft.deliveryDate} onChange={(value) => setDraft((current) => ({ ...current, deliveryDate: value, warehouseStartDate: value }))} placeholder="dd.mm.yyyy" lang={lang} /></div>
         <div className={cn('space-y-1', invalidClass('deliveryDateTo'))}><FieldLabel>{u('postLoadModal.warehouseEndDate', 'Storage end date')}</FieldLabel><DateInput value={draft.deliveryDateTo} onChange={(value) => setDraft((current) => ({ ...current, deliveryDateTo: value, warehouseEndDate: value }))} placeholder="dd.mm.yyyy" lang={lang} /></div>
         <div className={cn('space-y-1', invalidClass('deliveryTimeFrom'))}><FieldLabel>{u('postLoadModal.deliveryTimeFrom', 'Time from')}</FieldLabel><TimeInput value={draft.deliveryTimeFrom} onChange={(value) => setField('deliveryTimeFrom', value)} placeholder="hh:mm" /></div>
         <div className={cn('space-y-1', invalidClass('deliveryTimeTo'))}><FieldLabel>{u('postLoadModal.deliveryTimeTo', 'Time to')}</FieldLabel><TimeInput value={draft.deliveryTimeTo} onChange={(value) => setField('deliveryTimeTo', value)} placeholder="hh:mm" /></div>
       </div>
     </section>
+
+    </div>
 
     {/* Read back as storage, not as a route: where it goes, and for how long. Without a pickup
         there is no leg to measure, so the distance stripe and the route map belong to the road load

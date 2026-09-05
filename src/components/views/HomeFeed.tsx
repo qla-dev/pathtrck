@@ -528,7 +528,7 @@ export const HomeFeed = ({
       )}
 
       {!loading && sortedLoads.length > 0 && layout === 'table' && (
-        <LoadsTable lang={lang} loads={sortedLoads} userId={userId} ownerMode={ownerMode} tariffCategories={tariffCategories} onOpenDetails={setSelectedLoad} />
+        <LoadsTable lang={lang} loads={sortedLoads} userId={userId} ownerMode={ownerMode} storageMode={exchangeMode === 'storage'} tariffCategories={tariffCategories} onOpenDetails={setSelectedLoad} />
       )}
 
       {!loading && sortedLoads.length > 0 && layout === 'map' && (

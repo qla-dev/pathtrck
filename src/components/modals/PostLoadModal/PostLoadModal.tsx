@@ -1,3 +1,4 @@
+import { AddWarehouseModal } from '../AddWarehouseModal/AddWarehouseModal';
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
@@ -360,8 +361,14 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   const [savingDraft, setSavingDraft] = useState(false);
   const [draftSavedAt, setDraftSavedAt] = useState<Date | null>(null);
   const [currentUser, setCurrentUser] = useState<ApiUser | null>(null);
+  const [addWarehouseOpen, setAddWarehouseOpen] = useState(false);
   const [ownedWarehouses, setOwnedWarehouses] = useState<OwnedWarehouse[]>([]);
-  useEffect(() => { void api.auth.me().then(setCurrentUser); }, []);
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    void api.auth.me().then((user) => { if (!cancelled) setCurrentUser(user); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [isOpen]);
   useEffect(() => {
     if (!isOpen || draft.transportType !== 'warehouse') return undefined;
     let cancelled = false;
@@ -1742,6 +1749,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       lang={lang}
                       invalidClass={invalidClass}
                       ownedWarehouses={ownedWarehouses}
+                      onAddWarehouse={() => setAddWarehouseOpen(true)}
                       onSelectOwnedWarehouse={selectOwnedWarehouse}
                       onOpenWarehouseArea={() => setAreaMapOpen(true)}
                     />
@@ -3215,6 +3223,21 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
             </div>
         </div>
       </motion.div>
+      <AddWarehouseModal
+        open={addWarehouseOpen}
+        lang={lang}
+        onClose={() => setAddWarehouseOpen(false)}
+        onCreated={(record) => {
+          const warehouse: OwnedWarehouse = {
+            id: Number(record.id), name: String(record.name || ''), city: String(record.city || ''),
+            countryCode: String(record.country_code || ''), address: String(record.address || ''),
+            latitude: String(record.latitude ?? ''), longitude: String(record.longitude ?? ''),
+          };
+          setOwnedWarehouses((current) => [warehouse, ...current.filter((item) => item.id !== warehouse.id)]);
+          selectOwnedWarehouse(warehouse);
+          setAddWarehouseOpen(false);
+        }}
+      />
       <DocumentDropzone open={dropzoneOpen} onClose={() => setDropzoneOpen(false)} onApply={applyScan} />
       <ScanResultModal
         open={viewingDocId !== null}

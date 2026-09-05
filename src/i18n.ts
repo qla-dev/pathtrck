@@ -9371,12 +9371,13 @@ Object.assign(UI.en, {
   'warehouseView.noDockMovements': 'No dock movements recorded yet.',
   'warehouseDocks.notFound': 'This movement could not be loaded.',
   'postLoadModal.storageTarget': 'Storage destination',
-  'postLoadModal.storageTargetOwn': 'One of my warehouses',
+  'postLoadModal.storageTargetOwn': 'Store in my warehouse',
   'postLoadModal.storageTargetOwnDesc': 'Create an inbound receipt on your dock schedule.',
-  'postLoadModal.storageTargetExchange': 'Warehouse exchange',
+  'postLoadModal.storageTargetExchange': 'Publish on the storage exchange',
   'postLoadModal.storageTargetExchangeDesc': 'Publish a storage request for warehouse companies.',
   'postLoadModal.receivingWarehouse': 'Receiving warehouse',
   'postLoadModal.noOwnedWarehouses': 'No warehouse is available for this account.',
+  'postLoadModal.noWarehousesAdded': 'You have not added any warehouses yet.',
   'postLoadModal.scheduleReceiptTitle': 'Schedule warehouse receipt?',
   'postLoadModal.scheduleReceiptText': 'This creates an inbound movement for the selected warehouse and does not publish it on the warehouse exchange.',
   'postLoadModal.scheduleReceiptConfirm': 'Schedule receipt',
@@ -9427,12 +9428,13 @@ Object.assign(UI.bs, {
   'warehouseView.noDockMovements': 'Još nema evidentiranih kretanja na dokovima.',
   'warehouseDocks.notFound': 'Ovo kretanje se nije moglo učitati.',
   'postLoadModal.storageTarget': 'Odredište skladištenja',
-  'postLoadModal.storageTargetOwn': 'Jedno od mojih skladišta',
+  'postLoadModal.storageTargetOwn': 'Skladištiti u moje skladište',
   'postLoadModal.storageTargetOwnDesc': 'Kreiraj prijem robe u rasporedu dokova.',
-  'postLoadModal.storageTargetExchange': 'Berza skladišta',
+  'postLoadModal.storageTargetExchange': 'Objaviti na berzu skladištenja',
   'postLoadModal.storageTargetExchangeDesc': 'Objavi zahtjev za skladišne kompanije.',
   'postLoadModal.receivingWarehouse': 'Skladište za prijem',
   'postLoadModal.noOwnedWarehouses': 'Nema dostupnog skladišta za ovaj račun.',
+  'postLoadModal.noWarehousesAdded': 'Još uvijek nemate dodanih skladišta',
   'postLoadModal.scheduleReceiptTitle': 'Zakazati prijem robe?',
   'postLoadModal.scheduleReceiptText': 'Ovo kreira prijem za odabrano skladište i ne objavljuje ga na berzi skladišta.',
   'postLoadModal.scheduleReceiptConfirm': 'Zakaži prijem',
@@ -9483,12 +9485,13 @@ Object.assign(UI.de, {
   'warehouseView.noDockMovements': 'Noch keine Rampenbewegungen erfasst.',
   'warehouseDocks.notFound': 'Diese Bewegung konnte nicht geladen werden.',
   'postLoadModal.storageTarget': 'Lagerziel',
-  'postLoadModal.storageTargetOwn': 'Eines meiner Lager',
+  'postLoadModal.storageTargetOwn': 'In meinem Lager einlagern',
   'postLoadModal.storageTargetOwnDesc': 'Einen Wareneingang im Rampenplan anlegen.',
-  'postLoadModal.storageTargetExchange': 'Lagerbörse',
+  'postLoadModal.storageTargetExchange': 'Auf der Lagerbörse veröffentlichen',
   'postLoadModal.storageTargetExchangeDesc': 'Eine Lageranfrage für Lagerunternehmen veröffentlichen.',
   'postLoadModal.receivingWarehouse': 'Empfangslager',
   'postLoadModal.noOwnedWarehouses': 'Für dieses Konto ist kein Lager verfügbar.',
+  'postLoadModal.noWarehousesAdded': 'Sie haben noch keine Lager hinzugefügt.',
   'postLoadModal.scheduleReceiptTitle': 'Wareneingang planen?',
   'postLoadModal.scheduleReceiptText': 'Dies erstellt einen Wareneingang für das ausgewählte Lager und veröffentlicht ihn nicht an der Lagerbörse.',
   'postLoadModal.scheduleReceiptConfirm': 'Wareneingang planen',
@@ -10031,7 +10034,7 @@ Object.assign(UI.de, {
 // The storage window and the warehouse target are now read out of this step directly, so the keys
 // naming them get their English and German wording rather than falling back to the Bosnian base.
 Object.assign(UI.en, {
-  'postLoadModal.storageTargetQuestion': 'Where should the goods be stored?',
+  'postLoadModal.storageTargetQuestion': 'What would you like to do with the cargo?',
   'postLoadModal.storageSummaryTitle': 'Storage',
   'postLoadModal.storagePeriod': 'Storage period',
   'postLoadModal.warehouseStartDate': 'Storage start date',
@@ -10041,7 +10044,7 @@ Object.assign(UI.en, {
 });
 
 Object.assign(UI.bs, {
-  'postLoadModal.storageTargetQuestion': 'Gdje se roba treba skladištiti?',
+  'postLoadModal.storageTargetQuestion': 'Šta želite uraditi sa teretom',
   'postLoadModal.storageSummaryTitle': 'Skladištenje',
   'postLoadModal.storagePeriod': 'Period skladištenja',
   'postLoadModal.warehouseStartDate': 'Datum početka skladištenja',
@@ -10051,7 +10054,7 @@ Object.assign(UI.bs, {
 });
 
 Object.assign(UI.de, {
-  'postLoadModal.storageTargetQuestion': 'Wo soll die Ware gelagert werden?',
+  'postLoadModal.storageTargetQuestion': 'Was möchten Sie mit der Fracht tun?',
   'postLoadModal.storageSummaryTitle': 'Lagerung',
   'postLoadModal.storagePeriod': 'Lagerzeitraum',
   'postLoadModal.warehouseStartDate': 'Beginn der Lagerung',

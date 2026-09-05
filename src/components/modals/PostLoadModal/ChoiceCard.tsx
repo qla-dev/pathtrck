@@ -9,6 +9,7 @@ export const ChoiceCard = ({
   icon: Icon,
   onClick,
   compact = false,
+  disabled = false,
   className,
   nowrap = false,
   truncate = false,
@@ -21,6 +22,7 @@ export const ChoiceCard = ({
   icon: typeof MapPin;
   onClick: (event: MouseEvent<HTMLButtonElement>) => void;
   compact?: boolean;
+  disabled?: boolean;
   className?: string;
   nowrap?: boolean;
   truncate?: boolean;
@@ -30,6 +32,7 @@ export const ChoiceCard = ({
 }) => (
   <button
     type="button"
+    disabled={disabled}
     onClick={onClick}
     className={cn(
       'relative flex min-w-0 cursor-pointer items-center rounded-xl border text-left transition-all',
@@ -37,6 +40,7 @@ export const ChoiceCard = ({
       active
         ? 'border-primary bg-primary/10 text-primary shadow-sm ring-1 ring-primary/20'
         : 'border-slate-200 bg-white text-slate-700 hover:border-primary/40 hover:bg-primary/5 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200',
+      disabled && 'cursor-not-allowed opacity-50 hover:border-slate-200 hover:bg-white dark:hover:border-slate-800 dark:hover:bg-slate-950',
       className
     )}
   >

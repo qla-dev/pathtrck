@@ -59,6 +59,7 @@ type LoadsTableProps = {
   loads: Load[];
   userId?: number;
   ownerMode?: boolean;
+  storageMode?: boolean;
   tariffCategories?: TariffCategory[];
   onOpenDetails: (load: Load) => void;
 };
@@ -129,11 +130,11 @@ const toTextTone = (tone: string) =>
     .filter((cls) => cls.includes('text-'))
     .join(' ');
 
-export const LoadsTable = ({ lang, loads, userId, ownerMode = false, tariffCategories = [], onOpenDetails }: LoadsTableProps) => {
+export const LoadsTable = ({ lang, loads, userId, ownerMode = false, storageMode = false, tariffCategories = [], onOpenDetails }: LoadsTableProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [sort, setSort] = useState<TableSortState>(null);
 
-  const columns: Array<{ key: TableSortKey; label: string; icon: LucideIcon }> = [
+  const allColumns: Array<{ key: TableSortKey; label: string; icon: LucideIcon }> = [
     { key: 'tracking', label: u('Track no.', 'Track no.'), icon: Hash },
     { key: 'pickup', label: u('home.table.pickup', 'Pickup'), icon: MapPin },
     { key: 'miles', label: u('home.table.distance', 'Km'), icon: Route },
@@ -147,6 +148,12 @@ export const LoadsTable = ({ lang, loads, userId, ownerMode = false, tariffCateg
     { key: 'paymentTerms', label: u('legacy.sidebarFilter.paymentTerms', 'Payment terms'), icon: CreditCard },
     { key: 'urgency', label: u('feed.filters.urgency', 'Urgency'), icon: Zap },
   ];
+
+  const columns = allColumns.filter((column) => !storageMode || (column.key !== 'pickup' && column.key !== 'miles'));
+
+  useEffect(() => {
+    if (storageMode) setSort((current) => current?.key === 'pickup' || current?.key === 'miles' ? null : current);
+  }, [storageMode]);
 
   const toggleSort = (key: TableSortKey) => {
     setSort((prev) => {
@@ -195,7 +202,7 @@ export const LoadsTable = ({ lang, loads, userId, ownerMode = false, tariffCateg
       resizeObserver?.disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows.length]);
+  }, [rows.length, storageMode]);
 
   useEffect(() => {
     const el = theadRef.current;
@@ -354,6 +361,7 @@ export const LoadsTable = ({ lang, loads, userId, ownerMode = false, tariffCateg
                 <td className="px-4 py-3">
                   <span className="font-mono text-xs font-bold text-primary">{load.trackingNumber || '—'}</span>
                 </td>
+                {!storageMode && <>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
                     {pickupCountryCode && (
@@ -370,6 +378,7 @@ export const LoadsTable = ({ lang, loads, userId, ownerMode = false, tariffCateg
                       would just read as a misleading 0 km. */}
                   {isStorage ? '—' : `${estimateLoadDistanceKm(load.pickup, load.delivery)} km`}
                 </td>
+                </>}
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
                     {deliveryCountryCode && (
