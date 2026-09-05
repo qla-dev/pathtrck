@@ -270,8 +270,8 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
     setActionMessage('');
     (async () => {
       try {
-        if (role === 'superadmin' || role === 'user' || role === 'driver' || isCompanyOperationsRole(role)) {
-          const offerResponse = await api.offers.list({ per_page: 100 });
+        if (role === 'superadmin' || role === 'user' || role === 'driver' || role === 'warehouse' || load.customerUserId === userId || isCompanyOperationsRole(role)) {
+          const offerResponse = await api.offers.list({ per_page: 100, load_id: load.id });
           const loadOffers = offerResponse.data.filter((offer) => String(offer.load_id) === String(load.id));
           if (!active) return;
           setOffers(loadOffers);
@@ -440,7 +440,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
         myOffer ? u('legacy.loadDetails.offerUpdatedText', 'Your updated offer has been sent to the customer.') : u('legacy.loadDetails.offerSentText', 'The customer will review your offer.')
       );
       setShowOfferForm(false);
-      const refreshed = await api.offers.list({ per_page: 100 });
+      const refreshed = await api.offers.list({ per_page: 100, load_id: load.id });
       setOffers(refreshed.data.filter((offer) => String(offer.load_id) === String(load.id)));
       onChanged?.();
     } catch (error) {
@@ -458,7 +458,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
     try {
       await api.offers.create(payload);
       void showSuccess(u('Counter offer sent', 'Counter offer sent'), u('The carrier will see your counter offer.', 'The carrier will see your counter offer.'));
-      const refreshed = await api.offers.list({ per_page: 100 });
+      const refreshed = await api.offers.list({ per_page: 100, load_id: load.id });
       setOffers(refreshed.data.filter((offer) => String(offer.load_id) === String(load.id)));
       onChanged?.();
     } catch (error) {
@@ -504,7 +504,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
       await api.offers.update(String(myOffer.id), { ...offerDraftToPayload(draft), is_counter: false });
       void showSuccess(u('Counter accepted', 'Counter accepted'), u('Your offer has been updated with the new terms.', 'Your offer has been updated with the new terms.'));
       setViewingCounter(null);
-      const refreshed = await api.offers.list({ per_page: 100 });
+      const refreshed = await api.offers.list({ per_page: 100, load_id: load.id });
       setOffers(refreshed.data.filter((offer) => String(offer.load_id) === String(load.id)));
       onChanged?.();
     } catch (error) {
@@ -537,6 +537,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
     </div>
   );
   const openBidModal = () => {
+    if (userId != null && load.customerUserId === userId) { setBodyView('offers'); return; }
     if (myOffer) {
       setOfferDraft(offerDraftFromRecord(myOffer, { loadId: String(load.id), currency: offerCurrency }));
     } else {
@@ -682,7 +683,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 md:p-5">
-            {(role === 'superadmin' || (role === 'user' && load.customerUserId === userId)) && bodyView === 'offers' ? (
+            {(role === 'superadmin' || (userId != null && load.customerUserId === userId)) && bodyView === 'offers' ? (
               <LoadOffersPanel
                 lang={lang}
                 load={load}
@@ -694,7 +695,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                 onApprove={(offer) => void approveOffer(offer)}
                 onReject={(offer) => void rejectOffer(offer)}
                 onSendCounter={sendCounterOffer}
-                onBack={role === 'user' ? () => setBodyView('details') : undefined}
+                onBack={() => setBodyView('details')}
               />
             ) : (
             <div className="space-y-4">
@@ -754,7 +755,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                       )}
                     </div>
                   )}
-                  {role === 'superadmin' ? <>
+                  {role === 'superadmin' && load.customerUserId !== userId ? <>
                     {currentStatus === 'Posted' && load.isNegotiable !== true && (
                       <div className="space-y-3 border-t border-slate-100 pt-3 dark:border-slate-800">
                         {bookingSummary}
@@ -795,7 +796,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                         </div>
                       </div>
                     )}
-                  </> : role === 'user' && load.customerUserId === userId ? (
+                  </> : userId != null && load.customerUserId === userId ? (
                     <div className="grid gap-2 border-t border-slate-100 pt-3 dark:border-slate-800 sm:grid-cols-2 xl:grid-cols-1">
                       <Button
                         variant="outline"

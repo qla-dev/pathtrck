@@ -245,6 +245,8 @@ type HomeFeedProps = {
   onExchangeModeChange?: (mode: 'transport' | 'storage') => void;
   storageOnly?: boolean;
   ownerMode?: boolean;
+  myLoadsOnly?: boolean;
+  onMyLoadsOnlyChange?: (value: boolean) => void;
   myBidsOnly?: boolean;
   onMyBidsOnlyChange?: (value: boolean) => void;
   onSortModeChange?: (mode: FeedSortMode) => void;
@@ -297,6 +299,8 @@ export const HomeFeed = ({
   onExchangeModeChange,
   storageOnly = false,
   ownerMode = false,
+  myLoadsOnly = false,
+  onMyLoadsOnlyChange,
   myBidsOnly = false,
   onMyBidsOnlyChange,
   onSortModeChange,
@@ -369,6 +373,19 @@ export const HomeFeed = ({
         title={loadsTitle}
         subtitle={`${sortedLoads.length} ${u('feed.filterBar.loadsLabel', 'loads')}`}
         actions={<div className="flex flex-wrap items-center justify-end gap-2">
+          {!ownerMode && <button
+            type="button"
+            onClick={() => onMyLoadsOnlyChange?.(!myLoadsOnly)}
+            className={cn(
+              'inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl border px-3 text-xs font-bold transition-all',
+              myLoadsOnly
+                ? 'border-primary/40 bg-primary/10 text-primary'
+                : 'border-slate-200 text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600'
+            )}
+          >
+            <Truck className="h-3.5 w-3.5" />
+            {u('feed.filterBar.myLoads', 'My cargo')}
+          </button>}
           {!ownerMode && <button
             type="button"
             onClick={() => onMyBidsOnlyChange?.(!myBidsOnly)}

@@ -5486,6 +5486,7 @@ export default function App() {
   const [feedFilterBarLoading, setFeedFilterBarLoading] = useState(false);
   const prevExchangeModeRef = useRef(effectiveExchangeMode);
   const exchangeModeTransitionTimerRef = useRef<number | null>(null);
+  const [feedMyLoadsOnly, setFeedMyLoadsOnly] = useState(false);
   const [feedMyBidsOnly, setFeedMyBidsOnly] = useState(false);
   // Freight-exchange filter groups (Transport / Route / Cargo / Equipment / Date / Requirements /
   // Assignment). Kept as one object so adding a group does not mean threading another state pair.
@@ -5732,6 +5733,7 @@ export default function App() {
         for_storage: effectiveExchangeMode === "storage",
         tracking_search: feedTrackingSearch || undefined,
         sort: feedSortMode,
+        my_loads: feedMyLoadsOnly || undefined,
         my_bids: feedMyBidsOnly || undefined,
         owner_only: role === 'user' || undefined,
         budget_min:
@@ -5890,6 +5892,7 @@ export default function App() {
     loadRefreshKey,
     effectiveExchangeMode,
     feedSortMode,
+    feedMyLoadsOnly,
     feedMyBidsOnly,
     feedStartLocation,
     feedEndLocation,
@@ -7281,7 +7284,9 @@ export default function App() {
                     }, 200);
                   }}
                   myBidsOnly={feedMyBidsOnly}
-                  onMyBidsOnlyChange={setFeedMyBidsOnly}
+                  myLoadsOnly={feedMyLoadsOnly}
+                  onMyLoadsOnlyChange={(value) => { setFeedMyLoadsOnly(value); if (value) setFeedMyBidsOnly(false); }}
+                  onMyBidsOnlyChange={(value) => { setFeedMyBidsOnly(value); if (value) setFeedMyLoadsOnly(false); }}
                   sortMode={feedSortMode}
                   startLocation={feedStartLocation}
                   endLocation={feedEndLocation}

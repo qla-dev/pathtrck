@@ -237,9 +237,11 @@ export const LoadItem = ({
       && offer.status === 'pending'
       && Number(offer.created_by_user_id) === Number(userId)
   ));
-  const actionLabel = reservationPending
+  const actionLabel = userId != null && load.customerUserId === userId
+              ? u('offers.view', 'View offers')
+              : reservationPending
     ? u('reservation.pending', 'Waiting for customer confirmation')
-    : ownerMode
+    : ownerMode || (userId != null && load.customerUserId === userId)
     ? u('offers.view', 'View offers')
     : load.isNegotiable === false
     ? (hasBudget ? `${u('reservation.requestShort', 'Request reservation')} · ${load.price}` : u('reservation.requestShort', 'Request reservation'))

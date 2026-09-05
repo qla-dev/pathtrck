@@ -440,7 +440,10 @@ export const getBidState = (
 ): BidState => {
   const list = offers || [];
   const myOffer = list.find((offer) =>
-    userId != null && (Number(offer.driver_user_id) === userId || Number(offer.created_by_user_id) === userId)) || null;
+    userId != null && Number(offer.created_by_user_id) === userId
+      && offer.request_type !== 'reservation_request'
+      && !offer.is_counter
+      && String(offer.status || 'pending').toLowerCase() === 'pending') || null;
   const activeOffers = list.filter((offer) => String(offer.status || '').toLowerCase() !== 'rejected');
   const highestBidAmount = activeOffers.length
     ? Math.max(...activeOffers.map((offer) => Number(offer.amount) || 0))

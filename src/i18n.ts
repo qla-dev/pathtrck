@@ -9663,6 +9663,7 @@ Object.assign(UI.de, {
 
 Object.assign(UI.en, {
   'nav.myOffers': 'My offers',
+  'feed.filterBar.myLoads': 'My cargo',
   'nav.liveTracking': 'Live tracking',
   'offers.view': 'View offers',
   'offers.backToDetails': 'Back to load details',
@@ -9736,6 +9737,7 @@ Object.assign(UI.en, {
 
 Object.assign(UI.bs, {
   'nav.myOffers': 'Moje ponude',
+  'feed.filterBar.myLoads': 'Moj teret',
   'nav.liveTracking': 'Live tracking',
   'offers.view': 'Vidi ponude',
   'offers.backToDetails': 'Nazad na detalje tereta',
@@ -9809,6 +9811,7 @@ Object.assign(UI.bs, {
 
 Object.assign(UI.de, {
   'nav.myOffers': 'Meine Angebote',
+  'feed.filterBar.myLoads': 'Meine Fracht',
   'nav.liveTracking': 'Live-Tracking',
   'offers.view': 'Angebote ansehen',
   'offers.backToDetails': 'Zurück zu den Ladungsdetails',
