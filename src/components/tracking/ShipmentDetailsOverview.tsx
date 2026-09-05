@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import {
   Activity as ActivityIcon, ArrowRight, Building2, CalendarDays, CheckCircle2, CircleDollarSign,
   ClipboardCheck, Clock3, FileText, LayoutDashboard, MapPin, Package as PackageIcon,
-  LoaderCircle, Pencil, Plane, Scale, Send, Ship, Train, Truck, UserRound,
+  LoaderCircle, Pencil, Plane, Scale, Send, Ship, Train, Truck, Warehouse, UserRound,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -102,8 +102,8 @@ export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userI
 
   // The transport mode reads as a mode, not as a database value: its own icon and a proper name.
   const transportType = String(shipment.transportType || 'road').toLowerCase();
-  const TransportIcon = transportType === 'air' ? Plane : transportType === 'sea' ? Ship : transportType === 'rail' ? Train : Truck;
-  const transportLabel = transportType === 'air'
+  const TransportIcon = transportType === 'warehouse' ? Warehouse : transportType === 'air' ? Plane : transportType === 'sea' ? Ship : transportType === 'rail' ? Train : Truck;
+  const transportLabel = transportType === 'warehouse' ? u('postLoadModal.warehouse', 'Warehouse') : transportType === 'air'
     ? u('postLoadModal.transport.air', 'Air')
     : transportType === 'sea'
       ? u('postLoadModal.transport.sea', 'Sea')
@@ -187,11 +187,13 @@ export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userI
             <p className="text-xs font-bold text-slate-500">{u('shipmentDetails.shipments', 'Shipments')} <span className="mx-2 text-slate-300">/</span> <span className="font-mono text-primary">{shipment.trackingNumber}</span></p>
             <div className="mt-2 flex flex-wrap items-center gap-3">
               <h1 className="flex min-w-0 items-center gap-3 text-2xl font-black text-slate-950 dark:text-white md:text-3xl">
+                {transportType !== 'warehouse' && <>
                 <span className="flex min-w-0 items-center gap-2">
                   <CountryFlag code={shipment.originCountryCode} />
                   <span className="truncate">{shipment.origin}</span>
                 </span>
                 <ArrowRight className="h-6 w-6 shrink-0 text-primary" />
+                </>}
                 <span className="flex min-w-0 items-center gap-2">
                   <CountryFlag code={shipment.destinationCountryCode} />
                   <span className="truncate">{shipment.destination}</span>

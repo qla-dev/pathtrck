@@ -315,18 +315,23 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
     [selectedPackage.id]
   );
 
-  const canManageStatuses = role === 'driver' || isCompanyOperationsRole(role) || role === 'superadmin' || role === 'master';
+  const isStorage = selectedPackage.transportType === 'warehouse';
+  const storageStatusLabel = (status: PackageData['status']) => {
+    const labels: Partial<Record<PackageData['status'], string>> = { Posted: 'published', Booked: 'booked', Opened: 'receiving', Received: 'stored', Sent: 'dispatched' };
+    return isStorage && labels[status] ? u(`storage.status.${labels[status]}`, status) : trPackageStatus(lang, status);
+  };
+  const canManageStatuses = role === 'warehouse' || role === 'driver' || isCompanyOperationsRole(role) || role === 'superadmin' || role === 'master';
   const canCustomerReceive = role === 'user' && selectedPackage.status === 'In delivery';
   const canChangeStatus = canManageStatuses || canCustomerReceive;
-  const visibleStatus = role === 'user' && selectedPackage.status === 'Finished' ? 'Received' : selectedPackage.status;
-  const trackingFlow = role === 'user' ? TRACKING_FLOW.filter((status) => status !== 'Finished') : TRACKING_FLOW;
+  const visibleStatus = isStorage ? (selectedPackage.status === 'Finished' || selectedPackage.status === 'In delivery' ? 'Sent' : selectedPackage.status) : role === 'user' && selectedPackage.status === 'Finished' ? 'Received' : selectedPackage.status;
+  const trackingFlow: PackageData['status'][] = isStorage ? ['Posted', 'Booked', 'Opened', 'Received', 'Sent'] : role === 'user' ? TRACKING_FLOW.filter((status) => status !== 'Finished') : TRACKING_FLOW;
   const trackingStage = trackingFlow.indexOf(visibleStatus);
   const trackingProgress = visibleStatus === trackingFlow[trackingFlow.length - 1]
     ? 100
     : trackingStage >= 0
       ? (trackingStage / (trackingFlow.length - 1)) * 100
       : 0;
-  const canSelectStatus = (status: PackageData['status']) => (canManageStatuses && status !== 'Received') || (role === 'user' && status === 'Received');
+  const canSelectStatus = (status: PackageData['status']) => isStorage ? canManageStatuses : (canManageStatuses && (isStorage || status !== 'Received')) || (role === 'user' && status === 'Received');
   const receivedActionLabel = lang === 'bs'
     ? 'Označi kao primljeno i ocijeni'
     : lang === 'de'
@@ -364,6 +369,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
   }, [selectedPackage.stops]);
 
   useEffect(() => {
+    if (isStorage) { setRoutePoints([]); setRouteDistanceKm(null); setRemainingDistanceKm(null); return; }
     const { pickup, delivery } = trackingRouteEndpoints;
     if (!pickup || !delivery) {
       setRoutePoints([]);
@@ -469,13 +475,13 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
       return;
     }
 
-    if (status === 'Received') {
+    if (status === 'Received' && !isStorage) {
       setReceiveReviewPending(true);
       setRightTab('review');
       return;
     }
 
-    const label = trPackageStatus(lang, status);
+    const label = storageStatusLabel(status);
     const confirmed = await confirmAction({
       title: u('tracking.changeStatusTitle', `Change status to ${label}?`),
       text: u('tracking.changeStatusText', 'The new status and exact change time will be saved immediately.'),
@@ -499,7 +505,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
     }
   };
 
-  const canControlLiveTracking = role === 'driver' || isCompanyOperationsRole(role) || role === 'superadmin' || role === 'master';
+  const canControlLiveTracking = role === 'warehouse' || role === 'driver' || isCompanyOperationsRole(role) || role === 'superadmin' || role === 'master';
   const handleLiveTrackingToggle = async () => {
     if (!canControlLiveTracking) return;
     const nextEnabled = !liveTrackingEnabled;
@@ -748,7 +754,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
           )}
         >
           <PackageIcon className="w-4 h-4" />
-          {u('Tracker', 'Tracker')}
+          {isStorage ? u('storage.statuses', 'Statuses') : u('Tracker', 'Tracker')}
         </button>
         <button
           onClick={() => setRightTab('details')}
@@ -875,7 +881,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
                       key={status}
                       disabled={!canChangeStatus || !canSelectStatus(status) || statusChanging !== null}
                       onClick={() => void changeLoadStatus(status)}
-                      aria-label={`${u('tracking.changeStatusConfirm', 'Change status')}: ${trPackageStatus(lang, status)}`}
+                      aria-label={`${u('tracking.changeStatusConfirm', 'Change status')}: ${storageStatusLabel(status)}`}
                       className={cn(
                         'absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white dark:border-slate-900',
                         canChangeStatus && canSelectStatus(status) && 'cursor-pointer transition-transform hover:scale-125 focus:outline-none focus:ring-2 focus:ring-primary/40',
@@ -901,9 +907,9 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
                           : '-translate-x-1/2 text-center',
                       index === trackingStage && 'text-emerald-600 dark:text-emerald-400',
                     )}
-                    style={index > 0 && index < TRACKING_FLOW.length - 1 ? { left: `${position}%` } : undefined}
+                    style={index > 0 && index < trackingFlow.length - 1 ? { left: `${position}%` } : undefined}
                   >
-                    <span className="block">{trPackageStatus(lang, status)}</span>
+                    <span className="block">{storageStatusLabel(status)}</span>
                     {selectedPackage.statusChange?.[apiLoadStatus(status)] && (
                       <span className={cn(
                         'mt-px block text-[8px] font-semibold normal-case leading-tight tracking-normal',
@@ -924,7 +930,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
             </div>
           </div>
 
-          <div className="pointer-events-none absolute right-4 top-full mt-3 flex max-w-[calc(100%_-_2rem)] flex-wrap items-center justify-end gap-2">
+          <div style={isStorage ? { display: 'none' } : undefined} className="pointer-events-none absolute right-4 top-full mt-3 flex max-w-[calc(100%_-_2rem)] flex-wrap items-center justify-end gap-2">
             <div className="inline-flex items-center gap-2 rounded-full bg-sky-100/90 px-3 py-1.5 text-xs font-bold text-sky-700 shadow-sm backdrop-blur dark:bg-sky-950/80 dark:text-sky-300">
               {routeLoading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {u('tracking.totalDistance', 'Total distance')}: {routeDistanceKm === null ? '—' : `${routeDistanceKm.toLocaleString()} km`}
@@ -1003,7 +1009,15 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
         />
       )}
 
-      {rightTab === 'tracker' && (
+      {rightTab === 'tracker' && isStorage && (
+        <div className="absolute inset-0">
+          {selectedPackage.warehousePosition ? <MapContainer key={selectedPackage.warehousePosition.join(',')} center={selectedPackage.warehousePosition} zoom={15} className="h-full w-full">
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap" />
+            <Marker position={selectedPackage.warehousePosition} icon={routeEndpointIcon(selectedPackage.destinationCountryCode, '#0ea5e9')}><Popup>{selectedPackage.destination}</Popup></Marker>
+          </MapContainer> : <div className="flex h-full items-center justify-center text-slate-500">{u('storage.locationUnavailable', 'Warehouse location is unavailable.')}</div>}
+        </div>
+      )}
+      {rightTab === 'tracker' && !isStorage && (
         <div className="absolute inset-0 overflow-hidden">
              <MapContainer ref={trackerMapRef} center={selectedPackage.hasCurrentLocation ? selectedPackage.currentLocation : (trackingRouteEndpoints.pickup || selectedPackage.currentLocation)} zoom={13} className="h-full w-full">
                 <TileLayer

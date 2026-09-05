@@ -32,7 +32,7 @@ import { PageHeader } from '../ui/PageHeader';
 import { WarehouseReceiveButton } from './WarehouseReceiveButton';
 
 type Direction = 'inbound' | 'outbound';
-type MovementStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+type MovementStatus = 'booked' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
 
 export type DockMovement = {
   id: string;
@@ -49,9 +49,10 @@ export type DockMovement = {
   description: string;
 };
 
-const STATUS_ORDER: MovementStatus[] = ['scheduled', 'in_progress', 'completed', 'cancelled'];
+const STATUS_ORDER: MovementStatus[] = ['booked', 'scheduled', 'in_progress', 'completed', 'cancelled'];
 
 const STATUS_ICONS: Record<MovementStatus, LucideIcon> = {
+  booked: CalendarClock,
   scheduled: CalendarClock,
   in_progress: Truck,
   completed: CheckCircle2,
@@ -61,6 +62,7 @@ const STATUS_ICONS: Record<MovementStatus, LucideIcon> = {
 // One colour per status, used by both the filter pills and the row chips so a movement reads the
 // same wherever it appears.
 const STATUS_TONE: Record<MovementStatus, string> = {
+  booked: 'border-sky-500/30 text-sky-600 dark:text-sky-400',
   scheduled: 'border-amber-500/30 text-amber-600 dark:text-amber-400',
   in_progress: 'border-sky-500/30 text-sky-600 dark:text-sky-400',
   completed: 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400',
@@ -141,7 +143,8 @@ export const WarehouseDocksView = ({ lang, onReceiveGoods, onOpenLoad, refreshSi
 
   const movements = useMemo<DockMovement[]>(() => movementsResult.items.map((row) => {
     const warehouse = (row.warehouse || {}) as Record<string, unknown>;
-    const status = String(row.status || 'scheduled');
+    const linkedLoad = row.freight_load as Record<string, unknown> | undefined;
+    const status = row.status === 'scheduled' && linkedLoad?.status === 'booked' ? 'booked' : String(row.status || 'scheduled');
     return {
       id: String(row.id),
       loadId: row.load_id == null ? null : String(row.load_id),
@@ -177,6 +180,7 @@ export const WarehouseDocksView = ({ lang, onReceiveGoods, onOpenLoad, refreshSi
   }, [movements, query, statusFilter, warehouseId]);
 
   const statusLabel = (status: MovementStatus) => ({
+    booked: u('warehouseDocks.status.booked', 'Booked'),
     scheduled: u('warehouseDocks.status.scheduled', 'Scheduled'),
     in_progress: u('warehouseDocks.status.inProgress', 'In progress'),
     completed: u('warehouseDocks.status.completed', 'Completed'),
@@ -290,7 +294,7 @@ export const WarehouseDocksView = ({ lang, onReceiveGoods, onOpenLoad, refreshSi
       />
 
       {/* One pill per status, the way the cargo page reads its shipments. */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-6">
         {(['all', ...STATUS_ORDER] as Array<'all' | MovementStatus>).map((status) => {
           const Icon = status === 'all' ? LayoutGrid : STATUS_ICONS[status];
           return (

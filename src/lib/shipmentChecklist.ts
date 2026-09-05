@@ -19,6 +19,31 @@ type Phrase = {
 const CUSTOMER_TASKS = new Set(['shipping_instructions', 'approve_draft', 'approve_awb']);
 
 const TASKS: Record<string, Record<Locale, Phrase>> = {
+  confirm_storage_arrival: {
+    en: { label: 'Confirm arrival time', action: 'confirm the warehouse arrival time' },
+    bs: { label: 'Potvrda termina prijema', action: 'potvrditi termin prijema u skladište' },
+    de: { label: 'Anliefertermin bestätigen', action: 'den Anliefertermin bestätigen' },
+  },
+  check_storage_documents: {
+    en: { label: 'Check goods and documents', action: 'check the goods against the accompanying documents' },
+    bs: { label: 'Provjera robe i dokumentacije', action: 'provjeriti robu prema pratećoj dokumentaciji' },
+    de: { label: 'Ware und Dokumente prüfen', action: 'die Ware mit den Begleitdokumenten abgleichen' },
+  },
+  record_storage_receipt: {
+    en: { label: 'Record received quantities and condition', action: 'record received quantities, condition and any discrepancies' },
+    bs: { label: 'Evidencija količine i stanja robe', action: 'evidentirati primljene količine, stanje robe i eventualna odstupanja' },
+    de: { label: 'Menge und Warenzustand erfassen', action: 'Mengen, Warenzustand und Abweichungen erfassen' },
+  },
+  assign_storage_location: {
+    en: { label: 'Assign storage location', action: 'record the storage zone or rack and required storage conditions' },
+    bs: { label: 'Dodjela skladišne lokacije', action: 'evidentirati zonu ili regal i potrebne uslove skladištenja' },
+    de: { label: 'Lagerplatz zuweisen', action: 'Lagerzone oder Regal und erforderliche Lagerbedingungen erfassen' },
+  },
+  confirm_storage_dispatch: {
+    en: { label: 'Confirm dispatch and handover', action: 'record dispatched quantities and attach the handover confirmation' },
+    bs: { label: 'Potvrda otpreme i predaje robe', action: 'evidentirati otpremljene količine i priložiti potvrdu o predaji' },
+    de: { label: 'Versand und Übergabe bestätigen', action: 'versandte Mengen erfassen und die Übergabebestätigung beifügen' },
+  },
   // Road
   assign_driver_and_vehicle: {
     en: { label: 'Assign driver & vehicle', action: 'assign a driver and vehicle' },

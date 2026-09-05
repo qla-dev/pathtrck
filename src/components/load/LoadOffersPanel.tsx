@@ -13,6 +13,7 @@ import {
   Gavel,
   History,
   Inbox,
+  MapPin,
   Percent,
   Repeat,
   Route,
@@ -152,6 +153,8 @@ export const LoadOffersPanel = ({
             const company = offer.company as { name?: string } | undefined;
             const creator = offer.creator as { name?: string; email?: string } | undefined;
             const driver = offer.driver as { id?: number; name?: string } | undefined;
+            const warehouse = offer.warehouse as { address?: string; city?: string; country_code?: string; name?: string } | undefined;
+            const warehouseLocation = [warehouse?.address, warehouse?.city, warehouse?.country_code].filter(Boolean).join(', ') || warehouse?.name || '—';
             const offerId = String(offer.id);
             const status = String(offer.status || 'pending').toLowerCase();
             const accepted = status === 'accepted';
@@ -199,7 +202,9 @@ export const LoadOffersPanel = ({
                     <StatChip icon={CreditCard} label={u('Payment', 'Payment')} value={optionLabel(PAYMENT_TERMS_OPTIONS, offer.payment_terms)} />
                     <StatChip icon={Clock} label={u('Valid until', 'Valid until')} value={formatShortDate(offer.valid_until)} />
                     <StatChip icon={Truck} label={u('Equipment', 'Equipment')} value={offer.equipment_type ? String(offer.equipment_type) : '—'} />
-                    <StatChip icon={Route} label={u('Transit', 'Transit')} value={offer.estimated_transit_days != null ? `${offer.estimated_transit_days} ${u('common.days', 'days')}` : '—'} />
+                    {isStorage
+                      ? <StatChip icon={MapPin} label={u('offer.warehouseLocation', 'Warehouse location')} value={warehouseLocation} />
+                      : <StatChip icon={Route} label={u('Transit', 'Transit')} value={offer.estimated_transit_days != null ? `${offer.estimated_transit_days} ${u('common.days', 'days')}` : '—'} />}
                     <StatChip icon={CalendarClock} label={u('Delivery ETA', 'Delivery ETA')} value={formatShortDate(offer.estimated_delivery_date)} />
                     <StatChip icon={canPerform ? CheckCircle2 : Ban} label={u('Can perform', 'Can perform')} value={canPerform ? u('common.yes', 'Yes') : u('common.no', 'No')} />
                   </div>

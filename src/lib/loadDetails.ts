@@ -48,6 +48,9 @@ export const mapLoadToPackage = (load: Record<string, unknown>, lang: Language):
   const assignedDriverProfile = (assignedDriver.driver || {}) as Record<string, unknown>;
   const vehicle = (load.vehicle || {}) as Record<string, unknown>;
   const workspace = (load.shipment_workspace || load.shipmentWorkspace || {}) as Record<string, unknown>;
+  const isStorage = Boolean(load.for_storage) || load.transport_type === 'warehouse';
+  const acceptedOffer = (workspace.accepted_offer || workspace.acceptedOffer || {}) as Record<string, unknown>;
+  const warehouse = (acceptedOffer.warehouse || {}) as Record<string, unknown>;
   const mappedStatus = mapLoadStatus(load.status);
   const estimatedDeliveryAt = String(shipment.estimated_delivery_at || stops[stops.length - 1]?.window_ends_at || Date.now());
   const origin = String(stops[0]?.city || '—');
@@ -80,15 +83,16 @@ export const mapLoadToPackage = (load: Record<string, unknown>, lang: Language):
     carrier: String(shipment.carrier || company.name || '—'),
     status: mappedStatus,
     totalAmount: sourcePrice || `${String(load.currency || 'EUR')} ${Number(load.budget || 0).toLocaleString()}`,
-    transportType: String(load.transport_type || 'road').toLowerCase(),
+    transportType: load.for_storage ? 'warehouse' : String(load.transport_type || 'road').toLowerCase(),
     cargoType: String(load.cargo_type || ''),
     bookingReference: String(load.booking_reference || ''),
     statusChange: load.status_change && typeof load.status_change === 'object'
       ? Object.fromEntries(Object.entries(load.status_change as Record<string, unknown>).map(([status, changedAt]) => [status, String(changedAt)]))
       : {},
-    origin, destination,
+    warehousePosition: isStorage && warehouse.latitude != null && warehouse.longitude != null && Number.isFinite(Number(warehouse.latitude)) && Number.isFinite(Number(warehouse.longitude)) ? [Number(warehouse.latitude), Number(warehouse.longitude)] : undefined,
+    origin, destination: isStorage ? String(warehouse.name || load.warehouse_city || destination) : destination,
     originCountryCode: String(stops[0]?.country_code || '').toUpperCase(),
-    destinationCountryCode: String(stops[stops.length - 1]?.country_code || '').toUpperCase(),
+    destinationCountryCode: String((isStorage ? warehouse.country_code || load.warehouse_country_code : null) || stops[stops.length - 1]?.country_code || '').toUpperCase(),
     addedDate: String(load.published_at || load.created_at || ''), transitDays: Math.max(0, Math.ceil((new Date(estimatedDeliveryAt).getTime() - Date.now()) / 86400000)),
     description: String(load.title || load.cargo_type || ''),
     currentLocation: hasCurrentLocation

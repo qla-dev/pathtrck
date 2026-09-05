@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Flatpickr from 'react-flatpickr';
 import L from 'leaflet';
 import { MapContainer, TileLayer, Marker, ZoomControl, useMap } from 'react-leaflet';
-import { Search, MapPin, ChevronRight, Package as PackageIcon, Coins, Truck, Plane, Ship, Train, Filter, CalendarDays, Trash2, List, LayoutGrid, Map as MapIcon, LocateFixed, Route, BriefcaseBusiness, Navigation, CalendarRange, BadgeEuro, Building2, Container, Tags, FileText, SlidersHorizontal, ShieldAlert, Zap, X, Weight, Box, Layers, Thermometer, ShieldCheck, Stamp, Lock, UserRound } from 'lucide-react';
+import { Search, MapPin, ChevronRight, Package as PackageIcon, Coins, Truck, Plane, Ship, Train, Warehouse, Filter, CalendarDays, Trash2, List, LayoutGrid, Map as MapIcon, LocateFixed, Route, BriefcaseBusiness, Navigation, CalendarRange, BadgeEuro, Building2, Container, Tags, FileText, SlidersHorizontal, ShieldAlert, Zap, X, Weight, Box, Layers, Thermometer, ShieldCheck, Stamp, Lock, UserRound } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Language, Package as PackageData, Role } from '../../types';
 import { isCompanyOperationsRole } from '../../lib/roles';
@@ -247,7 +247,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
 
   const trackingFilterParams = {
     tracking: true,
-    for_storage: false,
+    for_storage: transportType === 'warehouse' ? true : role === 'user' ? undefined : false,
     tracking_search: debouncedQuery || undefined,
     transport_types: transportType || undefined,
     services: service || undefined,
@@ -478,6 +478,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
     { value: 'air', label: u('postLoadModal.transport.air', 'Air'), icon: Plane },
     { value: 'sea', label: u('postLoadModal.transport.sea', 'Sea'), icon: Ship },
     { value: 'rail', label: u('postLoadModal.transport.rail', 'Rail'), icon: Train },
+    { value: 'warehouse', label: u('tracking.storage', 'Storage'), icon: Warehouse },
   ];
   const serviceOptions: IconSelectOption[] = TRACKING_SERVICES.map((value) => ({ value, label: value, icon: value === 'Express' || value === 'Priority' ? Zap : PackageIcon }));
   const equipmentOptions: IconSelectOption[] = VEHICLE_OPTIONS.map((value) => ({ value, label: value, icon: Container }));
@@ -715,7 +716,9 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
                 </span>
                 <div className="flex shrink-0 items-center gap-2">
                   <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                    {pkg.transportType === 'air' ? (
+                    {pkg.transportType === 'warehouse' ? (
+                      <Warehouse className="h-3 w-3" />
+                    ) : pkg.transportType === 'air' ? (
                       <Plane className="h-3 w-3" />
                     ) : pkg.transportType === 'sea' ? (
                       <Ship className="h-3 w-3" />
@@ -724,7 +727,9 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
                     ) : (
                       <Truck className="h-3 w-3" />
                     )}
-                    {pkg.transportType === 'air'
+                    {pkg.transportType === 'warehouse'
+                      ? u('postLoadModal.warehouse', 'Warehouse')
+                      : pkg.transportType === 'air'
                       ? u('postLoadModal.transport.air', 'Air')
                       : pkg.transportType === 'sea'
                         ? u('postLoadModal.transport.sea', 'Sea')
@@ -751,7 +756,8 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
                   {pkg.description}
                 </p>
               )}
-              <div className="mt-3 grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+              <div className={cn("mt-3 grid min-w-0 items-center gap-2", pkg.transportType === 'warehouse' ? "grid-cols-1" : "grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]")}>
+                {pkg.transportType !== 'warehouse' && <>
                 <div className="flex min-w-0 items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300">
                   {pkg.originCountryCode
                     ? <img src={countryFlagUrl(pkg.originCountryCode)} alt={pkg.originCountryCode} className="h-4 w-6 shrink-0 rounded-sm object-cover shadow-sm" />
@@ -759,6 +765,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
                   <span className="truncate text-xs font-bold">{pkg.origin}</span>
                 </div>
                 <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+                </>}
                 <div className="flex min-w-0 items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300">
                   {pkg.destinationCountryCode
                     ? <img src={countryFlagUrl(pkg.destinationCountryCode)} alt={pkg.destinationCountryCode} className="h-4 w-6 shrink-0 rounded-sm object-cover shadow-sm" />
@@ -769,7 +776,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
               <div className="mt-3 grid gap-2 border-t border-slate-100 pt-3 sm:grid-cols-3 dark:border-slate-800">
                 <div className="flex min-w-0 items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-950">
                   <Building2 className="h-4 w-4 shrink-0 text-primary" />
-                  <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{u('tracking.carrier', 'Carrier')}</p><p className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{pkg.carrier || '—'}</p></div>
+                  <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{pkg.transportType === 'warehouse' ? u('tracking.warehouseOperator', 'Warehouse operator') : u('tracking.carrier', 'Carrier')}</p><p className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{pkg.carrier || '—'}</p></div>
                 </div>
                 <div className="flex min-w-0 items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-950">
                   <UserRound className="h-4 w-4 shrink-0 text-sky-500" />

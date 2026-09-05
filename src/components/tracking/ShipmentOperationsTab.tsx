@@ -358,6 +358,15 @@ export const ShipmentOperationsTab = ({ workspace, lang, onUpdated, onLoadChange
   const renderAction = (item: Record<string, unknown>) => {
     const taskKey = String(item.key);
     switch (taskKey) {
+      case 'confirm_storage_arrival':
+        return valueField(item, 'datetime-local');
+      case 'check_storage_documents':
+        return completionButton(item);
+      case 'record_storage_receipt':
+      case 'assign_storage_location':
+        return valueField(item);
+      case 'confirm_storage_dispatch':
+        return uploadField(taskKey, 'pod');
       case 'assign_driver_and_vehicle':
         // The vehicle belongs to its own row further down; this one only picks the driver.
         return fleetSelect(taskKey, 'assigned_driver_user_id', driverOptions, text.selectDriver);

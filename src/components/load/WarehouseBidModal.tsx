@@ -334,7 +334,7 @@ export const WarehouseBidModal = ({
                       ? u('Bid details', 'Bid details')
                       : editing
                         ? u('legacy.loadDetails.changeOffer', 'Change offer')
-                        : u('Bid on Warehousing Request', 'Bid on Warehousing Request')}
+                        : load.isNegotiable === false ? u('reservation.submit', 'Submit reservation request') : u('Bid on Warehousing Request', 'Bid on Warehousing Request')}
                 </p>
                 <p className="truncate text-xs font-semibold uppercase tracking-wider text-primary">{load.trackingNumber || '—'}</p>
               </div>
@@ -422,11 +422,11 @@ export const WarehouseBidModal = ({
                       <label className="block"><FieldLabel required>{u('Total estimated price', 'Total estimated price')}</FieldLabel>
                         <div className="relative">
                           <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">{currencySymbol(draft.currency)}</span>
-                          <input type="number" step="0.01" value={draft.amount} onChange={(e) => onDraftChange({ amount: e.target.value })} className={cn(fieldInputClass, 'pl-9')} />
+                          <input type="number" step="0.01" value={load.isNegotiable === false ? load.budget : draft.amount} disabled={load.isNegotiable === false} onChange={(e) => onDraftChange({ amount: e.target.value })} className={cn(fieldInputClass, 'pl-9')} />
                         </div>
                       </label>
                       <label className="block"><FieldLabel required>{u('Currency', 'Currency')}</FieldLabel>
-                        <select value={draft.currency} onChange={(e) => onDraftChange({ currency: e.target.value })} className={cn(fieldInputClass, 'cursor-pointer')}>
+                        <select disabled={load.isNegotiable === false} value={draft.currency} onChange={(e) => onDraftChange({ currency: e.target.value })} className={cn(fieldInputClass, 'cursor-pointer')}>
                           {CURRENCY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
                         </select>
                       </label>
@@ -703,13 +703,13 @@ export const WarehouseBidModal = ({
                   <Button variant="secondary" className="h-11 rounded-xl px-5 text-sm" disabled={loading} onClick={onClose}>
                     {u('common.cancel', 'Cancel')}
                   </Button>
-                  <Button className="h-11 gap-2 rounded-xl px-6 text-sm shadow-lg shadow-primary/20" disabled={loading} onClick={onSubmit}>
+                  <Button className="h-11 gap-2 rounded-xl px-6 text-sm shadow-lg shadow-primary/20" disabled={loading || !selectedWarehouse} onClick={() => { if (selectedWarehouse) onSubmit(); }}>
                     <Boxes className="h-4 w-4" />
                     {variant === 'counter'
                       ? (loading ? u('legacy.loadDetails.sendingOffer', 'Sending…') : u('Send counter bid', 'Send counter bid'))
                       : loading
                         ? (editing ? u('legacy.loadDetails.updatingOffer', 'Updating…') : u('legacy.loadDetails.sendingOffer', 'Sending…'))
-                        : (editing ? u('legacy.loadDetails.updateOffer', 'Update offer') : u('Submit Warehouse Bid', 'Submit Warehouse Bid'))}
+                        : (editing ? u('legacy.loadDetails.updateOffer', 'Update offer') : load.isNegotiable === false ? u('reservation.submit', 'Submit reservation request') : u('Submit Warehouse Bid', 'Submit Warehouse Bid'))}
                   </Button>
                 </>
               )}

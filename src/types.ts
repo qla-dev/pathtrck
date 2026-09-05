@@ -48,6 +48,7 @@ export interface Package {
   addedDate: string;
   transitDays: number;
   description?: string;
+  warehousePosition?: [number, number];
   currentLocation: [number, number];
   hasCurrentLocation?: boolean;
   trackingUpdatedAt?: string;

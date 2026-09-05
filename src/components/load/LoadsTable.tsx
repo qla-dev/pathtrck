@@ -138,7 +138,7 @@ export const LoadsTable = ({ lang, loads, userId, ownerMode = false, storageMode
     { key: 'tracking', label: u('Track no.', 'Track no.'), icon: Hash },
     { key: 'pickup', label: u('home.table.pickup', 'Pickup'), icon: MapPin },
     { key: 'miles', label: u('home.table.distance', 'Km'), icon: Route },
-    { key: 'delivery', label: u('home.table.delivery', 'Delivery'), icon: Flag },
+    { key: 'delivery', label: storageMode ? u('tracking.destination', 'Destination') : u('home.table.delivery', 'Delivery'), icon: Flag },
     { key: 'priceTerms', label: u('home.table.priceTerms', 'Price terms'), icon: Handshake },
     { key: 'rate', label: u('home.table.rate', 'Rate'), icon: DollarSign },
     { key: 'provider', label: u('home.table.provider', 'Provider'), icon: Building2 },

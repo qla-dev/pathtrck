@@ -370,6 +370,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
   };
 
   const bookLoad = async (options?: { companyId?: number; driverUserId?: number }, confirmedInAssignmentModal = false) => {
+    if (isStorage) { openBidModal(); return; }
     if (!load || isBooking) return;
     if (!confirmedInAssignmentModal) {
       const pickupWindow = [load.pickupWindowStart, load.pickupWindowEnd]
@@ -544,7 +545,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
       const defaultValidUntil = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
       const base = createEmptyOfferDraft({
         loadId: String(load.id),
-        amount: bidState.displayAmount == null ? '' : String(bidState.displayAmount),
+        amount: load.isNegotiable === false ? String(load.budget ?? '') : bidState.displayAmount == null ? '' : String(bidState.displayAmount),
         currency: offerCurrency,
         validUntil: `${toFlatpickrDate(defaultValidUntil.toISOString())} 18:00`,
         ...(isStorage
@@ -823,7 +824,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                           <Button
                             className="h-11 flex-1 rounded-xl shadow-lg shadow-primary/20"
                             disabled={isBooking || isSubmittingOffer || (load.isNegotiable !== true && reservationPending)}
-                            onClick={load.isNegotiable === true ? openBidModal : () => setAssignmentOpen(true)}
+                            onClick={isStorage || load.isNegotiable === true ? openBidModal : () => setAssignmentOpen(true)}
                           >
                             {load.isNegotiable === true ? offerLabel : reservationPending ? u('reservation.pending', 'Pending customer approval') : (isBooking ? u('reservation.submitting', 'Submitting…') : bookLabel)}
                             {load.isNegotiable === true && !myOffer && <ChevronRight className="ml-1 h-4 w-4" />}
