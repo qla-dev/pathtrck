@@ -1037,7 +1037,7 @@ const UI: Record<Locale, Record<string, string>> = {
     'tracking.storage': 'Skladištenje',
     'storage.statuses': 'Statusi',
     'storage.status.published': 'Objavljeno',
-    'storage.status.booked': 'Booked',
+    'storage.status.booked': 'Bukirano',
     'storage.status.receiving': 'Na prijemu',
     'storage.status.stored': 'U skladištu',
     'storage.status.dispatched': 'Otpremljeno',
@@ -2775,7 +2775,7 @@ Object.assign(UI.de, {
 
 Object.assign(UI.bs, {
   'postLoadModal.dimensionUnit': 'Jedinica',
-  'Booked': 'Rezervisano',
+  'Booked': 'Bukirano',
   'map.choosePickup': 'Odaberite adresu preuzimanja na mapi',
   'map.chooseDelivery': 'Odaberite adresu isporuke na mapi',
   'common.no': 'Ne',
@@ -7756,6 +7756,7 @@ const DATE_PICKER_I18N: Record<Locale, CustomLocale> = {
 };
 
 const VALUE_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
+  Booked: { bs: 'Bukirano', de: 'Gebucht' },
   Posted: { bs: 'Objavljeno', de: 'Veroeffentlicht', pl: 'Opublikowano', ro: 'Publicat', nl: 'Geplaatst', fr: 'Publie', it: 'Pubblicato', zh: '已发布', es: 'Publicado', sr: 'Objavljeno', sv: 'Publicerad', ar: 'منشور', pt: 'Publicado' },
   Opened: { bs: 'Otvoreno', de: 'Geoeffnet', pl: 'Otwarte', ro: 'Deschis', nl: 'Geopend', fr: 'Ouvert', it: 'Aperto', zh: '已打开', es: 'Abierto', sr: 'Otvoreno', sv: 'Oppnad', ar: 'مفتوح', pt: 'Aberto' },
   Sent: { bs: 'Poslano', de: 'Gesendet', pl: 'Wyslane', ro: 'Trimis', nl: 'Verzonden', fr: 'Envoye', it: 'Inviato', zh: '已发送', es: 'Enviado', sr: 'Poslato', sv: 'Skickad', ar: 'مرسل', pt: 'Enviado' },

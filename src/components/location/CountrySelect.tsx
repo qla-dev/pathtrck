@@ -105,7 +105,7 @@ export const CountrySelect = ({ value, onChange, placeholder = 'Select country' 
             {filtered.length === 0 && <p className="p-4 text-center text-sm text-slate-500">No results</p>}
           </div>
         </div>,
-        document.body,
+        rootRef.current?.closest('dialog') || document.body,
       )}
     </div>
   );

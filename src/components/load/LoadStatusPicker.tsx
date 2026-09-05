@@ -6,7 +6,7 @@ import { cn } from '../../lib/cn';
 import { Language, LoadStatus } from '../../types';
 
 export const LOAD_STATUS_OPTIONS: Array<[string, LoadStatus]> = [
-  ['posted', 'Posted'], ['booked', 'Booked'], ['opened', 'Opened'], ['sent', 'Sent'], ['in_delivery', 'In delivery'],
+  ['posted', 'Posted'], ['booked', 'Booked'], ['sent', 'Sent'], ['in_delivery', 'In delivery'],
   ['received', 'Received'], ['finished', 'Finished'], ['pending', 'Pending'], ['cancelled', 'Cancelled'],
 ];
 

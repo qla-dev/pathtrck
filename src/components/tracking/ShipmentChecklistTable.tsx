@@ -50,6 +50,15 @@ export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolb
               {checklist.map((item, index) => {
                 // A finished task trades its number for a tick, so the done ones read at a glance.
                 const done = ['completed', 'approved', 'done'].includes(String(item.status || '').toLowerCase());
+                let vesselConnected = false;
+                let vesselName = '';
+                if (item.key === 'vessel_and_voyage' && done) {
+                  try {
+                    const vessel = JSON.parse(String(item.action_value || ''));
+                    vesselConnected = vessel?.matched === true && /^\d{9}$/.test(String(vessel.mmsi));
+                    if (vesselConnected) vesselName = String(vessel.name || vessel.mmsi);
+                  } catch { /* Plain vessel names use the ordinary completed status. */ }
+                }
 
                 return (
                   <tr key={String(item.key)}>
@@ -78,12 +87,20 @@ export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolb
                     <td className="px-4 py-4">
                       <span className={cn(
                         'rounded-full px-2.5 py-1 text-[10px] font-black uppercase',
-                        done
+                        vesselConnected
+                          ? 'bg-primary/10 text-primary'
+                          : done
                           ? 'bg-emerald-500/10 text-emerald-600'
                           : 'bg-slate-100 text-slate-500 dark:bg-slate-800'
                       )}>
-                        {checklistStatusLabel(lang, item.status)}
+                        {vesselConnected
+                          ? (lang === 'bs' ? 'Brod povezan' : lang === 'de' ? 'Schiff zugeordnet' : 'Vessel matched')
+                          : checklistStatusLabel(lang, item.status)}
                       </span>
+                      {vesselConnected && <p className="mt-2 flex items-center gap-1 whitespace-nowrap text-xs text-slate-500">
+                        <Check aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-primary" />
+                        <span><strong className="font-semibold text-primary">{lang === 'bs' ? 'Tracking omogućen' : lang === 'de' ? 'Tracking aktiviert' : 'Tracking enabled'}: </strong>{vesselName}</span>
+                      </p>}
                     </td>
                     {renderAction && <td className="px-5 py-4 text-right">{renderAction(item, index)}</td>}
                   </tr>

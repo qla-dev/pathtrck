@@ -324,8 +324,8 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
   const canCustomerReceive = role === 'user' && selectedPackage.status === 'In delivery';
   const canChangeStatus = canManageStatuses || canCustomerReceive;
   const visibleStatus = isStorage ? (selectedPackage.status === 'Finished' || selectedPackage.status === 'In delivery' ? 'Sent' : selectedPackage.status) : role === 'user' && selectedPackage.status === 'Finished' ? 'Received' : selectedPackage.status;
-  const trackingFlow: PackageData['status'][] = isStorage ? ['Posted', 'Booked', 'Opened', 'Received', 'Sent'] : role === 'user' ? TRACKING_FLOW.filter((status) => status !== 'Finished') : TRACKING_FLOW;
-  const trackingStage = trackingFlow.indexOf(visibleStatus);
+  const trackingFlow: PackageData['status'][] = isStorage ? ['Posted', 'Booked', 'Received', 'Sent'] : role === 'user' ? TRACKING_FLOW.filter((status) => status !== 'Finished') : TRACKING_FLOW;
+  const trackingStage = trackingFlow.indexOf(visibleStatus === 'Opened' ? 'Booked' : visibleStatus);
   const trackingProgress = visibleStatus === trackingFlow[trackingFlow.length - 1]
     ? 100
     : trackingStage >= 0
@@ -737,7 +737,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
               className="[&_button]:h-10"
               availableStatuses={role === 'user'
                 ? ['Received']
-                : ['Posted', 'Opened', 'Sent', 'In delivery', 'Finished', 'Pending', 'Cancelled']}
+                : ['Posted', 'Booked', 'Sent', 'In delivery', 'Finished', 'Pending', 'Cancelled']}
               actionLabels={{ Received: receivedActionLabel }}
             />
           )}
@@ -981,6 +981,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
           operationsSlot={shipmentWorkspace ? (
             <ShipmentOperationsTab
               workspace={shipmentWorkspace}
+              readOnly={selectedPackage.status !== 'Booked'}
               lang={lang}
               onUpdated={setShipmentWorkspace}
               onLoadChanged={refreshPackage}

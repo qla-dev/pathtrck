@@ -1,5 +1,6 @@
 
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence } from 'motion/react';
 import Flatpickr from 'react-flatpickr';
 import type { Instance as FlatpickrInstance } from 'flatpickr/dist/types/instance';
 import { Check, LoaderCircle, RotateCcw, Upload } from 'lucide-react';
@@ -10,10 +11,13 @@ import { datePlaceholder, formatDate } from '../../lib/dates';
 import { api } from '../../services/api';
 import { showError } from '../../lib/swal';
 import { ShipmentChecklistTable } from './ShipmentChecklistTable';
+import { ChecklistAgentModal } from './ChecklistAgentModal';
+import { ChecklistVesselSearch } from './ChecklistVesselSearch';
 
 type Props = {
   workspace: Record<string, unknown>;
   lang: Language;
+  readOnly?: boolean;
   onUpdated: (workspace: Record<string, unknown>) => void;
   /** Refreshes the load after an inline edit writes to it. */
   onLoadChanged?: () => Promise<void> | void;
@@ -53,12 +57,13 @@ const CONTROL_CLASS = 'h-9 min-w-0 rounded-lg border border-slate-200 bg-white p
 
 // Dates are picked the way the rest of the app picks them: the value stays ISO for the API while
 // flatpickr shows it in the viewer's own locale, with that locale's month and weekday names.
-const ChecklistDatePicker = memo(({ fieldKey, value, disabled, lang, onChange }: {
+const ChecklistDatePicker = memo(({ fieldKey, value, disabled, lang, onChange, enableTime = false }: {
   fieldKey: string;
   value: string;
   disabled: boolean;
   lang: Language;
   onChange: (value: string) => void;
+  enableTime?: boolean;
 }) => {
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
@@ -80,15 +85,19 @@ const ChecklistDatePicker = memo(({ fieldKey, value, disabled, lang, onChange }:
   }, []);
 
   const options = useMemo(() => ({
-    dateFormat: 'Y-m-d',
+    dateFormat: enableTime ? 'Y-m-d\\TH:i' : 'Y-m-d',
+    enableTime,
+    time_24hr: true,
+    disableMobile: enableTime,
     altInput: true,
-    altInputClass: `${CONTROL_CLASS} w-[140px] cursor-pointer`,
-    altFormat: lang === 'de' ? 'd.m.Y' : lang === 'bs' ? 'd.m.Y.' : 'd M Y',
+    altInputClass: `${CONTROL_CLASS} ${enableTime ? 'w-[190px]' : 'w-[140px]'} cursor-pointer`,
+    altFormat: (lang === 'de' ? 'd.m.Y' : lang === 'bs' ? 'd.m.Y.' : 'd M Y') + (enableTime ? ' H:i' : ''),
     allowInput: true,
     locale: flatpickrI18n(lang),
     onReady: (_dates: Date[], _dateStr: string, picker: FlatpickrInstance) => { pickerRef.current = picker; },
-    onChange: (_dates: Date[], dateStr: string) => onChangeRef.current(dateStr),
-  }), [lang]);
+    onChange: (_dates: Date[], dateStr: string) => { if (!enableTime) onChangeRef.current(dateStr); },
+    onClose: (_dates: Date[], dateStr: string) => { if (enableTime) onChangeRef.current(dateStr); },
+  }), [lang, enableTime]);
 
   return (
     <Flatpickr
@@ -96,24 +105,29 @@ const ChecklistDatePicker = memo(({ fieldKey, value, disabled, lang, onChange }:
       value={value}
       disabled={disabled}
       options={options}
-      placeholder={datePlaceholder(lang)}
+      placeholder={`${datePlaceholder(lang)}${enableTime ? ' HH:mm' : ''}`}
       className="hidden"
     />
   );
 });
 
-export const ShipmentOperationsTab = ({ workspace, lang, onUpdated, onLoadChanged }: Props) => {
+export const ShipmentOperationsTab = ({ workspace, lang, readOnly = false, onUpdated, onLoadChanged }: Props) => {
   const text = COPY[lang === 'bs' || lang === 'de' ? lang : 'en'];
   const checklist = array(workspace.operational_checklist);
   const freightLoad = record(workspace.freight_load);
   const loadId = String(workspace.load_id || freightLoad.id || '');
   const dueDate = formatDate(freightLoad.etd_at || workspace.booked_at, lang);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [agentModalOpen, setAgentModalOpen] = useState<string | null>(null);
+  const readOnlyRef = useRef(readOnly);
+  readOnlyRef.current = readOnly;
+  useEffect(() => { if (readOnly) setAgentModalOpen(null); }, [readOnly]);
   const [driverOptions, setDriverOptions] = useState<FleetOption[]>([]);
   const [vehicleOptions, setVehicleOptions] = useState<FleetOption[]>([]);
 
   // The inline pickers choose from the fleet, so their options are fetched once for the whole table.
   useEffect(() => {
+    if (readOnly) return;
     let active = true;
     void (async () => {
       try {
@@ -135,11 +149,12 @@ export const ShipmentOperationsTab = ({ workspace, lang, onUpdated, onLoadChange
       }
     })();
     return () => { active = false; };
-  }, []);
+  }, [readOnly]);
 
   // The checklist is stored as one array, so any change to a single task rewrites the whole list
   // with only that entry's fields replaced.
   const patchTask = async (taskKey: string, changes: Record<string, unknown>) => {
+    if (readOnlyRef.current) throw new Error(text.saveFailed);
     const response = await api.shipmentWorkspaces.update(Number(workspace.id), {
       operational_checklist: checklist.map((item) => {
         const base = {
@@ -179,7 +194,7 @@ export const ShipmentOperationsTab = ({ workspace, lang, onUpdated, onLoadChange
   };
 
   const saveLoadField = async (taskKey: string, field: string, value: string | number | null) => {
-    if (!loadId) return;
+    if (!loadId || readOnlyRef.current) return;
     setBusyKey(taskKey);
     try {
       await api.loads.update(loadId, { [field]: value });
@@ -193,7 +208,7 @@ export const ShipmentOperationsTab = ({ workspace, lang, onUpdated, onLoadChange
   };
 
   const uploadDocument = async (taskKey: string, file: File, type: string) => {
-    if (!loadId) return;
+    if (!loadId || readOnlyRef.current) return;
     setBusyKey(taskKey);
     try {
       await api.documents.upload({ file, loadId, type, name: file.name });
@@ -394,11 +409,43 @@ export const ShipmentOperationsTab = ({ workspace, lang, onUpdated, onLoadChange
         return uploadField(taskKey, 'draft_awb');
       case 'arrival_and_release_documents':
         return uploadField(taskKey, 'arrival_release');
-      case 'booking_confirmation':
+      case 'booking_confirmation': {
+        const confirmed = item.action_value === 'yes';
+        return <button type="button" role="switch"
+            disabled={busyKey !== null}
+            aria-checked={confirmed}
+            aria-label={lang === 'bs' ? 'Potvrda bookinga' : lang === 'de' ? 'Buchungsbestätigung' : 'Booking confirmation'}
+            aria-busy={busyKey === taskKey}
+            className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg px-1 text-xs font-bold text-slate-700 outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60 dark:text-slate-200"
+            onClick={async () => {
+              const answer = confirmed ? 'no' : 'yes';
+              setBusyKey(taskKey);
+              try {
+                await patchTask(taskKey, { action_value: answer, status: answer === 'yes' ? 'completed' : 'pending', completed_at: answer === 'yes' ? new Date().toISOString() : null });
+              } catch (error) {
+                void showError(text.saveFailed, error instanceof Error ? error.message : undefined);
+              } finally { setBusyKey(null); }
+            }}>
+            <span className={confirmed ? 'text-slate-400' : 'text-slate-700 dark:text-slate-200'}>{lang === 'bs' ? 'Ne' : lang === 'de' ? 'Nein' : 'No'}</span>
+            <span aria-hidden="true" className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full motion-safe:transition-colors ${confirmed ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700'}`}>
+              <span className={`absolute left-0.5 h-5 w-5 rounded-full bg-white shadow-sm motion-safe:transition-transform ${confirmed ? 'translate-x-5' : 'translate-x-0'}`} />
+            </span>
+            <span className={confirmed ? 'text-primary' : 'text-slate-400'}>{lang === 'bs' ? 'Da' : lang === 'de' ? 'Ja' : 'Yes'}</span>
+          </button>;
+      }
       case 'shipping_line_and_agent':
-      case 'vessel_and_voyage':
-      case 'container_details':
       case 'airline_and_agent':
+        return <button type="button" disabled={busyKey !== null} onClick={() => setAgentModalOpen(taskKey)}
+          className={`${CONTROL_CLASS} cursor-pointer hover:border-primary`}>{lang === 'bs' ? 'Unesi podatke' : lang === 'de' ? 'Daten eingeben' : 'Enter data'}</button>;
+      case 'vessel_and_voyage':
+        return <ChecklistVesselSearch key={`${workspace.id}-${taskKey}`} lang={lang} value={String(item.action_value || '')} disabled={busyKey !== null}
+          onSave={async (value) => {
+            setBusyKey(taskKey);
+            try { await patchTask(taskKey, { action_value: value, status: 'completed', completed_at: new Date().toISOString() }); }
+            finally { setBusyKey(null); }
+          }} />;
+      case 'container_details':
+        return valueField(item, 'text', lang === 'bs' ? 'Broj kontejnera' : lang === 'de' ? 'Containernummer' : 'Container number');
       case 'mawb_hawb':
       case 'rail_operator':
       case 'terminals':
@@ -412,7 +459,9 @@ export const ShipmentOperationsTab = ({ workspace, lang, onUpdated, onLoadChange
       case 'flight_details':
         return valueField(item, 'text', text.flightDetails);
       case 'cargo_acceptance':
-        return valueField(item, 'datetime-local', text.cargoAcceptance);
+        return <ChecklistDatePicker fieldKey={taskKey} value={String(item.action_value || '')}
+          disabled={busyKey !== null} lang={lang} enableTime
+          onChange={(value) => { if (value !== String(item.action_value || '')) void saveTaskValue(taskKey, value); }} />;
       case 'arrival_status':
         return valueField(item, 'datetime-local', text.arrival);
       case 'tracking_and_status_updates':
@@ -427,13 +476,45 @@ export const ShipmentOperationsTab = ({ workspace, lang, onUpdated, onLoadChange
   };
 
   return (
+    <>
     <ShipmentChecklistTable
       checklist={checklist}
       lang={lang}
       dueDate={dueDate}
-      renderAction={renderAction}
-      renderDueDate={renderDueDate}
+      renderAction={readOnly ? (item) => {
+        const value = String(item.action_value || '');
+        if (!value) return <span className="text-xs text-slate-500">—</span>;
+        if (item.key === 'booking_confirmation' && ['yes', 'no'].includes(value)) {
+          return <span className="text-xs">{lang === 'bs' ? (value === 'yes' ? 'Da' : 'Ne') : lang === 'de' ? (value === 'yes' ? 'Ja' : 'Nein') : (value === 'yes' ? 'Yes' : 'No')}</span>;
+        }
+        let display = value;
+        if (['shipping_line_and_agent', 'airline_and_agent', 'vessel_and_voyage'].includes(String(item.key))) {
+          try {
+            const saved = record(JSON.parse(value));
+            display = item.key === 'vessel_and_voyage'
+              ? [saved.name, saved.mmsi].filter(Boolean).join(' · ')
+              : ['company', 'jobTitle', 'email', 'phone', 'name', 'address', 'country', 'postalCode', 'city'].map((field) => saved[field]).filter(Boolean).join(' · ');
+          } catch { /* Existing plain-text entries remain readable. */ }
+        }
+        return <span className="inline-block max-w-xs break-words text-xs text-slate-600 dark:text-slate-300">{display || '—'}</span>;
+      } : renderAction}
+      renderDueDate={readOnly ? (item) => item.due_date ? formatDate(String(item.due_date), lang) : dueDate : renderDueDate}
       showInstruction
     />
+    <AnimatePresence>
+    {!readOnly && agentModalOpen && <ChecklistAgentModal
+      key={agentModalOpen}
+      lang={lang}
+      value={checklist.find((item) => item.key === agentModalOpen)?.action_value}
+      onClose={() => setAgentModalOpen(null)}
+      onSave={async (value) => {
+        setBusyKey(agentModalOpen);
+        try {
+          await patchTask(agentModalOpen, { action_value: value, status: 'completed', completed_at: new Date().toISOString() });
+        } finally { setBusyKey(null); }
+      }}
+    />}
+    </AnimatePresence>
+    </>
   );
 };

@@ -1,7 +1,7 @@
 import { Language, Package as PackageData } from '../types';
 import { trPackageStatus } from '../i18n';
 
-export const TRACKING_FLOW: PackageData['status'][] = ['Posted', 'Booked', 'Opened', 'Sent', 'In delivery', 'Received', 'Finished'];
+export const TRACKING_FLOW: PackageData['status'][] = ['Posted', 'Booked', 'Sent', 'In delivery', 'Received', 'Finished'];
 
 export const apiLoadStatus = (status: PackageData['status']) => status.toLowerCase().replace(/\s+/g, '_');
 

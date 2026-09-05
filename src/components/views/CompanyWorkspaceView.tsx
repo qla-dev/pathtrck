@@ -63,7 +63,16 @@ export const CompanyWorkspaceView = ({ lang, onPostLoad }: { lang: Language; onP
   const events = useApiList(api.trackingEvents.list, { per_page: 500 });
   const invoices = useApiList(api.invoices.list, { per_page: 500 });
   const [user, setUser] = useState<ApiUser | null>(null);
-  useEffect(() => { void api.auth.me().then(setUser); }, []);
+  const [userLoading, setUserLoading] = useState(true);
+  useEffect(() => {
+    let active = true;
+    void api.auth.me()
+      .then((currentUser) => { if (active) setUser(currentUser); })
+      .catch(() => { if (active) setUser(null); })
+      .finally(() => { if (active) setUserLoading(false); });
+    return () => { active = false; };
+  }, []);
+  const coverageLoading = loads.loading || userLoading;
   const company = (user?.companies?.[0] || {}) as Record<string, unknown>;
   const companyId = Number(company.id || 0);
   const companyVehicles = vehicles.items.filter((row) => !companyId || Number(row.company_id) === companyId);
@@ -163,11 +172,24 @@ export const CompanyWorkspaceView = ({ lang, onPostLoad }: { lang: Language; onP
     />
 
     <section className="grid gap-3 xl:grid-cols-12">
-      <Card className="shadow-none xl:col-span-8" contentClassName="p-4">
-        <div className="flex items-center gap-2"><Globe2 className="h-4 w-4 text-primary" /><div><p className="text-sm font-black dark:text-white">{featureCopy.coverage}</p><p className="text-[11px] text-slate-500">{featureCopy.coverageSub}</p></div><span className="ml-auto rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-bold text-primary">{destinationCountries.size} {featureCopy.countries}</span></div>
+      <Card className="shadow-none xl:col-span-8" contentClassName="p-4" aria-busy={coverageLoading}>
+        <div className="flex items-center gap-2"><Globe2 className="h-4 w-4 text-primary" /><div><p className="text-sm font-black dark:text-white">{featureCopy.coverage}</p><p className="text-[11px] text-slate-500">{featureCopy.coverageSub}</p></div>{coverageLoading ? <span aria-hidden="true" className="ml-auto h-6 w-32 shrink-0 rounded-full bg-slate-200 motion-safe:animate-pulse dark:bg-slate-800" /> : <span className="ml-auto rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-bold text-primary">{destinationCountries.size} {featureCopy.countries}</span>}</div>
         <div className="mt-2 grid min-h-[210px] items-center gap-4 md:grid-cols-[1fr_220px]">
+          {coverageLoading ? <>
+            <div aria-hidden="true" className="h-[210px] w-full rounded-xl bg-slate-100 motion-safe:animate-pulse dark:bg-slate-800" />
+            <div aria-hidden="true" className="space-y-2 motion-safe:animate-pulse">
+              {Array.from({ length: 5 }, (_, index) => (
+                <div key={index} className="flex h-9 items-center gap-2 rounded-lg bg-slate-50 px-3 dark:bg-slate-950">
+                  <span className="h-5 w-5 shrink-0 rounded-full bg-slate-200 dark:bg-slate-800" />
+                  <span className="h-3 rounded bg-slate-200 dark:bg-slate-800" style={{ width: (65 - index * 7) + '%' }} />
+                  <span className="ml-auto h-3 w-4 rounded bg-slate-200 dark:bg-slate-800" />
+                </div>
+              ))}
+            </div>
+          </> : <>
           <EuropeHeatMap values={destinationCountries} className="h-[210px] w-full" />
           <div className="space-y-2">{topCountries.length ? topCountries.map((country, index) => <div key={country.code} className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs dark:bg-slate-950"><span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[9px] font-black text-primary">{index + 1}</span><b className="truncate">{country.name}</b><span className="ml-auto font-black">{country.value}</span></div>) : <p className="text-xs text-slate-400">—</p>}</div>
+          </>}
         </div>
       </Card>
       <Card className="shadow-none xl:col-span-4" contentClassName="p-4">
