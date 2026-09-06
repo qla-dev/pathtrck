@@ -528,6 +528,7 @@ export const api = {
     details: (hex: string) => request<AircraftDetails>(`/aircraft/${encodeURIComponent(hex)}/details`),
   },
   vessels: {
+    search: (search: string) => request<LiveVessel[]>(`/vessels?${queryString({ search })}`),
     list: (params: { south: number; west: number; north: number; east: number; search?: string }) =>
       request<LiveVessel[]>(`/vessels?${queryString(params)}`),
     details: (mmsi: string) => request<VesselDetails>(`/vessels/${encodeURIComponent(mmsi)}/details`),

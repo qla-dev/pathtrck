@@ -76,12 +76,12 @@ export const VesselView = ({ lang }: { lang: Language }) => {
     setViewport({ south: Number(normalized.south.toFixed(3)), west: Number(normalized.west.toFixed(3)), north: Number(normalized.north.toFixed(3)), east: Number(normalized.east.toFixed(3)) });
   }, []);
   const load = useCallback(async () => {
-    if (!viewport || !debouncedQuery || query.trim() !== debouncedQuery) { ++requestId.current; setVessels([]); setSelectedMmsi(null); setLoadedQuery(''); setLoading(false); setError(''); return; }
+    if (!debouncedQuery || query.trim() !== debouncedQuery) { ++requestId.current; setVessels([]); setSelectedMmsi(null); setLoadedQuery(''); setLoading(false); setError(''); return; }
     const id = ++requestId.current; setLoading(true); setError('');
-    try { const response = await api.vessels.list({ ...viewport, search: debouncedQuery || undefined }); if (id === requestId.current) { setVessels(response.data); setLoadedQuery(debouncedQuery); setSelectedMmsi((current) => response.data.some((item) => item.mmsi === current) ? current : response.data.length === 1 ? response.data[0].mmsi : null); } }
+    try { const response = await api.vessels.search(debouncedQuery); if (id === requestId.current) { setVessels(response.data); setLoadedQuery(debouncedQuery); setSelectedMmsi((current) => response.data.some((item) => item.mmsi === current) ? current : response.data.length === 1 ? response.data[0].mmsi : null); } }
     catch (reason) { if (id === requestId.current) setError(reason instanceof Error ? reason.message : ui(lang, 'vessels.error', 'Live vessels could not be loaded.')); }
     finally { if (id === requestId.current) setLoading(false); }
-  }, [debouncedQuery, lang, viewport, query]);
+  }, [debouncedQuery, lang, query]);
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 400);
     return () => window.clearTimeout(timer);

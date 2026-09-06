@@ -45,7 +45,7 @@ export const ChecklistVesselSearch = ({ value, lang, disabled, onSave }: {
       setLoading(true);
       setError('');
       try {
-        const response = await api.vessels.list({ south: -90, west: -180, north: 90, east: 180, search: mmsi });
+        const response = await api.vessels.search(mmsi);
         if (!active) return;
         const matches = response.data.filter((row) => /^\d{9}$/.test(String(row.mmsi)) && (numeric
           ? String(row.mmsi) === mmsi
