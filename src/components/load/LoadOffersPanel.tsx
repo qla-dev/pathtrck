@@ -239,14 +239,10 @@ export const LoadOffersPanel = ({
                       <Eye className="h-4 w-4" />{u('reservation.viewProvider', 'View provider details')}
                     </button>
                   )}
-                  {driver?.id ? (
+                  {driver?.id && (
                     <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-950">
                       <span className="mb-1 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-slate-500"><UserCheck className="h-3.5 w-3.5 text-primary" />{u('Driver', 'Driver')}</span>
                       <span className="text-sm font-bold text-slate-800 dark:text-white">{driver.name || `Driver #${driver.id}`}</span>
-                    </div>
-                  ) : (
-                    <div className="flex flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
-                      {u('reservation.driverLater', 'The company can assign a driver after approval.')}
                     </div>
                   )}
 
