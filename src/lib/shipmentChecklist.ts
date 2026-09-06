@@ -448,3 +448,38 @@ export const checklistSentence = (lang: Language, key: unknown, ownerLabel: stri
   if (!phrase) return `${ownerLabel}: ${checklistLabel(lang, key)}`;
   return `${ownerLabel} ${MUST[localeOf(lang)]} ${phrase}`;
 };
+
+type ChecklistRow = { key?: unknown; status?: unknown; action_value?: unknown };
+
+const checklistValue = (checklist: ChecklistRow[] | undefined, key: string): Record<string, unknown> | string | null => {
+  const row = checklist?.find((item) => String(item.key) === key);
+  const raw = row === undefined ? '' : String(row.action_value ?? '');
+  if (raw === '') return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed as Record<string, unknown> : raw;
+  } catch { return raw; }
+};
+
+/**
+ * Air and sea shipments are carried by an agent and a named aircraft or vessel,
+ * not by a driver in a van, so the summary tiles read those off the checklist.
+ */
+export const checklistTransportSummary = (
+  checklist: ChecklistRow[] | undefined,
+  transportType: string | undefined,
+): { agent: string; carrierId: string } | null => {
+  const mode = String(transportType || '').toLowerCase();
+  if (mode !== 'air' && mode !== 'sea') return null;
+
+  const agent = checklistValue(checklist, mode === 'air' ? 'airline_and_agent' : 'shipping_line_and_agent');
+  const transport = checklistValue(checklist, mode === 'air' ? 'flight_details' : 'vessel_and_voyage');
+  const identifier = mode === 'air' ? 'hex' : 'mmsi';
+
+  return {
+    agent: typeof agent === 'string' ? agent : String(agent?.company || ''),
+    carrierId: typeof transport === 'string'
+      ? transport
+      : String(transport?.name || transport?.[identifier] || ''),
+  };
+};

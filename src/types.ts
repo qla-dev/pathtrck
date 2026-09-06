@@ -33,7 +33,7 @@ export interface Package {
   bookingReference?: string;
   shipmentWorkspaceId?: number;
   shipmentWorkspaceReference?: string;
-  operationalChecklist?: Array<{ key?: unknown; status?: unknown }>;
+  operationalChecklist?: Array<{ key?: unknown; status?: unknown; action_value?: unknown }>;
   workspaceCustomerUserId?: number;
   workspaceProviderUserId?: number;
   workspaceProviderCompanyId?: number;

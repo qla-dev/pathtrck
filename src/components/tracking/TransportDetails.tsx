@@ -1,9 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { LoaderCircle, Plane, Ship, X } from 'lucide-react';
+import { Building2, Hash, LoaderCircle, MapPin, Plane, PlaneTakeoff, Radio, Ship, Tag, X, type LucideIcon } from 'lucide-react';
 import type { Language } from '../../types';
 import { api, type AircraftAirport, type AircraftDetails, type VesselDetails } from '../../services/api';
 import { cn } from '../../lib/cn';
+import { countryFlagUrl } from '../../lib/loadGeo';
 
 const COPY = {
   en: {
@@ -13,6 +14,7 @@ const COPY = {
     unknownRegistration: 'Unknown registration', unknownType: 'Unknown type', close: 'Close',
     destination: 'Destination', status: 'Status', course: 'Course', speedKn: 'Speed',
     unknownVessel: 'Unknown vessel', unknownShipType: 'Unknown ship type', updated: 'Updated',
+    registration: 'Registration', icaoHex: 'ICAO hex', model: 'Model', callsign: 'Call sign', mmsi: 'MMSI', shipType: 'Ship type',
   },
   bs: {
     airline: 'Avio-kompanija', route: 'Ruta', squawk: 'Squawk', flags: 'DB oznake', none: 'nema',
@@ -21,6 +23,7 @@ const COPY = {
     unknownRegistration: 'Nepoznata registracija', unknownType: 'Nepoznat tip', close: 'Zatvori',
     destination: 'Odredište', status: 'Status', course: 'Kurs', speedKn: 'Brzina',
     unknownVessel: 'Nepoznat brod', unknownShipType: 'Nepoznat tip broda', updated: 'Ažurirano',
+    registration: 'Reg. broj', icaoHex: 'ICAO hex', model: 'Model', callsign: 'Pozivni znak', mmsi: 'MMSI', shipType: 'Tip broda',
   },
   de: {
     airline: 'Fluggesellschaft', route: 'Route', squawk: 'Squawk', flags: 'DB-Kennungen', none: 'keine',
@@ -29,6 +32,7 @@ const COPY = {
     unknownRegistration: 'Unbekanntes Kennzeichen', unknownType: 'Unbekannter Typ', close: 'Schließen',
     destination: 'Ziel', status: 'Status', course: 'Kurs', speedKn: 'Geschwindigkeit',
     unknownVessel: 'Unbekanntes Schiff', unknownShipType: 'Unbekannter Schiffstyp', updated: 'Aktualisiert',
+    registration: 'Kennzeichen', icaoHex: 'ICAO-Hex', model: 'Modell', callsign: 'Rufzeichen', mmsi: 'MMSI', shipType: 'Schiffstyp',
   },
 };
 
@@ -38,11 +42,14 @@ const FLAG_NAMES: Record<string, string> = {
   military: 'Military', interesting: 'Interesting', pia: 'PIA', ladd: 'LADD',
 };
 
-/** Turns an ISO 3166-1 alpha-2 code into its regional-indicator flag emoji. */
-const flagEmoji = (code: string | null | undefined): string => {
-  if (!code || !/^[A-Za-z]{2}$/.test(code)) return '';
-  return String.fromCodePoint(...[...code.toUpperCase()].map((letter) => 0x1f1e6 + letter.charCodeAt(0) - 65));
-};
+/**
+ * Windows ships no flag emoji font, so regional-indicator characters render as
+ * the bare country letters there. The rest of the app uses flagcdn images.
+ */
+const CountryFlag = ({ country }: { country: { name: string; code: string } | null }) => country && /^[A-Za-z]{2}$/.test(country.code)
+  ? <img src={countryFlagUrl(country.code)} alt={country.name} title={country.name}
+      className="h-4 w-6 shrink-0 rounded-sm object-cover shadow-sm" loading="lazy" />
+  : null;
 
 const seenAgo = (seenAt: number | null, lang: Language): string => {
   if (!seenAt) return '';
@@ -65,6 +72,9 @@ const Airport = ({ airport, align }: { airport: AircraftAirport | undefined; ali
   </div>
 );
 
+/** One labelled row: every fact reads the same, whatever the transport. */
+type Fact = { icon: LucideIcon; label: string; value: string };
+
 /** The shape both transports are rendered from, so the card stays one layout. */
 type View = {
   icon: ReactNode;
@@ -74,11 +84,9 @@ type View = {
   live: boolean;
   statusLabel: string;
   badges: string[];
-  lead: { label: string; value: string } | null;
-  note: string | null;
+  facts: Fact[];
   route: ReactNode;
   tiles: Array<{ label: string; value: string }>;
-  footerLeft: string;
   footerRight: string;
 };
 
@@ -89,13 +97,17 @@ const aircraftView = (details: AircraftDetails, text: Text, lang: Language): Vie
   return {
     icon: <Plane className="h-5 w-5" />,
     title: details.callsign || details.registration || details.hex.toUpperCase(),
-    subtitle: `${details.registration || text.unknownRegistration} · ${details.type || text.unknownType}`,
+    subtitle: details.description || details.type || text.unknownType,
     country: details.country,
     live,
     statusLabel: live ? 'Live' : details.position_source === 'registry' ? text.notAirborne : seenAgo(details.seen_at, lang),
     badges: details.db_flags.map((flag) => FLAG_NAMES[flag] || flag),
-    lead: details.operator?.name ? { label: text.airline, value: details.operator.name } : null,
-    note: details.description,
+    facts: [
+      { icon: Building2, label: text.airline, value: details.operator?.name || '—' },
+      { icon: Tag, label: text.registration, value: details.registration || text.unknownRegistration },
+      { icon: Hash, label: text.icaoHex, value: details.hex.toUpperCase() },
+      { icon: PlaneTakeoff, label: text.model, value: details.type || text.unknownType },
+    ],
     route: details.route ? (
       <div className="flex items-center gap-3">
         <Airport airport={from} align="left" />
@@ -112,7 +124,6 @@ const aircraftView = (details: AircraftDetails, text: Text, lang: Language): Vie
       { label: text.heading, value: details.track == null ? '—' : `${Math.round(details.track)}°` },
       { label: text.squawk, value: details.squawk || '—' },
     ],
-    footerLeft: `ICAO ${details.hex.toUpperCase()}`,
     footerRight: `${text.flags}: ${details.db_flags.length ? details.db_flags.map((flag) => FLAG_NAMES[flag] || flag).join(', ') : text.none}`,
   };
 };
@@ -127,14 +138,18 @@ const vesselView = (details: VesselDetails, text: Text): View => {
   return {
     icon: <Ship className="h-5 w-5" />,
     title: details.name || `MMSI ${details.mmsi}`,
-    subtitle: `${details.callsign || details.mmsi} · ${details.ship_type || text.unknownShipType}`,
+    subtitle: details.ship_type || text.unknownShipType,
     country: details.country,
     live,
     statusLabel: live ? 'Live' : minutesOld === null ? text.none
       : minutesOld < 60 ? `${Math.round(minutesOld)} min` : `${Math.round(minutesOld / 60)} h`,
     badges: details.navigation_status ? [details.navigation_status] : [],
-    lead: details.destination ? { label: text.destination, value: details.destination } : null,
-    note: details.navigation_status,
+    facts: [
+      { icon: MapPin, label: text.destination, value: details.destination || '—' },
+      { icon: Radio, label: text.callsign, value: details.callsign || '—' },
+      { icon: Hash, label: text.mmsi, value: details.mmsi },
+      { icon: Ship, label: text.shipType, value: details.ship_type || text.unknownShipType },
+    ],
     route: null,
     tiles: [
       { label: text.speedKn, value: details.speed == null ? '—' : `${details.speed.toFixed(1)} kn` },
@@ -142,50 +157,53 @@ const vesselView = (details: VesselDetails, text: Text): View => {
       { label: text.heading, value: details.heading == null ? '—' : `${Math.round(details.heading)}°` },
       { label: text.status, value: details.navigation_status || '—' },
     ],
-    footerLeft: `MMSI ${details.mmsi}`,
     footerRight: details.updated_at ? `${text.updated} ${new Date(details.updated_at).toLocaleTimeString()}` : '',
   };
 };
 
 const Body = ({ view }: { view: View }) => <>
-  <div className="flex items-start gap-3 pr-6">
+  <div className="flex items-center gap-3">
     <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">{view.icon}</span>
-    <div className="min-w-0">
-      <p className="flex items-center gap-2 text-lg font-black leading-tight text-slate-900 dark:text-white">
-        {view.country && <span aria-label={view.country.name} title={view.country.name}>{flagEmoji(view.country.code)}</span>}
+    <div className="min-w-0 flex-1">
+      {/* The name keeps clear of the close button; the status shares the line below it. */}
+      <p className="flex items-center gap-2 pr-6 text-lg font-black leading-tight text-slate-900 dark:text-white">
+        <CountryFlag country={view.country} />
         <span className="truncate">{view.title}</span>
       </p>
-      <p className="truncate text-xs font-semibold text-slate-400">{view.subtitle}</p>
-      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-        <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold',
-          view.live ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
-            : 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400')}>
-          {view.live && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />}
-          {view.statusLabel}
-        </span>
-        {view.badges.map((badge) => (
-          <span key={badge} className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-600 dark:bg-slate-800 dark:text-slate-300">{badge}</span>
-        ))}
+      <div className="mt-0.5 flex items-center gap-2">
+        <p className="truncate text-xs font-semibold text-slate-400">{view.subtitle}</p>
+        <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-1">
+          <span className={cn('inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-bold',
+            view.live ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
+              : 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400')}>
+            {view.live && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />}
+            {view.statusLabel}
+          </span>
+          {view.badges.map((badge) => (
+            <span key={badge} className="whitespace-nowrap rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-600 dark:bg-slate-800 dark:text-slate-300">{badge}</span>
+          ))}
+        </div>
       </div>
     </div>
   </div>
 
-  {view.lead && (
-    <p className="mt-3 truncate text-xs font-semibold text-slate-600 dark:text-slate-300">
-      <span className="text-[10px] font-bold uppercase text-slate-400">{view.lead.label}: </span>{view.lead.value}
-    </p>
-  )}
-  {view.note && <p className="truncate text-xs text-slate-500">{view.note}</p>}
-
   {view.route && <div className="mt-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700">{view.route}</div>}
+
+  <dl className="mt-3 space-y-1.5">
+    {view.facts.map((fact) => (
+      <div key={fact.label} className="flex items-center gap-2">
+        <fact.icon aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+        <dt className="w-24 shrink-0 text-[10px] font-bold uppercase tracking-wide text-slate-400">{fact.label}</dt>
+        <dd className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-700 dark:text-slate-200" title={fact.value}>{fact.value}</dd>
+      </div>
+    ))}
+  </dl>
 
   <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
     {view.tiles.map((tile) => <Tile key={tile.label} label={tile.label}>{tile.value}</Tile>)}
   </div>
 
-  <p className="mt-3 flex items-center justify-between gap-2 text-[10px] font-semibold text-slate-400">
-    <span>{view.footerLeft}</span><span className="truncate">{view.footerRight}</span>
-  </p>
+  <p className="mt-3 truncate text-right text-[10px] font-semibold text-slate-400">{view.footerRight}</p>
 </>;
 
 export const TransportDetails = ({ kind, id, lang, variant, onClose, footer }: {

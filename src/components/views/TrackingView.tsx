@@ -12,7 +12,7 @@ import { flatpickrI18n, ui, trPackageStatus } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { SUPPORTED_CURRENCIES } from '../../lib/currency';
 import { mapLoadToPackage } from '../../lib/loadDetails';
-import { countPendingActions } from '../../lib/shipmentChecklist';
+import { checklistTransportSummary, countPendingActions } from '../../lib/shipmentChecklist';
 import { LOAD_STATUS_OPTIONS, LoadStatusIcon } from '../load/LoadStatusPicker';
 import { LoadDetailsModal } from '../tracking/LoadDetailsModal';
 import { TrackingMapCard } from '../tracking/TrackingMapCard';
@@ -412,11 +412,11 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
   }, [TRUCK_CAPACITY_KG, fleetResult.items, loadCapacity.activeLoads, u]);
 
   const checklistByLoadId = useMemo(() => {
-    const byLoad = new Map<string, Array<{ key?: unknown; status?: unknown }>>();
+    const byLoad = new Map<string, Array<{ key?: unknown; status?: unknown; action_value?: unknown }>>();
     workspacesResult.items.forEach((workspace) => {
       const loadId = String(workspace.load_id || '');
       if (loadId && Array.isArray(workspace.operational_checklist)) {
-        byLoad.set(loadId, workspace.operational_checklist as Array<{ key?: unknown; status?: unknown }>);
+        byLoad.set(loadId, workspace.operational_checklist as Array<{ key?: unknown; status?: unknown; action_value?: unknown }>);
       }
     });
     return byLoad;
@@ -778,16 +778,31 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
                   <Building2 className="h-4 w-4 shrink-0 text-primary" />
                   <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{pkg.transportType === 'warehouse' ? u('tracking.warehouseOperator', 'Warehouse operator') : u('tracking.carrier', 'Carrier')}</p><p className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{pkg.carrier || '—'}</p></div>
                 </div>
-                {pkg.transportType !== 'warehouse' && <>
-                <div className="flex min-w-0 items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-950">
-                  <UserRound className="h-4 w-4 shrink-0 text-sky-500" />
-                  <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{u('tracking.driver', 'Driver')}</p><p className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{pkg.assignedDriverName || '—'}</p></div>
-                </div>
-                <div className="flex min-w-0 items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-950">
-                  <Truck className="h-4 w-4 shrink-0 text-violet-500" />
-                  <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{u('tracking.vehicle', 'Vehicle')}</p><p className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{pkg.vehicleName || '—'}</p></div>
-                </div>
-                </>}
+                {pkg.transportType !== 'warehouse' && (() => {
+                  // Air and sea are flown or sailed by an agent's aircraft or vessel;
+                  // only road and rail have a driver and a vehicle to show.
+                  const summary = checklistTransportSummary(pkg.operationalChecklist ?? checklistByLoadId.get(pkg.id), pkg.transportType);
+                  const byAir = pkg.transportType === 'air';
+                  const [left, right] = summary
+                    ? [
+                      { icon: BriefcaseBusiness, tone: 'text-sky-500', label: u('tracking.agent', 'Agent'), value: summary.agent },
+                      byAir
+                        ? { icon: Plane, tone: 'text-violet-500', label: u('tracking.aircraft', 'Aircraft'), value: summary.carrierId }
+                        : { icon: Ship, tone: 'text-violet-500', label: u('tracking.vessel', 'Vessel'), value: summary.carrierId },
+                    ]
+                    : [
+                      { icon: UserRound, tone: 'text-sky-500', label: u('tracking.driver', 'Driver'), value: pkg.assignedDriverName },
+                      { icon: Truck, tone: 'text-violet-500', label: u('tracking.vehicle', 'Vehicle'), value: pkg.vehicleName },
+                    ];
+                  return <>
+                    {[left, right].map((tile) => (
+                      <div key={tile.label} className="flex min-w-0 items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-950">
+                        <tile.icon className={cn('h-4 w-4 shrink-0', tile.tone)} />
+                        <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{tile.label}</p><p className="truncate text-xs font-bold text-slate-700 dark:text-slate-200" title={tile.value || undefined}>{tile.value || '—'}</p></div>
+                      </div>
+                    ))}
+                  </>;
+                })()}
               </div>
               <div className="mt-2 grid grid-cols-2 gap-2">
                   <div className="flex min-w-0 items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-950">

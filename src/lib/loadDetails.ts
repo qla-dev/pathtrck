@@ -74,7 +74,7 @@ export const mapLoadToPackage = (load: Record<string, unknown>, lang: Language):
     shipmentId: shipment.id ? String(shipment.id) : undefined,
     shipmentWorkspaceId: workspace.id ? Number(workspace.id) : undefined,
     operationalChecklist: Array.isArray(workspace.operational_checklist)
-      ? workspace.operational_checklist as Array<{ key?: unknown; status?: unknown }>
+      ? workspace.operational_checklist as Array<{ key?: unknown; status?: unknown; action_value?: unknown }>
       : undefined,
     workspaceCustomerUserId: workspace.customer_user_id ? Number(workspace.customer_user_id) : undefined,
     workspaceProviderUserId: workspace.provider_user_id ? Number(workspace.provider_user_id) : undefined,
