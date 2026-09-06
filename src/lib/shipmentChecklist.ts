@@ -138,9 +138,9 @@ const TASKS: Record<string, Record<Locale, Phrase>> = {
     de: { label: 'Airline & Agent', action: 'die Airline und den Agenten benennen' },
   },
   flight_details: {
-    en: { label: 'Flight details', action: 'confirm the flight details' },
-    bs: { label: 'Podaci o letu', action: 'potvrditi podatke o letu' },
-    de: { label: 'Flugdaten', action: 'die Flugdaten bestätigen' },
+    en: { label: 'Aircraft', action: 'select the aircraft' },
+    bs: { label: 'Avion', action: 'odabrati avion' },
+    de: { label: 'Flugzeug', action: 'das Flugzeug auswählen' },
   },
   mawb_hawb: {
     en: { label: 'MAWB / HAWB', action: 'issue the MAWB and HAWB' },
@@ -327,9 +327,9 @@ const HINTS: Record<string, Record<Locale, string>> = {
     de: 'Gib Firmenname, Position, E-Mail, Telefonnummer, Name des Agenten und Adresse ein.',
   },
   flight_details: {
-    en: 'Confirm the flight and its schedule.',
-    bs: 'Potvrdi let i njegov raspored.',
-    de: 'Bestätige den Flug und seinen Zeitplan.',
+    en: 'Search by aircraft registration or hex code.',
+    bs: 'Pretraga po registarskom ili HEX broju aviona.',
+    de: 'Suche nach Kennzeichen oder Hex-Code des Flugzeugs.',
   },
   mawb_hawb: {
     en: 'Issue the master and house air waybills.',

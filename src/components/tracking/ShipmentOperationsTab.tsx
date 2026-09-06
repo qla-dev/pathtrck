@@ -119,6 +119,7 @@ export const ShipmentOperationsTab = ({ workspace, lang, readOnly = false, onUpd
   const loadId = String(workspace.load_id || freightLoad.id || '');
   const dueDate = formatDate(freightLoad.etd_at || workspace.booked_at, lang);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [aircraftRetry, setAircraftRetry] = useState(0);
   const [agentModalOpen, setAgentModalOpen] = useState<string | null>(null);
   const readOnlyRef = useRef(readOnly);
   readOnlyRef.current = readOnly;
@@ -458,10 +459,10 @@ export const ShipmentOperationsTab = ({ workspace, lang, readOnly = false, onUpd
       case 'terminal_and_cutoff':
         return valueField(item, 'text', text.terminalCutoff);
       case 'flight_details':
-        return <ChecklistAircraftSearch key={`${workspace.id}-${taskKey}`} lang={lang} value={String(item.action_value || '')} disabled={busyKey !== null}
+        return <ChecklistAircraftSearch retrySignal={aircraftRetry} key={`${workspace.id}-${taskKey}`} lang={lang} value={String(item.action_value || '')} disabled={busyKey !== null}
           onSave={async (value) => {
             setBusyKey(taskKey);
-            try { await patchTask(taskKey, { action_value: value, status: 'completed', completed_at: new Date().toISOString() }); }
+            try { await patchTask(taskKey, { action_value: value || null, status: value ? 'completed' : 'pending', completed_at: value ? new Date().toISOString() : null }); }
             finally { setBusyKey(null); }
           }} />;
       case 'cargo_acceptance':
@@ -484,6 +485,7 @@ export const ShipmentOperationsTab = ({ workspace, lang, readOnly = false, onUpd
   return (
     <>
     <ShipmentChecklistTable
+      onRetryAircraft={!readOnly && busyKey === null ? () => setAircraftRetry((count) => count + 1) : undefined}
       checklist={checklist}
       lang={lang}
       dueDate={dueDate}

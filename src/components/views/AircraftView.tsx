@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import { MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet';
-import { AlertTriangle, LocateFixed, Maximize2, Minimize2, Plane, RefreshCw, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import { AlertTriangle, LocateFixed, Maximize2, Minimize2, Plane, RefreshCw, Search, SlidersHorizontal, Trash2 } from 'lucide-react';
 import type { Language } from '../../types';
 import { api, type LiveAircraft } from '../../services/api';
 import { ui } from '../../i18n';
+import { TransportDetails } from '../tracking/TransportDetails';
 import { cn } from '../../lib/cn';
 
 type AircraftCategory = 'all' | 'passenger' | 'cargo' | 'military' | 'business' | 'general' | 'helicopter' | 'lighter';
@@ -61,6 +62,9 @@ const MapResize = () => {
 
 type ViewportBounds = { south: number; west: number; north: number; east: number };
 
+const hasPosition = (item: LiveAircraft | null): item is LiveAircraft =>
+  Boolean(item) && Number.isFinite(item!.lat) && Number.isFinite(item!.lon);
+
 const normalizeViewport = (bounds: ViewportBounds): ViewportBounds => {
   const south = Math.max(-90, bounds.south);
   const north = Math.min(90, bounds.north);
@@ -94,11 +98,14 @@ export const AircraftView = ({ lang }: { lang: Language }) => {
   const [selectedHex, setSelectedHex] = useState<string | null>(null);
   const [category, setCategory] = useState<AircraftCategory>('all');
   const [query, setQuery] = useState('');
+  const [loadedQuery, setLoadedQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  useEffect(() => { const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 400); return () => window.clearTimeout(timer); }, [query]);
   const [minAltitude, setMinAltitude] = useState('');
   const [maxAltitude, setMaxAltitude] = useState('');
   const [airborneOnly, setAirborneOnly] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [traceSegments, setTraceSegments] = useState<Array<Array<{ lat: number; lon: number }>>>([]);
@@ -107,14 +114,16 @@ export const AircraftView = ({ lang }: { lang: Language }) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const loadAircraft = useCallback(async () => {
-    if (!viewport) return;
+    if (!viewport || !debouncedQuery || query.trim() !== debouncedQuery) { ++requestId.current; setAircraft([]); setSelectedHex(null); setLoadedQuery(''); setLoading(false); setError(''); return; }
     const id = ++requestId.current;
     setLoading(true);
     setError('');
     try {
-      const response = await api.aircraft.list(viewport);
+      const response = await api.aircraft.list({ ...viewport, search: debouncedQuery });
       if (id !== requestId.current) return;
       setAircraft(response.data);
+      setLoadedQuery(debouncedQuery);
+      setSelectedHex((current) => response.data.some((item) => item.hex === current) ? current : response.data.length === 1 ? response.data[0].hex : null);
       setUpdatedAt(new Date());
     } catch (loadError) {
       if (id !== requestId.current) return;
@@ -122,7 +131,7 @@ export const AircraftView = ({ lang }: { lang: Language }) => {
     } finally {
       if (id === requestId.current) setLoading(false);
     }
-  }, [lang, viewport]);
+  }, [lang, viewport, query, debouncedQuery]);
 
   useEffect(() => { void loadAircraft(); }, [loadAircraft]);
   useEffect(() => {
@@ -172,11 +181,13 @@ export const AircraftView = ({ lang }: { lang: Language }) => {
       if (airborneOnly && item.alt_baro === 'ground') return false;
       if (min !== null && altitude < min) return false;
       if (max !== null && altitude > max) return false;
-      return !needle || `${item.flight || ''} ${item.r || ''} ${item.t || ''} ${item.hex || ''} ${item.ownOp || ''}`.toLowerCase().includes(needle);
+      return !needle || `${item.flight || ''} ${item.r || ''} ${item.hex || ''}`.toLowerCase().replace(/[^a-z0-9]/g, '').includes(needle.replace(/[^a-z0-9]/g, ''));
     });
   }, [airborneOnly, aircraft, category, maxAltitude, minAltitude, query]);
 
-  const selected = aircraft.find((item) => item.hex === selectedHex) || null;
+  const selected = query.trim() === loadedQuery ? aircraft.find((item) => item.hex === selectedHex) || null : null;
+  // A registry-only aircraft has never reported a position, so there is nothing to fly to.
+  useEffect(() => { if (hasPosition(selected)) mapRef.current?.flyTo([selected.lat, selected.lon], LOCKED_ZOOM); }, [selectedHex]);
   const activeFilterCount = Number(category !== 'all') + Number(Boolean(minAltitude || maxAltitude)) + Number(airborneOnly);
   const clearFilters = () => { setCategory('all'); setQuery(''); setMinAltitude(''); setMaxAltitude(''); setAirborneOnly(false); };
   const locateMe = () => navigator.geolocation?.getCurrentPosition(({ coords }) => mapRef.current?.flyTo([coords.latitude, coords.longitude], LOCKED_ZOOM));
@@ -191,12 +202,12 @@ export const AircraftView = ({ lang }: { lang: Language }) => {
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap contributors" subdomains={['a', 'b', 'c']} />
         <MapResize />
         <MapObserver onViewportChange={handleViewportChange} />
-        {traceSegments.map((segment, index) => {
+        {(selected ? traceSegments : []).map((segment, index) => {
           const positions = segment.map((point) => [point.lat, point.lon] as L.LatLngTuple);
           return <Polyline key={`trace-shadow-${index}`} positions={positions} pathOptions={{ color: '#0f172a', weight: 7, opacity: 0.35, lineCap: 'round', lineJoin: 'round' }} interactive={false} />;
         })}
-        {traceSegments.map((segment, index) => <Polyline key={`trace-${index}`} positions={segment.map((point) => [point.lat, point.lon] as L.LatLngTuple)} pathOptions={{ color: '#06b6d4', weight: 3.5, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }} interactive={false} />)}
-        {filteredAircraft.map((item) => (
+        {(selected ? traceSegments : []).map((segment, index) => <Polyline key={`trace-${index}`} positions={segment.map((point) => [point.lat, point.lon] as L.LatLngTuple)} pathOptions={{ color: '#06b6d4', weight: 3.5, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }} interactive={false} />)}
+        {filteredAircraft.filter((item) => query.trim() === loadedQuery && item.hex === selectedHex && hasPosition(item)).map((item) => (
           <Marker key={item.hex} position={[item.lat, item.lon]} icon={markerIcon(item, item.hex === selectedHex)} eventHandlers={{ click: () => setSelectedHex(item.hex) }} />
         ))}
       </MapContainer>
@@ -208,7 +219,7 @@ export const AircraftView = ({ lang }: { lang: Language }) => {
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-white"><Plane className="h-5 w-5" /></span>
               <div className="min-w-0">
                 <p className="font-black text-slate-900 dark:text-white">{u('aircraft.title', 'Live aircraft')}</p>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{filteredAircraft.length} {u('aircraft.inView', 'aircraft in view')}</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{selected ? 1 : 0} {u('aircraft.inView', 'aircraft in view')}</p>
               </div>
               {loading && <RefreshCw className="h-4 w-4 animate-spin text-primary" />}
             </div>
@@ -234,24 +245,19 @@ export const AircraftView = ({ lang }: { lang: Language }) => {
               </div>
             </div>
           )}
+      {!query.trim() && <p role="status" className="px-4 py-2 text-xs text-slate-500">{lang === 'bs' ? 'Pretraži za prikaz na mapi.' : lang === 'de' ? 'Suchen, um ein Ergebnis auf der Karte anzuzeigen.' : 'Search to show one result on the map.'}</p>}
+      {query.trim() && loadedQuery === query.trim() && !loading && !error && !filteredAircraft.length && <p role="status" className="px-4 py-2 text-xs text-slate-500">{lang === 'bs' ? 'Nijedan avion nije pronađen za ovu oznaku. Provjerite registraciju ili hex kod.' : lang === 'de' ? 'Kein Flugzeug für diese Kennung gefunden. Prüfen Sie Kennzeichen oder Hex-Code.' : 'No aircraft found for this identifier. Check the registration or hex code.'}</p>}
+      {loadedQuery === query.trim() && filteredAircraft.length > 0 && (!selected || filteredAircraft.length > 1) && <div className="max-h-40 overflow-y-auto border-t border-slate-200 p-2 dark:border-slate-700">{filteredAircraft.map((item) => <button key={item.hex} type="button" onClick={() => { setSelectedHex(item.hex); mapRef.current?.flyTo([item.lat, item.lon], LOCKED_ZOOM); }} className={cn('block w-full cursor-pointer rounded-lg px-3 py-2 text-left text-xs hover:bg-primary/10', selectedHex === item.hex && 'bg-primary/10 text-primary')}><b>{item.r || item.flight?.trim() || item.hex}</b> / {item.hex}</button>)}</div>}
           {error && <div className="flex items-center gap-2 border-t border-rose-200 bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-600 dark:border-rose-900 dark:bg-rose-950/30"><AlertTriangle className="h-4 w-4" />{error}</div>}
         </div>
       </div>
 
       {selected && (
-        <div className="absolute bottom-5 left-5 z-[500] w-[min(360px,calc(100%-40px))] rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
-          <button type="button" onClick={() => setSelectedHex(null)} className="absolute right-3 top-3 cursor-pointer text-slate-400 hover:text-slate-700"><X className="h-4 w-4" /></button>
-          <div className="flex items-center gap-3 pr-6"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary"><Plane className="h-5 w-5" /></span><div><p className="text-lg font-black text-slate-900 dark:text-white">{selected.flight?.trim() || selected.r || selected.hex.toUpperCase()}</p><p className="text-xs font-semibold text-slate-400">{selected.r || u('aircraft.unknownRegistration', 'Unknown registration')} · {selected.t || u('aircraft.unknownType', 'Unknown type')}</p></div></div>
-          <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-            <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><span className="block text-[10px] font-bold uppercase text-slate-400">{u('aircraft.altitude', 'Altitude')}</span><strong className="text-slate-800 dark:text-white">{selected.alt_baro === 'ground' ? u('aircraft.ground', 'Ground') : `${Number(selected.alt_baro ?? selected.alt_geom ?? 0).toLocaleString()} ft`}</strong></div>
-            <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><span className="block text-[10px] font-bold uppercase text-slate-400">{u('aircraft.speed', 'Ground speed')}</span><strong className="text-slate-800 dark:text-white">{selected.gs == null ? '—' : `${Math.round(selected.gs)} kt`}</strong></div>
-            <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><span className="block text-[10px] font-bold uppercase text-slate-400">{u('aircraft.heading', 'Heading')}</span><strong className="text-slate-800 dark:text-white">{selected.track == null ? '—' : `${Math.round(selected.track)}°`}</strong></div>
-            <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><span className="block text-[10px] font-bold uppercase text-slate-400">{u('aircraft.squawk', 'Squawk')}</span><strong className="text-slate-800 dark:text-white">{selected.squawk || '—'}</strong></div>
-          </div>
-          <p className="mt-3 flex items-center justify-between text-[10px] font-semibold text-slate-400"><span>{aircraftCategory(selected).replace(/^./, (value) => value.toUpperCase())}</span><span>{updatedAt ? `${u('aircraft.updated', 'Updated')} ${updatedAt.toLocaleTimeString()}` : ''}</span></p>
-          {traceLoading && <p className="mt-2 text-[10px] font-semibold text-primary">{u('aircraft.pathLoading', 'Loading aircraft path...')}</p>}
-          {traceError && <p className="mt-2 text-[10px] font-semibold text-rose-500">{traceError}</p>}
-        </div>
+        <TransportDetails hex={selected.hex} lang={lang} variant="inline" onClose={() => setSelectedHex(null)} footer={<>
+          <p className="mt-3 text-right text-[10px] font-semibold text-slate-400">{updatedAt ? `${u('aircraft.updated', 'Updated')} ${updatedAt.toLocaleTimeString()}` : ''}</p>
+          {traceLoading && <p className="mt-1 text-[10px] font-semibold text-primary">{u('aircraft.pathLoading', 'Loading aircraft path...')}</p>}
+          {traceError && <p className="mt-1 text-[10px] font-semibold text-rose-500">{traceError}</p>}
+        </>} />
       )}
 
       <button type="button" onClick={locateMe} title={u('tracking.locateMe', 'Locate me')} className="absolute bottom-3 right-3 z-[500] flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border-2 border-black/20 bg-white text-slate-700 shadow"><LocateFixed className="h-4 w-4" /></button>

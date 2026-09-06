@@ -1,10 +1,11 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Check, ClipboardCheck } from 'lucide-react';
 
 import type { Language } from '../../types';
 import { cn } from '../../lib/cn';
 import { ui } from '../../i18n';
 import { checklistHint, checklistLabel, checklistOwner, checklistStatusLabel } from '../../lib/shipmentChecklist';
+import { TransportDetails } from './TransportDetails';
 
 type Props = {
   checklist: Array<Record<string, unknown>>;
@@ -17,11 +18,12 @@ type Props = {
   renderDueDate?: (item: Record<string, unknown>) => ReactNode;
   /** The plain-language hint column, worth the width only where the work is actually done. */
   showInstruction?: boolean;
+  onRetryAircraft?: () => void;
 };
 
 const titleCase = (value: unknown) => String(value || '—').replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 
-export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolbar, renderAction, renderDueDate, showInstruction }: Props) => {
+export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolbar, renderAction, renderDueDate, showInstruction, onRetryAircraft }: Props) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
 
   return (
@@ -99,6 +101,10 @@ export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolb
                             : (lang === 'bs' ? 'Brod povezan' : lang === 'de' ? 'Schiff zugeordnet' : 'Vessel matched'))
                           : checklistStatusLabel(lang, item.status)}
                       </span>
+                      {item.key === 'flight_details' && done && !vesselConnected && <p className="mt-2 max-w-xs text-xs text-slate-500">
+                        {lang === 'bs' ? 'Avion trenutno nije pronađen i praćenje je onemogućeno.' : lang === 'de' ? 'Das Flugzeug wurde derzeit nicht gefunden und Tracking ist deaktiviert.' : 'The aircraft was not found and tracking is disabled.'}
+                        {onRetryAircraft && <> <button type="button" onClick={onRetryAircraft} className="cursor-pointer font-bold text-primary underline">{lang === 'bs' ? 'Pokušaj ponovo' : lang === 'de' ? 'Erneut versuchen' : 'Try again'}</button></>}
+                      </p>}
                       {vesselConnected && <p className="mt-2 flex items-center gap-1 whitespace-nowrap text-xs text-slate-500">
                         <Check aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-primary" />
                         <span><strong className="font-semibold text-primary">{lang === 'bs' ? 'Tracking omogućen' : lang === 'de' ? 'Tracking aktiviert' : 'Tracking enabled'}: </strong>{vesselName}</span>

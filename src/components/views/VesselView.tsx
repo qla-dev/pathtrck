@@ -63,6 +63,7 @@ export const VesselView = ({ lang }: { lang: Language }) => {
   const [selectedMmsi, setSelectedMmsi] = useState<string | null>(null);
   const [category, setCategory] = useState<VesselCategory>('all');
   const [query, setQuery] = useState('');
+  const [loadedQuery, setLoadedQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [movingOnly, setMovingOnly] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -75,12 +76,12 @@ export const VesselView = ({ lang }: { lang: Language }) => {
     setViewport({ south: Number(normalized.south.toFixed(3)), west: Number(normalized.west.toFixed(3)), north: Number(normalized.north.toFixed(3)), east: Number(normalized.east.toFixed(3)) });
   }, []);
   const load = useCallback(async () => {
-    if (!viewport) return;
+    if (!viewport || !debouncedQuery || query.trim() !== debouncedQuery) { ++requestId.current; setVessels([]); setSelectedMmsi(null); setLoadedQuery(''); setLoading(false); setError(''); return; }
     const id = ++requestId.current; setLoading(true); setError('');
-    try { const response = await api.vessels.list({ ...viewport, search: debouncedQuery || undefined }); if (id === requestId.current) setVessels(response.data); }
+    try { const response = await api.vessels.list({ ...viewport, search: debouncedQuery || undefined }); if (id === requestId.current) { setVessels(response.data); setLoadedQuery(debouncedQuery); setSelectedMmsi((current) => response.data.some((item) => item.mmsi === current) ? current : response.data.length === 1 ? response.data[0].mmsi : null); } }
     catch (reason) { if (id === requestId.current) setError(reason instanceof Error ? reason.message : ui(lang, 'vessels.error', 'Live vessels could not be loaded.')); }
     finally { if (id === requestId.current) setLoading(false); }
-  }, [debouncedQuery, lang, viewport]);
+  }, [debouncedQuery, lang, viewport, query]);
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 400);
     return () => window.clearTimeout(timer);
@@ -99,7 +100,7 @@ export const VesselView = ({ lang }: { lang: Language }) => {
     const needle = query.trim().toLowerCase();
     return !needle || `${vessel.name || ''} ${vessel.mmsi} ${vessel.callsign || ''} ${vessel.destination || ''}`.toLowerCase().includes(needle);
   }), [category, movingOnly, query, vessels]);
-  const selected = vessels.find((vessel) => vessel.mmsi === selectedMmsi) || null;
+  const selected = query.trim() === loadedQuery ? vessels.find((vessel) => vessel.mmsi === selectedMmsi) || null : null;
   useEffect(() => {
     if (!debouncedQuery) {
       centeredSearchRef.current = '';
@@ -124,17 +125,20 @@ export const VesselView = ({ lang }: { lang: Language }) => {
     <MapContainer ref={mapRef} center={[43.4, 16.4]} zoom={LOCKED_ZOOM} minZoom={LOCKED_ZOOM} maxZoom={LOCKED_ZOOM} zoomControl={false} scrollWheelZoom={false} doubleClickZoom={false} touchZoom={false} boxZoom={false} keyboard={false} className="h-full w-full">
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap contributors" subdomains={['a','b','c']} />
       <MapSupport onViewport={updateViewport} />
-      {visible.map((vessel) => <Marker key={vessel.mmsi} position={[vessel.lat, vessel.lon]} icon={vesselIcon(vessel, selectedMmsi === vessel.mmsi)} eventHandlers={{ click: () => setSelectedMmsi(vessel.mmsi) }} />)}
+      {visible.filter((item) => query.trim() === loadedQuery && item.mmsi === selectedMmsi).map((vessel) => <Marker key={vessel.mmsi} position={[vessel.lat, vessel.lon]} icon={vesselIcon(vessel, selectedMmsi === vessel.mmsi)} eventHandlers={{ click: () => setSelectedMmsi(vessel.mmsi) }} />)}
     </MapContainer>
     <div className="pointer-events-none absolute inset-x-0 top-0 z-[500] p-4"><div className="pointer-events-auto mx-auto max-w-6xl overflow-hidden rounded-2xl border border-white/60 bg-white/85 shadow-xl backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/85">
       <div className="flex flex-wrap items-center gap-3 p-3">
-        <div className="flex min-w-56 flex-1 items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-white"><Ship className="h-5 w-5" /></span><div><p className="font-black text-slate-900 dark:text-white">{u('vessels.title','Live vessels')}</p><p className="text-[10px] font-bold uppercase text-slate-400">{visible.length} {u('vessels.inView','vessels in view')}</p></div>{loading && <RefreshCw className="h-4 w-4 animate-spin text-primary" />}</div>
+        <div className="flex min-w-56 flex-1 items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-white"><Ship className="h-5 w-5" /></span><div><p className="font-black text-slate-900 dark:text-white">{u('vessels.title','Live vessels')}</p><p className="text-[10px] font-bold uppercase text-slate-400">{selected ? 1 : 0} {u('vessels.inView','vessels in view')}</p></div>{loading && <RefreshCw className="h-4 w-4 animate-spin text-primary" />}</div>
         <div className="relative min-w-52 flex-1 sm:max-w-sm"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') setDebouncedQuery(e.currentTarget.value.trim()); }} autoComplete="off" aria-label={u('vessels.search','Name, MMSI, call sign or destination...')} placeholder={u('vessels.search','Name, MMSI, call sign or destination...')} className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-xs outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white" /></div>
         <button type="button" onClick={() => setFiltersOpen((value) => !value)} className={cn('flex h-10 items-center gap-2 rounded-xl border px-3 text-xs font-bold', filtersOpen || category !== 'all' || movingOnly ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300')}><SlidersHorizontal className="h-4 w-4" />{u('common.filter','Filters')}</button>
         <button type="button" onClick={() => void load()} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300"><RefreshCw className="h-4 w-4" /></button>
         <button type="button" onClick={() => void toggleFullscreen()} title={isFullscreen ? u('map.exitFullscreen','Exit fullscreen') : u('map.fullscreen','Fullscreen')} aria-label={isFullscreen ? u('map.exitFullscreen','Exit fullscreen') : u('map.fullscreen','Fullscreen')} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300">{isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}</button>
       </div>
       {filtersOpen && <div className="border-t border-slate-200 p-3 dark:border-slate-700"><div className="flex gap-2 overflow-x-auto pb-2">{CATEGORIES.map((item) => <button type="button" key={item.id} onClick={() => setCategory(item.id)} className={cn('flex h-9 shrink-0 items-center gap-2 rounded-full border px-3 text-xs font-bold', category === item.id ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300')}><Ship className="h-3.5 w-3.5" />{u(`vessels.category.${item.id}`,item.label)}</button>)}</div><div className="mt-2 flex gap-2"><button type="button" onClick={() => setMovingOnly((value) => !value)} className={cn('h-10 rounded-lg border px-4 text-xs font-bold', movingOnly ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300')}>{u('vessels.movingOnly','Moving only')}</button><button type="button" onClick={clear} className="flex h-10 items-center gap-2 rounded-lg border border-rose-400 px-3 text-xs font-bold text-rose-500"><Trash2 className="h-3.5 w-3.5" />{u('tracking.clearFilters','Clear filters')}</button></div></div>}
+      {!query.trim() && <p role="status" className="px-4 py-2 text-xs text-slate-500">{lang === 'bs' ? 'Pretraži za prikaz na mapi.' : lang === 'de' ? 'Suchen, um ein Ergebnis auf der Karte anzuzeigen.' : 'Search to show one result on the map.'}</p>}
+      {query.trim() && loadedQuery === query.trim() && !loading && !error && !visible.length && <p role="status" className="px-4 py-2 text-xs text-slate-500">{lang === 'bs' ? 'Nema rezultata za ovu pretragu.' : lang === 'de' ? 'Keine Treffer für diese Suche.' : 'No results found for this search.'}</p>}
+      {loadedQuery === query.trim() && visible.length > 0 && (!selected || visible.length > 1) && <div className="max-h-40 overflow-y-auto border-t border-slate-200 p-2 dark:border-slate-700">{visible.map((item) => <button key={item.mmsi} type="button" onClick={() => { setSelectedMmsi(item.mmsi); mapRef.current?.flyTo([item.lat, item.lon], LOCKED_ZOOM); }} className={cn('block w-full cursor-pointer rounded-lg px-3 py-2 text-left text-xs hover:bg-primary/10', selectedMmsi === item.mmsi && 'bg-primary/10 text-primary')}><b>{item.name || item.mmsi}</b> / {item.mmsi}</button>)}</div>}
       {error && <div className="flex items-center gap-2 border-t border-rose-200 bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-600"><AlertTriangle className="h-4 w-4" />{error}</div>}
     </div></div>
     {selected && <div className="absolute bottom-5 left-5 z-[500] w-[min(360px,calc(100%-40px))] rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-700 dark:bg-slate-900"><button type="button" onClick={() => setSelectedMmsi(null)} className="absolute right-3 top-3 text-slate-400"><X className="h-4 w-4" /></button><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary"><Anchor className="h-5 w-5" /></span><div><p className="text-lg font-black dark:text-white">{selected.name || selected.mmsi}</p><p className="text-xs font-semibold text-slate-400">MMSI {selected.mmsi}{selected.callsign ? ` · ${selected.callsign}` : ''}</p></div></div><div className="mt-4 grid grid-cols-2 gap-2 text-xs"><div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><span className="block text-[10px] font-bold uppercase text-slate-400">{u('vessels.speed','Speed')}</span><strong className="dark:text-white">{selected.speed == null ? '—' : `${selected.speed.toFixed(1)} kt`}</strong></div><div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><span className="block text-[10px] font-bold uppercase text-slate-400">{u('vessels.course','Course')}</span><strong className="dark:text-white">{selected.course == null ? '—' : `${Math.round(selected.course)}°`}</strong></div></div>{selected.destination && <p className="mt-3 text-xs text-slate-500">{u('vessels.destination','Destination')}: <strong>{selected.destination}</strong></p>}</div>}

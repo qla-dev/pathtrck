@@ -266,6 +266,41 @@ export type LiveAircraft = {
   lon: number;
   seen?: number;
   dbFlags?: number;
+  /** 'live' while transmitting, otherwise where the position came from. */
+  position_source?: 'live' | 'last_seen' | 'registry';
+  /** Unix seconds of the last reported position, for non-live results. */
+  seen_at?: number;
+};
+
+export type AircraftAirport = {
+  iata: string | null;
+  icao: string | null;
+  name: string | null;
+  location: string | null;
+  country: string | null;
+  lat: number | null;
+  lon: number | null;
+};
+
+export type AircraftDetails = {
+  hex: string;
+  registration: string | null;
+  callsign: string | null;
+  type: string | null;
+  description: string | null;
+  category: string | null;
+  country: { name: string; code: string } | null;
+  operator: { code: string; name: string | null; country: string | null; radio: string | null } | null;
+  route: { code: string; airports: AircraftAirport[] } | null;
+  /** Any of 'military', 'interesting', 'pia', 'ladd'. */
+  db_flags: string[];
+  position_source: 'live' | 'last_seen' | 'registry';
+  seen_at: number | null;
+  position: { lat: number; lon: number } | null;
+  altitude: number | 'ground' | null;
+  ground_speed: number | null;
+  track: number | null;
+  squawk: string | null;
 };
 
 export type AircraftTracePoint = {
@@ -473,6 +508,7 @@ export const api = {
     list: (params: { south: number; west: number; north: number; east: number; search?: string }) =>
       request<LiveAircraft[]>(`/aircraft?${queryString(params)}`),
     trace: (hex: string) => request<AircraftTrace>(`/aircraft/${encodeURIComponent(hex)}/trace`),
+    details: (hex: string) => request<AircraftDetails>(`/aircraft/${encodeURIComponent(hex)}/details`),
   },
   vessels: {
     list: (params: { south: number; west: number; north: number; east: number; search?: string }) =>

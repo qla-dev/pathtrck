@@ -4,9 +4,9 @@ import type { Language } from '../../types';
 import { api } from '../../services/api';
 
 const COPY = {
-  en: { search: 'Search by ICAO', matched: 'Matched', missing: 'No matching live aircraft found.', failed: 'Aircraft lookup failed. Try again.', saveFailed: 'The aircraft could not be saved.', invalid: 'Enter a 9-digit ICAO.', retry: 'Retry' },
-  bs: { search: 'Pretraži po ICAO-u', matched: 'Brod povezan', missing: 'Nije pronađen odgovarajući brod.', failed: 'Pretraga nije uspjela. Pokušaj ponovo.', saveFailed: 'Avion nije spremljen.', invalid: 'Unesi ICAO od 9 cifara.', retry: 'Pokušaj ponovo' },
-  de: { search: 'Nach ICAO suchen', matched: 'Zugeordnet', missing: 'Kein passendes Live-Flugzeug gefunden.', failed: 'Flugzeugsuche fehlgeschlagen. Bitte erneut versuchen.', saveFailed: 'Das Flugzeug konnte nicht gespeichert werden.', invalid: 'Eine 9-stellige ICAO eingeben.', retry: 'Erneut versuchen' },
+  en: { missing: 'No matching aircraft found.', failed: 'Aircraft lookup failed. Try again.', saveFailed: 'The aircraft could not be saved.', retry: 'Retry' },
+  bs: { missing: 'Nije pronađen odgovarajući avion.', failed: 'Pretraga nije uspjela. Pokušaj ponovo.', saveFailed: 'Avion nije spremljen.', retry: 'Pokušaj ponovo' },
+  de: { missing: 'Kein passendes Flugzeug gefunden.', failed: 'Flugzeugsuche fehlgeschlagen. Bitte erneut versuchen.', saveFailed: 'Das Flugzeug konnte nicht gespeichert werden.', retry: 'Erneut versuchen' },
 };
 type Match = { hex: string; name: string };
 const savedMatch = (value: string): Match | null => {
@@ -16,8 +16,8 @@ const savedMatch = (value: string): Match | null => {
   } catch { return null; }
 };
 
-export const ChecklistAircraftSearch = ({ value, lang, disabled, onSave }: {
-  value: string; lang: Language; disabled: boolean; onSave: (value: string) => Promise<void>;
+export const ChecklistAircraftSearch = ({ value, lang, disabled, onSave, retrySignal = 0 }: {
+  value: string; lang: Language; disabled: boolean; onSave: (value: string) => Promise<void>; retrySignal?: number;
 }) => {
   const text = COPY[lang === 'bs' || lang === 'de' ? lang : 'en'];
   const initial = savedMatch(value);
@@ -28,7 +28,7 @@ export const ChecklistAircraftSearch = ({ value, lang, disabled, onSave }: {
   const [retry, setRetry] = useState(0);
   const [results, setResults] = useState<Match[]>([]);
   const [saving, setSaving] = useState(false);
-  const searchLabel = lang === 'bs' ? 'Registracija, npr. B-226S' : lang === 'de' ? 'Kennzeichen, z. B. B-226S' : 'Registration, e.g. B-226S';
+  const searchLabel = lang === 'bs' ? 'npr. B-226S ili 782177' : lang === 'de' ? 'z. B. B-226S oder 782177' : 'e.g. B-226S or 782177';
   const saveRef = useRef(onSave);
   saveRef.current = onSave;
   useEffect(() => {
@@ -38,8 +38,7 @@ export const ChecklistAircraftSearch = ({ value, lang, disabled, onSave }: {
   }, [value]);
   useEffect(() => {
     const hex = query.trim();
-    const numeric = false;
-    if (hex.length < 2 || (numeric && !/^[a-f0-9]{6}$/i.test(hex)) || match?.hex === hex) return;
+    if (hex.length < 2 || match?.hex === hex) return;
     let active = true;
     const timer = window.setTimeout(async () => {
       setLoading(true);
@@ -47,28 +46,39 @@ export const ChecklistAircraftSearch = ({ value, lang, disabled, onSave }: {
       try {
         const response = await api.aircraft.list({ south: -90, west: -180, north: 90, east: 180, search: hex });
         if (!active) return;
-        const matches = response.data.filter((row) => /^[a-f0-9]{6}$/i.test(String(row.hex)) && (numeric
-          ? String(row.hex) === hex
-          : true));
-        if (!numeric) {
+        const matches = response.data.filter((row) => /^[a-f0-9]{6}$/i.test(String(row.hex)));
+        if (!matches.length) { setError(text.missing); return; }
+
+        // A registration or hex identifies one aircraft, so link it straight away
+        // the way an MMSI does for a vessel. Only an ambiguous term needs a list.
+        if (matches.length > 1) {
           setResults(matches.map((row) => ({ hex: String(row.hex), name: row.r || row.flight?.trim() || row.hex })));
-          if (!matches.length) setError(text.missing);
           return;
         }
-        const vessel = matches[0];
-        if (!vessel) { setError(text.missing); return; }
-        const result = { hex, name: vessel.r || vessel.flight?.trim() || vessel.hex };
+        const row = matches[0];
+        const aircraft = { hex: String(row.hex), name: row.r || row.flight?.trim() || String(row.hex) };
         try {
-          await saveRef.current(JSON.stringify({ ...result, matched: true }));
-          if (active) setMatch(result);
+          await saveRef.current(JSON.stringify({ ...aircraft, matched: true }));
+          if (!active) return;
+          setMatch(aircraft);
+          setQuery(aircraft.hex);
+          setResults([]);
         } catch { if (active) setError(text.saveFailed); }
       } catch { if (active) setError(text.failed); }
       finally { if (active) setLoading(false); }
     }, 400);
     return () => { active = false; window.clearTimeout(timer); setLoading(false); };
-  }, [query, match?.hex, retry, text]);
+  }, [query, match?.hex, retry, retrySignal, text]);
 
-  return <div aria-busy={loading || saving} className="ml-auto w-full max-w-[220px] space-y-1.5 text-left">
+  return <div aria-busy={loading || saving} className="ml-auto w-full max-w-[220px] space-y-1.5 text-left" onBlur={async (event) => {
+      if (event.currentTarget.contains(event.relatedTarget as Node | null) || disabled || saving) return;
+      const entered = query.trim();
+      if (entered === value || entered === match?.hex) return;
+      setSaving(true);
+      try { await saveRef.current(entered); }
+      catch { setError(text.saveFailed); }
+      finally { setSaving(false); }
+    }}>
     <div className="relative">
       <input value={query} maxLength={100} aria-label={searchLabel} placeholder={searchLabel}
         disabled={disabled || saving} onChange={(event) => { setQuery(event.target.value); setError(''); setResults([]); }}
@@ -77,7 +87,7 @@ export const ChecklistAircraftSearch = ({ value, lang, disabled, onSave }: {
     </div>
     {results.length > 0 && <ul aria-label={searchLabel} className="max-h-48 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-950">
       {results.map((vessel) => <li key={vessel.hex}><button type="button" disabled={disabled || saving}
-        className="w-full rounded-md p-2 text-left text-xs hover:bg-primary/10 focus-visible:outline-primary disabled:opacity-60"
+        className="w-full cursor-pointer rounded-md p-2 text-left text-xs hover:bg-primary/10 focus-visible:outline-primary disabled:opacity-60"
         onClick={async () => {
           setSaving(true);
           setError('');
@@ -94,7 +104,7 @@ export const ChecklistAircraftSearch = ({ value, lang, disabled, onSave }: {
       </button></li>)}
     </ul>}
     <div role="status" aria-live="polite">
-      {error && <div className="text-[11px] text-rose-500">{error} <button type="button" disabled={disabled || loading} onClick={() => setRetry((count) => count + 1)} className="font-bold underline">{text.retry}</button></div>}
+      {error && error !== text.missing && <div className="text-[11px] text-rose-500">{error} <button type="button" disabled={disabled || loading} onClick={() => setRetry((count) => count + 1)} className="font-bold underline">{text.retry}</button></div>}
     </div>
   </div>;
 };
