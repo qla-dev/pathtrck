@@ -220,6 +220,11 @@ export type LoadDraft = {
   inspectionServicesRequired: boolean;
   urgent: boolean;
   notes: string;
+  supplierName: string;
+  supplierEmail: string;
+  supplierPhone: string;
+  supplierMobile: string;
+  supplierFax: string;
   contactName: string;
   contactPhone: string;
   contactEmail: string;
@@ -350,6 +355,7 @@ export const INITIAL_DRAFT: LoadDraft = {
   inspectionServicesRequired: false,
   urgent: false,
   notes: '',
+  supplierName: '', supplierEmail: '', supplierPhone: '', supplierMobile: '', supplierFax: '',
   contactName: '',
   contactPhone: '',
   contactEmail: '',

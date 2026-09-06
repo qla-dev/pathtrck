@@ -488,6 +488,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       const deliveryStart = fromApiDateTime(delivery.window_starts_at);
       const deliveryEnd = fromApiDateTime(delivery.window_ends_at);
       const contact = (record.contact || {}) as Record<string, unknown>;
+      const supplier = (contact.supplier || {}) as Record<string, unknown>;
       const consignee = record.consignee && typeof record.consignee === 'object'
         ? customerOptionFromRecord(record.consignee as Record<string, unknown>)
         : null;
@@ -512,7 +513,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         blType: String(record.bl_type || ''), dgUnNumber: String(record.dg_un_number || ''), dgImoClass: String(record.dg_imo_class || ''), dgPackingGroup: String(record.dg_packing_group || ''), dgProperShippingName: String(record.dg_proper_shipping_name || ''),
         warehouseStorageType: String(record.storage_type || INITIAL_DRAFT.warehouseStorageType), warehouseStartDate: String(record.storage_start_date || '').slice(0, 10), warehouseEndDate: String(record.storage_end_date || '').slice(0, 10), warehouseIsOngoing: Boolean(record.is_storage_ongoing), warehouseTemperatureMin: String(record.temperature_min ?? ''), warehouseTemperatureMax: String(record.temperature_max ?? ''), warehouseRequiresCustomsBonded: Boolean(record.requires_customs_bonded), warehouseRequiresRacking: Boolean(record.requires_racking), warehouseRequiresInsurance: Boolean(record.insurance_required), warehouseRequiresSecurity: Boolean(record.requires_security), warehouseRateUnit: String(record.rate_unit || INITIAL_DRAFT.warehouseRateUnit), warehouseFoodPharma: Boolean(record.requires_food_grade), warehouseFragile: Boolean(record.is_fragile),
         oogInGauge: String(record.oog_in_gauge || ''), oogLengthM: String(record.oog_length_m ?? ''), oogWidthM: String(record.oog_width_m ?? ''), oogHeightM: String(record.oog_height_m ?? ''), oogWeightKg: String(record.oog_weight_kg ?? ''),
-        requiresAdr: Boolean(record.requires_adr), requiresTailLift: Boolean(record.requires_tail_lift), tollRoadsIncluded: Boolean(record.toll_roads_included), ferryIncluded: Boolean(record.ferry_included), cmrRequired: record.cmr_required == null ? true : Boolean(record.cmr_required), palletExchangeRequired: Boolean(record.pallet_exchange_required), customsRequired: Boolean(record.customs_required), insuranceRequired: Boolean(record.insurance_required), certificationRequired: Boolean(record.certification_required), inspectionServicesRequired: Boolean(record.inspection_services_required), mustBeTrackable: Boolean(record.must_be_trackable), urgent: Boolean(record.is_urgent), receivePriceProposals: record.is_negotiable == null ? true : Boolean(record.is_negotiable), bodyTypes: Array.isArray(record.body_types) ? record.body_types.map(String) : [], notes: String(record.notes || ''), internalComments: String(record.internal_comments || ''), externalComments: String(record.external_comments || ''), contactName: String(contact.name || ''), contactPhone: String(contact.phone || ''), contactMobile: String(contact.mobile || ''), contactEmail: String(contact.email || ''), contactFax: String(contact.fax || ''),
+        requiresAdr: Boolean(record.requires_adr), requiresTailLift: Boolean(record.requires_tail_lift), tollRoadsIncluded: Boolean(record.toll_roads_included), ferryIncluded: Boolean(record.ferry_included), cmrRequired: record.cmr_required == null ? true : Boolean(record.cmr_required), palletExchangeRequired: Boolean(record.pallet_exchange_required), customsRequired: Boolean(record.customs_required), insuranceRequired: Boolean(record.insurance_required), certificationRequired: Boolean(record.certification_required), inspectionServicesRequired: Boolean(record.inspection_services_required), mustBeTrackable: Boolean(record.must_be_trackable), urgent: Boolean(record.is_urgent), receivePriceProposals: record.is_negotiable == null ? true : Boolean(record.is_negotiable), bodyTypes: Array.isArray(record.body_types) ? record.body_types.map(String) : [], notes: String(record.notes || ''), internalComments: String(record.internal_comments || ''), externalComments: String(record.external_comments || ''), supplierName: String(supplier.name || ''), supplierEmail: String(supplier.email || ''), supplierPhone: String(supplier.phone || ''), supplierMobile: String(supplier.mobile || ''), supplierFax: String(supplier.fax || ''), contactName: String(contact.name || ''), contactPhone: String(contact.phone || ''), contactMobile: String(contact.mobile || ''), contactEmail: String(contact.email || ''), contactFax: String(contact.fax || ''),
       });
     }).catch((error) => setSubmitError(error instanceof Error ? error.message : u('postLoadModal.loadFetchError', 'The load could not be loaded.'))).finally(() => setIsLoadingExisting(false));
   }, [editLoadId, isOpen]);
@@ -626,7 +627,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       // alongside a reachable contact. vehicleType is deliberately not part of the cargo rule: it
       // defaults to 'Box Truck' in INITIAL_DRAFT, so it is truthy before the user touches anything.
       contact: Boolean(
-        draft.contactName &&
+        draft.supplierName?.trim() && draft.supplierEmail?.trim() && draft.supplierPhone?.trim() && draft.contactName &&
           (draft.contactPhone || draft.contactMobile || draft.contactEmail) &&
           (draft.receivePriceProposals || draft.budget) &&
           draft.incoterm
@@ -2899,48 +2900,72 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
                     </div>
 
-                    <div className="space-y-3 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
-                      <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
-                        <ShieldCheck className="h-4 w-4" />
-                        <span>{u('postLoadModal.limitPublication', 'Limit publication')}</span>
-                      </div>
-                      <div className="space-y-1">
-                        <FieldLabel>{u('postLoadModal.closedFreightExchange', 'Publish in closed freight exchange')}</FieldLabel>
-                        <Select
-                          value={draft.closedFreightExchange}
-                          onChange={(e) => setField('closedFreightExchange', e.target.value)}
-                        >
-                          {CLOSED_EXCHANGE_OPTIONS.map((option) => (
-                            <option key={option || 'none'} value={option}>
-                              {option || u('postLoadModal.none', 'None')}
-                            </option>
+                    <div className="flex min-w-0 flex-col gap-3">
+                      <div className="space-y-3 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+                        <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
+                          <UserRound className="h-4 w-4" />
+                          <span>{lang === 'bs' ? 'Kontakt dobavljača' : lang === 'de' ? 'Lieferantenkontakt' : 'Supplier contact'}</span>
+                          <span className="text-rose-500">*</span>
+                        </div>
+                        <div className="grid sm:grid-cols-2 gap-3">
+                          {([
+                            ['supplierName', lang === 'bs' ? 'Ime kontakt osobe' : lang === 'de' ? 'Kontaktperson' : 'Contact name', 'text', true],
+                            ['supplierEmail', u('postLoadModal.contactEmail', 'E-mail address'), 'email', true],
+                            ['supplierPhone', u('postLoadModal.contactPhone', 'Phone number'), 'tel', true],
+                            ['supplierMobile', u('postLoadModal.contactMobile', 'Mobile number'), 'tel', false],
+                            ['supplierFax', u('postLoadModal.contactFax', 'Fax number'), 'tel', false],
+                          ] as const).map(([field, label, type, required]) => (
+                            <label key={field} className={cn('space-y-1', field === 'supplierName' && 'sm:col-span-2', invalidClass(field))}>
+                              <span className="ml-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}{required && <span className="ml-1 text-rose-500">*</span>}</span>
+                              <Input type={type} required={required} maxLength={field === 'supplierName' || field === 'supplierEmail' ? 255 : 50} value={draft[field] || ''} onChange={(event) => setField(field, event.target.value)} />
+                            </label>
                           ))}
-                        </Select>
+                        </div>
                       </div>
-                      <div className="space-y-1">
-                        <FieldLabel>{u('postLoadModal.closedFreightComments', 'Comments for closed freight exchange')}</FieldLabel>
-                        <Input
-                          value={draft.closedFreightComments}
-                          onChange={(e) => setField('closedFreightComments', e.target.value)}
-                          placeholder={u('postLoadModal.closedFreightCommentsPlaceholder', 'Only visible to members of the closed freight exchange')}
-                        />
-                      </div>
-                      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-800 dark:bg-slate-950 dark:text-white">
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={draft.publishToAllAfterMinutes}
-                            onChange={(e) => setField('publishToAllAfterMinutes', e.target.checked)}
+
+                      <div className="flex-1 space-y-3 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+                        <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
+                          <ShieldCheck className="h-4 w-4" />
+                          <span>{u('postLoadModal.limitPublication', 'Limit publication')}</span>
+                        </div>
+                        <div className="space-y-1">
+                          <FieldLabel>{u('postLoadModal.closedFreightExchange', 'Publish in closed freight exchange')}</FieldLabel>
+                          <Select
+                            value={draft.closedFreightExchange}
+                            onChange={(e) => setField('closedFreightExchange', e.target.value)}
+                          >
+                            {CLOSED_EXCHANGE_OPTIONS.map((option) => (
+                              <option key={option || 'none'} value={option}>
+                                {option || u('postLoadModal.none', 'None')}
+                              </option>
+                            ))}
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <FieldLabel>{u('postLoadModal.closedFreightComments', 'Comments for closed freight exchange')}</FieldLabel>
+                          <Input
+                            value={draft.closedFreightComments}
+                            onChange={(e) => setField('closedFreightComments', e.target.value)}
+                            placeholder={u('postLoadModal.closedFreightCommentsPlaceholder', 'Only visible to members of the closed freight exchange')}
                           />
-                          <span>{u('postLoadModal.publishToAllAfter', 'After')}</span>
-                        </label>
-                        <Input
-                          type="number"
-                          value={draft.publishDelayMinutes}
-                          onChange={(e) => setField('publishDelayMinutes', e.target.value)}
-                          className="h-11 w-24"
-                        />
-                        <span>{u('postLoadModal.publishToAllAfterSuffix', 'minutes publish to all')}</span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-800 dark:bg-slate-950 dark:text-white">
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={draft.publishToAllAfterMinutes}
+                              onChange={(e) => setField('publishToAllAfterMinutes', e.target.checked)}
+                            />
+                            <span>{u('postLoadModal.publishToAllAfter', 'After')}</span>
+                          </label>
+                          <Input
+                            type="number"
+                            value={draft.publishDelayMinutes}
+                            onChange={(e) => setField('publishDelayMinutes', e.target.value)}
+                            className="h-11 w-24"
+                          />
+                          <span>{u('postLoadModal.publishToAllAfterSuffix', 'minutes publish to all')}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -2974,6 +2999,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         value={`${draft.budget || '—'} ${draft.freightCurrency} / ${u(`postLoadModal.rateUnit.${draft.warehouseRateUnit}`, draft.warehouseRateUnit)}`}
                       />
                       <SummaryRow label={u('postLoadModal.contactSummary', 'Contact')} value={`${draft.contactName} · ${draft.contactPhone || draft.contactMobile || draft.contactEmail || '—'}`} />
+                      <SummaryRow label={lang === 'bs' ? 'Kontakt dobavljača' : lang === 'de' ? 'Lieferantenkontakt' : 'Supplier contact'} value={[draft.supplierName, draft.supplierEmail, draft.supplierPhone, draft.supplierMobile, draft.supplierFax].filter(Boolean).join(' · ')} />
                       <SummaryRow
                         label={u('postLoadModal.requirements', 'Zahtjevi')}
                         value={[
@@ -3059,6 +3085,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       />
                       <SummaryRow label={u('postLoadModal.incoterm', 'Incoterm')} value={draft.incoterm || '—'} />
                       <SummaryRow label={u('postLoadModal.contactSummary', 'Contact')} value={`${draft.contactName} · ${draft.contactPhone || draft.contactMobile || draft.contactEmail || '—'}`} />
+                      <SummaryRow label={lang === 'bs' ? 'Kontakt dobavljača' : lang === 'de' ? 'Lieferantenkontakt' : 'Supplier contact'} value={[draft.supplierName, draft.supplierEmail, draft.supplierPhone, draft.supplierMobile, draft.supplierFax].filter(Boolean).join(' · ')} />
                       <SummaryRow
                         label={u('postLoadModal.flagsSummary', 'Special requirements')}
                         value={[

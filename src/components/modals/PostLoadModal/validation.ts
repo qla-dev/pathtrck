@@ -21,6 +21,9 @@ type FieldEntry = {
 export const INVALID_FIELD_CLASS = 'rounded-xl [&>div>button]:border-rose-500 [&_input]:border-rose-500 [&_input]:bg-rose-50/70 dark:[&_input]:border-rose-500 dark:[&_input]:bg-rose-950/20 [&_select]:border-rose-500 [&_select]:bg-rose-50/70 dark:[&_select]:border-rose-500 dark:[&_select]:bg-rose-950/20 [&_textarea]:border-rose-500';
 
 const TOP_LEVEL_FIELDS: Record<string, FieldEntry> = {
+  'contact.supplier.name': { labelKey: 'postLoadModal.supplierName', label: 'Supplier contact name', fields: ['supplierName'] },
+  'contact.supplier.email': { labelKey: 'postLoadModal.supplierEmail', label: 'Supplier e-mail', fields: ['supplierEmail'] },
+  'contact.supplier.phone': { labelKey: 'postLoadModal.supplierPhone', label: 'Supplier phone', fields: ['supplierPhone'] },
   title: { labelKey: 'postLoadModal.loadTitleLabel', label: 'Load title', fields: ['loadTitle'] },
   cargo_type: { labelKey: 'postLoadModal.cargoModel', label: 'Shipment type', fields: ['cargoType'] },
   goods_type: { labelKey: 'postLoadModal.cargoName', label: 'Type of goods', fields: ['goodsType'] },
@@ -111,6 +114,7 @@ const resolveKey = (u: Translate, key: string, route: RouteShape): { label: stri
 // Which step a field lives on, so a failed submit can open the step holding the first problem
 // instead of leaving the message pointing at a field the user cannot see.
 const FIELD_STEPS: Partial<Record<keyof LoadDraft, StepId>> = {
+  supplierName: 'contact', supplierEmail: 'contact', supplierPhone: 'contact', supplierMobile: 'contact', supplierFax: 'contact',
   pickupPlaceType: 'route', pickupCountry: 'route', pickupCity: 'route', pickupPostalCode: 'route', pickupAddress: 'route',
   pickupPort: 'route', pickupAirport: 'route', pickupDate: 'route', pickupDateTo: 'route', pickupTimeFrom: 'route', pickupTimeTo: 'route',
   deliveryPlaceType: 'route', deliveryCountry: 'route', deliveryCity: 'route', deliveryPostalCode: 'route', deliveryAddress: 'route',
@@ -279,6 +283,13 @@ export const validateDraft = (u: Translate, draft: LoadDraft, mode: 'publish' | 
 
   // A draft is allowed to be half-finished - only what is actually malformed blocks saving it.
   if (mode === 'draft') return message ? { message, fields: [...new Set(fields)] } : null;
+
+  for (const field of ['supplierName', 'supplierEmail', 'supplierPhone'] as const) {
+    if (!draft[field]?.trim()) fail(u('postLoadModal.requiredField', 'This field is required.'), field);
+  }
+  if (draft.supplierEmail?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.supplierEmail.trim())) {
+    fail(u('postLoadModal.contactEmail', 'E-mail address') + ': ' + u('postLoadModal.invalidEmail', 'Enter a valid e-mail address.'), 'supplierEmail');
+  }
 
   if (!String(draft.loadTitle || '').trim()) {
     fail(`${u('postLoadModal.loadTitleLabel', 'Load title')}: ${u('postLoadModal.requiredField', 'This field is required.')}`, 'loadTitle');

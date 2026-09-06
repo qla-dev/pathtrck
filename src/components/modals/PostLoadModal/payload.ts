@@ -116,7 +116,7 @@ export const buildLoadFieldsPayload = (draft: LoadDraft) => ({
   oog_width_m: isContainerTransport(draft.transportType) && draft.oogInGauge === 'out_of_gauge' ? Number(draft.oogWidthM) || null : null,
   oog_height_m: isContainerTransport(draft.transportType) && draft.oogInGauge === 'out_of_gauge' ? Number(draft.oogHeightM) || null : null,
   oog_weight_kg: isContainerTransport(draft.transportType) && draft.oogInGauge === 'out_of_gauge' ? Number(draft.oogWeightKg) || null : null,
-  contact: { name: draft.contactName, phone: draft.contactPhone, mobile: draft.contactMobile, email: draft.contactEmail, fax: draft.contactFax },
+  contact: { supplier: { name: draft.supplierName, email: draft.supplierEmail, phone: draft.supplierPhone, mobile: draft.supplierMobile, fax: draft.supplierFax }, name: draft.contactName, phone: draft.contactPhone, mobile: draft.contactMobile, email: draft.contactEmail, fax: draft.contactFax },
   notes: draft.notes || draft.additionalInfo || null,
   internal_comments: draft.internalComments || null,
   external_comments: draft.externalComments || null,
@@ -258,7 +258,7 @@ export const buildWarehouseLoadPayload = (draft: LoadDraft) => ({
   notes: draft.notes || null,
   internal_comments: draft.internalComments || null,
   external_comments: draft.externalComments || null,
-  contact: { name: draft.contactName, phone: draft.contactPhone, mobile: draft.contactMobile, email: draft.contactEmail, fax: draft.contactFax },
+  contact: { supplier: { name: draft.supplierName, email: draft.supplierEmail, phone: draft.supplierPhone, mobile: draft.supplierMobile, fax: draft.supplierFax }, name: draft.contactName, phone: draft.contactPhone, mobile: draft.contactMobile, email: draft.contactEmail, fax: draft.contactFax },
 });
 
 export const routePosition = (latitude: string, longitude: string): [number, number] | null => {
