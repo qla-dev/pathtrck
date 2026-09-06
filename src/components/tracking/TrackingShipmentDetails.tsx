@@ -226,6 +226,19 @@ export const TrackingShipmentDetails = ({ details, focusKey, lang, role, consign
     }
   };
 
+  const saveAndAdvance = async (detail: ShipmentDetail) => {
+    if (!await save(detail, detail.input === 'driver' || detail.input === 'vehicle' ? (draft ? Number(draft) : null) : draft)) return;
+    const next = details.slice(details.indexOf(detail) + 1).find((item) => !isLocked(item));
+    if (!next) return;
+    if (next.key === 'departure' || next.key === 'arrival') {
+      setLocationDetail(next);
+    } else {
+      setEditingKey(next.key);
+      setDraft(next.rawValue ?? (next.value === '—' ? '' : next.value));
+      window.setTimeout(() => document.querySelector<HTMLElement>(`[data-detail-key="${next.key}"] input, [data-detail-key="${next.key}"] select`)?.focus(), 0);
+    }
+  };
+
   const saveOnBlur = (detail: ShipmentDetail) => {
     if (cancelledKey.current === detail.key) {
       cancelledKey.current = null;
@@ -279,6 +292,7 @@ export const TrackingShipmentDetails = ({ details, focusKey, lang, role, consign
         return (
           <div
             key={detail.key}
+            data-detail-key={detail.key}
             onClick={() => {
               if (detail.input !== 'date') beginEdit(detail);
             }}
@@ -325,6 +339,7 @@ export const TrackingShipmentDetails = ({ details, focusKey, lang, role, consign
                     void save(detail, event.target.value ? Number(event.target.value) : null);
                   }}
                   onKeyDown={(event) => {
+                    if (event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); void saveAndAdvance(detail); }
                     if (event.key === 'Escape') cancel();
                   }}
                   disabled={saving}
@@ -348,7 +363,7 @@ export const TrackingShipmentDetails = ({ details, focusKey, lang, role, consign
                   onChange={(event) => setDraft(event.target.value)}
                   onBlur={() => saveOnBlur(detail)}
                   onKeyDown={(event) => {
-                    if (event.key === 'Enter') void save(detail);
+                    if (event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); void saveAndAdvance(detail); }
                     if (event.key === 'Escape') cancel();
                   }}
                   disabled={saving}
@@ -382,7 +397,7 @@ export const TrackingShipmentDetails = ({ details, focusKey, lang, role, consign
                   onChange={(event) => setDraft(event.target.value)}
                   onBlur={() => saveOnBlur(detail)}
                   onKeyDown={(event) => {
-                    if (event.key === 'Enter') void save(detail);
+                    if (event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); void saveAndAdvance(detail); }
                     if (event.key === 'Escape') cancel();
                   }}
                   disabled={saving}

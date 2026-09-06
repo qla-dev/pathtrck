@@ -1,3 +1,4 @@
+import { nextInput } from '../../lib/enterNavigation';
 import { useEffect, useRef, useState } from 'react';
 import { LoaderCircle } from 'lucide-react';
 import type { Language } from '../../types';
@@ -29,6 +30,8 @@ export const ChecklistAircraftSearch = ({ value, lang, disabled, onSave, retrySi
   const [results, setResults] = useState<Match[]>([]);
   const [saving, setSaving] = useState(false);
   const searchLabel = lang === 'bs' ? 'npr. B-226S ili 782177' : lang === 'de' ? 'z. B. B-226S oder 782177' : 'e.g. B-226S or 782177';
+  const revision = useRef(0);
+  const committed = useRef(false);
   const saveRef = useRef(onSave);
   saveRef.current = onSave;
   useEffect(() => {
@@ -39,13 +42,15 @@ export const ChecklistAircraftSearch = ({ value, lang, disabled, onSave, retrySi
   useEffect(() => {
     const hex = query.trim();
     if (hex.length < 2 || match?.hex === hex) return;
+    if (committed.current) return;
+    const version = revision.current;
     let active = true;
     const timer = window.setTimeout(async () => {
       setLoading(true);
       setError('');
       try {
         const response = await api.aircraft.list({ south: -90, west: -180, north: 90, east: 180, search: hex });
-        if (!active) return;
+        if (!active || version !== revision.current) return;
         const matches = response.data.filter((row) => /^[a-f0-9]{6}$/i.test(String(row.hex)));
         if (!matches.length) { setError(text.missing); return; }
 
@@ -59,19 +64,19 @@ export const ChecklistAircraftSearch = ({ value, lang, disabled, onSave, retrySi
         const aircraft = { hex: String(row.hex), name: row.r || row.flight?.trim() || String(row.hex) };
         try {
           await saveRef.current(JSON.stringify({ ...aircraft, matched: true }));
-          if (!active) return;
+          if (!active || version !== revision.current) return;
           setMatch(aircraft);
           setQuery(aircraft.hex);
           setResults([]);
-        } catch { if (active) setError(text.saveFailed); }
-      } catch { if (active) setError(text.failed); }
-      finally { if (active) setLoading(false); }
+        } catch { if (active && version === revision.current) setError(text.saveFailed); }
+      } catch { if (active && version === revision.current) setError(text.failed); }
+      finally { if (active && version === revision.current) setLoading(false); }
     }, 400);
     return () => { active = false; window.clearTimeout(timer); setLoading(false); };
   }, [query, match?.hex, retry, retrySignal, text]);
 
   return <div aria-busy={loading || saving} className="ml-auto w-full max-w-[220px] space-y-1.5 text-left" onBlur={async (event) => {
-      if (event.currentTarget.contains(event.relatedTarget as Node | null) || disabled || saving) return;
+      if (event.currentTarget.contains(event.relatedTarget as Node | null) || disabled || saving || committed.current) return;
       const entered = query.trim();
       if (entered === value || entered === match?.hex) return;
       setSaving(true);
@@ -81,7 +86,21 @@ export const ChecklistAircraftSearch = ({ value, lang, disabled, onSave, retrySi
     }}>
     <div className="relative">
       <input value={query} maxLength={100} aria-label={searchLabel} placeholder={searchLabel}
-        disabled={disabled || saving} onChange={(event) => { setQuery(event.target.value); setError(''); setResults([]); }}
+        onKeyDown={async (event) => {
+          if (event.key !== 'Enter' || event.nativeEvent.isComposing) return;
+          event.preventDefault(); event.stopPropagation();
+          if (disabled || saving) return;
+          const advance = nextInput(event.currentTarget);
+          revision.current++; committed.current = true;
+          setLoading(false); setSaving(true); setError('');
+          try {
+            const entered = query.trim();
+            if (entered !== match?.hex && entered !== value) await saveRef.current(entered);
+            setResults([]); advance();
+          } catch { committed.current = false; setError(text.saveFailed); }
+          finally { setSaving(false); }
+        }}
+        disabled={disabled || saving} onChange={(event) => { revision.current++; committed.current = false; setQuery(event.target.value); setError(''); setResults([]); }}
         className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 pr-8 text-xs font-bold outline-none focus:border-primary disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200" />
       {loading && <LoaderCircle aria-hidden="true" className="absolute right-2 top-2.5 h-4 w-4 animate-spin text-primary" />}
     </div>
@@ -104,7 +123,7 @@ export const ChecklistAircraftSearch = ({ value, lang, disabled, onSave, retrySi
       </button></li>)}
     </ul>}
     <div role="status" aria-live="polite">
-      {error && error !== text.missing && <div className="text-[11px] text-rose-500">{error} <button type="button" disabled={disabled || loading} onClick={() => setRetry((count) => count + 1)} className="font-bold underline">{text.retry}</button></div>}
+      {error && error !== text.missing && <div className="text-[11px] text-rose-500">{error} <button type="button" disabled={disabled || loading} onClick={() => { committed.current = false; setRetry((count) => count + 1); }} className="font-bold underline">{text.retry}</button></div>}
     </div>
   </div>;
 };

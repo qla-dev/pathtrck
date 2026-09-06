@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import { MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet';
-import { AlertTriangle, LocateFixed, Maximize2, Minimize2, Plane, RefreshCw, Search, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { AlertTriangle, LocateFixed, Maximize2, Minimize2, Plane, RefreshCw, Search } from 'lucide-react';
 import type { Language } from '../../types';
 import { api, type LiveAircraft } from '../../services/api';
 import { ui } from '../../i18n';
@@ -11,16 +11,6 @@ import { cn } from '../../lib/cn';
 type AircraftCategory = 'all' | 'passenger' | 'cargo' | 'military' | 'business' | 'general' | 'helicopter' | 'lighter';
 const LOCKED_ZOOM = 6;
 
-const CATEGORY_KEYS: Array<{ id: AircraftCategory; label: string; codes?: string[] }> = [
-  { id: 'all', label: 'All categories' },
-  { id: 'passenger', label: 'Passenger' },
-  { id: 'cargo', label: 'Cargo' },
-  { id: 'military', label: 'Military or government' },
-  { id: 'business', label: 'Business jets' },
-  { id: 'general', label: 'General aviation' },
-  { id: 'helicopter', label: 'Helicopter', codes: ['A7'] },
-  { id: 'lighter', label: 'Lighter-than-air', codes: ['B2'] },
-];
 
 const BUSINESS_TYPES = /^(C5|C6|C7|CL3|CL6|GLF|LJ|FA[057]|E5|E55|E75|HDJT|PRM1|BE4|H25)/i;
 const CARGO_TEXT = /(cargo|freight|express|air transport|logistics|postal|parcel)/i;
@@ -96,15 +86,10 @@ export const AircraftView = ({ lang }: { lang: Language }) => {
   const [viewport, setViewport] = useState<ViewportBounds | null>(null);
   const [aircraft, setAircraft] = useState<LiveAircraft[]>([]);
   const [selectedHex, setSelectedHex] = useState<string | null>(null);
-  const [category, setCategory] = useState<AircraftCategory>('all');
   const [query, setQuery] = useState('');
   const [loadedQuery, setLoadedQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   useEffect(() => { const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 400); return () => window.clearTimeout(timer); }, [query]);
-  const [minAltitude, setMinAltitude] = useState('');
-  const [maxAltitude, setMaxAltitude] = useState('');
-  const [airborneOnly, setAirborneOnly] = useState(false);
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
@@ -173,23 +158,15 @@ export const AircraftView = ({ lang }: { lang: Language }) => {
 
   const filteredAircraft = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    const min = minAltitude === '' ? null : Number(minAltitude);
-    const max = maxAltitude === '' ? null : Number(maxAltitude);
     return aircraft.filter((item) => {
-      if (category !== 'all' && aircraftCategory(item) !== category) return false;
       const altitude = item.alt_baro === 'ground' ? 0 : Number(item.alt_baro ?? item.alt_geom ?? 0);
-      if (airborneOnly && item.alt_baro === 'ground') return false;
-      if (min !== null && altitude < min) return false;
-      if (max !== null && altitude > max) return false;
       return !needle || `${item.flight || ''} ${item.r || ''} ${item.hex || ''}`.toLowerCase().replace(/[^a-z0-9]/g, '').includes(needle.replace(/[^a-z0-9]/g, ''));
     });
-  }, [airborneOnly, aircraft, category, maxAltitude, minAltitude, query]);
+  }, [aircraft, query]);
 
   const selected = query.trim() === loadedQuery ? aircraft.find((item) => item.hex === selectedHex) || null : null;
   // A registry-only aircraft has never reported a position, so there is nothing to fly to.
   useEffect(() => { if (hasPosition(selected)) mapRef.current?.flyTo([selected.lat, selected.lon], LOCKED_ZOOM); }, [selectedHex]);
-  const activeFilterCount = Number(category !== 'all') + Number(Boolean(minAltitude || maxAltitude)) + Number(airborneOnly);
-  const clearFilters = () => { setCategory('all'); setQuery(''); setMinAltitude(''); setMaxAltitude(''); setAirborneOnly(false); };
   const locateMe = () => navigator.geolocation?.getCurrentPosition(({ coords }) => mapRef.current?.flyTo([coords.latitude, coords.longitude], LOCKED_ZOOM));
   const toggleFullscreen = async () => {
     if (document.fullscreenElement === containerRef.current) await document.exitFullscreen();
@@ -227,24 +204,10 @@ export const AircraftView = ({ lang }: { lang: Language }) => {
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={u('aircraft.search', 'Callsign, registration, type or hex...')} className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-xs outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
             </div>
-            <button type="button" onClick={() => setFiltersOpen((value) => !value)} className={cn('flex h-10 cursor-pointer items-center gap-2 rounded-xl border px-3 text-xs font-bold', filtersOpen || activeFilterCount ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300')}><SlidersHorizontal className="h-4 w-4" />{u('common.filter', 'Filters')}{activeFilterCount > 0 && <span className="rounded-full bg-primary px-1.5 py-0.5 text-[9px] text-white">{activeFilterCount}</span>}</button>
             <button type="button" onClick={() => void loadAircraft()} title={u('aircraft.refresh', 'Refresh')} className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:text-primary dark:border-slate-700 dark:text-slate-300"><RefreshCw className="h-4 w-4" /></button>
             <button type="button" onClick={() => void toggleFullscreen()} title={isFullscreen ? u('map.exitFullscreen', 'Exit fullscreen') : u('map.fullscreen', 'Fullscreen')} aria-label={isFullscreen ? u('map.exitFullscreen', 'Exit fullscreen') : u('map.fullscreen', 'Fullscreen')} className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:text-primary dark:border-slate-700 dark:text-slate-300">{isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}</button>
           </div>
 
-          {filtersOpen && (
-            <div className="border-t border-slate-200 p-3 dark:border-slate-700">
-              <div className="flex gap-2 overflow-x-auto pb-2">
-                {CATEGORY_KEYS.map((item) => <button type="button" key={item.id} onClick={() => setCategory(item.id)} className={cn('flex h-9 shrink-0 cursor-pointer items-center gap-2 rounded-full border px-3 text-xs font-bold transition-colors', category === item.id ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300')}><Plane className="h-3.5 w-3.5" />{u(`aircraft.category.${item.id}`, item.label)}</button>)}
-              </div>
-              <div className="mt-2 flex flex-wrap items-end gap-3">
-                <label className="min-w-36 flex-1"><span className="mb-1 block text-[10px] font-bold text-slate-500">{u('aircraft.minAltitude', 'Minimum altitude (ft)')}</span><input type="number" min="0" value={minAltitude} onChange={(event) => setMinAltitude(event.target.value)} placeholder="0" className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white" /></label>
-                <label className="min-w-36 flex-1"><span className="mb-1 block text-[10px] font-bold text-slate-500">{u('aircraft.maxAltitude', 'Maximum altitude (ft)')}</span><input type="number" min="0" value={maxAltitude} onChange={(event) => setMaxAltitude(event.target.value)} placeholder="50000" className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white" /></label>
-                <button type="button" onClick={() => setAirborneOnly((value) => !value)} className={cn('h-10 cursor-pointer rounded-lg border px-4 text-xs font-bold', airborneOnly ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300')}>{u('aircraft.airborneOnly', 'Airborne only')}</button>
-                <button type="button" onClick={clearFilters} className="flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-rose-400 px-3 text-xs font-bold text-rose-500"><Trash2 className="h-3.5 w-3.5" />{u('tracking.clearFilters', 'Clear filters')}</button>
-              </div>
-            </div>
-          )}
       {!query.trim() && <p role="status" className="px-4 py-2 text-xs text-slate-500">{lang === 'bs' ? 'Pretraži za prikaz na mapi.' : lang === 'de' ? 'Suchen, um ein Ergebnis auf der Karte anzuzeigen.' : 'Search to show one result on the map.'}</p>}
       {query.trim() && loadedQuery === query.trim() && !loading && !error && !filteredAircraft.length && <p role="status" className="px-4 py-2 text-xs text-slate-500">{lang === 'bs' ? 'Nijedan avion nije pronađen za ovu oznaku. Provjerite registraciju ili hex kod.' : lang === 'de' ? 'Kein Flugzeug für diese Kennung gefunden. Prüfen Sie Kennzeichen oder Hex-Code.' : 'No aircraft found for this identifier. Check the registration or hex code.'}</p>}
       {loadedQuery === query.trim() && filteredAircraft.length > 0 && (!selected || filteredAircraft.length > 1) && <div className="max-h-40 overflow-y-auto border-t border-slate-200 p-2 dark:border-slate-700">{filteredAircraft.map((item) => <button key={item.hex} type="button" onClick={() => { setSelectedHex(item.hex); mapRef.current?.flyTo([item.lat, item.lon], LOCKED_ZOOM); }} className={cn('block w-full cursor-pointer rounded-lg px-3 py-2 text-left text-xs hover:bg-primary/10', selectedHex === item.hex && 'bg-primary/10 text-primary')}><b>{item.r || item.flight?.trim() || item.hex}</b> / {item.hex}</button>)}</div>}

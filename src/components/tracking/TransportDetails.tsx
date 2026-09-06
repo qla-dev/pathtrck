@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Building2, Hash, LoaderCircle, MapPin, Plane, PlaneTakeoff, Radio, Ship, Tag, X, type LucideIcon } from 'lucide-react';
 import type { Language } from '../../types';
@@ -14,7 +14,7 @@ const COPY = {
     unknownRegistration: 'Unknown registration', unknownType: 'Unknown type', close: 'Close',
     destination: 'Destination', status: 'Status', course: 'Course', speedKn: 'Speed',
     unknownVessel: 'Unknown vessel', unknownShipType: 'Unknown ship type', updated: 'Updated',
-    registration: 'Registration', icaoHex: 'ICAO hex', model: 'Model', callsign: 'Call sign', mmsi: 'MMSI', shipType: 'Ship type',
+    position: 'Position', flag: 'Flag state', dimensions: 'Length / beam', draught: 'Draught', registration: 'Registration', icaoHex: 'ICAO hex', model: 'Model', callsign: 'Call sign', mmsi: 'MMSI', shipType: 'Ship type',
   },
   bs: {
     airline: 'Avio-kompanija', route: 'Ruta', squawk: 'Squawk', flags: 'DB oznake', none: 'nema',
@@ -23,7 +23,7 @@ const COPY = {
     unknownRegistration: 'Nepoznata registracija', unknownType: 'Nepoznat tip', close: 'Zatvori',
     destination: 'Odredište', status: 'Status', course: 'Kurs', speedKn: 'Brzina',
     unknownVessel: 'Nepoznat brod', unknownShipType: 'Nepoznat tip broda', updated: 'Ažurirano',
-    registration: 'Reg. broj', icaoHex: 'ICAO hex', model: 'Model', callsign: 'Pozivni znak', mmsi: 'MMSI', shipType: 'Tip broda',
+    position: 'Pozicija', flag: 'Zastava', dimensions: 'Dužina / širina', draught: 'Gaz', registration: 'Reg. broj', icaoHex: 'ICAO hex', model: 'Model', callsign: 'Pozivni znak', mmsi: 'MMSI', shipType: 'Tip broda',
   },
   de: {
     airline: 'Fluggesellschaft', route: 'Route', squawk: 'Squawk', flags: 'DB-Kennungen', none: 'keine',
@@ -32,7 +32,7 @@ const COPY = {
     unknownRegistration: 'Unbekanntes Kennzeichen', unknownType: 'Unbekannter Typ', close: 'Schließen',
     destination: 'Ziel', status: 'Status', course: 'Kurs', speedKn: 'Geschwindigkeit',
     unknownVessel: 'Unbekanntes Schiff', unknownShipType: 'Unbekannter Schiffstyp', updated: 'Aktualisiert',
-    registration: 'Kennzeichen', icaoHex: 'ICAO-Hex', model: 'Modell', callsign: 'Rufzeichen', mmsi: 'MMSI', shipType: 'Schiffstyp',
+    position: 'Position', flag: 'Flaggenstaat', dimensions: 'Länge / Breite', draught: 'Tiefgang', registration: 'Kennzeichen', icaoHex: 'ICAO-Hex', model: 'Modell', callsign: 'Rufzeichen', mmsi: 'MMSI', shipType: 'Schiffstyp',
   },
 };
 
@@ -148,6 +148,11 @@ const vesselView = (details: VesselDetails, text: Text): View => {
       { icon: MapPin, label: text.destination, value: details.destination || '—' },
       { icon: Radio, label: text.callsign, value: details.callsign || '—' },
       { icon: Hash, label: text.mmsi, value: details.mmsi },
+      { icon: Hash, label: 'IMO', value: details.imo ? String(details.imo) : '—' },
+      { icon: Ship, label: text.flag, value: details.country?.name || '—' },
+      { icon: MapPin, label: text.position, value: details.position ? details.position.lat.toFixed(5) + ', ' + details.position.lon.toFixed(5) : '—' },
+      { icon: Ship, label: text.dimensions, value: [details.length, details.beam].map(value => value == null ? '—' : value + ' m').join(' / ') },
+      { icon: Ship, label: text.draught, value: details.draught == null ? '—' : details.draught + ' m' },
       { icon: Ship, label: text.shipType, value: details.ship_type || text.unknownShipType },
     ],
     route: null,
@@ -219,6 +224,9 @@ export const TransportDetails = ({ kind, id, lang, variant, onClose, footer }: {
   const [view, setView] = useState<View | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const cardRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
 
   useEffect(() => {
     let active = true;
@@ -237,13 +245,23 @@ export const TransportDetails = ({ kind, id, lang, variant, onClose, footer }: {
 
   useEffect(() => {
     if (variant !== 'modal') return;
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
+    const previous = document.activeElement as HTMLElement | null;
+    cardRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeRef.current();
+      if (event.key === 'Tab') {
+        const controls = Array.from(cardRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), [tabindex="0"]') || []);
+        const first = controls[0], last = controls[controls.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      }
+    };
     document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [variant, onClose]);
+    return () => { document.removeEventListener('keydown', onKey); if (previous?.isConnected) previous.focus(); };
+  }, [variant]);
 
   const card = (
-    <div className={cn(
+    <div ref={cardRef} className={cn(
       'relative rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-700 dark:bg-slate-900',
       variant === 'modal' ? 'w-[min(420px,calc(100vw-32px))] max-h-[90vh] overflow-y-auto' : 'w-full',
     )}>
@@ -263,11 +281,11 @@ export const TransportDetails = ({ kind, id, lang, variant, onClose, footer }: {
   }
 
   return createPortal(
-    <div role="dialog" aria-modal="true"
+    <div role="dialog" aria-modal="true" aria-label={view?.title || id}
       className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm"
       onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       {card}
     </div>,
-    document.body,
+    document.fullscreenElement || document.body,
   );
 };

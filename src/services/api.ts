@@ -330,6 +330,10 @@ export type LiveVessel = {
 };
 
 export type VesselDetails = {
+  imo: number | null;
+  draught: number | null;
+  length: number | null;
+  beam: number | null;
   mmsi: string;
   name: string | null;
   callsign: string | null;

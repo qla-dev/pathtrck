@@ -300,7 +300,6 @@ export const ShipmentOperationsTab = ({ workspace, lang, readOnly = false, onUpd
         defaultValue={String(item.action_value || '')}
         placeholder={placeholder}
         disabled={busyKey === taskKey}
-        onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); }}
         onBlur={(event) => {
           if (event.target.value !== String(item.action_value || '')) void saveTaskValue(taskKey, event.target.value);
         }}
@@ -443,7 +442,7 @@ export const ShipmentOperationsTab = ({ workspace, lang, readOnly = false, onUpd
         return <ChecklistVesselSearch key={`${workspace.id}-${taskKey}`} lang={lang} value={String(item.action_value || '')} disabled={busyKey !== null}
           onSave={async (value) => {
             setBusyKey(taskKey);
-            try { await patchTask(taskKey, { action_value: value, status: 'completed', completed_at: new Date().toISOString() }); }
+            try { await patchTask(taskKey, { action_value: value || null, status: value ? 'completed' : 'pending', completed_at: value ? new Date().toISOString() : null }); }
             finally { setBusyKey(null); }
           }} />;
       case 'container_details':

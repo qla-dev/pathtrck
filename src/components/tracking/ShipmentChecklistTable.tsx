@@ -1,3 +1,4 @@
+import { nextInput } from '../../lib/enterNavigation';
 import { useState, type ReactNode } from 'react';
 import { Check, ClipboardCheck } from 'lucide-react';
 
@@ -28,7 +29,14 @@ export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolb
   const [trackedDetails, setTrackedDetails] = useState<{ kind: 'aircraft' | 'vessel'; id: string } | null>(null);
 
   return (
-    <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+    <section onKeyDown={(event) => {
+      if (event.defaultPrevented || event.key !== 'Enter' || event.nativeEvent.isComposing || event.shiftKey) return;
+      if (!(event.target instanceof HTMLInputElement) && !(event.target instanceof HTMLSelectElement)) return;
+      if (['button', 'submit', 'checkbox', 'radio', 'file'].includes((event.target as HTMLInputElement).type)) return;
+      event.preventDefault();
+      const advance = nextInput(event.target);
+      event.target.blur(); advance();
+    }} className="overflow-hidden rounded-3xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
       <div className="border-b border-slate-100 px-5 py-4 dark:border-slate-800">
         <h2 className="flex items-center gap-2 font-black text-slate-900 dark:text-white">
           <ClipboardCheck className="h-5 w-5 text-primary" />

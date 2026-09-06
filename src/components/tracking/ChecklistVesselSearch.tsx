@@ -1,3 +1,4 @@
+import { nextInput } from '../../lib/enterNavigation';
 import { useEffect, useRef, useState } from 'react';
 import { LoaderCircle } from 'lucide-react';
 import type { Language } from '../../types';
@@ -29,6 +30,8 @@ export const ChecklistVesselSearch = ({ value, lang, disabled, onSave }: {
   const [results, setResults] = useState<Match[]>([]);
   const [saving, setSaving] = useState(false);
   const searchLabel = lang === 'bs' ? 'Naziv broda ili MMSI' : lang === 'de' ? 'Schiffsname oder MMSI' : 'Vessel name or MMSI';
+  const revision = useRef(0);
+  const committed = useRef(false);
   const saveRef = useRef(onSave);
   saveRef.current = onSave;
   useEffect(() => {
@@ -40,13 +43,15 @@ export const ChecklistVesselSearch = ({ value, lang, disabled, onSave }: {
     const mmsi = query.trim();
     const numeric = /^\d+$/.test(mmsi);
     if (mmsi.length < 2 || (numeric && !/^\d{9}$/.test(mmsi)) || match?.mmsi === mmsi) return;
+    if (committed.current) return;
+    const version = revision.current;
     let active = true;
     const timer = window.setTimeout(async () => {
       setLoading(true);
       setError('');
       try {
         const response = await api.vessels.search(mmsi);
-        if (!active) return;
+        if (!active || version !== revision.current) return;
         const matches = response.data.filter((row) => /^\d{9}$/.test(String(row.mmsi)) && (numeric
           ? String(row.mmsi) === mmsi
           : String(row.name || '').toLocaleLowerCase().includes(mmsi.toLocaleLowerCase())));
@@ -60,10 +65,10 @@ export const ChecklistVesselSearch = ({ value, lang, disabled, onSave }: {
         const result = { mmsi, name: vessel.name || '' };
         try {
           await saveRef.current(JSON.stringify({ ...result, matched: true }));
-          if (active) setMatch(result);
-        } catch { if (active) setError(text.saveFailed); }
-      } catch { if (active) setError(text.failed); }
-      finally { if (active) setLoading(false); }
+          if (active && version === revision.current) setMatch(result);
+        } catch { if (active && version === revision.current) setError(text.saveFailed); }
+      } catch { if (active && version === revision.current) setError(text.failed); }
+      finally { if (active && version === revision.current) setLoading(false); }
     }, 400);
     return () => { active = false; window.clearTimeout(timer); setLoading(false); };
   }, [query, match?.mmsi, retry, text]);
@@ -71,7 +76,21 @@ export const ChecklistVesselSearch = ({ value, lang, disabled, onSave }: {
   return <div aria-busy={loading || saving} className="ml-auto w-full max-w-[220px] space-y-1.5 text-left">
     <div className="relative">
       <input value={query} maxLength={100} aria-label={searchLabel} placeholder={searchLabel}
-        disabled={disabled || saving} onChange={(event) => { setQuery(event.target.value); setError(''); setResults([]); }}
+        onKeyDown={async (event) => {
+          if (event.key !== 'Enter' || event.nativeEvent.isComposing) return;
+          event.preventDefault(); event.stopPropagation();
+          if (disabled || saving) return;
+          const advance = nextInput(event.currentTarget);
+          revision.current++; committed.current = true;
+          setLoading(false); setSaving(true); setError('');
+          try {
+            const entered = query.trim();
+            if (entered !== match?.mmsi && entered !== value) await saveRef.current(entered);
+            setResults([]); advance();
+          } catch { committed.current = false; setError(text.saveFailed); }
+          finally { setSaving(false); }
+        }}
+        disabled={disabled || saving} onChange={(event) => { revision.current++; committed.current = false; setQuery(event.target.value); setError(''); setResults([]); }}
         className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 pr-8 text-xs font-bold outline-none focus:border-primary disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200" />
       {loading && <LoaderCircle aria-hidden="true" className="absolute right-2 top-2.5 h-4 w-4 animate-spin text-primary" />}
     </div>
@@ -95,7 +114,7 @@ export const ChecklistVesselSearch = ({ value, lang, disabled, onSave }: {
     </ul>}
     <div role="status" aria-live="polite">
       {/^[0-9]+$/.test(query.trim()) && !/^\d{9}$/.test(query.trim()) && <p className="text-[11px] text-slate-500">{text.invalid}</p>}
-      {error && <div className="text-[11px] text-rose-500">{error} <button type="button" disabled={disabled || loading} onClick={() => setRetry((count) => count + 1)} className="font-bold underline">{text.retry}</button></div>}
+      {error && <div className="text-[11px] text-rose-500">{error} <button type="button" disabled={disabled || loading} onClick={() => { committed.current = false; setRetry((count) => count + 1); }} className="font-bold underline">{text.retry}</button></div>}
     </div>
   </div>;
 };
