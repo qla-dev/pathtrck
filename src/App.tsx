@@ -145,7 +145,7 @@ import { LoginProcess } from "./components/auth/LoginProcess";
 import { FleetOnboardingPreview } from "./components/landing/FleetOnboardingPreview";
 import { WarehouseOnboardingPreview } from "./components/landing/WarehouseOnboardingPreview";
 import { LandingLoadExchange } from "./components/landing/LandingLoadExchange";
-import { LandingTrackingBoard } from "./components/landing/LandingTrackingBoard";
+import { TrackingDeviceShowcase } from "./components/landing/TrackingDeviceShowcase";
 import { LANDING_DEMO_LOADS } from "./components/landing/landingDemoLoads";
 import { LenaLoadDetailsCard } from "./components/lena/LenaEmbeddedCards";
 
@@ -3322,26 +3322,7 @@ const LandingPage = ({
         )}
       >
         <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-20">
-            <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-violet-500 sm:text-xs">
-              <PackageIcon className="h-4 w-4" />
-              {u("landing.tracking.eyebrow", "My Cargo")}
-            </p>
-            <h2 className="text-4xl md:text-6xl font-display font-black mb-6 dark:text-white tracking-tight">
-              {u("landing.trackingTitle1", "Tracking that")} <br />{" "}
-              <span className="text-violet-500">
-                {u("landing.trackingTitle2", "never blinks.")}
-              </span>
-            </h2>
-            <p className="text-slate-500 dark:text-slate-400 max-w-2xl mx-auto text-lg">
-              {u(
-                "landing.trackingDesc",
-                "Follow every vehicle, stop and waypoint in real time - from the pickup window to the final drop.",
-              )}
-            </p>
-          </div>
-
-          <LandingTrackingBoard lang={lang} />
+          <TrackingDeviceShowcase lang={lang} />
         </div>
       </section>
 

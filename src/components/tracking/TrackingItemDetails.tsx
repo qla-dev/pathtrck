@@ -49,7 +49,7 @@ export const TrackingItemDetails = ({ open, headerAction, bodyClassName, onClose
                   type="button"
                   onClick={onClose}
                   aria-label="Close tracking item details"
-                  className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-slate-100 text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                  className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-slate-100 text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
                 >
                   <X className="h-4 w-4" />
                 </button>
