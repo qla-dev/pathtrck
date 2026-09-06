@@ -329,6 +329,23 @@ export type LiveVessel = {
   source?: string;
 };
 
+export type VesselDetails = {
+  mmsi: string;
+  name: string | null;
+  callsign: string | null;
+  country: { name: string; code: string } | null;
+  ship_type: string | null;
+  ship_type_code: number | null;
+  navigation_status: string | null;
+  destination: string | null;
+  position: { lat: number; lon: number } | null;
+  speed: number | null;
+  course: number | null;
+  heading: number | null;
+  updated_at: string | null;
+  provider: string | null;
+};
+
 const API_BACKENDS = {
   local: 'https://freightbook.ai/endpoints/api',
   production: 'https://freightbook.ai/endpoints/api',
@@ -513,6 +530,7 @@ export const api = {
   vessels: {
     list: (params: { south: number; west: number; north: number; east: number; search?: string }) =>
       request<LiveVessel[]>(`/vessels?${queryString(params)}`),
+    details: (mmsi: string) => request<VesselDetails>(`/vessels/${encodeURIComponent(mmsi)}/details`),
   },
   fuelStations: {
     list: (params: { south: number; west: number; north: number; east: number; limit?: number }) =>

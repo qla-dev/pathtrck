@@ -253,7 +253,7 @@ export const AircraftView = ({ lang }: { lang: Language }) => {
       </div>
 
       {selected && (
-        <TransportDetails hex={selected.hex} lang={lang} variant="inline" onClose={() => setSelectedHex(null)} footer={<>
+        <TransportDetails kind="aircraft" id={selected.hex} lang={lang} variant="inline" onClose={() => setSelectedHex(null)} footer={<>
           <p className="mt-3 text-right text-[10px] font-semibold text-slate-400">{updatedAt ? `${u('aircraft.updated', 'Updated')} ${updatedAt.toLocaleTimeString()}` : ''}</p>
           {traceLoading && <p className="mt-1 text-[10px] font-semibold text-primary">{u('aircraft.pathLoading', 'Loading aircraft path...')}</p>}
           {traceError && <p className="mt-1 text-[10px] font-semibold text-rose-500">{traceError}</p>}

@@ -25,6 +25,7 @@ const titleCase = (value: unknown) => String(value || '—').replaceAll('_', ' '
 
 export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolbar, renderAction, renderDueDate, showInstruction, onRetryAircraft }: Props) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  const [trackedDetails, setTrackedDetails] = useState<{ kind: 'aircraft' | 'vessel'; id: string } | null>(null);
 
   return (
     <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
@@ -54,11 +55,20 @@ export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolb
                 const done = ['completed', 'approved', 'done'].includes(String(item.status || '').toLowerCase());
                 let vesselConnected = false;
                 let vesselName = '';
+                // The matched transport, whichever kind the task tracks, so the
+                // status line can open its detail view.
+                let tracked: { kind: 'aircraft' | 'vessel'; id: string } | null = null;
                 if (['vessel_and_voyage', 'flight_details'].includes(String(item.key)) && done) {
                   try {
                     const vessel = JSON.parse(String(item.action_value || ''));
-                    vesselConnected = vessel?.matched === true && (item.key === 'flight_details' ? /^[a-f0-9]{6}$/i.test(String(vessel.hex)) : /^\d{9}$/.test(String(vessel.mmsi)));
-                    if (vesselConnected) vesselName = String(vessel.name || vessel.mmsi || vessel.hex);
+                    const isAircraft = item.key === 'flight_details';
+                    vesselConnected = vessel?.matched === true && (isAircraft ? /^[a-f0-9]{6}$/i.test(String(vessel.hex)) : /^\d{9}$/.test(String(vessel.mmsi)));
+                    if (vesselConnected) {
+                      vesselName = String(vessel.name || vessel.mmsi || vessel.hex);
+                      tracked = isAircraft
+                        ? { kind: 'aircraft', id: String(vessel.hex).toLowerCase() }
+                        : { kind: 'vessel', id: String(vessel.mmsi) };
+                    }
                   } catch { /* Plain vessel names use the ordinary completed status. */ }
                 }
 
@@ -105,10 +115,14 @@ export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolb
                         {lang === 'bs' ? 'Avion trenutno nije pronađen i praćenje je onemogućeno.' : lang === 'de' ? 'Das Flugzeug wurde derzeit nicht gefunden und Tracking ist deaktiviert.' : 'The aircraft was not found and tracking is disabled.'}
                         {onRetryAircraft && <> <button type="button" onClick={onRetryAircraft} className="cursor-pointer font-bold text-primary underline">{lang === 'bs' ? 'Pokušaj ponovo' : lang === 'de' ? 'Erneut versuchen' : 'Try again'}</button></>}
                       </p>}
-                      {vesselConnected && <p className="mt-2 flex items-center gap-1 whitespace-nowrap text-xs text-slate-500">
+                      {vesselConnected && (tracked ? <button type="button" onClick={() => setTrackedDetails(tracked)}
+                        className="mt-2 flex cursor-pointer items-center gap-1 whitespace-nowrap rounded-md text-left text-xs text-slate-500 underline-offset-2 hover:underline focus-visible:outline-primary">
                         <Check aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-primary" />
                         <span><strong className="font-semibold text-primary">{lang === 'bs' ? 'Tracking omogućen' : lang === 'de' ? 'Tracking aktiviert' : 'Tracking enabled'}: </strong>{vesselName}</span>
-                      </p>}
+                      </button> : <p className="mt-2 flex items-center gap-1 whitespace-nowrap text-xs text-slate-500">
+                        <Check aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-primary" />
+                        <span><strong className="font-semibold text-primary">{lang === 'bs' ? 'Tracking omogućen' : lang === 'de' ? 'Tracking aktiviert' : 'Tracking enabled'}: </strong>{vesselName}</span>
+                      </p>)}
                     </td>
                     {renderAction && <td className="px-5 py-4 text-right">{renderAction(item, index)}</td>}
                   </tr>
@@ -118,6 +132,7 @@ export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolb
           </table>
         </div>
       ) : <p className="p-6 text-sm text-slate-500">{u('shipmentDetails.noTasks', 'No operational tasks yet.')}</p>}
+      {trackedDetails && <TransportDetails kind={trackedDetails.kind} id={trackedDetails.id} lang={lang} variant="modal" onClose={() => setTrackedDetails(null)} />}
     </section>
   );
 };
