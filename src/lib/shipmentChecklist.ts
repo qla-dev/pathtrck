@@ -9,9 +9,7 @@ type Locale = 'en' | 'bs' | 'de';
 
 export type ChecklistCategory = 'in_delivery' | 'received';
 export const checklistCategory = (item: { key?: unknown; required_for_status?: unknown }): ChecklistCategory =>
-  item.required_for_status === 'received' || item.required_for_status === 'in_delivery'
-    ? item.required_for_status
-    : ['proof_of_delivery', 'arrival_and_release_documents'].includes(String(item.key)) ? 'received' : 'in_delivery';
+  ['proof_of_delivery', 'arrival_and_release_documents'].includes(String(item.key)) ? 'received' : 'in_delivery';
 
 export const checklistCategoryLabel = (lang: Language, category: ChecklistCategory): string => {
   const labels = {

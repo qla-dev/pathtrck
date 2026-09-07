@@ -10,9 +10,9 @@ test('legacy checklist items default to the appropriate status', () => {
   assert.equal(checklistCategory({ key: 'arrival_and_release_documents' }), 'received');
 });
 
-test('every item can move in either direction', () => {
-  assert.equal(checklistCategory({ key: 'proof_of_delivery', required_for_status: 'in_delivery' }), 'in_delivery');
-  assert.equal(checklistCategory({ key: 'flight_details', required_for_status: 'received' }), 'received');
+test('categories stay fixed despite previously saved overrides', () => {
+  assert.equal(checklistCategory({ key: 'proof_of_delivery', required_for_status: 'in_delivery' }), 'received');
+  assert.equal(checklistCategory({ key: 'flight_details', required_for_status: 'received' }), 'in_delivery');
   assert.equal(checklistCategoryLabel('bs', 'received'), 'Primljeno');
 });
 

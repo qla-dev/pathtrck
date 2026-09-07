@@ -4,6 +4,8 @@ import { trPackageStatus, ui } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { Language, Package as PackageData } from '../../types';
 import { LoadStatusIcon } from '../load/LoadStatusPicker';
+import { checklistTransportSummary } from '../../lib/shipmentChecklist';
+import { connectedCraft } from '../../lib/connectedTransport';
 
 const TRANSPORT_ICONS = { air: Plane, sea: Ship, rail: Train, road: Truck } as const;
 
@@ -36,12 +38,15 @@ type TrackingMapCardProps = {
 
 export const TrackingMapCard = ({ pkg, lang, onOpenDetails, onClose }: TrackingMapCardProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
-  const TransportIcon = TRANSPORT_ICONS[(pkg.transportType || 'road') as keyof typeof TRANSPORT_ICONS] || Truck;
-  const transportLabel = pkg.transportType === 'air'
+  const mode = connectedCraft(pkg)?.mode || pkg.transportType || 'road';
+  const summary = checklistTransportSummary(pkg.operationalChecklist, mode);
+  const railValue = (key: string) => String(pkg.operationalChecklist?.find((item) => item.key === key)?.action_value || '—');
+  const TransportIcon = TRANSPORT_ICONS[mode as keyof typeof TRANSPORT_ICONS] || Truck;
+  const transportLabel = mode === 'air'
     ? u('postLoadModal.transport.air', 'Air')
-    : pkg.transportType === 'sea'
+    : mode === 'sea'
       ? u('postLoadModal.transport.sea', 'Sea')
-      : pkg.transportType === 'rail'
+      : mode === 'rail'
         ? u('postLoadModal.transport.rail', 'Rail')
         : u('postLoadModal.transport.road', 'Road');
 
@@ -83,8 +88,16 @@ export const TrackingMapCard = ({ pkg, lang, onOpenDetails, onClose }: TrackingM
           value={pkg.transitDays ? `${pkg.transitDays} ${u('tracking.days', 'days')}` : u('tracking.notScheduled', 'Not scheduled')}
           valueClassName="text-violet-600 dark:text-violet-300"
         />
-        <Mini label={u('pricing.role.driver', 'Driver')} value={pkg.assignedDriverName || '—'} />
-        <Mini label={u('fleet.table.vehicle', 'Vehicle')} value={pkg.vehicleName || '—'} />
+        {summary ? <>
+          <Mini label={u('tracking.agent', 'Agent')} value={summary.agent || '—'} />
+          <Mini label={mode === 'air' ? u('tracking.aircraft', 'Aircraft') : u('tracking.vessel', 'Vessel')} value={summary.carrierId || '—'} />
+        </> : mode === 'rail' ? <>
+          <Mini label={lang === 'bs' ? 'Željeznički operater' : lang === 'de' ? 'Bahnbetreiber' : 'Rail operator'} value={railValue('rail_operator')} />
+          <Mini label={lang === 'bs' ? 'Vagon / kontejner' : lang === 'de' ? 'Waggon / Container' : 'Wagon / container'} value={railValue('wagon_or_container')} />
+        </> : <>
+          <Mini label={u('pricing.role.driver', 'Driver')} value={pkg.assignedDriverName || '—'} />
+          <Mini label={u('fleet.table.vehicle', 'Vehicle')} value={pkg.vehicleName || '—'} />
+        </>}
       </div>
 
       <div className="px-3 pb-3 pt-2">

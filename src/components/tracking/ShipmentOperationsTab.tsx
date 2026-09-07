@@ -10,7 +10,6 @@ import { flatpickrI18n } from '../../i18n';
 import { datePlaceholder, formatDate } from '../../lib/dates';
 import { api } from '../../services/api';
 import { showError } from '../../lib/swal';
-import { checklistCategory, checklistCategoryLabel, checklistLabel } from '../../lib/shipmentChecklist';
 import { ShipmentChecklistTable } from './ShipmentChecklistTable';
 import { ChecklistAgentModal } from './ChecklistAgentModal';
 import { ChecklistVesselSearch } from './ChecklistVesselSearch';
@@ -162,7 +161,6 @@ export const ShipmentOperationsTab = ({ workspace, lang, readOnly = false, onUpd
       operational_checklist: checklist.map((item) => {
         const base = {
           key: String(item.key),
-          required_for_status: checklistCategory(item),
           status: String(item.status || 'pending'),
           due_date: item.due_date ?? null,
           action_value: item.action_value ?? null,
@@ -486,21 +484,6 @@ export const ShipmentOperationsTab = ({ workspace, lang, readOnly = false, onUpd
   return (
     <>
     <ShipmentChecklistTable
-      renderCategory={readOnly ? undefined : (item) => <select
-        value={checklistCategory(item)}
-        aria-label={`${checklistLabel(lang, item.key)}: ${lang === 'bs' ? 'Uslov za status' : lang === 'de' ? 'Voraussetzung für Status' : 'Required for status'}`}
-        disabled={busyKey !== null}
-        className={`${CONTROL_CLASS} cursor-pointer`}
-        onChange={async (event) => {
-          const category = event.target.value;
-          setBusyKey(String(item.key));
-          try { await patchTask(String(item.key), { required_for_status: category }); }
-          catch (error) { void showError(text.saveFailed, error instanceof Error ? error.message : undefined); }
-          finally { setBusyKey(null); }
-        }}>
-        <option value="in_delivery">{checklistCategoryLabel(lang, 'in_delivery')}</option>
-        <option value="received">{checklistCategoryLabel(lang, 'received')}</option>
-      </select>}
       onRetryAircraft={!readOnly && busyKey === null ? () => setAircraftRetry((count) => count + 1) : undefined}
       checklist={checklist}
       lang={lang}

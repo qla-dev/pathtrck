@@ -21,6 +21,8 @@ import { LenaAI } from '../lena/LenaAI';
 import { type LocationSearchResult } from '../../services/locationSearch';
 import { ReviewComposer } from '../reviews/ReviewComposer';
 import { TrackingMapCard } from './TrackingMapCard';
+import { TrackerLocationLoader } from './TrackerLocationLoader';
+import { connectedCraft } from '../../lib/connectedTransport';
 import { trackingMarkerIcon } from './trackingMapMarker';
 import { VehicleReturnModal } from './VehicleReturnModal';
 import { CustomsDocumentList } from '../load/CustomsDocumentList';
@@ -1145,6 +1147,10 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
                   </CircleMarker>
                 ))}
              </MapContainer>
+
+          {connectedTracking.loading && !selectedPackage.hasCurrentLocation
+            && (connectedCraft(selectedPackage) || selectedPackage.vehicleId)
+            && <TrackerLocationLoader key={`${selectedPackage.id}-${selectedPackage.transportType}`} mode={selectedPackage.transportType || 'road'} lang={lang} />}
 
           {trackerCardOpen && trackerCardPoint && (
             <div
