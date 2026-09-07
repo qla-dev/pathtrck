@@ -83,7 +83,7 @@ const greatCirclePoints = (from: [number, number], to: [number, number], segment
 const FitTrackingRoute = ({ points }: { points: [number, number][] }) => {
   const map = useMap();
   useEffect(() => {
-    if (points.length < 2) return;
+    if (!points.length) return;
     map.fitBounds(points, {
       paddingTopLeft: [48, 125],
       paddingBottomRight: [48, 90],
@@ -390,13 +390,8 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
 
     if (['air', 'sea', 'rail'].includes(selectedPackage.transportType || '')) {
       setRouteLoading(false);
-      const hasCurrent = Boolean(selectedPackage.hasCurrentLocation);
-      const points = hasCurrent
-        ? [...greatCirclePoints(pickup, selectedPackage.currentLocation), ...greatCirclePoints(selectedPackage.currentLocation, delivery).slice(1)]
-        : greatCirclePoints(pickup, delivery);
-      const totalDistance = hasCurrent
-        ? haversineDistanceKm(pickup, selectedPackage.currentLocation) + haversineDistanceKm(selectedPackage.currentLocation, delivery)
-        : haversineDistanceKm(pickup, delivery);
+      const points = greatCirclePoints(pickup, delivery);
+      const totalDistance = haversineDistanceKm(pickup, delivery);
       setRoutePoints(points);
       setRouteDistanceKm(Math.round(totalDistance * 10) / 10);
       setRemainingDistanceKm(selectedPackage.hasCurrentLocation
@@ -423,9 +418,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
     const remainingRouteRequest = selectedPackage.hasCurrentLocation
       ? fetchRoute([selectedPackage.currentLocation, delivery], false)
       : Promise.resolve(null);
-    const fullRoutePositions: [number, number][] = selectedPackage.hasCurrentLocation
-      ? [pickup, selectedPackage.currentLocation, delivery]
-      : [pickup, delivery];
+    const fullRoutePositions: [number, number][] = [pickup, delivery];
     void Promise.all([
       fetchRoute(fullRoutePositions, true),
       remainingRouteRequest,
@@ -450,6 +443,13 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
 
     return () => controller.abort();
   }, [selectedPackage.currentLocation, selectedPackage.hasCurrentLocation, selectedPackage.transportType, trackingRouteEndpoints]);
+
+  const trackerBounds = useMemo<[number, number][]>(() => [
+    ...routePoints,
+    ...(trackingRouteEndpoints.pickup ? [trackingRouteEndpoints.pickup] : []),
+    ...(trackingRouteEndpoints.delivery ? [trackingRouteEndpoints.delivery] : []),
+    ...(selectedPackage.hasCurrentLocation ? [selectedPackage.currentLocation] : []),
+  ], [routePoints, trackingRouteEndpoints, selectedPackage.hasCurrentLocation, selectedPackage.currentLocation]);
 
   const exportRouteReport = () => {
     const csv = reportRows
@@ -479,8 +479,8 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
 
   const changeLoadStatus = async (status: PackageData['status']) => {
     if (!canChangeStatus || !canSelectStatus(status) || !selectedPackage.id || statusChanging || status === selectedPackage.status) return;
-    if (status === 'In delivery' || status === 'Received') {
-      const category = status === 'In delivery' ? 'in_delivery' : 'received';
+    if (status === 'Sent' || status === 'In delivery' || status === 'Received') {
+      const category = status === 'Received' ? 'received' : 'in_delivery';
       const items = selectedPackage.operationalChecklist || [];
       const pending = items.filter((item) => (category === 'received' || checklistCategory(item) === category) && item.status !== 'completed');
       if (!items.length || pending.length) {
@@ -527,7 +527,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
     }
   };
 
-  const canControlLiveTracking = role === 'warehouse' || role === 'driver' || isCompanyOperationsRole(role) || role === 'superadmin' || role === 'master';
+  const canControlLiveTracking = selectedPackage.transportType === 'road' && (role === 'driver' || isCompanyOperationsRole(role) || role === 'superadmin' || role === 'master');
   const handleLiveTrackingToggle = async () => {
     if (!canControlLiveTracking) return;
     const nextEnabled = !liveTrackingEnabled;
@@ -978,11 +978,14 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
                       : connectedTracking.stale
                         ? (lang === 'bs' ? 'Posljednja poznata lokacija' : lang === 'de' ? 'Letzte bekannte Position' : 'Last known location')
                         : u('tracking.active', 'Active')
-                  : liveTrackingEnabled ? u('tracking.active', 'Active') : u('tracking.paused', 'Paused')}
+                  : selectedPackage.transportType !== 'road'
+                    ? (lang === 'bs' ? 'Nema aktivne lokacije' : lang === 'de' ? 'Keine aktive Position' : 'No active location')
+                    : liveTrackingEnabled ? u('tracking.active', 'Active') : u('tracking.paused', 'Paused')}
               </span>
               {connectedTracking.active ? (selectedPackage.trackingUpdatedAt && <span className="border-l border-current/20 pl-2 text-[10px] font-semibold opacity-75">
                 {u('tracking.lastUpdated', 'Last updated')}: {new Date(selectedPackage.trackingUpdatedAt).toLocaleString(lang === 'bs' ? 'bs-BA' : lang === 'de' ? 'de-DE' : 'en-GB')}
-              </span>) : canControlLiveTracking ? (
+              </span>) : null}
+              {canControlLiveTracking ? (
                 <button
                   type="button"
                   onClick={() => void handleLiveTrackingToggle()}
@@ -992,7 +995,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
                 >
                   {liveTrackingEnabled ? <Pause className="h-3 w-3 fill-current" /> : <Play className="h-3 w-3 fill-current" />}
                 </button>
-              ) : role === 'user' && liveTrackingUpdatedAt ? (
+              ) : !connectedTracking.active && role === 'user' && liveTrackingUpdatedAt ? (
                 <span className="border-l border-current/20 pl-2 text-[10px] font-semibold opacity-75">
                   {u('tracking.lastUpdated', 'Last updated')}: {new Date(liveTrackingUpdatedAt).toLocaleString(lang === 'bs' ? 'bs-BA' : lang === 'de' ? 'de-DE' : 'en-GB')}
                 </span>
@@ -1062,9 +1065,9 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
                   attribution="&copy; Google Maps"
                 />
                 {role !== 'user' && <FuelStationViewportLoader enabled={mapFilters.fuel} onBoundsChange={loadFuelStations} />}
+                <FitTrackingRoute points={trackerBounds} />
                 {routePoints.length >= 2 && (
                   <>
-                    <FitTrackingRoute points={routePoints} />
                     <Polyline positions={routePoints} pathOptions={{ color: '#0ea5e9', weight: 5, opacity: 0.92 }} />
                   </>
                 )}

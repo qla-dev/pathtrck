@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { checklistCategory, checklistCategoryLabel } from '../src/lib/shipmentChecklist';
 import { mapLoadToPackage } from '../src/lib/loadDetails';
+import { connectedCraft } from '../src/lib/connectedTransport';
 
 test('legacy checklist items default to the appropriate status', () => {
   assert.equal(checklistCategory({ key: 'flight_details' }), 'in_delivery');
@@ -48,4 +49,22 @@ test('zero coordinates are valid GPS readings', () => {
   const pkg = mapLoadToPackage({ ...load, vehicle: { latest_location: { latitude: 0, longitude: 0 } } }, 'en');
   assert.deepEqual(pkg.currentLocation, [0, 0]);
   assert.equal(pkg.hasCurrentLocation, true);
+});
+
+test('linked aircraft is selected even when the load still says road', () => {
+  const pkg = mapLoadToPackage(load, 'en');
+  pkg.operationalChecklist = [{ key: 'flight_details', action_value: JSON.stringify({ hex: 'ABC123', matched: true }) }];
+  assert.deepEqual(connectedCraft(pkg), { mode: 'air', identifier: 'abc123' });
+});
+
+test('linked ship is selected and unmatched text is not a connection', () => {
+  const pkg = mapLoadToPackage(load, 'en');
+  pkg.operationalChecklist = [{ key: 'vessel_and_voyage', action_value: JSON.stringify({ mmsi: '249533000', matched: true }) }];
+  assert.deepEqual(connectedCraft(pkg), { mode: 'sea', identifier: '249533000' });
+  pkg.operationalChecklist[0].action_value = 'a ship name';
+  assert.equal(connectedCraft(pkg), null);
+});
+
+test('sent loads also use connected vehicle GPS', () => {
+  assert.deepEqual(mapLoadToPackage({ ...load, status: 'sent' }, 'en').currentLocation, [45.5, 16.2]);
 });

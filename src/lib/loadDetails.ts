@@ -60,7 +60,7 @@ export const mapLoadToPackage = (load: Record<string, unknown>, lang: Language):
   const validPosition = (lat: unknown, lon: unknown) => lat != null && lon != null
     && Number.isFinite(Number(lat)) && Number.isFinite(Number(lon))
     && Math.abs(Number(lat)) <= 90 && Math.abs(Number(lon)) <= 180;
-  const useVehicleLocation = mappedStatus === 'In delivery' && !['air', 'sea', 'warehouse'].includes(String(load.transport_type))
+  const useVehicleLocation = ['Sent', 'In delivery'].includes(mappedStatus) && !['air', 'sea', 'warehouse'].includes(String(load.transport_type))
     && validPosition(latestVehicleLocation.latitude, latestVehicleLocation.longitude);
   const latitude = useVehicleLocation ? latestVehicleLocation.latitude : shipment.current_latitude;
   const longitude = useVehicleLocation ? latestVehicleLocation.longitude : shipment.current_longitude;
