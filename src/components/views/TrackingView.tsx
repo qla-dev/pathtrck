@@ -159,11 +159,12 @@ type TrackingViewProps = {
 };
 
 export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutModeChange, requestedLayout, requestedLayoutNonce }: TrackingViewProps) => {
+  const hideFinishedStatus = role === 'user' || (role === 'driver' && companyIds.length === 0);
   const TRUCK_CAPACITY_KG = 48000;
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const trackingStatusFilters = useMemo(
-    () => role === 'user' ? BASE_TRACKING_STATUS_FILTERS.filter((status) => status !== 'Finished') : BASE_TRACKING_STATUS_FILTERS,
-    [role],
+    () => hideFinishedStatus ? BASE_TRACKING_STATUS_FILTERS.filter((status) => status !== 'Finished') : BASE_TRACKING_STATUS_FILTERS,
+    [hideFinishedStatus],
   );
   const mapRef = useRef<L.Map | null>(null);
   const moreFiltersRef = useRef<HTMLDivElement>(null);
@@ -279,8 +280,8 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
   const loadsResult = useApiList(api.loads.list, {
     ...trackingFilterParams,
     per_page: 500,
-    status: statusFilter === 'all' || (role === 'user' && statusFilter === 'Received') ? undefined : statusFilter.toLowerCase().replaceAll(' ', '_'),
-    statuses: role === 'user' && statusFilter === 'Received' ? 'received,finished' : undefined,
+    status: statusFilter === 'all' || (hideFinishedStatus && statusFilter === 'Received') ? undefined : statusFilter.toLowerCase().replaceAll(' ', '_'),
+    statuses: hideFinishedStatus && statusFilter === 'Received' ? 'received,finished' : undefined,
     sort: 'date_desc',
   });
   const statusCountsResult = useApiList(api.loads.trackingStatusCounts, trackingFilterParams);
@@ -292,9 +293,9 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
   const packages = useMemo<PackageData[]>(
     () => loadsResult.items.map((load) => {
       const pkg = mapLoadToPackage(load, lang);
-      return role === 'user' && pkg.status === 'Finished' ? { ...pkg, status: 'Received' as const } : pkg;
+      return hideFinishedStatus && pkg.status === 'Finished' ? { ...pkg, status: 'Received' as const } : pkg;
     }),
-    [lang, loadsResult.items, role]
+    [lang, loadsResult.items, hideFinishedStatus]
   );
   const trackingMapPoints = useMemo<[number, number][]>(
     () => packages.map((pkg) => pkg.currentLocation),
@@ -324,14 +325,14 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
     const counts = Object.fromEntries(trackingStatusFilters.map((status) => [status, 0])) as Record<TrackingStatusFilter, number>;
     statusCountsResult.items.forEach((row) => {
       const rawStatus = String(row.status || '').toLowerCase();
-      const mapped = role === 'user' && rawStatus === 'finished'
+      const mapped = hideFinishedStatus && rawStatus === 'finished'
         ? 'Received'
         : trackingStatusFilters.find((status) => status.toLowerCase().replaceAll(' ', '_') === rawStatus);
       if (mapped) counts[mapped] = Number(counts[mapped] || 0) + Number(row.count || 0);
     });
     counts.all = trackingStatusFilters.reduce((sum, status) => sum + (counts[status] || 0), 0);
     return counts;
-  }, [role, statusCountsResult.items, trackingStatusFilters]);
+  }, [hideFinishedStatus, statusCountsResult.items, trackingStatusFilters]);
 
   const loadCapacity = useMemo(() => {
     const roleLoads = capacityResult.items.filter((load) => {

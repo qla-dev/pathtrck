@@ -56,8 +56,15 @@ export const mapLoadToPackage = (load: Record<string, unknown>, lang: Language):
   const origin = String(stops[0]?.city || '—');
   const destination = String(stops[stops.length - 1]?.city || '—');
   const sourcePrice = String(load.price_insurance || '').trim();
-  const hasCurrentLocation = shipment.current_latitude !== null && shipment.current_latitude !== undefined
-    && shipment.current_longitude !== null && shipment.current_longitude !== undefined;
+  const latestVehicleLocation = (vehicle.latest_location || {}) as Record<string, unknown>;
+  const validPosition = (lat: unknown, lon: unknown) => lat != null && lon != null
+    && Number.isFinite(Number(lat)) && Number.isFinite(Number(lon))
+    && Math.abs(Number(lat)) <= 90 && Math.abs(Number(lon)) <= 180;
+  const useVehicleLocation = mappedStatus === 'In delivery' && !['air', 'sea', 'warehouse'].includes(String(load.transport_type))
+    && validPosition(latestVehicleLocation.latitude, latestVehicleLocation.longitude);
+  const latitude = useVehicleLocation ? latestVehicleLocation.latitude : shipment.current_latitude;
+  const longitude = useVehicleLocation ? latestVehicleLocation.longitude : shipment.current_longitude;
+  const hasCurrentLocation = validPosition(latitude, longitude);
 
   return {
     recipient: String(consignee.company_name || consignee.name || '—'),
@@ -96,10 +103,10 @@ export const mapLoadToPackage = (load: Record<string, unknown>, lang: Language):
     addedDate: String(load.published_at || load.created_at || ''), transitDays: Math.max(0, Math.ceil((new Date(estimatedDeliveryAt).getTime() - Date.now()) / 86400000)),
     description: String(load.title || load.cargo_type || ''),
     currentLocation: hasCurrentLocation
-      ? [Number(shipment.current_latitude), Number(shipment.current_longitude)]
+      ? [Number(latitude), Number(longitude)]
       : [43.8563, 18.4131],
     hasCurrentLocation,
-    trackingUpdatedAt: String(shipment.updated_at || events[0]?.occurred_at || events[0]?.created_at || ''),
+    trackingUpdatedAt: String((useVehicleLocation ? latestVehicleLocation.recorded_at : shipment.updated_at) || events[0]?.occurred_at || events[0]?.created_at || ''),
     history: events.map((event) => ({ date: String(event.recorded_at || event.created_at || ''), status: String(event.status || event.event_type || ''), location: String(event.location_name || '') })),
     customsDocuments: Array.isArray(load.customs_documents)
       ? load.customs_documents as PackageData['customsDocuments']

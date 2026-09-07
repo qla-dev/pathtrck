@@ -6,11 +6,12 @@ import { Language, Package as PackageData, Role, ShipmentDetail } from '../../ty
 import { isCompanyOperationsRole } from '../../lib/roles';
 import { api, type FuelStation } from '../../services/api';
 import { useApiList } from '../../hooks/useApiList';
+import { useConnectedTransportTracking } from '../../hooks/useConnectedTransportTracking';
 import { ui, trPackageStatus } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { confirmAction, showError, showSuccess } from '../../lib/swal';
 import { TRACKING_FLOW, apiLoadStatus, mapLoadToPackage } from '../../lib/loadDetails';
-import { countPendingActions } from '../../lib/shipmentChecklist';
+import { checklistCategory, checklistCategoryLabel, checklistLabel, countPendingActions } from '../../lib/shipmentChecklist';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Toggle } from '../ui/Toggle';
@@ -137,12 +138,19 @@ type LoadDetailsModalProps = {
 
 export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], onClose, onChanged, initialTab = 'tracker' }: LoadDetailsModalProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
-  const [selectedPackage, setSelectedPackage] = useState<PackageData>(emptyPackage);
+  const [basePackage, setSelectedPackage] = useState<PackageData>(emptyPackage);
   const [detailsOpen, setDetailsOpen] = useState(true);
   const [editLoadOpen, setEditLoadOpen] = useState(false);
   const [editFocusKey, setEditFocusKey] = useState<string | null>(null);
   const [editActionTitle, setEditActionTitle] = useState<string | null>(null);
   const [shipmentWorkspace, setShipmentWorkspace] = useState<Record<string, unknown> | null>(null);
+  const trackingInput = useMemo(() => ({
+    ...basePackage,
+    operationalChecklist: Array.isArray(shipmentWorkspace?.operational_checklist)
+      ? shipmentWorkspace.operational_checklist as PackageData['operationalChecklist'] : basePackage.operationalChecklist,
+  }), [basePackage, shipmentWorkspace]);
+  const connectedTracking = useConnectedTransportTracking(trackingInput, lang, basePackage.id === String(loadId));
+  const selectedPackage = connectedTracking.trackedPackage;
 
   const refreshPackage = async () => {
     const response = await api.loads.get(loadId);
@@ -321,17 +329,18 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
     return isStorage && labels[status] ? u(`storage.status.${labels[status]}`, status) : trPackageStatus(lang, status);
   };
   const canManageStatuses = role === 'warehouse' || role === 'driver' || isCompanyOperationsRole(role) || role === 'superadmin' || role === 'master';
+  const hideFinishedStatus = role === 'user' || (role === 'driver' && companyIds.length === 0);
   const canCustomerReceive = role === 'user' && selectedPackage.status === 'In delivery';
   const canChangeStatus = canManageStatuses || canCustomerReceive;
-  const visibleStatus = isStorage ? (selectedPackage.status === 'Finished' || selectedPackage.status === 'In delivery' ? 'Sent' : selectedPackage.status) : role === 'user' && selectedPackage.status === 'Finished' ? 'Received' : selectedPackage.status;
-  const trackingFlow: PackageData['status'][] = isStorage ? ['Posted', 'Booked', 'Received', 'Sent'] : role === 'user' ? TRACKING_FLOW.filter((status) => status !== 'Finished') : TRACKING_FLOW;
+  const visibleStatus = isStorage ? (selectedPackage.status === 'Finished' || selectedPackage.status === 'In delivery' ? 'Sent' : selectedPackage.status) : hideFinishedStatus && selectedPackage.status === 'Finished' ? 'Received' : selectedPackage.status;
+  const trackingFlow: PackageData['status'][] = isStorage ? ['Posted', 'Booked', 'Received', 'Sent'] : hideFinishedStatus ? TRACKING_FLOW.filter((status) => status !== 'Finished') : TRACKING_FLOW;
   const trackingStage = trackingFlow.indexOf(visibleStatus === 'Opened' ? 'Booked' : visibleStatus);
   const trackingProgress = visibleStatus === trackingFlow[trackingFlow.length - 1]
     ? 100
     : trackingStage >= 0
       ? (trackingStage / (trackingFlow.length - 1)) * 100
       : 0;
-  const canSelectStatus = (status: PackageData['status']) => isStorage ? canManageStatuses : (canManageStatuses && (isStorage || status !== 'Received')) || (role === 'user' && status === 'Received');
+  const canSelectStatus = (status: PackageData['status']) => hideFinishedStatus && status === 'Finished' ? false : isStorage ? canManageStatuses : (canManageStatuses && (isStorage || status !== 'Received')) || (role === 'user' && status === 'Received');
   const receivedActionLabel = lang === 'bs'
     ? 'Označi kao primljeno i ocijeni'
     : lang === 'de'
@@ -379,7 +388,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
       return undefined;
     }
 
-    if (selectedPackage.transportType === 'air') {
+    if (['air', 'sea', 'rail'].includes(selectedPackage.transportType || '')) {
       setRouteLoading(false);
       const hasCurrent = Boolean(selectedPackage.hasCurrentLocation);
       const points = hasCurrent
@@ -470,6 +479,18 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
 
   const changeLoadStatus = async (status: PackageData['status']) => {
     if (!canChangeStatus || !canSelectStatus(status) || !selectedPackage.id || statusChanging || status === selectedPackage.status) return;
+    if (status === 'In delivery' || status === 'Received') {
+      const category = status === 'In delivery' ? 'in_delivery' : 'received';
+      const items = selectedPackage.operationalChecklist || [];
+      const pending = items.filter((item) => (category === 'received' || checklistCategory(item) === category) && item.status !== 'completed');
+      if (!items.length || pending.length) {
+        void showError(
+          lang === 'bs' ? 'Prvo završi obavezne stavke checkliste' : lang === 'de' ? 'Erforderliche Checklistenpunkte zuerst abschließen' : 'Complete the required checklist items first',
+          `${checklistCategoryLabel(lang, category)}: ${pending.map((item) => checklistLabel(lang, item.key)).join(', ')}`,
+        );
+        return;
+      }
+    }
     if (status === 'Finished') {
       setCarDropOpen(true);
       return;
@@ -494,6 +515,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
       await api.loads.updateStatus(selectedPackage.id, apiLoadStatus(status));
       await refreshPackage();
       onChanged?.();
+      if (status === 'In delivery') setRightTab('tracker');
       void showSuccess(u('tracking.statusChanged', 'Status changed'), label);
     } catch (error) {
       void showError(
@@ -585,6 +607,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
 
       await refreshPackage();
       onChanged?.();
+      if (detail.key === 'status' && value === 'in_delivery') setRightTab('tracker');
       return true;
     } catch (error) {
       void showError(
@@ -737,6 +760,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
               className="[&_button]:h-10"
               availableStatuses={role === 'user'
                 ? ['Received']
+                : hideFinishedStatus ? ['Posted', 'Booked', 'Sent', 'In delivery', 'Pending', 'Cancelled']
                 : ['Posted', 'Booked', 'Sent', 'In delivery', 'Finished', 'Pending', 'Cancelled']}
               actionLabels={{ Received: receivedActionLabel }}
             />
@@ -932,6 +956,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
 
           <div style={isStorage ? { display: 'none' } : undefined} className="pointer-events-none absolute right-4 top-full mt-3 flex max-w-[calc(100%_-_2rem)] flex-wrap items-center justify-end gap-2">
             <div className="inline-flex items-center gap-2 rounded-full bg-sky-100/90 px-3 py-1.5 text-xs font-bold text-sky-700 shadow-sm backdrop-blur dark:bg-sky-950/80 dark:text-sky-300">
+              {['sea', 'rail'].includes(selectedPackage.transportType || '') && <span>{lang === 'bs' ? 'Okvirna ruta' : lang === 'de' ? 'Ungefähre Route' : 'Indicative route'}</span>}
               {routeLoading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {u('tracking.totalDistance', 'Total distance')}: {routeDistanceKm === null ? '—' : `${routeDistanceKm.toLocaleString()} km`}
             </div>
@@ -940,14 +965,24 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
             </div>
             <div className={cn(
               'pointer-events-auto inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold shadow-sm backdrop-blur',
-              liveTrackingEnabled
+              (connectedTracking.active ? selectedPackage.hasCurrentLocation && !connectedTracking.stale : liveTrackingEnabled)
                 ? 'bg-emerald-100/90 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300'
                 : 'bg-slate-100/90 text-slate-600 dark:bg-slate-900/80 dark:text-slate-300',
             )}>
               <span>
-                {u('tracking.liveTracking', 'Live tracking')}: {liveTrackingEnabled ? u('tracking.active', 'Active') : u('tracking.paused', 'Paused')}
+                {u('tracking.liveTracking', 'Live tracking')}: {connectedTracking.active
+                  ? connectedTracking.loading && !selectedPackage.hasCurrentLocation
+                    ? (lang === 'bs' ? 'Traženje lokacije…' : lang === 'de' ? 'Position wird gesucht…' : 'Finding location…')
+                    : !selectedPackage.hasCurrentLocation
+                      ? (lang === 'bs' ? 'Lokacija nije dostupna' : lang === 'de' ? 'Position nicht verfügbar' : 'Location unavailable')
+                      : connectedTracking.stale
+                        ? (lang === 'bs' ? 'Posljednja poznata lokacija' : lang === 'de' ? 'Letzte bekannte Position' : 'Last known location')
+                        : u('tracking.active', 'Active')
+                  : liveTrackingEnabled ? u('tracking.active', 'Active') : u('tracking.paused', 'Paused')}
               </span>
-              {canControlLiveTracking ? (
+              {connectedTracking.active ? (selectedPackage.trackingUpdatedAt && <span className="border-l border-current/20 pl-2 text-[10px] font-semibold opacity-75">
+                {u('tracking.lastUpdated', 'Last updated')}: {new Date(selectedPackage.trackingUpdatedAt).toLocaleString(lang === 'bs' ? 'bs-BA' : lang === 'de' ? 'de-DE' : 'en-GB')}
+              </span>) : canControlLiveTracking ? (
                 <button
                   type="button"
                   onClick={() => void handleLiveTrackingToggle()}

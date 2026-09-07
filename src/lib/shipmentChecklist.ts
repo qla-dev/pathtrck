@@ -7,6 +7,21 @@ import type { Language } from '../types';
 
 type Locale = 'en' | 'bs' | 'de';
 
+export type ChecklistCategory = 'in_delivery' | 'received';
+export const checklistCategory = (item: { key?: unknown; required_for_status?: unknown }): ChecklistCategory =>
+  item.required_for_status === 'received' || item.required_for_status === 'in_delivery'
+    ? item.required_for_status
+    : ['proof_of_delivery', 'arrival_and_release_documents'].includes(String(item.key)) ? 'received' : 'in_delivery';
+
+export const checklistCategoryLabel = (lang: Language, category: ChecklistCategory): string => {
+  const labels = {
+    en: { in_delivery: 'In delivery', received: 'Received' },
+    bs: { in_delivery: 'U dostavi', received: 'Primljeno' },
+    de: { in_delivery: 'In Zustellung', received: 'Empfangen' },
+  };
+  return labels[lang === 'bs' || lang === 'de' ? lang : 'en'][category];
+};
+
 export type ChecklistOwner = 'provider' | 'customer';
 
 type Phrase = {

@@ -5,7 +5,7 @@ import { Check, ClipboardCheck } from 'lucide-react';
 import type { Language } from '../../types';
 import { cn } from '../../lib/cn';
 import { ui } from '../../i18n';
-import { checklistHint, checklistLabel, checklistOwner, checklistStatusLabel } from '../../lib/shipmentChecklist';
+import { checklistCategory, checklistCategoryLabel, checklistHint, checklistLabel, checklistOwner, checklistStatusLabel } from '../../lib/shipmentChecklist';
 import { TransportDetails } from './TransportDetails';
 
 type Props = {
@@ -17,6 +17,7 @@ type Props = {
   renderAction?: (item: Record<string, unknown>, index: number) => ReactNode;
   /** Replaces the read-only due date with an editable control, where the task has a date to set. */
   renderDueDate?: (item: Record<string, unknown>) => ReactNode;
+  renderCategory?: (item: Record<string, unknown>) => ReactNode;
   /** The plain-language hint column, worth the width only where the work is actually done. */
   showInstruction?: boolean;
   onRetryAircraft?: () => void;
@@ -24,7 +25,7 @@ type Props = {
 
 const titleCase = (value: unknown) => String(value || '—').replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 
-export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolbar, renderAction, renderDueDate, showInstruction, onRetryAircraft }: Props) => {
+export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolbar, renderAction, renderDueDate, renderCategory, showInstruction, onRetryAircraft }: Props) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [trackedDetails, setTrackedDetails] = useState<{ kind: 'aircraft' | 'vessel'; id: string } | null>(null);
 
@@ -52,6 +53,7 @@ export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolb
                 <th className="px-5 py-3">{u('shipmentDetails.task', 'Task')}</th>
                 {showInstruction && <th className="px-4 py-3">{u('shipmentDetails.instruction', 'What to do')}</th>}
                 <th className="px-4 py-3">{u('shipmentDetails.owner', 'Owner')}</th>
+                <th className="px-4 py-3">{lang === 'bs' ? 'Uslov za status' : lang === 'de' ? 'Voraussetzung für Status' : 'Required for status'}</th>
                 <th className="px-4 py-3">{u('shipmentDetails.dueDate', 'Due date')}</th>
                 <th className="px-4 py-3">{u('shipmentDetails.status', 'Status')}</th>
                 {renderAction && <th className="px-5 py-3 text-right">{u('shipmentDetails.action', 'Action')}</th>}
@@ -103,6 +105,7 @@ export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolb
                         ? u('shipmentDetails.customer', 'Customer')
                         : u('shipmentDetails.provider', 'Provider')}
                     </td>
+                    <td className="px-4 py-4 text-xs font-semibold text-slate-600 dark:text-slate-300">{renderCategory?.(item) ?? checklistCategoryLabel(lang, checklistCategory(item))}</td>
                     <td className={cn('px-4 py-4 font-semibold', done ? 'text-slate-400' : 'text-rose-500')}>{renderDueDate?.(item) ?? dueDate}</td>
                     <td className="px-4 py-4">
                       <span className={cn(
