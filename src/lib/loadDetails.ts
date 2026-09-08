@@ -1,13 +1,13 @@
 import { Language, Package as PackageData } from '../types';
 import { trPackageStatus } from '../i18n';
 
-export const TRACKING_FLOW: PackageData['status'][] = ['Posted', 'Booked', 'Sent', 'In delivery', 'Received', 'Finished'];
+export const TRACKING_FLOW: PackageData['status'][] = ['Posted', 'Booked', 'In delivery', 'Received', 'Finished'];
 
 export const apiLoadStatus = (status: PackageData['status']) => status.toLowerCase().replace(/\s+/g, '_');
 
 export const mapLoadStatus = (value: unknown): PackageData['status'] => {
   const statuses: Record<string, PackageData['status']> = {
-    posted: 'Posted', booked: 'Booked', opened: 'Opened', sent: 'Sent', in_delivery: 'In delivery',
+    posted: 'Posted', booked: 'Booked', opened: 'Opened', sent: 'Booked', in_delivery: 'In delivery',
     received: 'Received', finished: 'Finished', pending: 'Pending', cancelled: 'Cancelled',
   };
 
@@ -60,7 +60,7 @@ export const mapLoadToPackage = (load: Record<string, unknown>, lang: Language):
   const validPosition = (lat: unknown, lon: unknown) => lat != null && lon != null
     && Number.isFinite(Number(lat)) && Number.isFinite(Number(lon))
     && Math.abs(Number(lat)) <= 90 && Math.abs(Number(lon)) <= 180;
-  const useVehicleLocation = ['Sent', 'In delivery'].includes(mappedStatus) && !['air', 'sea', 'warehouse'].includes(String(load.transport_type))
+  const useVehicleLocation = ['In delivery'].includes(mappedStatus) && !['air', 'sea', 'warehouse'].includes(String(load.transport_type))
     && validPosition(latestVehicleLocation.latitude, latestVehicleLocation.longitude);
   const latitude = useVehicleLocation ? latestVehicleLocation.latitude : shipment.current_latitude;
   const longitude = useVehicleLocation ? latestVehicleLocation.longitude : shipment.current_longitude;

@@ -32,7 +32,6 @@ const BASE_TRACKING_STATUS_FILTERS = LOAD_STATUS_OPTIONS
 const statusCardColors = (status: TrackingStatusFilter) => {
   switch (status) {
     case 'Opened': return 'border-cyan-400 text-cyan-600 dark:text-cyan-300';
-    case 'Sent': return 'border-blue-500 text-blue-600 dark:text-blue-300';
     case 'In delivery': return 'border-amber-400 text-amber-600 dark:text-amber-300';
     case 'Received': return 'border-violet-500 text-violet-600 dark:text-violet-300';
     case 'Finished': return 'border-emerald-500 text-emerald-600 dark:text-emerald-300';
@@ -45,7 +44,6 @@ const statusCardColors = (status: TrackingStatusFilter) => {
 const statusBadgeColors = (status: PackageData['status']) => {
   switch (status) {
     case 'Opened': return 'bg-cyan-100 text-cyan-700 dark:bg-cyan-950/50 dark:text-cyan-300';
-    case 'Sent': return 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300';
     case 'In delivery': return 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300';
     case 'Received': return 'bg-violet-100 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300';
     case 'Finished': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300';
@@ -285,7 +283,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
     sort: 'date_desc',
   });
   const statusCountsResult = useApiList(api.loads.trackingStatusCounts, trackingFilterParams);
-  const capacityResult = useApiList(api.loads.list, { per_page: 500, tracking: true, for_storage: false, statuses: 'sent,in_delivery' });
+  const capacityResult = useApiList(api.loads.list, { per_page: 500, tracking: true, for_storage: false, statuses: 'in_delivery' });
   const fleetResult = useApiList(api.vehicles.list, { per_page: 100 });
   // The tracking list only carries the workspace once the API ships that relation, so the checklists
   // are fetched on their own and matched by load — the badge works either way.

@@ -80,7 +80,7 @@ export const CompanyWorkspaceView = ({ lang, onPostLoad }: { lang: Language; onP
   const companyRoutes = routes.items.filter((row) => companyLoads.some((load) => Number(load.id) === Number(row.load_id)));
   const companyMembers = memberships.items.filter((row) => !companyId || Number(row.company_id) === companyId);
   const companyInvoices = invoices.items.filter((row) => !companyId || !row.company_id || Number(row.company_id) === companyId);
-  const activeLoads = companyLoads.filter((row) => ['sent', 'in_delivery'].includes(String(row.status).toLowerCase()));
+  const activeLoads = companyLoads.filter((row) => ['booked', 'in_delivery'].includes(String(row.status).toLowerCase()));
   const today = new Date().toISOString().slice(0, 10);
   const revenue = companyInvoices.filter((row) => String(row.issued_at || row.created_at || '').slice(0, 10) === today).reduce((sum, row) => sum + Number(row.total || 0), 0);
   const distance = companyRoutes.filter((row) => !['finished', 'completed', 'cancelled'].includes(String(row.status).toLowerCase())).reduce((sum, row) => sum + Number(row.distance_km || 0), 0);
@@ -108,13 +108,13 @@ export const CompanyWorkspaceView = ({ lang, onPostLoad }: { lang: Language; onP
   const availableVehicles = companyVehicles.filter((row) => ['active', 'available'].includes(String(row.status).toLowerCase())).length;
   const maintenanceVehicles = companyVehicles.filter((row) => String(row.status).toLowerCase() === 'maintenance').length;
   const companyEvents = events.items.filter((event) => companyLoads.some((load) => Number(load.id) === eventLoadId(event)));
-  const loadStatusData = useMemo(() => groupCount(companyLoads, 'status', 'unknown').map((row) => ({ ...row, name: trLoadStatus(lang, ({ posted: 'Posted', opened: 'Opened', sent: 'Sent', 'in delivery': 'In delivery', received: 'Received', finished: 'Finished', pending: 'Pending', cancelled: 'Cancelled' } as Record<string, string>)[row.name] || row.name) })), [companyLoads, lang]);
+  const loadStatusData = useMemo(() => groupCount(companyLoads, 'status', 'unknown').map((row) => ({ ...row, name: trLoadStatus(lang, ({ posted: 'Posted', opened: 'Opened', sent: 'Booked', 'in delivery': 'In delivery', received: 'Received', finished: 'Finished', pending: 'Pending', cancelled: 'Cancelled' } as Record<string, string>)[row.name] || row.name) })), [companyLoads, lang]);
   const fleetStatusData = useMemo(() => groupCount(companyVehicles, 'status', 'unknown'), [companyVehicles]);
   const transportData = useMemo(() => groupCount(companyLoads, 'transport_type', 'road'), [companyLoads]);
   const budgetByStatus = useMemo(() => {
     const grouped = new Map<string, number>();
     companyLoads.forEach((row) => { const name = String(row.status || 'unknown').replaceAll('_', ' '); grouped.set(name, (grouped.get(name) || 0) + Number(row.budget || 0)); });
-    return Array.from(grouped, ([name, value]) => ({ name: trLoadStatus(lang, ({ posted: 'Posted', opened: 'Opened', sent: 'Sent', 'in delivery': 'In delivery', received: 'Received', finished: 'Finished', pending: 'Pending', cancelled: 'Cancelled' } as Record<string, string>)[name] || name), value })).sort((a, b) => b.value - a.value);
+    return Array.from(grouped, ([name, value]) => ({ name: trLoadStatus(lang, ({ posted: 'Posted', opened: 'Opened', sent: 'Booked', 'in delivery': 'In delivery', received: 'Received', finished: 'Finished', pending: 'Pending', cancelled: 'Cancelled' } as Record<string, string>)[name] || name), value })).sort((a, b) => b.value - a.value);
   }, [companyLoads, lang]);
   const activityData = useMemo(() => {
     const days = Array.from({ length: 7 }, (_, offset) => {

@@ -8,7 +8,7 @@ export const calculateVolume = (draft: LoadDraft): string | null => {
     toMetres(draft.widthM, draft.widthUnit),
     toMetres(draft.heightM, draft.heightUnit),
   ];
-  const count = draft.dimensionScope === 'per_unit' ? Number(draft.pallets) : 1;
+  const count = draft.dimensionScope === 'per_unit' ? 1 : Number(draft.pallets);
   if (dimensions.some((value) => !Number.isFinite(value) || value <= 0)
     || !Number.isInteger(count) || count <= 0) return null;
   const volume = dimensions.reduce((total, value) => total * value, count);

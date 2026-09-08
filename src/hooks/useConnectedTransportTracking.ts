@@ -13,7 +13,7 @@ export const useConnectedTransportTracking = (pkg: Package, lang: Language, enab
   const identifier = craft?.identifier || '';
   const active = enabled && mode !== 'warehouse' && (Boolean(craft)
     ? !['Received', 'Finished', 'Cancelled'].includes(pkg.status)
-    : ['Sent', 'In delivery'].includes(pkg.status));
+    : ['In delivery'].includes(pkg.status));
   const key = `${pkg.id}:${mode}:${identifier}:${pkg.vehicleId || ''}:${active}`;
   const [state, setState] = useState<TrackingState>({ key: '', position: null, loading: false, failed: false });
 
@@ -48,7 +48,7 @@ export const useConnectedTransportTracking = (pkg: Package, lang: Language, enab
         } else if (mode !== 'air' && mode !== 'sea') {
           const response = await api.loads.get(pkg.id);
           const refreshed = mapLoadToPackage(response.data, lang);
-          if (['Sent', 'In delivery'].includes(refreshed.status) && refreshed.hasCurrentLocation) {
+          if (['In delivery'].includes(refreshed.status) && refreshed.hasCurrentLocation) {
             position = { point: refreshed.currentLocation, updatedAt: refreshed.trackingUpdatedAt || '', lastKnown: false };
           }
         }

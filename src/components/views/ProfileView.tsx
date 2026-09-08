@@ -528,7 +528,7 @@ export const ProfileView = ({
     0,
   );
   const totalLoads = loadStatusCounts.items.reduce((sum, item) => sum + Number(item.count || 0), 0);
-  const activeLoads = statusCount(["posted", "opened", "sent", "in_delivery", "received", "pending"]);
+  const activeLoads = statusCount(["posted", "booked", "opened", "in_delivery", "received", "pending"]);
   const completedLoads = statusCount(["finished"]);
 
   const stats = useMemo(

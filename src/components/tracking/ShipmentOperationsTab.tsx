@@ -20,6 +20,8 @@ type Props = {
   lang: Language;
   readOnly?: boolean;
   onVehicleReturn?: () => void;
+  loadStatus?: string;
+  allowPodDuringDelivery?: boolean;
   onUpdated: (workspace: Record<string, unknown>) => void;
   /** Refreshes the load after an inline edit writes to it. */
   onLoadChanged?: () => Promise<void> | void;
@@ -113,10 +115,13 @@ const ChecklistDatePicker = memo(({ fieldKey, value, disabled, lang, onChange, e
   );
 });
 
-export const ShipmentOperationsTab = ({ workspace, lang, readOnly = false, onUpdated, onLoadChanged, onVehicleReturn }: Props) => {
+export const ShipmentOperationsTab = ({ workspace, lang, readOnly = false, onUpdated, onLoadChanged, onVehicleReturn, loadStatus, allowPodDuringDelivery = false }: Props) => {
   const text = COPY[lang === 'bs' || lang === 'de' ? lang : 'en'];
   const checklist = array(workspace.operational_checklist);
   const freightLoad = record(workspace.freight_load);
+  const currentStatus = String(loadStatus || freightLoad.status || '').toLowerCase().replaceAll(' ', '_');
+  const canSubmitPod = currentStatus === 'in_delivery' && (!readOnly || allowPodDuringDelivery);
+  const taskReadOnly = (key: string) => key === 'proof_of_delivery' ? !canSubmitPod : readOnlyRef.current;
   const loadId = String(workspace.load_id || freightLoad.id || '');
   const dueDate = formatDate(freightLoad.etd_at || workspace.booked_at, lang);
   const [busyKey, setBusyKey] = useState<string | null>(null);
@@ -157,7 +162,7 @@ export const ShipmentOperationsTab = ({ workspace, lang, readOnly = false, onUpd
   // The checklist is stored as one array, so any change to a single task rewrites the whole list
   // with only that entry's fields replaced.
   const patchTask = async (taskKey: string, changes: Record<string, unknown>) => {
-    if (readOnlyRef.current) throw new Error(text.saveFailed);
+    if (taskReadOnly(taskKey)) throw new Error(text.saveFailed);
     const response = await api.shipmentWorkspaces.update(Number(workspace.id), {
       operational_checklist: checklist.map((item) => {
         const base = {
@@ -211,7 +216,7 @@ export const ShipmentOperationsTab = ({ workspace, lang, readOnly = false, onUpd
   };
 
   const uploadDocument = async (taskKey: string, file: File, type: string) => {
-    if (!loadId || readOnlyRef.current) return;
+    if (!loadId || taskReadOnly(taskKey)) return;
     setBusyKey(taskKey);
     try {
       await api.documents.upload({ file, loadId, type, name: file.name });
@@ -260,7 +265,7 @@ export const ShipmentOperationsTab = ({ workspace, lang, readOnly = false, onUpd
       <input
         type="file"
         className="hidden"
-        disabled={busyKey === taskKey || !loadId}
+        disabled={busyKey === taskKey || !loadId || taskReadOnly(taskKey)}
         onChange={(event) => {
           const file = event.target.files?.[0];
           event.target.value = '';
@@ -492,6 +497,7 @@ export const ShipmentOperationsTab = ({ workspace, lang, readOnly = false, onUpd
       lang={lang}
       dueDate={dueDate}
       renderAction={readOnly ? (item) => {
+        if (item.key === 'proof_of_delivery' && canSubmitPod) return renderAction(item);
         if (item.key === 'vehicle_return') return renderAction(item);
         const value = String(item.action_value || '');
         if (!value) return <span className="text-xs text-slate-500">—</span>;

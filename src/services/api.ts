@@ -166,6 +166,7 @@ export type LoadScanResult = {
   widthM: number;
   heightM: number;
   volumeM3: number;
+  dimensionScope?: 'overall' | 'per_unit';
   vehicleType: string;
   loadingEquipment: string;
   characteristics: string;

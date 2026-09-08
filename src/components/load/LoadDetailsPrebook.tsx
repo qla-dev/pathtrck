@@ -109,7 +109,7 @@ const getGoodsNote = (goodsType: string, u: UiFn) => {
 const getStatusTone = (status: Load['status']) =>
   status === 'Posted'
     ? 'text-emerald-500 bg-emerald-500/10 border-emerald-500/30'
-    : status === 'Sent'
+    : status === 'Booked'
       ? 'text-amber-500 bg-amber-500/10 border-amber-500/30'
       : status === 'In delivery'
         ? 'text-sky-500 bg-sky-500/10 border-sky-500/30'
@@ -659,7 +659,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                     status={currentStatus}
                     isChanging={statusChanging}
                     onChange={(status) => void changeStatus(status)}
-                    availableStatuses={['Posted', 'Booked', 'Sent', 'In delivery', 'Pending', 'Cancelled']}
+                    availableStatuses={['Posted', 'Booked', 'In delivery', 'Pending', 'Cancelled']}
                     className="hidden w-44 lg:block [&_button]:h-10"
                   />
                   <LoadStatusPicker
@@ -668,7 +668,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                     status={currentStatus}
                     isChanging={statusChanging}
                     onChange={(status) => void changeStatus(status)}
-                    availableStatuses={['Posted', 'Booked', 'Sent', 'In delivery', 'Pending', 'Cancelled']}
+                    availableStatuses={['Posted', 'Booked', 'In delivery', 'Pending', 'Cancelled']}
                     className="lg:hidden"
                   />
                 </>

@@ -5069,7 +5069,7 @@ const mapDatabaseRecordToLoad = (record: Record<string, unknown>): Load => {
     posted: "Posted",
     booked: "Booked",
     opened: "Opened",
-    sent: "Sent",
+    sent: "Booked",
     in_delivery: "In delivery",
     received: "Received",
     finished: "Finished",

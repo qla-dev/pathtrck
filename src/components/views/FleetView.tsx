@@ -168,7 +168,7 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
     let active = true;
     void (async () => {
       try {
-        const response = await api.loads.list({ per_page: 500, tracking: true, statuses: 'sent,in_delivery' });
+        const response = await api.loads.list({ per_page: 500, tracking: true, statuses: 'in_delivery' });
         if (!active) return;
         const totals: Record<string, { weightKg: number; loads: number }> = {};
         response.data.forEach((load) => {

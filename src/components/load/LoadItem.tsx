@@ -342,7 +342,7 @@ export const LoadItem = ({
                 'text-[10px] font-bold uppercase tracking-wider',
                 load.status === 'Posted'
                   ? 'text-emerald-500'
-                  : load.status === 'Sent'
+                  : load.status === 'Booked'
                     ? 'text-amber-500'
                     : 'text-slate-400'
               )}

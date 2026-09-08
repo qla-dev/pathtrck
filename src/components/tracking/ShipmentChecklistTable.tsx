@@ -54,6 +54,7 @@ export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolb
                 {showInstruction && <th className="px-4 py-3">{u('shipmentDetails.instruction', 'What to do')}</th>}
                 <th className="px-4 py-3">{u('shipmentDetails.owner', 'Owner')}</th>
                 <th className="px-4 py-3">{lang === 'bs' ? 'Uslov za status' : lang === 'de' ? 'Voraussetzung für Status' : 'Required for status'}</th>
+                <th className="px-4 py-3">{lang === 'bs' ? 'Čeka status' : lang === 'de' ? 'Wartet auf Status' : 'Waiting for status'}</th>
                 <th className="px-4 py-3">{u('shipmentDetails.dueDate', 'Due date')}</th>
                 <th className="px-4 py-3">{u('shipmentDetails.status', 'Status')}</th>
                 {renderAction && <th className="px-5 py-3 text-right">{u('shipmentDetails.action', 'Action')}</th>}
@@ -106,6 +107,7 @@ export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolb
                         : u('shipmentDetails.provider', 'Provider')}
                     </td>
                     <td className="px-4 py-4 text-xs font-semibold text-slate-600 dark:text-slate-300">{renderCategory?.(item) ?? checklistCategoryLabel(lang, checklistCategory(item))}</td>
+                    <td className="px-4 py-4 text-xs font-semibold text-slate-600 dark:text-slate-300">{item.waiting_for_status === 'in_delivery' || item.key === 'proof_of_delivery' ? checklistCategoryLabel(lang, 'in_delivery') : '—'}</td>
                     <td className={cn('px-4 py-4 font-semibold', done ? 'text-slate-400' : 'text-rose-500')}>{renderDueDate?.(item) ?? dueDate}</td>
                     <td className="px-4 py-4">
                       <span className={cn(

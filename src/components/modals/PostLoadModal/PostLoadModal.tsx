@@ -642,7 +642,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     setDraft((prev) => {
       const next = { ...prev, [key]: value };
       if (['lengthM', 'widthM', 'heightM', 'dimensionScope'].includes(key)
-        || (key === 'pallets' && next.dimensionScope === 'per_unit')) {
+        || (key === 'pallets' && next.dimensionScope === 'overall')) {
         next.volumeM3 = calculateVolume(next) ?? '';
       }
       return next;
@@ -2672,7 +2672,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             <FieldLabel>{lang === 'bs' ? 'Dimenzije za' : lang === 'de' ? 'Maßbezug' : 'Dimensions for'}</FieldLabel>
                             <IconSelect value={draft.dimensionScope} onChange={(value) => setField('dimensionScope', value as LoadDraft['dimensionScope'])} placeholder="" ariaLabel={lang === 'bs' ? 'Dimenzije za' : lang === 'de' ? 'Maßbezug' : 'Dimensions for'} icon={Boxes} options={[
                               { value: 'overall', label: lang === 'bs' ? 'Ukupne dimenzije' : lang === 'de' ? 'Gesamtgröße' : 'Overall size', icon: Boxes },
-                              { value: 'per_unit', label: lang === 'bs' ? 'Po jedinici' : lang === 'de' ? 'Pro Einheit' : 'Per unit', icon: Box },
+                              { value: 'per_unit', label: lang === 'bs' ? 'Po komadu' : lang === 'de' ? 'Pro Stück' : 'Per piece', icon: Box },
                             ]} />
                           </div>
                         </div>

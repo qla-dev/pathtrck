@@ -79,7 +79,7 @@ const getGoodsNote = (goodsType: string, u: UiFn) => {
 const getStatusTone = (status: Load['status']) =>
   status === 'Posted'
     ? 'text-emerald-500 bg-emerald-500/10 border-emerald-500/30'
-    : status === 'Sent'
+    : status === 'Booked'
       ? 'text-amber-500 bg-amber-500/10 border-amber-500/30'
       : status === 'In delivery'
         ? 'text-sky-500 bg-sky-500/10 border-sky-500/30'
@@ -229,7 +229,7 @@ export const LoadDetails = ({ open, load, onClose, lang, role, userId, onEdit, o
     setIsBooking(true);
     try {
       await api.loads.book(load.id);
-      setCurrentStatus('Sent');
+      setCurrentStatus('Booked');
       void showSuccess(u('legacy.loadDetails.bookedTitle', 'Load booked'), u('legacy.loadDetails.bookedText', 'You have been assigned to this load.'));
       onChanged?.();
       onClose();

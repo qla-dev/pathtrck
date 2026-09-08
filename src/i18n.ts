@@ -9963,9 +9963,9 @@ export const ui = (lang: Language, key: string, fallback: string) => {
 export const flatpickrI18n = (lang: Language) =>
   DATE_PICKER_I18N[(lang || 'en') as Locale] || DATE_PICKER_I18N.en;
 
-export const trLoadStatus = (lang: Language, value: string) => translateValue(lang, value);
+export const trLoadStatus = (lang: Language, value: string) => translateValue(lang, value === 'Sent' ? 'Booked' : value);
 
-export const trPackageStatus = (lang: Language, value: string) => translateValue(lang, value);
+export const trPackageStatus = (lang: Language, value: string) => translateValue(lang, value === 'Sent' ? 'Booked' : value);
 
 export const trFuelType = (lang: Language, value: string) => translateValue(lang, value);
 

@@ -321,6 +321,7 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
         ...(result.widthM ? { widthM: String(result.widthM) } : {}),
         ...(result.heightM ? { heightM: String(result.heightM) } : {}),
         ...(result.volumeM3 ? { volumeM3: String(result.volumeM3) } : {}),
+        ...(result.dimensionScope ? { dimensionScope: result.dimensionScope } : {}),
       },
       icon: Ruler,
     });
