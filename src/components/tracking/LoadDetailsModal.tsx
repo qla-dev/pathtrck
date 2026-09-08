@@ -1028,6 +1028,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
               workspace={shipmentWorkspace}
               readOnly={selectedPackage.status !== 'Booked'}
               loadStatus={selectedPackage.status}
+              role={role}
               allowPodDuringDelivery={canManageStatuses}
               lang={lang}
               onUpdated={setShipmentWorkspace}

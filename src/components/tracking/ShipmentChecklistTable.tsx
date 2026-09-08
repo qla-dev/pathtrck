@@ -1,12 +1,14 @@
 import { nextInput } from '../../lib/enterNavigation';
 import { useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, ClipboardCheck } from 'lucide-react';
 
-import type { Language } from '../../types';
+import type { Language, Role } from '../../types';
 import { cn } from '../../lib/cn';
 import { ui } from '../../i18n';
 import { checklistCategory, checklistCategoryLabel, checklistHint, checklistLabel, checklistOwner, checklistStatusLabel } from '../../lib/shipmentChecklist';
 import { TransportDetails } from './TransportDetails';
+import { ProfileModal } from '../views/ProfileModal';
 
 type Props = {
   checklist: Array<Record<string, unknown>>;
@@ -21,13 +23,19 @@ type Props = {
   /** The plain-language hint column, worth the width only where the work is actually done. */
   showInstruction?: boolean;
   onRetryAircraft?: () => void;
+  freightLoad?: Record<string, unknown>;
+  role?: Role;
 };
 
 const titleCase = (value: unknown) => String(value || '—').replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 
-export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolbar, renderAction, renderDueDate, renderCategory, showInstruction, onRetryAircraft }: Props) => {
+export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolbar, renderAction, renderDueDate, renderCategory, showInstruction, onRetryAircraft, freightLoad = {}, role = 'user' }: Props) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
-  const [trackedDetails, setTrackedDetails] = useState<{ kind: 'aircraft' | 'vessel'; id: string } | null>(null);
+  const [trackedDetails, setTrackedDetails] = useState<{ kind: 'aircraft' | 'vessel' | 'vehicle'; id: string } | null>(null);
+  const [driverProfile, setDriverProfile] = useState<Record<string, unknown> | null>(null);
+  const vehicle = (freightLoad.vehicle || {}) as Record<string, unknown>;
+  const driver = (freightLoad.assigned_driver || {}) as Record<string, unknown>;
+  const driverRecord = (driver.driver || {}) as Record<string, unknown>;
 
   return (
     <section onKeyDown={(event) => {
@@ -128,6 +136,16 @@ export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolb
                         {lang === 'bs' ? 'Avion trenutno nije pronađen i praćenje je onemogućeno.' : lang === 'de' ? 'Das Flugzeug wurde derzeit nicht gefunden und Tracking ist deaktiviert.' : 'The aircraft was not found and tracking is disabled.'}
                         {onRetryAircraft && <> <button type="button" onClick={onRetryAircraft} className="cursor-pointer font-bold text-primary underline">{lang === 'bs' ? 'Pokušaj ponovo' : lang === 'de' ? 'Erneut versuchen' : 'Try again'}</button></>}
                       </p>}
+                      {item.key === 'vehicle_registrations' && Boolean(freightLoad.vehicle_id) && <button type="button" onClick={() => setTrackedDetails({ kind: 'vehicle', id: String(freightLoad.vehicle_id) })}
+                        className="mt-2 flex cursor-pointer items-center gap-1 rounded-md text-left text-xs text-slate-500 underline-offset-2 hover:underline focus-visible:outline-primary">
+                        <Check aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-primary" />
+                        <span><strong className="font-semibold text-primary">{lang === 'bs' ? 'Vozilo dodijeljeno' : lang === 'de' ? 'Fahrzeug zugewiesen' : 'Vehicle assigned'}: </strong>{String(vehicle.registration_number || freightLoad.vehicle_id)}</span>
+                      </button>}
+                      {item.key === 'assign_driver_and_vehicle' && Boolean(driverRecord.id) && <button type="button" onClick={() => setDriverProfile({ ...driverRecord, user: driver })}
+                        className="mt-2 flex cursor-pointer items-center gap-1 rounded-md text-left text-xs text-slate-500 underline-offset-2 hover:underline focus-visible:outline-primary">
+                        <Check aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-primary" />
+                        <span><strong className="font-semibold text-primary">{lang === 'bs' ? 'Vozač dodijeljen' : lang === 'de' ? 'Fahrer zugewiesen' : 'Driver assigned'}: </strong>{String(driver.name || driver.id)}</span>
+                      </button>}
                       {vesselConnected && (tracked ? <button type="button" onClick={() => setTrackedDetails(tracked)}
                         className="mt-2 flex cursor-pointer items-center gap-1 whitespace-nowrap rounded-md text-left text-xs text-slate-500 underline-offset-2 hover:underline focus-visible:outline-primary">
                         <Check aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-primary" />
@@ -146,6 +164,9 @@ export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolb
         </div>
       ) : <p className="p-6 text-sm text-slate-500">{u('shipmentDetails.noTasks', 'No operational tasks yet.')}</p>}
       {trackedDetails && <TransportDetails kind={trackedDetails.kind} id={trackedDetails.id} lang={lang} variant="modal" onClose={() => setTrackedDetails(null)} />}
+      {driverProfile && createPortal(<div className="fixed inset-0 z-[1000]">
+        <ProfileModal open kind="driver" record={driverProfile} role={role} lang={lang} onClose={() => setDriverProfile(null)} />
+      </div>, document.body)}
     </section>
   );
 };

@@ -5,7 +5,7 @@ import Flatpickr from 'react-flatpickr';
 import type { Instance as FlatpickrInstance } from 'flatpickr/dist/types/instance';
 import { Check, LoaderCircle, RotateCcw, Upload } from 'lucide-react';
 
-import type { Language } from '../../types';
+import type { Language, Role } from '../../types';
 import { flatpickrI18n } from '../../i18n';
 import { datePlaceholder, formatDate } from '../../lib/dates';
 import { api } from '../../services/api';
@@ -18,6 +18,7 @@ import { ChecklistAircraftSearch } from './ChecklistAircraftSearch';
 type Props = {
   workspace: Record<string, unknown>;
   lang: Language;
+  role?: Role;
   readOnly?: boolean;
   onVehicleReturn?: () => void;
   loadStatus?: string;
@@ -115,7 +116,7 @@ const ChecklistDatePicker = memo(({ fieldKey, value, disabled, lang, onChange, e
   );
 });
 
-export const ShipmentOperationsTab = ({ workspace, lang, readOnly = false, onUpdated, onLoadChanged, onVehicleReturn, loadStatus, allowPodDuringDelivery = false }: Props) => {
+export const ShipmentOperationsTab = ({ workspace, lang, role, readOnly = false, onUpdated, onLoadChanged, onVehicleReturn, loadStatus, allowPodDuringDelivery = false }: Props) => {
   const text = COPY[lang === 'bs' || lang === 'de' ? lang : 'en'];
   const checklist = array(workspace.operational_checklist);
   const freightLoad = record(workspace.freight_load);
@@ -492,6 +493,8 @@ export const ShipmentOperationsTab = ({ workspace, lang, readOnly = false, onUpd
   return (
     <>
     <ShipmentChecklistTable
+      freightLoad={freightLoad}
+      role={role}
       onRetryAircraft={!readOnly && busyKey === null ? () => setAircraftRetry((count) => count + 1) : undefined}
       checklist={checklist}
       lang={lang}

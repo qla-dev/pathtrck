@@ -255,6 +255,8 @@ export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userI
             </Panel>
 
             <ShipmentChecklistTable
+              freightLoad={freightLoad}
+              role={role}
               checklist={checklist}
               lang={lang}
               dueDate={dueDate}

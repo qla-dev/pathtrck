@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Building2, Hash, LoaderCircle, MapPin, Plane, PlaneTakeoff, Radio, Ship, Tag, X, type LucideIcon } from 'lucide-react';
+import { Building2, Hash, LoaderCircle, MapPin, Plane, PlaneTakeoff, Radio, Ship, Tag, Truck, X, type LucideIcon } from 'lucide-react';
 import type { Language } from '../../types';
 import { api, type AircraftAirport, type AircraftDetails, type VesselDetails } from '../../services/api';
 import { cn } from '../../lib/cn';
@@ -178,12 +178,12 @@ const Body = ({ view }: { view: View }) => <>
       <div className="mt-0.5 flex items-center gap-2">
         <p className="truncate text-xs font-semibold text-slate-400">{view.subtitle}</p>
         <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-1">
-          <span className={cn('inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-bold',
+          {view.statusLabel && <span className={cn('inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-bold',
             view.live ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
               : 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400')}>
             {view.live && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />}
             {view.statusLabel}
-          </span>
+          </span>}
           {view.badges.map((badge) => (
             <span key={badge} className="whitespace-nowrap rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-600 dark:bg-slate-800 dark:text-slate-300">{badge}</span>
           ))}
@@ -211,8 +211,27 @@ const Body = ({ view }: { view: View }) => <>
   <p className="mt-3 truncate text-right text-[10px] font-semibold text-slate-400">{view.footerRight}</p>
 </>;
 
+const vehicleView = (vehicle: Record<string, unknown>, text: Text, lang: Language): View => ({
+  icon: <Truck className="h-6 w-6" />,
+  title: String(vehicle.registration_number || text.unknownRegistration),
+  subtitle: [vehicle.make, vehicle.model].filter(Boolean).join(' · '),
+  country: null, live: false, statusLabel: '', badges: [], route: null, footerRight: '',
+  facts: [
+    { icon: Tag, label: text.registration, value: String(vehicle.registration_number || '—') },
+    { icon: Truck, label: lang === 'bs' ? 'Tip vozila' : lang === 'de' ? 'Fahrzeugtyp' : 'Vehicle type', value: String(vehicle.vehicle_type || '—') },
+    { icon: Building2, label: lang === 'bs' ? 'Proizvođač' : lang === 'de' ? 'Hersteller' : 'Make', value: String(vehicle.make || '—') },
+    { icon: Tag, label: text.model, value: String(vehicle.model || '—') },
+    { icon: Hash, label: 'VIN', value: String(vehicle.vin || '—') },
+    { icon: Hash, label: lang === 'bs' ? 'Godište' : lang === 'de' ? 'Baujahr' : 'Year', value: String(vehicle.year || '—') },
+  ],
+  tiles: [
+    { label: lang === 'bs' ? 'Nosivost' : lang === 'de' ? 'Nutzlast' : 'Payload', value: vehicle.capacity_kg != null ? `${vehicle.capacity_kg} kg` : '—' },
+    { label: lang === 'bs' ? 'Zapremina' : lang === 'de' ? 'Volumen' : 'Volume', value: vehicle.capacity_m3 != null ? `${vehicle.capacity_m3} m³` : '—' },
+  ],
+});
+
 export const TransportDetails = ({ kind, id, lang, variant, onClose, footer }: {
-  kind: 'aircraft' | 'vessel';
+  kind: 'aircraft' | 'vessel' | 'vehicle';
   /** ICAO hex for an aircraft, MMSI for a vessel. */
   id: string;
   lang: Language;
@@ -235,7 +254,9 @@ export const TransportDetails = ({ kind, id, lang, variant, onClose, footer }: {
     setView(null);
     const load = kind === 'aircraft'
       ? api.aircraft.details(id).then((response) => aircraftView(response.data, text, lang))
-      : api.vessels.details(id).then((response) => vesselView(response.data, text));
+      : kind === 'vehicle'
+        ? api.vehicles.get(id).then((response) => vehicleView(response.data, text, lang))
+        : api.vessels.details(id).then((response) => vesselView(response.data, text));
     load
       .then((next) => { if (active) setView(next); })
       .catch(() => { if (active) setError(text.failed); })
