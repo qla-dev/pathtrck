@@ -26,6 +26,7 @@ import {
 
 import type { Language, Role } from "../../types";
 import { ApiUser, api } from "../../services/api";
+import { ReportButton } from '../ui/ReportButton';
 import { useApiList } from "../../hooks/useApiList";
 import { Button } from "../ui/Button";
 import { Toggle } from "../ui/Toggle";
@@ -703,6 +704,19 @@ export const ProfileView = ({
 
   return (
     <div className="w-full">
+      {!editing && <div className="mb-4 flex justify-end"><ReportButton lang={lang} report={{
+        title: displayName,
+        subtitle: profileType.label,
+        fields: [
+          { label: lang === 'bs' ? 'Lokacija' : lang === 'de' ? 'Standort' : 'Location', value: location },
+          { label: 'Email', value: contactEmail },
+          { label: lang === 'bs' ? 'Telefon' : lang === 'de' ? 'Telefon' : 'Phone', value: companyMode ? company?.phone : user?.phone },
+          { label: lang === 'bs' ? 'Porezni broj' : lang === 'de' ? 'Steuernummer' : 'Tax number', value: profileTaxNumber },
+          { label: lang === 'bs' ? 'Opis' : lang === 'de' ? 'Beschreibung' : 'Description', value: companyMode ? company?.description : user?.bio },
+          { label: lang === 'bs' ? 'Ocjena' : lang === 'de' ? 'Bewertung' : 'Rating', value: `${Number.isFinite(profileRating) ? profileRating.toFixed(1) : '—'} (${displayedReviewCount})` },
+          ...stats.map((stat) => ({ label: stat.label, value: stat.number })),
+        ],
+      }} /></div>}
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
       <div className="min-w-0 space-y-5">
       {!editing && <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">

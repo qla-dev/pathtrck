@@ -5,6 +5,7 @@ import type { Language } from '../../types';
 import { api, type AircraftAirport, type AircraftDetails, type VesselDetails } from '../../services/api';
 import { cn } from '../../lib/cn';
 import { countryFlagUrl } from '../../lib/loadGeo';
+import { ReportButton } from '../ui/ReportButton';
 
 const COPY = {
   en: {
@@ -88,6 +89,7 @@ type View = {
   route: ReactNode;
   tiles: Array<{ label: string; value: string }>;
   footerRight: string;
+  reportFields?: Array<{ label: string; value: string }>;
 };
 
 const aircraftView = (details: AircraftDetails, text: Text, lang: Language): View => {
@@ -102,6 +104,7 @@ const aircraftView = (details: AircraftDetails, text: Text, lang: Language): Vie
     live,
     statusLabel: live ? 'Live' : details.position_source === 'registry' ? text.notAirborne : seenAgo(details.seen_at, lang),
     badges: details.db_flags.map((flag) => FLAG_NAMES[flag] || flag),
+    reportFields: details.route ? [{ label: text.route, value: [from, to].map((airport) => airport ? [airport.iata, airport.name, airport.location].filter(Boolean).join(' · ') : '—').join(' → ') }] : [],
     facts: [
       { icon: Building2, label: text.airline, value: details.operator?.name || '—' },
       { icon: Tag, label: text.registration, value: details.registration || text.unknownRegistration },
@@ -293,6 +296,18 @@ export const TransportDetails = ({ kind, id, lang, variant, onClose, footer }: {
       {loading && <p className="flex items-center gap-2 py-6 text-xs font-semibold text-primary"><LoaderCircle aria-hidden="true" className="h-4 w-4 animate-spin" />{text.loading}</p>}
       {error && !loading && <p className="py-6 text-xs font-semibold text-rose-500">{error}</p>}
       {view && !loading && <Body view={view} />}
+      {view && !loading && <div className="mt-4 border-t border-slate-200 pt-3 dark:border-slate-700"><ReportButton lang={lang} report={{
+        title: view.title,
+        subtitle: view.subtitle,
+        fields: [
+          ...view.facts,
+          ...view.tiles,
+          ...(view.reportFields || []),
+          ...(view.statusLabel ? [{ label: text.status, value: view.statusLabel }] : []),
+          ...(view.country ? [{ label: text.flag, value: view.country.name }] : []),
+          ...(view.footerRight ? [{ label: text.updated, value: view.footerRight }] : []),
+        ],
+      }} /></div>}
       {footer}
     </div>
   );
