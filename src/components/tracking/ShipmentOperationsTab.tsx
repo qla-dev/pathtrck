@@ -19,6 +19,7 @@ type Props = {
   workspace: Record<string, unknown>;
   lang: Language;
   readOnly?: boolean;
+  onVehicleReturn?: () => void;
   onUpdated: (workspace: Record<string, unknown>) => void;
   /** Refreshes the load after an inline edit writes to it. */
   onLoadChanged?: () => Promise<void> | void;
@@ -112,7 +113,7 @@ const ChecklistDatePicker = memo(({ fieldKey, value, disabled, lang, onChange, e
   );
 });
 
-export const ShipmentOperationsTab = ({ workspace, lang, readOnly = false, onUpdated, onLoadChanged }: Props) => {
+export const ShipmentOperationsTab = ({ workspace, lang, readOnly = false, onUpdated, onLoadChanged, onVehicleReturn }: Props) => {
   const text = COPY[lang === 'bs' || lang === 'de' ? lang : 'en'];
   const checklist = array(workspace.operational_checklist);
   const freightLoad = record(workspace.freight_load);
@@ -374,6 +375,8 @@ export const ShipmentOperationsTab = ({ workspace, lang, readOnly = false, onUpd
   const renderAction = (item: Record<string, unknown>) => {
     const taskKey = String(item.key);
     switch (taskKey) {
+      case 'vehicle_return':
+        return onVehicleReturn && item.status !== 'completed' ? <button type="button" onClick={onVehicleReturn} className="font-bold text-primary">{lang === 'bs' ? 'Povratak vozila' : lang === 'de' ? 'Fahrzeugrückgabe' : 'Vehicle return'}</button> : null;
       case 'confirm_storage_arrival':
         return valueField(item, 'datetime-local');
       case 'check_storage_documents':
@@ -489,6 +492,7 @@ export const ShipmentOperationsTab = ({ workspace, lang, readOnly = false, onUpd
       lang={lang}
       dueDate={dueDate}
       renderAction={readOnly ? (item) => {
+        if (item.key === 'vehicle_return') return renderAction(item);
         const value = String(item.action_value || '');
         if (!value) return <span className="text-xs text-slate-500">—</span>;
         if (item.key === 'booking_confirmation' && ['yes', 'no'].includes(value)) {

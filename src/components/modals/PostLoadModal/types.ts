@@ -151,6 +151,7 @@ export type LoadDraft = {
   heightM: string;
   heightUnit: 'm' | 'cm' | 'mm';
   volumeM3: string;
+  dimensionScope: 'overall' | 'per_unit';
   declaredValue: string;
   additionalInfo: string;
   loadingEquipment: string[];
@@ -295,6 +296,7 @@ export const INITIAL_DRAFT: LoadDraft = {
   heightM: '',
   heightUnit: 'm',
   volumeM3: '',
+  dimensionScope: 'overall',
   declaredValue: '',
   additionalInfo: '',
   loadingEquipment: [],

@@ -331,7 +331,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
     return isStorage && labels[status] ? u(`storage.status.${labels[status]}`, status) : trPackageStatus(lang, status);
   };
   const canManageStatuses = role === 'warehouse' || role === 'driver' || isCompanyOperationsRole(role) || role === 'superadmin' || role === 'master';
-  const hideFinishedStatus = role === 'user' || (role === 'driver' && companyIds.length === 0);
+  const hideFinishedStatus = role === 'user';
   const canCustomerReceive = role === 'user' && selectedPackage.status === 'In delivery';
   const canChangeStatus = canManageStatuses || canCustomerReceive;
   const visibleStatus = isStorage ? (selectedPackage.status === 'Finished' || selectedPackage.status === 'In delivery' ? 'Sent' : selectedPackage.status) : hideFinishedStatus && selectedPackage.status === 'Finished' ? 'Received' : selectedPackage.status;
@@ -484,7 +484,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
     if (status === 'Sent' || status === 'In delivery' || status === 'Received') {
       const category = status === 'Received' ? 'received' : 'in_delivery';
       const items = selectedPackage.operationalChecklist || [];
-      const pending = items.filter((item) => (category === 'received' || checklistCategory(item) === category) && item.status !== 'completed');
+      const pending = items.filter((item) => (checklistCategory(item) === category || (category === 'received' && checklistCategory(item) === 'in_delivery')) && item.status !== 'completed');
       if (!items.length || pending.length) {
         void showError(
           lang === 'bs' ? 'Prvo završi obavezne stavke checkliste' : lang === 'de' ? 'Erforderliche Checklistenpunkte zuerst abschließen' : 'Complete the required checklist items first',
@@ -493,8 +493,13 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
         return;
       }
     }
-    if (status === 'Finished') {
-      setCarDropOpen(true);
+    if (status === 'Finished' && selectedPackage.transportType === 'road' && !isStorage) {
+      const confirmed = await confirmAction({
+        title: lang === 'bs' ? 'Povratak vozila' : lang === 'de' ? 'Fahrzeugrückgabe' : 'Vehicle return',
+        text: lang === 'bs' ? 'Otvoriti obrazac za povratak vozila i završiti transport?' : lang === 'de' ? 'Fahrzeugrückgabe öffnen und den Transport abschließen?' : 'Open the vehicle return form to finish this transport?',
+        confirmText: lang === 'bs' ? 'Nastavi' : lang === 'de' ? 'Weiter' : 'Continue',
+      });
+      if (confirmed) setCarDropOpen(true);
       return;
     }
 
@@ -1025,6 +1030,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
               lang={lang}
               onUpdated={setShipmentWorkspace}
               onLoadChanged={refreshPackage}
+              onVehicleReturn={canChangeStatus && canSelectStatus('Finished') && selectedPackage.status !== 'Finished' ? () => changeLoadStatus('Finished') : undefined}
             />
           ) : undefined}
           offerStatusSlot={shipmentWorkspace ? (

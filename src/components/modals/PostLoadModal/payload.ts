@@ -68,6 +68,7 @@ export const buildLoadFieldsPayload = (draft: LoadDraft) => ({
   customs_documents: draft.customsDocuments,
   weight_kg: toApiWeightKg(draft.weightKg, draft.weightUnit),
   length_m: draft.lengthM ? toApiLengthM(draft.lengthM, draft.lengthUnit) : null,
+  dimension_scope: draft.dimensionScope,
   width_m: draft.widthM ? toApiLengthM(draft.widthM, draft.widthUnit) : null,
   height_m: draft.heightM ? toApiLengthM(draft.heightM, draft.heightUnit) : null,
   volume_m3: draft.volumeM3 ? Number(draft.volumeM3) : null,

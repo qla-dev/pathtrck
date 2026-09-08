@@ -7,15 +7,15 @@ import type { Language } from '../types';
 
 type Locale = 'en' | 'bs' | 'de';
 
-export type ChecklistCategory = 'in_delivery' | 'received';
+export type ChecklistCategory = 'in_delivery' | 'received' | 'finished';
 export const checklistCategory = (item: { key?: unknown; required_for_status?: unknown }): ChecklistCategory =>
-  ['proof_of_delivery', 'arrival_and_release_documents'].includes(String(item.key)) ? 'received' : 'in_delivery';
+  String(item.key) === 'vehicle_return' ? 'finished' : ['proof_of_delivery', 'arrival_and_release_documents'].includes(String(item.key)) ? 'received' : 'in_delivery';
 
 export const checklistCategoryLabel = (lang: Language, category: ChecklistCategory): string => {
   const labels = {
-    en: { in_delivery: 'In delivery', received: 'Received' },
-    bs: { in_delivery: 'U dostavi', received: 'Primljeno' },
-    de: { in_delivery: 'In Zustellung', received: 'Empfangen' },
+    en: { in_delivery: 'In delivery', received: 'Received', finished: 'Finished' },
+    bs: { in_delivery: 'U dostavi', received: 'Primljeno', finished: 'Završeno' },
+    de: { in_delivery: 'In Zustellung', received: 'Empfangen', finished: 'Abgeschlossen' },
   };
   return labels[lang === 'bs' || lang === 'de' ? lang : 'en'][category];
 };
@@ -32,6 +32,11 @@ type Phrase = {
 const CUSTOMER_TASKS = new Set(['shipping_instructions', 'approve_draft', 'approve_awb']);
 
 const TASKS: Record<string, Record<Locale, Phrase>> = {
+  vehicle_return: {
+    en: { label: 'Vehicle return', action: 'record the vehicle return' },
+    bs: { label: 'Povratak vozila', action: 'evidentirati povratak vozila' },
+    de: { label: 'Fahrzeugrückgabe', action: 'die Fahrzeugrückgabe erfassen' },
+  },
   confirm_storage_arrival: {
     en: { label: 'Confirm arrival time', action: 'confirm the warehouse arrival time' },
     bs: { label: 'Potvrda termina prijema', action: 'potvrditi termin prijema u skladište' },

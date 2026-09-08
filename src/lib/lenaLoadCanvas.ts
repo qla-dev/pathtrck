@@ -180,6 +180,7 @@ export const loadDraftRecordToScan = (record: unknown): LoadScanResult | undefin
     widthM: draftNumber(draft.width_m),
     heightM: draftNumber(draft.height_m),
     volumeM3: draftNumber(draft.volume_m3),
+    dimensionScope: draft.dimension_scope === 'per_unit' ? 'per_unit' : 'overall',
     vehicleType: draftString(draft.vehicle_type),
     loadingEquipment: draftString(loadingMethods[0]),
     characteristics: draftString(Array.isArray(draft.characteristics) ? draft.characteristics[0] : draft.characteristics),

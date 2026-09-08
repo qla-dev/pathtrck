@@ -1,3 +1,4 @@
+import { calculateVolume } from './volume';
 import { AddWarehouseModal } from '../AddWarehouseModal/AddWarehouseModal';
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
@@ -507,7 +508,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         pickupPlaceType: String(pickup.place_type || INITIAL_DRAFT.pickupPlaceType), pickupCity: String(pickup.city || ''), pickupPostalCode: String(pickup.postal_code || ''), pickupCountry: String(pickup.country_code || 'BA'), pickupAddress: String(pickup.address || ''), pickupPort: String(pickup.port || ''), pickupAirport: String(pickup.airport || ''), pickupLatitude: String(pickup.latitude || ''), pickupLongitude: String(pickup.longitude || ''), pickupDate: pickupStart.date, pickupDateTo: pickupEnd.date, pickupTimeFrom: pickupStart.time, pickupTimeTo: pickupEnd.time,
         deliveryPlaceType: String(delivery.place_type || INITIAL_DRAFT.deliveryPlaceType), deliveryCity: String(delivery.city || record.warehouse_city || ''), deliveryPostalCode: String(delivery.postal_code || ''), deliveryCountry: String(delivery.country_code || record.warehouse_country_code || 'BA'), deliveryAddress: String(delivery.address || record.warehouse_address || ''), deliveryPort: String(delivery.port || ''), deliveryAirport: String(delivery.airport || ''), deliveryLatitude: String(delivery.latitude || record.warehouse_latitude || ''), deliveryLongitude: String(delivery.longitude || record.warehouse_longitude || ''), deliveryRadiusKm: String(record.warehouse_radius_km || delivery.radius_km || INITIAL_DRAFT.deliveryRadiusKm), deliveryDate: deliveryStart.date || String(record.storage_start_date || '').slice(0, 10), deliveryDateTo: deliveryEnd.date || String(record.storage_end_date || '').slice(0, 10), deliveryTimeFrom: deliveryStart.time, deliveryTimeTo: deliveryEnd.time,
         transitDays: String(record.transit_days || ''),
-        loadTitle: String(record.title || ''), cargoType: String(record.cargo_type || 'FTL'), goodsType: String(record.goods_type || 'General'), hsCodes, customsDocuments: Array.isArray(record.customs_documents) ? record.customs_documents as LoadDraft['customsDocuments'] : [], weightKg: fromApiWeightKg(record.weight_kg), pallets: String(record.pallets || ''), quantityMeasure: String(record.quantity_measure || ''), lengthM: String(record.length_m || ''), widthM: String(record.width_m || ''), heightM: String(record.height_m || ''), volumeM3: String(record.volume_m3 || ''), declaredValue: String(record.declared_value || ''), budget: String(record.budget || ''), freightCurrency: String(record.currency || 'EUR'), shipmentValueCurrency: String(record.shipment_value_currency || record.currency || 'EUR'), paymentDueDays: String(record.payment_due_days || ''), paymentDeferred: terms === 'deferred', seaPaymentTerms: ['Prepaid', 'Collect', 'Other'].includes(terms) ? terms : '', incoterm: String(record.incoterms || ''),
+        dimensionScope: record.dimension_scope === 'per_unit' ? 'per_unit' : 'overall', loadTitle: String(record.title || ''), cargoType: String(record.cargo_type || 'FTL'), goodsType: String(record.goods_type || 'General'), hsCodes, customsDocuments: Array.isArray(record.customs_documents) ? record.customs_documents as LoadDraft['customsDocuments'] : [], weightKg: fromApiWeightKg(record.weight_kg), pallets: String(record.pallets || ''), quantityMeasure: String(record.quantity_measure || ''), lengthM: String(record.length_m || ''), widthM: String(record.width_m || ''), heightM: String(record.height_m || ''), volumeM3: String(record.volume_m3 || ''), declaredValue: String(record.declared_value || ''), budget: String(record.budget || ''), freightCurrency: String(record.currency || 'EUR'), shipmentValueCurrency: String(record.shipment_value_currency || record.currency || 'EUR'), paymentDueDays: String(record.payment_due_days || ''), paymentDeferred: terms === 'deferred', seaPaymentTerms: ['Prepaid', 'Collect', 'Other'].includes(terms) ? terms : '', incoterm: String(record.incoterms || ''),
         loadingEquipment: Array.isArray(record.handling_requirements) ? record.handling_requirements.map(String) : Array.isArray(record.loading_methods) ? record.loading_methods.map(String) : [], vehicleType: String(record.vehicle_type || INITIAL_DRAFT.vehicleType), characteristics: Array.isArray(record.characteristics) ? record.characteristics.map(String) : [], specialRequirements: Array.isArray(record.special_requirements) ? record.special_requirements.map(String) : [], deliveryProof: String(record.delivery_proof || ''), temperatureControlled: record.temperature_min != null || record.temperature_max != null, temperatureMin: String(record.temperature_min ?? ''), temperatureMax: String(record.temperature_max ?? ''),
         containerSelections: Array.isArray(record.container_selections) ? (record.container_selections as Array<Record<string, unknown>>).map((row) => ({ type: String(row.type || ''), quantity: String(row.quantity ?? '1') })) : [],
         blType: String(record.bl_type || ''), dgUnNumber: String(record.dg_un_number || ''), dgImoClass: String(record.dg_imo_class || ''), dgPackingGroup: String(record.dg_packing_group || ''), dgProperShippingName: String(record.dg_proper_shipping_name || ''),
@@ -638,7 +639,14 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   );
 
   const setField = <K extends keyof LoadDraft>(key: K, value: LoadDraft[K]) => {
-    setDraft((prev) => ({ ...prev, [key]: value }));
+    setDraft((prev) => {
+      const next = { ...prev, [key]: value };
+      if (['lengthM', 'widthM', 'heightM', 'dimensionScope'].includes(key)
+        || (key === 'pallets' && next.dimensionScope === 'per_unit')) {
+        next.volumeM3 = calculateVolume(next) ?? '';
+      }
+      return next;
+    });
   };
 
   const conciseNumber = (value: number) => String(Number(value.toFixed(6)));
@@ -2614,34 +2622,6 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           </div>
                         </div>
                         <div className="grid gap-3 sm:grid-cols-2">
-                          <div className={cn('space-y-1', invalidClass('weightKg'))}>
-                            {fieldLabel('weightKg', 'postLoadModal.weightValue', 'Weight')}
-                            <div className="flex gap-2">
-                              <Input
-                                type="number"
-                                step="0.1"
-                                min="0.1"
-                                value={draft.weightKg}
-                                onChange={(e) => setField('weightKg', e.target.value)}
-                                placeholder={draft.weightUnit === 't' ? '24.0' : '24000'}
-                              />
-                              <IconSelect
-                                value={draft.weightUnit}
-                                onChange={(value) => changeWeightUnit(value as LoadDraft['weightUnit'])}
-                                placeholder="t"
-                                ariaLabel={u('postLoadModal.weightUnit', 'Weight unit')}
-                                icon={Weight}
-                                className="w-24 shrink-0"
-                                options={['t', 'kg'].map((unit) => ({ value: unit, label: unit, icon: Weight }))}
-                              />
-                            </div>
-                          </div>
-                          <div className={cn('space-y-1', invalidClass('volumeM3'))}>
-                            {fieldLabel('volumeM3', 'postLoadModal.volume', 'CBM (m³)')}
-                            <Input type="number" step="0.1" min="0" value={draft.volumeM3} onChange={(e) => setField('volumeM3', e.target.value)} placeholder="33.2" />
-                          </div>
-                        </div>
-                        <div className="grid gap-3 sm:grid-cols-2">
                           <div className={cn('space-y-1', invalidClass('pallets'))}>
                             {fieldLabel('pallets', 'postLoadModal.unitCount', 'Number of pieces / units')}
                             <Input
@@ -2671,7 +2651,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             />
                           </div>
                         </div>
-                        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_6rem] sm:items-end">
+                        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_5rem_minmax(0,1.4fr)] sm:items-end">
                           <div className={cn('space-y-1', invalidClass('lengthM'))}>
                             {fieldLabel('lengthM', 'postLoadModal.lengthValue', 'Length')}
                             <Input type="number" step="0.1" min="0.1" value={draft.lengthM} onChange={(e) => setField('lengthM', e.target.value)} placeholder="13.6" />
@@ -2687,6 +2667,47 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           <div className="space-y-1">
                             <FieldLabel>{u('postLoadModal.dimensionUnit', 'Unit')}</FieldLabel>
                             <IconSelect value={draft.lengthUnit} onChange={(value) => changeDimensionUnit(value as LoadDraft['lengthUnit'])} placeholder="m" ariaLabel={u('postLoadModal.dimensionUnit', 'Dimension unit')} icon={Ruler} options={['m', 'cm', 'mm'].map((unit) => ({ value: unit, label: unit, icon: Ruler }))} />
+                          </div>
+                          <div className="space-y-1">
+                            <FieldLabel>{lang === 'bs' ? 'Dimenzije za' : lang === 'de' ? 'Maßbezug' : 'Dimensions for'}</FieldLabel>
+                            <IconSelect value={draft.dimensionScope} onChange={(value) => setField('dimensionScope', value as LoadDraft['dimensionScope'])} placeholder="" ariaLabel={lang === 'bs' ? 'Dimenzije za' : lang === 'de' ? 'Maßbezug' : 'Dimensions for'} icon={Boxes} options={[
+                              { value: 'overall', label: lang === 'bs' ? 'Ukupne dimenzije' : lang === 'de' ? 'Gesamtgröße' : 'Overall size', icon: Boxes },
+                              { value: 'per_unit', label: lang === 'bs' ? 'Po jedinici' : lang === 'de' ? 'Pro Einheit' : 'Per unit', icon: Box },
+                            ]} />
+                          </div>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className={cn('space-y-1', invalidClass('weightKg'))}>
+                            {fieldLabel('weightKg', 'postLoadModal.weightValue', 'Weight')}
+                            <div className="flex gap-2">
+                              <Input
+                                type="number"
+                                step="0.1"
+                                min="0.1"
+                                value={draft.weightKg}
+                                onChange={(e) => setField('weightKg', e.target.value)}
+                                placeholder={draft.weightUnit === 't' ? '24.0' : '24000'}
+                              />
+                              <IconSelect
+                                value={draft.weightUnit}
+                                onChange={(value) => changeWeightUnit(value as LoadDraft['weightUnit'])}
+                                placeholder="t"
+                                ariaLabel={u('postLoadModal.weightUnit', 'Weight unit')}
+                                icon={Weight}
+                                className="w-24 shrink-0"
+                                options={['t', 'kg'].map((unit) => ({ value: unit, label: unit, icon: Weight }))}
+                              />
+                            </div>
+                          </div>
+                          <div className={cn('space-y-1', invalidClass('volumeM3'))}>
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                              {fieldLabel('volumeM3', 'postLoadModal.volume', 'CBM (m³)')}
+                              <button type="button" disabled={calculateVolume(draft) === null} onClick={() => setField('volumeM3', calculateVolume(draft) ?? draft.volumeM3)} className="inline-flex items-center gap-1 text-xs font-semibold text-primary disabled:cursor-not-allowed disabled:opacity-40">
+                                <RotateCcw className="h-3 w-3" />
+                                {lang === 'bs' ? 'Izračunaj iz dimenzija' : lang === 'de' ? 'Aus Maßen neu berechnen' : 'Recalculate from dimensions'}
+                              </button>
+                            </div>
+                            <Input type="number" step="any" min="0" value={draft.volumeM3} onChange={(e) => setField('volumeM3', e.target.value)} placeholder="33.2" />
                           </div>
                         </div>
                         <div className="space-y-1">

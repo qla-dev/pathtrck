@@ -68,6 +68,7 @@ export type ScanFieldPatch = Partial<{
   widthM: string;
   heightM: string;
   volumeM3: string;
+  dimensionScope?: 'overall' | 'per_unit';
   vehicleType: string;
   loadingEquipment: string[];
   characteristics: string[];
