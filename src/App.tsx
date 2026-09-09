@@ -140,7 +140,7 @@ import { TariffsHsView } from "./components/views/TariffsHsView";
 import { PaymentModal } from "./components/modals/PaymentModal";
 import { BrandWordmark, FreightbookMark } from "./components/ui/BrandWordmark";
 import { PACKAGE_ICONS, PricingPlanCard } from "./components/pricing/PricingPlanCard";
-import { SetupProcess } from "./components/auth/SetupProcess";
+import { RegisterModal } from "./components/auth/RegisterModal";
 import { LoginProcess } from "./components/auth/LoginProcess";
 import { FleetOnboardingPreview } from "./components/landing/FleetOnboardingPreview";
 import { WarehouseOnboardingPreview } from "./components/landing/WarehouseOnboardingPreview";
@@ -3948,7 +3948,7 @@ const Onboarding = ({
 
   if (isSetupMode) {
     return (
-      <SetupProcess
+      <RegisterModal
         lang={lang}
         labels={{
           username: t.username,

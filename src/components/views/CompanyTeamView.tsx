@@ -7,6 +7,7 @@ import { Language } from '../../types';
 import { cn } from '../../lib/cn';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
+import { RolePermissionsCard } from '../ui/RolePermissionsCard';
 import { PageHeader } from '../ui/PageHeader';
 import { ApiUser, api } from '../../services/api';
 import { useApiList } from '../../hooks/useApiList';
@@ -262,11 +263,7 @@ export const CompanyTeamView = ({ lang }: { lang: Language }) => {
       {teamSection === 'roles' && <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {(Object.entries(ROLE_PERMISSIONS) as [CompanyRole, string[]][]).map(([roleName, permissions]) => {
           const visual = ROLE_VISUALS[roleName];
-          const RoleIcon = visual.icon;
-          return <Card key={roleName} className={cn('shadow-none', visual.shell)} contentClassName="p-5">
-            <div className="flex items-center gap-3"><div className={cn('flex h-11 w-11 items-center justify-center rounded-2xl', visual.tone)}><RoleIcon className="h-5 w-5" /></div><div><p className="font-black text-slate-900 dark:text-white">{displayRole(roleName)}</p><p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{permissions.length} permissions</p></div></div>
-            <div className="mt-4 grid gap-2">{permissions.map((permission) => <p key={permission} className="flex items-start gap-2 rounded-xl bg-white/70 px-3 py-2 text-xs font-medium text-slate-600 dark:bg-slate-950/50 dark:text-slate-300"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />{permission}</p>)}</div>
-          </Card>;
+          return <RolePermissionsCard key={roleName} title={displayRole(roleName)} permissions={permissions} permissionsLabel="permissions" {...visual} />;
         })}
       </div>}
       </motion.div>

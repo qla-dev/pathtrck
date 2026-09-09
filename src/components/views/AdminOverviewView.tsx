@@ -3,6 +3,7 @@ import { Activity, AlertTriangle, Box, Building2, Check, Crown, FileClock, Gauge
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import worldMap from '@svg-maps/world';
 
+import { CompactCard } from '../ui/CompactCard';
 import { useApiList } from '../../hooks/useApiList';
 import { trLoadStatus } from '../../i18n';
 import { api } from '../../services/api';
@@ -53,10 +54,10 @@ const Panel = ({ title, aside, children, className = '' }: { title: string; asid
 );
 
 const Metric = ({ label, value, icon: Icon, tone }: { label: string; value: string; icon: typeof Users; tone: string }) => (
-  <div className="flex min-w-0 items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-[0_1px_4px_rgb(15_23_42/.04)] dark:border-slate-800 dark:bg-slate-900">
-    <div className="min-w-0"><div className="truncate text-[8px] font-black uppercase tracking-wide text-slate-500">{label}</div><div className="mt-0.5 text-[16px] font-black leading-none text-slate-950 dark:text-white">{value}</div></div>
-    <span className={`ml-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${tone}`}><Icon className="h-3.5 w-3.5" /></span>
-  </div>
+  <CompactCard icon={Icon} tone={tone}>
+    <div className="truncate text-[8px] font-black uppercase tracking-wide text-slate-500">{label}</div>
+    <div className="mt-0.5 text-[16px] font-black leading-none text-slate-950 dark:text-white">{value}</div>
+  </CompactCard>
 );
 
 const DotLegend = ({ rows }: { rows: Array<readonly [string, number, string]> }) => <div className="space-y-2.5">{rows.map(([label, value, color]) => <div key={label} className="flex items-center text-[10px]"><i className="mr-2 h-2 w-2 rounded-full" style={{ background: color }} /><span className="text-slate-600 dark:text-slate-300">{label}</span><b className="ml-auto text-slate-900 dark:text-white">{value}</b></div>)}</div>;
