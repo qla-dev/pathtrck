@@ -136,9 +136,14 @@ type LoadDetailsModalProps = {
   onClose: () => void;
   onChanged?: () => void;
   initialTab?: 'tracker' | 'operations';
+  /**
+   * Opens the full load form in edit mode for this load. Owned by the app shell, which is where
+   * PostLoadModal lives - the same handover LoadDetailsPrebook uses for its own edit button.
+   */
+  onEditLoad?: (loadId: string) => void;
 };
 
-export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], onClose, onChanged, initialTab = 'tracker' }: LoadDetailsModalProps) => {
+export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], onClose, onChanged, initialTab = 'tracker', onEditLoad }: LoadDetailsModalProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [basePackage, setSelectedPackage] = useState<PackageData>(emptyPackage);
   const [detailsOpen, setDetailsOpen] = useState(true);
@@ -1021,6 +1026,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
           userId={userId}
           companyIds={companyIds}
           onEdit={(focusKey, actionTitle) => { setEditFocusKey(focusKey ?? null); setEditActionTitle(actionTitle ?? null); setEditLoadOpen(true); }}
+          onEditLoad={onEditLoad ? () => onEditLoad(String(selectedPackage.id)) : undefined}
           onSendReminder={sendShipmentReminder}
           initialSubTab={detailsSubTab}
           operationsSlot={shipmentWorkspace ? (

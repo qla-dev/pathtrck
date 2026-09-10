@@ -7208,6 +7208,10 @@ export default function App() {
                   }
                   requestedLayout={trackingLayoutRequest?.mode}
                   requestedLayoutNonce={trackingLayoutRequest?.nonce}
+                  onEditLoad={(loadId) => {
+                    setEditLoadId(loadId);
+                    setIsPostLoadOpen(true);
+                  }}
                 />
               )}
               {view === "feed" && (
@@ -7477,6 +7481,14 @@ export default function App() {
             userId={currentUser?.id}
             companyIds={trackingCompanyIds}
             initialTab={openLoadDetailsTab}
+            onEditLoad={(loadId) => {
+              // Same handover as LoadDetailsPrebook's edit button below: close this modal and open
+              // PostLoadModal on that load, rather than stacking a second modal over this one.
+              setOpenLoadDetailsId(null);
+              setOpenLoadDetailsTab('tracker');
+              setEditLoadId(loadId);
+              setIsPostLoadOpen(true);
+            }}
             onClose={() => { setOpenLoadDetailsId(null); setOpenLoadDetailsTab('tracker'); }}
           />
         )}

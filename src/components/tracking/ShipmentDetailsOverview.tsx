@@ -22,8 +22,14 @@ type Props = {
   role: Role;
   userId?: number;
   companyIds?: number[];
-  /** Opens the load form; with a field key the form opens on that field alone, titled after the task. */
+  /** Opens the per-field editor; with a field key the form opens on that field alone, titled after the task. */
   onEdit: (focusKey?: string, actionTitle?: string) => void;
+  /**
+   * Opens the full load form in edit mode - the same PostLoadModal the prebook header opens. The
+   * header's "Edit load" button uses this; the per-field task edits keep using `onEdit`. Falls back
+   * to `onEdit()` when the host does not provide it.
+   */
+  onEditLoad?: () => void;
   /** Posts a reminder into the shipment conversation; returns whether it was sent. */
   onSendReminder?: (message: string) => Promise<boolean>;
   initialSubTab?: SubTab;
@@ -79,7 +85,7 @@ const Panel = ({ title, icon: Icon, children }: { title: string; icon?: LucideIc
   </section>
 );
 
-export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userId, companyIds = [], onEdit, onSendReminder, initialSubTab = 'overview', operationsSlot, documentsSlot, offerStatusSlot }: Props) => {
+export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userId, companyIds = [], onEdit, onEditLoad, onSendReminder, initialSubTab = 'overview', operationsSlot, documentsSlot, offerStatusSlot }: Props) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [subTab, setSubTab] = useState<SubTab>(initialSubTab);
   const [sendingReminder, setSendingReminder] = useState(false);
@@ -206,7 +212,7 @@ export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userI
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            {canEdit && <button type="button" onClick={() => onEdit()} className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"><Pencil className="h-4 w-4" />{u('shipmentDetails.editLoad', 'Edit load')}</button>}
+            {canEdit && <button type="button" onClick={() => (onEditLoad ? onEditLoad() : onEdit())} className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"><Pencil className="h-4 w-4" />{u('shipmentDetails.editLoad', 'Edit load')}</button>}
             {offerStatusSlot}
           </div>
         </div>

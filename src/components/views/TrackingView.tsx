@@ -150,13 +150,15 @@ type TrackingViewProps = {
   userId?: number;
   companyIds?: number[];
   onLayoutModeChange?: (mode: TrackingLayoutMode) => void;
+  /** Opens PostLoadModal in edit mode for a load. Owned by the app shell, which is where it lives. */
+  onEditLoad?: (loadId: string) => void;
   // Sidebar entries (Global Tracking / Map) drop the user straight into a layout. The nonce lets
   // the same mode be re-requested - clicking "Map" again after switching to grid must still work.
   requestedLayout?: TrackingLayoutMode;
   requestedLayoutNonce?: number;
 };
 
-export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutModeChange, requestedLayout, requestedLayoutNonce }: TrackingViewProps) => {
+export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutModeChange, requestedLayout, requestedLayoutNonce, onEditLoad }: TrackingViewProps) => {
   const hideFinishedStatus = role === 'user' || (role === 'driver' && companyIds.length === 0);
   const TRUCK_CAPACITY_KG = 48000;
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
@@ -835,6 +837,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
           role={role}
           userId={userId}
           companyIds={companyIds}
+          onEditLoad={onEditLoad ? (loadId) => { setOpenLoadId(null); onEditLoad(loadId); } : undefined}
           onClose={() => setOpenLoadId(null)}
           onChanged={() => {
             void loadsResult.refresh();
