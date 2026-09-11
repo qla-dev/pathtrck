@@ -13,7 +13,7 @@ import { formatDate } from '../../lib/dates';
 import { checklistOwner, checklistSentence, countPendingActions } from '../../lib/shipmentChecklist';
 import { ShipmentChecklistTable } from './ShipmentChecklistTable';
 
-type SubTab = 'overview' | 'operations' | 'documents' | 'activity';
+type SubTab = 'overview' | 'operations' | 'documents' | 'notes' | 'activity';
 
 type Props = {
   shipment: Package;
@@ -35,6 +35,7 @@ type Props = {
   initialSubTab?: SubTab;
   operationsSlot?: ReactNode;
   documentsSlot?: ReactNode;
+  notesSlot?: ReactNode;
   /** The booking status control, kept in the header so it reads from every sub-tab. */
   offerStatusSlot?: ReactNode;
 };
@@ -85,7 +86,7 @@ const Panel = ({ title, icon: Icon, children }: { title: string; icon?: LucideIc
   </section>
 );
 
-export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userId, companyIds = [], onEdit, onEditLoad, onSendReminder, initialSubTab = 'overview', operationsSlot, documentsSlot, offerStatusSlot }: Props) => {
+export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userId, companyIds = [], onEdit, onEditLoad, onSendReminder, initialSubTab = 'overview', operationsSlot, documentsSlot, notesSlot, offerStatusSlot }: Props) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [subTab, setSubTab] = useState<SubTab>(initialSubTab);
   const [sendingReminder, setSendingReminder] = useState(false);
@@ -150,6 +151,7 @@ export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userI
       badge: countPendingActions(checklist),
     },
     { key: 'documents', label: u('shipmentDetails.documents', 'Documents'), icon: FileText },
+    { key: 'notes', label: u('shipmentDetails.notes', 'Notes'), icon: ClipboardCheck },
     { key: 'activity', label: u('shipmentDetails.recentActivity', 'Recent activity'), icon: ActivityIcon },
   ];
 
@@ -358,6 +360,8 @@ export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userI
           {documentsSlot}
         </div>
       )}
+
+      {subTab === 'notes' && notesSlot}
 
       {subTab === 'activity' && (
         <Panel title={u('shipmentDetails.recentActivity', 'Recent activity')} icon={ActivityIcon}>{activityList}</Panel>

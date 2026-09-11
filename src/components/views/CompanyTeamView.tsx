@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Banknote, BarChart3, CheckCircle2, Clock3, Crown, FileCheck2, Loader2, MailPlus, Radio, Search, Send, ShieldCheck, Truck, UserCheck, UserRoundCog, Users, type LucideIcon } from 'lucide-react';
+import { Banknote, BarChart3, CheckCircle2, Clock3, Crown, Eye, FileCheck2, Loader2, MailPlus, MinusCircle, Radio, Search, Send, ShieldCheck, Truck, UserCheck, UserRoundCog, Users, type LucideIcon } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
@@ -8,7 +8,7 @@ import { cn } from '../../lib/cn';
 import { accessLevel, FEATURE_LABELS, FEATURE_ORDER } from '../../lib/permissions';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
-import { RolePermissionsCard, type RoleModuleAccess } from '../ui/RolePermissionsCard';
+import { RolePermissionsCard } from '../ui/RolePermissionsCard';
 import { PageHeader } from '../ui/PageHeader';
 import { ApiUser, api } from '../../services/api';
 import { useApiList } from '../../hooks/useApiList';
@@ -66,7 +66,7 @@ export const CompanyTeamView = ({ lang }: { lang: Language }) => {
   ].sort((left, right) => Number(right.isOwner) - Number(left.isOwner)), [memberships.items, invitations.items, companyId]);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<CompanyRole>('Driver');
-  const [teamSection, setTeamSection] = useState<'members' | 'statistics' | 'roles' | 'invite'>('members');
+  const [teamSection, setTeamSection] = useState<'members' | 'statistics' | 'roles' | 'module-access' | 'invite'>('members');
   const [message, setMessage] = useState('');
   const [userSearch, setUserSearch] = useState('');
   const [availableUsers, setAvailableUsers] = useState<Record<string, unknown>[]>([]);
@@ -107,7 +107,7 @@ export const CompanyTeamView = ({ lang }: { lang: Language }) => {
     view: u('team.accessView', 'View'),
     none: u('team.accessNone', 'None'),
   };
-  const moduleAccessFor = (companyRole: CompanyRole): RoleModuleAccess[] =>
+  const moduleAccessFor = (companyRole: CompanyRole) =>
     FEATURE_ORDER.map((feature) => ({
       key: feature,
       label: u(FEATURE_LABELS[feature].key, FEATURE_LABELS[feature].fallback),
@@ -202,6 +202,17 @@ export const CompanyTeamView = ({ lang }: { lang: Language }) => {
             >
               <ShieldCheck className="h-4 w-4" />
               {u('team.tabs.roles', 'Roles')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setTeamSection('module-access')}
+              className={cn(
+                'inline-flex cursor-pointer items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all active:scale-95',
+                teamSection === 'module-access' ? 'bg-primary text-white shadow-md shadow-primary/20' : 'text-slate-500 hover:text-primary dark:text-slate-300',
+              )}
+            >
+              <ShieldCheck className="h-4 w-4" />
+              {u('team.tabs.moduleAccess', 'Ovlaštenja moduli')}
             </button>
             <button
               type="button"
@@ -300,15 +311,38 @@ export const CompanyTeamView = ({ lang }: { lang: Language }) => {
       {teamSection === 'roles' && <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-2">
         {(Object.entries(ROLE_PERMISSIONS) as [CompanyRole, string[]][]).map(([roleName, permissions]) => {
           const visual = ROLE_VISUALS[roleName];
-          return <RolePermissionsCard
-            key={roleName}
-            title={displayRole(roleName)}
-            permissions={permissions}
-            permissionsLabel={u('team.permissionsLabel', 'permissions')}
-            modules={moduleAccessFor(roleName)}
-            moduleLabels={moduleLabels}
-            {...visual}
-          />;
+          return <RolePermissionsCard key={roleName} title={displayRole(roleName)} permissions={permissions} permissionsLabel={u('team.permissionsLabel', 'permissions')} {...visual} />;
+        })}
+      </div>}
+
+      {teamSection === 'module-access' && <div className="grid gap-3">
+        {(Object.entries(ROLE_PERMISSIONS) as [CompanyRole, string[]][]).map(([roleName, permissions]) => {
+          const visual = ROLE_VISUALS[roleName];
+          const modules = moduleAccessFor(roleName);
+          const RoleIcon = visual.icon;
+          return <Card key={roleName} className={cn('shadow-none', visual.shell)} contentClassName="p-4">
+            <div className="grid gap-4 lg:grid-cols-[minmax(13rem,0.7fr)_minmax(0,1.8fr)] lg:items-start">
+              <div className="min-w-0">
+                <div className="flex items-center gap-3">
+                  <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', visual.tone)}><RoleIcon className="h-4 w-4" /></div>
+                  <div><p className="font-black text-slate-900 dark:text-white">{displayRole(roleName)}</p><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{permissions.length} {u('team.permissionsLabel', 'permissions')}</p></div>
+                </div>
+                <ul className="mt-3 grid gap-1.5">
+                  {permissions.map((permission) => <li key={permission} className="flex items-start gap-2 rounded-lg bg-white/70 px-2.5 py-2 text-xs font-medium text-slate-600 dark:bg-slate-950/50 dark:text-slate-300"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />{permission}</li>)}
+                </ul>
+              </div>
+              <div className="grid gap-1.5">
+                <div className="flex items-center justify-between gap-3"><p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">{moduleLabels.heading}</p><div className="flex gap-1.5 text-[10px] font-black"><span className="text-emerald-600">{moduleLabels.full}</span><span className="text-amber-600">{moduleLabels.view}</span><span className="text-slate-400">{moduleLabels.none}</span></div></div>
+                <div className="grid gap-1 sm:grid-cols-2 xl:grid-cols-3">
+                  {modules.map((module) => {
+                    const ModuleIcon = module.level === 'full' ? CheckCircle2 : module.level === 'view' ? Eye : MinusCircle;
+                    const statusClass = module.level === 'full' ? 'text-emerald-600 bg-emerald-500/10' : module.level === 'view' ? 'text-amber-600 bg-amber-500/10' : 'text-slate-400 bg-slate-400/10';
+                    return <div key={module.key} className="flex min-w-0 items-center justify-between gap-2 rounded-lg bg-white/70 px-2.5 py-2 dark:bg-slate-950/50"><span className={cn('truncate text-xs font-medium', module.level === 'none' ? 'text-slate-400 line-through dark:text-slate-600' : 'text-slate-700 dark:text-slate-200')}>{module.label}</span><span className={cn('inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full', statusClass)} title={moduleLabels[module.level]}><ModuleIcon className="h-3 w-3" /></span></div>;
+                  })}
+                </div>
+              </div>
+            </div>
+          </Card>;
         })}
       </div>}
       </motion.div>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import { MapContainer, TileLayer, Marker, Popup, CircleMarker, Polyline, Tooltip, useMap } from 'react-leaflet';
-import { ChevronRight, Package as PackageIcon, RotateCcw, Share2, Star, Route, Lock, Coins, Loader2, Sparkles, FileBarChart2, Upload, FileSpreadsheet, Fuel, BedDouble, ParkingCircle, Landmark, ReceiptText, FileText, FileCheck2, Printer, Play, Pause, MessageSquare } from 'lucide-react';
+import { ChevronRight, Package as PackageIcon, RotateCcw, Share2, Star, Route, Lock, Coins, Loader2, Sparkles, FileBarChart2, Upload, FileSpreadsheet, Fuel, BedDouble, ParkingCircle, Landmark, ReceiptText, FileText, FileCheck2, Printer, Play, Pause, MessageSquare, StickyNote } from 'lucide-react';
 import { Language, Package as PackageData, Role, ShipmentDetail } from '../../types';
 import { isCompanyOperationsRole } from '../../lib/roles';
 import { api, type FuelStation } from '../../services/api';
@@ -25,7 +25,7 @@ import { TrackerLocationLoader } from './TrackerLocationLoader';
 import { connectedCraft } from '../../lib/connectedTransport';
 import { trackingMarkerIcon } from './trackingMapMarker';
 import { VehicleReturnModal } from './VehicleReturnModal';
-import { CustomsDocumentList } from '../load/CustomsDocumentList';
+import { DocumentUploadCard } from '../views/LoadDocumentsPanel';
 import { ShipmentOperationsTab } from './ShipmentOperationsTab';
 import { ShipmentOfferStatus } from './ShipmentOfferStatus';
 import { ShipmentMessagesTab } from './ShipmentMessagesTab';
@@ -154,6 +154,11 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
   const [editFocusKey, setEditFocusKey] = useState<string | null>(null);
   const [editActionTitle, setEditActionTitle] = useState<string | null>(null);
   const [shipmentWorkspace, setShipmentWorkspace] = useState<Record<string, unknown> | null>(null);
+  const shipmentNotes = useApiList(api.notes.list, { load_id: loadId, per_page: 100 });
+  const [noteTitle, setNoteTitle] = useState('');
+  const [noteText, setNoteText] = useState('');
+  const [noteSaving, setNoteSaving] = useState(false);
+  const [noteError, setNoteError] = useState('');
   const trackingInput = useMemo(() => ({
     ...basePackage,
     operationalChecklist: Array.isArray(shipmentWorkspace?.operational_checklist)
@@ -787,6 +792,54 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
     }
   };
 
+  const createShipmentNote = async () => {
+    if (!userId || !noteTitle.trim() || !noteText.trim() || noteSaving) return;
+    setNoteSaving(true);
+    setNoteError('');
+    try {
+      await api.notes.create({
+        load_id: Number(selectedPackage.id),
+        author_user_id: userId,
+        note_type: 'OTHER',
+        priority: 'medium',
+        body: `${noteTitle.trim()}\n${noteText.trim()}`,
+        is_private: false,
+      });
+      await shipmentNotes.refresh();
+      setNoteTitle('');
+      setNoteText('');
+    } catch (error) {
+      setNoteError(error instanceof Error ? error.message : u('notes.createFailed', 'The note could not be created.'));
+    } finally {
+      setNoteSaving(false);
+    }
+  };
+
+  const notesSlot = (
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <Card className="shadow-none" contentClassName="p-5">
+        <div className="flex items-center gap-2"><StickyNote className="h-5 w-5 text-primary" /><h2 className="font-black text-slate-900 dark:text-white">{u('shipmentDetails.notes', 'Notes')}</h2></div>
+        <div className="mt-4 space-y-3">
+          {shipmentNotes.items.map((note) => {
+            const author = (note.author || {}) as Record<string, unknown>;
+            const lines = String(note.body || '').split('\n');
+            return <article key={String(note.id)} className="rounded-xl border border-slate-200 p-3 dark:border-slate-700"><div className="flex items-start justify-between gap-3"><h3 className="text-sm font-black text-slate-900 dark:text-white">{lines[0] || u('notes.untitled', 'Untitled note')}</h3><span className="shrink-0 text-[10px] font-bold text-slate-400">{String(note.updated_at || note.created_at || '').replace('T', ' ').slice(0, 16)}</span></div><p className="mt-1 whitespace-pre-wrap text-sm text-slate-600 dark:text-slate-300">{lines.slice(1).join('\n') || lines[0]}</p><p className="mt-2 text-[11px] font-semibold text-slate-400">{String(author.name || u('notes.author', 'Team member'))}</p></article>;
+          })}
+          {!shipmentNotes.loading && shipmentNotes.items.length === 0 && <p className="text-sm text-slate-500">{u('notes.empty', 'No notes for this load yet.')}</p>}
+        </div>
+      </Card>
+      <Card className="shadow-none" contentClassName="p-5">
+        <h2 className="font-black text-slate-900 dark:text-white">{u('notes.new', 'New note')}</h2>
+        <div className="mt-4 space-y-3">
+          <input value={noteTitle} onChange={(event) => setNoteTitle(event.target.value)} placeholder={u('notes.titlePlaceholder', 'Note title')} className="h-10 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
+          <textarea value={noteText} onChange={(event) => setNoteText(event.target.value)} placeholder={u('notes.bodyPlaceholder', 'Write a note for this load...')} rows={6} className="w-full resize-y rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
+          {noteError && <p className="text-xs font-semibold text-rose-600">{noteError}</p>}
+          <button type="button" onClick={() => void createShipmentNote()} disabled={!noteTitle.trim() || !noteText.trim() || noteSaving} className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50"><StickyNote className="h-4 w-4" />{noteSaving ? u('common.saving', 'Saving...') : u('notes.save', 'Save note')}</button>
+        </div>
+      </Card>
+    </div>
+  );
+
   return (
     <>
     <TrackingItemDetails
@@ -1123,10 +1176,13 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
             />
           ) : undefined}
           documentsSlot={(
-            <Card title={u('tracking.attachedDocuments', 'Attached documents')}>
-              <CustomsDocumentList loadId={selectedPackage.id} documents={selectedPackage.customsDocuments} lang={lang} />
-            </Card>
+            <DocumentUploadCard
+              lang={lang}
+              attachTo={selectedPackage.id}
+              onUploaded={refreshPackage}
+            />
           )}
+          notesSlot={notesSlot}
         />
       )}
 
