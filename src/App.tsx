@@ -113,6 +113,7 @@ import { AircraftView } from "./components/views/AircraftView";
 import { VesselView } from "./components/views/VesselView";
 import { ProfileView } from "./components/views/ProfileView";
 import { AutomationsView } from "./components/views/AutomationsView";
+import { DriverVerificationModal } from "./components/modals/DriverVerificationModal";
 import { PostLoadModal } from "./components/modals/PostLoadModal";
 import { LoadDetailsModal } from "./components/tracking/LoadDetailsModal";
 import { LoadDetailsPrebook } from "./components/load/LoadDetailsPrebook";
@@ -5307,6 +5308,16 @@ export default function App() {
   // conditional ones (attestation, ADR) depend on what the driver states applies to them, so they
   // never hold the badge back on their own.
   const [driverVerified, setDriverVerified] = useState<boolean | null>(null);
+  /**
+   * The verification window, opened straight from the header chip.
+   *
+   * An unverified driver tapping "Verify now" wants the upload form, not a profile page to hunt it
+   * down on - so the modal is mounted here rather than only inside ProfileView. `verificationNonce`
+   * re-runs the check below when it closes, because nothing else changes to trigger it: the whole
+   * point is that the view never moved.
+   */
+  const [driverVerificationOpen, setDriverVerificationOpen] = useState(false);
+  const [verificationNonce, setVerificationNonce] = useState(0);
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [view, setView] = useState("tracking");
   const [openLoadDetailsTab, setOpenLoadDetailsTab] = useState<'tracker' | 'operations'>('tracker');
@@ -5398,7 +5409,7 @@ export default function App() {
       })
       .catch(() => { if (!cancelled) setDriverVerified(false); });
     return () => { cancelled = true; };
-  }, [role, currentUser?.id, view]);
+  }, [role, currentUser?.id, view, verificationNonce]);
   // Title and social-preview tags follow the chosen language, so a shared link previews in the
   // language the visitor was reading.
   useEffect(() => {
@@ -6133,6 +6144,8 @@ export default function App() {
                   tone: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
                 };
   const RoleStatusIcon = roleMeta.icon;
+  /** Only a driver whose documents came back short - `null` is "still checking", which is not a prompt. */
+  const needsDriverVerification = role === "driver" && driverVerified === false;
   const getPaymentChipTone = (value: string) =>
     value === "In Advance"
       ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
@@ -6901,8 +6914,16 @@ export default function App() {
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => setView("profile")}
-              title={u("common.openProfile", "Open my profile")}
+              // The chip says "Verify now" when a driver is unverified, so that is what it has to do.
+              // Sending them to the profile to find the same button again made the label a signpost
+              // rather than an action.
+              onClick={() => {
+                if (needsDriverVerification) setDriverVerificationOpen(true);
+                else setView("profile");
+              }}
+              title={needsDriverVerification
+                ? u("common.verifyNow", "Verify now")
+                : u("common.openProfile", "Open my profile")}
               className={cn(
                 "hidden md:inline-flex h-10 cursor-pointer items-center gap-2 whitespace-nowrap rounded-full px-3 text-xs font-bold transition-all hover:brightness-95 active:scale-95",
                 roleMeta.tone,
@@ -7561,6 +7582,19 @@ export default function App() {
             setLenaAiOpen(false);
             await handleBookLoad(loadId);
           }}
+        />
+        {/* Mounted beside the other app-level modals so the header chip can open it from any view.
+            ProfileView keeps its own instance for its own button; only one is ever open. */}
+        <DriverVerificationModal
+          open={driverVerificationOpen}
+          lang={lang}
+          userId={currentUser?.id ? Number(currentUser.id) : null}
+          onClose={() => {
+            setDriverVerificationOpen(false);
+            // Re-reads the documents, so the chip drops "Verify now" as soon as both are filed.
+            setVerificationNonce((value) => value + 1);
+          }}
+          onChanged={() => setVerificationNonce((value) => value + 1)}
         />
         <PostLoadModal
           isOpen={isPostLoadOpen}
