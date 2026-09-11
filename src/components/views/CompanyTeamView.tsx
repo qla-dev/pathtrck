@@ -3,11 +3,12 @@ import { Banknote, BarChart3, CheckCircle2, Clock3, Crown, FileCheck2, Loader2, 
 import { AnimatePresence, motion } from 'motion/react';
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
-import { Language } from '../../types';
+import { Language, Role } from '../../types';
 import { cn } from '../../lib/cn';
+import { accessLevel, FEATURE_LABELS, FEATURE_ORDER } from '../../lib/permissions';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
-import { RolePermissionsCard } from '../ui/RolePermissionsCard';
+import { RolePermissionsCard, type RoleModuleAccess } from '../ui/RolePermissionsCard';
 import { PageHeader } from '../ui/PageHeader';
 import { ApiUser, api } from '../../services/api';
 import { useApiList } from '../../hooks/useApiList';
@@ -76,6 +77,42 @@ export const CompanyTeamView = ({ lang }: { lang: Language }) => {
     { name: 'Invited', value: members.filter((member) => member.status === 'Invited').length },
   ];
   const chartTooltip = { borderRadius: '12px', border: '1px solid #334155', background: '#0f172a', color: '#e2e8f0', fontSize: '12px' };
+
+  /**
+   * The access table, read per role, for the Roles tab.
+   *
+   * The team card used to list hand-written sentences about what a role does; this adds the other
+   * half - which modules that role can actually open, and whether it may act in them or only look.
+   * It reads the same table the sidebar and the view guard do, so what this promises is what happens.
+   */
+  const companyRoleToApiRole: Record<CompanyRole, Role> = {
+    'Company Owner': 'company',
+    Manager: 'manager',
+    Dispatcher: 'dispatcher',
+    'Customs Agent': 'customs_officer',
+    Finance: 'finance',
+    Driver: 'driver',
+  };
+  // Judged against this company's own switches, so a haulier that runs no warehouses shows the
+  // warehouse modules greyed out for every one of its roles rather than promising them.
+  const accessContext = useMemo(() => ({
+    hasWarehouse: Boolean(user?.have_warehouse),
+    hasFleet: Boolean(user?.have_fleet),
+    verified: Boolean(user?.companies?.some((company) => (company as Record<string, unknown>).verified_at)),
+    warehouseCompany: Boolean(user?.companies?.some((company) => (company as Record<string, unknown>).warehouse_first)),
+  }), [user]);
+  const moduleLabels = {
+    heading: u('team.moduleAccess', 'Module access'),
+    full: u('team.accessFull', 'Full'),
+    view: u('team.accessView', 'View'),
+    none: u('team.accessNone', 'None'),
+  };
+  const moduleAccessFor = (companyRole: CompanyRole): RoleModuleAccess[] =>
+    FEATURE_ORDER.map((feature) => ({
+      key: feature,
+      label: u(FEATURE_LABELS[feature].key, FEATURE_LABELS[feature].fallback),
+      level: accessLevel(companyRoleToApiRole[companyRole], feature, accessContext),
+    }));
 
   useEffect(() => {
     if (teamSection !== 'invite') return undefined;
@@ -260,10 +297,18 @@ export const CompanyTeamView = ({ lang }: { lang: Language }) => {
         </Card>
       </div>}
 
-      {teamSection === 'roles' && <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      {teamSection === 'roles' && <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-2">
         {(Object.entries(ROLE_PERMISSIONS) as [CompanyRole, string[]][]).map(([roleName, permissions]) => {
           const visual = ROLE_VISUALS[roleName];
-          return <RolePermissionsCard key={roleName} title={displayRole(roleName)} permissions={permissions} permissionsLabel="permissions" {...visual} />;
+          return <RolePermissionsCard
+            key={roleName}
+            title={displayRole(roleName)}
+            permissions={permissions}
+            permissionsLabel={u('team.permissionsLabel', 'permissions')}
+            modules={moduleAccessFor(roleName)}
+            moduleLabels={moduleLabels}
+            {...visual}
+          />;
         })}
       </div>}
       </motion.div>

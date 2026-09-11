@@ -405,6 +405,7 @@ export const ProfileView = ({
   profileRecord,
   profileKind,
   action,
+  onVerificationChanged,
 }: {
   role: Role;
   lang: Language;
@@ -413,6 +414,8 @@ export const ProfileView = ({
   profileRecord?: Record<string, unknown> | null;
   profileKind?: ProfileRecordKind;
   action?: ReactNode;
+  /** A driver document was filed or removed - the header badge reads the same documents. */
+  onVerificationChanged?: () => void;
 }) => {
   const text = COPY[lang === "bs" || lang === "de" ? lang : "en"];
   const detailText = DETAIL_COPY[lang === "bs" || lang === "de" ? lang : "en"];
@@ -1300,7 +1303,11 @@ export const ProfileView = ({
         open={verificationOpen}
         lang={lang}
         userId={user?.id ? Number(user.id) : null}
-        onClose={() => setVerificationOpen(false)}
+        onClose={() => {
+          setVerificationOpen(false);
+          onVerificationChanged?.();
+        }}
+        onChanged={onVerificationChanged}
       />
       </div>
     </div>

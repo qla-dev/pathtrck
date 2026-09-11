@@ -113,6 +113,7 @@ import { AircraftView } from "./components/views/AircraftView";
 import { VesselView } from "./components/views/VesselView";
 import { ProfileView } from "./components/views/ProfileView";
 import { AutomationsView } from "./components/views/AutomationsView";
+import { canOpenView } from "./lib/permissions";
 import { DriverVerificationModal } from "./components/modals/DriverVerificationModal";
 import { PostLoadModal } from "./components/modals/PostLoadModal";
 import { LoadDetailsModal } from "./components/tracking/LoadDetailsModal";
@@ -5410,6 +5411,33 @@ export default function App() {
       .catch(() => { if (!cancelled) setDriverVerified(false); });
     return () => { cancelled = true; };
   }, [role, currentUser?.id, view, verificationNonce]);
+
+  /**
+   * What the access table needs beyond the role: whether this account runs warehouses of its own and
+   * has been verified for it, and whether its company is warehouse-first - which is what separates a
+   * warehouse manager from a logistics manager, both of whom the API calls `manager`.
+   */
+  const accessContext = useMemo(() => ({
+    hasWarehouse: Boolean(currentUser?.have_warehouse),
+    hasFleet: Boolean(currentUser?.have_fleet),
+    verified: Boolean(currentUser?.companies?.some((company) => company.verified_at)),
+    warehouseCompany: Boolean(currentUser?.companies?.some((company) => company.warehouse_first)),
+  }), [currentUser?.have_warehouse, currentUser?.have_fleet, currentUser?.companies]);
+
+  /**
+   * Nothing stays open that the role may not open.
+   *
+   * Filtering the sidebar hides a feature but does not close it: a role change mid-session, a button
+   * elsewhere in the app calling `setView`, or a view remembered from a previous login would all
+   * leave someone sitting on a page that is no longer theirs. The fallback is the first page they can
+   * actually have, and the profile always qualifies because the table does not govern it.
+   */
+  useEffect(() => {
+    if (canOpenView(role, view, accessContext)) return;
+    const fallback = ["tracking", "feed", "notes", "finance", "profile"]
+      .find((candidate) => canOpenView(role, candidate, accessContext));
+    setView(fallback ?? "profile");
+  }, [role, view, accessContext]);
   // Title and social-preview tags follow the chosen language, so a shared link previews in the
   // language the visitor was reading.
   useEffect(() => {
@@ -6796,7 +6824,15 @@ export default function App() {
       label: u("nav.tariffsHs", "Tariffs & HS"),
       icon: ScanSearch,
     },
-  ].filter((item) => (item.id !== "company-team" || canManageTeam) && (item.id !== "finance" || canViewFinance));
+  ]
+    .filter((item) => (item.id !== "company-team" || canManageTeam))
+    // The access table has the final say on every feature it names. The role-shaped lists above
+    // still decide the order and the wording - a driver's exchange is "Loads", an admin's is the
+    // global one - but whether an entry is there at all is one lookup, so the sidebar and the table
+    // cannot drift apart. Entries the table does not name (Company overview, Team) are left alone.
+    .filter((item) => canOpenView(role, item.id, accessContext))
+    // Two lists can both offer the same feature under different labels; the first one wins.
+    .filter((item, index, items) => items.findIndex((other) => other.id === item.id) === index);
 
   return (
     <div className="h-screen bg-slate-50 dark:bg-slate-950 flex overflow-hidden">
@@ -7489,6 +7525,10 @@ export default function App() {
                   lang={lang}
                   initialUser={currentUser}
                   onUserUpdated={setCurrentUser}
+                  // Uploading from the profile has to move the header badge too. Without this the
+                  // badge only caught up on leaving the view, since that is the other thing the
+                  // document check keys off.
+                  onVerificationChanged={() => setVerificationNonce((value) => value + 1)}
                 />
               )}
             </motion.div>
