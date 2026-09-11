@@ -378,92 +378,156 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
     { key: 'parking', label: u('tracking.amenity.parking', 'Parking'), icon: ParkingCircle },
   ];
 
-  const trackingRouteEndpoints = useMemo(() => {
-    const stops = selectedPackage.stops || [];
-    const pickup = stops.find((stop) => String(stop.type) === 'pickup') || stops[0];
-    const delivery = stops.find((stop) => String(stop.type) === 'delivery') || stops[stops.length - 1];
+  /**
+   * Every stop that can be drawn, in the order it is driven.
+   *
+   * A load can carry several pickups and several deliveries - FB-L-26064 has two of each - so the
+   * route is the whole chain rather than a first-to-last hop. `position` is what orders them and the
+   * API does not promise to return them sorted, so they are sorted here.
+   */
+  const trackingRouteStops = useMemo(() => {
     const toPosition = (stop?: Record<string, unknown>): [number, number] | null => {
       if (!stop || stop.latitude === null || stop.latitude === undefined || stop.longitude === null || stop.longitude === undefined) return null;
       const latitude = Number(stop.latitude);
       const longitude = Number(stop.longitude);
       return Number.isFinite(latitude) && Number.isFinite(longitude) ? [latitude, longitude] : null;
     };
-    return { pickup: toPosition(pickup), delivery: toPosition(delivery) };
+    return (selectedPackage.stops || [])
+      .slice()
+      .sort((a, b) => Number(a.position ?? 0) - Number(b.position ?? 0))
+      .flatMap((stop) => {
+        const position = toPosition(stop);
+        return position
+          ? [{ position, kind: String(stop.type) === 'pickup' ? 'pickup' as const : 'delivery' as const, stop }]
+          : [];
+      });
   }, [selectedPackage.stops]);
 
+  /** The driver's position as a string, so a poll that did not move the truck changes nothing. */
+  const currentLocationKey = selectedPackage.hasCurrentLocation
+    ? selectedPackage.currentLocation.join(',')
+    : '';
+
+  const trackingRouteEndpoints = useMemo(() => ({
+    pickup: trackingRouteStops.find((stop) => stop.kind === 'pickup')?.position
+      ?? trackingRouteStops[0]?.position ?? null,
+    delivery: trackingRouteStops.filter((stop) => stop.kind === 'delivery').at(-1)?.position
+      ?? trackingRouteStops[trackingRouteStops.length - 1]?.position ?? null,
+  }), [trackingRouteStops]);
+
+  /**
+   * The stop chain as a plain string. Every effect below keys off this rather than the array, which
+   * is rebuilt on each render and would otherwise refetch the route on every poll.
+   */
+  const trackingRouteKey = useMemo(
+    () => trackingRouteStops.map(({ position }) => position.join(',')).join('|'),
+    [trackingRouteStops],
+  );
+
+  const osrmRoute = useCallback(async (positions: [number, number][], geometry: boolean, signal: AbortSignal) => {
+    const coordinates = positions.map(([latitude, longitude]) => `${longitude},${latitude}`).join(';');
+    const response = await fetch(
+      `https://router.project-osrm.org/route/v1/driving/${coordinates}?overview=${geometry ? 'full' : 'false'}&geometries=geojson`,
+      { signal },
+    );
+    if (!response.ok) throw new Error('Route unavailable');
+    return response.json() as Promise<{ routes?: Array<{ distance?: number; geometry?: { coordinates?: [number, number][] } }> }>;
+  }, []);
+
+  /**
+   * The drawn route and its total distance.
+   *
+   * Keyed on the stops alone. This used to depend on `currentLocation` as well, which is a fresh
+   * array on every poll - so each refresh cleared the polyline and both badges to nothing, refetched
+   * a route that had not changed, and drew it again. That is the flash: the line and the numbers were
+   * being thrown away and rebuilt several times a minute for a route that only moves when a stop does.
+   *
+   * Nothing is cleared up front either. The previous line and distance stay on screen until the new
+   * ones land, so switching loads swaps the content instead of blinking through an empty state.
+   */
   useEffect(() => {
-    if (isStorage) { setRoutePoints([]); setRouteDistanceKm(null); setRemainingDistanceKm(null); return; }
-    const { pickup, delivery } = trackingRouteEndpoints;
-    if (!pickup || !delivery) {
+    if (isStorage || trackingRouteStops.length < 2) {
       setRoutePoints([]);
       setRouteDistanceKm(null);
-      setRemainingDistanceKm(null);
       setRouteLoading(false);
       return undefined;
     }
+    const positions = trackingRouteStops.map(({ position }) => position);
 
     if (['air', 'sea', 'rail'].includes(selectedPackage.transportType || '')) {
       setRouteLoading(false);
-      const points = greatCirclePoints(pickup, delivery);
-      const totalDistance = haversineDistanceKm(pickup, delivery);
-      setRoutePoints(points);
-      setRouteDistanceKm(Math.round(totalDistance * 10) / 10);
-      setRemainingDistanceKm(selectedPackage.hasCurrentLocation
-        ? Math.round(haversineDistanceKm(selectedPackage.currentLocation, delivery) * 10) / 10
-        : null);
+      // Each leg of the chain drawn as its own arc, so a multi-stop flight or sailing is one line.
+      setRoutePoints(positions.slice(1).flatMap((to, index) => greatCirclePoints(positions[index], to)));
+      setRouteDistanceKm(Math.round(
+        positions.slice(1).reduce((sum, to, index) => sum + haversineDistanceKm(positions[index], to), 0) * 10,
+      ) / 10);
       return undefined;
     }
 
     const controller = new AbortController();
-    const fetchRoute = async (positions: [number, number][], geometry: boolean) => {
-      const coordinates = positions.map(([latitude, longitude]) => `${longitude},${latitude}`).join(';');
-      const response = await fetch(
-        `https://router.project-osrm.org/route/v1/driving/${coordinates}?overview=${geometry ? 'full' : 'false'}&geometries=geojson`,
-        { signal: controller.signal },
-      );
-      if (!response.ok) throw new Error('Route unavailable');
-      return response.json() as Promise<{ routes?: Array<{ distance?: number; geometry?: { coordinates?: [number, number][] } }> }>;
-    };
-
-    setRoutePoints([]);
-    setRouteDistanceKm(null);
-    setRemainingDistanceKm(null);
     setRouteLoading(true);
-    const remainingRouteRequest = selectedPackage.hasCurrentLocation
-      ? fetchRoute([selectedPackage.currentLocation, delivery], false)
-      : Promise.resolve(null);
-    const fullRoutePositions: [number, number][] = [pickup, delivery];
-    void Promise.all([
-      fetchRoute(fullRoutePositions, true),
-      remainingRouteRequest,
-    ])
-      .then(([fullRouteData, remainingRouteData]) => {
-        const fullRoute = fullRouteData.routes?.[0];
-        const remainingRoute = remainingRouteData?.routes?.[0];
-        if (fullRoute?.geometry?.coordinates?.length) {
-          setRoutePoints(fullRoute.geometry.coordinates.map(([longitude, latitude]) => [latitude, longitude]));
+    void osrmRoute(positions, true, controller.signal)
+      .then((data) => {
+        const route = data.routes?.[0];
+        if (route?.geometry?.coordinates?.length) {
+          setRoutePoints(route.geometry.coordinates.map(([longitude, latitude]) => [latitude, longitude]));
         }
-        setRouteDistanceKm(fullRoute?.distance ? Math.round(fullRoute.distance / 100) / 10 : null);
-        setRemainingDistanceKm(remainingRoute?.distance ? Math.round(remainingRoute.distance / 100) / 10 : null);
+        setRouteDistanceKm(route?.distance ? Math.round(route.distance / 100) / 10 : null);
       })
       .catch((error) => {
         if (error instanceof DOMException && error.name === 'AbortError') return;
         setRouteDistanceKm(null);
-        setRemainingDistanceKm(null);
       })
       .finally(() => {
         if (!controller.signal.aborted) setRouteLoading(false);
       });
 
     return () => controller.abort();
-  }, [selectedPackage.currentLocation, selectedPackage.hasCurrentLocation, selectedPackage.transportType, trackingRouteEndpoints]);
+    // Keyed on the stop chain as a string rather than the array, which is rebuilt on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStorage, selectedPackage.transportType, trackingRouteKey, osrmRoute]);
 
+  /**
+   * How far is left to drive. This is the half that genuinely does depend on where the truck is, so
+   * it gets its own effect and its own request - a moving driver updates one badge instead of tearing
+   * down the whole map. The old value stays in place while the new one is in flight, so the badge
+   * changes its number rather than blinking through a dash.
+   */
+  useEffect(() => {
+    const destination = trackingRouteStops.filter((stop) => stop.kind === 'delivery').at(-1)?.position
+      ?? trackingRouteStops[trackingRouteStops.length - 1]?.position;
+    if (isStorage || !destination || !selectedPackage.hasCurrentLocation) {
+      setRemainingDistanceKm(null);
+      return undefined;
+    }
+    const from = selectedPackage.currentLocation;
+
+    if (['air', 'sea', 'rail'].includes(selectedPackage.transportType || '')) {
+      setRemainingDistanceKm(Math.round(haversineDistanceKm(from, destination) * 10) / 10);
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    void osrmRoute([from, destination], false, controller.signal)
+      .then((data) => {
+        const route = data.routes?.[0];
+        if (route?.distance) setRemainingDistanceKm(Math.round(route.distance / 100) / 10);
+      })
+      .catch(() => undefined);
+
+    return () => controller.abort();
+    // The position is read as a string for the same reason as the stops - a fresh array every poll.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStorage, selectedPackage.transportType, selectedPackage.hasCurrentLocation, currentLocationKey, trackingRouteKey, osrmRoute]);
+
+  // Every stop, not just the ends of the chain, so a middle stop off the direct line is still framed.
+  // FitTrackingRoute fits once per shipment, so this changing later never moves the user's viewport.
   const trackerBounds = useMemo<[number, number][]>(() => [
     ...routePoints,
-    ...(trackingRouteEndpoints.pickup ? [trackingRouteEndpoints.pickup] : []),
-    ...(trackingRouteEndpoints.delivery ? [trackingRouteEndpoints.delivery] : []),
+    ...trackingRouteStops.map(({ position }) => position),
     ...(selectedPackage.hasCurrentLocation ? [selectedPackage.currentLocation] : []),
-  ], [routePoints, trackingRouteEndpoints, selectedPackage.hasCurrentLocation, selectedPackage.currentLocation]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [routePoints, trackingRouteKey, selectedPackage.hasCurrentLocation, currentLocationKey]);
 
   const exportRouteReport = () => {
     const csv = reportRows
@@ -1097,16 +1161,28 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
                     <Polyline positions={routePoints} pathOptions={{ color: '#0ea5e9', weight: 5, opacity: 0.92 }} />
                   </>
                 )}
-                {trackingRouteEndpoints.pickup && (
-                  <Marker position={trackingRouteEndpoints.pickup} icon={routeEndpointIcon(selectedPackage.originCountryCode, '#10b981')}>
-                    <Popup><strong>{selectedPackage.origin}</strong><br />{u('home.pickupPoint', 'Pickup point')}</Popup>
-                  </Marker>
-                )}
-                {trackingRouteEndpoints.delivery && (
-                  <Marker position={trackingRouteEndpoints.delivery} icon={routeEndpointIcon(selectedPackage.destinationCountryCode, '#ef4444')}>
-                    <Popup><strong>{selectedPackage.destination}</strong><br />{u('home.deliveryPoint', 'Delivery point')}</Popup>
-                  </Marker>
-                )}
+                {/* One marker per stop, numbered in driven order - a load with two pickups and two
+                    deliveries shows all four rather than just the ends of the chain. Pickups green,
+                    deliveries red, the pairing the rest of the app already uses. */}
+                {trackingRouteStops.map(({ position, kind, stop }, index) => {
+                  const city = String(stop.city || '');
+                  const country = String(stop.country_code || '');
+                  const label = [city, country].filter(Boolean).join(', ')
+                    || (kind === 'pickup' ? selectedPackage.origin : selectedPackage.destination);
+                  return (
+                    <Marker
+                      key={`stop-${index}-${position.join(',')}`}
+                      position={position}
+                      icon={routeEndpointIcon(country || (kind === 'pickup' ? selectedPackage.originCountryCode : selectedPackage.destinationCountryCode), kind === 'pickup' ? '#10b981' : '#ef4444')}
+                    >
+                      <Popup>
+                        <strong>{trackingRouteStops.length > 2 ? `${index + 1}. ` : ''}{label}</strong>
+                        <br />
+                        {kind === 'pickup' ? u('home.pickupPoint', 'Pickup point') : u('home.deliveryPoint', 'Delivery point')}
+                      </Popup>
+                    </Marker>
+                  );
+                })}
                 {selectedPackage.hasCurrentLocation && (
                   <Marker
                     position={selectedPackage.currentLocation}
