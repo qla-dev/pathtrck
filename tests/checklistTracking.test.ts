@@ -1,19 +1,37 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { checklistCategory, checklistCategoryLabel } from '../src/lib/shipmentChecklist';
+import { checklistCategory, checklistCategoryLabel, pendingForCategory } from '../src/lib/shipmentChecklist';
 import { mapLoadToPackage } from '../src/lib/loadDetails';
 import { connectedCraft } from '../src/lib/connectedTransport';
 
 test('legacy checklist items default to the appropriate status', () => {
   assert.equal(checklistCategory({ key: 'flight_details' }), 'in_delivery');
-  assert.equal(checklistCategory({ key: 'proof_of_delivery' }), 'received');
-  assert.equal(checklistCategory({ key: 'arrival_and_release_documents' }), 'received');
+  // The handover documents gate the recipient's review, not the carrier's own receipt.
+  assert.equal(checklistCategory({ key: 'proof_of_delivery' }), 'review');
+  assert.equal(checklistCategory({ key: 'arrival_and_release_documents' }), 'review');
+  assert.equal(checklistCategory({ key: 'vehicle_return' }), 'finished');
 });
 
 test('categories stay fixed despite previously saved overrides', () => {
-  assert.equal(checklistCategory({ key: 'proof_of_delivery', required_for_status: 'in_delivery' }), 'received');
+  assert.equal(checklistCategory({ key: 'proof_of_delivery', required_for_status: 'in_delivery' }), 'review');
   assert.equal(checklistCategory({ key: 'flight_details', required_for_status: 'received' }), 'in_delivery');
   assert.equal(checklistCategoryLabel('bs', 'received'), 'Primljeno');
+  assert.equal(checklistCategoryLabel('bs', 'review'), 'Recenzija');
+});
+
+test('the status gate is cumulative, so receipt does not wait on the paperwork', () => {
+  const items = [
+    { key: 'assign_driver_and_vehicle', status: 'completed' },
+    { key: 'proof_of_delivery', status: 'pending' },
+    { key: 'vehicle_return', status: 'pending' },
+  ];
+  assert.deepEqual(pendingForCategory(items, 'in_delivery'), []);
+  assert.deepEqual(pendingForCategory(items, 'received'), []);
+  assert.deepEqual(pendingForCategory(items, 'review').map((item) => item.key), ['proof_of_delivery']);
+  assert.deepEqual(pendingForCategory(items, 'finished').map((item) => item.key), ['proof_of_delivery', 'vehicle_return']);
+  // A departure item left open blocks every status above it, receipt included.
+  const unstarted = [{ key: 'assign_driver_and_vehicle', status: 'pending' }];
+  assert.deepEqual(pendingForCategory(unstarted, 'received').map((item) => item.key), ['assign_driver_and_vehicle']);
 });
 
 const load = {

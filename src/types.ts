@@ -66,7 +66,7 @@ export type ShipmentDetail = {
   input?: ShipmentDetailInput;
 };
 
-export type LoadStatus = 'Posted' | 'Booked' | 'Opened' | 'In delivery' | 'Received' | 'Finished' | 'Pending' | 'Cancelled';
+export type LoadStatus = 'Posted' | 'Booked' | 'Opened' | 'In delivery' | 'Received' | 'Review' | 'Finished' | 'Pending' | 'Cancelled';
 
 export interface Load {
   id: string;

@@ -11,7 +11,7 @@ import { ui, trPackageStatus } from '../../i18n';
 import { cn } from '../../lib/cn';
 import { confirmAction, showError, showSuccess } from '../../lib/swal';
 import { TRACKING_FLOW, apiLoadStatus, mapLoadToPackage } from '../../lib/loadDetails';
-import { checklistCategory, checklistCategoryLabel, checklistLabel, countPendingActions } from '../../lib/shipmentChecklist';
+import { checklistCategoryLabel, checklistLabel, countPendingActions, pendingForCategory } from '../../lib/shipmentChecklist';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Toggle } from '../ui/Toggle';
@@ -350,12 +350,16 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
     : trackingStage >= 0
       ? (trackingStage / (trackingFlow.length - 1)) * 100
       : 0;
-  const canSelectStatus = (status: PackageData['status']) => hideFinishedStatus && status === 'Finished' ? false : isStorage ? canManageStatuses : (canManageStatuses && (isStorage || status !== 'Received')) || (role === 'user' && status === 'Received');
+  // Receipt is the carrier's - they finish the drive and say the cargo is delivered. Review is the
+  // recipient's, and it is the only status they can set themselves.
+  const canSelectStatus = (status: PackageData['status']) => hideFinishedStatus && status === 'Finished' ? false
+    : isStorage ? canManageStatuses
+      : (canManageStatuses && status !== 'Review') || (role === 'user' && status === 'Review');
   const receivedActionLabel = lang === 'bs'
-    ? 'Označi kao primljeno i ocijeni'
+    ? 'Ocijeni i završi prijem'
     : lang === 'de'
-      ? 'Als empfangen markieren und bewerten'
-      : 'Mark as received and review';
+      ? 'Bewerten und Empfang abschließen'
+      : 'Review and complete receipt';
 
   const visibleAmenities = useMemo(
     () => routeAmenities.filter((item) => mapFilters[item.category]),
@@ -489,10 +493,10 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
 
   const changeLoadStatus = async (status: PackageData['status']) => {
     if (!canChangeStatus || !canSelectStatus(status) || !selectedPackage.id || statusChanging || status === selectedPackage.status) return;
-    if (status === 'In delivery' || status === 'Received') {
-      const category = status === 'Received' ? 'received' : 'in_delivery';
+    if (status === 'In delivery' || status === 'Received' || status === 'Review') {
+      const category = status === 'Review' ? 'review' : status === 'Received' ? 'received' : 'in_delivery';
       const items = selectedPackage.operationalChecklist || [];
-      const pending = items.filter((item) => (checklistCategory(item) === category || (category === 'received' && checklistCategory(item) === 'in_delivery')) && item.status !== 'completed');
+      const pending = pendingForCategory(items, category);
       if (!items.length || pending.length) {
         void showError(
           lang === 'bs' ? 'Prvo završi obavezne stavke checkliste' : lang === 'de' ? 'Erforderliche Checklistenpunkte zuerst abschließen' : 'Complete the required checklist items first',
@@ -511,7 +515,9 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
       return;
     }
 
-    if (status === 'Received' && !isStorage) {
+    // Review is the recipient's own step and the API will not take it without a review on record, so
+    // it routes through the composer: submitting the review is what moves the load on.
+    if (status === 'Review' && !isStorage) {
       setReceiveReviewPending(true);
       setRightTab('review');
       return;
@@ -774,10 +780,10 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
               onChange={(status) => void changeLoadStatus(status)}
               className="[&_button]:h-10"
               availableStatuses={role === 'user'
-                ? ['Received']
-                : hideFinishedStatus ? ['Posted', 'Booked', 'In delivery', 'Pending', 'Cancelled']
-                : ['Posted', 'Booked', 'In delivery', 'Finished', 'Pending', 'Cancelled']}
-              actionLabels={{ Received: receivedActionLabel }}
+                ? ['Review']
+                : hideFinishedStatus ? ['Posted', 'Booked', 'In delivery', 'Received', 'Pending', 'Cancelled']
+                : ['Posted', 'Booked', 'In delivery', 'Received', 'Finished', 'Pending', 'Cancelled']}
+              actionLabels={{ Review: receivedActionLabel }}
             />
           )}
         </>
@@ -1487,12 +1493,12 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
           targetName={selectedPackage.trackingNumber || selectedPackage.description || `Load #${selectedPackage.id}`}
           viewerRole={role}
           lang={lang}
-          submitLabel={receiveReviewPending ? (lang === 'bs' ? 'Označi kao primljeno i pošalji' : lang === 'de' ? 'Als empfangen markieren und senden' : 'Mark as received and send') : undefined}
-          submittingLabel={receiveReviewPending ? (lang === 'bs' ? 'Slanje i označavanje…' : lang === 'de' ? 'Wird gesendet…' : 'Sending and marking…') : undefined}
+          submitLabel={receiveReviewPending ? (lang === 'bs' ? 'Pošalji recenziju' : lang === 'de' ? 'Bewertung senden' : 'Send review') : undefined}
+          submittingLabel={receiveReviewPending ? (lang === 'bs' ? 'Slanje…' : lang === 'de' ? 'Wird gesendet…' : 'Sending…') : undefined}
           onSubmitted={receiveReviewPending ? async () => {
-            setStatusChanging('Received');
+            setStatusChanging('Review');
             try {
-              await api.loads.updateStatus(selectedPackage.id, 'received');
+              await api.loads.updateStatus(selectedPackage.id, 'review');
               await refreshPackage();
               onChanged?.();
               setReceiveReviewPending(false);

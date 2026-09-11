@@ -6,7 +6,7 @@ import { Package as PackageData } from '../../types';
 
 const STATUS_MARKER_COLORS: Record<PackageData['status'], string> = {
   Posted: '#64748b', Booked: '#0ea5e9', Opened: '#06b6d4', 'In delivery': '#f59e0b',
-  Received: '#8b5cf6', Finished: '#10b981', Pending: '#fb923c', Cancelled: '#f43f5e',
+  Received: '#8b5cf6', Review: '#6366f1', Finished: '#10b981', Pending: '#fb923c', Cancelled: '#f43f5e',
 };
 
 const TRANSPORT_MARKER_ICONS = { air: Plane, sea: Ship, rail: Train, road: Truck } as const;

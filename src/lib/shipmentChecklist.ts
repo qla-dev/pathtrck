@@ -7,15 +7,30 @@ import type { Language } from '../types';
 
 type Locale = 'en' | 'bs' | 'de';
 
-export type ChecklistCategory = 'in_delivery' | 'received' | 'finished';
+export type ChecklistCategory = 'in_delivery' | 'received' | 'review' | 'finished';
+
+/**
+ * The delivery ladder, in order — mirrors ChecklistStatusRequirements::ORDER on the backend. A status
+ * requires every category up to and including its own, so the gate is cumulative.
+ */
+export const CHECKLIST_ORDER: ChecklistCategory[] = ['in_delivery', 'received', 'review', 'finished'];
+
+// The handover documents gate `review` rather than `received`: the carrier marks the load received
+// when the drive ends, and files the paperwork the recipient then reviews.
 export const checklistCategory = (item: { key?: unknown; required_for_status?: unknown }): ChecklistCategory =>
-  String(item.key) === 'vehicle_return' ? 'finished' : ['proof_of_delivery', 'arrival_and_release_documents'].includes(String(item.key)) ? 'received' : 'in_delivery';
+  String(item.key) === 'vehicle_return' ? 'finished' : ['proof_of_delivery', 'arrival_and_release_documents'].includes(String(item.key)) ? 'review' : 'in_delivery';
+
+/** Tasks still standing in the way of a status, itself included and everything before it. */
+export const pendingForCategory = <T extends { key?: unknown; status?: unknown }>(items: T[], category: ChecklistCategory): T[] => {
+  const reached = CHECKLIST_ORDER.indexOf(category);
+  return items.filter((item) => CHECKLIST_ORDER.indexOf(checklistCategory(item)) <= reached && item.status !== 'completed');
+};
 
 export const checklistCategoryLabel = (lang: Language, category: ChecklistCategory): string => {
   const labels = {
-    en: { in_delivery: 'In delivery', received: 'Received', finished: 'Finished' },
-    bs: { in_delivery: 'U dostavi', received: 'Primljeno', finished: 'Završeno' },
-    de: { in_delivery: 'In Zustellung', received: 'Empfangen', finished: 'Abgeschlossen' },
+    en: { in_delivery: 'In delivery', received: 'Received', review: 'In review', finished: 'Finished' },
+    bs: { in_delivery: 'U dostavi', received: 'Primljeno', review: 'Recenzija', finished: 'Završeno' },
+    de: { in_delivery: 'In Zustellung', received: 'Empfangen', review: 'In Bewertung', finished: 'Abgeschlossen' },
   };
   return labels[lang === 'bs' || lang === 'de' ? lang : 'en'][category];
 };

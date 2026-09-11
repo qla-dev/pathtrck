@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { CircleCheckBig, CircleX, Clock3, Eye, Loader2, Megaphone, PackageCheck, Send, Truck } from 'lucide-react';
+import { CircleCheckBig, CircleX, Clock3, Eye, Loader2, Megaphone, PackageCheck, Send, Star, Truck } from 'lucide-react';
 
 import { trPackageStatus } from '../../i18n';
 import { cn } from '../../lib/cn';
@@ -7,12 +7,12 @@ import { Language, LoadStatus } from '../../types';
 
 export const LOAD_STATUS_OPTIONS: Array<[string, LoadStatus]> = [
   ['posted', 'Posted'], ['booked', 'Booked'], ['in_delivery', 'In delivery'],
-  ['received', 'Received'], ['finished', 'Finished'], ['pending', 'Pending'], ['cancelled', 'Cancelled'],
+  ['received', 'Received'], ['review', 'Review'], ['finished', 'Finished'], ['pending', 'Pending'], ['cancelled', 'Cancelled'],
 ];
 
 const STATUS_ICONS: Record<LoadStatus, typeof Clock3> = {
   Posted: Megaphone, Booked: PackageCheck, Opened: Eye, 'In delivery': Truck,
-  Received: PackageCheck, Finished: CircleCheckBig, Pending: Clock3, Cancelled: CircleX,
+  Received: PackageCheck, Review: Star, Finished: CircleCheckBig, Pending: Clock3, Cancelled: CircleX,
 };
 
 export const LoadStatusIcon = ({ status, className = 'h-3.5 w-3.5' }: { status: LoadStatus; className?: string }) => {
@@ -26,6 +26,7 @@ const statusPickerColors = (status: LoadStatus) => {
     case 'Booked': return 'border-emerald-400 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300';
     case 'In delivery': return 'border-amber-400 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300';
     case 'Received': return 'border-violet-500 bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300';
+    case 'Review': return 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300';
     case 'Finished': return 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300';
     case 'Cancelled': return 'border-rose-500 bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300';
     default: return 'border-slate-300 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200';

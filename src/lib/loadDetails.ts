@@ -1,14 +1,14 @@
 import { Language, Package as PackageData } from '../types';
 import { trPackageStatus } from '../i18n';
 
-export const TRACKING_FLOW: PackageData['status'][] = ['Posted', 'Booked', 'In delivery', 'Received', 'Finished'];
+export const TRACKING_FLOW: PackageData['status'][] = ['Posted', 'Booked', 'In delivery', 'Received', 'Review', 'Finished'];
 
 export const apiLoadStatus = (status: PackageData['status']) => status.toLowerCase().replace(/\s+/g, '_');
 
 export const mapLoadStatus = (value: unknown): PackageData['status'] => {
   const statuses: Record<string, PackageData['status']> = {
     posted: 'Posted', booked: 'Booked', opened: 'Opened', sent: 'Booked', in_delivery: 'In delivery',
-    received: 'Received', finished: 'Finished', pending: 'Pending', cancelled: 'Cancelled',
+    received: 'Received', review: 'Review', finished: 'Finished', pending: 'Pending', cancelled: 'Cancelled',
   };
 
   return statuses[String(value || '').toLowerCase()] || 'Pending';
