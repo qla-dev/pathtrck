@@ -82,16 +82,19 @@ const greatCirclePoints = (from: [number, number], to: [number, number], segment
   });
 };
 
-const FitTrackingRoute = ({ points }: { points: [number, number][] }) => {
+const FitTrackingRoute = ({ points, shipmentId }: { points: [number, number][]; shipmentId: string }) => {
   const map = useMap();
+  const fittedShipmentId = useRef<string | null>(null);
   useEffect(() => {
-    if (!points.length) return;
+    if (!shipmentId || !points.length || fittedShipmentId.current === shipmentId) return;
     map.fitBounds(points, {
       paddingTopLeft: [48, 125],
       paddingBottomRight: [48, 90],
       maxZoom: 11,
     });
-  }, [map, points]);
+    // Location polling and route refreshes must preserve the user's viewport.
+    fittedShipmentId.current = shipmentId;
+  }, [map, points, shipmentId]);
   return null;
 };
 
@@ -1082,7 +1085,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
                   attribution="&copy; Google Maps"
                 />
                 {role !== 'user' && <FuelStationViewportLoader enabled={mapFilters.fuel} onBoundsChange={loadFuelStations} />}
-                <FitTrackingRoute points={trackerBounds} />
+                <FitTrackingRoute points={trackerBounds} shipmentId={selectedPackage.id} />
                 {routePoints.length >= 2 && (
                   <>
                     <Polyline positions={routePoints} pathOptions={{ color: '#0ea5e9', weight: 5, opacity: 0.92 }} />
