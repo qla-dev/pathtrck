@@ -114,7 +114,7 @@ export const WarehouseStorageTypeField = ({
   // Storage type is the warehouse answer to "Shipment type", so it sits in that slot on the Details
   // step and scrolls the same way - one row of cards behind the ScrollableRow arrows.
   <div className="space-y-1">
-    <FieldLabel>{u('postLoadModal.warehouseStorageType', 'Storage type')}</FieldLabel>
+    <FieldLabel>{u('postLoadModal.warehouseStorageType', '')}</FieldLabel>
     <ScrollableRow className="pb-2">
       <div className="flex w-max gap-2 px-1">
         {WAREHOUSE_STORAGE_TYPE_OPTIONS.map((option) => (
@@ -173,7 +173,7 @@ export const WarehouseCargoFields = ({ draft, setField, setDraft, u, invalidClas
     <div className="grid gap-3 lg:grid-cols-2">
       {/* Pallets / CBM / weight are captured on the Cargo step (warehouse now shares the full road
           form), so this step only carries what is specific to storing the goods. */}
-      <SectionBox icon={Warehouse} title={u('postLoadModal.warehouseStorageType', 'Storage type')}>
+      <SectionBox icon={Warehouse} title={u('postLoadModal.warehouseStorageType', '')}>
         <div className="grid gap-3 sm:grid-cols-2">
           {WAREHOUSE_STORAGE_TYPE_OPTIONS.map((option) => (
             <ChoiceCard
@@ -190,18 +190,18 @@ export const WarehouseCargoFields = ({ draft, setField, setDraft, u, invalidClas
         {needsTemperature && (
           <div className="grid grid-cols-2 gap-3">
             <div className={cn('space-y-1', invalidClass('warehouseTemperatureMin'))}>
-              <FieldLabel>{u('postLoadModal.temperatureMin', 'Min. temperature (°C)')}</FieldLabel>
+              <FieldLabel>{u('postLoadModal.temperatureMin', '')}</FieldLabel>
               <Input type="number" value={draft.warehouseTemperatureMin} onChange={(e) => setField('warehouseTemperatureMin', e.target.value)} placeholder="2" />
             </div>
             <div className={cn('space-y-1', invalidClass('warehouseTemperatureMax'))}>
-              <FieldLabel>{u('postLoadModal.temperatureMax', 'Max. temperature (°C)')}</FieldLabel>
+              <FieldLabel>{u('postLoadModal.temperatureMax', '')}</FieldLabel>
               <Input type="number" value={draft.warehouseTemperatureMax} onChange={(e) => setField('warehouseTemperatureMax', e.target.value)} placeholder="8" />
             </div>
           </div>
         )}
       </SectionBox>
 
-      <SectionBox icon={ShieldCheck} title={u('postLoadModal.handlingRequirements', 'Handling requirements')}>
+      <SectionBox icon={ShieldCheck} title={u('postLoadModal.handlingRequirements', '')}>
         <div className="grid gap-3 sm:grid-cols-2">
           {WAREHOUSE_HANDLING_REQUIREMENT_OPTIONS.map((option) => (
             <ChoiceCard
@@ -272,12 +272,12 @@ export const WarehouseLocationFields = ({
     ? isAreaRequest ? warehouseTarget + ' · ' + radiusKm + ' km' : warehouseTarget
     : '—';
   const storageTargetValue = draft.storageTarget === 'own'
-    ? draft.warehouseName || u('postLoadModal.storageTargetOwn', 'One of my warehouses')
-    : u('postLoadModal.storageTargetExchange', 'Warehouse exchange');
+    ? draft.warehouseName || u('postLoadModal.storageTargetOwn', '')
+    : u('postLoadModal.storageTargetExchange', '');
   const storagePeriodValue = !draft.deliveryDate
     ? '—'
     : draft.warehouseIsOngoing
-      ? draft.deliveryDate + ' · ' + u('postLoadModal.warehouseOngoing', 'Ongoing')
+      ? draft.deliveryDate + ' · ' + u('postLoadModal.warehouseOngoing', '')
       : draft.deliveryDate + (draft.deliveryDateTo ? ' - ' + draft.deliveryDateTo : '');
 
   return (
@@ -286,12 +286,12 @@ export const WarehouseLocationFields = ({
     <section className="space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
       <div className="flex items-center gap-2 text-primary">
         <Warehouse className="h-4 w-4" />
-        <p className="text-xs font-black uppercase tracking-wider">{u('postLoadModal.storageTarget', 'Storage destination')}</p>
+        <p className="text-xs font-black uppercase tracking-wider">{u('postLoadModal.storageTarget', '')}</p>
       </div>
       <div className="space-y-1">
         <div className="relative w-[calc(50%-0.25rem)] pr-7">
-          <FieldLabel>{u('postLoadModal.storageTargetQuestion', 'What would you like to do with the cargo?')}</FieldLabel>
-          <button type="button" onClick={onAddWarehouse} aria-label={u('warehouses.create', 'Add Warehouse')} title={u('warehouses.create', 'Add Warehouse')} className="absolute -top-1 right-0 z-10 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-full bg-primary text-white shadow-sm transition-colors hover:bg-primary/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 disabled:cursor-default disabled:opacity-50">
+          <FieldLabel>{u('postLoadModal.storageTargetQuestion', '')}</FieldLabel>
+          <button type="button" onClick={onAddWarehouse} aria-label={u('warehouses.create', '')} title={u('warehouses.create', '')} className="absolute -top-1 right-0 z-10 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-full bg-primary text-white shadow-sm transition-colors hover:bg-primary/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 disabled:cursor-default disabled:opacity-50">
             <Plus className="h-3 w-3" strokeWidth={3} />
           </button>
         </div>
@@ -300,18 +300,18 @@ export const WarehouseLocationFields = ({
             compact
             disabled={ownedWarehouses.length === 0}
             active={draft.storageTarget === 'own'}
-            title={u('postLoadModal.storageTargetOwn', 'One of my warehouses')}
+            title={u('postLoadModal.storageTargetOwn', '')}
             description={ownedWarehouses.length === 0
-              ? u('postLoadModal.noWarehousesAdded', 'You have not added any warehouses yet.')
-              : u('postLoadModal.storageTargetOwnDesc', 'Create an inbound receipt on your dock schedule.')}
+              ? u('postLoadModal.noWarehousesAdded', '')
+              : u('postLoadModal.storageTargetOwnDesc', '')}
             icon={ArrowDownToLine}
             onClick={() => setDraft((current) => ({ ...current, storageTarget: 'own' }))}
           />
           <ChoiceCard
             compact
             active={draft.storageTarget === 'exchange'}
-            title={u('postLoadModal.storageTargetExchange', 'Warehouse exchange')}
-            description={u('postLoadModal.storageTargetExchangeDesc', 'Publish a storage request for warehouse companies.')}
+            title={u('postLoadModal.storageTargetExchange', '')}
+            description={u('postLoadModal.storageTargetExchangeDesc', '')}
             icon={Landmark}
             onClick={() => setDraft((current) => ({ ...current, storageTarget: 'exchange', warehouseId: '', warehouseName: '' }))}
           />
@@ -319,7 +319,7 @@ export const WarehouseLocationFields = ({
       </div>
       {draft.storageTarget === 'own' && (
         <div className="space-y-1">
-          <FieldLabel>{u('postLoadModal.receivingWarehouse', 'Receiving warehouse')}</FieldLabel>
+          <FieldLabel>{u('postLoadModal.receivingWarehouse', '')}</FieldLabel>
           <div className={cn('flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950', invalidClass('warehouseId'))}>
             {ownedWarehouses.map((warehouse) => (
               <button
@@ -333,7 +333,7 @@ export const WarehouseLocationFields = ({
               </button>
             ))}
             {ownedWarehouses.length === 0 && (
-              <p className="px-1 py-2 text-xs text-slate-500">{u('postLoadModal.noOwnedWarehouses', 'No warehouse is available for this account.')}</p>
+              <p className="px-1 py-2 text-xs text-slate-500">{u('postLoadModal.noOwnedWarehouses', '')}</p>
             )}
           </div>
         </div>
@@ -343,25 +343,25 @@ export const WarehouseLocationFields = ({
     <section className="space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
       <div className="flex items-center gap-2 text-orange-500">
         <Warehouse className="h-4 w-4" />
-        <p className="text-xs font-black uppercase tracking-wider">{u('postLoadModal.warehousePreferredLocation', 'Preferred warehouse location')}</p>
+        <p className="text-xs font-black uppercase tracking-wider">{u('postLoadModal.warehousePreferredLocation', '')}</p>
       </div>
       <div className="space-y-1">
-        <FieldLabel>{u('postLoadModal.deliveryPlaceType', 'Place type')}</FieldLabel>
+        <FieldLabel>{u('postLoadModal.deliveryPlaceType', '')}</FieldLabel>
         <div className="grid grid-cols-2 gap-2">
-          <ChoiceCard compact active={!isAreaRequest} title={u('postLoadModal.warehouse', 'Warehouse')} icon={Warehouse} onClick={() => setField('deliveryPlaceType', 'Warehouse')} />
-          <ChoiceCard compact active={isAreaRequest} title={u('postLoadModal.warehouseArea', 'Area')} icon={Radar} onClick={() => setField('deliveryPlaceType', 'Area')} />
+          <ChoiceCard compact active={!isAreaRequest} title={u('postLoadModal.warehouse', '')} icon={Warehouse} onClick={() => setField('deliveryPlaceType', 'Warehouse')} />
+          <ChoiceCard compact active={isAreaRequest} title={u('postLoadModal.warehouseArea', '')} icon={Radar} onClick={() => setField('deliveryPlaceType', 'Area')} />
         </div>
       </div>
       <div className={cn('space-y-1', invalidClass('deliveryAddress', 'deliveryRadiusKm'))}>
-        <FieldLabel>{isAreaRequest ? u('postLoadModal.warehousePreferredArea', 'Preferred area') : u('postLoadModal.selectWarehouse', 'Warehouse')}</FieldLabel>
+        <FieldLabel>{isAreaRequest ? u('postLoadModal.warehousePreferredArea', '') : u('postLoadModal.selectWarehouse', '')}</FieldLabel>
         {!isAreaRequest ? (
           <WarehouseAutocompleteField
             value={draft.deliveryAddress}
             onChange={(value) => setField('deliveryAddress', value)}
             onSelectWarehouse={(warehouse) => setDraft((current) => ({ ...current, deliveryAddress: [warehouse.name, warehouse.address].filter(Boolean).join(' — '), deliveryCity: warehouse.city, deliveryCountry: warehouse.countryCode || current.deliveryCountry, deliveryLatitude: warehouse.latitude, deliveryLongitude: warehouse.longitude }))}
-            placeholder={u('postLoadModal.warehouseSearchPlaceholder', 'Search warehouses')}
-            loadingLabel={u('postLoadModal.loadingWarehouses', 'Loading warehouses...')}
-            emptyLabel={u('postLoadModal.noWarehousesFound', 'No warehouses found')}
+            placeholder={u('postLoadModal.warehouseSearchPlaceholder', '')}
+            loadingLabel={u('postLoadModal.loadingWarehouses', '')}
+            emptyLabel={u('postLoadModal.noWarehousesFound', '')}
           />
         ) : (
           <div className="space-y-2">
@@ -369,9 +369,9 @@ export const WarehouseLocationFields = ({
               value={draft.deliveryAddress}
               onChange={(value) => setField('deliveryAddress', value)}
               onSelectLocation={(location) => setDraft((current) => ({ ...current, deliveryAddress: location.label, deliveryCity: location.city || current.deliveryCity, deliveryCountry: location.countryCode || current.deliveryCountry, deliveryLatitude: String(location.latitude), deliveryLongitude: String(location.longitude) }))}
-              placeholder={u('postLoadModal.warehouseAreaPlaceholder', 'Search a city or region')}
+              placeholder={u('postLoadModal.warehouseAreaPlaceholder', '')}
               onOpenMap={onOpenWarehouseArea}
-              mapButtonLabel={u('map.chooseArea', 'Choose area')}
+              mapButtonLabel={u('map.chooseArea', '')}
               mapButtonIcon={Radar}
               accentClassName="text-orange-500"
             />
@@ -382,7 +382,7 @@ export const WarehouseLocationFields = ({
               <div className="flex items-center justify-between gap-3">
                 <p className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-orange-500">
                   <Radar className="h-3.5 w-3.5" />
-                  {u('postLoadModal.areaRadius', 'Radius')}
+                  {u('postLoadModal.areaRadius', '')}
                 </p>
                 <p className="text-xs font-black text-slate-900 dark:text-white">{radiusKm} km</p>
               </div>
@@ -395,20 +395,20 @@ export const WarehouseLocationFields = ({
                 onChange={(event) => setField('deliveryRadiusKm', event.target.value)}
                 className="mt-2 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-orange-200 accent-orange-500 dark:bg-orange-900/60"
               />
-              <p className="mt-2 text-[10px] font-semibold text-slate-500">{u('postLoadModal.areaRadiusHint', 'Warehouses inside this area will see your request.')}</p>
+              <p className="mt-2 text-[10px] font-semibold text-slate-500">{u('postLoadModal.areaRadiusHint', '')}</p>
             </div>
           </div>
         )}
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <div className={cn('space-y-1', invalidClass('deliveryCountry'))}><FieldLabel>{u('postLoadModal.country', 'Country')}</FieldLabel><CountrySelect value={draft.deliveryCountry} onChange={(value) => setField('deliveryCountry', value)} /></div>
-        <div className={cn('space-y-1', invalidClass('deliveryCity'))}><FieldLabel>{u('postLoadModal.deliveryCity', 'City')}</FieldLabel><Input value={draft.deliveryCity} onChange={(event) => setField('deliveryCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', 'City')} /></div>
+        <div className={cn('space-y-1', invalidClass('deliveryCountry'))}><FieldLabel>{u('postLoadModal.country', '')}</FieldLabel><CountrySelect value={draft.deliveryCountry} onChange={(value) => setField('deliveryCountry', value)} /></div>
+        <div className={cn('space-y-1', invalidClass('deliveryCity'))}><FieldLabel>{u('postLoadModal.deliveryCity', '')}</FieldLabel><Input value={draft.deliveryCity} onChange={(event) => setField('deliveryCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', '')} /></div>
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <div className={cn('space-y-1', invalidClass('deliveryDate'))}><FieldLabel>{u('postLoadModal.warehouseStartDate', 'Storage start date')}</FieldLabel><DateInput value={draft.deliveryDate} onChange={(value) => setDraft((current) => ({ ...current, deliveryDate: value, warehouseStartDate: value }))} placeholder="dd.mm.yyyy" lang={lang} /></div>
-        <div className={cn('space-y-1', invalidClass('deliveryDateTo'))}><FieldLabel>{u('postLoadModal.warehouseEndDate', 'Storage end date')}</FieldLabel><DateInput value={draft.deliveryDateTo} onChange={(value) => setDraft((current) => ({ ...current, deliveryDateTo: value, warehouseEndDate: value }))} placeholder="dd.mm.yyyy" lang={lang} /></div>
-        <div className={cn('space-y-1', invalidClass('deliveryTimeFrom'))}><FieldLabel>{u('postLoadModal.deliveryTimeFrom', 'Time from')}</FieldLabel><TimeInput value={draft.deliveryTimeFrom} onChange={(value) => setField('deliveryTimeFrom', value)} placeholder="hh:mm" /></div>
-        <div className={cn('space-y-1', invalidClass('deliveryTimeTo'))}><FieldLabel>{u('postLoadModal.deliveryTimeTo', 'Time to')}</FieldLabel><TimeInput value={draft.deliveryTimeTo} onChange={(value) => setField('deliveryTimeTo', value)} placeholder="hh:mm" /></div>
+        <div className={cn('space-y-1', invalidClass('deliveryDate'))}><FieldLabel>{u('postLoadModal.warehouseStartDate', '')}</FieldLabel><DateInput value={draft.deliveryDate} onChange={(value) => setDraft((current) => ({ ...current, deliveryDate: value, warehouseStartDate: value }))} placeholder="dd.mm.yyyy" lang={lang} /></div>
+        <div className={cn('space-y-1', invalidClass('deliveryDateTo'))}><FieldLabel>{u('postLoadModal.warehouseEndDate', '')}</FieldLabel><DateInput value={draft.deliveryDateTo} onChange={(value) => setDraft((current) => ({ ...current, deliveryDateTo: value, warehouseEndDate: value }))} placeholder="dd.mm.yyyy" lang={lang} /></div>
+        <div className={cn('space-y-1', invalidClass('deliveryTimeFrom'))}><FieldLabel>{u('postLoadModal.deliveryTimeFrom', '')}</FieldLabel><TimeInput value={draft.deliveryTimeFrom} onChange={(value) => setField('deliveryTimeFrom', value)} placeholder="hh:mm" /></div>
+        <div className={cn('space-y-1', invalidClass('deliveryTimeTo'))}><FieldLabel>{u('postLoadModal.deliveryTimeTo', '')}</FieldLabel><TimeInput value={draft.deliveryTimeTo} onChange={(value) => setField('deliveryTimeTo', value)} placeholder="hh:mm" /></div>
       </div>
     </section>
 
@@ -418,13 +418,13 @@ export const WarehouseLocationFields = ({
         there is no leg to measure, so the distance stripe and the route map belong to the road load
         that carries the goods here, not to the storage request itself. */}
     <section className="flex h-full min-w-0 flex-col space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
-      <div className="flex items-center gap-2 text-primary"><Warehouse className="h-4 w-4" /><p className="text-xs font-black uppercase tracking-wider">{u('postLoadModal.storageSummaryTitle', 'Storage')}</p></div>
+      <div className="flex items-center gap-2 text-primary"><Warehouse className="h-4 w-4" /><p className="text-xs font-black uppercase tracking-wider">{u('postLoadModal.storageSummaryTitle', '')}</p></div>
       <div className="flex min-w-0 flex-1 flex-col">
-        <VerticalRoutePoint icon={draft.storageTarget === 'own' ? ArrowDownToLine : Landmark} iconClassName="bg-emerald-500 shadow-emerald-500/20" label={u('postLoadModal.storageTarget', 'Storage destination')} value={storageTargetValue} />
-        <VerticalRoutePoint icon={isAreaRequest ? Radar : Warehouse} iconClassName="bg-blue-500 shadow-blue-500/20" label={isAreaRequest ? u('postLoadModal.warehousePreferredArea', 'Preferred area') : u('postLoadModal.warehousePreferredLocation', 'Preferred warehouse location')} value={warehouseTargetValue} last />
+        <VerticalRoutePoint icon={draft.storageTarget === 'own' ? ArrowDownToLine : Landmark} iconClassName="bg-emerald-500 shadow-emerald-500/20" label={u('postLoadModal.storageTarget', '')} value={storageTargetValue} />
+        <VerticalRoutePoint icon={isAreaRequest ? Radar : Warehouse} iconClassName="bg-blue-500 shadow-blue-500/20" label={isAreaRequest ? u('postLoadModal.warehousePreferredArea', '') : u('postLoadModal.warehousePreferredLocation', '')} value={warehouseTargetValue} last />
       </div>
       <div className="rounded-xl border border-sky-200 bg-sky-50/50 px-3 py-2 dark:border-sky-800 dark:bg-slate-900">
-        <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">{u('postLoadModal.storagePeriod', 'Storage period')}</p>
+        <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">{u('postLoadModal.storagePeriod', '')}</p>
         <p className="mt-1 truncate text-sm font-black text-slate-900 dark:text-white">{storagePeriodValue}</p>
       </div>
     </section>
@@ -436,27 +436,27 @@ type WarehouseRequirementKey = 'warehouseRequiresCustomsBonded' | 'warehouseRequ
 
 export const WarehouseTermsFields = ({ draft, setField, u }: { draft: LoadDraft; setField: SetField; u: (key: string, fallback: string) => string }) => {
   const requirementToggles: Array<{ key: WarehouseRequirementKey; label: string; icon: typeof ShieldCheck }> = [
-    { key: 'warehouseRequiresCustomsBonded', label: u('postLoadModal.warehouseCustomsBonded', 'Carinsko skladište (bonded)'), icon: Lock },
-    { key: 'warehouseRequiresRacking', label: u('postLoadModal.warehouseRacking', 'Regalno skladištenje'), icon: Layers },
-    { key: 'warehouseRequiresInsurance', label: u('postLoadModal.warehouseInsurance', 'Osiguranje robe'), icon: Umbrella },
-    { key: 'warehouseRequiresSecurity', label: u('postLoadModal.warehouseSecurity', 'Obezbjeđenje / video nadzor'), icon: ShieldCheck },
+    { key: 'warehouseRequiresCustomsBonded', label: u('postLoadModal.warehouseCustomsBonded', ''), icon: Lock },
+    { key: 'warehouseRequiresRacking', label: u('postLoadModal.warehouseRacking', ''), icon: Layers },
+    { key: 'warehouseRequiresInsurance', label: u('postLoadModal.warehouseInsurance', ''), icon: Umbrella },
+    { key: 'warehouseRequiresSecurity', label: u('postLoadModal.warehouseSecurity', ''), icon: ShieldCheck },
   ];
 
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="space-y-1">
-          <FieldLabel>{u('postLoadModal.targetPrice', 'Vaša očekivana cijena (nije vidljiva javno)')}</FieldLabel>
+          <FieldLabel>{u('postLoadModal.targetPrice', '')}</FieldLabel>
           <Input type="number" min="0" value={draft.budget} onChange={(e) => setField('budget', e.target.value)} placeholder="450" />
         </div>
         <div className="space-y-1">
-          <FieldLabel>{u('postLoadModal.currency', 'Currency')}</FieldLabel>
+          <FieldLabel>{u('postLoadModal.currency', '')}</FieldLabel>
           <Select value={draft.freightCurrency} onChange={(e) => setField('freightCurrency', e.target.value)}>
             {SUPPORTED_CURRENCIES.map((currency) => <option key={currency} value={currency}>{currency}</option>)}
           </Select>
         </div>
         <div className="col-span-2 space-y-1">
-          <FieldLabel>{u('postLoadModal.warehouseRateUnit', 'Jedinica cijene')}</FieldLabel>
+          <FieldLabel>{u('postLoadModal.warehouseRateUnit', '')}</FieldLabel>
           <Select value={draft.warehouseRateUnit} onChange={(e) => setField('warehouseRateUnit', e.target.value)}>
             {WAREHOUSE_RATE_UNIT_OPTIONS.map((option) => (
               <option key={option} value={option}>{u(`postLoadModal.rateUnit.${option}`, option)}</option>
@@ -466,7 +466,7 @@ export const WarehouseTermsFields = ({ draft, setField, u }: { draft: LoadDraft;
       </div>
 
       <div className="space-y-1">
-        <FieldLabel>{u('postLoadModal.requirements', 'Zahtjevi')}</FieldLabel>
+        <FieldLabel>{u('postLoadModal.requirements', '')}</FieldLabel>
         <div className="grid grid-cols-2 gap-3">
           {requirementToggles.map((toggle) => (
             <ChoiceCard

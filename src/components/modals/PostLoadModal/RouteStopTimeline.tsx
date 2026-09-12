@@ -171,8 +171,8 @@ export const RouteStopTimeline = ({
                 </span>
                 <p className="truncate text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
                   {side === 'pickup'
-                    ? u('postLoadModal.pickupBlock', 'Pickup')
-                    : u('postLoadModal.deliveryBlock', 'Delivery')}
+                    ? u('postLoadModal.pickupBlock', '')
+                    : u('postLoadModal.deliveryBlock', '')}
                 </p>
               </div>
             )}
@@ -252,7 +252,7 @@ export const RouteStopTimeline = ({
                         setDragged(entry);
                       }}
                       onDragEnd={endDrag}
-                      title={u('postLoadModal.dragStopHint', 'Drag to reorder')}
+                      title={u('postLoadModal.dragStopHint', '')}
                       className="cursor-grab rounded p-0.5 text-slate-300 transition-colors hover:text-slate-500 active:cursor-grabbing dark:text-slate-600 dark:hover:text-slate-400"
                     >
                       <GripVertical className="h-3.5 w-3.5" />
@@ -261,7 +261,7 @@ export const RouteStopTimeline = ({
                       <button
                         type="button"
                         onClick={() => onRemove(side, index)}
-                        title={u('postLoadModal.removeStop', 'Remove this stop')}
+                        title={u('postLoadModal.removeStop', '')}
                         className="cursor-pointer rounded p-0.5 text-rose-400 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40"
                       >
                         <Trash2 className="h-3.5 w-3.5" />

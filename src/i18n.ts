@@ -1,3 +1,4 @@
+import { lenaTranslation } from './lib/lenaCatalog';
 import { Language } from './types';
 import type { CustomLocale } from 'flatpickr/dist/types/locale';
 
@@ -107,7 +108,7 @@ const UI_EN: Record<string, string> = {
   'tracking.moreFilters': 'More filters',
   'tracking.urgentOnly': 'Urgent',
   'tracking.activeFilters': 'Active filters',
-  'tracking.clearAll': 'Clear all',
+
   'tracking.noActiveFilters': 'No active filters',
   'tracking.weightRange': 'Weight (kg)',
   'tracking.volumeRange': 'Volume (m³)',
@@ -120,19 +121,9 @@ const UI_EN: Record<string, string> = {
   'tracking.customsRequired': 'Customs',
   'tracking.securityRequired': 'Security',
   'tracking.locateMe': 'Locate me',
-  'common.postLoad': 'Post Load',
+
   'common.postNewLoad': 'Post New Load',
-  'postLoadModal.titlePlaceholder': 'Enter load title',
-  'postLoadModal.volume': 'CBM (m³)',
-  'postLoadModal.packagingMethod': 'Packaging method',
-  'postLoadModal.packagingMethodPlaceholder': 'Pallets, boxes, crates, drums...',
-  'postLoadModal.selectPackagingMethod': 'Select packaging method',
-  'postLoadModal.unitCount': 'Number of pieces / units',
-  'postLoadModal.unitsShort': 'units',
-  'postLoadModal.targetPrice': 'Expected price (optional)',
-  'postLoadModal.paymentTitle': 'Payment',
-  'postLoadModal.goodsSpecifications': 'Goods specifications',
-  'postLoadModal.contactTitle': 'Contact',
+
   'notes.noteType': 'Note type',
   'notes.creating': 'Creating…',
   'notes.createFailed': 'The note could not be created.',
@@ -140,7 +131,7 @@ const UI_EN: Record<string, string> = {
   'offer.bestBid': 'Best bid',
   'offer.bestBidImmediateOnly': 'Best bid requires immediate payment.',
   'common.newRoute': 'New Route',
-  'common.cancel': 'Cancel',
+
   'common.continue': 'Continue',
   'common.back': 'Back',
   'common.settings': 'Settings',
@@ -158,7 +149,7 @@ const UI_EN: Record<string, string> = {
   'common.manageHubs': 'Manage Hubs',
   'common.contactSales': 'Contact Sales',
   'common.getStartedNow': 'Get Started Now',
-  'common.bookLoad': 'Reserve',
+
   'common.bookNow': 'Book now',
   'common.tokens': 'tokens',
   'common.driverLicense': 'Driver License',
@@ -166,13 +157,9 @@ const UI_EN: Record<string, string> = {
   'common.verified': 'Verified',
   'common.active': 'Active',
   'common.days': 'days',
-  'chat.notSent': 'Not sent',
-  'chat.retry': 'Retry',
-  'chat.replyFailed': 'LenaAI could not reply',
+
   'chat.conversationText': 'Conversation text',
-  'chat.chooseOptionAbove': 'Choose an option above',
-  'chat.copy': 'Copy message',
-  'chat.copied': 'Copied',
+
   'tracking.liveTracking': 'Live Tracking',
   'tracking.routeHistory': 'Route History',
   'landing.downloadApp': 'Download the app',
@@ -187,10 +174,7 @@ const UI_EN: Record<string, string> = {
   'pricing.feature.licences_4.title': '4 user licences included',
   'landing.exchange.noMatches': 'No shipments match these filters.',
   'common.all': 'All',
-  'postLoadModal.road': 'Road',
-  'postLoadModal.air': 'Air',
-  'postLoadModal.sea': 'Sea',
-  'postLoadModal.rail': 'Rail',
+
   'landing.trackingTitle1': 'Tracking that',
   'landing.trackingTitle2': 'never blinks.',
   'landing.trackingDesc': 'Follow every vehicle, stop and waypoint in real time - from the pickup window to the final drop.',
@@ -225,10 +209,7 @@ const UI_EN: Record<string, string> = {
   'landing.fleetReadyDesc': 'Vehicle registered and tracking in under two minutes.',
   'landing.metaDescription': 'Freightbook.ai │ the digital logistics standard. Post loads, book capacity and track freight across road, air, sea, rail and warehousing.',
   'landing.trackHint': 'Numbers usually start with FB-',
-  'landing.tracking.request': 'Find package {number}',
-  'landing.tracking.found': 'I found the shipment. Here are its current details.',
-  'landing.tracking.notFound': 'I could not find a shipment with that tracking number. Check the number and try again.',
-  'landing.tracking.readOnly': 'Tracking result',
+
   'landing.liveCount': 'live',
   'landing.availableLoads': 'Available Loads',
   'landing.activeDrivers': '12k+ Active Drivers',
@@ -244,7 +225,7 @@ const UI_EN: Record<string, string> = {
   'landing.model': 'Model',
   'landing.maxLoad': 'Max Load',
   'landing.priority': 'Priority',
-  'landing.distance': 'Distance',
+
   'landing.eta': 'ETA',
   'landing.fuel': 'Fuel',
   'landing.projectedCost': 'Projected Cost',
@@ -605,12 +586,6 @@ const UI_EN: Record<string, string> = {
   'legacy.loadDetails.offerUpdatedText': 'Your updated offer has been sent to the customer.',
   'legacy.loadDetails.offerFailedTitle': 'Could not send the offer',
 
-  'postLoadModal.priceTerms': 'Terms',
-  'postLoadModal.termsNegotiable': 'Negotiable',
-  'postLoadModal.termsNegotiableDesc': 'Carriers can send alternative prices',
-  'postLoadModal.termsFixed': 'Fixed price',
-  'postLoadModal.termsFixedDesc': 'Carriers book instantly at your price',
-
   'nav.pricing': 'Pricing',
   'nav.tariffsHs': 'Tariffs & HS',
   'tariffs.title': 'Customs tariffs & HS',
@@ -643,11 +618,7 @@ const UI_EN: Record<string, string> = {
   'pricing.godModeSubtitle': 'Your role has unlimited access to every feature and LenaAI message, no plan required.',
   'pricing.currentPlan': 'Current plan',
   'pricing.tokensLeft': 'LenaAI messages left',
-  'lena.outOfTokens.title': 'You are out of LenaAI messages',
-  'lena.outOfTokens.body': 'Your message limit resets on {date}. To keep using LenaAI, add credits or upgrade your plan today.',
-  'lena.outOfTokens.bodyNoReset': 'To keep using LenaAI, add credits or upgrade your plan today.',
-  'lena.outOfTokens.upgrade': 'Upgrade',
-  'lena.outOfTokens.addCredits': 'Add credits',
+
   'pricing.empty': 'No plans available yet.',
   'pricing.mostPopular': 'Most Popular',
   'pricing.month': 'mo',
@@ -657,7 +628,7 @@ const UI_EN: Record<string, string> = {
   'pricing.choosePlan': 'Choose Plan',
   'pricing.allRoles': 'Available to all roles',
   'pricing.availableTo': 'Available to',
-  'common.loading': 'Loading…',
+
   'pricing.role.user': 'Customer',
   'pricing.role.driver': 'Driver',
   'pricing.role.company': 'Company',
@@ -866,11 +837,7 @@ const UI: Record<Locale, Record<string, string>> = {
     'pricing.godModeSubtitle': 'Vaša uloga ima neograničen pristup svim funkcijama i LenaAI porukama, paket nije potreban.',
     'pricing.currentPlan': 'Trenutni paket',
     'pricing.tokensLeft': 'preostalih LenaAI poruka',
-    'lena.outOfTokens.title': 'Potrošili ste sve LenaAI poruke',
-    'lena.outOfTokens.body': 'Vaš limit poruka se obnavlja {date}. Da nastavite koristiti LenaAI, dodajte kredite ili nadogradite paket.',
-    'lena.outOfTokens.bodyNoReset': 'Da nastavite koristiti LenaAI, dodajte kredite ili nadogradite paket.',
-    'lena.outOfTokens.upgrade': 'Nadogradi paket',
-    'lena.outOfTokens.addCredits': 'Dodaj kredite',
+
     'pricing.empty': 'Trenutno nema dostupnih paketa.',
     'pricing.mostPopular': 'Najpopularniji',
     'pricing.month': 'mj.',
@@ -880,7 +847,7 @@ const UI: Record<Locale, Record<string, string>> = {
     'pricing.choosePlan': 'Izaberi paket',
     'pricing.allRoles': 'Dostupno svim ulogama',
     'pricing.availableTo': 'Dostupno za',
-    'common.loading': 'Učitavanje…',
+
     'pricing.role.user': 'Kupce',
     'pricing.role.driver': 'Vozači',
     'tracking.driver': 'Vozač',
@@ -999,13 +966,8 @@ const UI: Record<Locale, Record<string, string>> = {
     'payments.type.topup': 'Dopuna',
     'payments.type.package': 'Kupovina paketa',
 
-    'chat.notSent': 'Nije poslano',
     'chat.conversationText': 'Tekst konverzacije',
-    'chat.retry': 'Pokušaj ponovo',
-    'chat.replyFailed': 'LenaAI nije mogla odgovoriti',
-    'chat.chooseOptionAbove': 'Odaberite jednu od ponuđenih opcija',
-    'chat.copy': 'Kopiraj poruku',
-    'chat.copied': 'Kopirano',
+
     'common.sort': 'Sortiraj',
     'tracking.searchFilters': 'Filteri pretrage',
     'tracking.searchPlaceholder': 'Pretraži broj pošiljke, booking ref...',
@@ -1066,7 +1028,7 @@ const UI: Record<Locale, Record<string, string>> = {
     'tracking.moreFilters': 'Više filtera',
     'tracking.urgentOnly': 'Hitno',
     'tracking.activeFilters': 'Aktivni filteri',
-    'tracking.clearAll': 'Obriši sve',
+
     'tracking.noActiveFilters': 'Nema aktivni filtera',
     'tracking.weightRange': 'Težina (kg)',
     'tracking.volumeRange': 'Zapremina (m³)',
@@ -1079,17 +1041,7 @@ const UI: Record<Locale, Record<string, string>> = {
     'tracking.customsRequired': 'Carina',
     'tracking.securityRequired': 'Obezbjeđenje',
     'tracking.locateMe': 'Pronađi me',
-    'common.postLoad': 'Objavi teret',
-    'postLoadModal.volume': 'CBM (m³)',
-    'postLoadModal.packagingMethod': 'Način pakovanja',
-    'postLoadModal.packagingMethodPlaceholder': 'Palete, kutije, sanduci, bačve...',
-    'postLoadModal.selectPackagingMethod': 'Odaberite način pakovanja',
-    'postLoadModal.unitCount': 'Broj komada / jedinica',
-    'postLoadModal.unitsShort': 'jedinica',
-    'postLoadModal.targetPrice': 'Očekivana cijena (opciono)',
-    'postLoadModal.paymentTitle': 'Plaćanje',
-    'postLoadModal.goodsSpecifications': 'Specifikacije robe',
-    'postLoadModal.contactTitle': 'Kontakt',
+
     'notes.noteType': 'Vrsta napomene',
     'notes.creating': 'Kreiranje…',
     'notes.createFailed': 'Napomena nije mogla biti kreirana.',
@@ -1098,7 +1050,7 @@ const UI: Record<Locale, Record<string, string>> = {
     'offer.bestBidImmediateOnly': 'Najbolja ponuda zahtijeva plaćanje odmah.',
     'common.postNewLoad': 'Objavi novi teret',
     'common.newRoute': 'Nova ruta',
-    'common.cancel': 'Otkaži',
+
     'common.continue': 'Nastavi',
     'common.back': 'Nazad',
     'setup.cancelSetup': 'Odustani',
@@ -1117,7 +1069,7 @@ const UI: Record<Locale, Record<string, string>> = {
     'common.manageHubs': 'Upravljaj čvorištima',
     'common.contactSales': 'Kontakt prodaja',
     'common.getStartedNow': 'Započni odmah',
-    'common.bookLoad': 'Rezerviši',
+
     'common.tokens': 'tokena',
     'common.driverLicense': 'Vozačka licenca',
     'common.customerLicense': 'Licenca kupca',
@@ -1137,10 +1089,7 @@ const UI: Record<Locale, Record<string, string>> = {
     'pricing.feature.licences_4.title': '4 korisničke licence uključene',
     'landing.exchange.noMatches': 'Nijedna pošiljka ne odgovara ovim filterima.',
     'common.all': 'Sve',
-    'postLoadModal.road': 'Drumski',
-    'postLoadModal.air': 'Avio',
-    'postLoadModal.sea': 'Pomorski',
-    'postLoadModal.rail': 'Željeznički',
+
     'landing.trackingTitle1': 'Praćenje koje',
     'landing.trackingTitle2': 'ne trepće.',
     'landing.trackingDesc': 'Pratite svako vozilo, stajanje i tačku rute u realnom vremenu - od vremena preuzimanja do zadnje isporuke.',
@@ -1175,10 +1124,7 @@ const UI: Record<Locale, Record<string, string>> = {
     'landing.fleetReadyDesc': 'Vozilo registrovano i praćeno za manje od dvije minute.',
     'landing.metaDescription': 'Freightbook.ai │ digitalni logistički standard. Objavite terete, rezervišite kapacitet i pratite pošiljke u drumskom, avio, pomorskom i željezničkom prevozu te skladištenju.',
     'landing.trackHint': 'Brojevi obično počinju sa FB-',
-    'landing.tracking.request': 'Pronađi paket {number}',
-    'landing.tracking.found': 'Pronašla sam pošiljku. Ovo su njeni trenutni detalji.',
-    'landing.tracking.notFound': 'Nisam pronašla pošiljku s tim brojem za praćenje. Provjerite broj i pokušajte ponovo.',
-    'landing.tracking.readOnly': 'Rezultat praćenja',
+
     'landing.liveCount': 'uživo',
     'landing.availableLoads': 'Dostupni tereti',
     'landing.activeDrivers': '12k+ aktivnih vozača',
@@ -1194,7 +1140,7 @@ const UI: Record<Locale, Record<string, string>> = {
     'landing.model': 'Model',
     'landing.maxLoad': 'Maks. teret',
     'landing.priority': 'Prioritet',
-    'landing.distance': 'Udaljenost',
+
     'landing.fuel': 'Gorivo',
     'landing.projectedCost': 'Procijenjeni trošak',
     'landing.aiRecommendation': 'AI preporuka',
@@ -1562,11 +1508,6 @@ const UI: Record<Locale, Record<string, string>> = {
     'legacy.loadDetails.offerUpdatedText': 'Vaša ažurirana ponuda je poslana kupcu.',
     'legacy.loadDetails.offerFailedTitle': 'Ponuda se nije mogla poslati',
 
-    'postLoadModal.priceTerms': 'Uslovi',
-    'postLoadModal.termsNegotiable': 'Po dogovoru',
-    'postLoadModal.termsNegotiableDesc': 'Prevoznici mogu poslati alternativne cijene',
-    'postLoadModal.termsFixed': 'Fiksna cijena',
-    'postLoadModal.termsFixedDesc': 'Prevoznici odmah rezervišu po vašoj cijeni',
   }),
   de: makeLocale({
     'shipmentOperations.title': 'Operative Checkliste',
@@ -1612,7 +1553,7 @@ const UI: Record<Locale, Record<string, string>> = {
     'shipmentDetails.notes': 'Notizen',
     'shipmentDetails.recentActivity': 'Letzte Aktivitäten',
     'shipmentDetails.noActivity': 'Keine aktuellen Aktivitäten.',
-    'postLoadModal.titlePlaceholder': 'Ladungstitel eingeben',
+
     'nav.pricing': 'Preise',
     'nav.tariffsHs': 'Tarife & HS',
     'tariffs.title': 'Zolltarife & HS',
@@ -1645,11 +1586,7 @@ const UI: Record<Locale, Record<string, string>> = {
     'pricing.godModeSubtitle': 'Ihre Rolle hat unbegrenzten Zugriff auf alle Funktionen und LenaAI-Nachrichten, kein Tarif erforderlich.',
     'pricing.currentPlan': 'Aktueller Tarif',
     'pricing.tokensLeft': 'verbleibende LenaAI-Nachrichten',
-    'lena.outOfTokens.title': 'Ihre LenaAI-Nachrichten sind aufgebraucht',
-    'lena.outOfTokens.body': 'Ihr Nachrichtenlimit wird am {date} zurückgesetzt. Um LenaAI weiter zu nutzen, laden Sie Guthaben auf oder wechseln Sie den Tarif.',
-    'lena.outOfTokens.bodyNoReset': 'Um LenaAI weiter zu nutzen, laden Sie Guthaben auf oder wechseln Sie den Tarif.',
-    'lena.outOfTokens.upgrade': 'Tarif upgraden',
-    'lena.outOfTokens.addCredits': 'Guthaben aufladen',
+
     'pricing.empty': 'Derzeit sind keine Tarife verfügbar.',
     'pricing.mostPopular': 'Am beliebtesten',
     'pricing.month': 'Monat',
@@ -1659,7 +1596,7 @@ const UI: Record<Locale, Record<string, string>> = {
     'pricing.choosePlan': 'Tarif wählen',
     'pricing.allRoles': 'Für alle Rollen verfügbar',
     'pricing.availableTo': 'Verfügbar für',
-    'common.loading': 'Wird geladen…',
+
     'pricing.role.user': 'Kunde',
     'pricing.role.driver': 'Fahrer',
     'pricing.role.company': 'Unternehmen',
@@ -1777,13 +1714,8 @@ const UI: Record<Locale, Record<string, string>> = {
     'payments.type.topup': 'Aufladung',
     'payments.type.package': 'Tarifkauf',
 
-    'chat.notSent': 'Nicht gesendet',
     'chat.conversationText': 'Konversationstext',
-    'chat.retry': 'Erneut versuchen',
-    'chat.replyFailed': 'LenaAI konnte nicht antworten',
-    'chat.chooseOptionAbove': 'Wählen Sie eine der obigen Optionen',
-    'chat.copy': 'Nachricht kopieren',
-    'chat.copied': 'Kopiert',
+
     'common.sort': 'Sortieren',
     'tracking.searchFilters': 'Suchfilter',
     'tracking.searchPlaceholder': 'Sendungsnummer, Buchungsreferenz suchen...',
@@ -1827,19 +1759,9 @@ const UI: Record<Locale, Record<string, string>> = {
     'tracking.moreFilters': 'Weitere Filter',
     'tracking.urgentOnly': 'Dringend',
     'tracking.activeFilters': 'Aktive Filter',
-    'tracking.clearAll': 'Alle löschen',
+
     'tracking.noActiveFilters': 'Keine aktiven Filter',
-    'common.postLoad': 'Ladung posten',
-    'postLoadModal.volume': 'CBM (m³)',
-    'postLoadModal.packagingMethod': 'Verpackungsart',
-    'postLoadModal.packagingMethodPlaceholder': 'Paletten, Kartons, Kisten, Fässer...',
-    'postLoadModal.selectPackagingMethod': 'Verpackungsart auswählen',
-    'postLoadModal.unitCount': 'Anzahl Stück / Einheiten',
-    'postLoadModal.unitsShort': 'Einheiten',
-    'postLoadModal.targetPrice': 'Erwarteter Preis (optional)',
-    'postLoadModal.paymentTitle': 'Zahlung',
-    'postLoadModal.goodsSpecifications': 'Warenspezifikationen',
-    'postLoadModal.contactTitle': 'Kontakt',
+
     'notes.noteType': 'Notiztyp',
     'notes.creating': 'Wird erstellt…',
     'notes.createFailed': 'Die Notiz konnte nicht erstellt werden.',
@@ -1848,7 +1770,7 @@ const UI: Record<Locale, Record<string, string>> = {
     'offer.bestBidImmediateOnly': 'Das beste Angebot erfordert eine sofortige Zahlung.',
     'common.postNewLoad': 'Neue Ladung posten',
     'common.newRoute': 'Neue Route',
-    'common.cancel': 'Abbrechen',
+
     'common.continue': 'Weiter',
     'common.back': 'Zurück',
     'common.settings': 'Einstellungen',
@@ -1866,7 +1788,7 @@ const UI: Record<Locale, Record<string, string>> = {
     'common.manageHubs': 'Hubs verwalten',
     'common.contactSales': 'Vertrieb kontaktieren',
     'common.getStartedNow': 'Jetzt loslegen',
-    'common.bookLoad': 'Reservieren',
+
     'common.tokens': 'Tokens',
     'common.driverLicense': 'Fahrerlizenz',
     'common.customerLicense': 'Kundenlizenz',
@@ -1885,10 +1807,7 @@ const UI: Record<Locale, Record<string, string>> = {
     'pricing.feature.licences_4.title': '4 Benutzerlizenzen enthalten',
     'landing.exchange.noMatches': 'Keine Sendungen entsprechen diesen Filtern.',
     'common.all': 'Alle',
-    'postLoadModal.road': 'Straße',
-    'postLoadModal.air': 'Luft',
-    'postLoadModal.sea': 'See',
-    'postLoadModal.rail': 'Schiene',
+
     'landing.trackingTitle1': 'Tracking, das',
     'landing.trackingTitle2': 'nie blinzelt.',
     'landing.trackingDesc': 'Verfolgen Sie jedes Fahrzeug, jeden Halt und jeden Wegpunkt in Echtzeit - vom Abholfenster bis zur letzten Zustellung.',
@@ -1923,10 +1842,7 @@ const UI: Record<Locale, Record<string, string>> = {
     'landing.fleetReadyDesc': 'Fahrzeug registriert und in unter zwei Minuten im Tracking.',
     'landing.metaDescription': 'Freightbook.ai │ der digitale Logistikstandard. Frachten ausschreiben, Kapazität buchen und Sendungen über Straße, Luft, See, Schiene und Lager verfolgen.',
     'landing.trackHint': 'Nummern beginnen meist mit FB-',
-    'landing.tracking.request': 'Paket {number} finden',
-    'landing.tracking.found': 'Ich habe die Sendung gefunden. Hier sind die aktuellen Details.',
-    'landing.tracking.notFound': 'Ich konnte keine Sendung mit dieser Nummer finden. Prüfen Sie die Nummer und versuchen Sie es erneut.',
-    'landing.tracking.readOnly': 'Tracking-Ergebnis',
+
     'landing.liveCount': 'live',
     'landing.availableLoads': 'Verfügbare Ladungen',
     'landing.activeDrivers': '12k+ aktive Fahrer',
@@ -1942,7 +1858,7 @@ const UI: Record<Locale, Record<string, string>> = {
     'landing.model': 'Modell',
     'landing.maxLoad': 'Max. Ladung',
     'landing.priority': 'Priorität',
-    'landing.distance': 'Distanz',
+
     'landing.fuel': 'Kraftstoff',
     'landing.projectedCost': 'Prognostizierte Kosten',
     'landing.aiRecommendation': 'KI-Empfehlung',
@@ -2776,34 +2692,24 @@ Object.assign(UI.zh, {
 });
 
 Object.assign(UI.en, {
-  'postLoadModal.dimensionUnit': 'Unit',
+
   'Booked': 'Booked',
   'common.warehouseCompany': 'Warehouse Company',
-  'postLoadModal.selectWarehouse': 'Warehouse',
-  'postLoadModal.warehouseSearchPlaceholder': 'Search warehouses by name, address, city or country',
-  'postLoadModal.loadingWarehouses': 'Loading warehouses...',
-  'postLoadModal.noWarehousesFound': 'No warehouses found',
+
 });
 
 Object.assign(UI.de, {
-  'postLoadModal.selectWarehouse': 'Lager',
-  'postLoadModal.warehouseSearchPlaceholder': 'Lager nach Name, Adresse, Stadt oder Land suchen',
-  'postLoadModal.loadingWarehouses': 'Lager werden geladen...',
-  'postLoadModal.noWarehousesFound': 'Keine Lager gefunden',
+
 });
 
 Object.assign(UI.bs, {
-  'postLoadModal.dimensionUnit': 'Jedinica',
+
   'Booked': 'Bukirano',
-  'map.choosePickup': 'Odaberite adresu preuzimanja na mapi',
-  'map.chooseDelivery': 'Odaberite adresu isporuke na mapi',
-  'common.no': 'Ne',
-  'common.yes': 'Da',
-  'common.save': 'Sačuvaj izmjene',
+
   'common.live': 'Uživo',
   'common.warehouseCompany': 'Skladišna kompanija',
   'login.warehouseCompany': 'Skladišna kompanija',
-  'common.postWarehouse': 'Objavi na berzu skladišta',
+
   'warehouseView.eyebrow': 'Skladišna kompanija',
   'warehouseView.title': 'Moj Warehouse',
   'warehouseView.emptyTitle': 'Skladište još nije postavljeno',
@@ -2946,13 +2852,10 @@ Object.assign(UI.bs, {
   'warehouseView.noCustomers': 'Nema podataka o klijentima.',
   'warehouseView.recentArrivals': 'Nedavno primljene pošiljke',
   'warehouseView.noArrivals': 'Nema nedavnih pošiljki.',
-  'postLoadModal.transport.warehouse': 'Skladištenje',
-  'postLoadModal.transport.warehouseDesc': 'Paletno i rasuto skladištenje',
-  'postLoadModal.country': 'Država',
+
   'postLoadModal.pallets': 'Palete',
   'postLoadModal.cbm': 'CBM (m³)',
-  'postLoadModal.temperatureMin': 'Min. temperatura (°C)',
-  'postLoadModal.warehouseStorageType': 'Vrsta skladištenja',
+
   'postLoadModal.storageType.Ambient': 'Suho (Ambient)',
   'postLoadModal.storageType.Chilled': 'Rashlađeno',
   'postLoadModal.storageType.Frozen': 'Zamrznuto',
@@ -2961,7 +2864,7 @@ Object.assign(UI.bs, {
   'postLoadModal.storageType.Bonded': 'Carinsko (bonded)',
   'postLoadModal.storageType.Outdoor': 'Otvoreno skladište / Yard',
   'postLoadModal.storageType.Unsure': 'Nisam siguran',
-  'postLoadModal.warehouseServices': 'Potrebne usluge',
+
   'postLoadModal.handlingReq.Storage': 'Skladištenje',
   'postLoadModal.handlingReq.Loading': 'Utovar',
   'postLoadModal.handlingReq.Unloading': 'Istovar',
@@ -2974,39 +2877,17 @@ Object.assign(UI.bs, {
   'postLoadModal.handlingReq.Goods inspection': 'Kontrola robe',
   'postLoadModal.handlingReq.Customs handling': 'Carinjenje',
   'postLoadModal.handlingReq.Distribution': 'Distribucija',
-  'postLoadModal.foodPharma': 'Food / Pharma',
-  'postLoadModal.foodPharmaDesc': 'Hrana ili farmaceutska roba',
-  'postLoadModal.fragileGoods': 'Lomljiva / osjetljiva roba',
-  'postLoadModal.fragileGoodsDesc': 'Potrebno pažljivo rukovanje',
-  'postLoadModal.warehousePreferredLocation': 'Željena lokacija skladišta',
+
   'postLoadModal.warehouseLocationPlaceholder': 'Pretražite grad ili adresu',
-  'postLoadModal.selectWarehouse': 'Skladište',
-  'postLoadModal.warehouseSearchPlaceholder': 'Pretražite skladišta po nazivu, adresi, gradu ili državi',
-  'postLoadModal.loadingWarehouses': 'Učitavanje skladišta...',
-  'postLoadModal.noWarehousesFound': 'Nema pronađenih skladišta',
-  'postLoadModal.warehouseStartDate': 'Datum početka',
-  'postLoadModal.warehouseEndDate': 'Datum završetka',
-  'postLoadModal.warehouseOngoing': 'Neograničeno',
+
   'postLoadModal.warehouseOngoingToggle': 'Neograničeno trajanje',
-  'postLoadModal.warehouseDuration': 'Trajanje',
-  'postLoadModal.warehouseRateUnit': 'Jedinica cijene',
+
   'postLoadModal.rateUnit.per_pallet_month': 'po paleti / mjesečno',
   'postLoadModal.rateUnit.per_m3_month': 'po m³ / mjesečno',
   'postLoadModal.rateUnit.per_month': 'mjesečno (paušal)',
-  'postLoadModal.warehouseCustomsBonded': 'Carinsko skladište (bonded)',
-  'postLoadModal.warehouseRacking': 'Regalno skladištenje',
-  'postLoadModal.warehouseInsurance': 'Osiguranje robe',
-  'postLoadModal.warehouseSecurity': 'Obezbjeđenje / video nadzor',
-  'postLoadModal.warehousePublishedTitle': 'Zahtjev za skladištenje objavljen',
-  'postLoadModal.warehousePublishedText': 'Zahtjev za skladištenje je sada vidljiv skladišnim kompanijama.',
-  'postLoadModal.publishWarehouseTitle': 'Objava na berzu skladišta?',
-  'postLoadModal.publishWarehouseText': 'Da li ste sigurni da želite objaviti ovaj zahtjev za skladištenje? Postat će vidljiv skladišnim kompanijama.',
+
   'postLoadModal.title': 'Objavi novi teret',
-  'postLoadModal.titlePlaceholder': 'Unesi naziv tereta',
-  'postLoadModal.editTitle': 'Uredi teret',
-  'postLoadModal.subtitle': 'Kreirajte strukturiran zahtjev za prevoz koji vozači mogu brzo pregledati i prihvatiti',
-  'postLoadModal.step.route': 'Ruta i termini',
-  'postLoadModal.step.cargo': 'Detalji i uslovi',
+
   'postLoadModal.step.storage': 'Zahtjevi skladištenja',
   'postLoadModal.storageVolume': 'Količina za skladištenje',
   'postLoadModal.storageTypeDesc.Ambient': 'Sobna temperatura, suha roba',
@@ -3030,142 +2911,50 @@ Object.assign(UI.bs, {
   'postLoadModal.handlingReqDesc.Palletizing': 'Slaganje i folijiranje paleta',
   'postLoadModal.handlingReqDesc.Repackaging': 'Prepakivanje u nove jedinice',
   'postLoadModal.step.terms': 'Uslovi',
-  'postLoadModal.step.contact': 'Plaćanje i kontakt',
-  'postLoadModal.step.review': 'Pregled',
+
   'postLoadModal.step.routeDesc': 'Odakle i kada teret kreće',
   'postLoadModal.step.cargoDesc': 'Kupac, teret, oprema i zahtjevi',
   'postLoadModal.step.termsDesc': 'Budžet i zahtjevi za opremom',
   'postLoadModal.step.contactDesc': 'Cijena, plaćanje i kontakt osoba',
   'postLoadModal.step.reviewDesc': 'Zadnja provjera prije objave',
-  'postLoadModal.stepLabel': 'Korak',
-  'postLoadModal.noPickupDate': 'Datum preuzimanja još nije unesen',
-  'postLoadModal.noDeliveryDate': 'Datum isporuke još nije unesen',
-  'postLoadModal.ambient': 'Sobna temperatura',
-  'postLoadModal.aiFilledCount': 'polja popunjeno putem AI-ja',
-  'postLoadModal.aiRefillHint': 'Popunio LenaAI — kliknite za ponovno popunjavanje AI podacima',
-  'postLoadModal.scannedDocument': 'Skenirani dokument — kliknite za pregled izdvojenih podataka',
-  'postLoadModal.addScannedDocument': 'Skeniraj još jedan dokument',
-  'postLoadModal.fillWithLenaAI': 'Popuni pomoću LenaAI',
-  'postLoadModal.publishing': 'Spremanje...',
-  'postLoadModal.apiError': 'Teret nije moguće objaviti.',
-  'postLoadModal.loadFetchError': 'Teret nije moguće učitati.',
+
   'postLoadModal.loadingLoad': 'Učitavanje tereta...',
   'postLoadModal.scannedDocumentAlt': 'Skenirani dokument',
-  'postLoadModal.confirmRefillTitle': 'Ponovo popuniti ovo polje AI podacima?',
-  'postLoadModal.confirmRefillText': 'Vaša trenutna vrijednost bit će zamijenjena vrijednošću koju je prepoznao LenaAI.',
-  'postLoadModal.confirmRefillButton': 'Popuni ponovo',
+
   'postLoadModal.confirmSaveTitle': 'Sačuvati izmjene tereta?',
   'postLoadModal.confirmPublishTitle': 'Objaviti ovaj teret?',
   'postLoadModal.confirmSaveText': 'Ažurirani podaci o teretu bit će vidljivi na berzi tereta.',
   'postLoadModal.confirmPublishText': 'Ovaj teret će biti objavljen i vidljiv na berzi tereta.',
   'postLoadModal.confirmSaveButton': 'Sačuvaj izmjene',
   'postLoadModal.confirmPublishButton': 'Objavi teret',
-  'postLoadModal.updatedTitle': 'Teret ažuriran',
-  'postLoadModal.publishedTitle': 'Teret objavljen',
-  'postLoadModal.updatedText': 'Vaše izmjene su sada aktivne.',
-  'postLoadModal.publishedText': 'Teret je sada dostupan na berzi tereta.',
-  'postLoadModal.pickupBlock': 'Preuzimanje',
+
   'postLoadModal.pickupPlaces': 'Mjesto utovara',
-  'postLoadModal.pickupPlaceType': 'Vrsta mjesta',
+
   'postLoadModal.loadingPlace': 'Mjesto utovara',
-  'postLoadModal.warehouse': 'Skladište',
-  'postLoadModal.terminal': 'Terminal',
-  'postLoadModal.address': 'Adresa',
-  'postLoadModal.addressLastMile': 'Adresa + dostava do vrata',
-  'postLoadModal.pickupAddress': 'Adresa preuzimanja',
-  'postLoadModal.pickupAddressPlaceholder': 'Pretraži mjesta ili klikni na mapu',
-  'postLoadModal.selectCountry': 'Odaberite državu',
-  'postLoadModal.pickupCountryShort': 'Država',
-  'postLoadModal.pickupCity': 'Grad',
-  'postLoadModal.cityCountry': 'Grad',
+
   'postLoadModal.pickupDate': 'Datum od',
-  'postLoadModal.pickupDateTo': 'Datum do',
-  'postLoadModal.pickupTimeFrom': 'Vrijeme od',
-  'postLoadModal.pickupTimeTo': 'Vrijeme do',
-  'postLoadModal.deliveryBlock': 'Isporuka',
+
   'postLoadModal.deliveryPlaces': 'Mjesto istovara',
-  'postLoadModal.deliveryPlaceType': 'Vrsta mjesta',
+
   'postLoadModal.unloadingPlace': 'Mjesto istovara',
-  'postLoadModal.deliveryAddress': 'Adresa isporuke',
-  'postLoadModal.deliveryAddressPlaceholder': 'Pretraži mjesta ili klikni na mapu',
-  'postLoadModal.deliveryCountryShort': 'Država',
-  'postLoadModal.deliveryCity': 'Grad',
+
   'postLoadModal.deliveryDate': 'Datum od',
-  'postLoadModal.deliveryDateTo': 'Datum do',
-  'postLoadModal.deliveryTimeFrom': 'Vrijeme od',
-  'postLoadModal.deliveryTimeTo': 'Vrijeme do',
-  'postLoadModal.originBlock': 'Polazište',
-  'postLoadModal.destinationBlock': 'Odredište',
-  'postLoadModal.seaOriginType': 'Tip polazišta',
-  'postLoadModal.seaDestinationType': 'Tip odredišta',
-  'postLoadModal.portToPort': 'Luka',
-  'postLoadModal.airportPlaceType': 'Aerodrom',
-  'postLoadModal.doorToPort': 'Adresa',
-  'postLoadModal.portToDoor': 'Adresa',
-  'postLoadModal.pol': 'Luka utovara (POL)',
-  'postLoadModal.pod': 'Luka istovara (POD)',
-  'postLoadModal.portSearchPlaceholder': 'Pretraži luke',
+
   'postLoadModal.noResults': 'Nema rezultata',
-  'postLoadModal.doorAddress': 'Adresa preuzimanja/isporuke (vrata)',
-  'postLoadModal.transitTime': 'ETA - tranzitno vrijeme (POL-POD)',
-  'postLoadModal.transitDays': 'dana',
-  'postLoadModal.transportModeAirportToAirport': 'Aerodrom do aerodroma',
-  'postLoadModal.transportModeAddressToAirport': 'Adresa do aerodroma',
-  'postLoadModal.transportModeAirportToAddress': 'Aerodrom do adrese',
-  'postLoadModal.transportModeAirFreightLastMile': 'Zračni prevoz + dostava do vrata',
-  'postLoadModal.consignee': 'Primalac (kupac)',
-  'postLoadModal.consigneePlaceholder': 'Odaberite primaoca iz globalne baze kupaca',
-  'postLoadModal.consigneeHelp': 'Pretražujte po nazivu firme, poreznom broju, gradu ili državi. Dodatni rezultati se učitavaju pomicanjem.',
-  'postLoadModal.transportType': 'Vrste prevoza i usluga',
-  'postLoadModal.transport.road': 'Kopnom',
-  'postLoadModal.transport.roadDesc': 'Kamionski prevoz',
-  'postLoadModal.transport.air': 'Zrakom',
-  'postLoadModal.transport.airDesc': 'Brzi avio prevoz',
-  'postLoadModal.transport.sea': 'Morem',
-  'postLoadModal.transport.seaDesc': 'Kontejnerski prevoz',
-  'postLoadModal.transport.rail': 'Željeznicom',
-  'postLoadModal.transport.railDesc': 'Terminalski i kontejnerski prevoz',
-  'postLoadModal.railTerminalOfLoading': 'Utovarni terminal',
-  'postLoadModal.railTerminalOfDelivery': 'Odredišni terminal',
-  'postLoadModal.railTerminalPlaceholder': 'Naziv terminala i grad',
-  'postLoadModal.railTransitTime': 'ETA - vrijeme prevoza (terminal - terminal)',
-  'postLoadModal.railDocumentType': 'Vrsta željezničkog transportnog dokumenta',
-  'postLoadModal.railPaymentTerms.CollectDesc': 'Fakturisano po dolasku na odredišni terminal',
+
   'postLoadModal.blType.CIM': 'CIM',
   'postLoadModal.blType.SMGS': 'SMGS',
   'postLoadModal.blType.CIM/SMGS': 'CIM/SMGS',
   'postLoadModal.blType.Other': 'Ostalo',
   'postLoadModal.loadingEquipment.Terminal Handling': 'Terminalsko rukovanje',
-  'postLoadModal.loadingEquipment': 'Oprema za utovar',
-  'postLoadModal.cargoName': 'Vrsta robe i HS kodovi',
-  'postLoadModal.cargoNamePlaceholder': 'Pretraga po kategoriji robe, nazivu ili HS kodu',
+
   'postLoadModal.length': 'Dužina (m)',
-  'postLoadModal.weight': 'Težina (t)',
+
   'postLoadModal.width': 'Širina (m)',
   'postLoadModal.height': 'Visina (m)',
-  'postLoadModal.declaredValue': 'Vrijednost pošiljke',
-  'postLoadModal.cargoModel': 'Vrsta pošiljke',
-  'postLoadModal.additionalInfo': 'Dodatne informacije',
-  'postLoadModal.targetPrice': 'Vaša očekivana cijena (nije vidljiva javno)',
-  'postLoadModal.currency': 'Valuta',
-  'postLoadModal.deferredPayment': 'Odgođeno plaćanje',
-  'postLoadModal.paymentDueDays': 'Broj dana',
-  'postLoadModal.incoterm': 'Incoterm',
-  'postLoadModal.pleaseSelect': 'Molimo odaberite',
-  'postLoadModal.priceTerms': 'Uslovi',
-  'postLoadModal.termsNegotiable': 'Po dogovoru',
-  'postLoadModal.termsNegotiableDesc': 'Prevoznici mogu poslati alternativne cijene',
-  'postLoadModal.termsFixed': 'Fiksna cijena',
-  'postLoadModal.termsFixedDesc': 'Prevoznici odmah rezervišu po vašoj cijeni',
-  'postLoadModal.externalComments': 'Vanjske napomene',
-  'postLoadModal.externalCommentsPlaceholder': 'Vidljivo prevoznicima koji pregledaju ponudu',
-  'postLoadModal.notes': 'Napomene o rukovanju',
-  'postLoadModal.notesPlaceholder': 'Detalji pakovanja, ograničenja pri utovaru, pravila rampe, dokumenti, povrat paleta, poseban tretman...',
-  'postLoadModal.equipmentTitle': 'Oprema i zahtjevi',
-  'postLoadModal.transportMode': 'Način prevoza',
-  'postLoadModal.specialRequirements': 'Posebni zahtjevi',
+
   'postLoadModal.vehicleType': 'Potrebno vozilo',
-  'postLoadModal.bodyTypes': 'Tipovi nadogradnje',
+
   'postLoadModal.vehicle.Cargo Van': 'Kombi vozilo',
   'postLoadModal.vehicle.Box Truck': 'Kamion (zatvoreni sanduk)',
   'postLoadModal.vehicle.Curtainsider': 'Cerada',
@@ -3174,122 +2963,34 @@ Object.assign(UI.bs, {
   'postLoadModal.vehicle.Rigid Truck': 'Solo kamion',
   'postLoadModal.vehicle.Container truck': 'Kamion za kontejnere',
   'postLoadModal.characteristics': 'Karakteristike i certifikati',
-  'postLoadModal.temperature': 'Kontrolisana temperatura',
+
   'postLoadModal.temperaturePlaceholder': '2°C do 8°C / sobna temperatura',
-  'postLoadModal.temperatureMax': 'Do (°C)',
-  'postLoadModal.deliveryProof': 'Dokaz o isporuci',
-  'postLoadModal.mustBeTrackable': 'Mora biti moguće pratiti putem Smart Logistics sistema',
-  'postLoadModal.mustBeTrackableDesc': 'Mora biti praćeno putem Smart Logistics sistema',
-  'postLoadModal.mustBeTrackableShort': 'Moguće praćenje',
-  'postLoadModal.adr': 'ADR / certifikovano',
-  'postLoadModal.adrDesc': 'Potrebna usklađenost za opasne materije',
-  'postLoadModal.dgr': 'DGR / certifikovano',
-  'postLoadModal.tailLift': 'Rampa za utovar',
-  'postLoadModal.tailLiftDesc': 'Potrebna prilikom preuzimanja ili isporuke',
-  'postLoadModal.urgent': 'Prioritetni teret',
-  'postLoadModal.urgentDesc': 'Veći prioritet i brže prihvatanje',
-  'postLoadModal.tollRoads': 'Putarine',
-  'postLoadModal.tollRoadsDesc': 'Ruta uključuje putarine ili autoceste',
-  'postLoadModal.ferry': 'Trajekt',
-  'postLoadModal.ferryDesc': 'Ruta uključuje trajekt / RoRo prelaz',
-  'postLoadModal.cmr': 'CMR',
-  'postLoadModal.cmrDesc': 'Potreban CMR tovarni list',
-  'postLoadModal.palletExchange': 'Razmjena paleta',
-  'postLoadModal.palletExchangeDesc': 'Palete se moraju zamijeniti prilikom isporuke',
-  'postLoadModal.customs': 'Carina',
-  'postLoadModal.customsDesc': 'Potrebno carinjenje',
-  'postLoadModal.insurance': 'Osiguranje',
-  'postLoadModal.insuranceDesc': 'Potrebno osiguranje tereta',
-  'postLoadModal.certification': 'Certifikacija',
-  'postLoadModal.certificationDesc': 'Potrebna certifikacijska dokumentacija',
-  'postLoadModal.inspectionServices': 'Usluge inspekcije',
-  'postLoadModal.inspectionServicesDesc': 'Potrebna inspekcija tereta',
-  'postLoadModal.contactName': 'Kontakt osoba u vašoj firmi',
-  'postLoadModal.contactEmail': 'E-mail adresa',
-  'postLoadModal.contactPhone': 'Broj telefona',
-  'postLoadModal.contactFax': 'Broj faksa',
-  'postLoadModal.contactMobile': 'Broj mobitela',
-  'postLoadModal.showInOffer': 'Prikaži u ponudi',
-  'postLoadModal.internalComments': 'Interne napomene',
-  'postLoadModal.internalCommentsPlaceholder': 'Vidljivo samo unutar vaše firme',
-  'postLoadModal.limitPublication': 'Ograniči objavu',
-  'postLoadModal.closedFreightExchange': 'Objavi na zatvorenoj berzi tereta',
-  'postLoadModal.none': 'Nema',
-  'postLoadModal.closedFreightComments': 'Napomene za zatvorenu berzu tereta',
-  'postLoadModal.closedFreightCommentsPlaceholder': 'Vidljivo samo članovima zatvorene berze tereta',
-  'postLoadModal.publishToAllAfter': 'Nakon',
-  'postLoadModal.publishToAllAfterSuffix': 'minuta objavi svima',
-  'postLoadModal.routeSummary': 'Ruta',
-  'postLoadModal.pickupSummary': 'Preuzimanje',
-  'postLoadModal.deliverySummary': 'Isporuka',
-  'postLoadModal.titleSummary': 'Naziv',
-  'postLoadModal.cargoSummary': 'Teret',
-  'postLoadModal.specsSummary': 'Specifikacije',
-  'postLoadModal.vehicleSummary': 'Vozilo',
-  'postLoadModal.paymentSummary': 'Isplata',
-  'postLoadModal.days': 'dana',
-  'postLoadModal.contactSummary': 'Kontakt',
-  'postLoadModal.flagsSummary': 'Posebni zahtjevi',
-  'postLoadModal.publicationSummary': 'Objava',
-  'postLoadModal.openPublication': 'Otvorena objava',
-  'postLoadModal.marketReadiness': 'Spremnost za objavu',
-  'postLoadModal.marketReadinessDesc': 'Potpuniji tereti obično dobijaju brže odgovore vozača i manje poziva za dodatna pojašnjenja.',
-  'postLoadModal.quickCheck': 'Brza provjera',
-  'postLoadModal.quickCheck1': 'Da li je ponuđena isplata realna za ovu rutu i hitnost?',
-  'postLoadModal.quickCheck2': 'Jeste li naveli sva ograničenja u rukovanju ili pristupu?',
-  'postLoadModal.quickCheck3': 'Može li vozač odmah nazvati navedeni kontakt ako je potrebno?',
+
   'postLoadModal.step.termsSea': 'Uslovi i oprema',
-  'postLoadModal.handlingRequirements': 'Zahtjevi za rukovanje',
-  'postLoadModal.containerTypes': 'Tipovi kontejnera',
-  'postLoadModal.addContainerType': 'Dodaj kontejner',
-  'postLoadModal.qty': 'Kol.',
+
   'postLoadModal.characteristicsSea': 'Karakteristike',
-  'postLoadModal.dgUnNumber': 'UN broj',
-  'postLoadModal.dgImoClass': 'IMO klasa',
-  'postLoadModal.dgPackingGroup': 'Grupa pakovanja',
-  'postLoadModal.dgProperShippingName': 'Ispravan naziv za otpremu',
-  'postLoadModal.oogGauge': 'U okviru / izvan okvira kontejnera',
-  'postLoadModal.inGauge': 'U okviru',
+
   'postLoadModal.inGaugeDesc': 'U okviru dimenzija kontejnera',
-  'postLoadModal.outOfGauge': 'Izvan okvira',
+
   'postLoadModal.outOfGaugeDesc': 'Prevazilazi dimenzije kontejnera',
-  'postLoadModal.oogLength': 'Dužina (m)',
-  'postLoadModal.oogWidth': 'Širina (m)',
-  'postLoadModal.oogHeight': 'Visina (m)',
-  'postLoadModal.oogWeight': 'Težina (kg)',
-  'postLoadModal.blType': 'Vrsta tovarnog lista (B/L)',
+
   'postLoadModal.blType.Original B/L': 'Originalni B/L',
   'postLoadModal.blType.SeaWaybill': 'SeaWaybill',
   'postLoadModal.blType.Telex Release': 'Telex Release',
-  'postLoadModal.seaPaymentTerms': 'Uslovi plaćanja',
-  'postLoadModal.seaPaymentTerms.Prepaid': 'Prepaid',
-  'postLoadModal.seaPaymentTerms.PrepaidDesc': 'Fakturisano prije početka prevoza',
-  'postLoadModal.seaPaymentTerms.Collect': 'Collect',
-  'postLoadModal.seaPaymentTerms.CollectDesc': 'Fakturisano po dolasku u POD luku',
-  'postLoadModal.seaPaymentTerms.Other': 'Ostalo',
-  'postLoadModal.seaPaymentTerms.OtherDesc': 'Prema dogovoru strana',
-  'postLoadModal.containerTypesSummary': 'Tipovi kontejnera',
-  'postLoadModal.requirements': 'Zahtjevi',
+
 });
 
 Object.assign(UI.de, {
-  'postLoadModal.dimensionUnit': 'Einheit',
+
   'Booked': 'Gebucht',
   'postLoadModal.storageType.Outdoor': 'Freilager / Yard',
   'postLoadModal.storageType.Unsure': 'Nicht sicher',
   'postLoadModal.storageTypeDesc.Outdoor': 'Ware im Freien, Fahrzeuge, Container',
   'postLoadModal.storageTypeDesc.Unsure': 'Der Lagerpartner kann etwas vorschlagen',
-  'postLoadModal.transport.rail': 'Schiene',
-  'postLoadModal.transport.railDesc': 'Terminal- und Containerverkehr',
-  'postLoadModal.railTerminalOfLoading': 'Verladeterminal',
-  'postLoadModal.railTerminalOfDelivery': 'Zielterminal',
-  'postLoadModal.railTerminalPlaceholder': 'Terminalname und Stadt',
-  'postLoadModal.railTransitTime': 'ETA - Laufzeit (Terminal zu Terminal)',
-  'postLoadModal.railDocumentType': 'Art des Eisenbahnfrachtbriefs',
-  'postLoadModal.railPaymentTerms.CollectDesc': 'Nach Ankunft am Zielterminal berechnet',
+
   'postLoadModal.blType.Other': 'Sonstiges',
   'postLoadModal.loadingEquipment.Terminal Handling': 'Terminalumschlag',
-  'postLoadModal.warehouseServices': 'Benötigte Leistungen',
+
   'postLoadModal.handlingReq.Storage': 'Lagerung',
   'postLoadModal.handlingReq.Loading': 'Beladung',
   'postLoadModal.handlingReq.Unloading': 'Entladung',
@@ -3302,25 +3003,13 @@ Object.assign(UI.de, {
   'postLoadModal.handlingReqDesc.Goods inspection': 'Prüfung von Menge und Zustand',
   'postLoadModal.handlingReqDesc.Customs handling': 'Zollabwicklung und Dokumente',
   'postLoadModal.handlingReqDesc.Distribution': 'Weiterlieferung an Endempfänger',
-  'postLoadModal.foodPharma': 'Food / Pharma',
-  'postLoadModal.foodPharmaDesc': 'Lebensmittel oder pharmazeutische Ware',
-  'postLoadModal.fragileGoods': 'Zerbrechliche / empfindliche Ware',
-  'postLoadModal.fragileGoodsDesc': 'Sorgfältige Handhabung erforderlich',
+
 });
 
 // Field names and reasons for the post-load form's validation errors - the API answers in payload
 // terms ("stops.0.window_starts_at"), which the form rewrites into the label above the input.
 Object.assign(UI.en, {
-  'postLoadModal.loadTitleLabel': 'Load title',
-  'postLoadModal.dateTimeFrom': 'Date and time from',
-  'postLoadModal.dateTimeTo': 'Date and time to',
-  'postLoadModal.requiredField': 'This field is required.',
-  'postLoadModal.invalidTime': 'Enter a time between 00:00 and 23:59.',
-  'postLoadModal.invalidDate': 'Enter a date as dd.mm.yyyy.',
-  'postLoadModal.dateRangeReversed': 'The end date cannot be before the start date.',
-  'postLoadModal.invalidNumber': 'Enter a number.',
-  'postLoadModal.routeSummaryTitle': 'Route',
-  'postLoadModal.showRouteMap': 'Show route',
+
   'legacy.loadDetails.goodsType': 'Goods type',
   'legacy.loadDetails.cargoInformation': 'Cargo information',
   'legacy.loadDetails.dimensions': 'Dimensions',
@@ -3330,23 +3019,11 @@ Object.assign(UI.en, {
   'legacy.loadDetails.notSpecified': 'Not specified',
   'legacy.loadDetails.cargoValueLabel': 'Cargo value',
   'legacy.loadDetails.eta': 'ETA',
-  'postLoadModal.valueTooLarge': 'The value is too large.',
-  'postLoadModal.valueTooSmall': 'The value is too small.',
-  'postLoadModal.valueOutOfRange': 'The value is out of range.',
-  'postLoadModal.checkHighlightedFields': 'Check the highlighted fields.',
+
 });
 
 Object.assign(UI.bs, {
-  'postLoadModal.loadTitleLabel': 'Naziv tereta',
-  'postLoadModal.dateTimeFrom': 'Datum i vrijeme od',
-  'postLoadModal.dateTimeTo': 'Datum i vrijeme do',
-  'postLoadModal.requiredField': 'Ovo polje je obavezno.',
-  'postLoadModal.invalidTime': 'Unesite vrijeme između 00:00 i 23:59.',
-  'postLoadModal.invalidDate': 'Unesite datum u formatu dd.mm.gggg.',
-  'postLoadModal.dateRangeReversed': 'Datum do ne može biti prije datuma od.',
-  'postLoadModal.invalidNumber': 'Unesite broj.',
-  'postLoadModal.routeSummaryTitle': 'Ruta',
-  'postLoadModal.showRouteMap': 'Prikaži rutu',
+
   'legacy.loadDetails.goodsType': 'Vrsta robe',
   'legacy.loadDetails.cargoInformation': 'Teretne informacije',
   'legacy.loadDetails.dimensions': 'Dimenzije',
@@ -3356,23 +3033,11 @@ Object.assign(UI.bs, {
   'legacy.loadDetails.notSpecified': 'Nije navedeno',
   'legacy.loadDetails.cargoValueLabel': 'Vrijednost tereta',
   'legacy.loadDetails.eta': 'ETA',
-  'postLoadModal.valueTooLarge': 'Vrijednost je prevelika.',
-  'postLoadModal.valueTooSmall': 'Vrijednost je premala.',
-  'postLoadModal.valueOutOfRange': 'Vrijednost je izvan dozvoljenog raspona.',
-  'postLoadModal.checkHighlightedFields': 'Provjerite označena polja.',
+
 });
 
 Object.assign(UI.de, {
-  'postLoadModal.loadTitleLabel': 'Ladungstitel',
-  'postLoadModal.dateTimeFrom': 'Datum und Uhrzeit von',
-  'postLoadModal.dateTimeTo': 'Datum und Uhrzeit bis',
-  'postLoadModal.requiredField': 'Dieses Feld ist erforderlich.',
-  'postLoadModal.invalidTime': 'Geben Sie eine Uhrzeit zwischen 00:00 und 23:59 ein.',
-  'postLoadModal.invalidDate': 'Geben Sie ein Datum als tt.mm.jjjj ein.',
-  'postLoadModal.dateRangeReversed': 'Das Enddatum darf nicht vor dem Startdatum liegen.',
-  'postLoadModal.invalidNumber': 'Geben Sie eine Zahl ein.',
-  'postLoadModal.routeSummaryTitle': 'Route',
-  'postLoadModal.showRouteMap': 'Route anzeigen',
+
   'legacy.loadDetails.goodsType': 'Warenart',
   'legacy.loadDetails.cargoInformation': 'Ladungsinformationen',
   'legacy.loadDetails.dimensions': 'Abmessungen',
@@ -3382,24 +3047,13 @@ Object.assign(UI.de, {
   'legacy.loadDetails.notSpecified': 'Nicht angegeben',
   'legacy.loadDetails.cargoValueLabel': 'Ladungswert',
   'legacy.loadDetails.eta': 'ETA',
-  'postLoadModal.valueTooLarge': 'Der Wert ist zu groß.',
-  'postLoadModal.valueTooSmall': 'Der Wert ist zu klein.',
-  'postLoadModal.valueOutOfRange': 'Der Wert liegt außerhalb des zulässigen Bereichs.',
-  'postLoadModal.checkHighlightedFields': 'Prüfen Sie die markierten Felder.',
+
 });
 
 // Warehouse requests are usually posted for a region rather than one known warehouse, so the
 // storage side of the post-load form picks an area (a centre plus a radius) instead of an address.
 Object.assign(UI.en, {
-  'postLoadModal.warehouseArea': 'Area',
-  'postLoadModal.warehousePreferredArea': 'Preferred area',
-  'postLoadModal.warehouseAreaPlaceholder': 'Search a city or region',
-  'postLoadModal.areaRadius': 'Radius',
-  'postLoadModal.areaRadiusHint': 'Warehouses inside this area will see your request.',
-  'postLoadModal.publishWarehouseWithTransportText': 'The storage request will be posted to the warehouse exchange, and a road transport draft to that warehouse will be prepared for you to finish with LenaAI.',
-  'postLoadModal.warehouseTransportSuffix': 'Transport to warehouse',
-  'postLoadModal.warehouseTransportWelcomeMessage': 'Congratulations, you successfully posted your storage request! We can also make sure your cargo reaches the warehouse safely - let us prepare the road transport to it together.',
-  'map.chooseArea': 'Choose area',
+
   'map.searchArea': 'Search a city or region',
   'map.areaRadius': 'Search radius',
   'map.areaClickHint': 'Search or click the map to centre your area, then set the radius.',
@@ -3407,15 +3061,7 @@ Object.assign(UI.en, {
 });
 
 Object.assign(UI.bs, {
-  'postLoadModal.warehouseArea': 'Područje',
-  'postLoadModal.warehousePreferredArea': 'Željeno područje',
-  'postLoadModal.warehouseAreaPlaceholder': 'Pretražite grad ili područje',
-  'postLoadModal.areaRadius': 'Radijus',
-  'postLoadModal.areaRadiusHint': 'Skladišta unutar ovog područja vidjet će vaš zahtjev.',
-  'postLoadModal.publishWarehouseWithTransportText': 'Zahtjev za skladištenje će biti objavljen na berzu skladišta, a odmah ćemo vam pripremiti i draft drumskog prevoza do tog skladišta koji dovršavate kroz razgovor sa LenaAI.',
-  'postLoadModal.warehouseTransportSuffix': 'Transport do skladišta',
-  'postLoadModal.warehouseTransportWelcomeMessage': 'Čestitamo, uspješno ste objavili zahtjev za skladištenje! Možemo se pobrinuti i da vaš teret sigurno stigne do skladišta - hajde da zajedno pripremimo drumski prevoz do njega.',
-  'map.chooseArea': 'Odaberite područje na mapi',
+
   'map.searchArea': 'Pretražite grad ili regiju',
   'map.areaRadius': 'Radijus pretrage',
   'map.areaClickHint': 'Pretražite ili kliknite na mapu da postavite centar područja, pa podesite radijus.',
@@ -3423,15 +3069,7 @@ Object.assign(UI.bs, {
 });
 
 Object.assign(UI.de, {
-  'postLoadModal.warehouseArea': 'Gebiet',
-  'postLoadModal.warehousePreferredArea': 'Wunschgebiet',
-  'postLoadModal.warehouseAreaPlaceholder': 'Stadt oder Region suchen',
-  'postLoadModal.areaRadius': 'Radius',
-  'postLoadModal.areaRadiusHint': 'Lager innerhalb dieses Gebiets sehen Ihre Anfrage.',
-  'postLoadModal.publishWarehouseWithTransportText': 'Die Lageranfrage wird auf der Lagerbörse veröffentlicht, und wir bereiten sofort einen Entwurf für den Straßentransport zu diesem Lager vor, den Sie mit LenaAI abschließen.',
-  'postLoadModal.warehouseTransportSuffix': 'Transport zum Lager',
-  'postLoadModal.warehouseTransportWelcomeMessage': 'Herzlichen Glückwunsch, Sie haben Ihre Lageranfrage erfolgreich veröffentlicht! Wir können auch dafür sorgen, dass Ihre Ladung sicher am Lager ankommt - lassen Sie uns gemeinsam den Straßentransport dorthin vorbereiten.',
-  'map.chooseArea': 'Gebiet auf der Karte wählen',
+
   'map.searchArea': 'Stadt oder Region suchen',
   'map.areaRadius': 'Suchradius',
   'map.areaClickHint': 'Suchen Sie oder klicken Sie auf die Karte, um das Gebiet zu zentrieren, und stellen Sie dann den Radius ein.',
@@ -3464,7 +3102,7 @@ Object.assign(UI.en, {
   'nav.openSidebar': 'Open sidebar',
   'documents.navLabel': 'Documents',
   'warehouses.subtitle': 'Browse storage facilities, capacity and coverage.',
-  'warehouses.create': 'Add Warehouse',
+
   'warehouses.createDescription': 'Add a storage facility to the network.',
   'warehouses.created': 'Warehouse created',
   'warehouses.createdText': 'The facility is now listed.',
@@ -3736,7 +3374,7 @@ Object.assign(UI.bs, {
   'nav.openSidebar': 'Otvori bočnu navigaciju',
   'documents.navLabel': 'Dokumenti',
   'warehouses.subtitle': 'Pregledajte skladišne objekte, kapacitet i pokrivenost.',
-  'warehouses.create': 'Dodaj skladište',
+
   'warehouses.createDescription': 'Dodajte skladišni objekat u mrežu.',
   'warehouses.created': 'Skladište kreirano',
   'warehouses.createdText': 'Objekat je sada na listi.',
@@ -3899,7 +3537,7 @@ Object.assign(UI.de, {
   'nav.openSidebar': 'Seitenleiste öffnen',
   'documents.navLabel': 'Dokumente',
   'warehouses.subtitle': 'Lagerstandorte, Kapazität und Abdeckung durchsuchen.',
-  'warehouses.create': 'Lager hinzufügen',
+
   'warehouses.createDescription': 'Fügen Sie dem Netzwerk einen Lagerstandort hinzu.',
   'warehouses.created': 'Lager angelegt',
   'warehouses.createdText': 'Der Standort ist jetzt gelistet.',
@@ -4464,8 +4102,7 @@ Object.assign(UI.bs, {
 });
 
 Object.assign(UI.de, {
-  'postLoadModal.step.cargo': 'Details & Bedingungen',
-  'postLoadModal.step.contact': 'Zahlung & Kontakt',
+
   'addWarehouse.save': 'Speichern',
   'addWarehouse.subtitle': 'Registrieren Sie einen Lagerstandort mit Kapazität, Betrieb und Compliance',
   'addWarehouse.generalSub': 'Basisdaten, Standort und Kontakte für diesen Standort.',
@@ -4625,8 +4262,7 @@ Object.assign(UI.de, {
 });
 
 Object.assign(UI.bs, {
-  'postLoadModal.addDetails': 'Dodaj podatke',
-  'postLoadModal.characteristicsAndRequirements': 'Karakteristike, certifikati i zahtjevi',
+
   'postLoadModal.characteristicDesc.GDP': 'Certifikat dobre distributivne prakse',
   'postLoadModal.characteristicDesc.TIR': 'TIR karnet tranzit',
   'postLoadModal.characteristicDesc.MED (medicine)': 'Farmaceutska pošiljka',
@@ -4647,8 +4283,7 @@ Object.assign(UI.bs, {
 });
 
 Object.assign(UI.de, {
-  'postLoadModal.addDetails': 'Details ergänzen',
-  'postLoadModal.characteristicsAndRequirements': 'Merkmale, Zertifikate & Anforderungen',
+
   'postLoadModal.characteristicDesc.GDP': 'Zertifiziert nach GDP',
   'postLoadModal.characteristicDesc.TIR': 'TIR-Carnet-Transit',
   'postLoadModal.characteristicDesc.MED (medicine)': 'Pharmazeutische Sendung',
@@ -7950,18 +7585,18 @@ const TRIPLET_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
   'Services included in your offer': { bs: 'Usluge uključene u ponudu', de: 'In Ihrem Angebot enthaltene Leistungen' },
   'Other available services': { bs: 'Ostale dostupne usluge', de: 'Weitere verfügbare Leistungen' },
   'Requested': { bs: 'Traženo', de: 'Angefragt' },
-  'Storage': { bs: 'Skladištenje', de: 'Lagerung' },
-  'Unloading': { bs: 'Istovar', de: 'Entladung' },
-  'Loading': { bs: 'Utovar', de: 'Beladung' },
-  'Pick & Pack': { bs: 'Pick & Pack', de: 'Kommissionierung' },
+  'Storage': {   },
+  'Unloading': {   },
+  'Loading': {   },
+  'Pick & Pack': {   },
   'Repacking': { bs: 'Prepakivanje', de: 'Umpacken' },
-  'Labeling': { bs: 'Etiketiranje', de: 'Etikettierung' },
+  'Labeling': {   },
   'Palletization': { bs: 'Paletiziranje', de: 'Palettierung' },
-  'Kitting': { bs: 'Kitting', de: 'Set-Bildung' },
-  'Cross-docking': { bs: 'Cross-docking', de: 'Cross-Docking' },
-  'Goods inspection': { bs: 'Kontrola robe', de: 'Warenprüfung' },
-  'Customs handling': { bs: 'Carinski poslovi', de: 'Zollabwicklung' },
-  'Distribution': { bs: 'Distribucija', de: 'Distribution' },
+  'Kitting': {   },
+  'Cross-docking': {   },
+  'Goods inspection': {   },
+  'Customs handling': {   },
+  'Distribution': {   },
   'Facility': { bs: 'Objekat', de: 'Standort' },
   'Warehouse': { bs: 'Skladište', de: 'Lager' },
   'Select a warehouse…': { bs: 'Odaberite skladište…', de: 'Lager auswählen…' },
@@ -8013,20 +7648,20 @@ const TRIPLET_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
   'Administration fee': { bs: 'Administrativna naknada', de: 'Verwaltungsgebühr' },
   'Waste disposal': { bs: 'Zbrinjavanje otpada', de: 'Abfallentsorgung' },
   'After-hours handling': { bs: 'Rad van radnog vremena', de: 'Handling außerhalb der Geschäftszeiten' },
-  'LenaAI is thinking': { bs: 'LenaAI razmišlja', de: 'LenaAI denkt nach' },
-  'Thinking': { en: 'LenaAI is thinking', bs: 'LenaAI razmišlja', de: 'LenaAI denkt nach' },
-  'LenaAI will collect your load details here as you chat': { bs: 'LenaAI će ovdje prikupiti detalje o teretu dok razgovarate', de: 'LenaAI sammelt hier Ihre Ladungsdetails während des Chats' },
-  'Attach a file and LenaAI will extract your loads here': { bs: 'Priložite fajl i LenaAI će ovdje izdvojiti vaše terete', de: 'Fügen Sie eine Datei an und LenaAI extrahiert hier Ihre Ladungen' },
+  'LenaAI is thinking': {   },
+  'Thinking': {    },
+  'LenaAI will collect your load details here as you chat': {   },
+  'Attach a file and LenaAI will extract your loads here': {   },
   'HS codes': { bs: 'HS kodovi', de: 'HS-Codes' },
   'HS codes included': { bs: 'Uključeni HS kodovi', de: 'Enthaltene HS-Codes' },
   'Search by product, material or HS code': { bs: 'Pretražite po proizvodu, materijalu ili HS kodu', de: 'Nach Produkt, Material oder HS-Code suchen' },
-  'Remove HS code': { bs: 'Ukloni HS kod', de: 'HS-Code entfernen' },
-  'HS catalog search failed': { bs: 'Pretraga HS kataloga nije uspjela', de: 'Die Suche im HS-Katalog ist fehlgeschlagen' },
+  'Remove HS code': {   },
+  'HS catalog search failed': {   },
   'Post a new load': { bs: 'Objavi novi teret', de: 'Neue Ladung veröffentlichen' },
-  'Draft panel': { bs: 'Draft Panel', de: 'Entwurfsbereich' },
-  'Hide draft panel': { bs: 'Sakrij Draft Panel', de: 'Entwurfsbereich ausblenden' },
-  'New LenaAI conversation': { bs: 'Novi LenaAI razgovor', de: 'Neue LenaAI-Unterhaltung' },
-  'Drop file for LenaAI': { bs: 'Ispustite datoteku za LenaAI', de: 'Datei für LenaAI hier ablegen' },
+  'Draft panel': {   },
+  'Hide draft panel': {   },
+  'New LenaAI conversation': {   },
+  'Drop file for LenaAI': {   },
   'New load canvas': { bs: 'Priprema novog tereta', de: 'Arbeitsbereich für neue Ladung' },
   'Bulk load canvas': { bs: 'Masovni unos tereta', de: 'Arbeitsbereich für Massenimport' },
   'Load data detected': { bs: 'Prepoznati su podaci o teretu', de: 'Ladungsdaten erkannt' },
@@ -8035,9 +7670,9 @@ const TRIPLET_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
   'fields from AI': { bs: 'polja od AI', de: 'Felder von KI' },
   'Save changes': { bs: 'Spasi izmjene', de: 'Änderungen speichern' },
   'Canvas mode': { bs: 'Canvas mode', de: 'Canvas-Modus' },
-  'Filled by LenaAI — click to refill from AI data': { bs: 'Popunjeno od AI — kliknite za ponovno popunjavanje', de: 'Von KI ausgefüllt — klicken, um erneut mit KI-Daten zu füllen' },
-  'loads detected': { bs: 'tereta prepoznato', de: 'Ladungen erkannt' },
-  'Current load status': { bs: 'Trenutni status tereta', de: 'Aktueller Ladungsstatus' },
+  'Filled by LenaAI — click to refill from AI data': {   },
+  'loads detected': {   },
+  'Current load status': {   },
   'or': { bs: 'ili', de: 'oder', pl: 'lub', ro: 'sau', nl: 'of', fr: 'ou', it: 'o', zh: '或', es: 'o', sr: 'ili', sv: 'eller', ar: 'أو', pt: 'ou' },
   'Finance & Administration': { bs: 'Finansije i administracija', de: 'Finanzen & Verwaltung', pl: 'Finanse i administracja', ro: 'Finante si administratie', nl: 'Financien & Administratie', fr: 'Finance et administration', it: 'Finanza e amministrazione', zh: '财务与行政', es: 'Finanzas y administracion', sr: 'Finansije i administracija', sv: 'Ekonomi och administration', ar: 'المالية والإدارة', pt: 'Financas e administracao' },
   'Choose a role below to finish creating your account.': { bs: 'Odaberite ulogu ispod da završite kreiranje računa.', de: 'Waehlen Sie unten eine Rolle, um Ihr Konto fertigzustellen.', pl: 'Wybierz role ponizej, aby dokonczyc tworzenie konta.', ro: 'Alege un rol mai jos pentru a finaliza crearea contului.', nl: 'Kies hieronder een rol om je account af te ronden.', fr: 'Choisissez un role ci-dessous pour terminer la creation de votre compte.', it: "Scegli un ruolo qui sotto per completare la creazione dell'account.", zh: '请在下方选择角色以完成账户创建。', es: 'Elige un rol a continuacion para terminar de crear tu cuenta.', sr: 'Izaberite ulogu ispod da zavrsite kreiranje naloga.', sv: 'Valj en roll nedan for att slutfora ditt konto.', ar: 'اختر دورًا أدناه لإكمال إنشاء حسابك.', pt: 'Escolha uma funcao abaixo para concluir a criacao da sua conta.' },
@@ -8128,7 +7763,7 @@ const TRIPLET_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
   'Finalizing best return routes...': { bs: 'Finalizacija najboljih povratnih ruta...', de: 'Finalisiere beste Rueckrouten...', pl: 'Finalizowanie najlepszych tras powrotnych...', ro: 'Se finalizeaza cele mai bune rute de retur...', nl: 'Beste retourroutes worden afgerond...', fr: 'Finalisation des meilleures routes retour...', it: 'Finalizzazione delle migliori rotte di ritorno...', zh: '正在完成最佳返程路线...', es: 'Finalizando las mejores rutas de regreso...', sr: 'Finalizacija najboljih povratnih ruta...', sv: 'Slutfor de basta retur-rutterna...', ar: 'يتم إنهاء أفضل مسارات العودة...', pt: 'A finalizar as melhores rotas de retorno...' },
   'Tracker': { bs: 'Tracker', de: 'Tracker', pl: 'Tracker', ro: 'Tracker', nl: 'Tracker', fr: 'Suivi', it: 'Tracker', zh: '追踪', es: 'Rastreador', sr: 'Tracker', sv: 'Spårning', ar: 'التتبع', pt: 'Rastreador' },
   'AI Dispatch': { bs: 'AI dispecer', de: 'KI-Dispatch', pl: 'AI Dispatch', ro: 'AI Dispecerat', nl: 'AI Dispatch', fr: 'IA Dispatch', it: 'AI Dispatch', zh: 'AI 调度', es: 'IA Dispatch', sr: 'AI Dispecer', sv: 'AI Dispatch', ar: 'إرسال بالذكاء الاصطناعي', pt: 'IA Dispatch' },
-  'Direct messages': { bs: 'Direktne poruke', sr: 'Direktne poruke' },
+  'Direct messages': {  sr: 'Direktne poruke' },
   'Map': { bs: 'Mapa', de: 'Karte', pl: 'Mapa', ro: 'Harta', nl: 'Kaart', fr: 'Carte', it: 'Mappa', zh: '地图', es: 'Mapa', sr: 'Mapa', sv: 'Karta', ar: 'الخريطة', pt: 'Mapa' },
   'Timeline': { bs: 'Timeline', de: 'Timeline', pl: 'Oś czasu', ro: 'Cronologie', nl: 'Tijdlijn', fr: 'Chronologie', it: 'Timeline', zh: '时间线', es: 'Cronologia', sr: 'Vremenska linija', sv: 'Tidslinje', ar: 'الخط الزمني', pt: 'Linha do tempo' },
   'Return': { bs: 'Povrat', de: 'Rueckgabe', pl: 'Zwrot', ro: 'Retur', nl: 'Retour', fr: 'Retour', it: 'Reso', zh: '退货', es: 'Devolucion', sr: 'Povrat', sv: 'Retur', ar: 'إرجاع', pt: 'Devolucao' },
@@ -8185,15 +7820,15 @@ const TRIPLET_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
   'Channel Status': { bs: 'Status kanala', de: 'Kanalstatus', pl: 'Status kanalow', ro: 'Status canal', nl: 'Kanaalstatus', fr: 'Statut des canaux', it: 'Stato canali', zh: '渠道状态', es: 'Estado de canales', sr: 'Status kanala', sv: 'Kanalstatus', ar: 'حالة القنوات', pt: 'Estado dos canais' },
   'New Message': { bs: 'Nova poruka', de: 'Neue Nachricht', pl: 'Nowa wiadomosc', ro: 'Mesaj nou', nl: 'Nieuw bericht', fr: 'Nouveau message', it: 'Nuovo messaggio', zh: '新消息', es: 'Nuevo mensaje', sr: 'Nova poruka', sv: 'Nytt meddelande', ar: 'رسالة جديدة', pt: 'Nova mensagem' },
   'Draft an ETA update for dispatch and clients on this route.': { bs: 'Pripremi ETA update za dispecera i klijente na ovoj ruti.', de: 'Bereite ein ETA-Update fuer Disposition und Kunden auf dieser Route vor.', pl: 'Przygotuj aktualizacje ETA dla dyspozytorni i klientow na tej trasie.', ro: 'Pregateste o actualizare ETA pentru dispecerat si clienti pe aceasta ruta.', nl: 'Stel een ETA-update op voor dispatch en klanten op deze route.', fr: 'Redigez une mise a jour ETA pour le dispatch et les clients sur cette route.', it: 'Prepara un aggiornamento ETA per dispatch e clienti su questa rotta.', zh: '为此路线上的调度和客户起草 ETA 更新。', es: 'Redacta una actualizacion de ETA para despacho y clientes en esta ruta.', sr: 'Pripremi ETA update za dispecera i klijente na ovoj ruti.', sv: 'Utarbeta en ETA-uppdatering for dispatch och kunder pa denna rutt.', ar: 'اكتب تحديث ETA لقسم الإرسال والعملاء على هذا المسار.', pt: 'Prepara uma atualizacao de ETA para o despacho e clientes nesta rota.' },
-  'Search messages...': { bs: 'Pretraga poruka...', de: 'Nachrichten suchen...', pl: 'Szukaj wiadomosci...', ro: 'Cauta mesaje...', nl: 'Zoek berichten...', fr: 'Rechercher des messages...', it: 'Cerca messaggi...', zh: '搜索消息...', es: 'Buscar mensajes...', sr: 'Pretraga poruka...', sv: 'Sok meddelanden...', ar: 'ابحث في الرسائل...', pt: 'Pesquisar mensagens...' },
-  'Write a message...': { bs: 'Napišite poruku...', de: 'Nachricht schreiben...', pl: 'Napisz wiadomosc...', ro: 'Scrie un mesaj...', nl: 'Schrijf een bericht...', fr: 'Ecrire un message...', it: 'Scrivi un messaggio...', zh: '写一条消息...', es: 'Escribe un mensaje...', sr: 'Napisite poruku...', sv: 'Skriv ett meddelande...', ar: 'اكتب رسالة...', pt: 'Escreve uma mensagem...' },
-  'New chat': { bs: 'Novi razgovor', de: 'Neuer Chat' },
-  'Last available location': { bs: 'Posljednja dostupna lokacija', de: 'Letzter verfügbarer Standort' },
-  'Pickup location': { bs: 'Lokacija preuzimanja', de: 'Abholort' },
-  'Location could not be mapped': { bs: 'Lokaciju nije moguće prikazati na mapi', de: 'Der Standort konnte nicht auf der Karte angezeigt werden' },
-  'Start a new chat?': { bs: 'Započeti novi razgovor?', de: 'Neuen Chat starten?' },
+  'Search messages...': {   pl: 'Szukaj wiadomosci...', ro: 'Cauta mesaje...', nl: 'Zoek berichten...', fr: 'Rechercher des messages...', it: 'Cerca messaggi...', zh: '搜索消息...', es: 'Buscar mensajes...', sr: 'Pretraga poruka...', sv: 'Sok meddelanden...', ar: 'ابحث في الرسائل...', pt: 'Pesquisar mensagens...' },
+  'Write a message...': {   pl: 'Napisz wiadomosc...', ro: 'Scrie un mesaj...', nl: 'Schrijf een bericht...', fr: 'Ecrire un message...', it: 'Scrivi un messaggio...', zh: '写一条消息...', es: 'Escribe un mensaje...', sr: 'Napisite poruku...', sv: 'Skriv ett meddelande...', ar: 'اكتب رسالة...', pt: 'Escreve uma mensagem...' },
+  'New chat': {   },
+  'Last available location': {   },
+  'Pickup location': {   },
+  'Location could not be mapped': {   },
+  'Start a new chat?': {   },
   'No conversations yet': { bs: 'Još nema razgovora', de: 'Noch keine Unterhaltungen' },
-  'To start a new conversation, start a chat with LenaAI': { bs: 'Za početak nove konverzacije, pokrenite razgovor s LenaAI', de: 'Um eine neue Unterhaltung zu beginnen, starten Sie einen Chat mit LenaAI' },
+  'To start a new conversation, start a chat with LenaAI': {   },
   'Delete conversation': { bs: 'Izbriši konverzaciju', de: 'Unterhaltung löschen' },
   'Cancel': { bs: 'Odustani', de: 'Abbrechen' },
   'Delete this conversation?': { bs: 'Izbrisati ovaj razgovor?', de: 'Diese Unterhaltung löschen?' },
@@ -8202,12 +7837,11 @@ const TRIPLET_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
     de: 'Dadurch werden die Unterhaltung und alle ihre Nachrichten dauerhaft gelöscht. Dies kann nicht rückgängig gemacht werden.'
   },
   'Delete': { bs: 'Izbriši', de: 'Löschen' },
-  'Uploading...': { bs: 'Slanje...', de: 'Wird hochgeladen...' },
-  'The file could not be opened': { bs: 'Datoteku nije moguće otvoriti', de: 'Die Datei konnte nicht geöffnet werden' },
+  'Uploading...': {   },
+  'The file could not be opened': {   },
   'This conversation could not be deleted': { bs: 'Razgovor nije moguće izbrisati', de: 'Diese Unterhaltung konnte nicht gelöscht werden' },
   'This starts a fresh conversation with LenaAI. Your current chat is kept and still visible in Messages.': {
-    bs: 'Ovim započinjete novi razgovor s LenaAI. Trenutni razgovor ostaje sačuvan i dostupan u Porukama.',
-    de: 'Damit starten Sie einen neuen Chat mit LenaAI. Der aktuelle Chat bleibt gespeichert und ist weiterhin unter Nachrichten verfügbar.'
+
   },
   'Active Hubs': { bs: 'Aktivna čvorišta', de: 'Aktive Hubs', pl: 'Aktywne huby', ro: 'Hub-uri active', nl: 'Actieve hubs', fr: 'Hubs actifs', it: 'Hub attivi', zh: '活跃枢纽', es: 'Hubs activos', sr: 'Aktivna cvorista', sv: 'Aktiva hubbar', ar: 'المراكز النشطة', pt: 'Hubs ativos' },
   'Fleet Capacity': { bs: 'Kapacitet flote', de: 'Flottenkapazität', pl: 'Pojemnosc floty', ro: 'Capacitate flota', nl: 'Vlootcapaciteit', fr: 'Capacite de flotte', it: 'Capacita flotta', zh: '车队容量', es: 'Capacidad de flota', sr: 'Kapacitet flote', sv: 'Flottkapacitet', ar: 'سعة الأسطول', pt: 'Capacidade da frota' },
@@ -8239,7 +7873,7 @@ const TRIPLET_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
   'Optimized': { bs: 'Optimizovano', de: 'Optimiert', pl: 'Zoptymalizowane', ro: 'Optimizat', nl: 'Geoptimaliseerd', fr: 'Optimise', it: 'Ottimizzato', zh: '已优化', es: 'Optimizado', sr: 'Optimizovano', sv: 'Optimerad', ar: 'محسن', pt: 'Otimizado' },
   'Strong': { bs: 'Snazno', de: 'Stark', pl: 'Silne', ro: 'Puternic', nl: 'Sterk', fr: 'Fort', it: 'Forte', zh: '强', es: 'Fuerte', sr: 'Stabilno', sv: 'Stark', ar: 'قوي', pt: 'Forte' },
   'Recalculates every 3 min using live road events and fleet constraints.': { bs: 'Preračunava se svake 3 min koristeći događaje na putu uživo i ograničenja flote.', de: 'Berechnet sich alle 3 min neu anhand von Live-Strassenereignissen und Flotteneinschrankungen.', pl: 'Przelicza co 3 minuty, wykorzystujac zdarzenia drogowe na zywo i ograniczenia floty.', ro: 'Recalculeaza la fiecare 3 minute folosind evenimente rutiere live si restrictiile flotei.', nl: 'Herberekent elke 3 minuten op basis van live weggebeurtenissen en vlootbeperkingen.', fr: 'Recalcule toutes les 3 minutes a partir des evenements routiers en direct et des contraintes de flotte.', it: 'Ricalcola ogni 3 minuti usando eventi stradali in tempo reale e vincoli della flotta.', zh: '每 3 分钟根据实时道路事件和车队限制重新计算。', es: 'Recalcula cada 3 min usando eventos viales en tiempo real y restricciones de la flota.', sr: 'Preracunava svaka 3 minuta koristeci dogadjaje na putu uzivo i ogranicenja flote.', sv: 'Raknar om var tredje minut med live vaghandelser och flottbegransningar.', ar: 'يعيد الحساب كل 3 دقائق باستخدام احداث الطريق المباشرة وقيود الاسطول.', pt: 'Recalcula a cada 3 min usando eventos rodoviarios em tempo real e restricoes da frota.' },
-  'All': { bs: 'Sve', de: 'Alle', pl: 'Wszystko', ro: 'Toate', nl: 'Alle', fr: 'Tout', it: 'Tutti', zh: '全部', es: 'Todo', sr: 'Sve', sv: 'Alla', ar: 'الكل', pt: 'Todos' },
+  'All': {   pl: 'Wszystko', ro: 'Toate', nl: 'Alle', fr: 'Tout', it: 'Tutti', zh: '全部', es: 'Todo', sr: 'Sve', sv: 'Alla', ar: 'الكل', pt: 'Todos' },
   'Min kg': { bs: 'Min kg', de: 'Min kg', pl: 'Min kg', ro: 'Min kg', nl: 'Min kg', fr: 'Min kg', it: 'Min kg', zh: '最小公斤', es: 'Min kg', sr: 'Min kg', sv: 'Min kg', ar: 'الحد الادنى كغ', pt: 'Min kg' },
   'Max kg': { bs: 'Max kg', de: 'Max kg', pl: 'Maks kg', ro: 'Max kg', nl: 'Max kg', fr: 'Max kg', it: 'Max kg', zh: '最大公斤', es: 'Max kg', sr: 'Max kg', sv: 'Max kg', ar: 'الحد الاقصى كغ', pt: 'Max kg' },
   'Decrease minimum weight': { bs: 'Smanji minimalnu težinu', de: 'Mindestgewicht verringern', pl: 'Zmniejsz minimalna wage', ro: 'Scade greutatea minima', nl: 'Verlaag minimumgewicht', fr: 'Reduire le poids minimum', it: 'Riduci il peso minimo', zh: '减小最小重量', es: 'Disminuir peso minimo', sr: 'Smanji minimalnu tezinu', sv: 'Minska minsta vikt', ar: 'خفض الحد الادنى للوزن', pt: 'Diminuir peso minimo' },
@@ -8254,82 +7888,80 @@ const TRIPLET_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
   'AI Return Engine': { bs: 'AI Return Engine', de: 'KI Return Engine', pl: 'Silnik zwrotow AI', ro: 'Motor AI pentru retur', nl: 'AI-retourengine', fr: 'Moteur IA de retour', it: 'Motore AI per i resi', zh: 'AI 返程引擎', es: 'Motor IA de retorno', sr: 'AI Return Engine', sv: 'AI-returmotor', ar: 'محرك العودة بالذكاء الاصطناعي', pt: 'Motor de retorno com IA' },
   'Financial Terms': { bs: 'Finansijski uslovi', de: 'Finanzbedingungen', pl: 'Warunki finansowe', ro: 'Termeni financiari', nl: 'Financiele voorwaarden', fr: 'Conditions financieres', it: 'Condizioni finanziarie', zh: '财务条款', es: 'Terminos financieros', sr: 'Finansijski uslovi', sv: 'Finansiella villkor', ar: 'الشروط المالية', pt: 'Termos financeiros' },
   'Highest offer': { bs: 'Najviša ponuda', de: 'Höchstes Angebot', pl: 'Najwyższa oferta', ro: 'Cea mai mare ofertă', nl: 'Hoogste bod', fr: 'Offre la plus élevée', it: 'Offerta più alta', zh: '最高报价', es: 'Oferta más alta', sr: 'Najviša ponuda', sv: 'Högsta bud', ar: 'أعلى عرض', pt: 'Oferta mais alta' },
-  'Edit load': { bs: 'Uredi teret', de: 'Fracht bearbeiten', pl: 'Edytuj ładunek', ro: 'Editează încărcătura', nl: 'Lading bewerken', fr: 'Modifier le chargement', it: 'Modifica carico', zh: '编辑货物', es: 'Editar carga', sr: 'Uredi teret', sv: 'Redigera last', ar: 'تعديل الحمولة', pt: 'Editar carga' },
-  'postLoadModal.addressLastMile': { en: 'Address + Last Mile Delivery', bs: 'Adresa + dostava do vrata', de: 'Adresse + Zustellung auf der letzten Meile', pl: 'Adres + dostawa ostatniej mili', ro: 'Adresă + livrare pe ultima milă', nl: 'Adres + laatste-mijl bezorging', fr: 'Adresse + livraison du dernier kilomètre', it: "Indirizzo + consegna dell'ultimo miglio", zh: '地址 + 最后一公里配送', es: 'Dirección + entrega de última milla', sr: 'Adresa + dostava do vrata', sv: 'Adress + leverans sista milen', ar: 'العنوان + التوصيل للميل الأخير', pt: 'Endereço + entrega da última milha' },
-  'postLoadModal.portToPort': { en: 'Port', bs: 'Luka', de: 'Hafen', pl: 'Port', ro: 'Port', nl: 'Haven', fr: 'Port', it: 'Porto', zh: '港口', es: 'Puerto', sr: 'Luka', sv: 'Hamn', ar: 'ميناء', pt: 'Porto' },
-  'postLoadModal.doorToPort': { en: 'Address', bs: 'Adresa', de: 'Adresse', pl: 'Adres', ro: 'Adresă', nl: 'Adres', fr: 'Adresse', it: 'Indirizzo', zh: '地址', es: 'Dirección', sr: 'Adresa', sv: 'Adress', ar: 'العنوان', pt: 'Endereço' },
-  'postLoadModal.portToDoor': { en: 'Address', bs: 'Adresa', de: 'Adresse', pl: 'Adres', ro: 'Adresă', nl: 'Adres', fr: 'Adresse', it: 'Indirizzo', zh: '地址', es: 'Dirección', sr: 'Adresa', sv: 'Adress', ar: 'العنوان', pt: 'Endereço' },
-  'postLoadModal.portSearchPlaceholder': { en: 'Search ports', bs: 'Pretraži luke', de: 'Häfen suchen', pl: 'Szukaj portów', ro: 'Caută porturi', nl: 'Zoek havens', fr: 'Rechercher des ports', it: 'Cerca porti', zh: '搜索港口', es: 'Buscar puertos', sr: 'Pretraži luke', sv: 'Sök hamnar', ar: 'البحث عن الموانئ', pt: 'Pesquisar portos' },
-  'postLoadModal.pickupAddressPlaceholder': { en: 'Search places or click the map', bs: 'Pretraži mjesta ili klikni na mapu', de: 'Orte suchen oder auf die Karte klicken', pl: 'Szukaj miejsc lub kliknij mapę', ro: 'Caută locuri sau apasă pe hartă', nl: 'Zoek plaatsen of klik op de kaart', fr: 'Rechercher des lieux ou cliquer sur la carte', it: 'Cerca luoghi o clicca sulla mappa', zh: '搜索地点或点击地图', es: 'Buscar lugares o hacer clic en el mapa', sr: 'Pretraži mjesta ili klikni na mapu', sv: 'Sök platser eller klicka på kartan', ar: 'البحث عن الأماكن أو النقر على الخريطة', pt: 'Pesquisar locais ou clicar no mapa' },
-  'postLoadModal.deliveryAddressPlaceholder': { en: 'Search places or click the map', bs: 'Pretraži mjesta ili klikni na mapu', de: 'Orte suchen oder auf die Karte klicken', pl: 'Szukaj miejsc lub kliknij mapę', ro: 'Caută locuri sau apasă pe hartă', nl: 'Zoek plaatsen of klik op de kaart', fr: 'Rechercher des lieux ou cliquer sur la carte', it: 'Cerca luoghi o clicca sulla mappa', zh: '搜索地点或点击地图', es: 'Buscar lugares o hacer clic en el mapa', sr: 'Pretraži mjesta ili klikni na mapu', sv: 'Sök platser eller klicka på kartan', ar: 'البحث عن الأماكن أو النقر على الخريطة', pt: 'Pesquisar locais ou clicar no mapa' },
-  'postLoadModal.dgr': { en: 'DGR / certified', bs: 'DGR / certifikovano', de: 'DGR / zertifiziert', pl: 'DGR / certyfikowane', ro: 'DGR / certificat', nl: 'DGR / gecertificeerd', fr: 'DGR / certifié', it: 'DGR / certificato', zh: 'DGR / 认证', es: 'DGR / certificado', sr: 'DGR / certifikovano', sv: 'DGR / certifierad', ar: 'DGR / معتمد', pt: 'DGR / certificado' },
-  'postLoadModal.pol': { en: 'Loading Port (POL)', bs: 'Luka utovara (POL)', de: 'Verladehafen (POL)', pl: 'Port załadunku (POL)', ro: 'Port de încărcare (POL)', nl: 'Laadhaven (POL)', fr: 'Port de chargement (POL)', it: 'Porto di carico (POL)', zh: '装货港 (POL)', es: 'Puerto de carga (POL)', sr: 'Luka utovara (POL)', sv: 'Lastningshamn (POL)', ar: 'ميناء التحميل (POL)', pt: 'Porto de carregamento (POL)' },
-  'postLoadModal.pod': { en: 'Discharge Port (POD)', bs: 'Luka istovara (POD)', de: 'Löschhafen (POD)', pl: 'Port rozładunku (POD)', ro: 'Port de descărcare (POD)', nl: 'Loshaven (POD)', fr: 'Port de déchargement (POD)', it: 'Porto di scarico (POD)', zh: '卸货港 (POD)', es: 'Puerto de descarga (POD)', sr: 'Luka istovara (POD)', sv: 'Lossningshamn (POD)', ar: 'ميناء التفريغ (POD)', pt: 'Porto de descarga (POD)' },
-  'postLoadModal.doorAddress': { en: 'Pickup/Delivery Address (Door)', bs: 'Adresa preuzimanja/isporuke (vrata)', de: 'Abhol-/Lieferadresse (Tür)', pl: 'Adres odbioru/dostawy (drzwi)', ro: 'Adresă de ridicare/livrare (ușă)', nl: 'Ophaal-/afleveradres (deur)', fr: "Adresse d'enlèvement/livraison (porte)", it: 'Indirizzo di ritiro/consegna (porta)', zh: '取货/送货地址（门到门）', es: 'Dirección de recogida/entrega (puerta)', sr: 'Adresa preuzimanja/isporuke (vrata)', sv: 'Upphämtnings-/leveransadress (dörr)', ar: 'عنوان الاستلام/التسليم (الباب)', pt: 'Endereço de recolha/entrega (porta)' },
-  'postLoadModal.seaOriginType': { en: 'Origin type', bs: 'Tip polazišta', de: 'Ausgangstyp', pl: 'Typ miejsca początkowego', ro: 'Tip origine', nl: 'Type herkomst', fr: "Type d'origine", it: 'Tipo di origine', zh: '起运类型', es: 'Tipo de origen', sr: 'Tip polazišta', sv: 'Ursprungstyp', ar: 'نوع نقطة الانطلاق', pt: 'Tipo de origem' },
-  'postLoadModal.seaDestinationType': { en: 'Destination type', bs: 'Tip odredišta', de: 'Zieltyp', pl: 'Typ miejsca docelowego', ro: 'Tip destinație', nl: 'Type bestemming', fr: 'Type de destination', it: 'Tipo di destinazione', zh: '目的地类型', es: 'Tipo de destino', sr: 'Tip odredišta', sv: 'Destinationstyp', ar: 'نوع الوجهة', pt: 'Tipo de destino' },
-  'postLoadModal.cargoReady': { en: 'Cargo ready', bs: 'Teret spreman', de: 'Fracht bereit', pl: 'Ładunek gotowy', ro: 'Marfă pregătită', nl: 'Lading gereed', fr: 'Marchandise prête', it: 'Merce pronta', zh: '货物备妥日期', es: 'Carga lista', sr: 'Teret spreman', sv: 'Gods klart', ar: 'البضاعة جاهزة', pt: 'Carga pronta' },
-  'postLoadModal.pickupWindow': { en: 'Pickup window', bs: 'Vremenski okvir preuzimanja', de: 'Abholzeitfenster', pl: 'Okno odbioru', ro: 'Interval de ridicare', nl: 'Ophaalvenster', fr: "Créneau d'enlèvement", it: 'Finestra di ritiro', zh: '提货时间段', es: 'Ventana de recogida', sr: 'Vremenski okvir preuzimanja', sv: 'Upphämtningsfönster', ar: 'نافذة الاستلام', pt: 'Janela de recolha' },
-  'postLoadModal.deliveryWindow': { en: 'Delivery window', bs: 'Vremenski okvir isporuke', de: 'Lieferzeitfenster', pl: 'Okno dostawy', ro: 'Interval de livrare', nl: 'Levervenster', fr: 'Créneau de livraison', it: 'Finestra di consegna', zh: '交付时间段', es: 'Ventana de entrega', sr: 'Vremenski okvir isporuke', sv: 'Leveransfönster', ar: 'نافذة التسليم', pt: 'Janela de entrega' },
-  'postLoadModal.windowPlaceholder': { en: '08:00 - 12:00', bs: '08:00 - 12:00', de: '08:00 - 12:00', pl: '08:00 - 12:00', ro: '08:00 - 12:00', nl: '08:00 - 12:00', fr: '08:00 - 12:00', it: '08:00 - 12:00', zh: '08:00 - 12:00', es: '08:00 - 12:00', sr: '08:00 - 12:00', sv: '08:00 - 12:00', ar: '08:00 - 12:00', pt: '08:00 - 12:00' },
-  'postLoadModal.warehouseEquipment': { en: 'Handling equipment', bs: 'Oprema za manipulaciju', de: 'Umschlagausrüstung' },
-  'postLoadModal.warehouseEquipment.Forklifts': { en: 'Forklifts', bs: 'Viljuškari', de: 'Gabelstapler' },
-  'postLoadModal.warehouseEquipment.Pallet Jacks': { en: 'Pallet Jacks', bs: 'Paletni viličari', de: 'Hubwagen' },
-  'postLoadModal.warehouseEquipment.Reach Trucks': { en: 'Reach Trucks', bs: 'Regalni viličari', de: 'Schubmaststapler' },
-  'postLoadModal.warehouseEquipment.Dock Levellers': { en: 'Dock Levellers', bs: 'Rampe za dokove', de: 'Überladebrücken' },
-  'postLoadModal.warehouseEquipment.Conveyors': { en: 'Conveyors', bs: 'Trakasti transporteri', de: 'Förderbänder' },
-  'postLoadModal.warehouseEquipment.Handheld Scanners': { en: 'Handheld Scanners', bs: 'Ručni skeneri', de: 'Handscanner' },
-  'postLoadModal.warehouseEquipment.Dock Doors': { en: 'Dock Doors', bs: 'Dok vrata', de: 'Ladetore' },
-  'postLoadModal.bodyType.Curtain': { en: 'Curtain', bs: 'Cerada', de: 'Plane' },
-  'postLoadModal.bodyType.Box': { en: 'Box', bs: 'Sanduk', de: 'Koffer' },
-  'postLoadModal.bodyType.Reefer': { en: 'Reefer', bs: 'Hladnjača', de: 'Kühlkoffer' },
-  'postLoadModal.bodyType.Mega': { en: 'Mega', bs: 'Mega', de: 'Mega' },
-  'postLoadModal.bodyType.Tautliner': { en: 'Tautliner', bs: 'Tautliner', de: 'Tautliner' },
-  'postLoadModal.bodyType.Flatbed': { en: 'Flatbed', bs: 'Platforma', de: 'Pritsche' },
-  'postLoadModal.temperatureMin': { en: 'From (°C)', bs: 'Od (°C)', de: 'Von (°C)' },
-  'postLoadModal.temperatureMax': { en: 'To (°C)', bs: 'Do (°C)', de: 'Bis (°C)' },
-  'ULD Required': { bs: 'Potreban ULD', de: 'ULD erforderlich' },
-  'Security Screening': { bs: 'Sigurnosna provjera', de: 'Sicherheitskontrolle' },
-  'Priority / Time Critical': { bs: 'Prioritet / Vremenski kritično', de: 'Priorität / Zeitkritisch' },
-  'AWB Required': { bs: 'Potreban AWB', de: 'AWB erforderlich' },
-  'Airport Handling': { bs: 'Aerodromska manipulacija', de: 'Flughafenabfertigung' },
-  'Customs Clearance': { bs: 'Carinsko odobrenje', de: 'Zollabfertigung' },
-  'Insurance Required': { bs: 'Potrebno osiguranje', de: 'Versicherung erforderlich' },
-  'Special Handling': { bs: 'Posebno rukovanje', de: 'Sonderbehandlung' },
-  'Track & Trace Required': { bs: 'Potrebno praćenje pošiljke', de: 'Sendungsverfolgung erforderlich' },
-  'Tail Lift Required': { bs: 'Potrebna hidraulična rampa', de: 'Ladebordwand erforderlich' },
-  'postLoadModal.pickupPostalCode': { en: 'Postal code', bs: 'Poštanski broj', de: 'Postleitzahl' },
-  'postLoadModal.deliveryPostalCode': { en: 'Postal code', bs: 'Poštanski broj', de: 'Postleitzahl' },
-  'postLoadModal.postalCodePlaceholder': { en: 'Postal code', bs: 'Poštanski broj', de: 'PLZ' },
-  'postLoadModal.publishLastMileTitle': { en: 'Post load and start door delivery?', bs: 'Objavi teret i pokreni dostavu do vrata?', de: 'Fracht veröffentlichen und Zustellung bis zur Haustür starten?' },
-  'postLoadModal.publishLastMileText': { en: 'This will post the load to the freight exchange and create a new road draft for delivery from the terminal to your address.', bs: 'Ovo će objaviti teret na berzu i kreirati novi drumski draft za dostavu od terminala do vaše adrese.', de: 'Dadurch wird die Fracht auf der Frachtbörse veröffentlicht und ein neuer Straßentransport-Entwurf für die Zustellung vom Terminal bis zu Ihrer Adresse erstellt.' },
-  'postLoadModal.publishLastMileConfirm': { en: 'Post + Last Mile', bs: 'Objavi + Last Mile', de: 'Veröffentlichen + Last Mile' },
-  'postLoadModal.publishLastMileButton': { en: 'Post + Last Mile', bs: 'Objavi + Last Mile', de: 'Veröffentlichen + Last Mile' },
-  'postLoadModal.lastMileWelcomeMessage': { en: 'Congratulations, you successfully posted the load and chose the last-mile delivery option! I can now help you create additional road transport for the cargo to your home door.', bs: 'Čestitamo, uspješno ste objavili teret i izabrali last-mile delivery opciju! Sada vam mogu pomoći da kreirate dodatni drumski prevoz za teret do vaših kućnih vrata.', de: 'Herzlichen Glückwunsch, Sie haben die Fracht erfolgreich veröffentlicht und die Last-Mile-Delivery-Option gewählt! Ich kann Ihnen jetzt helfen, einen zusätzlichen Straßentransport für die Ladung bis zu Ihrer Haustür zu erstellen.' },
-  'postLoadModal.lastMileSubjectPrefix': { en: 'Last Mile Delivery', bs: 'Last Mile Delivery', de: 'Last Mile Delivery' },
-  'postLoadModal.address': { en: 'Address', bs: 'Adresa', de: 'Adresse', pl: 'Adres', ro: 'Adresă', nl: 'Adres', fr: 'Adresse', it: 'Indirizzo', zh: '地址', es: 'Dirección', sr: 'Adresa', sv: 'Adress', ar: 'العنوان', pt: 'Endereço' },
-  'postLoadModal.transitDays': { en: 'days', bs: 'dana', de: 'Tage', pl: 'dni', ro: 'zile', nl: 'dagen', fr: 'jours', it: 'giorni', zh: '天', es: 'días', sr: 'dana', sv: 'dagar', ar: 'أيام', pt: 'dias' },
-  'postLoadModal.transitTime': { en: 'ETA - transit time (POL-POD)', bs: 'ETA - tranzitno vrijeme (POL-POD)', de: 'ETA - Transitzeit (POL-POD)', pl: 'ETA - czas tranzytu (POL-POD)', ro: 'ETA - timp de tranzit (POL-POD)', nl: 'ETA - transittijd (POL-POD)', fr: 'ETA - temps de transit (POL-POD)', it: 'ETA - tempo di transito (POL-POD)', zh: 'ETA - 运输时间 (POL-POD)', es: 'ETA - tiempo de tránsito (POL-POD)', sr: 'ETA - tranzitno vreme (POL-POD)', sv: 'ETA - transittid (POL-POD)', ar: 'الوقت المقدر للوصول - وقت العبور (POL-POD)', pt: 'ETA - tempo de trânsito (POL-POD)' },
+  'Edit load': {   pl: 'Edytuj ładunek', ro: 'Editează încărcătura', nl: 'Lading bewerken', fr: 'Modifier le chargement', it: 'Modifica carico', zh: '编辑货物', es: 'Editar carga', sr: 'Uredi teret', sv: 'Redigera last', ar: 'تعديل الحمولة', pt: 'Editar carga' },
+  'postLoadModal.addressLastMile': {    pl: 'Adres + dostawa ostatniej mili', ro: 'Adresă + livrare pe ultima milă', nl: 'Adres + laatste-mijl bezorging', fr: 'Adresse + livraison du dernier kilomètre', it: "Indirizzo + consegna dell'ultimo miglio", zh: '地址 + 最后一公里配送', es: 'Dirección + entrega de última milla', sr: 'Adresa + dostava do vrata', sv: 'Adress + leverans sista milen', ar: 'العنوان + التوصيل للميل الأخير', pt: 'Endereço + entrega da última milha' },
+  'postLoadModal.portToPort': {    pl: 'Port', ro: 'Port', nl: 'Haven', fr: 'Port', it: 'Porto', zh: '港口', es: 'Puerto', sr: 'Luka', sv: 'Hamn', ar: 'ميناء', pt: 'Porto' },
+  'postLoadModal.doorToPort': {    pl: 'Adres', ro: 'Adresă', nl: 'Adres', fr: 'Adresse', it: 'Indirizzo', zh: '地址', es: 'Dirección', sr: 'Adresa', sv: 'Adress', ar: 'العنوان', pt: 'Endereço' },
+  'postLoadModal.portToDoor': {    pl: 'Adres', ro: 'Adresă', nl: 'Adres', fr: 'Adresse', it: 'Indirizzo', zh: '地址', es: 'Dirección', sr: 'Adresa', sv: 'Adress', ar: 'العنوان', pt: 'Endereço' },
+  'postLoadModal.portSearchPlaceholder': {    pl: 'Szukaj portów', ro: 'Caută porturi', nl: 'Zoek havens', fr: 'Rechercher des ports', it: 'Cerca porti', zh: '搜索港口', es: 'Buscar puertos', sr: 'Pretraži luke', sv: 'Sök hamnar', ar: 'البحث عن الموانئ', pt: 'Pesquisar portos' },
+  'postLoadModal.pickupAddressPlaceholder': {    pl: 'Szukaj miejsc lub kliknij mapę', ro: 'Caută locuri sau apasă pe hartă', nl: 'Zoek plaatsen of klik op de kaart', fr: 'Rechercher des lieux ou cliquer sur la carte', it: 'Cerca luoghi o clicca sulla mappa', zh: '搜索地点或点击地图', es: 'Buscar lugares o hacer clic en el mapa', sr: 'Pretraži mjesta ili klikni na mapu', sv: 'Sök platser eller klicka på kartan', ar: 'البحث عن الأماكن أو النقر على الخريطة', pt: 'Pesquisar locais ou clicar no mapa' },
+  'postLoadModal.deliveryAddressPlaceholder': {    pl: 'Szukaj miejsc lub kliknij mapę', ro: 'Caută locuri sau apasă pe hartă', nl: 'Zoek plaatsen of klik op de kaart', fr: 'Rechercher des lieux ou cliquer sur la carte', it: 'Cerca luoghi o clicca sulla mappa', zh: '搜索地点或点击地图', es: 'Buscar lugares o hacer clic en el mapa', sr: 'Pretraži mjesta ili klikni na mapu', sv: 'Sök platser eller klicka på kartan', ar: 'البحث عن الأماكن أو النقر على الخريطة', pt: 'Pesquisar locais ou clicar no mapa' },
+  'postLoadModal.dgr': {    pl: 'DGR / certyfikowane', ro: 'DGR / certificat', nl: 'DGR / gecertificeerd', fr: 'DGR / certifié', it: 'DGR / certificato', zh: 'DGR / 认证', es: 'DGR / certificado', sr: 'DGR / certifikovano', sv: 'DGR / certifierad', ar: 'DGR / معتمد', pt: 'DGR / certificado' },
+  'postLoadModal.pol': {    pl: 'Port załadunku (POL)', ro: 'Port de încărcare (POL)', nl: 'Laadhaven (POL)', fr: 'Port de chargement (POL)', it: 'Porto di carico (POL)', zh: '装货港 (POL)', es: 'Puerto de carga (POL)', sr: 'Luka utovara (POL)', sv: 'Lastningshamn (POL)', ar: 'ميناء التحميل (POL)', pt: 'Porto de carregamento (POL)' },
+  'postLoadModal.pod': {    pl: 'Port rozładunku (POD)', ro: 'Port de descărcare (POD)', nl: 'Loshaven (POD)', fr: 'Port de déchargement (POD)', it: 'Porto di scarico (POD)', zh: '卸货港 (POD)', es: 'Puerto de descarga (POD)', sr: 'Luka istovara (POD)', sv: 'Lossningshamn (POD)', ar: 'ميناء التفريغ (POD)', pt: 'Porto de descarga (POD)' },
+  'postLoadModal.doorAddress': {    pl: 'Adres odbioru/dostawy (drzwi)', ro: 'Adresă de ridicare/livrare (ușă)', nl: 'Ophaal-/afleveradres (deur)', fr: "Adresse d'enlèvement/livraison (porte)", it: 'Indirizzo di ritiro/consegna (porta)', zh: '取货/送货地址（门到门）', es: 'Dirección de recogida/entrega (puerta)', sr: 'Adresa preuzimanja/isporuke (vrata)', sv: 'Upphämtnings-/leveransadress (dörr)', ar: 'عنوان الاستلام/التسليم (الباب)', pt: 'Endereço de recolha/entrega (porta)' },
+  'postLoadModal.seaOriginType': {    pl: 'Typ miejsca początkowego', ro: 'Tip origine', nl: 'Type herkomst', fr: "Type d'origine", it: 'Tipo di origine', zh: '起运类型', es: 'Tipo de origen', sr: 'Tip polazišta', sv: 'Ursprungstyp', ar: 'نوع نقطة الانطلاق', pt: 'Tipo de origem' },
+  'postLoadModal.seaDestinationType': {    pl: 'Typ miejsca docelowego', ro: 'Tip destinație', nl: 'Type bestemming', fr: 'Type de destination', it: 'Tipo di destinazione', zh: '目的地类型', es: 'Tipo de destino', sr: 'Tip odredišta', sv: 'Destinationstyp', ar: 'نوع الوجهة', pt: 'Tipo de destino' },
+  'postLoadModal.cargoReady': {    pl: 'Ładunek gotowy', ro: 'Marfă pregătită', nl: 'Lading gereed', fr: 'Marchandise prête', it: 'Merce pronta', zh: '货物备妥日期', es: 'Carga lista', sr: 'Teret spreman', sv: 'Gods klart', ar: 'البضاعة جاهزة', pt: 'Carga pronta' },
+  'postLoadModal.pickupWindow': {    pl: 'Okno odbioru', ro: 'Interval de ridicare', nl: 'Ophaalvenster', fr: "Créneau d'enlèvement", it: 'Finestra di ritiro', zh: '提货时间段', es: 'Ventana de recogida', sr: 'Vremenski okvir preuzimanja', sv: 'Upphämtningsfönster', ar: 'نافذة الاستلام', pt: 'Janela de recolha' },
+  'postLoadModal.deliveryWindow': {    pl: 'Okno dostawy', ro: 'Interval de livrare', nl: 'Levervenster', fr: 'Créneau de livraison', it: 'Finestra di consegna', zh: '交付时间段', es: 'Ventana de entrega', sr: 'Vremenski okvir isporuke', sv: 'Leveransfönster', ar: 'نافذة التسليم', pt: 'Janela de entrega' },
+  'postLoadModal.windowPlaceholder': {    pl: '08:00 - 12:00', ro: '08:00 - 12:00', nl: '08:00 - 12:00', fr: '08:00 - 12:00', it: '08:00 - 12:00', zh: '08:00 - 12:00', es: '08:00 - 12:00', sr: '08:00 - 12:00', sv: '08:00 - 12:00', ar: '08:00 - 12:00', pt: '08:00 - 12:00' },
+  'postLoadModal.warehouseEquipment': {    },
+  'postLoadModal.warehouseEquipment.Forklifts': {    },
+  'postLoadModal.warehouseEquipment.Pallet Jacks': {    },
+  'postLoadModal.warehouseEquipment.Reach Trucks': {    },
+  'postLoadModal.warehouseEquipment.Dock Levellers': {    },
+  'postLoadModal.warehouseEquipment.Conveyors': {    },
+  'postLoadModal.warehouseEquipment.Handheld Scanners': {    },
+  'postLoadModal.warehouseEquipment.Dock Doors': {    },
+  'postLoadModal.bodyType.Curtain': {    },
+  'postLoadModal.bodyType.Box': {    },
+  'postLoadModal.bodyType.Reefer': {    },
+  'postLoadModal.bodyType.Mega': {    },
+  'postLoadModal.bodyType.Tautliner': {    },
+  'postLoadModal.bodyType.Flatbed': {    },
+  'postLoadModal.temperatureMin': {    },
+  'postLoadModal.temperatureMax': {    },
+  'ULD Required': {   },
+  'Security Screening': {   },
+  'Priority / Time Critical': {   },
+  'AWB Required': {   },
+  'Airport Handling': {   },
+  'Customs Clearance': {   },
+  'Insurance Required': {   },
+  'Special Handling': {   },
+  'Track & Trace Required': {   },
+  'Tail Lift Required': {   },
+  'postLoadModal.pickupPostalCode': {    },
+  'postLoadModal.deliveryPostalCode': {    },
+  'postLoadModal.postalCodePlaceholder': {    },
+  'postLoadModal.publishLastMileTitle': {    },
+  'postLoadModal.publishLastMileText': {    },
+  'postLoadModal.publishLastMileConfirm': {    },
+  'postLoadModal.publishLastMileButton': {    },
+  'postLoadModal.lastMileWelcomeMessage': {    },
+  'postLoadModal.lastMileSubjectPrefix': {    },
+  'postLoadModal.address': {    pl: 'Adres', ro: 'Adresă', nl: 'Adres', fr: 'Adresse', it: 'Indirizzo', zh: '地址', es: 'Dirección', sr: 'Adresa', sv: 'Adress', ar: 'العنوان', pt: 'Endereço' },
+  'postLoadModal.transitDays': {    pl: 'dni', ro: 'zile', nl: 'dagen', fr: 'jours', it: 'giorni', zh: '天', es: 'días', sr: 'dana', sv: 'dagar', ar: 'أيام', pt: 'dias' },
+  'postLoadModal.transitTime': {    pl: 'ETA - czas tranzytu (POL-POD)', ro: 'ETA - timp de tranzit (POL-POD)', nl: 'ETA - transittijd (POL-POD)', fr: 'ETA - temps de transit (POL-POD)', it: 'ETA - tempo di transito (POL-POD)', zh: 'ETA - 运输时间 (POL-POD)', es: 'ETA - tiempo de tránsito (POL-POD)', sr: 'ETA - tranzitno vreme (POL-POD)', sv: 'ETA - transittid (POL-POD)', ar: 'الوقت المقدر للوصول - وقت العبور (POL-POD)', pt: 'ETA - tempo de trânsito (POL-POD)' },
   'Track no.': { bs: 'Track no.', de: 'Tracking-Nr.', pl: 'Nr śledzenia', ro: 'Nr. urmărire', nl: 'Trackingnr.', fr: 'N° de suivi', it: 'N. tracking', zh: '追踪编号', es: 'N.º seguimiento', sr: 'Track no.', sv: 'Spårningsnr.', ar: 'رقم التتبع', pt: 'N.º de rastreio' },
   'Amount': { bs: 'Iznos', de: 'Betrag', pl: 'Kwota', ro: 'Sumă', nl: 'Bedrag', fr: 'Montant', it: 'Importo', zh: '金额', es: 'Importe', sr: 'Iznos', sv: 'Belopp', ar: 'المبلغ', pt: 'Montante' },
-  'Draft': { bs: 'Nacrt', de: 'Entwurf' },
-  'Load detected': { bs: 'Teret prepoznat', de: 'Ladung erkannt' },
+  'Draft': {   },
+  'Load detected': {   },
   'Load created': { bs: 'Teret kreiran', de: 'Ladung erstellt' },
-  'Add a new load': { bs: 'Dodavanje novog tereta', de: 'Neue Ladung hinzufügen' },
-  'Check load status': { bs: 'Provjera statusa tereta', de: 'Ladungsstatus prüfen' },
-  'Reserve a load': { bs: 'Rezervacija tereta', de: 'Ladung reservieren' },
-  'Check HS code': { bs: 'Provjera HS koda', de: 'HS-Code prüfen' },
-  'Ask about Freightbook.ai': { bs: 'Pitanja o Freightbook.ai', de: 'Fragen zu Freightbook.ai' },
-  'Yes, I have a file': { en: 'Yes', bs: 'Da', de: 'Ja' },
-  'No, enter it manually': { en: 'No, ask me questions', bs: 'Ne, postavi mi pitanja', de: 'Nein, stelle mir Fragen' },
-  'Yes, start creating': { en: 'Yes', bs: 'Da', de: 'Ja' },
-  'No, not now': { en: 'No', bs: 'Ne', de: 'Nein' },
-  'Yes, continue': { en: 'Yes', bs: 'Da', de: 'Ja' },
-  'No, leave load creation': { en: 'No', bs: 'Ne', de: 'Nein' },
+  'Add a new load': {   },
+  'Check load status': {   },
+  'Reserve a load': {   },
+  'Check HS code': {   },
+  'Ask about Freightbook.ai': {   },
+  'Yes, I have a file': {    },
+  'No, enter it manually': {    },
+  'Yes, start creating': {    },
+  'No, not now': {    },
+  'Yes, continue': {    },
+  'No, leave load creation': {    },
   'Lena welcome general': {
-    en: 'Hello, I am LenaAI, your AI dispatcher in Freightbook.ai.\n\nYou can write to me in any language. I will reply exclusively in the language you use. How can I help you today?',
-    bs: 'Zdravo, ja sam LenaAI, vaš AI dispečer u aplikaciji Freightbook.ai.\n\nMožete mi pisati na bilo kojem jeziku. Odgovorit ću isključivo na jeziku kojim mi se obratite. U čemu vam treba pomoć danas?',
-    de: 'Hallo, ich bin LenaAI, Ihre KI-Disponentin in Freightbook.ai.\n\nSie können mir in jeder Sprache schreiben. Ich antworte ausschließlich in der Sprache, die Sie verwenden. Wobei kann ich Ihnen heute helfen?',
+
     pl: 'Cześć, jestem LenaAI, Twoim spedytorem AI. Pomagam wyszukiwać i rezerwować ładunki według numeru referencyjnego, analizować trasy i postoje, sprawdzać statusy przesyłek, wyjaśniać warunki ładunku i rozliczeń oraz korzystać ze śledzenia, map, tras powrotnych, faktur, raportów, wiadomości i obsługi floty. Zapytaj mnie w dowolnym języku — odpowiem w całości w tym języku.',
     ro: 'Bună, sunt LenaAI, dispecerul tău AI pentru transport de marfă. Te ajut să găsești și să rezervi încărcături după referință, să verifici rute, opriri și stări, să înțelegi marfa și condițiile financiare și să folosești urmărirea, hărțile, rutele de retur, facturile, rapoartele, mesajele și flota. Întreabă-mă în orice limbă — voi răspunde integral în acea limbă.',
     nl: 'Hallo, ik ben LenaAI, je AI-dispatcher voor vrachtvervoer. Ik help ladingen zoeken en boeken op referentie, routes en stops bekijken, statussen controleren, vracht- en financiële voorwaarden uitleggen en werken met tracking, kaarten, retourroutes, facturen, rapporten, berichten en vlootbeheer. Vraag me iets in elke taal — ik antwoord volledig in die taal.',
@@ -8343,19 +7975,14 @@ const TRIPLET_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
     pt: 'Olá, sou a LenaAI, a sua despachante de carga com IA. Posso localizar e reservar cargas por referência, rever rotas e paragens, verificar estados, explicar a carga e as condições financeiras e ajudar com rastreio, mapas, rotas de retorno, faturas, relatórios, mensagens e frota. Pergunte em qualquer idioma — responderei integralmente nesse idioma.'
   },
   'Lena welcome posting': {
-    en: 'To post a new load, I can open a working canvas, collect information from our conversation, and prepare a completed form. You can attach an Excel file, CSV, image, or PDF; bulk import of multiple loads is also supported.',
-    bs: 'Za objavu novog tereta mogu otvoriti radni canvas, prikupiti podatke iz razgovora i pripremiti popunjenu formu. Možete priložiti Excel, CSV, sliku ili PDF; podržan je i bulk import više tereta.',
-    de: 'Für eine neue Ladung kann ich einen Arbeits-Canvas öffnen, Angaben aus unserem Gespräch sammeln und das ausgefüllte Formular vorbereiten. Sie können Excel-, CSV-, Bild- oder PDF-Dateien anhängen; auch der Massenimport mehrerer Ladungen wird unterstützt.'
+
   },
-  'Ask me about the load': { bs: 'Pitaj me o teretu', de: 'Frag mich zur Ladung' },
+  'Ask me about the load': {   },
   'Lena welcome about load': {
-    bs: 'Pitaj me o ovom teretu. Pomažem vozačima i dispečerima s utovarom i istovarom, robom, terminima, dokumentima i narednim koracima.\n\nPri svakom odgovoru provjeravam najnovije dostupne podatke o teretu. Pitaj me za trenutni status ili pomoć pri sastavljanju obavijesti.',
-    de: 'Frag mich zu dieser Ladung. Ich unterstütze Fahrer und Disponenten bei Abholung und Lieferung, Fracht, Terminen, Dokumenten und den nächsten Schritten.\n\nBei jeder Antwort prüfe ich die neuesten verfügbaren Ladungsdaten. Frag mich nach dem aktuellen Status oder bitte mich, eine Mitteilung zu formulieren.',
+
   },
   'Lena welcome load': {
-    en: 'Hello, I am LenaAI, your AI dispatcher for this load.\n\nUsing the latest data you are authorized to access, I can explain the route and stops, dates, cargo, status, reference number, financial terms, tracking, and booking options.\n\nYou can write to me in any language. I will reply exclusively in the language you use.',
-    bs: 'Zdravo, ja sam LenaAI, vaš AI dispečer za ovaj teret.\n\nNa osnovu najnovijih podataka kojima imate pravo pristupa mogu objasniti rutu i stajanja, datume, robu, status, referentni broj, finansijske uslove, praćenje i mogućnosti rezervacije.\n\nMožete mi pisati na bilo kojem jeziku. Odgovorit ću isključivo na jeziku kojim mi se obratite.',
-    de: 'Hallo, ich bin LenaAI, Ihre KI-Disponentin für diese Ladung.\n\nAnhand der neuesten Daten, auf die Sie zugreifen dürfen, erkläre ich Route und Stopps, Termine, Fracht, Status, Buchungsreferenz, finanzielle Bedingungen, Tracking und Buchungsoptionen.\n\nSchreiben Sie mir in jeder Sprache. Ich antworte ausschließlich in der Sprache, die Sie verwenden.',
+
     pl: 'Cześć, jestem LenaAI, Twoim spedytorem AI dla tego ładunku. Wyjaśnię trasę, postoje, daty, towar, status, numer rezerwacji, warunki finansowe, śledzenie i możliwości rezerwacji na podstawie najnowszych dostępnych danych. Zapytaj mnie w dowolnym języku — odpowiem w całości w tym języku.',
     ro: 'Bună, sunt LenaAI, dispecerul AI pentru această încărcătură. Pot explica ruta, opririle, datele, marfa, starea, referința, condițiile financiare, urmărirea și opțiunile de rezervare folosind cele mai recente date autorizate. Întreabă-mă în orice limbă — voi răspunde integral în acea limbă.',
     nl: 'Hallo, ik ben LenaAI, je AI-dispatcher voor deze lading. Ik leg route, stops, data, goederen, status, boekingsreferentie, financiële voorwaarden, tracking en boekingsopties uit met de nieuwste gegevens waartoe je toegang hebt. Vraag me iets in elke taal — ik antwoord volledig in die taal.',
@@ -8368,13 +7995,13 @@ const TRIPLET_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
     ar: 'مرحبًا، أنا LenaAI، مساعدتك الذكية لهذه الشحنة. أشرح المسار والمحطات والتواريخ والحمولة والحالة والرقم المرجعي والشروط المالية والتتبع وخيارات الحجز باستخدام أحدث البيانات المصرح لك بها. اسألني بأي لغة وسأجيب بالكامل باللغة نفسها.',
     pt: 'Olá, sou a LenaAI, a sua despachante com IA para esta carga. Posso explicar a rota, paragens, datas, mercadoria, estado, referência, condições financeiras, rastreio e opções de reserva usando os dados autorizados mais recentes. Pergunte em qualquer idioma — responderei integralmente nesse idioma.'
   },
-  'Direct booking': { bs: 'Direktna rezervacija', de: 'Direktbuchung', pl: 'Rezerwacja bezpośrednia', ro: 'Rezervare directă', nl: 'Direct boeken', fr: 'Réservation directe', it: 'Prenotazione diretta', zh: '直接预订', es: 'Reserva directa', sr: 'Direktna rezervacija', sv: 'Direktbokning', ar: 'حجز مباشر', pt: 'Reserva direta' },
-  'Load ready for booking': { bs: 'Ovaj teret je dostupan za direktnu rezervaciju.', de: 'Diese Ladung ist direkt buchbar.', pl: 'Ten ładunek jest dostępny do bezpośredniej rezerwacji.', ro: 'Această încărcătură este disponibilă pentru rezervare directă.', nl: 'Deze lading is direct boekbaar.', fr: 'Ce chargement est disponible en réservation directe.', it: 'Questo carico è disponibile per la prenotazione diretta.', zh: '此货物可直接预订。', es: 'Esta carga está disponible para reserva directa.', sr: 'Ovaj teret je dostupan za direktnu rezervaciju.', sv: 'Den här lasten kan direktbokas.', ar: 'هذه الشحنة متاحة للحجز المباشر.', pt: 'Esta carga está disponível para reserva direta.' },
-  'Load details': { bs: 'Detalji tereta', de: 'Ladungsdetails', pl: 'Szczegóły ładunku', ro: 'Detalii încărcătură', nl: 'Ladingdetails', fr: 'Détails du chargement', it: 'Dettagli del carico', zh: '货物详情', es: 'Detalles de la carga', sr: 'Detalji tereta', sv: 'Lastdetaljer', ar: 'تفاصيل الشحنة', pt: 'Detalhes da carga' },
+  'Direct booking': {   pl: 'Rezerwacja bezpośrednia', ro: 'Rezervare directă', nl: 'Direct boeken', fr: 'Réservation directe', it: 'Prenotazione diretta', zh: '直接预订', es: 'Reserva directa', sr: 'Direktna rezervacija', sv: 'Direktbokning', ar: 'حجز مباشر', pt: 'Reserva direta' },
+  'Load ready for booking': {   pl: 'Ten ładunek jest dostępny do bezpośredniej rezerwacji.', ro: 'Această încărcătură este disponibilă pentru rezervare directă.', nl: 'Deze lading is direct boekbaar.', fr: 'Ce chargement est disponible en réservation directe.', it: 'Questo carico è disponibile per la prenotazione diretta.', zh: '此货物可直接预订。', es: 'Esta carga está disponible para reserva directa.', sr: 'Ovaj teret je dostupan za direktnu rezervaciju.', sv: 'Den här lasten kan direktbokas.', ar: 'هذه الشحنة متاحة للحجز المباشر.', pt: 'Esta carga está disponível para reserva direta.' },
+  'Load details': {   pl: 'Szczegóły ładunku', ro: 'Detalii încărcătură', nl: 'Ladingdetails', fr: 'Détails du chargement', it: 'Dettagli del carico', zh: '货物详情', es: 'Detalles de la carga', sr: 'Detalji tereta', sv: 'Lastdetaljer', ar: 'تفاصيل الشحنة', pt: 'Detalhes da carga' },
   'Offer amount too low': { bs: 'Iznos ponude je prenizak', de: 'Angebotsbetrag ist zu niedrig', pl: 'Kwota oferty jest zbyt niska', ro: 'Valoarea ofertei este prea mică', nl: 'Bodbedrag is te laag', fr: "Le montant de l’offre est trop bas", it: "L’importo dell’offerta è troppo basso", zh: '报价金额过低', es: 'El importe de la oferta es demasiado bajo', sr: 'Iznos ponude je prenizak', sv: 'Budbeloppet är för lågt', ar: 'قيمة العرض منخفضة جدًا', pt: 'O valor da oferta é muito baixo' },
   'Offer minimum amount': { bs: 'Vaša ponuda mora iznositi najmanje {amount}.', de: 'Ihr Angebot muss mindestens {amount} betragen.', pl: 'Twoja oferta musi wynosić co najmniej {amount}.', ro: 'Oferta trebuie să fie de cel puțin {amount}.', nl: 'Uw bod moet minimaal {amount} zijn.', fr: 'Votre offre doit être d’au moins {amount}.', it: 'La tua offerta deve essere di almeno {amount}.', zh: '您的报价必须至少为 {amount}。', es: 'Tu oferta debe ser de al menos {amount}.', sr: 'Vaša ponuda mora iznositi najmanje {amount}.', sv: 'Ditt bud måste vara minst {amount}.', ar: 'يجب ألا يقل عرضك عن {amount}.', pt: 'A sua oferta deve ser de pelo menos {amount}.' },
   'View offers': { bs: 'Vidi ponude', de: 'Angebote ansehen', pl: 'Zobacz oferty', ro: 'Vezi ofertele', nl: 'Bekijk biedingen', fr: 'Voir les offres', it: 'Vedi offerte', zh: '查看报价', es: 'Ver ofertas', sr: 'Vidi ponude', sv: 'Visa bud', ar: 'عرض العروض', pt: 'Ver ofertas' },
-  'View details': { bs: 'Vidi detalje', de: 'Details ansehen', pl: 'Zobacz szczegóły', ro: 'Vezi detaliile', nl: 'Bekijk details', fr: 'Voir les détails', it: 'Vedi dettagli', zh: '查看详情', es: 'Ver detalles', sr: 'Vidi detalje', sv: 'Visa detaljer', ar: 'عرض التفاصيل', pt: 'Ver detalhes' },
+  'View details': {   pl: 'Zobacz szczegóły', ro: 'Vezi detaliile', nl: 'Bekijk details', fr: 'Voir les détails', it: 'Vedi dettagli', zh: '查看详情', es: 'Ver detalles', sr: 'Vidi detalje', sv: 'Visa detaljer', ar: 'عرض التفاصيل', pt: 'Ver detalhes' },
   'Offers': { bs: 'Ponude', de: 'Angebote', pl: 'Oferty', ro: 'Oferte', nl: 'Biedingen', fr: 'Offres', it: 'Offerte', zh: '报价', es: 'Ofertas', sr: 'Ponude', sv: 'Bud', ar: 'العروض', pt: 'Ofertas' },
   'Offers & driver assignment': { bs: 'Ponude i dodjela vozača', de: 'Angebote und Fahrerzuweisung', pl: 'Oferty i przypisanie kierowcy', ro: 'Oferte și alocarea șoferului', nl: 'Biedingen en chauffeurstoewijzing', fr: 'Offres et affectation du chauffeur', it: 'Offerte e assegnazione autista', zh: '报价与司机分配', es: 'Ofertas y asignación de conductor', sr: 'Ponude i dodjela vozača', sv: 'Bud och förartilldelning', ar: 'العروض وتعيين السائق', pt: 'Ofertas e atribuição de motorista' },
   'Terms': { bs: 'Uslovi', de: 'Bedingungen', pl: 'Warunki', ro: 'Termeni', nl: 'Voorwaarden', fr: 'Conditions', it: 'Termini', zh: '条款', es: 'Terminos', sr: 'Uslovi', sv: 'Villkor', ar: 'الشروط', pt: 'Termos' },
@@ -8623,7 +8250,7 @@ const TRIPLET_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
   'prepared': { bs: 'spremno', de: 'vorbereitet', pl: 'gotowe', ro: 'pregatit', nl: 'voorbereid', fr: 'prepare', it: 'preparato', zh: '已准备', es: 'preparado', sr: 'pripremljeno', sv: 'forberedd', ar: 'تم التحضير', pt: 'preparado' },
   'rules active': { bs: 'aktivna pravila', de: 'aktive Regeln', pl: 'aktywne reguly', ro: 'reguli active', nl: 'regels actief', fr: 'regles actives', it: 'regole attive', zh: '规则已激活', es: 'reglas activas', sr: 'aktivna pravila', sv: 'aktiva regler', ar: 'القواعد مفعلة', pt: 'regras ativas' },
   'Search city...': { bs: 'Pretraga grada...', de: 'Stadt suchen...' },
-  'Search': { bs: 'Pretraga', de: 'Suchen' },
+  'Search': {   },
   'Done': { bs: 'Gotovo', de: 'Fertig' },
   'Clear': { bs: 'Ocisti', de: 'Zuruecksetzen' },
   'Source': { bs: 'Izvor', de: 'Quelle' },
@@ -9014,6 +8641,8 @@ for (const [key, englishValue] of Object.entries(UI_FROM_TRIPLET)) {
 }
 
 const translateValue = (lang: Language, value: string) => {
+  const backendText = lenaTranslation(lang, value, value);
+  if (backendText !== undefined) return backendText;
   const active = (lang || 'en') as Locale;
   return VALUE_TRANSLATIONS[value]?.[active] || value;
 };
@@ -9336,30 +8965,15 @@ Object.assign(UI.bs, {
 // Multi-stop road routes - a pickup or delivery column can hold several stops, so each one is
 // numbered, can be reordered and removed, and the route summary names them the same way.
 Object.assign(UI.en, {
-  'postLoadModal.origin': 'Origin',
-  'postLoadModal.destination': 'Destination',
-  'postLoadModal.addPickupStop': 'Add another pickup address',
-  'postLoadModal.addDeliveryStop': 'Add another delivery address',
-  'postLoadModal.removeStop': 'Remove this stop',
-  'postLoadModal.dragStopHint': 'Drag to reorder',
+
 });
 
 Object.assign(UI.bs, {
-  'postLoadModal.origin': 'Polazište',
-  'postLoadModal.destination': 'Odredište',
-  'postLoadModal.addPickupStop': 'Dodaj novu adresu preuzimanja',
-  'postLoadModal.addDeliveryStop': 'Dodaj novu adresu isporuke',
-  'postLoadModal.removeStop': 'Ukloni ovu tačku',
-  'postLoadModal.dragStopHint': 'Povucite za promjenu redoslijeda',
+
 });
 
 Object.assign(UI.de, {
-  'postLoadModal.origin': 'Startort',
-  'postLoadModal.destination': 'Zielort',
-  'postLoadModal.addPickupStop': 'Weitere Abholadresse hinzufügen',
-  'postLoadModal.addDeliveryStop': 'Weitere Lieferadresse hinzufügen',
-  'postLoadModal.removeStop': 'Diesen Stopp entfernen',
-  'postLoadModal.dragStopHint': 'Zum Umsortieren ziehen',
+
 });
 
 // Documents that belong to a load which has not been published yet: LenaAI files every attachment
@@ -9368,55 +8982,40 @@ Object.assign(UI.en, {
   'documents.scopePublished': 'Published only',
   'documents.scopeDraft': 'Draft',
   'documents.draft': 'Draft',
-  'documents.draftCount': 'Documents on this draft',
-  'documents.noneAttached': 'No files yet',
-  'documents.noneAttachedHint': 'Files attached to this load appear here.',
-  'documents.openInNewTab': 'Open in a new tab',
+
 });
 
 Object.assign(UI.bs, {
   'documents.scopePublished': 'Samo objavljeni',
   'documents.scopeDraft': 'Draft',
   'documents.draft': 'Draft',
-  'documents.draftCount': 'Dokumenti na ovom draftu',
-  'documents.noneAttached': 'Nema datoteka',
-  'documents.noneAttachedHint': 'Datoteke priložene ovom teretu prikazuju se ovdje.',
-  'documents.openInNewTab': 'Otvori u novom tabu',
+
 });
 
 Object.assign(UI.de, {
   'documents.scopePublished': 'Nur veröffentlichte',
   'documents.scopeDraft': 'Entwurf',
   'documents.draft': 'Entwurf',
-  'documents.draftCount': 'Dokumente in diesem Entwurf',
-  'documents.noneAttached': 'Noch keine Dateien',
-  'documents.noneAttachedHint': 'Dateien zu dieser Ladung erscheinen hier.',
-  'documents.openInNewTab': 'In neuem Tab öffnen',
+
 });
 
 // The shipper's own order/booking number, read off the document by LenaAI into its own column
 // rather than left inside the notes sentence it was printed in.
 Object.assign(UI.en, {
-  'postLoadModal.bookingReference': 'Booking reference',
-  'postLoadModal.bookingReferencePlaceholder': 'e.g. 26-020-000991',
-  'postLoadModal.bookingReferenceHint': 'The order or booking number the sender uses for this shipment.',
+
 });
 
 Object.assign(UI.bs, {
-  'postLoadModal.bookingReference': 'Broj narudžbe',
-  'postLoadModal.bookingReferencePlaceholder': 'npr. 26-020-000991',
-  'postLoadModal.bookingReferenceHint': 'Broj narudžbe ili rezervacije pod kojim pošiljalac vodi ovu pošiljku.',
+
 });
 
 Object.assign(UI.de, {
-  'postLoadModal.bookingReference': 'Auftragsnummer',
-  'postLoadModal.bookingReferencePlaceholder': 'z. B. 26-020-000991',
-  'postLoadModal.bookingReferenceHint': 'Die Auftrags- oder Buchungsnummer, unter der der Absender diese Sendung führt.',
+
 });
 
 // "My docks" - the warehouse counterpart of a carrier's "My cargo" page.
 Object.assign(UI.en, {
-  'Store goods': 'Receive goods',
+
   'nav.myDocks': 'My docks',
   'warehouseDocks.receiveGoods': 'Receive goods',
   'warehouseDocks.movement': 'Dock movement',
@@ -9445,19 +9044,7 @@ Object.assign(UI.en, {
   'warehouseView.latestDockMovements': 'Latest dock movements',
   'warehouseView.noDockMovements': 'No dock movements recorded yet.',
   'warehouseDocks.notFound': 'This movement could not be loaded.',
-  'postLoadModal.storageTarget': 'Storage destination',
-  'postLoadModal.storageTargetOwn': 'Store in my warehouse',
-  'postLoadModal.storageTargetOwnDesc': 'Create an inbound receipt on your dock schedule.',
-  'postLoadModal.storageTargetExchange': 'Publish on the storage exchange',
-  'postLoadModal.storageTargetExchangeDesc': 'Publish a storage request for warehouse companies.',
-  'postLoadModal.receivingWarehouse': 'Receiving warehouse',
-  'postLoadModal.noOwnedWarehouses': 'No warehouse is available for this account.',
-  'postLoadModal.noWarehousesAdded': 'You have not added any warehouses yet.',
-  'postLoadModal.scheduleReceiptTitle': 'Schedule warehouse receipt?',
-  'postLoadModal.scheduleReceiptText': 'This creates an inbound movement for the selected warehouse and does not publish it on the warehouse exchange.',
-  'postLoadModal.scheduleReceiptConfirm': 'Schedule receipt',
-  'postLoadModal.receiptScheduledTitle': 'Inbound receipt scheduled',
-  'postLoadModal.receiptScheduledText': 'The goods are now listed under My docks for the selected warehouse.',
+
   'warehouseDocks.subtitle': 'Everything booked in and out of your docks.',
   'warehouseDocks.searchPlaceholder': 'Search customer, dock or storage type...',
   'warehouseDocks.allFacilities': 'All warehouses',
@@ -9475,7 +9062,7 @@ Object.assign(UI.en, {
 });
 
 Object.assign(UI.bs, {
-  'Store goods': 'Zaprimanje robe',
+
   'nav.myDocks': 'Moji dokovi',
   'warehouseDocks.receiveGoods': 'Zaprimi robu',
   'warehouseDocks.movement': 'Kretanje na doku',
@@ -9504,19 +9091,7 @@ Object.assign(UI.bs, {
   'warehouseView.latestDockMovements': 'Posljednja kretanja na dokovima',
   'warehouseView.noDockMovements': 'Još nema evidentiranih kretanja na dokovima.',
   'warehouseDocks.notFound': 'Ovo kretanje se nije moglo učitati.',
-  'postLoadModal.storageTarget': 'Odredište skladištenja',
-  'postLoadModal.storageTargetOwn': 'Skladištiti u moje skladište',
-  'postLoadModal.storageTargetOwnDesc': 'Kreiraj prijem robe u rasporedu dokova.',
-  'postLoadModal.storageTargetExchange': 'Objaviti na berzu skladištenja',
-  'postLoadModal.storageTargetExchangeDesc': 'Objavi zahtjev za skladišne kompanije.',
-  'postLoadModal.receivingWarehouse': 'Skladište za prijem',
-  'postLoadModal.noOwnedWarehouses': 'Nema dostupnog skladišta za ovaj račun.',
-  'postLoadModal.noWarehousesAdded': 'Još uvijek nemate dodanih skladišta',
-  'postLoadModal.scheduleReceiptTitle': 'Zakazati prijem robe?',
-  'postLoadModal.scheduleReceiptText': 'Ovo kreira prijem za odabrano skladište i ne objavljuje ga na berzi skladišta.',
-  'postLoadModal.scheduleReceiptConfirm': 'Zakaži prijem',
-  'postLoadModal.receiptScheduledTitle': 'Prijem robe je zakazan',
-  'postLoadModal.receiptScheduledText': 'Roba je sada prikazana u Mojim dokovima za odabrano skladište.',
+
   'warehouseDocks.subtitle': 'Sve što je zakazano za prijem i otpremu na vašim dokovima.',
   'warehouseDocks.searchPlaceholder': 'Pretraži klijenta, dok ili vrstu skladištenja...',
   'warehouseDocks.allFacilities': 'Sva skladišta',
@@ -9534,7 +9109,7 @@ Object.assign(UI.bs, {
 });
 
 Object.assign(UI.de, {
-  'Store goods': 'Wareneingang',
+
   'nav.myDocks': 'Meine Rampen',
   'warehouseDocks.receiveGoods': 'Ware annehmen',
   'warehouseDocks.movement': 'Rampenbewegung',
@@ -9563,19 +9138,7 @@ Object.assign(UI.de, {
   'warehouseView.latestDockMovements': 'Neueste Rampenbewegungen',
   'warehouseView.noDockMovements': 'Noch keine Rampenbewegungen erfasst.',
   'warehouseDocks.notFound': 'Diese Bewegung konnte nicht geladen werden.',
-  'postLoadModal.storageTarget': 'Lagerziel',
-  'postLoadModal.storageTargetOwn': 'In meinem Lager einlagern',
-  'postLoadModal.storageTargetOwnDesc': 'Einen Wareneingang im Rampenplan anlegen.',
-  'postLoadModal.storageTargetExchange': 'Auf der Lagerbörse veröffentlichen',
-  'postLoadModal.storageTargetExchangeDesc': 'Eine Lageranfrage für Lagerunternehmen veröffentlichen.',
-  'postLoadModal.receivingWarehouse': 'Empfangslager',
-  'postLoadModal.noOwnedWarehouses': 'Für dieses Konto ist kein Lager verfügbar.',
-  'postLoadModal.noWarehousesAdded': 'Sie haben noch keine Lager hinzugefügt.',
-  'postLoadModal.scheduleReceiptTitle': 'Wareneingang planen?',
-  'postLoadModal.scheduleReceiptText': 'Dies erstellt einen Wareneingang für das ausgewählte Lager und veröffentlicht ihn nicht an der Lagerbörse.',
-  'postLoadModal.scheduleReceiptConfirm': 'Wareneingang planen',
-  'postLoadModal.receiptScheduledTitle': 'Wareneingang geplant',
-  'postLoadModal.receiptScheduledText': 'Die Ware wird jetzt unter Meine Rampen für das ausgewählte Lager angezeigt.',
+
   'warehouseDocks.subtitle': 'Alles, was an Ihren Rampen ein- und ausgeht.',
   'warehouseDocks.searchPlaceholder': 'Kunde, Rampe oder Lagerart suchen...',
   'warehouseDocks.allFacilities': 'Alle Lager',
@@ -9979,6 +9542,8 @@ Object.assign(UI.de, {
 const replaceBrand = (value: string) => value.replace(/smartfreight\.ai/gi, 'Freightbook.ai').replace(/smartfreight/gi, 'Freightbook.ai');
 
 export const ui = (lang: Language, key: string, fallback: string) => {
+  const backendText = lenaTranslation(lang, key, fallback);
+  if (backendText !== undefined) return backendText;
   const active = (lang || 'en') as Locale;
   const localized = locale(lang)[key];
   if (localized) return replaceBrand(localized);
@@ -10012,22 +9577,13 @@ export const trPaymentTerms = (lang: Language, value: string) => translateValue(
 export const trVehicleStatus = (lang: Language, value: string) => translateValue(lang, value);
 
 Object.assign(UI.en, {
-  'postLoadModal.weightValue': 'Weight', 'postLoadModal.weightUnit': 'Weight unit',
-  'postLoadModal.lengthValue': 'Length', 'postLoadModal.lengthUnit': 'Length unit',
-  'postLoadModal.widthValue': 'Width', 'postLoadModal.widthUnit': 'Width unit',
-  'postLoadModal.heightValue': 'Height', 'postLoadModal.heightUnit': 'Height unit',
+
 });
 Object.assign(UI.bs, {
-  'postLoadModal.weightValue': 'Težina', 'postLoadModal.weightUnit': 'Jedinica težine',
-  'postLoadModal.lengthValue': 'Dužina', 'postLoadModal.lengthUnit': 'Jedinica dužine',
-  'postLoadModal.widthValue': 'Širina', 'postLoadModal.widthUnit': 'Jedinica širine',
-  'postLoadModal.heightValue': 'Visina', 'postLoadModal.heightUnit': 'Jedinica visine',
+
 });
 Object.assign(UI.de, {
-  'postLoadModal.weightValue': 'Gewicht', 'postLoadModal.weightUnit': 'Gewichtseinheit',
-  'postLoadModal.lengthValue': 'Länge', 'postLoadModal.lengthUnit': 'Längeneinheit',
-  'postLoadModal.widthValue': 'Breite', 'postLoadModal.widthUnit': 'Breiteneinheit',
-  'postLoadModal.heightValue': 'Höhe', 'postLoadModal.heightUnit': 'Höheneinheit',
+
 });
 
 Object.assign(UI.en, {
@@ -10124,33 +9680,15 @@ Object.assign(UI.de, {
 // The storage window and the warehouse target are now read out of this step directly, so the keys
 // naming them get their English and German wording rather than falling back to the Bosnian base.
 Object.assign(UI.en, {
-  'postLoadModal.storageTargetQuestion': 'What would you like to do with the cargo?',
-  'postLoadModal.storageSummaryTitle': 'Storage',
-  'postLoadModal.storagePeriod': 'Storage period',
-  'postLoadModal.warehouseStartDate': 'Storage start date',
-  'postLoadModal.warehouseEndDate': 'Storage end date',
-  'postLoadModal.warehouseOngoing': 'Ongoing',
-  'postLoadModal.warehousePreferredLocation': 'Preferred warehouse location',
+
 });
 
 Object.assign(UI.bs, {
-  'postLoadModal.storageTargetQuestion': 'Šta želite uraditi sa teretom',
-  'postLoadModal.storageSummaryTitle': 'Skladištenje',
-  'postLoadModal.storagePeriod': 'Period skladištenja',
-  'postLoadModal.warehouseStartDate': 'Datum početka skladištenja',
-  'postLoadModal.warehouseEndDate': 'Datum završetka skladištenja',
-  'postLoadModal.warehouseOngoing': 'Neograničeno',
-  'postLoadModal.warehousePreferredLocation': 'Željena lokacija skladišta',
+
 });
 
 Object.assign(UI.de, {
-  'postLoadModal.storageTargetQuestion': 'Was möchten Sie mit der Fracht tun?',
-  'postLoadModal.storageSummaryTitle': 'Lagerung',
-  'postLoadModal.storagePeriod': 'Lagerzeitraum',
-  'postLoadModal.warehouseStartDate': 'Beginn der Lagerung',
-  'postLoadModal.warehouseEndDate': 'Ende der Lagerung',
-  'postLoadModal.warehouseOngoing': 'Unbefristet',
-  'postLoadModal.warehousePreferredLocation': 'Gewünschter Lagerstandort',
+
 });
 // Registration account categories and roles (active locales only).
 Object.assign(UI.en, {

@@ -295,7 +295,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
     let conversationId: number;
     try {
       const guidedAction = lenaQuickActionFromMessage(text);
-      const entersCanvas = guidedAction === 'add' || guidedAction === 'start_add_yes';
+      const entersCanvas = guidedAction === 'add' || guidedAction === 'storage' || guidedAction === 'start_add_yes';
       const exitsCanvas = guidedAction === 'continue_add_no';
       const desiredCanvas = !loadId && (entersCanvas || (!exitsCanvas && canvasEnabled));
       if (!loadId && (entersCanvas || exitsCanvas)) setCanvasOverride(entersCanvas);

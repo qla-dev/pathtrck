@@ -1,3 +1,5 @@
+import { lenaText } from '../../lib/lenaCatalog';
+import { latestLoadScan } from '../../lib/lenaLoadCanvas';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { BadgeCheck, Banknote, CheckCircle2, CircleDot, CircleOff, Clock3, FileSearch, FileText, FileUp, Forklift, Handshake, Landmark, MapPinned, MessageCircle, Package, Plane, Radar, ReceiptText, Route, Ruler, ScanEye, ShieldCheck, Ship, Thermometer, Truck, UserRound, Warehouse, Zap, type LucideIcon } from 'lucide-react';
@@ -8,19 +10,6 @@ import { ChatMessage } from '../chat/types';
 import { LenaBookingCard, LenaLoadDetailsCard, LenaLoadMapCard, LenaLoadStatusCard, LenaLocationCard, LenaLocationChoiceCard } from './LenaEmbeddedCards';
 import { LenaOutOfTokensCard } from './LenaOutOfTokensCard';
 import { LenaQuickAction } from '../../lib/useLenaAiChat';
-import {
-  AIR_CHARACTERISTIC_OPTIONS,
-  AIR_SPECIAL_REQUIREMENT_OPTIONS,
-  AIR_TRANSPORT_MODE_OPTIONS,
-  BODY_TYPE_OPTIONS,
-  CONTACT_OPTIONS,
-  DELIVERY_PROOF_OPTIONS,
-  INCOTERM_OPTIONS,
-  LOAD_REQUIREMENT_OPTIONS,
-  LOADING_EQUIPMENT_OPTIONS,
-  ROAD_CHARACTERISTIC_OPTIONS,
-  VEHICLE_OPTIONS,
-} from '../modals/loadFormOptions';
 
 const EMPTY_PRELOADED_LOADS: Record<string, Record<string, unknown>> = {};
 const BOOKING_MARKER_PATTERN = /\[\[OFFER_BOOKING(?::(\d+))?\]\]/;
@@ -83,63 +72,22 @@ const questionnaireOptionIcon = (step: string, value: string): LucideIcon => {
   return CircleDot;
 };
 
-const questionnaireSuggestions = (step: string, lang: Language, warehouses: WarehouseChoice[] = []): SuggestedReplyGroup => {
-  const labels = lang === 'bs'
-    ? { road: 'Cestovni', air: 'Zračni', sea: 'Pomorski', warehouse: 'Skladištenje', fixed: 'Fiksna cijena', negotiable: 'Otvoreno za ponude', none: 'Nije potrebno', unknown: 'Nije poznato', noPreference: 'Bez preferencije' }
-    : lang === 'de'
-      ? { road: 'Straße', air: 'Luft', sea: 'See', warehouse: 'Lagerung', fixed: 'Festpreis', negotiable: 'Offen für Angebote', none: 'Nicht erforderlich', unknown: 'Unbekannt', noPreference: 'Keine Präferenz' }
-      : { road: 'Road', air: 'Air', sea: 'Sea', warehouse: 'Storage', fixed: 'Fixed price', negotiable: 'Open to offers', none: 'Not needed', unknown: 'Unknown', noPreference: 'No preference' };
-  const option = (label: string, value: string = label, icon = questionnaireOptionIcon(step, value)): SuggestedReply => ({ label, value, icon });
-  const laterLabel = lang === 'bs' ? 'Odaberi kasnije' : lang === 'de' ? 'Später auswählen' : 'Choose later';
-  const skipValue = `[[LENA_SKIP:${step}]]`;
-  const later: SuggestedReply = { label: laterLabel, value: skipValue, icon: Clock3, skip: true };
-  // "None / not needed / no preference" reads to the user like a real answer, but the server treats
-  // it exactly like clicking "later" (LenaLoadQuestionnaire::isNegativeOrEmptyAnswer / the literal
-  // LENA_SKIP marker) rather than as a value worth writing into the draft - so it must carry the
-  // same skip marker as `later`, just with a different label, and render as an immediate action
-  // rather than a togglable multi-select choice.
-  const noneOption = (label: string, icon: LucideIcon = CircleOff): SuggestedReply => ({ label, value: skipValue, icon, skip: true });
-  const withLater = (options: SuggestedReply[], settings: Omit<SuggestedReplyGroup, 'options'> = {}): SuggestedReplyGroup => ({ options: [...options, later], ...settings });
-
-  switch (step) {
-    case 'storageTarget': return withLater([
-      option(lang === 'bs' ? 'Moje skladište' : lang === 'de' ? 'Mein Lager' : 'My warehouse', 'own', Warehouse),
-      option(lang === 'bs' ? 'Berza skladišta' : lang === 'de' ? 'Lagerbörse' : 'Warehouse exchange', 'exchange', Landmark),
-    ]);
-    case 'warehouse': return withLater(warehouses.map((warehouse) => option(warehouse.name, warehouse.id, Warehouse)));
-    case 'transportType': return withLater([
-      option(labels.road, 'road', Truck),
-      option(labels.air, 'air', Plane),
-      option(labels.sea, 'sea', Ship),
-      // Goods that stay put rather than travel - the same storage request the posting form files.
-      option(labels.warehouse, 'warehouse', Warehouse),
-    ]);
-    case 'bodyType': return withLater([...BODY_TYPE_OPTIONS.map((value) => option(value)), noneOption(labels.none)]);
-    case 'vehicleType': return withLater([...VEHICLE_OPTIONS.map((value) => option(value)), noneOption(labels.noPreference)]);
-    case 'loadingEquipment': return withLater(LOADING_EQUIPMENT_OPTIONS.map((value) => option(value)));
-    case 'characteristics': return withLater([...ROAD_CHARACTERISTIC_OPTIONS, ...AIR_CHARACTERISTIC_OPTIONS].map((value) => option(value)).concat(noneOption(labels.none)), { multiple: true });
-    case 'specialRequirements': return withLater([...AIR_SPECIAL_REQUIREMENT_OPTIONS.map((value) => option(value)), noneOption(labels.none)], { multiple: true });
-    case 'transportMode': return withLater([...AIR_TRANSPORT_MODE_OPTIONS.map((value) => option(value)), noneOption(labels.none)]);
-    case 'deliveryProof': return withLater([...DELIVERY_PROOF_OPTIONS.map((value) => option(value)), noneOption(labels.none)]);
-    case 'priceTerms': return withLater([
-      option(labels.fixed, 'fixed'),
-      option(labels.negotiable, 'negotiable'),
-    ]);
-    case 'terms': return withLater([...INCOTERM_OPTIONS.map((value) => option(value)), noneOption(labels.none)]);
-    case 'requirements': return withLater([...LOAD_REQUIREMENT_OPTIONS.map((value) => option(value)), noneOption(labels.none)], { multiple: true });
-    case 'contact': return withLater([...CONTACT_OPTIONS.map((value) => option(value)), noneOption(labels.none)]);
-    // Every other step is answered by typing (LenaLoadQuestionnaire hasOptions:false), so it never
-    // gets a full option set - but it still gets the single "later" pill, including the
-    // regex-masked numeric steps (weight, pallets, dimensions, budget, declaredValue), so a step
-    // with no clean answer is never a dead end just because there's no button for its real values.
-    default: return withLater([]);
-  }
+const questionnaireSuggestions = (step: string, lang: Language, warehouses: WarehouseChoice[] = [], transport = 'road'): SuggestedReplyGroup => {
+  const definition = lenaText(lang).steps[step];
+  if (!definition) return { options: [] };
+  const choices = step === 'warehouse'
+    ? [...warehouses.map((warehouse) => ({ label: warehouse.name, value: warehouse.id, skip: false })), ...definition.choices]
+    : definition.choices_by_transport[transport] || definition.choices;
+  return {
+    multiple: definition.multiple,
+    options: choices.map((choice) => ({ ...choice, icon: choice.skip ? Clock3 : questionnaireOptionIcon(step, choice.value) })),
+  };
 };
 
 const QuestionnaireSuggestionPills = ({ group, lang, onSubmit, onSelectionChange }: { group: SuggestedReplyGroup; lang: Language; onSubmit: (value: string, displayText?: string) => void; onSelectionChange?: (value: string) => void }) => {
   const [selected, setSelected] = useState<string[]>([]);
-  const confirmLabel = lang === 'bs' ? 'Potvrdi izbor' : lang === 'de' ? 'Auswahl bestätigen' : 'Confirm selection';
-  const multipleHint = lang === 'bs' ? 'Možete odabrati više opcija.' : lang === 'de' ? 'Sie können mehrere Optionen auswählen.' : 'You can select multiple options.';
+  const confirmLabel = lenaText(lang).ui['lena.shared.0'];
+  const multipleHint = lenaText(lang).ui['lena.shared.1'];
   if (!group.multiple) {
     return <div className="flex flex-wrap gap-2">{group.options.map((suggestion) => {
       const Icon = suggestion.icon;
@@ -288,7 +236,8 @@ export const useLenaEmbeddedMessages = ({
     const latestMessage = messages.at(-1);
     if (!latestMessage || latestMessage.sender !== 'other') return new Map<string, { step: string; group: SuggestedReplyGroup }>();
     const step = latestMessage.text.match(LENA_STEP_MARKER_PATTERN)?.[1];
-    const suggestions = step ? questionnaireSuggestions(step, lang, warehouseChoices) : { options: [] };
+    const transport = latestLoadScan(messages.flatMap((message) => message.attachments || []))?.transportType || 'road';
+    const suggestions = step ? questionnaireSuggestions(step, lang, warehouseChoices, transport) : { options: [] };
     return suggestions.options.length && step
       ? new Map([[latestMessage.id, { step, group: suggestions }]])
       : new Map<string, { step: string; group: SuggestedReplyGroup }>();
@@ -361,7 +310,7 @@ export const useLenaEmbeddedMessages = ({
       .replace(LOAD_READY_MARKER_GLOBAL, '')
       .replace(LENA_STEP_MARKER_GLOBAL, '')
       .replace(LENA_OUT_OF_TOKENS_GLOBAL, '')
-      .replace(LENA_SKIP_MARKER_GLOBAL, lang === 'bs' ? 'Odaberi kasnije' : lang === 'de' ? 'Später auswählen' : 'Choose later')
+      .replace(LENA_SKIP_MARKER_GLOBAL, lenaText(lang).ui['lena.shared.2'])
       .trim();
     return {
       ...message,
@@ -426,12 +375,8 @@ export const useLenaEmbeddedMessages = ({
             lang={lang}
             kind={locationChoice}
             onSelect={(location) => {
-              const prefix = lang === 'bs'
-                ? locationChoice === 'pickup' ? 'Adresa preuzimanja' : 'Adresa isporuke'
-                : lang === 'de'
-                  ? locationChoice === 'pickup' ? 'Abholadresse' : 'Lieferadresse'
-                  : locationChoice === 'pickup' ? 'Pickup address' : 'Delivery address';
-              const coordinatesLabel = lang === 'bs' ? 'Koordinate' : lang === 'de' ? 'Koordinaten' : 'Coordinates';
+              const prefix = lenaText(lang).location[`${locationChoice}_address`];
+              const coordinatesLabel = lenaText(lang).ui['lena.shared.3'];
               const value = `${prefix}: ${location.label}. ${coordinatesLabel}: ${location.latitude}, ${location.longitude}.`;
               onSuggestedReply(value, `${prefix}: ${location.label}`);
             }}
@@ -440,7 +385,7 @@ export const useLenaEmbeddedMessages = ({
         {suggestedReplies && onStepAnswer && <QuestionnaireSuggestionPills group={suggestedReplies.group} lang={lang} onSubmit={(value, displayText) => onStepAnswer(suggestedReplies.step, value, displayText ?? value)} onSelectionChange={onSuggestedDraftChange} />}
         {loadReady && (
           <button type="button" onClick={onLoadReady} className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-left transition-colors hover:border-emerald-400 dark:border-emerald-900/70 dark:bg-emerald-950/30">
-            <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-500" /><span><span className="block text-xs font-black text-emerald-800 dark:text-emerald-300">{lang === 'bs' ? 'Teret je spreman za objavu' : lang === 'de' ? 'Ladung ist zur Veröffentlichung bereit' : 'Load is ready to post'}</span><span className="block text-[11px] text-emerald-700 dark:text-emerald-400">{lang === 'bs' ? 'Otvori pregled i objavi teret.' : lang === 'de' ? 'Öffnen Sie die Prüfung und veröffentlichen Sie die Ladung.' : 'Open the review and post the load.'}</span></span></span>
+            <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-500" /><span><span className="block text-xs font-black text-emerald-800 dark:text-emerald-300">{lenaText(lang).ui['lena.shared.4']}</span><span className="block text-[11px] text-emerald-700 dark:text-emerald-400">{lenaText(lang).ui['lena.shared.5']}</span></span></span>
           </button>
         )}
       </div>

@@ -46,8 +46,8 @@ const StopCard = ({ side, index, total, value, onChange, onOpenMap, u, lang, inv
   const tone = SIDE_TONE[side];
   const HeadingIcon = tone.icon;
   const heading = side === 'pickup'
-    ? u('postLoadModal.pickupBlock', 'Pickup')
-    : u('postLoadModal.deliveryBlock', 'Delivery');
+    ? u('postLoadModal.pickupBlock', '')
+    : u('postLoadModal.deliveryBlock', '');
   // Numbering only appears once there is more than one stop on this side, so a plain A-to-B road
   // load reads exactly as it did before multi-stop existed.
   const title = total > 1 ? `${heading} ${index + 1}` : heading;
@@ -60,12 +60,12 @@ const StopCard = ({ side, index, total, value, onChange, onOpenMap, u, lang, inv
       </div>
 
       <div className="space-y-1">
-        <FieldLabel>{side === 'pickup' ? u('postLoadModal.pickupPlaceType', 'Place type') : u('postLoadModal.deliveryPlaceType', 'Place type')}</FieldLabel>
+        <FieldLabel>{side === 'pickup' ? u('postLoadModal.pickupPlaceType', '') : u('postLoadModal.deliveryPlaceType', '')}</FieldLabel>
         <div className="grid grid-cols-3 gap-3">
           {[
-            { value: 'Warehouse', label: u('postLoadModal.warehouse', 'Warehouse'), icon: Warehouse },
-            { value: 'Port', label: u('postLoadModal.portToPort', 'Port'), icon: Ship },
-            { value: 'Airport', label: u('postLoadModal.airportPlaceType', 'Airport'), icon: PlaneLanding },
+            { value: 'Warehouse', label: u('postLoadModal.warehouse', ''), icon: Warehouse },
+            { value: 'Port', label: u('postLoadModal.portToPort', ''), icon: Ship },
+            { value: 'Airport', label: u('postLoadModal.airportPlaceType', ''), icon: PlaneLanding },
           ].map((option) => (
             <ChoiceCard
               key={option.value}
@@ -82,28 +82,28 @@ const StopCard = ({ side, index, total, value, onChange, onOpenMap, u, lang, inv
       <div className={cn((value.placeType === 'Port' || value.placeType === 'Airport') && 'grid gap-3 sm:grid-cols-2')}>
         {value.placeType === 'Port' && (
           <div className={cn('space-y-1', invalidClass('port'))}>
-            <FieldLabel>{u('postLoadModal.portToPort', 'Port')}</FieldLabel>
+            <FieldLabel>{u('postLoadModal.portToPort', '')}</FieldLabel>
             <PortAutocompleteField
               value={value.port}
               onChange={(port) => onChange({ port })}
               onSelectPort={(port) => onChange({ port: `${port.port} - ${port.unlocode} - ${port.country}`, city: port.city, country: port.countryCode })}
-              placeholder={u('postLoadModal.portSearchPlaceholder', 'Search ports')}
+              placeholder={u('postLoadModal.portSearchPlaceholder', '')}
             />
           </div>
         )}
         {value.placeType === 'Airport' && (
           <div className={cn('space-y-1', invalidClass('airport'))}>
-            <FieldLabel>{u('postLoadModal.airportPlaceType', 'Airport')}</FieldLabel>
+            <FieldLabel>{u('postLoadModal.airportPlaceType', '')}</FieldLabel>
             <AirportAutocompleteField
               value={value.airport}
               onChange={(airport) => onChange({ airport })}
               onSelectAirport={(airport) => onChange({ airport: `${airport.name} (${airport.iata}) — ${airport.city}, ${airport.country}`, city: airport.city, country: airport.countryCode })}
-              placeholder={u('postLoadModal.airportSearchPlaceholder', 'Search airport, city or IATA code')}
+              placeholder={u('postLoadModal.airportSearchPlaceholder', '')}
             />
           </div>
         )}
         <div className={cn('space-y-1', invalidClass('address'))}>
-          <FieldLabel>{side === 'pickup' ? u('postLoadModal.pickupAddress', 'Pickup address') : u('postLoadModal.deliveryAddress', 'Delivery address')}</FieldLabel>
+          <FieldLabel>{side === 'pickup' ? u('postLoadModal.pickupAddress', '') : u('postLoadModal.deliveryAddress', '')}</FieldLabel>
           <AddressAutocompleteField
             value={value.address}
             onChange={(address) => onChange({ address })}
@@ -115,10 +115,10 @@ const StopCard = ({ side, index, total, value, onChange, onOpenMap, u, lang, inv
               longitude: String(location.longitude),
             })}
             placeholder={side === 'pickup'
-              ? u('postLoadModal.pickupAddressPlaceholder', 'Search places or click the map')
-              : u('postLoadModal.deliveryAddressPlaceholder', 'Search places or click the map')}
+              ? u('postLoadModal.pickupAddressPlaceholder', '')
+              : u('postLoadModal.deliveryAddressPlaceholder', '')}
             onOpenMap={onOpenMap}
-            mapButtonLabel={side === 'pickup' ? u('map.choosePickup', 'Choose pickup address on map') : u('map.chooseDelivery', 'Choose delivery address on map')}
+            mapButtonLabel={side === 'pickup' ? u('map.choosePickup', '') : u('map.chooseDelivery', '')}
             mapButtonIcon={MapGlyphIcon}
             accentClassName={tone.accent}
           />
@@ -128,15 +128,15 @@ const StopCard = ({ side, index, total, value, onChange, onOpenMap, u, lang, inv
       <div className="grid gap-3 sm:grid-cols-[200px_140px_minmax(0,1fr)]">
         <div className={cn('space-y-1', invalidClass('country'))}>
           {renderLabel('country', side === 'pickup' ? 'postLoadModal.pickupCountryShort' : 'postLoadModal.deliveryCountryShort', 'Country')}
-          <CountrySelect value={value.country} onChange={(country) => onChange({ country })} placeholder={u('postLoadModal.selectCountry', 'Select country')} />
+          <CountrySelect value={value.country} onChange={(country) => onChange({ country })} placeholder={u('postLoadModal.selectCountry', '')} />
         </div>
         <div className={cn('space-y-1', invalidClass('postalCode'))}>
           {renderLabel('postalCode', side === 'pickup' ? 'postLoadModal.pickupPostalCode' : 'postLoadModal.deliveryPostalCode', 'Postal code')}
-          <Input value={value.postalCode} onChange={(event) => onChange({ postalCode: event.target.value })} placeholder={u('postLoadModal.postalCodePlaceholder', 'Postal code')} />
+          <Input value={value.postalCode} onChange={(event) => onChange({ postalCode: event.target.value })} placeholder={u('postLoadModal.postalCodePlaceholder', '')} />
         </div>
         <div className={cn('space-y-1', invalidClass('city'))}>
           {renderLabel('city', side === 'pickup' ? 'postLoadModal.pickupCity' : 'postLoadModal.deliveryCity', 'City')}
-          <Input value={value.city} onChange={(event) => onChange({ city: event.target.value })} placeholder={u('postLoadModal.cityCountry', 'City')} />
+          <Input value={value.city} onChange={(event) => onChange({ city: event.target.value })} placeholder={u('postLoadModal.cityCountry', '')} />
         </div>
       </div>
 
@@ -147,17 +147,17 @@ const StopCard = ({ side, index, total, value, onChange, onOpenMap, u, lang, inv
             <DateInput value={value.date} onChange={(date) => onChange({ date })} placeholder="dd.mm.yyyy" lang={lang} />
           </div>
           <div className={cn('flex h-full flex-col justify-between space-y-1', invalidClass('dateTo'))}>
-            <FieldLabel>{side === 'pickup' ? u('postLoadModal.pickupDateTo', 'Date to') : u('postLoadModal.deliveryDateTo', 'Date to')}</FieldLabel>
+            <FieldLabel>{side === 'pickup' ? u('postLoadModal.pickupDateTo', '') : u('postLoadModal.deliveryDateTo', '')}</FieldLabel>
             <DateInput value={value.dateTo} onChange={(dateTo) => onChange({ dateTo })} placeholder="dd.mm.yyyy" lang={lang} />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className={cn('flex h-full flex-col justify-between space-y-1', invalidClass('timeFrom'))}>
-            <FieldLabel>{side === 'pickup' ? u('postLoadModal.pickupTimeFrom', 'Time from') : u('postLoadModal.deliveryTimeFrom', 'Time from')}</FieldLabel>
+            <FieldLabel>{side === 'pickup' ? u('postLoadModal.pickupTimeFrom', '') : u('postLoadModal.deliveryTimeFrom', '')}</FieldLabel>
             <TimeInput value={value.timeFrom} onChange={(timeFrom) => onChange({ timeFrom })} placeholder="hh:mm" />
           </div>
           <div className={cn('flex h-full flex-col justify-between space-y-1', invalidClass('timeTo'))}>
-            <FieldLabel>{side === 'pickup' ? u('postLoadModal.pickupTimeTo', 'Time to') : u('postLoadModal.deliveryTimeTo', 'Time to')}</FieldLabel>
+            <FieldLabel>{side === 'pickup' ? u('postLoadModal.pickupTimeTo', '') : u('postLoadModal.deliveryTimeTo', '')}</FieldLabel>
             <TimeInput value={value.timeTo} onChange={(timeTo) => onChange({ timeTo })} placeholder="hh:mm" />
           </div>
         </div>
@@ -223,8 +223,8 @@ export const RouteStopsColumn = ({
     >
       <Plus className="h-4 w-4" />
       {side === 'pickup'
-        ? u('postLoadModal.addPickupStop', 'Add another pickup address')
-        : u('postLoadModal.addDeliveryStop', 'Add another delivery address')}
+        ? u('postLoadModal.addPickupStop', '')
+        : u('postLoadModal.addDeliveryStop', '')}
     </button>
   </div>
 );

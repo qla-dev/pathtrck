@@ -1,3 +1,4 @@
+import { lenaText } from '../../lib/lenaCatalog';
 import { useEffect, useMemo, useState } from 'react';
 import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
 import { Activity, ArrowRight, Box, CalendarClock, Coins, Flag, Hash, MapPin, MapPinned, PackageCheck, Scale, Truck } from 'lucide-react';
@@ -18,17 +19,10 @@ const flagUrl = (code: string) => `https://flagcdn.com/w40/${code.toLowerCase()}
 export const LenaLocationChoiceCard = ({ lang, kind, onSelect }: { lang: Language; kind: 'pickup' | 'delivery'; onSelect: (location: LocationSearchResult) => void }) => {
   const [mapOpen, setMapOpen] = useState(false);
   const pickup = kind === 'pickup';
-  const title = lang === 'bs'
-    ? pickup ? 'Odaberite lokaciju preuzimanja' : 'Odaberite lokaciju isporuke'
-    : lang === 'de'
-      ? pickup ? 'Abholort auswählen' : 'Lieferort auswählen'
-      : pickup ? 'Choose pickup location' : 'Choose delivery location';
-  const description = lang === 'bs'
-    ? 'Pretražite adresu ili označite tačnu lokaciju na mapi.'
-    : lang === 'de'
-      ? 'Suchen Sie eine Adresse oder markieren Sie den genauen Ort auf der Karte.'
-      : 'Search for an address or mark the exact point on the map.';
-  const buttonLabel = lang === 'bs' ? 'Otvori mapu' : lang === 'de' ? 'Karte öffnen' : 'Open map';
+  const copy = lenaText(lang).location;
+  const title = copy[kind];
+  const description = copy.description;
+  const buttonLabel = copy.map_button;
 
   return (
     <>
@@ -70,7 +64,7 @@ export const LenaLoadStatusCard = ({ lang, load }: { lang: Language; load: Recor
       <div className="flex min-w-0 items-center gap-3">
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Activity className="h-5 w-5" /></span>
         <div className="min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">{u('Current load status', 'Current load status')}</p>
+          <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">{u('Current load status', '')}</p>
           <p className="mt-0.5 truncate text-sm font-black text-slate-900 dark:text-white">{String(load.title || load.booking_reference || `#${load.id}`)}</p>
           <p className="mt-0.5 text-[11px] text-slate-500">{String(load.booking_reference || `#${load.id}`)}</p>
         </div>
@@ -90,9 +84,9 @@ export const LenaLoadDetailsCard = ({ lang, load, onOpen }: LenaLoadDetailsCardP
   const currency = String(load.currency || 'EUR');
   const budget = load.budget == null ? '—' : `${currency} ${Number(load.budget).toLocaleString()}`;
   const details = [
-    { label: u('legacy.loadDetails.weight', 'Weight'), value: load.weight_kg ? `${Number(load.weight_kg).toLocaleString()} kg` : '—', icon: Scale },
-    { label: u('legacy.loadDetails.cargo', 'Cargo'), value: String(load.cargo_type || load.goods_type || '—'), icon: Box },
-    { label: u('legacy.loadDetails.price', 'Price'), value: budget, icon: Coins },
+    { label: u('legacy.loadDetails.weight', ''), value: load.weight_kg ? `${Number(load.weight_kg).toLocaleString()} kg` : '—', icon: Scale },
+    { label: u('legacy.loadDetails.cargo', ''), value: String(load.cargo_type || load.goods_type || '—'), icon: Box },
+    { label: u('legacy.loadDetails.price', ''), value: budget, icon: Coins },
     { label: 'ETA', value: String(delivery?.window_starts_at || delivery?.window_ends_at || '—').replace('T', ' ').slice(0, 16), icon: CalendarClock },
   ];
 
@@ -102,7 +96,7 @@ export const LenaLoadDetailsCard = ({ lang, load, onOpen }: LenaLoadDetailsCardP
       <div className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
         <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
           {kind === 'pickup' ? <MapPin className="h-3.5 w-3.5 text-sky-500" /> : <Flag className="h-3.5 w-3.5 text-rose-500" />}
-          {kind === 'pickup' ? u('legacy.loadDetails.pickup', 'Pickup') : u('legacy.loadDetails.delivery', 'Delivery')}
+          {kind === 'pickup' ? u('legacy.loadDetails.pickup', '') : u('legacy.loadDetails.delivery', '')}
         </p>
         <p className="mt-2 flex min-w-0 items-center gap-2 text-sm font-bold text-slate-800 dark:text-white">
           {/^[A-Z]{2}$/.test(code) && <img src={flagUrl(code)} alt={code} className="h-3.5 w-5 shrink-0 rounded-sm object-cover" />}
@@ -118,7 +112,7 @@ export const LenaLoadDetailsCard = ({ lang, load, onOpen }: LenaLoadDetailsCardP
         <div className="flex min-w-0 items-center gap-2">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-white"><Truck className="h-4 w-4" /></span>
           <div className="min-w-0">
-            <p className="truncate text-sm font-black text-slate-900 dark:text-white">{String(load.title || u('Load details', 'Load details'))}</p>
+            <p className="truncate text-sm font-black text-slate-900 dark:text-white">{String(load.title || u('Load details', ''))}</p>
             <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-400"><Hash className="h-3 w-3" />{String(load.booking_reference || `#${load.id}`)}</p>
           </div>
         </div>
@@ -134,7 +128,7 @@ export const LenaLoadDetailsCard = ({ lang, load, onOpen }: LenaLoadDetailsCardP
             </div>
           ))}
         </div>
-        {onOpen && <button type="button" onClick={onOpen} className="flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary text-xs font-black text-white transition-all hover:brightness-95">{u('View details', 'View details')}<ArrowRight className="h-4 w-4" /></button>}
+        {onOpen && <button type="button" onClick={onOpen} className="flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary text-xs font-black text-white transition-all hover:brightness-95">{u('View details', '')}<ArrowRight className="h-4 w-4" /></button>}
       </div>
     </div>
   );
@@ -148,7 +142,7 @@ export const LenaLocationCard = ({ lang, load }: { lang: Language; load: Record<
 
   const location = (stop: Record<string, unknown> | undefined, tone: 'emerald' | 'blue') => {
     const code = String(stop?.country_code || '').toUpperCase();
-    const city = String(stop?.city || u('Not specified', 'Not specified'));
+    const city = String(stop?.city || u('Not specified', ''));
     return (
       <div className="flex min-w-0 flex-1 items-center gap-2.5">
         <span className={tone === 'emerald' ? 'h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500' : 'h-2.5 w-2.5 shrink-0 rounded-full bg-blue-500'} />
@@ -182,9 +176,9 @@ const coordinate = (value: unknown) => {
 
 export const LenaLoadMapCard = ({ lang, load }: { lang: Language; load: Record<string, unknown> }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
-  const lastLocationLabel = u('Last available location', 'Last available location');
-  const pickupLocationLabel = u('Pickup location', 'Pickup location');
-  const unmappedLocationLabel = u('Location could not be mapped', 'Location could not be mapped');
+  const lastLocationLabel = u('Last available location', '');
+  const pickupLocationLabel = u('Pickup location', '');
+  const unmappedLocationLabel = u('Location could not be mapped', '');
   const shipment = (load.shipment || {}) as Record<string, unknown>;
   const events = Array.isArray(shipment.events) ? shipment.events as Array<Record<string, unknown>> : [];
   const stops = Array.isArray(load.stops) ? load.stops as Array<Record<string, unknown>> : [];
@@ -308,13 +302,13 @@ export const LenaBookingCard = ({ lang, load, onBook }: { lang: Language; load?:
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-white"><PackageCheck className="h-5 w-5" /></span>
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <p className="text-sm font-black text-slate-900 dark:text-white">{u('Direct booking', 'Direct booking')}</p>
+            <p className="text-sm font-black text-slate-900 dark:text-white">{u('Direct booking', '')}</p>
             {price && <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-black text-emerald-700 dark:text-emerald-300">{price}</span>}
           </div>
-          <p className="truncate text-xs text-slate-500 dark:text-slate-300">{u('Load ready for booking', 'This load is available for direct booking.')}</p>
+          <p className="truncate text-xs text-slate-500 dark:text-slate-300">{u('Load ready for booking', '')}</p>
         </div>
       </div>
-      <button type="button" onClick={() => void onBook()} className="flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-primary px-4 text-xs font-black text-white transition-all hover:brightness-95">{u('common.bookLoad', 'Reserve')}<ArrowRight className="h-4 w-4" /></button>
+      <button type="button" onClick={() => void onBook()} className="flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-primary px-4 text-xs font-black text-white transition-all hover:brightness-95">{u('common.bookLoad', '')}<ArrowRight className="h-4 w-4" /></button>
     </div>
   );
 };

@@ -1,3 +1,4 @@
+import { lenaText, getLenaCatalog } from '../../lib/lenaCatalog';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Bot, LayoutGrid, MessageCircle, Plus, Sparkles } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
@@ -69,21 +70,11 @@ const EMPTY_LENA_CONVERSATION_ID = '__new_lena_conversation__';
 // Exact openings of the auto-sent "your draft was created, continue the guided form?" message from
 // ConversationController::sendDraftFollowUp (one per locale) - matched so it can be treated like the
 // synthetic welcome message (no copy button) even though it's a real, server-created Message row.
-const DRAFT_CREATED_MESSAGE_PREFIXES = [
-  'Čestitamo, kreirali ste draft tereta!',
-  'Ihr Ladungsentwurf wurde erstellt.',
-  'Your load draft was created.',
-  // Last-mile delivery draft's custom celebratory welcome message (PostLoadModal.tsx's
-  // submitWithLastMile) - same "no copy button" treatment as the generic draft-created message.
-  'Čestitamo, uspješno ste objavili teret',
-  'Herzlichen Glückwunsch, Sie haben die Fracht erfolgreich veröffentlicht',
-  'Congratulations, you successfully posted the load',
-  // Storage request published with the follow-up road transport to the warehouse
-  // (PostLoadModal.tsx's startWarehouseTransportDraft).
-  'Čestitamo, uspješno ste objavili zahtjev za skladištenje',
-  'Herzlichen Glückwunsch, Sie haben Ihre Lageranfrage erfolgreich veröffentlicht',
-  'Congratulations, you successfully posted your storage request',
-];
+const DRAFT_CREATED_MESSAGE_PREFIXES = Object.values(getLenaCatalog().locales).flatMap((text) => [
+  text.draft_created,
+  text.ui['postLoadModal.lastMileWelcomeMessage'],
+  text.ui['postLoadModal.warehouseTransportWelcomeMessage'],
+]);
 const isDraftCreatedMessageBody = (body: string): boolean =>
   DRAFT_CREATED_MESSAGE_PREFIXES.some((prefix) => body.startsWith(prefix));
 
@@ -94,21 +85,8 @@ const isSyntheticWelcomeId = (id: string): boolean => id.startsWith('welcome-') 
 
 export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill, onBulkImported, refreshSignal, newChatSignal, openConversationId, onConversationOpened, onUpgrade, onTopUp }: MessagesViewProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
-  const quickActionLabels = useMemo<Record<LenaQuickAction, string>>(() => ({
-    add: u('Add a new load', 'Add a new load'),
-    storage: u('Store goods', 'Store goods'),
-    tracking: u('Check load status', 'Check load status'),
-    booking: u('Reserve a load', 'Reserve a load'),
-    hs: u('Check HS code', 'Check HS code'),
-    free: u('Ask about Freightbook.ai', 'Ask about Freightbook.ai'),
-    upload_yes: u('Yes, I have a file', 'Yes, I have a file'),
-    upload_no: u('No, enter it manually', 'No, enter it manually'),
-    start_add_yes: u('Yes, start creating', 'Yes, start creating'),
-    start_add_no: u('No, not now', 'No, not now'),
-    continue_add_yes: u('Yes, continue', 'Yes, continue'),
-    continue_add_no: u('No, leave load creation', 'No, leave load creation'),
-  }), [lang]);
-  const generalWelcome = `${u('Lena welcome general', 'Hello, I am LenaAI, your AI dispatcher in Freightbook.ai.\n\nYou can write to me in any language. I will reply exclusively in the language you use. How can I help you today?')}\n\n[[LENA_OPTIONS:add,storage,tracking,booking,hs,free]]`;
+  const quickActionLabels = lenaText(lang).actions as Record<LenaQuickAction, string>;
+  const generalWelcome = lenaText(lang).welcome.general;
   const result = useApiList(api.conversations.list, { per_page: 10 });
   const isInitialRefreshSignal = useRef(true);
   useEffect(() => {

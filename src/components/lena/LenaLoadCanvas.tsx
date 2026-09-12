@@ -36,7 +36,7 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftI
   // The backend carries the draft forward on every scan, so the most recently scanned
   // attachment already reflects the full, up-to-date state of the load (see latestLoadScan).
   const mergedScan = useMemo(() => latestLoadScan(attachments) ?? null, [attachments]);
-  const rows = mergedScan ? buildScanFieldRows(mergedScan) : [];
+  const rows = mergedScan ? buildScanFieldRows(mergedScan, lang || 'en') : [];
   const patch = {
     ...rows.reduce<ScanFieldPatch>((result, row) => ({ ...result, ...row.patch }), {}),
     ...(mergedScan?.storageTarget ? { storageTarget: mergedScan.storageTarget as 'own' | 'exchange' } : {}),
@@ -136,7 +136,7 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftI
             {mode === 'bulk' ? <FileSpreadsheet className="h-5 w-5" /> : <PackagePlus className="h-5 w-5" />}
           </span>
           <p className="text-sm font-black text-slate-900 dark:text-white">
-            {mode === 'bulk' ? u('LenaAI bulk canvas', 'Bulk load canvas') : u('LenaAI new load canvas', 'New load canvas')}
+            {mode === 'bulk' ? u('LenaAI bulk canvas', '') : u('LenaAI new load canvas', '')}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -144,7 +144,7 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftI
           // The paperwork already collected for this draft, in the same chip shape as the autosave
           // badge beside it so the two read as one status line rather than two controls.
           <span
-            title={u('documents.draftCount', 'Documents on this draft')}
+            title={u('documents.draftCount', '')}
             className="flex shrink-0 items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
           >
             <FileText className="h-3 w-3" />
@@ -156,12 +156,12 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftI
             type="button"
             onClick={() => void saveDraftNow()}
             disabled={quickSaving}
-            title={u('postLoadModal.draftAutosaved', 'Autosaved')}
+            title={u('postLoadModal.draftAutosaved', '')}
             className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary transition-colors hover:bg-primary/15 disabled:cursor-wait disabled:opacity-70 dark:border-primary/30 dark:bg-primary/15 dark:hover:bg-primary/20"
           >
             {quickSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
             <span className="whitespace-nowrap">
-              {u('postLoadModal.draftAutosaved', 'Autosaved')}
+              {u('postLoadModal.draftAutosaved', '')}
               {lastSavedAt ? ` · ${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
             </span>
           </button>
@@ -174,8 +174,8 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftI
           <Sparkles className="h-6 w-6 text-slate-300 dark:text-slate-600" />
           <p className="text-xs text-slate-400 dark:text-slate-500">
             {mode === 'bulk'
-              ? u('Attach a file and LenaAI will extract your loads here', 'Attach a file and LenaAI will extract your loads here')
-              : u('LenaAI will collect your load details here as you chat', 'LenaAI will collect your load details here as you chat')}
+              ? u('Attach a file and LenaAI will extract your loads here', '')
+              : u('LenaAI will collect your load details here as you chat', '')}
           </p>
         </div>
       )}
@@ -184,7 +184,7 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftI
         <div className="min-h-0 flex-1 overflow-y-auto p-3">
           {bulkRows.length > 0 ? (
             <div className="space-y-4">
-              <div className="rounded-2xl bg-primary/10 p-4 text-sm font-bold text-primary">{bulkRows.length} {u('loads detected', 'loads detected')}</div>
+              <div className="rounded-2xl bg-primary/10 p-4 text-sm font-bold text-primary">{bulkRows.length} {u('loads detected', '')}</div>
               <BulkLoadRowsTable rows={bulkRows} />
             </div>
           ) : (
@@ -216,7 +216,7 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftI
         <div className="border-t border-slate-100 p-3 dark:border-slate-800">
           {loadId ? (
             <button type="button" onClick={() => onOpenLoad?.(loadId)} className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary text-xs font-black text-white transition-colors hover:bg-primary-dark">
-              {u('Edit load', 'Edit load')}
+              {u('Edit load', '')}
               <ChevronRight className="h-3.5 w-3.5" />
             </button>
           ) : (
@@ -224,8 +224,8 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftI
               {/* The count is how much has been collected so far - the same rows listed above, so
                   the button says what is being carried into the form rather than just where it goes. */}
               {draftId
-                ? u('postLoadModal.continueEditing', 'Nastavi sa draftom')
-                : u('postLoadModal.saveDraftAndContinue', 'Spasi draft i provjeri')}
+                ? u('postLoadModal.continueEditing', '')
+                : u('postLoadModal.saveDraftAndContinue', '')}
               {` (${rows.length})`}
               {savingDraft ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ChevronRight className="h-3.5 w-3.5" />}
             </button>
@@ -237,7 +237,7 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftI
         <div className="border-t border-slate-100 p-4 dark:border-slate-800">
           <button type="button" onClick={() => void importRows()} disabled={importing} className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-black text-white disabled:opacity-50">
             {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-            {u('Import loads', 'Import loads')} ({bulkRows.length})
+            {u('Import loads', '')} ({bulkRows.length})
           </button>
         </div>
       )}

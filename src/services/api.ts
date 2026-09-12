@@ -525,6 +525,7 @@ export const resourceApi = <T extends Record<string, unknown>>(resource: string)
 });
 
 export const api = {
+  lenaCatalog: () => request<import('../lib/lenaCatalog').LenaCatalogData>('/lena/catalog'),
   health: () => request<{ status: string; timestamp: string }>('/health'),
   aircraft: {
     list: (params: { south: number; west: number; north: number; east: number; search?: string }) =>

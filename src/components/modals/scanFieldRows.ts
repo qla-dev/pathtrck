@@ -1,3 +1,4 @@
+import { lenaText } from '../../lib/lenaCatalog';
 import type { LucideIcon } from 'lucide-react';
 import {
   Apple,
@@ -238,14 +239,14 @@ export const resolveHsCodes = async (hsCodes: HsCodeMatch[], lang?: Language): P
 const TRANSPORT_TYPE_LABELS: Record<string, string> = { road: 'Road', air: 'Air', sea: 'Sea', warehouse: 'Warehouse' };
 const PRICE_TERMS_LABELS: Record<string, string> = { fixed: 'Fixed price', negotiable: 'Open to offers' };
 
-export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
+export const buildScanFieldRows = (result: LoadScanResult, lang: string = 'en'): ScanFieldRow[] => {
   const rows: ScanFieldRow[] = [];
 
   if (result.consignee?.id) {
     const consignee = customerOptionFromRecord(result.consignee);
     rows.push({
       key: 'consignee',
-      label: 'Consignee',
+      label: lenaText(lang).ui["Consignee"],
       value: consignee.text,
       patch: { consignee },
       icon: UsersRound,
@@ -253,13 +254,13 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
   }
 
   if (result.title) {
-    rows.push({ key: 'title', label: 'Title', value: result.title, patch: { loadTitle: result.title }, icon: Hash });
+    rows.push({ key: 'title', label: lenaText(lang).ui["Title"], value: result.title, patch: { loadTitle: result.title }, icon: Hash });
   }
 
   if (result.transportType === 'road' || result.transportType === 'air' || result.transportType === 'sea' || result.transportType === 'rail' || result.transportType === 'warehouse') {
     rows.push({
       key: 'transportType',
-      label: 'Transport type',
+      label: lenaText(lang).ui["Transport type"],
       value: TRANSPORT_TYPE_LABELS[result.transportType] || result.transportType,
       patch: { transportType: result.transportType },
       icon: Route,
@@ -268,13 +269,13 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
 
   const goodsType = result.goodsType || result.cargoType;
   if (goodsType) {
-    rows.push({ key: 'goodsType', label: 'Goods type', value: goodsType, patch: { goodsType }, icon: Tag });
+    rows.push({ key: 'goodsType', label: lenaText(lang).ui["Goods type"], value: goodsType, patch: { goodsType }, icon: Tag });
   }
 
   if (result.hsCodes?.length) {
     rows.push({
       key: 'hsCodes',
-      label: 'HS code',
+      label: lenaText(lang).ui["HS code"],
       value: result.hsCodes.map((item) => `${item.code} - ${item.description}`).join('\n'),
       patch: { hsCodes: result.hsCodes },
       icon: Barcode,
@@ -284,7 +285,7 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
   if (result.weightKg) {
     rows.push({
       key: 'weight',
-      label: 'Weight',
+      label: lenaText(lang).ui["Weight"],
       value: `${result.weightKg} kg`,
       patch: { weightKg: String(result.weightKg / 1000) },
       icon: Scale,
@@ -294,7 +295,7 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
   if (result.pallets) {
     rows.push({
       key: 'pallets',
-      label: 'Pallets / units',
+      label: lenaText(lang).ui["Pallets / units"],
       value: String(result.pallets),
       patch: { pallets: String(result.pallets) },
       icon: Layers,
@@ -304,7 +305,7 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
   if (result.bodyType) {
     rows.push({
       key: 'bodyType',
-      label: 'Trailer / body type',
+      label: lenaText(lang).ui["Trailer / body type"],
       value: result.bodyType,
       patch: { bodyTypes: [result.bodyType] },
       icon: Truck,
@@ -314,7 +315,7 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
   if (result.lengthM || result.widthM || result.heightM || result.volumeM3) {
     rows.push({
       key: 'dimensions',
-      label: 'Dimensions / volume',
+      label: lenaText(lang).ui["Dimensions / volume"],
       value: [result.lengthM && `L ${result.lengthM} m`, result.widthM && `W ${result.widthM} m`, result.heightM && `H ${result.heightM} m`, result.volumeM3 && `${result.volumeM3} m³`].filter(Boolean).join(' · '),
       patch: {
         ...(result.lengthM ? { lengthM: String(result.lengthM) } : {}),
@@ -327,12 +328,12 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
     });
   }
 
-  if (result.vehicleType) rows.push({ key: 'vehicleType', label: 'Vehicle', value: result.vehicleType, patch: { vehicleType: result.vehicleType }, icon: Car });
+  if (result.vehicleType) rows.push({ key: 'vehicleType', label: lenaText(lang).ui["Vehicle"], value: result.vehicleType, patch: { vehicleType: result.vehicleType }, icon: Car });
 
   if (result.loadingEquipment) {
     rows.push({
       key: 'loadingEquipment',
-      label: 'Loading equipment',
+      label: lenaText(lang).ui["Loading equipment"],
       value: result.loadingEquipment,
       patch: { loadingEquipment: [result.loadingEquipment] },
       icon: Forklift,
@@ -340,14 +341,14 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
   }
 
   if (result.characteristics) {
-    rows.push({ key: 'characteristics', label: 'Characteristics', value: result.characteristics, patch: { characteristics: [result.characteristics] }, icon: ClipboardList });
+    rows.push({ key: 'characteristics', label: lenaText(lang).ui["Characteristics"], value: result.characteristics, patch: { characteristics: [result.characteristics] }, icon: ClipboardList });
   }
 
   const specialRequirements = result.specialRequirements || [];
   if (specialRequirements.length > 0) {
     rows.push({
       key: 'specialRequirements',
-      label: 'Special requirements',
+      label: lenaText(lang).ui["Special requirements"],
       value: specialRequirements.join(' · '),
       patch: { specialRequirements },
       icon: ListChecks,
@@ -355,17 +356,17 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
   }
 
   if (result.transportMode) {
-    rows.push({ key: 'transportMode', label: 'Transport mode', value: result.transportMode, patch: { transportMode: result.transportMode }, icon: Milestone });
+    rows.push({ key: 'transportMode', label: lenaText(lang).ui["Transport mode"], value: result.transportMode, patch: { transportMode: result.transportMode }, icon: Milestone });
   }
 
   if (result.deliveryProof) {
-    rows.push({ key: 'deliveryProof', label: 'Delivery proof', value: result.deliveryProof, patch: { deliveryProof: result.deliveryProof }, icon: FileCheck2 });
+    rows.push({ key: 'deliveryProof', label: lenaText(lang).ui["Delivery proof"], value: result.deliveryProof, patch: { deliveryProof: result.deliveryProof }, icon: FileCheck2 });
   }
 
   if (result.pickupCity || result.pickupPostalCode || result.pickupCountryCode || result.pickupAddress) {
     rows.push({
       key: 'pickup',
-      label: 'Pickup',
+      label: lenaText(lang).ui["Pickup"],
       value: [result.pickupAddress, result.pickupPostalCode, result.pickupCity, result.pickupCountryCode].filter(Boolean).join(', '),
       patch: {
         ...(result.pickupCity ? { pickupCity: result.pickupCity } : {}),
@@ -384,7 +385,7 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
     const timeRange = [result.pickupTimeFrom, result.pickupTimeTo].filter(Boolean).join(' - ');
     rows.push({
       key: 'pickupDate',
-      label: 'Pickup date',
+      label: lenaText(lang).ui["Pickup date"],
       value: [dateRange, timeRange].filter(Boolean).join(', '),
       patch: {
         ...(result.pickupDate ? { pickupDate: toDisplayDate(result.pickupDate) } : {}),
@@ -399,7 +400,7 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
   if (result.deliveryCity || result.deliveryPostalCode || result.deliveryCountryCode || result.deliveryAddress) {
     rows.push({
       key: 'delivery',
-      label: 'Delivery',
+      label: lenaText(lang).ui["Delivery"],
       value: [result.deliveryAddress, result.deliveryPostalCode, result.deliveryCity, result.deliveryCountryCode].filter(Boolean).join(', '),
       patch: {
         ...(result.deliveryCity ? { deliveryCity: result.deliveryCity } : {}),
@@ -418,7 +419,7 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
     const timeRange = [result.deliveryTimeFrom, result.deliveryTimeTo].filter(Boolean).join(' - ');
     rows.push({
       key: 'deliveryDate',
-      label: 'Delivery date',
+      label: lenaText(lang).ui["Delivery date"],
       value: [dateRange, timeRange].filter(Boolean).join(', '),
       patch: {
         ...(result.deliveryDate ? { deliveryDate: toDisplayDate(result.deliveryDate) } : {}),
@@ -433,7 +434,7 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
   if (result.budget) {
     rows.push({
       key: 'budget',
-      label: 'Budget',
+      label: lenaText(lang).ui["Budget"],
       value: `${result.budget} ${result.currency || 'EUR'}`,
       patch: { budget: String(result.budget), freightCurrency: result.currency || 'EUR' },
       icon: Coins,
@@ -443,7 +444,7 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
   if (result.priceTerms) {
     rows.push({
       key: 'priceTerms',
-      label: 'Pricing',
+      label: lenaText(lang).ui["Pricing"],
       value: PRICE_TERMS_LABELS[result.priceTerms] || result.priceTerms,
       patch: { receivePriceProposals: result.priceTerms !== 'fixed' },
       icon: Handshake,
@@ -453,7 +454,7 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
   if (result.declaredValue) {
     rows.push({
       key: 'declaredValue',
-      label: 'Cargo value',
+      label: lenaText(lang).ui["Cargo value"],
       value: `${result.declaredValue} ${result.declaredValueCurrency || result.currency || 'EUR'}`,
       patch: { declaredValue: String(result.declaredValue), shipmentValueCurrency: result.declaredValueCurrency || result.currency || 'EUR' },
       icon: Banknote,
@@ -463,7 +464,7 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
   if (result.incoterm || result.paymentDueDays) {
     rows.push({
       key: 'terms',
-      label: 'Commercial terms',
+      label: lenaText(lang).ui["Commercial terms"],
       value: [result.incoterm, result.paymentDueDays ? `${result.paymentDueDays} days` : ''].filter(Boolean).join(' · '),
       patch: {
         ...(result.incoterm ? { incoterm: result.incoterm } : {}),
@@ -476,7 +477,7 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
   if (result.temperatureMin !== null || result.temperatureMax !== null) {
     rows.push({
       key: 'temperature',
-      label: 'Temperature',
+      label: lenaText(lang).ui["Temperature"],
       value: `${result.temperatureMin ?? '—'} °C to ${result.temperatureMax ?? '—'} °C`,
       patch: { temperatureControlled: true, temperatureMin: result.temperatureMin == null ? '' : String(result.temperatureMin), temperatureMax: result.temperatureMax == null ? '' : String(result.temperatureMax) },
       icon: Thermometer,
@@ -500,7 +501,7 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
   if (requirementLabels.length > 0) {
     rows.push({
       key: 'requirements',
-      label: 'Requirements',
+      label: lenaText(lang).ui["Requirements"],
       value: requirementLabels.join(' · '),
       patch: {
         ...(result.requiresAdr ? { requiresAdr: true } : {}),
@@ -523,7 +524,7 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
   if (result.contactName || result.contactPhone || result.contactMobile || result.contactFax || result.contactEmail) {
     rows.push({
       key: 'contact',
-      label: 'Contact',
+      label: lenaText(lang).ui["Contact"],
       value: [result.contactName, result.contactPhone, result.contactMobile, result.contactEmail].filter(Boolean).join(' · '),
       patch: {
         ...(result.contactName ? { contactName: result.contactName } : {}),
@@ -546,7 +547,7 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
   if (result.bookingReference) {
     rows.push({
       key: 'bookingReference',
-      label: 'Booking reference',
+      label: lenaText(lang).ui["Booking reference"],
       value: result.bookingReference,
       patch: { bookingReference: result.bookingReference },
       icon: Barcode,
@@ -571,7 +572,7 @@ export const buildScanFieldRows = (result: LoadScanResult): ScanFieldRow[] => {
   if (result.notes) {
     rows.push({
       key: 'notes',
-      label: 'Notes',
+      label: lenaText(lang).ui["Notes"],
       value: result.notes,
       patch: { notes: combinedNotes },
       icon: StickyNote,

@@ -77,14 +77,14 @@ export const DocumentTypeToggleCard = ({
       icon={icon}
       title={title}
       description={description}
-      summary={documents.length > 0 ? `${documents.length} ${u('documents.tab', 'Documents')}` : ''}
-      emptyHint={loading ? u('common.loading', 'Loading...') : u('documents.noneAttached', 'No files yet')}
+      summary={documents.length > 0 ? `${documents.length} ${u('documents.tab', '')}` : ''}
+      emptyHint={loading ? u('common.loading', '') : u('documents.noneAttached', '')}
     >
       {documents.length === 0 ? (
         <p className="px-1 py-2 text-[11px] font-semibold text-slate-500">
           {loading
-            ? <span className="inline-flex items-center gap-1.5"><Loader2 className="h-3 w-3 animate-spin" />{u('common.loading', 'Loading...')}</span>
-            : u('documents.noneAttachedHint', 'Files attached to this load appear here.')}
+            ? <span className="inline-flex items-center gap-1.5"><Loader2 className="h-3 w-3 animate-spin" />{u('common.loading', '')}</span>
+            : u('documents.noneAttachedHint', '')}
         </p>
       ) : (
         <ul className="max-h-64 space-y-1 overflow-y-auto">
@@ -93,7 +93,7 @@ export const DocumentTypeToggleCard = ({
               <button
                 type="button"
                 onClick={() => void api.documents.open(document.id, document.name, true)}
-                title={u('documents.openInNewTab', 'Open in a new tab')}
+                title={u('documents.openInNewTab', '')}
                 className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
               >
                 <ExternalLink className="h-3.5 w-3.5 shrink-0 text-primary" />

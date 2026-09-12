@@ -1,3 +1,4 @@
+import { lenaText } from '../../lib/lenaCatalog';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Bot, LayoutGrid, MessageCircle, Plus, Sparkles, X } from 'lucide-react';
@@ -83,7 +84,7 @@ function PublicTrackingLenaAI({ open, onClose, lang, trackingNumber }: LenaAIPro
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [open, onClose]);
 
-  const requestText = u('landing.tracking.request', 'Find package {number}').replace('{number}', trackingNumber);
+  const requestText = u('landing.tracking.request', '').replace('{number}', trackingNumber);
   const embeddedTracking = useMemo(() => {
     if (!result) return null;
     const nestedId = result.load?.id;
@@ -115,8 +116,8 @@ function PublicTrackingLenaAI({ open, onClose, lang, trackingNumber }: LenaAIPro
       id: `public-track-answer-${lookupVersion}`,
       sender: 'other' as const,
       text: result
-        ? `${u('landing.tracking.found', 'I found the shipment. Here are its current details.')}\n[[LOAD_DETAILS:${embeddedTracking?.loadId ?? '0'}]]`
-        : u('landing.tracking.notFound', 'I could not find a shipment with that tracking number. Check the number and try again.'),
+        ? `${u('landing.tracking.found', '')}\n[[LOAD_DETAILS:${embeddedTracking?.loadId ?? '0'}]]`
+        : u('landing.tracking.notFound', ''),
       time: '',
     }] : []),
   ], [embeddedTracking, lookupVersion, requestText, result, thinking, lang]);
@@ -132,7 +133,7 @@ function PublicTrackingLenaAI({ open, onClose, lang, trackingNumber }: LenaAIPro
   });
   const conversation = useMemo<Conversation>(() => ({
     id: `public-tracking-${trackingNumber}`,
-    name: u('New LenaAI conversation', 'New LenaAI conversation'),
+    name: u('New LenaAI conversation', ''),
     role: 'LenaAI',
     channel: 'inapp',
     online: true,
@@ -146,7 +147,7 @@ function PublicTrackingLenaAI({ open, onClose, lang, trackingNumber }: LenaAIPro
     <AnimatePresence>
       {open && (
         <motion.div className="fixed inset-0 z-[300] bg-white dark:bg-slate-950" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2, ease: 'easeOut' }}>
-          <button type="button" onClick={onClose} aria-label={u('login.close', 'Close')} className="absolute right-0 top-0 z-50 flex h-10 w-10 cursor-pointer items-center justify-center rounded-bl-xl border-b border-l border-slate-200 bg-slate-100 text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+          <button type="button" onClick={onClose} aria-label={u('login.close', '')} className="absolute right-0 top-0 z-50 flex h-10 w-10 cursor-pointer items-center justify-center rounded-bl-xl border-b border-l border-slate-200 bg-slate-100 text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
             <X className="h-5 w-5" />
           </button>
           <motion.div className="flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-white p-4 dark:bg-slate-950 md:p-7" initial={{ opacity: 0, y: 24, scale: 0.992 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 16, scale: 0.996 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}>
@@ -155,14 +156,14 @@ function PublicTrackingLenaAI({ open, onClose, lang, trackingNumber }: LenaAIPro
               draft=""
               onDraftChange={() => undefined}
               onSend={() => undefined}
-              messagePlaceholder={u('Write a message...', 'Write a message...')}
+              messagePlaceholder={u('Write a message...', '')}
               className="min-h-[320px] min-w-0 flex-1"
               otherTyping={thinking}
-              thinkingLabel={u('Thinking', 'Thinking')}
+              thinkingLabel={u('Thinking', '')}
               renderMessageExtra={renderMessageExtra}
               extraContentVersion={extraContentVersion}
               inputLocked
-              inputLockedPlaceholder={u('landing.tracking.readOnly', 'Tracking result')}
+              inputLockedPlaceholder={u('landing.tracking.readOnly', '')}
               headerActions={(
                 <button type="button" onClick={() => {
                   setResult(null);
@@ -170,7 +171,7 @@ function PublicTrackingLenaAI({ open, onClose, lang, trackingNumber }: LenaAIPro
                   setLookupVersion((current) => current + 1);
                 }} className="flex h-10 cursor-pointer items-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-3 text-xs font-bold text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
                   <Plus className="h-4 w-4" />
-                  {u('New chat', 'New chat')}
+                  {u('New chat', '')}
                 </button>
               )}
             />
@@ -184,21 +185,8 @@ function PublicTrackingLenaAI({ open, onClose, lang, trackingNumber }: LenaAIPro
 
 function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, loadLabel, onBookLoad, onOpenLoad, initialCanvasMode = null, sideBarMode = false, onApplyLoadPrefill, onBulkImported, onUpgrade, onTopUp }: LenaAIProps) {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
-  const quickActionLabels = {
-    add: u('Add a new load', 'Add a new load'),
-    storage: u('Store goods', 'Store goods'),
-    tracking: u('Check load status', 'Check load status'),
-    booking: u('Reserve a load', 'Reserve a load'),
-    hs: u('Check HS code', 'Check HS code'),
-    free: u('Ask about Freightbook.ai', 'Ask about Freightbook.ai'),
-    upload_yes: u('Yes, I have a file', 'Yes, I have a file'),
-    upload_no: u('No, enter it manually', 'No, enter it manually'),
-    start_add_yes: u('Yes, start creating', 'Yes, start creating'),
-    start_add_no: u('No, not now', 'No, not now'),
-    continue_add_yes: u('Yes, continue', 'Yes, continue'),
-    continue_add_no: u('No, leave load creation', 'No, leave load creation'),
-  } as const;
-  const generalWelcome = `${u('Lena welcome general', 'Hello, I am LenaAI, your AI dispatcher in Freightbook.ai.\n\nYou can write to me in any language. I will reply exclusively in the language you use. How can I help you today?')}\n\n[[LENA_OPTIONS:add,storage,tracking,booking,hs,free]]`;
+  const quickActionLabels = lenaText(lang).actions as Record<import('../../lib/useLenaAiChat').LenaQuickAction, string>;
+  const generalWelcome = lenaText(lang).welcome.general;
 
   useEffect(() => {
     if (!open) return undefined;
@@ -215,13 +203,11 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
     loadId,
     loadLabel,
     lang,
-    welcomeRole: u('LenaAI', 'LenaAI'),
-    welcomeText: loadId
-      ? u('Lena welcome about load', 'Ask me about this load. I help drivers and dispatchers with pickup and delivery, cargo, timing, documents, and next steps.\n\nI check the latest available load data with every reply. Ask me for its current status or help preparing an update.')
-      : generalWelcome,
-    sendFailedTitle: u('Message could not be sent', 'Message could not be sent'),
-    replyFailedTitle: u('chat.replyFailed', 'LenaAI could not reply'),
-    newConversationLabel: u('New LenaAI conversation', 'New LenaAI conversation'),
+    welcomeRole: u('LenaAI', ''),
+    welcomeText: loadId ? lenaText(lang).welcome.load : generalWelcome,
+    sendFailedTitle: u('Message could not be sent', ''),
+    replyFailedTitle: u('chat.replyFailed', ''),
+    newConversationLabel: u('New LenaAI conversation', ''),
     initialCanvasMode,
     quickActionLabels,
     active: open,
@@ -268,25 +254,25 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
   const displayConversation = useMemo(() => ({
     ...conversation,
     name: loadId ? (loadLabel || loadId) : conversation.name,
-    role: loadId ? u('Ask me about the load', 'Ask me about the load') : conversation.role,
+    role: loadId ? u('Ask me about the load', '') : conversation.role,
     messages: displayMessages,
   }), [conversation, displayMessages, loadId, loadLabel, lang]);
   const [channelFilter, setChannelFilter] = useState('all');
   const channels = [
-    { id: 'all', label: u('All', 'All'), icon: LayoutGrid },
-    { id: 'ai', label: u('LenaAI', 'LenaAI'), icon: Bot },
-    { id: 'direct', label: u('Direct messages', 'Direct messages'), icon: MessageCircle },
+    { id: 'all', label: u('All', ''), icon: LayoutGrid },
+    { id: 'ai', label: u('LenaAI', ''), icon: Bot },
+    { id: 'direct', label: u('Direct messages', ''), icon: MessageCircle },
   ];
   const visibleSidebarConversations = channelFilter === 'direct' ? [] : sidebarConversations;
 
   const handleNewChat = async () => {
     const confirmed = await confirmAction({
-      title: u('Start a new chat?', 'Start a new chat?'),
+      title: u('Start a new chat?', ''),
       text: u(
         'This starts a fresh conversation with LenaAI. Your current chat is kept and still visible in Messages.',
-        'This starts a fresh conversation with LenaAI. Your current chat is kept and still visible in Messages.'
+        ''
       ),
-      confirmText: u('New chat', 'New chat'),
+      confirmText: u('New chat', ''),
     });
     if (confirmed) startNewChat();
   };
@@ -297,7 +283,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
         <motion.div
           className={sideBarMode ? "fixed inset-y-0 right-0 z-[300] w-full border-l border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 lg:w-[440px] xl:w-[480px]" : "fixed inset-0 z-[300] bg-white dark:bg-slate-950"}
           role="dialog"
-          aria-label={loadId ? u('Ask me about the load', 'Ask me about the load') : 'LenaAI'}
+          aria-label={loadId ? u('Ask me about the load', '') : 'LenaAI'}
           initial={{ opacity: 0, x: sideBarMode ? 440 : 0 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: sideBarMode ? 440 : 0 }}
@@ -306,7 +292,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
           <button
             type="button"
             onClick={onClose}
-            aria-label={u('login.close', 'Close')}
+            aria-label={u('login.close', '')}
             className="absolute right-0 top-0 z-50 flex h-10 w-10 cursor-pointer items-center justify-center rounded-bl-xl border-b border-l border-slate-200 bg-slate-100 text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
           >
             <X className="h-5 w-5" />
@@ -322,15 +308,15 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
               {!loadId && (
                 <ChatSidebar
                   compact={showCanvas}
-                  searchPlaceholder={u('Search messages...', 'Search messages...')}
-                  compactSearchPlaceholder={u('Search', 'Search')}
+                  searchPlaceholder={u('Search messages...', '')}
+                  compactSearchPlaceholder={u('Search', '')}
                   channels={channels}
                   channelFilter={channelFilter}
                   onChannelFilterChange={setChannelFilter}
                   conversations={visibleSidebarConversations}
                   activeConversationId={conversation.id}
                   onSelectConversation={selectConversation}
-                  statusText={(chat) => chat.status === 'load-detected' ? u('Load detected', 'Load detected') : u('Draft', 'Draft')}
+                  statusText={(chat) => chat.status === 'load-detected' ? u('Load detected', '') : u('Draft', '')}
                 />
               )}
               <div className="flex min-h-0 flex-1 gap-4">
@@ -339,26 +325,26 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
                 draft={draft}
                 onDraftChange={setDraft}
                 onSend={() => void send()}
-                messagePlaceholder={u('Write a message...', 'Write a message...')}
+                messagePlaceholder={u('Write a message...', '')}
                 className="min-h-[320px] min-w-0 flex-1"
                 otherTyping={sending}
-                thinkingLabel={u('Thinking', 'Thinking')}
+                thinkingLabel={u('Thinking', '')}
                 renderMessageExtra={renderMessageExtra}
                 extraContentVersion={extraContentVersion}
                 inputMask={lenaStepInputMask(pendingStep, lang)}
                 inputLocked={pendingStepHasOptions}
-                inputLockedPlaceholder={u('chat.chooseOptionAbove', 'Choose an option above')}
+                inputLockedPlaceholder={u('chat.chooseOptionAbove', '')}
                 onAttachFile={attachFile}
                 attachmentAccept={LENA_LOAD_FILE_ACCEPT}
                 attachmentBusy={processingAttachment}
                 sendBusy={sending || processingAttachment}
-                attachmentDropLabel={u('Drop file for LenaAI', 'Drop file for LenaAI')}
-                notSentMessageLabel={u('chat.notSent', 'Not sent')}
-                retryMessageLabel={u('chat.retry', 'Retry')}
-                copyMessageLabel={u('chat.copy', 'Copy message')}
-                copiedMessageLabel={u('chat.copied', 'Copied')}
-                uploadingMessageLabel={u('Uploading...', 'Uploading...')}
-                attachmentOpenFailedLabel={u('The file could not be opened', 'The file could not be opened')}
+                attachmentDropLabel={u('Drop file for LenaAI', '')}
+                notSentMessageLabel={u('chat.notSent', '')}
+                retryMessageLabel={u('chat.retry', '')}
+                copyMessageLabel={u('chat.copy', '')}
+                copiedMessageLabel={u('chat.copied', '')}
+                uploadingMessageLabel={u('Uploading...', '')}
+                attachmentOpenFailedLabel={u('The file could not be opened', '')}
                 headerActions={(
                   <div className="flex items-center gap-2">
                   <button
@@ -367,7 +353,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
                     className="flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-3 text-xs font-bold text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 cursor-pointer"
                   >
                     <Plus className="h-4 w-4" />
-                    {u('New chat', 'New chat')}
+                    {u('New chat', '')}
                   </button>
                   {!loadId && <button
                     type="button"
@@ -378,7 +364,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
                     className={`relative flex h-10 cursor-pointer items-center gap-2 rounded-full border px-3 text-xs font-bold transition-all ${showCanvas ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-slate-100 text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}
                   >
                     <Sparkles className="h-4 w-4" />
-                    {showCanvas ? u('Hide draft panel', 'Hide draft panel') : u('Draft panel', 'Draft panel')}
+                    {showCanvas ? u('Hide draft panel', '') : u('Draft panel', '')}
                     <span className="absolute -top-2 -right-2 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-primary px-1 text-[10px] font-black text-white dark:border-slate-950">
                       {collectedFieldCount}
                     </span>

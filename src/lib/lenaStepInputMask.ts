@@ -1,3 +1,4 @@
+import { lenaText } from './lenaCatalog';
 import { Language } from '../types';
 
 // Live-formats the chat draft field while a specific LenaAI questionnaire step is pending, and
@@ -51,24 +52,16 @@ export const formatDateInput = (value: string): string => {
 // These free-text steps are regex-constrained by the masks below, so a typed answer is already an
 // unambiguous value by the time it's submitted - sendMessage()'s callers route them through the
 // deterministic guided-answer endpoint (see LenaGuidedAnswerController) instead of the AI path.
-export const MASKABLE_GUIDED_STEPS = ['weight', 'pallets', 'dimensions', 'budget', 'declaredValue', 'pickupDate', 'deliveryDate'];
+export const MASKABLE_GUIDED_STEPS = { includes: (step: string) => Boolean(lenaText('en').steps[step]?.mask) };
 
-type StepInputMaskConfig = { unit: (lang: Language) => string; format: (value: string) => string };
-
-const STEP_INPUT_MASKS: Record<string, StepInputMaskConfig> = {
-  weight: { unit: () => 'kg', format: digitsOnly },
-  pallets: { unit: (lang) => (lang === 'bs' ? 'kom' : lang === 'de' ? 'Stk' : 'pcs'), format: digitsOnly },
-  dimensions: { unit: () => 'm', format: formatDimensionsInput },
-  budget: { unit: () => '', format: decimalValue },
-  declaredValue: { unit: () => '', format: decimalValue },
-  pickupDate: { unit: () => '', format: formatDateInput },
-  deliveryDate: { unit: () => '', format: formatDateInput },
+const FORMATS: Record<string, (value: string) => string> = {
+  integer: digitsOnly, decimal: decimalValue, dimensions: formatDimensionsInput, date: formatDateInput,
 };
 
 export const lenaStepInputMask = (step: string | null | undefined, lang: Language): { unit?: string; format: (value: string) => string } | null => {
   if (!step) return null;
-  const config = STEP_INPUT_MASKS[step];
-  if (!config) return null;
-  const unit = config.unit(lang);
-  return { unit: unit || undefined, format: config.format };
+  const config = lenaText(lang).steps[step];
+  const format = config?.mask ? FORMATS[config.mask] : undefined;
+  if (!format) return null;
+  return { unit: config.unit || undefined, format };
 };

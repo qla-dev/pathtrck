@@ -5,16 +5,18 @@ export const FieldLabel = ({
   children,
   ai,
   title,
+  question,
   onReprefill,
 }: {
   children: string;
   ai?: boolean;
   title?: string;
+  question?: string | null;
   onReprefill?: () => void;
 }) => (
   <label
     onClick={ai ? onReprefill : undefined}
-    title={ai ? title : undefined}
+    title={ai ? title : question || undefined}
     className={cn(
       'ml-1 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider',
       ai ? 'cursor-pointer text-primary' : 'text-slate-500'
@@ -24,4 +26,3 @@ export const FieldLabel = ({
     {ai && <Sparkles className="h-2.5 w-2.5 shrink-0" />}
   </label>
 );
-

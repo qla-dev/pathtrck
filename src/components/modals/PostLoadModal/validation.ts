@@ -84,7 +84,7 @@ const stopAt = (index: number, route: RouteShape): { side: StopSide; position: n
 
 const stopBlockLabel = (u: Translate, index: number, route: RouteShape) => {
   const { side, position, total } = stopAt(index, route);
-  const block = side === 'pickup' ? u('postLoadModal.pickupBlock', 'Pickup') : u('postLoadModal.deliveryBlock', 'Delivery');
+  const block = side === 'pickup' ? u('postLoadModal.pickupBlock', '') : u('postLoadModal.deliveryBlock', '');
   return total > 1 ? `${block} ${position + 1}` : block;
 };
 
@@ -214,7 +214,7 @@ export const validateDraft = (u: Translate, draft: LoadDraft, mode: 'publish' | 
   for (const [field, labelKey, labelFallback] of timeFields) {
     const value = String(draft[field] || '').trim();
     if (value && !TIME_PATTERN.test(value)) {
-      fail(`${u(labelKey, labelFallback)}: ${u('postLoadModal.invalidTime', 'Enter a time between 00:00 and 23:59.')}`, field);
+      fail(`${u(labelKey, labelFallback)}: ${u('postLoadModal.invalidTime', '')}`, field);
     }
   }
 
@@ -229,19 +229,19 @@ export const validateDraft = (u: Translate, draft: LoadDraft, mode: 'publish' | 
   for (const [field, labelKey, labelFallback] of dateFields) {
     const value = String(draft[field] || '').trim();
     if (value && !parseFormDate(value)) {
-      fail(`${u(labelKey, labelFallback)}: ${u('postLoadModal.invalidDate', 'Enter a date as dd.mm.yyyy.')}`, field);
+      fail(`${u(labelKey, labelFallback)}: ${u('postLoadModal.invalidDate', '')}`, field);
     }
   }
 
   const ranges: Array<[keyof LoadDraft, keyof LoadDraft, string]> = [
-    ...(isWarehouse ? [] : [['pickupDate', 'pickupDateTo', u('postLoadModal.pickupBlock', 'Pickup')] as [keyof LoadDraft, keyof LoadDraft, string]]),
-    ['deliveryDate', 'deliveryDateTo', isWarehouse ? u('postLoadModal.warehousePreferredLocation', 'Preferred warehouse location') : u('postLoadModal.deliveryBlock', 'Delivery')],
+    ...(isWarehouse ? [] : [['pickupDate', 'pickupDateTo', u('postLoadModal.pickupBlock', '')] as [keyof LoadDraft, keyof LoadDraft, string]]),
+    ['deliveryDate', 'deliveryDateTo', isWarehouse ? u('postLoadModal.warehousePreferredLocation', '') : u('postLoadModal.deliveryBlock', '')],
   ];
   for (const [fromField, toField, block] of ranges) {
     const from = parseFormDate(String(draft[fromField] || ''));
     const to = parseFormDate(String(draft[toField] || ''));
     if (from && to && to < from) {
-      fail(`${block}: ${u('postLoadModal.dateRangeReversed', 'The end date cannot be before the start date.')}`, fromField, toField);
+      fail(`${block}: ${u('postLoadModal.dateRangeReversed', '')}`, fromField, toField);
     }
   }
 
@@ -264,19 +264,19 @@ export const validateDraft = (u: Translate, draft: LoadDraft, mode: 'publish' | 
       for (const [field, labelKey, labelFallback] of checks) {
         const value = stop[field].trim();
         if (value && !TIME_PATTERN.test(value)) {
-          fail(`${u(labelKey, labelFallback)} (${stopName}): ${u('postLoadModal.invalidTime', 'Enter a time between 00:00 and 23:59.')}`, listField);
+          fail(`${u(labelKey, labelFallback)} (${stopName}): ${u('postLoadModal.invalidTime', '')}`, listField);
         }
       }
       for (const field of ['date', 'dateTo'] as const) {
         const value = stop[field].trim();
         if (value && !parseFormDate(value)) {
-          fail(`${stopName}: ${u('postLoadModal.invalidDate', 'Enter a date as dd.mm.yyyy.')}`, listField);
+          fail(`${stopName}: ${u('postLoadModal.invalidDate', '')}`, listField);
         }
       }
       const from = parseFormDate(stop.date);
       const to = parseFormDate(stop.dateTo);
       if (from && to && to < from) {
-        fail(`${stopName}: ${u('postLoadModal.dateRangeReversed', 'The end date cannot be before the start date.')}`, listField);
+        fail(`${stopName}: ${u('postLoadModal.dateRangeReversed', '')}`, listField);
       }
     });
   }
@@ -285,38 +285,38 @@ export const validateDraft = (u: Translate, draft: LoadDraft, mode: 'publish' | 
   if (mode === 'draft') return message ? { message, fields: [...new Set(fields)] } : null;
 
   for (const field of ['supplierName', 'supplierEmail', 'supplierPhone'] as const) {
-    if (!draft[field]?.trim()) fail(u('postLoadModal.requiredField', 'This field is required.'), field);
+    if (!draft[field]?.trim()) fail(u('postLoadModal.requiredField', ''), field);
   }
   if (draft.supplierEmail?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.supplierEmail.trim())) {
-    fail(u('postLoadModal.contactEmail', 'E-mail address') + ': ' + u('postLoadModal.invalidEmail', 'Enter a valid e-mail address.'), 'supplierEmail');
+    fail(u('postLoadModal.contactEmail', '') + ': ' + u('postLoadModal.invalidEmail', ''), 'supplierEmail');
   }
 
   if (!String(draft.loadTitle || '').trim()) {
-    fail(`${u('postLoadModal.loadTitleLabel', 'Load title')}: ${u('postLoadModal.requiredField', 'This field is required.')}`, 'loadTitle');
+    fail(`${u('postLoadModal.loadTitleLabel', '')}: ${u('postLoadModal.requiredField', '')}`, 'loadTitle');
   }
   if (!isWarehouse && !String(draft.pickupCity || '').trim()) {
-    fail(`${u('postLoadModal.pickupCity', 'City')} (${u('postLoadModal.pickupBlock', 'Pickup')}): ${u('postLoadModal.requiredField', 'This field is required.')}`, 'pickupCity');
+    fail(`${u('postLoadModal.pickupCity', '')} (${u('postLoadModal.pickupBlock', '')}): ${u('postLoadModal.requiredField', '')}`, 'pickupCity');
   }
   if (!String(draft.deliveryCity || '').trim()) {
-    fail(`${u('postLoadModal.deliveryCity', 'City')} (${isWarehouse ? u('postLoadModal.warehousePreferredLocation', 'Preferred warehouse location') : u('postLoadModal.deliveryBlock', 'Delivery')}): ${u('postLoadModal.requiredField', 'This field is required.')}`, 'deliveryCity');
+    fail(`${u('postLoadModal.deliveryCity', '')} (${isWarehouse ? u('postLoadModal.warehousePreferredLocation', '') : u('postLoadModal.deliveryBlock', '')}): ${u('postLoadModal.requiredField', '')}`, 'deliveryCity');
   }
   for (const side of ['pickup', 'delivery'] as const) {
     const listField: keyof LoadDraft = side === 'pickup' ? 'extraPickups' : 'extraDeliveries';
-    const blockLabel = side === 'pickup' ? u('postLoadModal.pickupBlock', 'Pickup') : u('postLoadModal.deliveryBlock', 'Delivery');
+    const blockLabel = side === 'pickup' ? u('postLoadModal.pickupBlock', '') : u('postLoadModal.deliveryBlock', '');
     stopsOfSide(draft, side).forEach((stop, position) => {
       if (position > 0 && !stop.city.trim()) {
-        fail(`${u(side === 'pickup' ? 'postLoadModal.pickupCity' : 'postLoadModal.deliveryCity', 'City')} (${blockLabel} ${position + 1}): ${u('postLoadModal.requiredField', 'This field is required.')}`, listField);
+        fail(`${u(side === 'pickup' ? 'postLoadModal.pickupCity' : 'postLoadModal.deliveryCity', 'City')} (${blockLabel} ${position + 1}): ${u('postLoadModal.requiredField', '')}`, listField);
       }
     });
   }
   if (!isWarehouse && !String(draft.weightKg || '').trim()) {
-    fail(`${u('postLoadModal.weight', 'Weight')}: ${u('postLoadModal.requiredField', 'This field is required.')}`, 'weightKg');
+    fail(`${u('postLoadModal.weight', '')}: ${u('postLoadModal.requiredField', '')}`, 'weightKg');
   }
   if (isWarehouse && !String(draft.deliveryDate || '').trim()) {
-    fail(`${u('postLoadModal.warehouseStartDate', 'Storage start date')}: ${u('postLoadModal.requiredField', 'This field is required.')}`, 'deliveryDate');
+    fail(`${u('postLoadModal.warehouseStartDate', '')}: ${u('postLoadModal.requiredField', '')}`, 'deliveryDate');
   }
   if (isWarehouse && draft.storageTarget === 'own' && !String(draft.warehouseId || '').trim()) {
-    fail(`${u('postLoadModal.receivingWarehouse', 'Receiving warehouse')}: ${u('postLoadModal.requiredField', 'This field is required.')}`, 'warehouseId');
+    fail(`${u('postLoadModal.receivingWarehouse', '')}: ${u('postLoadModal.requiredField', '')}`, 'warehouseId');
   }
 
   return message ? { message, fields: [...new Set(fields)] } : null;

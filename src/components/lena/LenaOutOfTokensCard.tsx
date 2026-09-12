@@ -40,8 +40,8 @@ export const LenaOutOfTokensCard = ({ lang, resetAt, packageIcon, packageColor, 
   })();
 
   const body = formattedReset
-    ? u('lena.outOfTokens.body', 'Your message limit resets on {date}. To keep using LenaAI, add credits or upgrade your plan today.').replace('{date}', formattedReset)
-    : u('lena.outOfTokens.bodyNoReset', 'To keep using LenaAI, add credits or upgrade your plan today.');
+    ? u('lena.outOfTokens.body', '').replace('{date}', formattedReset)
+    : u('lena.outOfTokens.bodyNoReset', '');
 
   return (
     // Pops in rather than fading: this replaces an answer the user was waiting for, so it should
@@ -56,17 +56,17 @@ export const LenaOutOfTokensCard = ({ lang, resetAt, packageIcon, packageColor, 
     >
       <div className="flex items-center gap-2.5">
         <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-xl', packageIcon ? packageColor || 'bg-primary/10 text-primary' : 'bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400')}><PlanIcon className="h-4 w-4" /></span>
-        <p className="text-sm font-black text-slate-900 dark:text-white">{u('lena.outOfTokens.title', 'You are out of LenaAI messages')}</p>
+        <p className="text-sm font-black text-slate-900 dark:text-white">{u('lena.outOfTokens.title', '')}</p>
       </div>
       <p className="mt-2.5 text-xs leading-5 text-slate-500 dark:text-slate-400">{body}</p>
       <div className="mt-3.5 flex flex-wrap gap-2">
         <button type="button" onClick={onUpgrade} className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-primary px-4 text-xs font-black text-white transition-all hover:brightness-95">
           <Zap className="h-3.5 w-3.5" />
-          {u('lena.outOfTokens.upgrade', 'Upgrade')}
+          {u('lena.outOfTokens.upgrade', '')}
         </button>
         <button type="button" onClick={onTopUp} className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 text-xs font-black text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
           <CreditCard className="h-3.5 w-3.5" />
-          {u('lena.outOfTokens.addCredits', 'Add credits')}
+          {u('lena.outOfTokens.addCredits', '')}
         </button>
       </div>
     </motion.div>
