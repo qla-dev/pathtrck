@@ -176,7 +176,7 @@ import { LenaScenarioSections } from "./components/landing/LenaScenarioSections"
 const LANGUAGE_STORAGE_KEY = "pathtrck.language";
 const SIDEBAR_STORAGE_KEY = "freightbook.sidebar";
 
-const SUPPORTED_LANGUAGES: Exclude<Language, null>[] = ["en", "bs", "de"];
+const SUPPORTED_LANGUAGES: Exclude<Language, null>[] = ["en", "bs", "hr", "sr", "de"];
 
 const isSupportedLanguage = (
   value: string | null,
@@ -609,6 +609,8 @@ const HeroConnectionVisual = () => {
 const allLanguages: { id: Language; flag: string; label: string }[] = [
   { id: "en", flag: "🇺🇸", label: "English" },
   { id: "bs", flag: "🇧🇦", label: "Bosanski" },
+  { id: "hr", flag: "🇭🇷", label: "Hrvatski" },
+  { id: "sr", flag: "🇷🇸", label: "Српски" },
   { id: "de", flag: "🇩🇪", label: "Deutsch" },
   { id: "pl", flag: "🇵🇱", label: "Polski" },
   { id: "ro", flag: "🇷🇴", label: "Romana" },
@@ -617,7 +619,6 @@ const allLanguages: { id: Language; flag: string; label: string }[] = [
   { id: "it", flag: "🇮🇹", label: "Italiano" },
   { id: "zh", flag: "🇨🇳", label: "中文" },
   { id: "es", flag: "🇪🇸", label: "Espanol" },
-  { id: "sr", flag: "🇷🇸", label: "Srpski" },
   { id: "sv", flag: "🇸🇪", label: "Svenska" },
   { id: "ar", flag: "🇸🇦", label: "العربية" },
   { id: "pt", flag: "🇵🇹", label: "Portugues" },
@@ -625,12 +626,13 @@ const allLanguages: { id: Language; flag: string; label: string }[] = [
 
 const languages = allLanguages.filter(
   (language) =>
-    language.id === "en" || language.id === "bs" || language.id === "de",
+    language.id === "en" || language.id === "bs" || language.id === "hr" || language.id === "sr" || language.id === "de",
 );
 
 const flagCodeByLanguage: Record<Exclude<Language, null>, string> = {
   en: "us",
   bs: "ba",
+  hr: "hr",
   de: "de",
   pl: "pl",
   ro: "ro",
@@ -683,6 +685,12 @@ const HERO_MAIN_TITLE_MESSAGES: Record<
     { text: "Ujedinjujemo prevoznike brzo.", keyword: "prevoznike" },
     { text: "Pogonimo isporuke brže.", keyword: "isporuke" },
     { text: "Održavamo logistiku spremnom.", keyword: "logistiku" },
+  ],
+  hr: [
+    { text: "Povezujemo vozače brže.", keyword: "vozače" },
+    { text: "Spajamo terete odmah.", keyword: "terete" },
+    { text: "Usmjeravamo flote bolje.", keyword: "flote" },
+    { text: "Pratimo svaki kilometar.", keyword: "kilometar" },
   ],
   de: [
     { text: "Wir verbinden Fahrer schneller.", keyword: "Fahrer" },
@@ -901,6 +909,15 @@ const translations: Record<Exclude<Language, null>, Record<string, string>> = {
     back: "Nazad",
     completeSetup: "Završi podešavanje",
   },
+  hr: makeLandingTranslation({
+    features: "Značajke", network: "Mreža", enterprise: "Poduzeće", pricing: "Cijene",
+    logIn: "Prijava", getStarted: "Započni", heroTitle: "Povezujemo vozače brže.", heroSubtitle: "Povezujemo vozače brže.",
+    trackShipment: "Prati pošiljku", postLoad: "Objavi teret", trackingPlaceholder: "Unesite broj za praćenje (npr. FB-C-26000)", trackButton: "Prati odmah",
+    loadTitle: "Trebate prevesti teret?", loadSubtitle: "Povežite se s našom mrežom od 50.000+ provjerenih vozača diljem Europe i SAD-a.", postLoadButton: "Objavi teret",
+    trustedBy: "Povjerenje industrijskih lidera.", accountSettings: "Postavke računa", support: "Podrška", documentation: "Dokumentacija", logOut: "Odjava",
+    welcome: "Dobro došli natrag", dashboard: "Nadzorna ploča", tracking: "Praćenje", myFleet: "Moja flota", messages: "Poruke", history: "Povijest", settings: "Postavke", homeFeed: "Burza tereta",
+    trailer: "Prikolica", tailLift: "Utovarna rampa", username: "Korisničko ime", password: "Lozinka", licensePlate: "Registracijska oznaka", selectFuel: "Odaberite gorivo", yes: "DA", no: "NE", continue: "Nastavi", back: "Natrag", completeSetup: "Dovrši postavljanje",
+  }),
   de: {
     features: "Funktionen",
     network: "Netzwerk",
@@ -1303,6 +1320,7 @@ const translations: Record<Exclude<Language, null>, Record<string, string>> = {
 const myCargoLabels: Record<Exclude<Language, null>, string> = {
   en: "My Cargo",
   bs: "Moj teret",
+  hr: "Moj teret",
   de: "Meine Fracht",
   pl: "Mój ładunek",
   ro: "Marfa mea",
@@ -1638,7 +1656,7 @@ const LandingPage = ({
   const activeLang = (lang || "en") as Exclude<Language, null>;
   const currentLang =
     languages.find((l) => l.id === (lang || "en")) || languages[0];
-  const statsLocale = activeLang === "bs" ? "bs-BA" : activeLang === "de" ? "de-DE" : "en-US";
+  const statsLocale = activeLang === "bs" ? "bs-BA" : activeLang === "hr" ? "hr-HR" : activeLang === "sr" ? "sr-Cyrl-RS" : activeLang === "de" ? "de-DE" : "en-US";
   const formatLandingCount = (value?: number) =>
     typeof value === "number" ? new Intl.NumberFormat(statsLocale).format(value) : "—";
   const titleMessages =

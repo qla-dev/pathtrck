@@ -2,6 +2,7 @@ export type Role = 'user' | 'driver' | 'company' | 'manager' | 'dispatcher' | 'c
 export type Language =
   | 'en'
   | 'bs'
+  | 'hr'
   | 'de'
   | 'pl'
   | 'ro'

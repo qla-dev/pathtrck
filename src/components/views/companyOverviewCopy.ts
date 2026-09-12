@@ -18,7 +18,7 @@ export type CompanyOverviewCopy = {
   performance: [string, string, string];
 };
 
-const COPY: Record<Locale, CompanyOverviewCopy> = {
+const COPY: Partial<Record<Locale, CompanyOverviewCopy>> & { en: CompanyOverviewCopy; bs: CompanyOverviewCopy; de: CompanyOverviewCopy } = {
   en: {
     company: 'Logistics Company', title: 'Operations Overview', subtitle: 'A live command center for fleet movement, dispatch performance, team activity, and delivery risk.', live: 'Live operations', assetsSummary: '24 assets · 12 active loads',
     stats: ['Revenue today', 'Kilometers active', 'Capacity utilized'],

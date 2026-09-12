@@ -2520,6 +2520,7 @@ const UI: Record<Locale, Record<string, string>> = {
     'fleet.subtitle': 'Gestiona y supervisa tus vehiculos',
     'fleet.addVehicle': 'Agregar vehiculo',
   }),
+  hr: makeLocale({}),
   sr: makeLocale({
     'common.sort': 'Sortiraj',
     'common.postLoad': 'Objavi teret',
@@ -2791,6 +2792,55 @@ Object.assign(UI.en, {
 Object.assign(UI.de, {
 
 });
+
+const toCroatian = (value: string): string => value
+  .replace(/provjer/gi, (match) => match[0] === match[0].toUpperCase() ? 'provjer' : 'provjer')
+  .replace(/provjera/gi, 'provjera')
+  .replace(/preuzimanje/gi, 'preuzimanje')
+  .replace(/isporuka/gi, 'isporuka')
+  .replace(/tjedn/gi, 'tjedn')
+  .replace(/mjesec/gi, 'mjesec')
+  .replace(/sedmic/gi, 'tjedn')
+  .replace(/tačnost/gi, 'točnost')
+  .replace(/tačno/gi, 'točno')
+  .replace(/hiljad/gi, 'tisuć')
+  .replace(/završ/gi, 'završ')
+  .replace(/spolj/gi, 'vanj')
+  .replace(/upravlja/gi, 'upravlja')
+  .replace(/sačuv/gi, 'sprem')
+  .replace(/sačuvan/gi, 'spremljen')
+  .replace(/odabr/gi, 'odabr')
+  .replace(/odaber/gi, 'odaber');
+
+const toSerbianEkavian = (value: string): string => value
+  .replace(/ije/gi, (match) => match === match.toUpperCase() ? 'E' : match[0] === match[0].toUpperCase() ? 'E' : 'e')
+  .replace(/mjesec/gi, 'mesec')
+  .replace(/sedmic/gi, 'nedelj')
+  .replace(/hiljad/gi, 'hiljad')
+  .replace(/tačnost/gi, 'tačnost')
+  .replace(/tačno/gi, 'tačno')
+  .replace(/provjer/gi, 'prover')
+  .replace(/vrijed/gi, 'vred')
+  .replace(/izvješt/gi, 'izvešt')
+  .replace(/rješen/gi, 'rešen')
+  .replace(/rješav/gi, 'rešav')
+  .replace(/dijel/gi, 'del')
+  .replace(/tjedan/gi, 'nedelju')
+  .replace(/siječ/gi, 'januar')
+  .replace(/veljač/gi, 'februar')
+  .replace(/ožuj/gi, 'mart')
+  .replace(/travanj/gi, 'april')
+  .replace(/svibanj/gi, 'maj')
+  .replace(/lipanj/gi, 'jun')
+  .replace(/srpanj/gi, 'jul')
+  .replace(/kolovoz/gi, 'avgust')
+  .replace(/rujan/gi, 'septembar')
+  .replace(/listopad/gi, 'oktobar')
+  .replace(/studeni/gi, 'novembar')
+  .replace(/prosinac/gi, 'decembar');
+
+Object.assign(UI.hr, Object.fromEntries(Object.entries(UI.bs).map(([key, value]) => [key, toCroatian(value)])));
+Object.assign(UI.sr, Object.fromEntries(Object.entries(UI.bs).map(([key, value]) => [key, toSerbianEkavian(value)])));
 
 Object.assign(UI.bs, {
 
@@ -7374,7 +7424,7 @@ const makeDatePicker = (
   toggleTitle,
 });
 
-const DATE_PICKER_I18N: Record<Locale, CustomLocale> = {
+const DATE_PICKER_I18N: Partial<Record<Locale, CustomLocale>> = {
   en: makeDatePicker(
     ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
     ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],

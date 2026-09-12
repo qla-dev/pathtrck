@@ -37,7 +37,7 @@ const serverText = (locale: string): LenaCatalogText => ({
   },
 });
 
-const locales: LenaCatalogData['locales'] = { en: serverText('en'), de: serverText('de'), bs: serverText('bs') };
+const locales: LenaCatalogData['locales'] = { en: serverText('en'), de: serverText('de'), bs: serverText('bs'), hr: serverText('hr'), sr: serverText('sr') };
 
 test('web renders server wording and canonical form choices without a local translation copy', () => {
   installLenaCatalog({ ...schema, revision: 'test', locales });

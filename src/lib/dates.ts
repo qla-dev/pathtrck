@@ -8,12 +8,13 @@ export const formatDate = (value: unknown, lang: Language, withTime = false) => 
   const date = new Date(String(value || ''));
   if (Number.isNaN(date.getTime())) return '—';
 
-  if (lang === 'bs') {
+  if (lang === 'bs' || lang === 'hr' || lang === 'sr') {
     const day = `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()}.`;
     return withTime ? `${day} ${pad(date.getHours())}:${pad(date.getMinutes())}` : day;
   }
 
-  return new Intl.DateTimeFormat(lang === 'de' ? 'de-DE' : 'en-GB', withTime
+  const locale = lang === 'de' ? 'de-DE' : 'en-GB';
+  return new Intl.DateTimeFormat(locale, withTime
     ? { dateStyle: 'medium', timeStyle: 'short' }
     : { dateStyle: 'medium' }).format(date);
 };
@@ -49,6 +50,6 @@ export const localTimestampForApi = (date = new Date()): string =>
   + `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 
 /** The date shape the pickers show and expect people to type, per language. */
-export const datePlaceholder = (lang: Language) => lang === 'bs'
+export const datePlaceholder = (lang: Language) => lang === 'bs' || lang === 'hr' || lang === 'sr'
   ? 'dd.mm.gggg.'
   : lang === 'de' ? 'TT.MM.JJJJ' : 'dd Mon yyyy';
