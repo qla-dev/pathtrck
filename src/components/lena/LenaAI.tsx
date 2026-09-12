@@ -18,6 +18,7 @@ import { api, BulkLoadRow, type PublicTrackingSummary } from '../../services/api
 
 type LenaAIProps = {
   open: boolean;
+  sideBarMode?: boolean;
   onClose: () => void;
   lang: Language;
   userId?: number;
@@ -181,7 +182,7 @@ function PublicTrackingLenaAI({ open, onClose, lang, trackingNumber }: LenaAIPro
   );
 }
 
-function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, loadLabel, onBookLoad, onOpenLoad, initialCanvasMode = null, onApplyLoadPrefill, onBulkImported, onUpgrade, onTopUp }: LenaAIProps) {
+function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, loadLabel, onBookLoad, onOpenLoad, initialCanvasMode = null, sideBarMode = false, onApplyLoadPrefill, onBulkImported, onUpgrade, onTopUp }: LenaAIProps) {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const quickActionLabels = {
     add: u('Add a new load', 'Add a new load'),
@@ -216,7 +217,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
     lang,
     welcomeRole: u('LenaAI', 'LenaAI'),
     welcomeText: loadId
-      ? u('Lena welcome load', 'Hello, I\'m LenaAI, your AI dispatcher for this load.\n\nUsing the latest data you are authorized to access, I can explain its route and stops, dates, cargo, status, booking reference, financial terms, tracking, and booking options.\n\nWrite to me in any language. I\'ll reply entirely in the language you use.')
+      ? u('Lena welcome about load', 'Ask me about this load. I help drivers and dispatchers with pickup and delivery, cargo, timing, documents, and next steps.\n\nI check the latest available load data with every reply. Ask me for its current status or help preparing an update.')
       : generalWelcome,
     sendFailedTitle: u('Message could not be sent', 'Message could not be sent'),
     replyFailedTitle: u('chat.replyFailed', 'LenaAI could not reply'),
@@ -266,8 +267,10 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
 
   const displayConversation = useMemo(() => ({
     ...conversation,
+    name: loadId ? (loadLabel || loadId) : conversation.name,
+    role: loadId ? u('Ask me about the load', 'Ask me about the load') : conversation.role,
     messages: displayMessages,
-  }), [conversation, displayMessages]);
+  }), [conversation, displayMessages, loadId, loadLabel, lang]);
   const [channelFilter, setChannelFilter] = useState('all');
   const channels = [
     { id: 'all', label: u('All', 'All'), icon: LayoutGrid },
@@ -292,10 +295,12 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[300] bg-white dark:bg-slate-950"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          className={sideBarMode ? "fixed inset-y-0 right-0 z-[300] w-full border-l border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 lg:w-[440px] xl:w-[480px]" : "fixed inset-0 z-[300] bg-white dark:bg-slate-950"}
+          role="dialog"
+          aria-label={loadId ? u('Ask me about the load', 'Ask me about the load') : 'LenaAI'}
+          initial={{ opacity: 0, x: sideBarMode ? 440 : 0 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: sideBarMode ? 440 : 0 }}
           transition={{ duration: 0.2, ease: 'easeOut' }}
         >
           <button
@@ -307,7 +312,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
             <X className="h-5 w-5" />
           </button>
           <motion.div
-            className="flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-white dark:bg-slate-950 p-4 md:p-7"
+            className={`flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-white dark:bg-slate-950 ${sideBarMode ? 'px-3 pb-3 pt-12' : 'p-4 md:p-7'}`}
             initial={{ opacity: 0, y: 24, scale: 0.992 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.996 }}

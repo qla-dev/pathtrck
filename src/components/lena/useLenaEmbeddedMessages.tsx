@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+
 import { BadgeCheck, Banknote, CheckCircle2, CircleDot, CircleOff, Clock3, FileSearch, FileText, FileUp, Forklift, Handshake, Landmark, MapPinned, MessageCircle, Package, Plane, Radar, ReceiptText, Route, Ruler, ScanEye, ShieldCheck, Ship, Thermometer, Truck, UserRound, Warehouse, Zap, type LucideIcon } from 'lucide-react';
 
 import { api } from '../../services/api';
@@ -21,6 +22,7 @@ import {
   VEHICLE_OPTIONS,
 } from '../modals/loadFormOptions';
 
+const EMPTY_PRELOADED_LOADS: Record<string, Record<string, unknown>> = {};
 const BOOKING_MARKER_PATTERN = /\[\[OFFER_BOOKING(?::(\d+))?\]\]/;
 const BOOKING_MARKER_GLOBAL_PATTERN = /\[\[OFFER_BOOKING(?::\d+)?\]\]/g;
 const LOAD_DETAILS_MARKER_PATTERN = /\[\[LOAD_DETAILS(?::(\d+))?\]\]/;
@@ -198,7 +200,7 @@ export const useLenaEmbeddedMessages = ({
   onSuggestedDraftChange,
   onLoadReady,
   onStepAnswer,
-  preloadedLoads = {},
+  preloadedLoads = EMPTY_PRELOADED_LOADS,
   outOfTokensResetAt,
   outOfTokensPackageIcon,
   outOfTokensPackageColor,
@@ -331,8 +333,11 @@ export const useLenaEmbeddedMessages = ({
     [embeddedLoads, preloadedLoads],
   );
 
+  // Refetch cards after each assistant reply, even for a previously displayed load.
+  const embeddedReplyVersion = JSON.stringify(messages.filter((message) => message.sender === 'other').map((message) => [message.id, message.text]));
+  const embeddedIdsVersion = JSON.stringify(embeddedLoadIds);
   useEffect(() => {
-    const missingIds = embeddedLoadIds.filter((id) => !resolvedEmbeddedLoads[id]);
+    const missingIds = (JSON.parse(embeddedIdsVersion) as string[]).filter((id) => !preloadedLoads[id]);
     if (missingIds.length === 0) return undefined;
 
     let cancelled = false;
@@ -343,7 +348,7 @@ export const useLenaEmbeddedMessages = ({
       .catch(() => undefined);
 
     return () => { cancelled = true; };
-  }, [embeddedLoadIds, resolvedEmbeddedLoads]);
+  }, [embeddedIdsVersion, embeddedReplyVersion, preloadedLoads]);
 
   const displayMessages = useMemo(() => messages.map((message) => {
     const markerFreeText = message.text

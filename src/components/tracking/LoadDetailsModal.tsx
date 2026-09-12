@@ -843,8 +843,9 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
   return (
     <>
     <TrackingItemDetails
+      sideBarMode={lenaOpen}
       open={Boolean(selectedPackage.id) && detailsOpen}
-      onClose={() => setDetailsOpen(false)}
+      onClose={() => { setLenaOpen(false); setDetailsOpen(false); }}
       onExitComplete={onClose}
       bodyClassName={
         rightTab === 'tracker'
@@ -1670,7 +1671,9 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
       }}
     />
     <LenaAI
-      open={lenaOpen}
+      key={selectedPackage.id}
+      sideBarMode
+      open={lenaOpen && detailsOpen}
       onClose={() => setLenaOpen(false)}
       lang={lang}
       userId={userId}

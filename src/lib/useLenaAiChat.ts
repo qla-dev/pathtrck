@@ -10,6 +10,7 @@ import { withMinDelay } from './timing';
 import { ui } from '../i18n';
 import { buildScanFieldRows } from '../components/modals/scanFieldRows';
 import { useLenaTokenBalance } from './useLenaTokenBalance';
+import { lenaConversationMessages } from './lenaConversationMessages';
 
 export const LENA_AI_GENERAL_SUBJECT = `${AI_DISPATCH_SUBJECT_PREFIX}General`;
 const LENA_STEP_MARKER_PATTERN = /\[\[LENA_STEP:([a-zA-Z]+)\]\]/;
@@ -90,8 +91,10 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
   }, [initialCanvasMode]);
 
   const availableRows = useMemo(() => {
-    const items = result.items.filter((item) => item.channel === 'inapp');
-    if (loadId) return items;
+    const items = result.items.filter((item) => item.channel === 'inapp')
+      .map((item): Record<string, unknown> => ({ ...item, messages: lenaConversationMessages(item) }));
+    if (loadId) return items.filter((item) => String(item.load_id) === String(loadId)
+      && String(item.subject || '').startsWith(AI_DISPATCH_SUBJECT_PREFIX));
     return items
       .filter((item) => !item.load_id && String(item.subject || '').startsWith(AI_DISPATCH_SUBJECT_PREFIX))
       .sort((a, b) => {

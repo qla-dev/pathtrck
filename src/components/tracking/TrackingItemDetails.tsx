@@ -5,6 +5,7 @@ import { cn } from '../../lib/cn';
 
 type TrackingItemDetailsProps = {
   open: boolean;
+  sideBarMode?: boolean;
   headerAction?: ReactNode;
   bodyClassName?: string;
   onClose: () => void;
@@ -12,23 +13,23 @@ type TrackingItemDetailsProps = {
   children: ReactNode;
 };
 
-export const TrackingItemDetails = ({ open, headerAction, bodyClassName, onClose, onExitComplete, children }: TrackingItemDetailsProps) => {
+export const TrackingItemDetails = ({ open, sideBarMode = false, headerAction, bodyClassName, onClose, onExitComplete, children }: TrackingItemDetailsProps) => {
   const [headerNavigation, ...bodyContent] = Children.toArray(children);
 
   useEffect(() => {
-    if (!open) return undefined;
+    if (!open || sideBarMode) return undefined;
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', closeOnEscape);
     return () => window.removeEventListener('keydown', closeOnEscape);
-  }, [onClose, open]);
+  }, [onClose, open, sideBarMode]);
 
   return (
     <AnimatePresence onExitComplete={onExitComplete}>
       {open && (
         <motion.div
-          className="fixed inset-0 z-140 bg-white dark:bg-slate-950"
+          className={cn("fixed inset-0 z-140 bg-white dark:bg-slate-950 transition-[padding-right] duration-300 ease-out", sideBarMode && "lg:pr-[440px] xl:pr-[480px]")}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

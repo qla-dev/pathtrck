@@ -8347,6 +8347,11 @@ const TRIPLET_TRANSLATIONS: Record<string, Partial<Record<Locale, string>>> = {
     bs: 'Za objavu novog tereta mogu otvoriti radni canvas, prikupiti podatke iz razgovora i pripremiti popunjenu formu. Možete priložiti Excel, CSV, sliku ili PDF; podržan je i bulk import više tereta.',
     de: 'Für eine neue Ladung kann ich einen Arbeits-Canvas öffnen, Angaben aus unserem Gespräch sammeln und das ausgefüllte Formular vorbereiten. Sie können Excel-, CSV-, Bild- oder PDF-Dateien anhängen; auch der Massenimport mehrerer Ladungen wird unterstützt.'
   },
+  'Ask me about the load': { bs: 'Pitaj me o teretu', de: 'Frag mich zur Ladung' },
+  'Lena welcome about load': {
+    bs: 'Pitaj me o ovom teretu. Pomažem vozačima i dispečerima s utovarom i istovarom, robom, terminima, dokumentima i narednim koracima.\n\nPri svakom odgovoru provjeravam najnovije dostupne podatke o teretu. Pitaj me za trenutni status ili pomoć pri sastavljanju obavijesti.',
+    de: 'Frag mich zu dieser Ladung. Ich unterstütze Fahrer und Disponenten bei Abholung und Lieferung, Fracht, Terminen, Dokumenten und den nächsten Schritten.\n\nBei jeder Antwort prüfe ich die neuesten verfügbaren Ladungsdaten. Frag mich nach dem aktuellen Status oder bitte mich, eine Mitteilung zu formulieren.',
+  },
   'Lena welcome load': {
     en: 'Hello, I am LenaAI, your AI dispatcher for this load.\n\nUsing the latest data you are authorized to access, I can explain the route and stops, dates, cargo, status, reference number, financial terms, tracking, and booking options.\n\nYou can write to me in any language. I will reply exclusively in the language you use.',
     bs: 'Zdravo, ja sam LenaAI, vaš AI dispečer za ovaj teret.\n\nNa osnovu najnovijih podataka kojima imate pravo pristupa mogu objasniti rutu i stajanja, datume, robu, status, referentni broj, finansijske uslove, praćenje i mogućnosti rezervacije.\n\nMožete mi pisati na bilo kojem jeziku. Odgovorit ću isključivo na jeziku kojim mi se obratite.',

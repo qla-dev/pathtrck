@@ -248,11 +248,11 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
   useEffect(() => {
     if (!open) return undefined;
     const handleEsc = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') requestClose();
+      if (event.key === 'Escape' && !lenaOpen) requestClose();
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [open]);
+  }, [open, lenaOpen]);
 
   useEffect(() => {
     setAssignDriverNow(false);
@@ -578,7 +578,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
     >
-      <div className="absolute inset-0">
+      <div className={`absolute inset-0 transition-[padding-right] duration-300 ease-out ${lenaOpen ? 'lg:pr-[440px] xl:pr-[480px]' : ''}`}>
         <motion.div
           className="flex h-[100dvh] w-full min-h-0 flex-col overflow-hidden bg-white dark:bg-slate-950"
           initial={{ opacity: 0, y: 24, scale: 0.992 }}
@@ -1127,7 +1127,9 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
       )}
 
       <LenaAI
-        open={lenaOpen}
+        key={load.id}
+        sideBarMode
+        open={lenaOpen && open && !isClosing}
         onClose={() => setLenaOpen(false)}
         lang={lang}
         userId={userId}
