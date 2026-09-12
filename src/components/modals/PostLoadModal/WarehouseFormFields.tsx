@@ -26,7 +26,8 @@ import {
 } from 'lucide-react';
 
 import { cn } from '../../../lib/cn';
-import { SUPPORTED_CURRENCIES } from '../../../lib/currency';
+import { lenaField, lenaFieldChoices, lenaOptionIcon } from '../../../lib/lenaCatalog';
+import { lenaIcon } from '../../../lib/lenaIcons';
 import { Language } from '../../../types';
 import { LoadDraft } from './types';
 import { WAREHOUSE_STORAGE_TYPE_OPTIONS, WAREHOUSE_HANDLING_REQUIREMENT_OPTIONS, WAREHOUSE_RATE_UNIT_OPTIONS } from '../loadFormOptions';
@@ -46,31 +47,6 @@ type Setter = Dispatch<SetStateAction<LoadDraft>>;
 // Supplied by PostLoadModal: outlines a field in red once a submit was rejected because of it.
 type InvalidClass = (...fields: Array<keyof LoadDraft>) => string;
 
-const STORAGE_TYPE_ICONS: Record<(typeof WAREHOUSE_STORAGE_TYPE_OPTIONS)[number], typeof Package> = {
-  Ambient: Package,
-  Chilled: Snowflake,
-  Frozen: ThermometerSnowflake,
-  Hazmat: AlertTriangle,
-  Bulk: Layers,
-  Bonded: Lock,
-  Outdoor: Container,
-  Unsure: HelpCircle,
-};
-
-export const HANDLING_ICONS: Record<(typeof WAREHOUSE_HANDLING_REQUIREMENT_OPTIONS)[number], typeof Package> = {
-  Storage: Warehouse,
-  Loading: ArrowUpFromLine,
-  Unloading: ArrowDownToLine,
-  'Cross-docking': Forklift,
-  'Pick & Pack': PackageCheck,
-  Labeling: Tags,
-  Kitting: Boxes,
-  Palletizing: Layers,
-  Repackaging: PackageOpen,
-  'Goods inspection': ScanEye,
-  'Customs handling': Landmark,
-  Distribution: Truck,
-};
 
 
 /**
@@ -100,7 +76,7 @@ export const WarehouseStorageTypeField = ({
             className="w-auto snap-start shrink-0 justify-start pl-3 pr-7 text-left"
             active={draft.warehouseStorageType === option}
             title={u(`postLoadModal.storageType.${option}`, option)}
-            icon={STORAGE_TYPE_ICONS[option]}
+            icon={lenaIcon(lenaOptionIcon(option), Boxes)}
             onClick={(event) => {
               setField('warehouseStorageType', option);
               event.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
@@ -156,7 +132,7 @@ export const WarehouseCargoFields = ({ draft, setField, setDraft, u, optionDescr
               active={draft.warehouseStorageType === option}
               title={u(`postLoadModal.storageType.${option}`, option)}
               description={optionDescription(option)}
-              icon={STORAGE_TYPE_ICONS[option]}
+              icon={lenaIcon(lenaOptionIcon(option), Boxes)}
               onClick={() => setField('warehouseStorageType', option)}
             />
           ))}
@@ -184,7 +160,7 @@ export const WarehouseCargoFields = ({ draft, setField, setDraft, u, optionDescr
               active={draft.loadingEquipment.includes(option)}
               title={u(`postLoadModal.handlingReq.${option}`, option)}
               description={optionDescription(option)}
-              icon={HANDLING_ICONS[option]}
+              icon={lenaIcon(lenaOptionIcon(option), Package)}
               onClick={() => toggleHandling(option)}
             />
           ))}
@@ -409,7 +385,7 @@ export const WarehouseLocationFields = ({
 
 type WarehouseRequirementKey = 'warehouseRequiresCustomsBonded' | 'warehouseRequiresRacking' | 'warehouseRequiresInsurance' | 'warehouseRequiresSecurity';
 
-export const WarehouseTermsFields = ({ draft, setField, u }: { draft: LoadDraft; setField: SetField; u: (key: string, fallback: string) => string }) => {
+export const WarehouseTermsFields = ({ draft, setField, u, lang }: { draft: LoadDraft; setField: SetField; u: (key: string, fallback: string) => string; lang: Language }) => {
   const requirementToggles: Array<{ key: WarehouseRequirementKey; label: string; icon: typeof ShieldCheck }> = [
     { key: 'warehouseRequiresCustomsBonded', label: u('postLoadModal.warehouseCustomsBonded', ''), icon: Lock },
     { key: 'warehouseRequiresRacking', label: u('postLoadModal.warehouseRacking', ''), icon: Layers },
@@ -422,12 +398,12 @@ export const WarehouseTermsFields = ({ draft, setField, u }: { draft: LoadDraft;
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="space-y-1">
           <FieldLabel>{u('postLoadModal.targetPrice', '')}</FieldLabel>
-          <Input type="number" min="0" value={draft.budget} onChange={(e) => setField('budget', e.target.value)} placeholder="450" />
+          <Input type="number" min="0" value={draft.budget} onChange={(e) => setField('budget', e.target.value)} placeholder={lenaField(lang, 'budget')?.example} />
         </div>
         <div className="space-y-1">
           <FieldLabel>{u('postLoadModal.currency', '')}</FieldLabel>
           <Select value={draft.freightCurrency} onChange={(e) => setField('freightCurrency', e.target.value)}>
-            {SUPPORTED_CURRENCIES.map((currency) => <option key={currency} value={currency}>{currency}</option>)}
+            {lenaFieldChoices(lang, 'freightCurrency', draft.transportType).map((choice) => <option key={choice.value} value={choice.value}>{choice.label}</option>)}
           </Select>
         </div>
         <div className="col-span-2 space-y-1">

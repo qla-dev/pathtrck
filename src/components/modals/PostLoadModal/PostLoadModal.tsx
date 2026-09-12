@@ -1,4 +1,5 @@
-import { lenaText, lenaField, lenaFieldChoices, lenaOptionDescription } from '../../../lib/lenaCatalog';
+import { lenaText, lenaField, lenaFieldChoices, lenaOptionDescription, lenaOptionIcon } from '../../../lib/lenaCatalog';
+import { lenaIcon } from '../../../lib/lenaIcons';
 import { calculateVolume } from './volume';
 import { AddWarehouseModal } from '../AddWarehouseModal/AddWarehouseModal';
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
@@ -9,11 +10,11 @@ import {
   Blinds,
   Box,
   Boxes,
-  Building2,
   Container,
   CalendarDays,
   Camera,
   CheckCircle2,
+  CircleDot,
   Clock3,
   Coins,
   Cpu,
@@ -80,7 +81,6 @@ import {
 import { Language } from '../../../types';
 import { ui } from '../../../i18n';
 import { cn } from '../../../lib/cn';
-import { SUPPORTED_CURRENCIES } from '../../../lib/currency';
 import { confirmAction, showSuccess } from '../../../lib/swal';
 import { useOutsideClick } from '../../../hooks/useOutsideClick';
 import { searchLocations } from '../../../services/locationSearch';
@@ -96,33 +96,20 @@ import { RouteMapModal } from '../../maps/RouteMapModal';
 import { RoutePreviewMap, type RoutePreviewStop } from '../../maps/RoutePreviewMap';
 import { useRouteGeometry } from '../../maps/useRouteGeometry';
 import { CountrySelect } from '../../location/CountrySelect';
-import { PACKAGE_TYPES } from '../../../data/packageTypes';
 import { SEA_PORTS, SeaPort } from '../../../data/seaPorts';
 import { SEA_CONTAINER_TYPES, SEA_CONTAINER_CATEGORIES, containerLabel } from '../../../data/seaContainers';
 import { DocumentDropzone } from '../DocumentDropzone';
 import { ScanResultModal } from '../ScanResultModal';
 import { ScanFieldPatch, deriveGoodsTypeCode, deriveGoodsTypeName, stripHsCodesForPayload, resolveHsCodes, hsSectionIcon } from '../scanFieldRows';
 import {
-  AIR_CHARACTERISTIC_OPTIONS,
-  AIR_LOADING_EQUIPMENT_OPTIONS,
   AIR_SPECIAL_REQUIREMENT_OPTIONS,
   AIR_TAIL_LIFT_REQUIREMENT,
   BODY_TYPE_OPTIONS,
   CLOSED_EXCHANGE_OPTIONS,
   CONTACT_OPTIONS,
   INCOTERM_OPTIONS,
-  LOADING_EQUIPMENT_OPTIONS,
-  ROAD_CHARACTERISTIC_OPTIONS,
-  SEA_BL_TYPE_OPTIONS,
-  SEA_CHARACTERISTIC_OPTIONS,
-  SEA_LOADING_EQUIPMENT_OPTIONS,
-  RAIL_LOADING_EQUIPMENT_OPTIONS,
-  RAIL_DOCUMENT_TYPE_OPTIONS,
   SEA_PAYMENT_TERMS_OPTIONS,
-  WAREHOUSE_STORAGE_TYPE_OPTIONS,
   WAREHOUSE_EQUIPMENT_OPTIONS,
-  WAREHOUSE_HANDLING_REQUIREMENT_OPTIONS,
-  WAREHOUSE_RATE_UNIT_OPTIONS,
 } from '../loadFormOptions';
 import type { PostLoadModalProps, StepId, TransportType, ScannedDocument, LoadDraft, ContainerSelection, RouteStopDraft } from './types';
 import { EQUIPMENT_COVERED_REQUIREMENTS, INITIAL_DRAFT, emptyRouteStop, isContainerTransport } from './types';
@@ -170,7 +157,7 @@ import { formatTimeRangeMask } from './timeMask';
 import { ToggleCard } from './ToggleCard';
 import { ChoiceCard } from './ChoiceCard';
 import { SummaryRow } from './SummaryRow';
-import { HANDLING_ICONS, WarehouseLocationFields, WarehouseStorageTypeField, type OwnedWarehouse } from './WarehouseFormFields';
+import { WarehouseLocationFields, WarehouseStorageTypeField, type OwnedWarehouse } from './WarehouseFormFields';
 import { CustomsDocumentsPanel } from './CustomsDocumentsPanel';
 import { DocumentTypeToggleCard } from './DocumentTypeToggleCard';
 
@@ -203,37 +190,6 @@ const STEPS: Array<{ id: StepId; icon: typeof MapPin }> = [
   { id: 'review', icon: CheckCircle2 },
 ];
 
-const WAREHOUSE_EQUIPMENT_ICONS: Record<(typeof WAREHOUSE_EQUIPMENT_OPTIONS)[number], LucideIcon> = {
-  Forklifts: Forklift,
-  'Pallet Jacks': Package,
-  'Reach Trucks': Truck,
-  'Dock Levellers': PanelBottom,
-  Conveyors: Layers,
-  'Handheld Scanners': ScanLine,
-  'Dock Doors': DoorOpen,
-};
-
-const BODY_TYPE_ICONS: Record<(typeof BODY_TYPE_OPTIONS)[number], LucideIcon> = {
-  Curtain: Blinds,
-  Box: Box,
-  Reefer: ThermometerSnowflake,
-  Mega: Maximize2,
-  Tautliner: Container,
-  Flatbed: PanelBottom,
-};
-
-const AIR_SPECIAL_REQUIREMENT_ICONS: Record<string, LucideIcon> = {
-  'ULD Required': Package2,
-  'Security Screening': ScanEye,
-  'Priority / Time Critical': Zap,
-  'AWB Required': FileText,
-  'Airport Handling': PlaneLanding,
-  'Customs Clearance': Landmark,
-  'Insurance Required': Umbrella,
-  'Special Handling': Wrench,
-  'Track & Trace Required': Radar,
-  'Tail Lift Required': ArrowDownToLine,
-};
 
 // Which AI-refillable fields (the ones wrapped in fieldLabel(...) below) live under each step, so
 // the sidebar can show a per-step count instead of only the one global aiFieldCount badge.
@@ -289,25 +245,17 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       iconSurface: 'bg-orange-500/10',
     },
   ];
-  const shipmentTypeOptions: Record<TransportType, string[]> = {
-    road: ['FTL', 'LTL', 'Express', 'Dedicated'],
-    air: ['Standard', 'Express', 'Priority', 'Economy', 'Charter'],
-    sea: ['FCL', 'LCL'],
-    rail: ['FCL', 'LCL'],
-    warehouse: [],
-  };
-  const loadingEquipmentOptions: Record<TransportType, readonly string[]> = {
-    road: LOADING_EQUIPMENT_OPTIONS,
-    air: AIR_LOADING_EQUIPMENT_OPTIONS,
-    sea: SEA_LOADING_EQUIPMENT_OPTIONS,
-    rail: RAIL_LOADING_EQUIPMENT_OPTIONS,
-    warehouse: WAREHOUSE_HANDLING_REQUIREMENT_OPTIONS,
-  };
+  // What each transport type can be booked as, and how it can be loaded: both lists live in the
+  // LenaAI catalog, which is also what the guided chat offers for these two steps.
+  const shipmentTypeOptions = (transport: TransportType) =>
+    transport === 'warehouse' ? [] : lenaFieldChoices(lang, 'cargoType', transport).map((choice) => choice.value);
+  const loadingEquipmentOptions = (transport: TransportType) =>
+    lenaFieldChoices(lang, 'loadingEquipment', transport).map((choice) => choice.value);
   // True when the picker above already offers an option that says the same thing, in which case the
   // requirement toggle is a duplicate and is not rendered.
   const equipmentCovers = (requirement: EquipmentCoveredRequirement) =>
     EQUIPMENT_COVERED_REQUIREMENTS[requirement].some((option) =>
-      loadingEquipmentOptions[draft.transportType].includes(option));
+      loadingEquipmentOptions(draft.transportType).includes(option));
   const [step, setStep] = useState<StepId>('cargo');
   const contentScrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -315,7 +263,9 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   }, [step]);
   const [draft, setDraft] = useState<LoadDraft>(INITIAL_DRAFT);
   const activeTransportOption = transportOptions.find((option) => option.id === draft.transportType);
-  const selectedPackageType = PACKAGE_TYPES.find((option) => option.value === draft.quantityMeasure);
+  // The packaging registry is the catalog's, so the guided chat offers the very same list.
+  const selectedPackageType = lenaFieldChoices(lang, 'quantityMeasure', draft.transportType)
+    .find((choice) => choice.value === draft.quantityMeasure);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingExisting, setIsLoadingExisting] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -487,7 +437,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         pickupPlaceType: String(pickup.place_type || INITIAL_DRAFT.pickupPlaceType), pickupCity: String(pickup.city || ''), pickupPostalCode: String(pickup.postal_code || ''), pickupCountry: String(pickup.country_code || 'BA'), pickupAddress: String(pickup.address || ''), pickupPort: String(pickup.port || ''), pickupAirport: String(pickup.airport || ''), pickupLatitude: String(pickup.latitude || ''), pickupLongitude: String(pickup.longitude || ''), pickupDate: pickupStart.date, pickupDateTo: pickupEnd.date, pickupTimeFrom: pickupStart.time, pickupTimeTo: pickupEnd.time,
         deliveryPlaceType: String(delivery.place_type || INITIAL_DRAFT.deliveryPlaceType), deliveryCity: String(delivery.city || record.warehouse_city || ''), deliveryPostalCode: String(delivery.postal_code || ''), deliveryCountry: String(delivery.country_code || record.warehouse_country_code || 'BA'), deliveryAddress: String(delivery.address || record.warehouse_address || ''), deliveryPort: String(delivery.port || ''), deliveryAirport: String(delivery.airport || ''), deliveryLatitude: String(delivery.latitude || record.warehouse_latitude || ''), deliveryLongitude: String(delivery.longitude || record.warehouse_longitude || ''), deliveryRadiusKm: String(record.warehouse_radius_km || delivery.radius_km || INITIAL_DRAFT.deliveryRadiusKm), deliveryDate: deliveryStart.date || String(record.storage_start_date || '').slice(0, 10), deliveryDateTo: deliveryEnd.date || String(record.storage_end_date || '').slice(0, 10), deliveryTimeFrom: deliveryStart.time, deliveryTimeTo: deliveryEnd.time,
         transitDays: String(record.transit_days || ''),
-        dimensionScope: record.dimension_scope === 'per_unit' ? 'per_unit' : 'overall', loadTitle: String(record.title || ''), cargoType: String(record.cargo_type || 'FTL'), goodsType: String(record.goods_type || 'General'), hsCodes, customsDocuments: Array.isArray(record.customs_documents) ? record.customs_documents as LoadDraft['customsDocuments'] : [], weightKg: fromApiWeightKg(record.weight_kg), pallets: String(record.pallets || ''), quantityMeasure: String(record.quantity_measure || ''), lengthM: String(record.length_m || ''), widthM: String(record.width_m || ''), heightM: String(record.height_m || ''), volumeM3: String(record.volume_m3 || ''), declaredValue: String(record.declared_value || ''), budget: String(record.budget || ''), freightCurrency: String(record.currency || 'EUR'), shipmentValueCurrency: String(record.shipment_value_currency || record.currency || 'EUR'), paymentDueDays: String(record.payment_due_days || ''), paymentDeferred: terms === 'deferred', seaPaymentTerms: ['Prepaid', 'Collect', 'Other'].includes(terms) ? terms : '', incoterm: String(record.incoterms || ''),
+        dimensionScope: record.dimension_scope === 'per_unit' ? 'per_unit' : 'overall', loadTitle: String(record.title || ''), cargoType: String(record.cargo_type || 'FTL'), goodsType: String(record.goods_type || 'General'), hsCodes, customsDocuments: Array.isArray(record.customs_documents) ? record.customs_documents as LoadDraft['customsDocuments'] : [], weightKg: fromApiWeightKg(record.weight_kg), pallets: String(record.pallets || ''), quantityMeasure: String(record.quantity_measure || ''), lengthM: String(record.length_m || ''), widthM: String(record.width_m || ''), heightM: String(record.height_m || ''), volumeM3: String(record.volume_m3 || ''), declaredValue: String(record.declared_value || ''), budget: String(record.budget || ''), freightCurrency: String(record.currency || 'EUR'), shipmentValueCurrency: String(record.shipment_value_currency || record.currency || 'EUR'), paymentDueDays: String(record.payment_due_days || ''), paymentDeferred: terms === 'deferred', seaPaymentTerms: SEA_PAYMENT_TERMS_OPTIONS.includes(terms) ? terms : '', incoterm: String(record.incoterms || ''),
         loadingEquipment: Array.isArray(record.handling_requirements) ? record.handling_requirements.map(String) : Array.isArray(record.loading_methods) ? record.loading_methods.map(String) : [], vehicleType: String(record.vehicle_type || INITIAL_DRAFT.vehicleType), characteristics: Array.isArray(record.characteristics) ? record.characteristics.map(String) : [], specialRequirements: Array.isArray(record.special_requirements) ? record.special_requirements.map(String) : [], deliveryProof: String(record.delivery_proof || ''), temperatureControlled: record.temperature_min != null || record.temperature_max != null, temperatureMin: String(record.temperature_min ?? ''), temperatureMax: String(record.temperature_max ?? ''),
         containerSelections: Array.isArray(record.container_selections) ? (record.container_selections as Array<Record<string, unknown>>).map((row) => ({ type: String(row.type || ''), quantity: String(row.quantity ?? '1') })) : [],
         blType: String(record.bl_type || ''), dgUnNumber: String(record.dg_un_number || ''), dgImoClass: String(record.dg_imo_class || ''), dgPackingGroup: String(record.dg_packing_group || ''), dgProperShippingName: String(record.dg_proper_shipping_name || ''),
@@ -733,10 +683,22 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   const fieldExample = (field: string) => lenaField(lang, field)?.example ?? '';
   const fieldTitle = (field: string) => lenaField(lang, field)?.label ?? '';
   const optionDescription = (option: string) => lenaOptionDescription(lang, option);
+  // Which glyph an option is drawn with is the catalog's call, so a card here and a LenaAI chat
+  // pill show the same thing.
+  const optionIcon = (option: string, fallback: LucideIcon = CircleDot) => lenaIcon(lenaOptionIcon(option), fallback);
   /** The values a field's own picker offers for the transport type this draft is on. */
   const fieldChoices = (field: string) => lenaFieldChoices(lang, field, draft.transportType);
   const fieldOptions = (field: string, icon: LucideIcon) =>
     fieldChoices(field).map((choice) => ({ value: choice.value, label: choice.label, icon }));
+  // The icon a stop is marked with is presentation, so it stays here; a rail leg is drawn as a
+  // train where sea draws a ship, even though both save the same leg value.
+  const placeTypeChoices = (field: 'pickupPlaceType' | 'deliveryPlaceType') =>
+    fieldChoices(field).map((choice) => ({
+      ...choice,
+      icon: draft.transportType === 'rail' && choice.value === 'Port to Port'
+        ? TrainFront
+        : placeTypeIcon(choice.value, choice.value.includes('Door') ? Truck : MapPin),
+    }));
 
   // A stop card asks for its labels by the stop's own field name. Stop 1 of a side maps back onto
   // a draft field LenaAI may have filled, so it keeps the AI-refill marker; added stops have no
@@ -829,34 +791,6 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     }));
   };
 
-  const loadingEquipmentIcon = (option: string): LucideIcon => {
-    // Warehouse reuses this row for handling requirements, which have their own glyphs.
-    if (option in HANDLING_ICONS) return HANDLING_ICONS[option as keyof typeof HANDLING_ICONS];
-    if (option.includes('Forklift')) return Forklift;
-    if (option.includes('ramp')) return Truck;
-    if (option.includes('Other')) return ShieldCheck;
-    if (option.includes('Tail Lift')) return ArrowDownToLine;
-    if (option.includes('Cargo Lift') || option.includes('High Loader') || option.includes('Heavy Lift')) return Layers;
-    if (option.includes('Pallet Jack') || option.includes('Stuffing')) return Boxes;
-    if (option.includes('Roller Bed') || option.includes('Unstuffing')) return RotateCcw;
-    if (option.includes('Terminal Handling')) return TrainFront;
-    if (option.includes('Crane') || option.includes('Port Handling')) return Ship;
-    if (option.includes('Conveyor') || option.includes('Special Handling')) return Wrench;
-    return X;
-  };
-
-  const SEA_CHARACTERISTIC_ICONS: Record<string, LucideIcon> = {
-    'DG / IMO': ShieldAlert,
-    REEFER: ThermometerSnowflake,
-    OOG: Layers,
-    LIQUID: Droplet,
-    BULK: Boxes,
-    FRAGILE: AlertTriangle,
-    HEAVY: Weight,
-    VALUABLE: Gem,
-    PHARMA: Pill,
-    'FOOD GRADE': UtensilsCrossed,
-  };
 
   // DG / IMO and OOG are the only options that need more than a yes: their extra fields open in a
   // popover on the option itself instead of unfolding under the whole grid.
@@ -866,15 +800,20 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1">
             <FieldLabel>{u('postLoadModal.dgUnNumber', '')}</FieldLabel>
-            <Input value={draft.dgUnNumber} onChange={(e) => setField('dgUnNumber', e.target.value)} placeholder="UN 3481" />
+            <Input value={draft.dgUnNumber} onChange={(e) => setField('dgUnNumber', e.target.value)} placeholder={fieldExample('dgUnNumber')} />
           </div>
           <div className="space-y-1">
             <FieldLabel>{u('postLoadModal.dgImoClass', '')}</FieldLabel>
-            <Input value={draft.dgImoClass} onChange={(e) => setField('dgImoClass', e.target.value)} placeholder="9" />
+            <Input value={draft.dgImoClass} onChange={(e) => setField('dgImoClass', e.target.value)} placeholder={fieldExample('dgImoClass')} />
           </div>
           <div className="space-y-1">
-            <FieldLabel>{u('postLoadModal.dgPackingGroup', '')}</FieldLabel>
-            <Input value={draft.dgPackingGroup} onChange={(e) => setField('dgPackingGroup', e.target.value)} placeholder="II" />
+            <FieldLabel>{fieldTitle('dgPackingGroup')}</FieldLabel>
+            {/* A packing group is one of three fixed values, so it is picked rather than typed -
+                the same three the guided chat offers. */}
+            <Select value={draft.dgPackingGroup} onChange={(e) => setField('dgPackingGroup', e.target.value)}>
+              <option value="">{u('postLoadModal.pleaseSelect', '')}</option>
+              {fieldChoices('dgPackingGroup').map((choice) => <option key={choice.value} value={choice.value}>{choice.label}</option>)}
+            </Select>
           </div>
           <div className="col-span-2 space-y-1">
             <FieldLabel>{u('postLoadModal.dgProperShippingName', '')}</FieldLabel>
@@ -941,20 +880,6 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       setDraft((prev) => ({ ...prev, oogInGauge: '', oogLengthM: '', oogWidthM: '', oogHeightM: '', oogWeightKg: '' }));
     }
   };
-
-  // Characteristics render as one merged grid for every transport type now, so the icon lookup has
-  // to cover the road and air options too rather than only the sea map above.
-  const characteristicIcon = (option: string): LucideIcon =>
-    SEA_CHARACTERISTIC_ICONS[option]
-      || (option.startsWith('MED') ? FileText
-        : option === 'GDP' ? BadgeCheck
-        : option === 'TIR' ? Landmark
-        : option.startsWith('VAL') ? Gem
-        : option.startsWith('Fragile') ? ShieldAlert
-        : option.startsWith('Oversized') ? Layers
-        : option.startsWith('Lithium') ? Zap
-        : option.startsWith('Dry Ice') ? ThermometerSnowflake
-        : Package);
 
   // Sidebar navigation is intentionally unrestricted - AI-fill can populate
   // fields across steps out of order, so gating on completion just gets in the way.
@@ -1764,21 +1689,9 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       <div className="space-y-1">
                         <FieldLabel>{isContainerTransport(draft.transportType) ? u('postLoadModal.seaOriginType', '') : u('postLoadModal.pickupPlaceType', '')}</FieldLabel>
                         <div className="grid grid-cols-2 gap-3">
-                          {(isContainerTransport(draft.transportType)
-                            // Rail keeps sea's leg-type values so the door/terminal logic below is
-                            // shared; only the label changes, because a rail leg starts at an
-                            // intermodal terminal rather than a port.
-                            ? [
-                                { value: 'Port to Port', label: draft.transportType === 'rail' ? u('postLoadModal.terminal', '') : u('postLoadModal.portToPort', ''), icon: draft.transportType === 'rail' ? TrainFront : Ship },
-                                { value: 'Door to Port', label: u('postLoadModal.doorToPort', ''), icon: Truck },
-                              ]
-                            : [
-                                { value: 'Warehouse', label: u('postLoadModal.warehouse', ''), icon: Warehouse },
-                                { value: 'Terminal', label: u('postLoadModal.terminal', ''), icon: Building2 },
-                                { value: 'AOL / Airport of loading', label: 'AOL / Airport of loading', icon: PlaneLanding },
-                                { value: 'Address', label: u('postLoadModal.address', ''), icon: MapPin },
-                              ]
-                          ).map((option) => (
+                          {/* Rail keeps sea's leg-type values so the door/terminal logic below is
+                              shared; the catalog supplies the label a rail leg is named with. */}
+                          {placeTypeChoices('pickupPlaceType').map((option) => (
                             <ChoiceCard
                               key={option.value}
                               compact
@@ -1895,18 +1808,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       <div className="space-y-1">
                         <FieldLabel>{isContainerTransport(draft.transportType) ? u('postLoadModal.seaDestinationType', '') : u('postLoadModal.deliveryPlaceType', '')}</FieldLabel>
                         <div className="grid grid-cols-2 gap-3">
-                          {(isContainerTransport(draft.transportType)
-                            ? [
-                                { value: 'Port to Port', label: draft.transportType === 'rail' ? u('postLoadModal.terminal', '') : u('postLoadModal.portToPort', ''), icon: draft.transportType === 'rail' ? TrainFront : Ship },
-                                { value: 'Port to Door', label: u('postLoadModal.portToDoor', ''), icon: Truck },
-                              ]
-                            : [
-                                { value: 'Warehouse', label: u('postLoadModal.warehouse', ''), icon: Warehouse },
-                                { value: 'Terminal', label: u('postLoadModal.terminal', ''), icon: Building2 },
-                                { value: 'AOD / Airport of delivery', label: 'AOD / Airport of delivery', icon: PlaneLanding },
-                                { value: 'Address + Last Mile Delivery', label: u('postLoadModal.addressLastMile', ''), icon: MapPin },
-                              ]
-                          ).map((option) => (
+                          {placeTypeChoices('deliveryPlaceType').map((option) => (
                             <ChoiceCard
                               key={option.value}
                               compact
@@ -2053,7 +1955,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                               inputMode="numeric"
                               value={draft.transitDays}
                               onChange={(event) => setField('transitDays', event.target.value.replace(/\D/g, '').slice(0, 3))}
-                              placeholder="0"
+                              placeholder={fieldExample('transitDays')}
                               className="w-6 border-0 bg-transparent p-0 text-center text-sm font-black text-slate-900 outline-none dark:text-white"
                             />
                             {u('postLoadModal.transitDays', '')}
@@ -2153,8 +2055,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                               iconSurface={option.iconSurface}
                               iconTone={option.iconTone}
                               onClick={() => setDraft((prev) => {
-                                const validCargoTypes = shipmentTypeOptions[option.id];
-                                const validLoadingEquipment = loadingEquipmentOptions[option.id];
+                                const validCargoTypes = shipmentTypeOptions(option.id);
+                                const validLoadingEquipment = loadingEquipmentOptions(option.id);
                                 // Sea and rail share the leg-type vocabulary, so switching between
                                 // those two keeps the choice; only crossing in or out of the pair
                                 // resets it.
@@ -2215,7 +2117,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           <FieldLabel>{u('postLoadModal.cargoModel', '')}</FieldLabel>
                           <ScrollableRow className="pb-2">
                             <div className="flex w-max gap-2 px-1">
-                            {shipmentTypeOptions[draft.transportType].map((option) => (
+                            {shipmentTypeOptions(draft.transportType).map((option) => (
                               <ChoiceCard key={option} compact nowrap className="w-auto snap-start shrink-0 justify-start pl-3 pr-7 text-left" active={draft.cargoType === option} title={option} icon={option === 'Charter' ? Plane : option === 'Express' || option === 'Priority' ? Clock3 : Package} onClick={(event) => { setField('cargoType', option); event.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' }); }} />
                             ))}
                             </div>
@@ -2226,7 +2128,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       <div className="space-y-1">
                         <FieldLabel>{draft.transportType === 'warehouse' ? u('postLoadModal.warehouseServices', '') : isContainerTransport(draft.transportType) ? u('postLoadModal.handlingRequirements', '') : u('postLoadModal.loadingEquipment', '')}</FieldLabel>
                         <div className="grid md:grid-cols-3 gap-3">
-                          {loadingEquipmentOptions[draft.transportType].map((option) => <ToggleCard key={option} active={draft.loadingEquipment.includes(option)} title={option} description={optionDescription(option)} icon={loadingEquipmentIcon(option)} onClick={() => toggleLoadingEquipment(option)} />)}
+                          {loadingEquipmentOptions(draft.transportType).map((option) => <ToggleCard key={option} active={draft.loadingEquipment.includes(option)} title={option} description={optionDescription(option)} icon={optionIcon(option, X)} onClick={() => toggleLoadingEquipment(option)} />)}
                         </div>
                       </div>
                     </div>
@@ -2244,7 +2146,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             <div className="flex min-h-10 items-center rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950">
                               <div className="flex flex-wrap gap-2">
                                 {WAREHOUSE_EQUIPMENT_OPTIONS.map((option) => {
-                                  const EquipmentIcon = WAREHOUSE_EQUIPMENT_ICONS[option];
+                                  const EquipmentIcon = optionIcon(option);
                                   return (
                                     <button
                                       key={option}
@@ -2262,7 +2164,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           </div>
                         ) : draft.transportType === 'air' ? (
                           <div className="space-y-4">
-                            <div className="space-y-1"><FieldLabel>{u('postLoadModal.specialRequirements', '')}</FieldLabel><div className="flex min-h-10 items-center rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950"><div className="flex flex-wrap gap-2">{(draft.pickupPlaceType === 'Address' || draft.deliveryPlaceType === 'Address + Last Mile Delivery' ? [...AIR_SPECIAL_REQUIREMENT_OPTIONS, AIR_TAIL_LIFT_REQUIREMENT] : AIR_SPECIAL_REQUIREMENT_OPTIONS).map((option) => { const RequirementIcon = AIR_SPECIAL_REQUIREMENT_ICONS[option]; return <button key={option} type="button" onClick={() => toggleSpecialRequirement(option)} className={cn('inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold leading-none transition-colors', draft.specialRequirements.includes(option) ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200')}><RequirementIcon className="h-3.5 w-3.5 shrink-0" /><span className="leading-none">{u(option, option)}</span></button>; })}</div></div></div>
+                            <div className="space-y-1"><FieldLabel>{u('postLoadModal.specialRequirements', '')}</FieldLabel><div className="flex min-h-10 items-center rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950"><div className="flex flex-wrap gap-2">{(draft.pickupPlaceType === 'Address' || draft.deliveryPlaceType === 'Address + Last Mile Delivery' ? [...AIR_SPECIAL_REQUIREMENT_OPTIONS, AIR_TAIL_LIFT_REQUIREMENT] : AIR_SPECIAL_REQUIREMENT_OPTIONS).map((option) => { const RequirementIcon = optionIcon(option); return <button key={option} type="button" onClick={() => toggleSpecialRequirement(option)} className={cn('inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold leading-none transition-colors', draft.specialRequirements.includes(option) ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200')}><RequirementIcon className="h-3.5 w-3.5 shrink-0" /><span className="leading-none">{u(option, option)}</span></button>; })}</div></div></div>
                           </div>
                         ) : isContainerTransport(draft.transportType) ? (
                           <div className="space-y-1">
@@ -2292,7 +2194,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             </div>
                           </div>
                         ) : (
-                          <div className={cn('space-y-1', invalidClass('bodyTypes'))}>{fieldLabel('bodyTypes')}<div className="flex min-h-10 items-center rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950"><div className="flex flex-wrap gap-2">{BODY_TYPE_OPTIONS.map((option) => { const BodyTypeIcon = BODY_TYPE_ICONS[option]; return <button key={option} type="button" onClick={() => toggleBodyType(option)} className={cn('inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold leading-none transition-colors', draft.bodyTypes.includes(option) ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200')}><BodyTypeIcon className="h-3.5 w-3.5 shrink-0" /><span className="leading-none">{u(`postLoadModal.bodyType.${option}`, option)}</span></button>; })}</div></div></div>
+                          <div className={cn('space-y-1', invalidClass('bodyTypes'))}>{fieldLabel('bodyTypes')}<div className="flex min-h-10 items-center rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950"><div className="flex flex-wrap gap-2">{BODY_TYPE_OPTIONS.map((option) => { const BodyTypeIcon = optionIcon(option); return <button key={option} type="button" onClick={() => toggleBodyType(option)} className={cn('inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold leading-none transition-colors', draft.bodyTypes.includes(option) ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200')}><BodyTypeIcon className="h-3.5 w-3.5 shrink-0" /><span className="leading-none">{u(`postLoadModal.bodyType.${option}`, option)}</span></button>; })}</div></div></div>
                         )}
 
                         {draft.transportType === 'air' && <div className="space-y-1"><FieldLabel>{u('postLoadModal.deliveryProof', '')}</FieldLabel><div className="grid grid-cols-2 gap-3"><ChoiceCard compact active={draft.deliveryProof === 'POD'} title="POD" description="Proof of Delivery" icon={FileText} onClick={() => setField('deliveryProof', 'POD')} /><ChoiceCard compact active={draft.deliveryProof === 'AOD'} title="AOD" description="Arrival on Delivery" icon={CheckCircle2} onClick={() => setField('deliveryProof', 'AOD')} /></div></div>}
@@ -2307,8 +2209,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                                 : u('postLoadModal.blType', '')}
                             </FieldLabel>
                             <div className={cn('grid gap-2', draft.transportType === 'rail' ? 'grid-cols-4' : 'grid-cols-3')}>
-                              {(draft.transportType === 'rail' ? RAIL_DOCUMENT_TYPE_OPTIONS : SEA_BL_TYPE_OPTIONS).map((option) => (
-                                <ChoiceCard key={option} compact active={draft.blType === option} title={u(`postLoadModal.blType.${option}`, option)} icon={FileText} onClick={() => setField('blType', option)} />
+                              {fieldChoices('blType').map(({ value: option, label }) => (
+                                <ChoiceCard key={option} compact active={draft.blType === option} title={label} icon={FileText} onClick={() => setField('blType', option)} />
                               ))}
                             </div>
                           </div>
@@ -2334,11 +2236,11 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-1">
                             <FieldLabel>{u('postLoadModal.temperatureMin', '')}</FieldLabel>
-                            <Input type="number" value={draft.temperatureMin} onChange={(e) => setField('temperatureMin', e.target.value)} placeholder="2" />
+                            <Input type="number" value={draft.temperatureMin} onChange={(e) => setField('temperatureMin', e.target.value)} placeholder={fieldExample('temperatureMin')} />
                           </div>
                           <div className="space-y-1">
                             <FieldLabel>{u('postLoadModal.temperatureMax', '')}</FieldLabel>
-                            <Input type="number" value={draft.temperatureMax} onChange={(e) => setField('temperatureMax', e.target.value)} placeholder="8" />
+                            <Input type="number" value={draft.temperatureMax} onChange={(e) => setField('temperatureMax', e.target.value)} placeholder={fieldExample('temperatureMax')} />
                           </div>
                         </div>
                       )}
@@ -2356,7 +2258,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             u={u}
                           />
                         )}
-                        {(isContainerTransport(draft.transportType) ? SEA_CHARACTERISTIC_OPTIONS : draft.transportType === 'air' ? AIR_CHARACTERISTIC_OPTIONS : ROAD_CHARACTERISTIC_OPTIONS).map((option) => (
+                        {fieldChoices('characteristics').map(({ value: option }) => (
                           characteristicDetail(option) ? (
                             <DetailToggleCard
                               key={option}
@@ -2366,7 +2268,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                                 toggleCharacteristic(option);
                               }}
                               onClear={() => clearCharacteristicDetail(option)}
-                              icon={characteristicIcon(option)}
+                              icon={optionIcon(option, Package)}
                               title={option}
                               description={optionDescription(option)}
                               summary={characteristicSummary(option)}
@@ -2380,7 +2282,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                               key={option}
                               active={draft.characteristics.includes(option)}
                               onClick={() => toggleCharacteristic(option)}
-                              icon={characteristicIcon(option)}
+                              icon={optionIcon(option, Package)}
                               title={option}
                               description={optionDescription(option)}
                             />
@@ -2511,9 +2413,9 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         <div className="space-y-1">
                           <FieldLabel>{u('postLoadModal.declaredValue', '')}</FieldLabel>
                           <div className={cn('grid w-full grid-cols-[minmax(0,1fr)_110px] gap-2', invalidClass('declaredValue'))}>
-                            <Input type="number" step="100" min="0" value={draft.declaredValue} onChange={(e) => setField('declaredValue', e.target.value)} placeholder="50000" />
+                            <Input type="number" step="100" min="0" value={draft.declaredValue} onChange={(e) => setField('declaredValue', e.target.value)} placeholder={fieldExample('declaredValue')} />
                             <Select value={draft.shipmentValueCurrency} onChange={(e) => setField('shipmentValueCurrency', e.target.value)}>
-                              {SUPPORTED_CURRENCIES.map((currency) => <option key={currency} value={currency}>{currency}</option>)}
+                              {fieldChoices('freightCurrency').map((choice) => <option key={choice.value} value={choice.value}>{choice.label}</option>)}
                             </Select>
                           </div>
                         </div>
@@ -2589,7 +2491,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                               min="0"
                               value={draft.pallets}
                               onChange={(event) => setField('pallets', event.target.value)}
-                              placeholder="24"
+                              placeholder={fieldExample('pallets')}
                             />
                           </div>
                           <div className="space-y-1">
@@ -2605,7 +2507,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                               noResults={u('postLoadModal.noPackagingMethods', '')}
                               options={[
                                 ...(draft.quantityMeasure && !selectedPackageType ? [{ value: draft.quantityMeasure, label: draft.quantityMeasure, icon: Package }] : []),
-                                ...PACKAGE_TYPES.map((option) => ({ value: option.value, label: `${option.value} - ${option.label}`, icon: Package })),
+                                ...fieldOptions('quantityMeasure', Package),
                               ]}
                             />
                           </div>
@@ -2613,15 +2515,15 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_5rem_minmax(0,1.4fr)] sm:items-end">
                           <div className={cn('space-y-1', invalidClass('lengthM'))}>
                             {fieldLabel('lengthM')}
-                            <Input type="number" step="0.1" min="0.1" value={draft.lengthM} onChange={(e) => setField('lengthM', e.target.value)} placeholder="13.6" />
+                            <Input type="number" step="0.1" min="0.1" value={draft.lengthM} onChange={(e) => setField('lengthM', e.target.value)} placeholder={fieldExample('lengthM')} />
                           </div>
                           <div className={cn('space-y-1', invalidClass('widthM'))}>
                             {fieldLabel('widthM')}
-                            <Input type="number" step="0.05" min="0" value={draft.widthM} onChange={(e) => setField('widthM', e.target.value)} placeholder="2.45" />
+                            <Input type="number" step="0.05" min="0" value={draft.widthM} onChange={(e) => setField('widthM', e.target.value)} placeholder={fieldExample('widthM')} />
                           </div>
                           <div className={cn('space-y-1', invalidClass('heightM'))}>
                             {fieldLabel('heightM')}
-                            <Input type="number" step="0.05" min="0" value={draft.heightM} onChange={(e) => setField('heightM', e.target.value)} placeholder="2.70" />
+                            <Input type="number" step="0.05" min="0" value={draft.heightM} onChange={(e) => setField('heightM', e.target.value)} placeholder={fieldExample('heightM')} />
                           </div>
                           <div className="space-y-1">
                             <FieldLabel>{u('postLoadModal.dimensionUnit', '')}</FieldLabel>
@@ -2642,7 +2544,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                                 min="0.1"
                                 value={draft.weightKg}
                                 onChange={(e) => setField('weightKg', e.target.value)}
-                                placeholder={draft.weightUnit === 't' ? '24.0' : '24000'}
+                                placeholder={draft.weightUnit === 't' ? '24.0' : fieldExample('weightKg')}
                               />
                               <IconSelect
                                 value={draft.weightUnit}
@@ -2651,7 +2553,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                                 ariaLabel={u('postLoadModal.weightUnit', '')}
                                 icon={Weight}
                                 className="w-24 shrink-0"
-                                options={['t', 'kg'].map((unit) => ({ value: unit, label: unit, icon: Weight }))}
+                                options={fieldOptions('weightUnit', Weight)}
                               />
                             </div>
                           </div>
@@ -2663,7 +2565,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                                 {u('postLoadModal.recalculateVolume', '')}
                               </button>
                             </div>
-                            <Input type="number" step="any" min="0" value={draft.volumeM3} onChange={(e) => setField('volumeM3', e.target.value)} placeholder="33.2" />
+                            <Input type="number" step="any" min="0" value={draft.volumeM3} onChange={(e) => setField('volumeM3', e.target.value)} placeholder={fieldExample('volumeM3')} />
                           </div>
                         </div>
                         <div className="space-y-1">
@@ -2756,13 +2658,13 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             step="0.01"
                             value={draft.budget}
                             onChange={(e) => setField('budget', e.target.value)}
-                            placeholder="1450"
+                            placeholder={fieldExample('budget')}
                           />
                         </div>
                         <div className={cn('space-y-1', invalidClass('freightCurrency'))}>
                           {fieldLabel('freightCurrency')}
                           <Select value={draft.freightCurrency} onChange={(e) => setField('freightCurrency', e.target.value)}>
-                            {SUPPORTED_CURRENCIES.map((currency) => <option key={currency} value={currency}>{currency}</option>)}
+                            {fieldChoices('freightCurrency').map((choice) => <option key={choice.value} value={choice.value}>{choice.label}</option>)}
                           </Select>
                         </div>
                       </div>
@@ -2815,7 +2717,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           <Input
                             value={draft.contactEmail}
                             onChange={(e) => setField('contactEmail', e.target.value)}
-                            placeholder="john@company.com"
+                            placeholder={fieldExample('contactEmail')}
                           />
                         </div>
                         <div className={cn('space-y-1', invalidClass('contactPhone'))}>
@@ -2823,7 +2725,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           <Input
                             value={draft.contactPhone}
                             onChange={(e) => setField('contactPhone', e.target.value)}
-                            placeholder="+387 33 123 456"
+                            placeholder={fieldExample('contactPhone')}
                           />
                         </div>
                         <div className="space-y-1">
@@ -2831,7 +2733,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           <Input
                             value={draft.contactFax}
                             onChange={(e) => setField('contactFax', e.target.value)}
-                            placeholder="+387 33 555 111"
+                            placeholder={fieldExample('contactFax')}
                           />
                         </div>
                         <div className="space-y-1">
@@ -2839,7 +2741,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           <Input
                             value={draft.contactMobile}
                             onChange={(e) => setField('contactMobile', e.target.value)}
-                            placeholder="+387 61 123 456"
+                            placeholder={fieldExample('contactMobile')}
                           />
                         </div>
                       </div>
@@ -3045,7 +2947,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         label={u('postLoadModal.specsSummary', '')}
                         value={`${draft.lengthM || '—'} ${draft.lengthUnit} × ${draft.widthM || '—'} ${draft.widthUnit} × ${draft.heightM || '—'} ${draft.heightUnit} · ${draft.weightKg || '—'} ${draft.weightUnit} · ${draft.volumeM3 || '—'} CBM · ${draft.additionalInfo || u('postLoadModal.none', '')}`}
                       />
-                      <SummaryRow label={u('postLoadModal.packagingMethod', '')} value={`${selectedPackageType ? `${selectedPackageType.value} - ${selectedPackageType.label}` : draft.quantityMeasure || '—'} · ${draft.pallets || '—'} ${u('postLoadModal.unitsShort', '')}`} />
+                      <SummaryRow label={u('postLoadModal.packagingMethod', '')} value={`${selectedPackageType?.label || draft.quantityMeasure || '—'} · ${draft.pallets || '—'} ${u('postLoadModal.unitsShort', '')}`} />
                       {isContainerTransport(draft.transportType) ? (
                         <SummaryRow label={u('postLoadModal.containerTypesSummary', '')} value={draft.containerSelections.length ? draft.containerSelections.map((row) => `${row.quantity}x ${containerLabel(row.type, lang)}`).join(', ') : u('postLoadModal.none', '')} />
                       ) : (

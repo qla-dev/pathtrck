@@ -1,8 +1,9 @@
 import { lenaText } from '../../lib/lenaCatalog';
+import { lenaIcon } from '../../lib/lenaIcons';
 import { latestLoadScan } from '../../lib/lenaLoadCanvas';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { BadgeCheck, Banknote, CheckCircle2, CircleDot, CircleOff, Clock3, FileSearch, FileText, FileUp, Forklift, Handshake, Landmark, MapPinned, MessageCircle, Package, Plane, Radar, ReceiptText, Route, Ruler, ScanEye, ShieldCheck, Ship, Thermometer, Truck, UserRound, Warehouse, Zap, type LucideIcon } from 'lucide-react';
+import { CheckCircle2, Clock3, FileSearch, FileText, FileUp, MapPinned, MessageCircle, Package, ReceiptText, Search, Warehouse, type LucideIcon } from 'lucide-react';
 
 import { api } from '../../services/api';
 import { Language } from '../../types';
@@ -39,55 +40,86 @@ const removeVisibleMarkdownAsterisks = (text: string): string => text
   .replace(/\*([^*\n]+)\*/g, '$1');
 
 type SuggestedReply = { label: string; value: string; icon: LucideIcon; skip?: boolean };
-type SuggestedReplyGroup = { options: SuggestedReply[]; multiple?: boolean; exclusiveValue?: string };
+type SuggestedReplyGroup = { options: SuggestedReply[]; multiple?: boolean; exclusiveValue?: string; searchable?: boolean; onSearch?: (term: string) => void };
 type WarehouseChoice = { id: string; name: string };
 
-const questionnaireOptionIcon = (step: string, value: string): LucideIcon => {
-  const normalized = value.toLowerCase();
-  if (/not |none|unknown|preference|nije |bez |nicht |keine |unbekannt/.test(normalized)) return CircleOff;
-  if (step === 'bodyType' || step === 'vehicleType') return normalized.includes('reefer') ? Thermometer : Truck;
-  if (step === 'loadingEquipment') return normalized.includes('forklift') ? Forklift : Package;
-  if (step === 'characteristics') return ShieldCheck;
-  if (step === 'specialRequirements') return Zap;
-  if (step === 'transportMode') return normalized.includes('last-mile') ? Truck : Plane;
-  if (step === 'deliveryProof') return FileText;
-  if (step === 'priceTerms') return normalized.includes('fixed') || normalized.includes('fiks') || normalized.includes('fest') ? Banknote : Handshake;
-  if (step === 'terms') return FileText;
-  if (step === 'contact') return UserRound;
-  if (step === 'dimensions') return Ruler;
-  if (step === 'temperature') return Thermometer;
-  if (step === 'declaredValue') return Banknote;
-  if (step === 'requirements') {
-    if (normalized.includes('toll')) return Route;
-    if (normalized.includes('ferry')) return Ship;
-    if (normalized.includes('cmr')) return FileText;
-    if (normalized.includes('pallet')) return Package;
-    if (normalized.includes('customs')) return Landmark;
-    if (normalized.includes('certification')) return BadgeCheck;
-    if (normalized.includes('inspection')) return ScanEye;
-    if (normalized.includes('track')) return Radar;
-    if (normalized.includes('priority')) return Zap;
-    return ShieldCheck;
-  }
-  return CircleDot;
-};
+// A searchable step (the packaging registry's 300+ codes, the account's customers) shows a search
+// box and only the first few matches, rather than a wall of pills the user has to read through.
+const SEARCHABLE_PILL_LIMIT = 8;
 
-const questionnaireSuggestions = (step: string, lang: Language, warehouses: WarehouseChoice[] = [], transport = 'road'): SuggestedReplyGroup => {
+
+const questionnaireSuggestions = (step: string, lang: Language, accountChoices: Record<string, WarehouseChoice[]> = {}, transport = 'road'): SuggestedReplyGroup => {
   const definition = lenaText(lang).steps[step];
   if (!definition) return { options: [] };
-  const choices = step === 'warehouse'
-    ? [...warehouses.map((warehouse) => ({ label: warehouse.name, value: warehouse.id, skip: false })), ...definition.choices]
+  // Warehouses and customers are this account's own, so only the client can supply them.
+  const own = accountChoices[step] ?? [];
+  const choices = own.length || definition.dynamic
+    ? [...own.map((choice) => ({ label: choice.name, value: choice.id, skip: false, icon: definition.dynamic === 'customers' ? 'UserRound' : 'Warehouse' })), ...definition.choices]
     : definition.choices_by_transport[transport] || definition.choices;
   return {
     multiple: definition.multiple,
-    options: choices.map((choice) => ({ ...choice, icon: choice.skip ? Clock3 : questionnaireOptionIcon(step, choice.value) })),
+    searchable: definition.searchable,
+    // The glyph comes with the choice, so a pill shows what the Post a load card shows.
+    options: choices.map((choice) => ({ ...choice, icon: choice.skip ? Clock3 : lenaIcon(choice.icon) })),
   };
+};
+
+/**
+ * The picker for a step whose list is too long to read as pills - the packaging registry, or the
+ * account's customers.
+ *
+ * It is the chat's equivalent of the Post a load form's searchable select: type to narrow, click to
+ * answer. A step whose options come from the server (`onSearch`) also re-queries as you type, so a
+ * customer beyond the first page can still be found.
+ */
+const SearchableSuggestionPills = ({ group, lang, onSubmit }: { group: SuggestedReplyGroup; lang: Language; onSubmit: (value: string, displayText?: string) => void }) => {
+  const [term, setTerm] = useState('');
+  const text = lenaText(lang).ui;
+  const normalized = term.trim().toLowerCase();
+
+  useEffect(() => {
+    if (!group.onSearch) return undefined;
+    const timer = setTimeout(() => group.onSearch?.(normalized), 280);
+    return () => clearTimeout(timer);
+  }, [group, normalized]);
+
+  const skips = group.options.filter((option) => option.skip);
+  const matches = group.options.filter((option) => !option.skip && (!normalized || option.label.toLowerCase().includes(normalized)));
+  const shown = matches.slice(0, SEARCHABLE_PILL_LIMIT);
+  const remaining = matches.length - shown.length;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-white px-3 py-1.5 dark:bg-slate-900">
+        <Search className="h-3.5 w-3.5 shrink-0 text-primary" />
+        <input
+          value={term}
+          onChange={(event) => setTerm(event.target.value)}
+          placeholder={text['lena.optionSearch']}
+          aria-label={text['lena.optionSearch']}
+          className="w-full bg-transparent text-xs font-semibold text-slate-700 outline-none placeholder:font-medium placeholder:text-slate-400 dark:text-slate-100"
+        />
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {[...shown, ...skips].map((suggestion) => {
+          const Icon = suggestion.icon;
+          return <button key={`${suggestion.value}:${suggestion.label}`} type="button" onClick={() => onSubmit(suggestion.value, suggestion.label)} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-primary/20 bg-white px-3 py-1.5 text-xs font-bold text-primary shadow-sm transition-colors hover:border-primary hover:bg-primary hover:text-white dark:bg-slate-900"><Icon className="h-3.5 w-3.5" />{suggestion.label}</button>;
+        })}
+      </div>
+      {matches.length === 0 && <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{text['lena.optionNoResults']}</p>}
+      {remaining > 0 && <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{text['lena.optionMore'].replace(':count', String(remaining))}</p>}
+    </div>
+  );
 };
 
 const QuestionnaireSuggestionPills = ({ group, lang, onSubmit, onSelectionChange }: { group: SuggestedReplyGroup; lang: Language; onSubmit: (value: string, displayText?: string) => void; onSelectionChange?: (value: string) => void }) => {
   const [selected, setSelected] = useState<string[]>([]);
   const confirmLabel = lenaText(lang).ui['lena.shared.0'];
   const multipleHint = lenaText(lang).ui['lena.shared.1'];
+  // Only for a single-answer step: a searchable multi-select would need the confirm button below.
+  if (group.searchable && !group.multiple) {
+    return <SearchableSuggestionPills group={group} lang={lang} onSubmit={onSubmit} />;
+  }
   if (!group.multiple) {
     return <div className="flex flex-wrap gap-2">{group.options.map((suggestion) => {
       const Icon = suggestion.icon;
@@ -157,6 +189,8 @@ export const useLenaEmbeddedMessages = ({
 }: UseLenaEmbeddedMessagesOptions) => {
   const latestStep = messages.at(-1)?.text.match(LENA_STEP_MARKER_PATTERN)?.[1] ?? null;
   const [warehouseChoices, setWarehouseChoices] = useState<WarehouseChoice[]>([]);
+  const [customerChoices, setCustomerChoices] = useState<WarehouseChoice[]>([]);
+  const [customerSearch, setCustomerSearch] = useState('');
 
   useEffect(() => {
     if (latestStep !== 'warehouse') return undefined;
@@ -168,6 +202,21 @@ export const useLenaEmbeddedMessages = ({
     }).catch(() => setWarehouseChoices([]));
     return () => { cancelled = true; };
   }, [latestStep]);
+
+  // The customer is picked from a list in the Post a load form, so the chat offers the account's
+  // own customers rather than asking for a name to be typed and guessed at.
+  useEffect(() => {
+    if (latestStep !== 'customer') return undefined;
+    let cancelled = false;
+    // The search term comes from the picker below, so a customer past the first page is still
+    // reachable - the list is the server's, the same one the form's customer select reads.
+    void api.customerOptions({ limit: 20, ...(customerSearch ? { search: customerSearch } : {}) }).then((response) => {
+      if (cancelled) return;
+      const rows = Array.isArray(response.data) ? response.data : [];
+      setCustomerChoices(rows.map((row) => ({ id: String(row.id), name: String(row.text || row.name || `#${row.id}`) })));
+    }).catch(() => setCustomerChoices([]));
+    return () => { cancelled = true; };
+  }, [latestStep, customerSearch]);
 
   const bookingOffers = useMemo(
     () => new Map(messages.flatMap((message) => {
@@ -237,11 +286,12 @@ export const useLenaEmbeddedMessages = ({
     if (!latestMessage || latestMessage.sender !== 'other') return new Map<string, { step: string; group: SuggestedReplyGroup }>();
     const step = latestMessage.text.match(LENA_STEP_MARKER_PATTERN)?.[1];
     const transport = latestLoadScan(messages.flatMap((message) => message.attachments || []))?.transportType || 'road';
-    const suggestions = step ? questionnaireSuggestions(step, lang, warehouseChoices, transport) : { options: [] };
+    const suggestions = step ? questionnaireSuggestions(step, lang, { warehouse: warehouseChoices, customer: customerChoices }, transport) : { options: [] };
+    if (step === 'customer') suggestions.onSearch = setCustomerSearch;
     return suggestions.options.length && step
       ? new Map([[latestMessage.id, { step, group: suggestions }]])
       : new Map<string, { step: string; group: SuggestedReplyGroup }>();
-  }, [lang, messages, warehouseChoices]);
+  }, [lang, messages, warehouseChoices, customerChoices]);
   // The step LenaAI is currently waiting on, regardless of whether it has pills - drives the chat
   // input's live formatting/unit hint (see lenaStepInputMask.ts) for free-text steps like weight
   // or dimensions, not just the pill-driven ones above.

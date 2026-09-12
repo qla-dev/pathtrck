@@ -5,6 +5,37 @@ import { api } from './services/api';
 import { installLenaCatalog } from './lib/lenaCatalog';
 import './index.css';
 
+/**
+ * What fills the screen while the server-owned LenaAI catalog is fetched, before App can mount.
+ *
+ * It is deliberately the same full-screen, centred shape the app's own loading screen has, so
+ * startup reads as one wait rather than a stray line of text followed by a spinner. No translation
+ * is available yet - the catalog that carries the wording is exactly what is still loading.
+ */
+const BootScreen = ({ onRetry }: { onRetry?: () => void }) => (
+  <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
+    <div className="flex flex-col items-center gap-4 text-slate-500">
+      {onRetry ? (
+        <>
+          <p role="alert" className="text-sm font-bold">Unable to load the application.</p>
+          <button
+            type="button"
+            onClick={onRetry}
+            className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-white transition-opacity hover:opacity-90"
+          >
+            Retry
+          </button>
+        </>
+      ) : (
+        <>
+          <div role="status" aria-label="Loading" className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-b-transparent" />
+          <span className="text-sm font-bold">Loading</span>
+        </>
+      )}
+    </div>
+  </div>
+);
+
 if (window.location.protocol === 'file:') {
   document.body.innerHTML = `
     <div style="font-family: Arial, sans-serif; padding: 24px; line-height: 1.6; color: #0f172a;">
@@ -21,7 +52,7 @@ if (window.location.protocol === 'file:') {
 } else {
   const root = createRoot(document.getElementById('root')!);
   const start = async () => {
-    root.render(<div role="status" className="p-6">Loading…</div>);
+    root.render(<BootScreen />);
     try {
       try {
         const response = await api.lenaCatalog();
@@ -36,7 +67,7 @@ if (window.location.protocol === 'file:') {
       const { default: App } = await import('./App.tsx');
       root.render(<StrictMode><App /></StrictMode>);
     } catch {
-      root.render(<div role="alert" className="p-6">Unable to load the application. <button onClick={() => void start()}>Retry</button></div>);
+      root.render(<BootScreen onRetry={() => void start()} />);
     }
   };
   void start();

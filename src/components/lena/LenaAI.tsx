@@ -1,4 +1,4 @@
-import { lenaText } from '../../lib/lenaCatalog';
+import { lenaText, lenaLoadWelcome } from '../../lib/lenaCatalog';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Bot, LayoutGrid, MessageCircle, Plus, Sparkles, X } from 'lucide-react';
@@ -204,7 +204,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
     loadLabel,
     lang,
     welcomeRole: u('LenaAI', ''),
-    welcomeText: loadId ? lenaText(lang).welcome.load : generalWelcome,
+    welcomeText: loadId ? lenaLoadWelcome(lang, loadLabel) : generalWelcome,
     sendFailedTitle: u('Message could not be sent', ''),
     replyFailedTitle: u('chat.replyFailed', ''),
     newConversationLabel: u('New LenaAI conversation', ''),
