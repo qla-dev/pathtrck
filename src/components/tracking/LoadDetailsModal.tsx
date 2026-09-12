@@ -145,9 +145,10 @@ type LoadDetailsModalProps = {
    */
   onEditLoad?: (loadId: string) => void;
   onPinLenaConversation?: (conversationId: string, loadId: string, loadLabel?: string) => void;
+  onStartGenericLenaChat?: () => void;
 };
 
-export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], onClose, onChanged, initialTab = 'tracker', onEditLoad, onPinLenaConversation }: LoadDetailsModalProps) => {
+export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], onClose, onChanged, initialTab = 'tracker', onEditLoad, onPinLenaConversation, onStartGenericLenaChat }: LoadDetailsModalProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [basePackage, setSelectedPackage] = useState<PackageData>(emptyPackage);
   const [detailsOpen, setDetailsOpen] = useState(true);
@@ -1683,6 +1684,10 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
       loadLabel={selectedPackage.trackingNumber}
       onPin={(conversationId) => {
         onPinLenaConversation?.(conversationId, selectedPackage.id, selectedPackage.trackingNumber);
+        setLenaOpen(false);
+      }}
+      onStartGenericChat={() => {
+        onStartGenericLenaChat?.();
         setLenaOpen(false);
       }}
     />

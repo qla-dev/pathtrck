@@ -7571,6 +7571,7 @@ export default function App() {
               setIsPostLoadOpen(true);
             }}
             onPinLenaConversation={(conversationId, loadId, loadLabel) => setPinnedLena({ conversationId, loadId, loadLabel, refreshToken: Date.now() })}
+            onStartGenericLenaChat={() => setPinnedLena({ refreshToken: Date.now() })}
             onClose={() => { setOpenLoadDetailsId(null); setOpenLoadDetailsTab('tracker'); }}
           />
         )}
@@ -7657,6 +7658,15 @@ export default function App() {
           loadLabel={pinnedLena?.loadLabel}
           conversationId={pinnedLena?.conversationId}
           refreshToken={pinnedLena?.refreshToken ?? 0}
+          onApplyLoadPrefill={(patch, conversationId, draftId) => {
+            setLenaLoadPrefill(patch);
+            setLenaSourceConversationId(conversationId);
+            setLenaSourceDraftId(draftId ?? null);
+            setPinnedLena(null);
+            setEditLoadId(null);
+            setIsPostLoadOpen(true);
+          }}
+          onStartGenericChat={() => setPinnedLena({ refreshToken: Date.now() })}
           onClose={() => setPinnedLena(null)}
         />
         {/* Mounted beside the other app-level modals so the header chip can open it from any view.

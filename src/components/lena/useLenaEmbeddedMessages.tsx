@@ -416,9 +416,14 @@ export const useLenaEmbeddedMessages = ({
     // message, which never carries a time) need a bigger top margin here to land at the same
     // visual distance from the text instead of looking cramped.
     return (
-      <div className={`flex w-full max-w-xl flex-col gap-2 ${message.time ? 'mt-2' : 'mt-[27px]'}`}>
+      <div className={`flex w-full ${legalSources.length > 0 ? 'max-w-none' : 'max-w-xl'} flex-col gap-2 ${message.time ? 'mt-2' : 'mt-[27px]'}`}>
         {outOfTokens && <LenaOutOfTokensCard lang={lang} resetAt={outOfTokensResetAt} packageIcon={outOfTokensPackageIcon} packageColor={outOfTokensPackageColor} onUpgrade={onUpgrade} onTopUp={onTopUp} />}
-        {legalSources.length > 0 && <section className="rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/70 dark:bg-amber-950/20"><div className="mb-2 flex items-center gap-2 text-xs font-black text-amber-900 dark:text-amber-200"><Scale className="h-4 w-4" />{lang === 'de' ? 'Rechtsquellen' : lang === 'bs' ? 'Pravni izvori' : 'Legal sources'}</div><div className="space-y-1.5">{legalSources.map((id) => <a key={id} href={`/api/legal-sources/${id}`} target="_blank" rel="noreferrer" className="flex items-center justify-between gap-2 rounded-lg bg-white px-2.5 py-2 text-xs font-semibold text-primary hover:underline dark:bg-slate-900"><span>{legalSourceTitles[id]}</span><ExternalLink className="h-3.5 w-3.5 shrink-0" /></a>)}</div></section>}
+        {legalSources.length > 0 && <div className="space-y-1 [container-type:inline-size]"><p className="text-[10px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">{lang === 'bs' ? 'IZVORI:' : lang === 'de' ? 'QUELLEN:' : 'SOURCES:'}</p>{Array.from({ length: Math.ceil(legalSources.length / 4) }, (_, rowIndex) => (
+          <div key={rowIndex} className="flex items-center gap-2">{legalSources.slice(rowIndex * 4, rowIndex * 4 + 4).map((id) => {
+            const sourceTitle = legalSourceTitles[id];
+            return <button key={id} type="button" onClick={() => void api.legalSources.open(id)} title={sourceTitle} className="flex max-w-[24cqw] min-w-0 cursor-pointer items-center gap-1 text-left text-xs font-semibold text-primary hover:underline"><FileText className="h-3.5 w-3.5 shrink-0" /><span className="min-w-0 truncate">{sourceTitle}</span><ExternalLink className="h-3.5 w-3.5 shrink-0" /></button>;
+          })}</div>
+        ))}</div>}
         {embeddedLoad && (
           <LenaLoadDetailsCard
             lang={lang}

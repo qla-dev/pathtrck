@@ -507,6 +507,20 @@ const openLoadDocument = async (id: string | number, name: string, inline: boole
   window.setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
 };
 
+// Legal source PDFs live on the API host too. Open them through the same blob-preview path as
+// load documents so a frontend dev server URL is never mistaken for the backend URL.
+const openLegalSource = async (source: string): Promise<void> => {
+  const popup = window.open('', '_blank');
+  if (!popup) throw new ApiError('Allow pop-ups to open this file.', 0);
+  popup.document.write('<!doctype html><title>Loading…</title><p style="font-family:sans-serif;padding:24px">Loading document…</p>');
+  try {
+    popup.location.href = URL.createObjectURL(await fetchAuthenticatedBlob(`/legal-sources/${encodeURIComponent(source)}`));
+  } catch (error) {
+    popup.close();
+    throw error;
+  }
+};
+
 const queryString = (params: ListParams = {}) => {
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => { if (value !== undefined) query.set(key, String(value)); });
@@ -744,6 +758,9 @@ export const api = {
       });
     },
     open: openMessageAttachment,
+  },
+  legalSources: {
+    open: openLegalSource,
   },
   dispatchChat: {
     reply: async (conversationId: number, lang?: string) => (await request<Record<string, unknown>>('/dispatch-chat', {

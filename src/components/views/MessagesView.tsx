@@ -1,6 +1,6 @@
 import { lenaText, getLenaCatalog } from '../../lib/lenaCatalog';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Bot, LayoutGrid, MessageCircle, Pin, Plus, Sparkles } from 'lucide-react';
+import { Bot, LayoutGrid, MessageCircle, Pin, Plus, Sparkles, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Language } from '../../types';
 import { ui } from '../../i18n';
@@ -769,6 +769,8 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
   };
 
   const showCanvas = canEnterCanvas && Boolean(activeConversation.canvas) && canvasPanelOpen;
+  const canPinConversation = activeConversation.id !== EMPTY_LENA_CONVERSATION_ID
+    && activeConversation.messages.some((message) => !message.id.startsWith('welcome-'));
   const activeMessageHistory = activeConversation.id
     ? messageHistory[activeConversation.id] || {
         messages: activeConversation.messages,
@@ -850,7 +852,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
                   <Plus className="h-4 w-4" />
                   {!showCanvas && u('New chat', 'New chat')}
                 </button>
-                {onPinConversation && <button type="button" onClick={() => void handlePinConversation()} aria-label={u('Pin conversation', 'Pin conversation')} title={showCanvas ? u('Pin conversation', 'Pin conversation') : undefined} className={`flex h-9 cursor-pointer items-center gap-2 rounded-full border border-slate-200 bg-slate-100 text-xs font-bold text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 ${showCanvas ? 'w-9 justify-center px-0' : 'px-3'}`}><Pin className="h-4 w-4" />{!showCanvas && u('Pin conversation', 'Pin conversation')}</button>}
+                {onPinConversation && canPinConversation && <button type="button" onClick={() => void handlePinConversation()} aria-label={u('Pin conversation', 'Pin conversation')} title={showCanvas ? u('Pin conversation', 'Pin conversation') : undefined} className={`flex h-9 cursor-pointer items-center gap-2 rounded-full border border-slate-200 bg-slate-100 text-xs font-bold text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 ${showCanvas ? 'w-9 justify-center px-0' : 'px-3'}`}><Pin className="h-4 w-4" />{!showCanvas && u('Pin conversation', 'Pin conversation')}</button>}
                 {canEnterCanvas && (
                   <button
                     type="button"
@@ -858,11 +860,9 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
                     aria-label={showCanvas ? u('Hide draft panel', 'Hide draft panel') : u('Draft panel', 'Draft panel')}
                     className={`relative flex h-9 items-center gap-2 rounded-full border text-xs font-bold transition-all cursor-pointer ${showCanvas ? 'w-9 justify-center px-0 border-primary bg-primary text-white' : 'px-3 border-slate-200 bg-slate-100 text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}
                   >
-                    <Sparkles className="h-4 w-4" />
+                    {showCanvas ? <X className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
                     {!showCanvas && u('Draft panel', 'Draft panel')}
-                    <span className="absolute -top-2 -right-2 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-primary px-1 text-[10px] font-black text-white dark:border-slate-900">
-                      {collectedFieldCount}
-                    </span>
+                    {collectedFieldCount > 0 && <span className="absolute -top-2 -right-2 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-primary px-1 text-[10px] font-black text-white dark:border-slate-900">{collectedFieldCount}</span>}
                   </button>
                 )}
               </>

@@ -40,6 +40,7 @@ type LenaAIProps = {
   onTopUp?: () => void;
   onPin?: (conversationId: string) => void;
   onConversationReady?: () => void;
+  onStartGenericChat?: () => void;
 };
 
 // Reusable LenaAI chat overlay — with no loadId it's a general app assistant (opened from the
@@ -188,7 +189,7 @@ function PublicTrackingLenaAI({ open, onClose, lang, trackingNumber }: LenaAIPro
   );
 }
 
-function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, loadLabel, initialConversationId, onBookLoad, onOpenLoad, initialCanvasMode = null, sideBarMode = false, pinnedMode = false, onApplyLoadPrefill, onBulkImported, onUpgrade, onTopUp, onPin, onConversationReady }: LenaAIProps) {
+function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, loadLabel, initialConversationId, onBookLoad, onOpenLoad, initialCanvasMode = null, sideBarMode = false, pinnedMode = false, onApplyLoadPrefill, onBulkImported, onUpgrade, onTopUp, onPin, onConversationReady, onStartGenericChat }: LenaAIProps) {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const quickActionLabels = lenaText(lang).actions as Record<import('../../lib/useLenaAiChat').LenaQuickAction, string>;
   const generalWelcome = lenaText(lang).welcome.general;
@@ -240,6 +241,8 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
     previousCanvas.current = { conversationId: conversation.id, active: canvasEnabled };
   }, [conversation.id, canvasEnabled, pinnedMode]);
   const showCanvas = !loadId && canvasEnabled && canvasPanelOpen;
+  // A synthetic welcome is not a conversation the user has actually started yet.
+  const canPinConversation = conversation.messages.some((message) => !message.id.startsWith('welcome-'));
   const collectedFieldCount = useMemo(() => {
     const scan = latestLoadScan(canvasAttachments);
     return scan ? buildScanFieldRows(scan).length : 0;
@@ -290,7 +293,12 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
       ),
       confirmText: u('New chat', ''),
     });
-    if (confirmed) startNewChat();
+    if (!confirmed) return;
+    if (loadId && onStartGenericChat) {
+      onStartGenericChat();
+      return;
+    }
+    startNewChat();
   };
 
   return createPortal(
@@ -361,9 +369,10 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
                   statusText={(chat) => chat.status === 'load-detected' ? u('Load detected', '') : u('Draft', '')}
                 />
               )}
-              <div className="flex min-h-0 flex-1 gap-4">
+              <div className="flex min-h-0 min-w-0 flex-1 gap-4">
               <ChatConversationPanel
                 activeConversation={displayConversation}
+                compactHeader={sideBarMode}
                 draft={draft}
                 onDraftChange={setDraft}
                 onSend={() => void send()}
@@ -399,7 +408,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
                     <Plus className="h-4 w-4" />
                     {!showCanvas && !sideBarMode && u('New chat', '')}
                   </button>
-                  {onPin && <button type="button" onClick={() => onPin(conversation.id)} aria-label={u('Pin conversation', 'Pin conversation')} title={showCanvas ? u('Pin conversation', 'Pin conversation') : undefined} className={`flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-slate-100 text-xs font-bold text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 cursor-pointer ${showCanvas ? 'w-10 justify-center px-0' : 'px-3'}`}>
+                  {onPin && canPinConversation && <button type="button" onClick={() => onPin(conversation.id)} aria-label={u('Pin conversation', 'Pin conversation')} title={showCanvas ? u('Pin conversation', 'Pin conversation') : undefined} className={`flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-slate-100 text-xs font-bold text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 cursor-pointer ${showCanvas ? 'w-10 justify-center px-0' : 'px-3'}`}>
                     <Pin className="h-4 w-4" />
                     {!showCanvas && u('Pin conversation', 'Pin conversation')}
                   </button>}
@@ -413,11 +422,9 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
                     title={showCanvas ? u('Hide draft panel', '') : undefined}
                     className={`relative flex h-10 cursor-pointer items-center gap-2 rounded-full border text-xs font-bold transition-all ${showCanvas ? 'w-10 justify-center px-0 border-primary bg-primary text-white' : 'px-3 border-slate-200 bg-slate-100 text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}
                   >
-                    <Sparkles className="h-4 w-4" />
+                    {showCanvas ? <X className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
                     {!showCanvas && u('Draft panel', '')}
-                    <span className="absolute -top-2 -right-2 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-primary px-1 text-[10px] font-black text-white dark:border-slate-950">
-                      {collectedFieldCount}
-                    </span>
+                    {collectedFieldCount > 0 && <span className="absolute -top-2 -right-2 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-primary px-1 text-[10px] font-black text-white dark:border-slate-950">{collectedFieldCount}</span>}
                   </button>}
                   </div>
                 )}

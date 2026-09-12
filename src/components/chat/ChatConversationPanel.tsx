@@ -43,6 +43,8 @@ type ChatConversationPanelProps = {
   thinkingLabel?: string;
   onTitleClick?: () => void;
   headerLeading?: ReactNode;
+  /** Reserves space for header actions in narrow side panels. */
+  compactHeader?: boolean;
   headerActions?: ReactNode;
   headerActionsLeading?: ReactNode;
   renderMessageExtra?: (message: ChatMessage) => ReactNode;
@@ -84,6 +86,7 @@ export const ChatConversationPanel = ({
   thinkingLabel = 'Thinking',
   onTitleClick,
   headerLeading,
+  compactHeader = false,
   headerActions,
   headerActionsLeading,
   renderMessageExtra,
@@ -230,7 +233,7 @@ export const ChatConversationPanel = ({
 
   return (
   <div
-    className={cn("relative lg:col-span-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col overflow-hidden h-full min-h-0", className)}
+    className={cn("relative w-full min-w-0 max-w-full lg:col-span-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col overflow-hidden h-full min-h-0", className)}
     onDragEnter={handleAttachmentDragOver}
     onDragOver={handleAttachmentDragOver}
     onDragLeave={handleAttachmentDragLeave}
@@ -241,8 +244,8 @@ export const ChatConversationPanel = ({
         {attachmentDropLabel}
       </div>
     )}
-    <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
-      {headerLeading ?? <div className="min-w-0 flex-1">
+    <div className="min-w-0 overflow-hidden p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+      {headerLeading ?? <div className={`min-w-0 flex-1 ${compactHeader ? 'max-w-[calc(100%-7rem)]' : ''}`}>
         {onTitleClick ? (
           <button
             type="button"
@@ -266,7 +269,7 @@ export const ChatConversationPanel = ({
           <p className="text-[11px] text-slate-500">{activeConversation.role}</p>
         )}
       </div>}
-      {headerActions ?? <div className="flex shrink-0 items-center gap-2">
+      {headerActions ? <div className="flex shrink-0 items-center gap-2">{headerActions}</div> : <div className="flex shrink-0 items-center gap-2">
         {headerActionsLeading}
         <div className="flex items-center gap-1">
           {!activeConversation.isAiDispatch && (
@@ -287,7 +290,7 @@ export const ChatConversationPanel = ({
       <motion.div
         key={activeConversation.id}
         ref={messageListRef}
-        className="absolute inset-0 overflow-y-auto p-4"
+        className="absolute inset-0 overflow-x-hidden overflow-y-auto p-4"
         onScroll={(event) => {
           shouldStickToBottomRef.current = event.currentTarget.scrollHeight - event.currentTarget.scrollTop - event.currentTarget.clientHeight < 80;
           if (event.currentTarget.scrollTop > 32 || !hasOlderMessages || loadingOlderMessages || !onLoadOlderMessages) return;
@@ -475,11 +478,11 @@ export const ChatConversationPanel = ({
             event.target.value = '';
           }}
         />
-        <button type="button" disabled={attachmentBusy} onClick={() => onAttachFile && attachmentInputRef.current?.click()} className="h-9 w-9 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center cursor-pointer disabled:cursor-wait disabled:opacity-60" title={activeConversation.isAiDispatch ? 'Excel, CSV, image or PDF' : undefined}>
+        <button type="button" disabled={attachmentBusy} onClick={() => onAttachFile && attachmentInputRef.current?.click()} className="h-9 w-9 shrink-0 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center cursor-pointer disabled:cursor-wait disabled:opacity-60" title={activeConversation.isAiDispatch ? 'Excel, CSV, image or PDF' : undefined}>
           {attachmentBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
         </button>
         {!activeConversation.isAiDispatch && <button className="h-9 w-9 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center cursor-pointer"><ImageIcon className="w-4 h-4" /></button>}
-        <div className="relative flex-1">
+        <div className="relative min-w-0 flex-1">
           <input
             value={draft}
             disabled={inputLocked}
@@ -507,7 +510,7 @@ export const ChatConversationPanel = ({
           )}
         </div>
         {!activeConversation.isAiDispatch && <button className="h-9 w-9 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 flex items-center justify-center cursor-pointer transition-all"><Mic className="w-4 h-4" /></button>}
-        <button type="button" onClick={onSend} disabled={sendBusy || inputLocked} className={cn(primaryActionButtonClass, 'w-9 disabled:cursor-not-allowed disabled:opacity-60')}>
+        <button type="button" onClick={onSend} disabled={sendBusy || inputLocked} className={cn(primaryActionButtonClass, 'w-9 shrink-0 disabled:cursor-not-allowed disabled:opacity-60')}>
           {sendBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
         </button>
       </div>
