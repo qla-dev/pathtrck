@@ -1,6 +1,6 @@
 import { lenaText, getLenaCatalog } from '../../lib/lenaCatalog';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Bot, LayoutGrid, MessageCircle, Plus, Sparkles } from 'lucide-react';
+import { Bot, LayoutGrid, MessageCircle, Pin, Plus, Sparkles } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Language } from '../../types';
 import { ui } from '../../i18n';
@@ -41,6 +41,7 @@ type MessagesViewProps = {
   // Actions offered by the out-of-messages card once the plan's LenaAI allowance is spent.
   onUpgrade?: () => void;
   onTopUp?: () => void;
+  onPinConversation?: (loadId?: string, loadLabel?: string) => void;
 };
 
 type OptimisticMessage = {
@@ -83,7 +84,7 @@ const isDraftCreatedMessageBody = (body: string): boolean =>
 // "your draft was created" message carries a welcome- prefixed id too, but it is a real message.
 const isSyntheticWelcomeId = (id: string): boolean => id.startsWith('welcome-') && !id.startsWith('welcome-draft-');
 
-export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill, onBulkImported, refreshSignal, newChatSignal, openConversationId, onConversationOpened, onUpgrade, onTopUp }: MessagesViewProps) => {
+export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill, onBulkImported, refreshSignal, newChatSignal, openConversationId, onConversationOpened, onUpgrade, onTopUp, onPinConversation }: MessagesViewProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const quickActionLabels = lenaText(lang).actions as Record<LenaQuickAction, string>;
   const generalWelcome = lenaText(lang).welcome.general;
@@ -833,19 +834,23 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
                   type="button"
                   onClick={() => void handleNewConversation()}
                   disabled={!user || creatingNewConversation}
-                  className="flex h-9 cursor-pointer items-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-3 text-xs font-bold text-slate-600 transition-all hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                  aria-label={u('New chat', 'New chat')}
+                  title={showCanvas ? u('New chat', 'New chat') : undefined}
+                  className={`flex h-9 cursor-pointer items-center gap-2 rounded-full border border-slate-200 bg-slate-100 text-xs font-bold text-slate-600 transition-all hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 ${showCanvas ? 'w-9 justify-center px-0' : 'px-3'}`}
                 >
                   <Plus className="h-4 w-4" />
-                  {u('New chat', 'New chat')}
+                  {!showCanvas && u('New chat', 'New chat')}
                 </button>
+                {onPinConversation && <button type="button" onClick={() => onPinConversation(activeConversation.loadId, activeConversation.name)} aria-label={u('Pin conversation', 'Pin conversation')} title={showCanvas ? u('Pin conversation', 'Pin conversation') : undefined} className={`flex h-9 cursor-pointer items-center gap-2 rounded-full border border-slate-200 bg-slate-100 text-xs font-bold text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 ${showCanvas ? 'w-9 justify-center px-0' : 'px-3'}`}><Pin className="h-4 w-4" />{!showCanvas && u('Pin conversation', 'Pin conversation')}</button>}
                 {canEnterCanvas && (
                   <button
                     type="button"
                     onClick={handlePrepareLoad}
-                    className={`relative flex h-9 items-center gap-2 rounded-full border px-3 text-xs font-bold transition-all cursor-pointer ${showCanvas ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-slate-100 text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}
+                    aria-label={showCanvas ? u('Hide draft panel', 'Hide draft panel') : u('Draft panel', 'Draft panel')}
+                    className={`relative flex h-9 items-center gap-2 rounded-full border text-xs font-bold transition-all cursor-pointer ${showCanvas ? 'w-9 justify-center px-0 border-primary bg-primary text-white' : 'px-3 border-slate-200 bg-slate-100 text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}
                   >
                     <Sparkles className="h-4 w-4" />
-                    {showCanvas ? u('Hide draft panel', 'Hide draft panel') : u('Draft panel', 'Draft panel')}
+                    {!showCanvas && u('Draft panel', 'Draft panel')}
                     <span className="absolute -top-2 -right-2 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-primary px-1 text-[10px] font-black text-white dark:border-slate-900">
                       {collectedFieldCount}
                     </span>

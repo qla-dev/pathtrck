@@ -5474,7 +5474,7 @@ export default function App() {
     setBookingLoad(mapDatabaseRecordToLoad(response.data));
   };
   const [lenaAiOpen, setLenaAiOpen] = useState(false);
-  const [pinnedLena, setPinnedLena] = useState<{ loadId?: string; loadLabel?: string } | null>(null);
+  const [pinnedLena, setPinnedLena] = useState<{ loadId?: string; loadLabel?: string; refreshToken: number } | null>(null);
   const [lenaCanvasMode, setLenaCanvasMode] = useState<LenaCanvasMode | null>(
     null,
   );
@@ -7400,6 +7400,7 @@ export default function App() {
                     setCheckoutPackageId(null);
                     setPaymentModalOpen(true);
                   }}
+                  onPinConversation={(loadId, loadLabel) => setPinnedLena({ loadId, loadLabel, refreshToken: Date.now() })}
                   refreshSignal={messagesRefreshSignal}
                   newChatSignal={messagesNewChatSignal}
                   openConversationId={openMessagesConversationId}
@@ -7569,7 +7570,7 @@ export default function App() {
               setEditLoadId(loadId);
               setIsPostLoadOpen(true);
             }}
-            onPinLenaConversation={(loadId, loadLabel) => setPinnedLena({ loadId, loadLabel })}
+            onPinLenaConversation={(loadId, loadLabel) => setPinnedLena({ loadId, loadLabel, refreshToken: Date.now() })}
             onClose={() => { setOpenLoadDetailsId(null); setOpenLoadDetailsTab('tracker'); }}
           />
         )}
@@ -7643,7 +7644,7 @@ export default function App() {
             await handleBookLoad(loadId);
           }}
           onPin={() => {
-            setPinnedLena({});
+            setPinnedLena({ refreshToken: Date.now() });
             setLenaAiOpen(false);
           }}
         />
@@ -7654,6 +7655,7 @@ export default function App() {
           companyIds={trackingCompanyIds}
           loadId={pinnedLena?.loadId}
           loadLabel={pinnedLena?.loadLabel}
+          refreshToken={pinnedLena?.refreshToken ?? 0}
           onClose={() => setPinnedLena(null)}
         />
         {/* Mounted beside the other app-level modals so the header chip can open it from any view.

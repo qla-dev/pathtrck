@@ -20,6 +20,8 @@ import { api, BulkLoadRow, type PublicTrackingSummary } from '../../services/api
 type LenaAIProps = {
   open: boolean;
   sideBarMode?: boolean;
+  /** A pinned sidebar is intentionally a single conversation, never the chat inbox. */
+  pinnedMode?: boolean;
   onClose: () => void;
   lang: Language;
   userId?: number;
@@ -184,7 +186,7 @@ function PublicTrackingLenaAI({ open, onClose, lang, trackingNumber }: LenaAIPro
   );
 }
 
-function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, loadLabel, onBookLoad, onOpenLoad, initialCanvasMode = null, sideBarMode = false, onApplyLoadPrefill, onBulkImported, onUpgrade, onTopUp, onPin }: LenaAIProps) {
+function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, loadLabel, onBookLoad, onOpenLoad, initialCanvasMode = null, sideBarMode = false, pinnedMode = false, onApplyLoadPrefill, onBulkImported, onUpgrade, onTopUp, onPin }: LenaAIProps) {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const quickActionLabels = lenaText(lang).actions as Record<import('../../lib/useLenaAiChat').LenaQuickAction, string>;
   const generalWelcome = lenaText(lang).welcome.general;
@@ -216,6 +218,12 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
   const [canvasPanelOpen, setCanvasPanelOpen] = useState(false);
   const previousCanvas = useRef({ conversationId: '', active: false });
   useEffect(() => {
+    if (pinnedMode) {
+      // Pinning must never surprise the user by replacing their chat with the draft canvas.
+      setCanvasPanelOpen(false);
+      previousCanvas.current = { conversationId: conversation.id, active: canvasEnabled };
+      return;
+    }
     const previous = previousCanvas.current;
     if (previous.conversationId !== conversation.id || (!previous.active && canvasEnabled)) {
       setCanvasPanelOpen(canvasEnabled);
@@ -223,7 +231,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
       setCanvasPanelOpen(false);
     }
     previousCanvas.current = { conversationId: conversation.id, active: canvasEnabled };
-  }, [conversation.id, canvasEnabled]);
+  }, [conversation.id, canvasEnabled, pinnedMode]);
   const showCanvas = !loadId && canvasEnabled && canvasPanelOpen;
   const collectedFieldCount = useMemo(() => {
     const scan = latestLoadScan(canvasAttachments);
@@ -298,6 +306,15 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
           >
             <X className="h-5 w-5" />
           </button>
+          {sideBarMode && showCanvas && <button
+            type="button"
+            onClick={() => setCanvasPanelOpen(false)}
+            className="absolute right-11 top-0 z-50 flex h-10 cursor-pointer items-center gap-2 border-b border-l border-slate-200 bg-slate-100 px-3 text-xs font-bold text-primary transition-colors hover:bg-primary/10 dark:border-slate-700 dark:bg-slate-900"
+            aria-label={u('Hide draft panel', '')}
+          >
+            <Sparkles className="h-4 w-4" />
+            {u('Hide draft panel', '')}
+          </button>}
           <motion.div
             className={`flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-white dark:bg-slate-950 ${sideBarMode ? 'px-3 pb-3 pt-12' : 'p-4 md:p-7'}`}
             initial={{ opacity: 0, y: 24, scale: 0.992 }}
@@ -306,7 +323,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
             transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
           >
             <div className="flex h-full min-h-0 w-full flex-col gap-4 lg:flex-row">
-              {!loadId && (
+              {!loadId && !pinnedMode && (
                 <ChatSidebar
                   compact={showCanvas}
                   searchPlaceholder={u('Search messages...', '')}
@@ -362,7 +379,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
                     <Pin className="h-4 w-4" />
                     {!showCanvas && u('Pin conversation', 'Pin conversation')}
                   </button>}
-                  {!loadId && <button
+                  {(!loadId || pinnedMode) && <button
                     type="button"
                     onClick={() => {
                       if (canvasEnabled) setCanvasPanelOpen((current) => !current);
@@ -384,7 +401,6 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
               <AnimatePresence initial={false}>
                 {showCanvas && (
                   <motion.div key="load-canvas" className={sideBarMode ? 'absolute inset-3 top-12 z-20 min-h-0' : 'h-[42%] min-h-0 min-w-0 flex-1 lg:h-full'} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 24 }} transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}>
-                    {sideBarMode && <button type="button" onClick={() => setCanvasPanelOpen(false)} className="absolute left-3 top-3 z-10 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-white/95 text-primary shadow-md dark:bg-slate-900" aria-label={u('Hide draft panel', '')} title={u('Hide draft panel', '')}><Sparkles className="h-4 w-4" /></button>}
                     <LenaLoadCanvas
                       lang={lang}
                       mode={canvasMode}
