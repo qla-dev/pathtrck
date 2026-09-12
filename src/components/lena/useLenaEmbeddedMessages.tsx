@@ -45,6 +45,25 @@ const legalSourceTitles: Record<string, string> = {
   'customs-warehouse': 'Uputstvo o carinskom skladištu', 'inward-processing': 'Uputstvo o unutrašnjoj obradi',
   'home-import-clearance': 'Uputstvo o kućnom uvoznom carinjenju', 'temporary-import': 'Uputstvo o privremenom uvozu',
   'efta-agreement': 'Ugovor EFTA', 'cefta-origin': 'Uputstvo o pravilima porijekla u CEFTA trgovini', 'cefta-joint-committee': 'Odluka Zajedničkog odbora CEFTA',
+  'eu-union-customs-code': 'EU: Carinski zakonik Unije (952/2013)',
+  'hr-import-vat-instruction': 'HR: Uputa 8/23 o obračunskom PDV-u', 'hr-import-vat-leaflet': 'HR: Letak o obračunskom PDV-u',
+  'rs-customs-law': 'RS: Carinski zakon', 'rs-vat-law': 'RS: Zakon o PDV-u',
+  'customs-policy-law-58-15': 'Zakon o carinskoj politici BiH 58/15',
+  'customs-policy-decision-13-19': 'Odluka o provođenju ZCP 13/19', 'customs-policy-amendment-54-19': 'Izmjena Odluke o provođenju ZCP 54/19',
+  'customs-policy-amendment-21-20': 'Izmjena Odluke o provođenju ZCP 21/20', 'customs-policy-amendment-6-23': 'Izmjene Odluke o provođenju ZCP 6/23',
+  'customs-offences-law': 'Zakon o carinskim prekršajima BiH', 'customs-tariff-2026': 'Carinska tarifa BiH 2026',
+  'jci-amendment-43-24': 'Izmjene Uputstva o deklaraciji 43/24', 'jci-amendment-69-25': 'Izmjene Uputstva o deklaraciji 69/25', 'jci-amendment-16-26': 'Izmjene Uputstva o JCI 16/26',
+  'jci-export': 'Prilog 2: Izvoz, uputstva o JCI', 'customs-debt-security-amendment-9-25': 'Izmjene Uputstva o osiguranju duga 9/25',
+  'transit-ncts': 'Uputstvo o provozu uz NCTS', 'transit-security': 'Uputstvo o osiguranju u provozu',
+  'duty-relief-decision': 'Odluka o oslobađanju od dažbina', 'vat-law': 'Zakon o PDV-u BiH',
+  'excise-law': 'Zakon o akcizama BiH', 'excise-law-amendment-49-14': 'Izmjene Zakona o akcizama 49/14', 'excise-law-amendment-60-14': 'Izmjene Zakona o akcizama 60/14',
+  'excise-law-amendment-91-17': 'Izmjene Zakona o akcizama 91/17', 'excise-law-amendment-50-22': 'Izmjene Zakona o akcizama 50/22',
+  'cefta-origin-amendment': 'Izmjena Uputstva o porijeklu CEFTA', 'cefta-decision-3-2015': 'Odluka CEFTA 3/2015', 'cefta-decision-1-2021': 'CEFTA odluka 1/2021 o porijeklu',
+  'saa-trade-aspects': 'Trgovinski aspekti SSP BiH-EU', 'saa-diagonal-cumulation': 'Dijagonalna kumulacija, Privremeni sporazum', 'turkey-fta': 'Ugovor o slobodnoj trgovini BiH-Turska',
+  'eu-delegated-regulation-2446': 'EU: Delegirana uredba 2015/2446', 'eu-implementing-regulation-2447': 'EU: Provedbena uredba 2015/2447', 'eu-vat-directive': 'EU: Direktiva o PDV-u 2006/112',
+  'hr-eu-customs-implementation-law': 'HR: Zakon o provedbi carinskog zakonodavstva EU', 'hr-excise-law': 'HR: Zakon o trošarinama',
+  'rs-customs-procedures-regulation': 'RS: Uredba o carinskim postupcima', 'rs-customs-procedures-annexes': 'RS: Uredba, prilozi 16 i 29',
+  'rs-vat-rulebook': 'RS: Pravilnik o PDV-u', 'rs-customs-tariff-law': 'RS: Zakon o Carinskoj tarifi', 'rs-tariff-nomenclature-2026': 'RS: Nomenklatura Carinske tarife 2026',
 };
 
 const LENA_OUT_OF_TOKENS_PATTERN = /\[\[LENA_OUT_OF_TOKENS\]\]/;
@@ -307,6 +326,7 @@ export const useLenaEmbeddedMessages = ({
     () => legalSourcesByMessage.keys().next().value ?? null,
     [legalSourcesByMessage]
   );
+  const [expandedSourceMessageIds, setExpandedSourceMessageIds] = useState<Set<string>>(() => new Set());
   const questionnaireSuggestionsByMessage = useMemo(() => {
     const latestMessage = messages.at(-1);
     if (!latestMessage || latestMessage.sender !== 'other') return new Map<string, { step: string; group: SuggestedReplyGroup }>();
@@ -483,20 +503,34 @@ export const useLenaEmbeddedMessages = ({
       ? (lang === 'bs' ? 'IZVORI:' : lang === 'de' ? 'QUELLEN:' : 'SOURCES:')
       : (lang === 'bs' ? 'IZVOR ZA OVAJ ODGOVOR:' : lang === 'de' ? 'QUELLE FÜR DIESE ANTWORT:' : 'SOURCE FOR THIS ANSWER:');
 
+    // Up to four sources fit one row. Beyond that the first row keeps three sources and turns its
+    // fourth slot into "+N more", which reveals the rest for this message only.
+    const collapsed = legalSources.length > 4 && !expandedSourceMessageIds.has(message.id);
+    const visibleSources = collapsed ? legalSources.slice(0, 3) : legalSources;
+    const hiddenCount = legalSources.length - visibleSources.length;
+    const items = visibleSources.map((id) => {
+      const sourceTitle = legalSourceTitles[id];
+      return <a key={id} href={`${API_BASE_URL}/legal-sources/${encodeURIComponent(id)}`} target="_blank" rel="noreferrer" title={sourceTitle} className="flex max-w-[24cqw] min-w-0 cursor-pointer items-center gap-1 text-left text-xs font-semibold text-primary hover:underline"><FileText className="h-3.5 w-3.5 shrink-0" /><span className="min-w-0 truncate">{sourceTitle}</span><ExternalLink className="h-3.5 w-3.5 shrink-0" /></a>;
+    });
+    if (collapsed) {
+      items.push(
+        <button key="more" type="button" onClick={() => setExpandedSourceMessageIds((current) => new Set(current).add(message.id))} className="shrink-0 cursor-pointer text-xs font-semibold text-slate-500 hover:text-primary hover:underline dark:text-slate-400">
+          {lang === 'bs' ? `+${hiddenCount} više` : lang === 'de' ? `+${hiddenCount} weitere` : `+${hiddenCount} more`}
+        </button>
+      );
+    }
+
     return (
       <div className="mt-2 space-y-1 [container-type:inline-size]">
         <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</p>
-        {Array.from({ length: Math.ceil(legalSources.length / 4) }, (_, rowIndex) => (
-          <div key={rowIndex} className="flex items-center gap-2">{legalSources.slice(rowIndex * 4, rowIndex * 4 + 4).map((id) => {
-            const sourceTitle = legalSourceTitles[id];
-            return <a key={id} href={`${API_BASE_URL}/legal-sources/${encodeURIComponent(id)}`} target="_blank" rel="noreferrer" title={sourceTitle} className="flex max-w-[24cqw] min-w-0 cursor-pointer items-center gap-1 text-left text-xs font-semibold text-primary hover:underline"><FileText className="h-3.5 w-3.5 shrink-0" /><span className="min-w-0 truncate">{sourceTitle}</span><ExternalLink className="h-3.5 w-3.5 shrink-0" /></a>;
-          })}</div>
+        {Array.from({ length: Math.ceil(items.length / 4) }, (_, rowIndex) => (
+          <div key={rowIndex} className="flex items-center gap-2">{items.slice(rowIndex * 4, rowIndex * 4 + 4)}</div>
         ))}
       </div>
     );
-  }, [firstLegalSourcesMessageId, lang, legalSourcesByMessage]);
+  }, [expandedSourceMessageIds, firstLegalSourcesMessageId, lang, legalSourcesByMessage]);
 
-  const extraContentVersion = `${embeddedLoadIds.join(',')}:${Object.keys(resolvedEmbeddedLoads).sort().join(',')}:${[...quickActionsByMessage.keys()].join(',')}:${[...questionnaireSuggestionsByMessage.keys()].join(',')}:${[...locationChoiceByMessage.keys()].join(',')}:${[...loadReadyMessageIds].join(',')}:${[...outOfTokensMessageIds].join(',')}:${[...legalSourcesByMessage.keys()].join(',')}`;
+  const extraContentVersion = `${embeddedLoadIds.join(',')}:${Object.keys(resolvedEmbeddedLoads).sort().join(',')}:${[...quickActionsByMessage.keys()].join(',')}:${[...questionnaireSuggestionsByMessage.keys()].join(',')}:${[...locationChoiceByMessage.keys()].join(',')}:${[...loadReadyMessageIds].join(',')}:${[...outOfTokensMessageIds].join(',')}:${[...legalSourcesByMessage.keys()].join(',')}:${[...expandedSourceMessageIds].join(',')}`;
 
   // Lock typing only when the current step has a real selectable answer. Free-text steps also
   // render a lone "choose later" escape pill, but that skip action must never make weight,

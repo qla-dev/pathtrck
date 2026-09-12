@@ -868,6 +868,12 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
             className="min-h-0 min-w-0 flex-1"
             otherTyping={aiReplying}
             thinkingLabel={u('Thinking', 'Thinking')}
+                thinkingPhrases={[
+                  u('lena.thinkingPhrase', 'is thinking'),
+                  u('lena.analyzingPhrase', 'is analysing'),
+                  u('lena.reviewingPhrase', 'is reviewing information'),
+                  u('lena.patiencePhrase', 'asks for your patience'),
+                ]}
             notSentMessageLabel={u('chat.notSent', 'Not sent')}
             retryMessageLabel={u('chat.retry', 'Retry')}
             copyMessageLabel={u('chat.copy', 'Copy message')}

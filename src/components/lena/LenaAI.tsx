@@ -166,6 +166,12 @@ function PublicTrackingLenaAI({ open, onClose, lang, trackingNumber }: LenaAIPro
               className="min-h-[320px] min-w-0 flex-1"
               otherTyping={thinking}
               thinkingLabel={u('Thinking', '')}
+                thinkingPhrases={[
+                  u('lena.thinkingPhrase', 'is thinking'),
+                  u('lena.analyzingPhrase', 'is analysing'),
+                  u('lena.reviewingPhrase', 'is reviewing information'),
+                  u('lena.patiencePhrase', 'asks for your patience'),
+                ]}
               renderMessageExtra={renderMessageExtra}
               renderMessageBeforeTime={renderMessageSources}
               extraContentVersion={extraContentVersion}
@@ -382,6 +388,12 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
                 className={`${sideBarMode && showCanvas ? 'hidden' : 'min-h-[320px] min-w-0 flex-1'}`}
                 otherTyping={sending}
                 thinkingLabel={u('Thinking', '')}
+                thinkingPhrases={[
+                  u('lena.thinkingPhrase', 'is thinking'),
+                  u('lena.analyzingPhrase', 'is analysing'),
+                  u('lena.reviewingPhrase', 'is reviewing information'),
+                  u('lena.patiencePhrase', 'asks for your patience'),
+                ]}
                 renderMessageExtra={renderMessageExtra}
                 renderMessageBeforeTime={renderMessageSources}
                 entryAnimationKey={conversationEntryKey}

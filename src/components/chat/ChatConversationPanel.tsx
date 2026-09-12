@@ -4,6 +4,7 @@ import { defaultStyles, FileIcon } from 'react-file-icon';
 import { cn } from '../../lib/cn';
 import { ChatMessage, Conversation } from './types';
 import { TypewriterText } from './TypewriterText';
+import { LenaThinkingIndicator } from './LenaThinkingIndicator';
 import { formatAttachmentSize, isInlineViewableLenaAttachment } from '../../lib/lenaLoadCanvas';
 import { api } from '../../services/api';
 import { showError } from '../../lib/swal';
@@ -41,6 +42,7 @@ type ChatConversationPanelProps = {
   className?: string;
   otherTyping?: boolean;
   thinkingLabel?: string;
+  thinkingPhrases?: string[];
   onTitleClick?: () => void;
   headerLeading?: ReactNode;
   /** Reserves space for header actions in narrow side panels. */
@@ -92,6 +94,7 @@ export const ChatConversationPanel = ({
   className,
   otherTyping = false,
   thinkingLabel = 'Thinking',
+  thinkingPhrases,
   onTitleClick,
   headerLeading,
   compactHeader = false,
@@ -506,15 +509,15 @@ export const ChatConversationPanel = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           className="mr-auto mt-14 w-fit px-0.5 py-1 text-base"
-          role="status"
-          aria-label={thinkingLabel}
+          role={thinkingPhrases?.length ? undefined : 'status'}
+          aria-label={thinkingPhrases?.length ? undefined : thinkingLabel}
         >
-          <span
+          {thinkingPhrases?.length ? <LenaThinkingIndicator key={activeConversation.id} phrases={thinkingPhrases} /> : <span
             aria-hidden="true"
             className="animate-text-shimmer bg-[length:200%_100%] bg-[linear-gradient(90deg,#94a3b8_20%,#334155_50%,#94a3b8_80%)] bg-clip-text text-transparent dark:bg-[linear-gradient(90deg,#64748b_20%,#f8fafc_50%,#64748b_80%)]"
           >
             {thinkingLabel}
-          </span>
+          </span>}
         </motion.div>
       )}
       </div>

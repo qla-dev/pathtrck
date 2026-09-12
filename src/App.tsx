@@ -43,6 +43,7 @@ import {
   Sparkles,
   RefreshCw,
   ScanSearch,
+  Scale,
   Gem,
   Rocket,
   CircleAlert,
@@ -140,6 +141,7 @@ import { PricingView } from "./components/views/PricingView";
 import { UsageView } from "./components/views/UsageView";
 import { PaymentHistoryView } from "./components/views/PaymentHistoryView";
 import { TariffsHsView } from "./components/views/TariffsHsView";
+import { LegalSourcesView } from "./components/views/LegalSourcesView";
 import { PaymentModal } from "./components/modals/PaymentModal";
 import { BrandWordmark, FreightbookMark } from "./components/ui/BrandWordmark";
 import { PACKAGE_ICONS, PricingPlanCard } from "./components/pricing/PricingPlanCard";
@@ -6843,8 +6845,15 @@ export default function App() {
       label: u("nav.tariffsHs", "Tariffs & HS"),
       icon: ScanSearch,
     },
+    {
+      id: "legal-sources",
+      label: u("nav.legalSources", "Laws"),
+      icon: Scale,
+    },
   ]
     .filter((item) => (item.id !== "company-team" || canManageTeam))
+    // The legal-source manifest is platform maintenance, and its API is limited to these two roles.
+    .filter((item) => item.id !== "legal-sources" || role === "superadmin" || role === "master")
     // The access table has the final say on every feature it names. The role-shaped lists above
     // still decide the order and the wording - a driver's exchange is "Loads", an admin's is the
     // global one - but whether an entry is there at all is one lookup, so the sidebar and the table
@@ -7539,6 +7548,7 @@ export default function App() {
               )}
               {view === "payment-history" && <PaymentHistoryView lang={lang} />}
               {view === "tariffs-hs" && <TariffsHsView lang={lang} />}
+              {view === "legal-sources" && (role === "superadmin" || role === "master") && <LegalSourcesView lang={lang} />}
               {view === "profile" && (
                 <ProfileView
                   role={role}

@@ -3,8 +3,29 @@ import { Language, Role } from '../types';
 export type ApiEnvelope<T> = {
   message: string;
   data: T;
-  meta?: { current_page?: number; page_no?: number; last_page?: number; per_page?: number; limit?: number; total?: number; count?: number; attribution?: string; source_url?: string; categories?: number; coded?: number; selectable?: number; email_sent?: boolean; has_more?: boolean; unlimited?: boolean; average_rating?: number; has_reviewed?: boolean; can_review?: boolean; my_review?: Record<string, unknown> | null };
+  meta?: { current_page?: number; page_no?: number; last_page?: number; per_page?: number; limit?: number; total?: number; count?: number; attribution?: string; source_url?: string; categories?: number; coded?: number; selectable?: number; jurisdictions?: Record<string, number>; stored?: number; link_only?: number; manual?: number; email_sent?: boolean; has_more?: boolean; unlimited?: boolean; average_rating?: number; has_reviewed?: boolean; can_review?: boolean; my_review?: Record<string, unknown> | null };
   errors?: Record<string, string[]>;
+};
+
+export type LegalJurisdiction = 'BA' | 'EU' | 'HR' | 'RS';
+
+/** One entry of agents/lena/legal-sources.json, as listed on the superadmin "Zakoni" screen. */
+export type LegalSourceRow = {
+  id: string;
+  jurisdiction: LegalJurisdiction;
+  jurisdictionName: string;
+  title: string;
+  publisher: string | null;
+  folder: string;
+  file: string;
+  format: string;
+  url: string | null;
+  page: string | null;
+  status: 'stored' | 'link' | 'manual';
+  autoDiscover: boolean;
+  bytes: number | null;
+  retrieved: string | null;
+  note: string | null;
 };
 
 export type ApiUser = {
@@ -762,6 +783,8 @@ export const api = {
   },
   legalSources: {
     open: openLegalSource,
+    list: (params: { search?: string; jurisdiction?: string; status?: string; page?: number; per_page?: number }) =>
+      request<LegalSourceRow[]>(`/legal-sources?${queryString(params)}`),
   },
   dispatchChat: {
     reply: async (conversationId: number, lang?: string) => (await request<Record<string, unknown>>('/dispatch-chat', {
