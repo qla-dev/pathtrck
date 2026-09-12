@@ -1,4 +1,4 @@
-import { lenaText } from '../../../lib/lenaCatalog';
+import { lenaText, lenaField, lenaFieldChoices, lenaOptionDescription } from '../../../lib/lenaCatalog';
 import { calculateVolume } from './volume';
 import { AddWarehouseModal } from '../AddWarehouseModal/AddWarehouseModal';
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
@@ -98,7 +98,7 @@ import { useRouteGeometry } from '../../maps/useRouteGeometry';
 import { CountrySelect } from '../../location/CountrySelect';
 import { PACKAGE_TYPES } from '../../../data/packageTypes';
 import { SEA_PORTS, SeaPort } from '../../../data/seaPorts';
-import { SEA_CONTAINER_TYPES, SeaContainerCategory, containerLabel } from '../../../data/seaContainers';
+import { SEA_CONTAINER_TYPES, SEA_CONTAINER_CATEGORIES, containerLabel } from '../../../data/seaContainers';
 import { DocumentDropzone } from '../DocumentDropzone';
 import { ScanResultModal } from '../ScanResultModal';
 import { ScanFieldPatch, deriveGoodsTypeCode, deriveGoodsTypeName, stripHsCodesForPayload, resolveHsCodes, hsSectionIcon } from '../scanFieldRows';
@@ -170,7 +170,7 @@ import { formatTimeRangeMask } from './timeMask';
 import { ToggleCard } from './ToggleCard';
 import { ChoiceCard } from './ChoiceCard';
 import { SummaryRow } from './SummaryRow';
-import { HANDLING_DESCRIPTIONS, HANDLING_ICONS, WarehouseLocationFields, WarehouseStorageTypeField, type OwnedWarehouse } from './WarehouseFormFields';
+import { HANDLING_ICONS, WarehouseLocationFields, WarehouseStorageTypeField, type OwnedWarehouse } from './WarehouseFormFields';
 import { CustomsDocumentsPanel } from './CustomsDocumentsPanel';
 import { DocumentTypeToggleCard } from './DocumentTypeToggleCard';
 
@@ -237,28 +237,6 @@ const AIR_SPECIAL_REQUIREMENT_ICONS: Record<string, LucideIcon> = {
 
 // Which AI-refillable fields (the ones wrapped in fieldLabel(...) below) live under each step, so
 // the sidebar can show a per-step count instead of only the one global aiFieldCount badge.
-// The characteristics grid shares the requirements' card shape, which carries a description line,
-// so every option across road, air and sea needs one sentence explaining it.
-const CHARACTERISTIC_DESCRIPTIONS: Record<string, string> = {
-  GDP: 'Good Distribution Practice certified',
-  TIR: 'TIR carnet transit',
-  'MED (medicine)': 'Pharmaceutical shipment',
-  'VAL (money and other valuables)': 'High value cargo',
-  'Fragile Cargo': 'Careful handling required',
-  'Oversized / Heavy Cargo': 'Exceeds standard ULD limits',
-  'Lithium Batteries': 'UN 3480 / UN 3481 shipment',
-  'Dry Ice': 'UN 1845 refrigerant on board',
-  'DG / IMO': 'IMO classified dangerous goods',
-  OOG: 'Out of gauge cargo',
-  LIQUID: 'Liquid or flexitank cargo',
-  BULK: 'Loose, non containerised cargo',
-  FRAGILE: 'Careful handling required',
-  HEAVY: 'Heavy lift cargo',
-  VALUABLE: 'High value cargo',
-  PHARMA: 'Temperature controlled pharma',
-  'FOOD GRADE': 'Food grade certified',
-};
-
 const STEP_AI_FIELDS: Record<StepId, Array<keyof ScanFieldPatch & keyof LoadDraft>> = {
   route: ['pickupCountry', 'pickupCity', 'pickupPostalCode', 'pickupDate', 'deliveryCountry', 'deliveryCity', 'deliveryPostalCode', 'deliveryDate'],
   cargo: ['consignee', 'bookingReference', 'loadTitle', 'lengthM', 'weightKg', 'pallets', 'volumeM3', 'widthM', 'heightM', 'temperatureControlled', 'vehicleType', 'bodyTypes'],
@@ -738,24 +716,35 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     setField(key, aiValue as LoadDraft[K]);
   };
 
-  const fieldLabel = (key: keyof ScanFieldPatch & keyof LoadDraft, labelKey: string, fallback: string) => (
+  // Label, tooltip question and placeholder all come from the LenaAI catalog's definition of the
+  // field (backend/resources/lena/schema.json), so the form and the guided chat never hold two
+  // copies of the same wording.
+  const fieldLabel = (key: keyof ScanFieldPatch & keyof LoadDraft, labelKey?: string) => (
     <FieldLabel
       ai={isAiField(key)}
-      question={lenaText(lang).form_fields[key]?.question}
+      question={lenaField(lang, key)?.question}
       title={u('postLoadModal.aiRefillHint', '')}
       onReprefill={() => void reprefillField(key)}
     >
-      {lenaText(lang).form_fields[key]?.label || u(labelKey, fallback)}
+      {labelKey ? u(labelKey, '') : lenaField(lang, key)?.label ?? ''}
     </FieldLabel>
   );
+  /** What a filled-in answer for this field looks like - the form shows it as the placeholder. */
+  const fieldExample = (field: string) => lenaField(lang, field)?.example ?? '';
+  const fieldTitle = (field: string) => lenaField(lang, field)?.label ?? '';
+  const optionDescription = (option: string) => lenaOptionDescription(lang, option);
+  /** The values a field's own picker offers for the transport type this draft is on. */
+  const fieldChoices = (field: string) => lenaFieldChoices(lang, field, draft.transportType);
+  const fieldOptions = (field: string, icon: LucideIcon) =>
+    fieldChoices(field).map((choice) => ({ value: choice.value, label: choice.label, icon }));
 
   // A stop card asks for its labels by the stop's own field name. Stop 1 of a side maps back onto
   // a draft field LenaAI may have filled, so it keeps the AI-refill marker; added stops have no
   // draft field behind them and get a plain label.
-  const stopFieldLabel = (side: StopSide, index: number, field: keyof RouteStopDraft, labelKey: string, fallback: string) =>
+  const stopFieldLabel = (side: StopSide, index: number, field: keyof RouteStopDraft) =>
     index === 0
-      ? fieldLabel(PRIMARY_STOP_FIELDS[side][field] as keyof ScanFieldPatch & keyof LoadDraft, labelKey, fallback)
-      : <FieldLabel>{u(labelKey, fallback)}</FieldLabel>;
+      ? fieldLabel(PRIMARY_STOP_FIELDS[side][field] as keyof ScanFieldPatch & keyof LoadDraft)
+      : <FieldLabel>{fieldTitle(PRIMARY_STOP_FIELDS[side][field])}</FieldLabel>;
 
   // Likewise for the red outlines a rejected submit leaves behind - they name draft fields, which
   // only stop 1 of each side has.
@@ -855,33 +844,6 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     if (option.includes('Conveyor') || option.includes('Special Handling')) return Wrench;
     return X;
   };
-
-  const LOADING_EQUIPMENT_DESCRIPTIONS: Record<string, string> = {
-    'Vehicle with ramp': 'Trailer or truck fitted with a loading ramp',
-    'Vehicle without ramp': 'Standard vehicle, no ramp fitted',
-    'Forklift: Yes': 'Forklift available for loading and unloading',
-    'Forklift: No': 'No forklift available',
-    'Other loading/unloading equipment': 'Other equipment as specified in notes',
-    'Not specified': 'No handling requirement specified',
-    'Forklift Required': 'Forklift needed for loading or unloading',
-    'Tail Lift Required': 'Tail lift needed for pickup or delivery',
-    'Cargo Lift / High Loader Required': 'High loader needed for aircraft-side handling',
-    'Pallet Jack Required': 'Pallet jack needed for ULD or pallet handling',
-    'Roller Bed Required': 'Roller bed surface required for transfer',
-    'Conveyor Required': 'Conveyor belt required for transfer',
-    'No Special Equipment': 'Standard handling, nothing extra required',
-    'Other Special Handling Equipment': 'Other equipment as specified in notes',
-    'Crane / Heavy Lift': 'Crane or heavy-lift equipment required',
-    'Port Handling': 'Port handling services required',
-    'Terminal Handling': 'Terminal handling services required',
-    'Stuffing Required': 'Container stuffing service required',
-    'Unstuffing Required': 'Container unstuffing service required',
-    'Special Handling': 'Non-standard handling required',
-  };
-  const loadingEquipmentDescription = (option: string): string =>
-    option in HANDLING_DESCRIPTIONS
-      ? u(`postLoadModal.handlingReqDesc.${option}`, HANDLING_DESCRIPTIONS[option as keyof typeof HANDLING_DESCRIPTIONS])
-      : u(`postLoadModal.loadingEquipmentDesc.${option}`, LOADING_EQUIPMENT_DESCRIPTIONS[option] || option);
 
   const SEA_CHARACTERISTIC_ICONS: Record<string, LucideIcon> = {
     'DG / IMO': ShieldAlert,
@@ -1776,7 +1738,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           onAddStop={() => addStop('pickup')}
                           onOpenMap={(index) => setAddressMap({ side: 'pickup', index })}
                           invalidClass={(index, field) => stopInvalidClass('pickup', index, field)}
-                          renderLabel={(index, field, labelKey, fallback) => stopFieldLabel('pickup', index, field, labelKey, fallback)}
+                          renderLabel={(index, field) => stopFieldLabel('pickup', index, field)}
                         />
                         <RouteStopsColumn
                           side="delivery"
@@ -1787,7 +1749,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           onAddStop={() => addStop('delivery')}
                           onOpenMap={(index) => setAddressMap({ side: 'delivery', index })}
                           invalidClass={(index, field) => stopInvalidClass('delivery', index, field)}
-                          renderLabel={(index, field, labelKey, fallback) => stopFieldLabel('delivery', index, field, labelKey, fallback)}
+                          renderLabel={(index, field) => stopFieldLabel('delivery', index, field)}
                         />
                       </>
                     ) : (
@@ -1909,15 +1871,15 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
                       <div className="grid sm:grid-cols-[200px_140px_minmax(0,1fr)] gap-3">
                         <div className={cn('space-y-1', invalidClass('pickupCountry'))}>
-                          {fieldLabel('pickupCountry', 'postLoadModal.pickupCountryShort', 'Country')}
+                          {fieldLabel('pickupCountry')}
                           <CountrySelect value={draft.pickupCountry} onChange={(value) => setField('pickupCountry', value)} placeholder={u('postLoadModal.selectCountry', '')} />
                         </div>
                         <div className={cn('space-y-1', invalidClass('pickupPostalCode'))}>
-                          {fieldLabel('pickupPostalCode', 'postLoadModal.pickupPostalCode', 'Postal code')}
+                          {fieldLabel('pickupPostalCode')}
                           <Input value={draft.pickupPostalCode} onChange={(event) => setField('pickupPostalCode', event.target.value)} placeholder={u('postLoadModal.postalCodePlaceholder', '')} />
                         </div>
                         <div className={cn('space-y-1', invalidClass('pickupCity'))}>
-                          {fieldLabel('pickupCity', 'postLoadModal.pickupCity', 'City')}
+                          {fieldLabel('pickupCity')}
                           <Input value={draft.pickupCity} onChange={(event) => setField('pickupCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', '')} />
                         </div>
                       </div>
@@ -2035,15 +1997,15 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
                       <div className="grid sm:grid-cols-[200px_140px_minmax(0,1fr)] gap-3">
                         <div className={cn('space-y-1', invalidClass('deliveryCountry'))}>
-                          {fieldLabel('deliveryCountry', 'postLoadModal.deliveryCountryShort', 'Country')}
+                          {fieldLabel('deliveryCountry')}
                           <CountrySelect value={draft.deliveryCountry} onChange={(value) => setField('deliveryCountry', value)} placeholder={u('postLoadModal.selectCountry', '')} />
                         </div>
                         <div className={cn('space-y-1', invalidClass('deliveryPostalCode'))}>
-                          {fieldLabel('deliveryPostalCode', 'postLoadModal.deliveryPostalCode', 'Postal code')}
+                          {fieldLabel('deliveryPostalCode')}
                           <Input value={draft.deliveryPostalCode} onChange={(event) => setField('deliveryPostalCode', event.target.value)} placeholder={u('postLoadModal.postalCodePlaceholder', '')} />
                         </div>
                         <div className={cn('space-y-1', invalidClass('deliveryCity'))}>
-                          {fieldLabel('deliveryCity', 'postLoadModal.deliveryCity', 'City')}
+                          {fieldLabel('deliveryCity')}
                           <Input value={draft.deliveryCity} onChange={(event) => setField('deliveryCity', event.target.value)} placeholder={u('postLoadModal.cityCountry', '')} />
                         </div>
                       </div>
@@ -2264,7 +2226,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       <div className="space-y-1">
                         <FieldLabel>{draft.transportType === 'warehouse' ? u('postLoadModal.warehouseServices', '') : isContainerTransport(draft.transportType) ? u('postLoadModal.handlingRequirements', '') : u('postLoadModal.loadingEquipment', '')}</FieldLabel>
                         <div className="grid md:grid-cols-3 gap-3">
-                          {loadingEquipmentOptions[draft.transportType].map((option) => <ToggleCard key={option} active={draft.loadingEquipment.includes(option)} title={option} description={loadingEquipmentDescription(option)} icon={loadingEquipmentIcon(option)} onClick={() => toggleLoadingEquipment(option)} />)}
+                          {loadingEquipmentOptions[draft.transportType].map((option) => <ToggleCard key={option} active={draft.loadingEquipment.includes(option)} title={option} description={optionDescription(option)} icon={loadingEquipmentIcon(option)} onClick={() => toggleLoadingEquipment(option)} />)}
                         </div>
                       </div>
                     </div>
@@ -2309,10 +2271,10 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                               {draft.containerSelections.map((row, index) => (
                                 <div key={index} className="flex items-center gap-2">
                                   <Select value={row.type} onChange={(e) => updateContainerSelection(index, { type: e.target.value })} className="flex-1">
-                                    {(['Standard', 'Open Top', 'Reefer', 'Flat Rack', 'Platform'] as SeaContainerCategory[]).map((category) => (
+                                    {SEA_CONTAINER_CATEGORIES.map((category) => (
                                       <optgroup key={category} label={category}>
                                         {SEA_CONTAINER_TYPES.filter((c) => c.category === category).map((c) => (
-                                          <option key={c.code} value={c.code}>{c.label}</option>
+                                          <option key={c.code} value={c.code}>{containerLabel(c.code, lang)}</option>
                                         ))}
                                       </optgroup>
                                     ))}
@@ -2330,7 +2292,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             </div>
                           </div>
                         ) : (
-                          <div className={cn('space-y-1', invalidClass('bodyTypes'))}>{fieldLabel('bodyTypes', 'postLoadModal.bodyTypes', 'Body types')}<div className="flex min-h-10 items-center rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950"><div className="flex flex-wrap gap-2">{BODY_TYPE_OPTIONS.map((option) => { const BodyTypeIcon = BODY_TYPE_ICONS[option]; return <button key={option} type="button" onClick={() => toggleBodyType(option)} className={cn('inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold leading-none transition-colors', draft.bodyTypes.includes(option) ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200')}><BodyTypeIcon className="h-3.5 w-3.5 shrink-0" /><span className="leading-none">{u(`postLoadModal.bodyType.${option}`, option)}</span></button>; })}</div></div></div>
+                          <div className={cn('space-y-1', invalidClass('bodyTypes'))}>{fieldLabel('bodyTypes')}<div className="flex min-h-10 items-center rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950"><div className="flex flex-wrap gap-2">{BODY_TYPE_OPTIONS.map((option) => { const BodyTypeIcon = BODY_TYPE_ICONS[option]; return <button key={option} type="button" onClick={() => toggleBodyType(option)} className={cn('inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold leading-none transition-colors', draft.bodyTypes.includes(option) ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200')}><BodyTypeIcon className="h-3.5 w-3.5 shrink-0" /><span className="leading-none">{u(`postLoadModal.bodyType.${option}`, option)}</span></button>; })}</div></div></div>
                         )}
 
                         {draft.transportType === 'air' && <div className="space-y-1"><FieldLabel>{u('postLoadModal.deliveryProof', '')}</FieldLabel><div className="grid grid-cols-2 gap-3"><ChoiceCard compact active={draft.deliveryProof === 'POD'} title="POD" description="Proof of Delivery" icon={FileText} onClick={() => setField('deliveryProof', 'POD')} /><ChoiceCard compact active={draft.deliveryProof === 'AOD'} title="AOD" description="Arrival on Delivery" icon={CheckCircle2} onClick={() => setField('deliveryProof', 'AOD')} /></div></div>}
@@ -2361,7 +2323,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
                       {!isContainerTransport(draft.transportType) && (
                         <div className={cn('space-y-1', invalidClass('temperatureControlled'))}>
-                          {fieldLabel('temperatureControlled', 'postLoadModal.temperature', 'Temperature controlled')}
+                          {fieldLabel('temperatureControlled')}
                           <div className="grid grid-cols-2 gap-2">
                             <ChoiceCard compact active={!draft.temperatureControlled} title={u('common.no', '')} description="Ambient conditions" icon={Package} onClick={() => setField('temperatureControlled', false)} />
                             <ChoiceCard compact active={draft.temperatureControlled} title={u('common.yes', '')} description="Set a temperature range" icon={ThermometerSnowflake} onClick={() => setField('temperatureControlled', true)} />
@@ -2406,7 +2368,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                               onClear={() => clearCharacteristicDetail(option)}
                               icon={characteristicIcon(option)}
                               title={option}
-                              description={u(`postLoadModal.characteristicDesc.${option}`, CHARACTERISTIC_DESCRIPTIONS[option] || '')}
+                              description={optionDescription(option)}
                               summary={characteristicSummary(option)}
                               emptyHint={u('postLoadModal.addDetails', '')}
                               clearLabel={u('tracking.clearAll', '')}
@@ -2420,7 +2382,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                               onClick={() => toggleCharacteristic(option)}
                               icon={characteristicIcon(option)}
                               title={option}
-                              description={u(`postLoadModal.characteristicDesc.${option}`, CHARACTERISTIC_DESCRIPTIONS[option] || '')}
+                              description={optionDescription(option)}
                             />
                           )
                         ))}
@@ -2556,7 +2518,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           </div>
                         </div>
                         <div className={cn('space-y-1', invalidClass('goodsType'))}>
-                          {fieldLabel('goodsType', 'postLoadModal.cargoName', 'Type of goods and HS codes')}
+                          {fieldLabel('goodsType')}
                           <div ref={hsSearchRef} className="relative">
                             {/* min-h rather than h so the box still grows once HS chips wrap, but an
                                 empty field lines up with the standard Input height. */}
@@ -2620,7 +2582,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         </div>
                         <div className="grid gap-3 sm:grid-cols-2">
                           <div className={cn('space-y-1', invalidClass('pallets'))}>
-                            {fieldLabel('pallets', 'postLoadModal.unitCount', 'Number of pieces / units')}
+                            {fieldLabel('pallets')}
                             <Input
                               type="number"
                               step="1"
@@ -2650,32 +2612,29 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         </div>
                         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_5rem_minmax(0,1.4fr)] sm:items-end">
                           <div className={cn('space-y-1', invalidClass('lengthM'))}>
-                            {fieldLabel('lengthM', 'postLoadModal.lengthValue', 'Length')}
+                            {fieldLabel('lengthM')}
                             <Input type="number" step="0.1" min="0.1" value={draft.lengthM} onChange={(e) => setField('lengthM', e.target.value)} placeholder="13.6" />
                           </div>
                           <div className={cn('space-y-1', invalidClass('widthM'))}>
-                            {fieldLabel('widthM', 'postLoadModal.widthValue', 'Width')}
+                            {fieldLabel('widthM')}
                             <Input type="number" step="0.05" min="0" value={draft.widthM} onChange={(e) => setField('widthM', e.target.value)} placeholder="2.45" />
                           </div>
                           <div className={cn('space-y-1', invalidClass('heightM'))}>
-                            {fieldLabel('heightM', 'postLoadModal.heightValue', 'Height')}
+                            {fieldLabel('heightM')}
                             <Input type="number" step="0.05" min="0" value={draft.heightM} onChange={(e) => setField('heightM', e.target.value)} placeholder="2.70" />
                           </div>
                           <div className="space-y-1">
                             <FieldLabel>{u('postLoadModal.dimensionUnit', '')}</FieldLabel>
-                            <IconSelect value={draft.lengthUnit} onChange={(value) => changeDimensionUnit(value as LoadDraft['lengthUnit'])} placeholder="m" ariaLabel={u('postLoadModal.dimensionUnit', '')} icon={Ruler} options={['m', 'cm', 'mm'].map((unit) => ({ value: unit, label: unit, icon: Ruler }))} />
+                            <IconSelect value={draft.lengthUnit} onChange={(value) => changeDimensionUnit(value as LoadDraft['lengthUnit'])} placeholder="m" ariaLabel={u('postLoadModal.dimensionUnit', '')} icon={Ruler} options={fieldOptions('lengthUnit', Ruler)} />
                           </div>
                           <div className="space-y-1">
-                            <FieldLabel>{lang === 'bs' ? 'Dimenzije za' : lang === 'de' ? 'Maßbezug' : 'Dimensions for'}</FieldLabel>
-                            <IconSelect value={draft.dimensionScope} onChange={(value) => setField('dimensionScope', value as LoadDraft['dimensionScope'])} placeholder="" ariaLabel={lang === 'bs' ? 'Dimenzije za' : lang === 'de' ? 'Maßbezug' : 'Dimensions for'} icon={Boxes} options={[
-                              { value: 'overall', label: lang === 'bs' ? 'Ukupne dimenzije' : lang === 'de' ? 'Gesamtgröße' : 'Overall size', icon: Boxes },
-                              { value: 'per_unit', label: lang === 'bs' ? 'Po komadu' : lang === 'de' ? 'Pro Stück' : 'Per piece', icon: Box },
-                            ]} />
+                            {fieldLabel('dimensionScope')}
+                            <IconSelect value={draft.dimensionScope} onChange={(value) => setField('dimensionScope', value as LoadDraft['dimensionScope'])} placeholder="" ariaLabel={fieldTitle('dimensionScope')} icon={Boxes} options={fieldOptions('dimensionScope', Boxes)} />
                           </div>
                         </div>
                         <div className="grid gap-3 sm:grid-cols-2">
                           <div className={cn('space-y-1', invalidClass('weightKg'))}>
-                            {fieldLabel('weightKg', 'postLoadModal.weightValue', 'Weight')}
+                            {fieldLabel('weightKg')}
                             <div className="flex gap-2">
                               <Input
                                 type="number"
@@ -2698,10 +2657,10 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           </div>
                           <div className={cn('space-y-1', invalidClass('volumeM3'))}>
                             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                              {fieldLabel('volumeM3', 'postLoadModal.volume', 'CBM (m³)')}
+                              {fieldLabel('volumeM3')}
                               <button type="button" disabled={calculateVolume(draft) === null} onClick={() => setField('volumeM3', calculateVolume(draft) ?? draft.volumeM3)} className="inline-flex items-center gap-1 text-xs font-semibold text-primary disabled:cursor-not-allowed disabled:opacity-40">
                                 <RotateCcw className="h-3 w-3" />
-                                {lang === 'bs' ? 'Izračunaj iz dimenzija' : lang === 'de' ? 'Aus Maßen neu berechnen' : 'Recalculate from dimensions'}
+                                {u('postLoadModal.recalculateVolume', '')}
                               </button>
                             </div>
                             <Input type="number" step="any" min="0" value={draft.volumeM3} onChange={(e) => setField('volumeM3', e.target.value)} placeholder="33.2" />
@@ -2748,7 +2707,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         </div>
                       ) : (
                         <div className={cn('space-y-2', invalidClass('paymentDeferred'))}>
-                          {fieldLabel('paymentDeferred', 'postLoadModal.deferredPayment', 'Deferred payment')}
+                          {fieldLabel('paymentDeferred')}
                           <div className={cn('grid grid-cols-2 gap-2', invalidClass('paymentDueDays'))}>
                             <ChoiceCard compact active={!draft.paymentDeferred} title={u('common.no', '')} description="Pay on delivery" icon={Coins} onClick={() => setField('paymentDeferred', false)} />
                             <ChoiceCard compact active={draft.paymentDeferred} title={u('common.yes', '')} description="Set payment window" icon={Clock3} onClick={() => setField('paymentDeferred', true)} />
@@ -2757,7 +2716,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         </div>
                       )}
                       <div className={cn('space-y-1', invalidClass('incoterm'))}>
-                        {fieldLabel('incoterm', 'postLoadModal.incoterm', 'Incoterm')}
+                        {fieldLabel('incoterm')}
                         <Select value={draft.incoterm} onChange={(event) => setField('incoterm', event.target.value)}>
                           <option value="">{u('postLoadModal.pleaseSelect', '')}</option>
                           {INCOTERM_OPTIONS.map((incoterm) => (
@@ -2789,11 +2748,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
 
                       <div className="grid sm:grid-cols-[minmax(0,1fr)_120px] gap-3">
                         <div className={cn('space-y-1', invalidClass('budget'))}>
-                          {fieldLabel(
-                            'budget',
-                            draft.receivePriceProposals ? 'postLoadModal.targetPrice' : 'postLoadModal.termsFixed',
-                            draft.receivePriceProposals ? 'Expected price (optional)' : 'Fixed price'
-                          )}
+                          {/* An open load asks for an expected price; a fixed one states it. */}
+                          {fieldLabel('budget', draft.receivePriceProposals ? undefined : 'postLoadModal.termsFixed')}
                           <Input
                             type="number"
                             min="0"
@@ -2804,7 +2760,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           />
                         </div>
                         <div className={cn('space-y-1', invalidClass('freightCurrency'))}>
-                          {fieldLabel('freightCurrency', 'postLoadModal.currency', 'Currency')}
+                          {fieldLabel('freightCurrency')}
                           <Select value={draft.freightCurrency} onChange={(e) => setField('freightCurrency', e.target.value)}>
                             {SUPPORTED_CURRENCIES.map((currency) => <option key={currency} value={currency}>{currency}</option>)}
                           </Select>
@@ -2821,7 +2777,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
 
                       <div className={cn('flex flex-1 flex-col space-y-1', invalidClass('notes'))}>
-                        {fieldLabel('notes', 'postLoadModal.notes', 'Handling notes')}
+                        {fieldLabel('notes')}
                         <Textarea
                           value={draft.notes}
                           onChange={(e) => setField('notes', e.target.value)}
@@ -2840,7 +2796,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         <span>{u('postLoadModal.contactTitle', '')}</span>
                       </div>
                       <div className={cn('space-y-1', invalidClass('contactName'))}>
-                        {fieldLabel('contactName', 'postLoadModal.contactName', 'Contact in your company')}
+                        {fieldLabel('contactName')}
                         <Select
                           value={draft.contactName}
                           onChange={(e) => setField('contactName', e.target.value)}
@@ -2855,7 +2811,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       </div>
                       <div className="grid sm:grid-cols-2 gap-3">
                         <div className={cn('space-y-1', invalidClass('contactEmail'))}>
-                          {fieldLabel('contactEmail', 'postLoadModal.contactEmail', 'E-mail address')}
+                          {fieldLabel('contactEmail')}
                           <Input
                             value={draft.contactEmail}
                             onChange={(e) => setField('contactEmail', e.target.value)}
@@ -2863,7 +2819,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           />
                         </div>
                         <div className={cn('space-y-1', invalidClass('contactPhone'))}>
-                          {fieldLabel('contactPhone', 'postLoadModal.contactPhone', 'Phone number')}
+                          {fieldLabel('contactPhone')}
                           <Input
                             value={draft.contactPhone}
                             onChange={(e) => setField('contactPhone', e.target.value)}
@@ -2922,12 +2878,12 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       <div className="space-y-3 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
                         <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
                           <UserRound className="h-4 w-4" />
-                          <span>{lang === 'bs' ? 'Kontakt dobavljača' : lang === 'de' ? 'Lieferantenkontakt' : 'Supplier contact'}</span>
+                          <span>{u('postLoadModal.supplierContact', '')}</span>
                           <span className="text-rose-500">*</span>
                         </div>
                         <div className="grid sm:grid-cols-2 gap-3">
                           {([
-                            ['supplierName', lang === 'bs' ? 'Ime kontakt osobe' : lang === 'de' ? 'Kontaktperson' : 'Contact name', 'text', true],
+                            ['supplierName', fieldTitle('supplierName'), 'text', true],
                             ['supplierEmail', u('postLoadModal.contactEmail', ''), 'email', true],
                             ['supplierPhone', u('postLoadModal.contactPhone', ''), 'tel', true],
                             ['supplierMobile', u('postLoadModal.contactMobile', ''), 'tel', false],
@@ -3017,7 +2973,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         value={`${draft.budget || '—'} ${draft.freightCurrency} / ${u(`postLoadModal.rateUnit.${draft.warehouseRateUnit}`, draft.warehouseRateUnit)}`}
                       />
                       <SummaryRow label={u('postLoadModal.contactSummary', '')} value={`${draft.contactName} · ${draft.contactPhone || draft.contactMobile || draft.contactEmail || '—'}`} />
-                      <SummaryRow label={lang === 'bs' ? 'Kontakt dobavljača' : lang === 'de' ? 'Lieferantenkontakt' : 'Supplier contact'} value={[draft.supplierName, draft.supplierEmail, draft.supplierPhone, draft.supplierMobile, draft.supplierFax].filter(Boolean).join(' · ')} />
+                      <SummaryRow label={u('postLoadModal.supplierContact', '')} value={[draft.supplierName, draft.supplierEmail, draft.supplierPhone, draft.supplierMobile, draft.supplierFax].filter(Boolean).join(' · ')} />
                       <SummaryRow
                         label={u('postLoadModal.requirements', '')}
                         value={[
@@ -3091,7 +3047,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       />
                       <SummaryRow label={u('postLoadModal.packagingMethod', '')} value={`${selectedPackageType ? `${selectedPackageType.value} - ${selectedPackageType.label}` : draft.quantityMeasure || '—'} · ${draft.pallets || '—'} ${u('postLoadModal.unitsShort', '')}`} />
                       {isContainerTransport(draft.transportType) ? (
-                        <SummaryRow label={u('postLoadModal.containerTypesSummary', '')} value={draft.containerSelections.length ? draft.containerSelections.map((row) => `${row.quantity}x ${containerLabel(row.type)}`).join(', ') : u('postLoadModal.none', '')} />
+                        <SummaryRow label={u('postLoadModal.containerTypesSummary', '')} value={draft.containerSelections.length ? draft.containerSelections.map((row) => `${row.quantity}x ${containerLabel(row.type, lang)}`).join(', ') : u('postLoadModal.none', '')} />
                       ) : (
                         <SummaryRow label={u('postLoadModal.vehicleSummary', '')} value={`${draft.vehicleType} · ${draft.bodyTypes.join(', ') || u('postLoadModal.none', '')}`} />
                       )}
@@ -3103,7 +3059,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       />
                       <SummaryRow label={u('postLoadModal.incoterm', '')} value={draft.incoterm || '—'} />
                       <SummaryRow label={u('postLoadModal.contactSummary', '')} value={`${draft.contactName} · ${draft.contactPhone || draft.contactMobile || draft.contactEmail || '—'}`} />
-                      <SummaryRow label={lang === 'bs' ? 'Kontakt dobavljača' : lang === 'de' ? 'Lieferantenkontakt' : 'Supplier contact'} value={[draft.supplierName, draft.supplierEmail, draft.supplierPhone, draft.supplierMobile, draft.supplierFax].filter(Boolean).join(' · ')} />
+                      <SummaryRow label={u('postLoadModal.supplierContact', '')} value={[draft.supplierName, draft.supplierEmail, draft.supplierPhone, draft.supplierMobile, draft.supplierFax].filter(Boolean).join(' · ')} />
                       <SummaryRow
                         label={u('postLoadModal.flagsSummary', '')}
                         value={[

@@ -57,17 +57,6 @@ const STORAGE_TYPE_ICONS: Record<(typeof WAREHOUSE_STORAGE_TYPE_OPTIONS)[number]
   Unsure: HelpCircle,
 };
 
-const STORAGE_TYPE_DESCRIPTIONS: Record<(typeof WAREHOUSE_STORAGE_TYPE_OPTIONS)[number], string> = {
-  Ambient: 'Room temperature, dry goods',
-  Chilled: 'Cold store, +2 to +8 °C',
-  Frozen: 'Deep freeze, below -18 °C',
-  Hazmat: 'Certified dangerous goods',
-  Bulk: 'Loose, non-palletised cargo',
-  Bonded: 'Customs-bonded warehouse',
-  Outdoor: 'Yard storage - vehicles, containers',
-  Unsure: 'The warehouse partner can propose one',
-};
-
 export const HANDLING_ICONS: Record<(typeof WAREHOUSE_HANDLING_REQUIREMENT_OPTIONS)[number], typeof Package> = {
   Storage: Warehouse,
   Loading: ArrowUpFromLine,
@@ -83,20 +72,6 @@ export const HANDLING_ICONS: Record<(typeof WAREHOUSE_HANDLING_REQUIREMENT_OPTIO
   Distribution: Truck,
 };
 
-export const HANDLING_DESCRIPTIONS: Record<(typeof WAREHOUSE_HANDLING_REQUIREMENT_OPTIONS)[number], string> = {
-  Storage: 'Holding the goods in the warehouse',
-  Loading: 'Loading onto outbound vehicles',
-  Unloading: 'Unloading inbound vehicles',
-  'Cross-docking': 'Straight from inbound to outbound',
-  'Pick & Pack': 'Order picking and packing',
-  Labeling: 'Barcode and label application',
-  Kitting: 'Assemble items into sets',
-  Palletizing: 'Stack and wrap onto pallets',
-  Repackaging: 'Repack into new units',
-  'Goods inspection': 'Checking quantity and condition',
-  'Customs handling': 'Customs clearance and documents',
-  Distribution: 'Onward delivery to end recipients',
-};
 
 /**
  * Storage type picker, shown inline under "Temperature controlled" on the Cargo step for
@@ -158,7 +133,7 @@ const SectionBox = ({
   </section>
 );
 
-export const WarehouseCargoFields = ({ draft, setField, setDraft, u, invalidClass }: { draft: LoadDraft; setField: SetField; setDraft: Setter; u: (key: string, fallback: string) => string; invalidClass: InvalidClass }) => {
+export const WarehouseCargoFields = ({ draft, setField, setDraft, u, optionDescription, invalidClass }: { draft: LoadDraft; setField: SetField; setDraft: Setter; u: (key: string, fallback: string) => string; optionDescription: (option: string) => string; invalidClass: InvalidClass }) => {
   const toggleHandling = (value: string) => {
     setDraft((prev) => ({
       ...prev,
@@ -180,7 +155,7 @@ export const WarehouseCargoFields = ({ draft, setField, setDraft, u, invalidClas
               key={option}
               active={draft.warehouseStorageType === option}
               title={u(`postLoadModal.storageType.${option}`, option)}
-              description={u(`postLoadModal.storageTypeDesc.${option}`, STORAGE_TYPE_DESCRIPTIONS[option])}
+              description={optionDescription(option)}
               icon={STORAGE_TYPE_ICONS[option]}
               onClick={() => setField('warehouseStorageType', option)}
             />
@@ -208,7 +183,7 @@ export const WarehouseCargoFields = ({ draft, setField, setDraft, u, invalidClas
               key={option}
               active={draft.loadingEquipment.includes(option)}
               title={u(`postLoadModal.handlingReq.${option}`, option)}
-              description={u(`postLoadModal.handlingReqDesc.${option}`, HANDLING_DESCRIPTIONS[option])}
+              description={optionDescription(option)}
               icon={HANDLING_ICONS[option]}
               onClick={() => toggleHandling(option)}
             />

@@ -34,7 +34,7 @@ type StopCardProps = {
   lang: Language;
   /** Red outlines and the AI-refill marker only exist for stop 1, which the draft fields back. */
   invalidClass: (field: StopFieldKey) => string;
-  renderLabel: (field: StopFieldKey, labelKey: string, fallback: string) => ReactNode;
+  renderLabel: (field: StopFieldKey) => ReactNode;
 };
 
 const SIDE_TONE: Record<StopSide, { text: string; icon: typeof MapPin; accent: string }> = {
@@ -127,15 +127,15 @@ const StopCard = ({ side, index, total, value, onChange, onOpenMap, u, lang, inv
 
       <div className="grid gap-3 sm:grid-cols-[200px_140px_minmax(0,1fr)]">
         <div className={cn('space-y-1', invalidClass('country'))}>
-          {renderLabel('country', side === 'pickup' ? 'postLoadModal.pickupCountryShort' : 'postLoadModal.deliveryCountryShort', 'Country')}
+          {renderLabel('country')}
           <CountrySelect value={value.country} onChange={(country) => onChange({ country })} placeholder={u('postLoadModal.selectCountry', '')} />
         </div>
         <div className={cn('space-y-1', invalidClass('postalCode'))}>
-          {renderLabel('postalCode', side === 'pickup' ? 'postLoadModal.pickupPostalCode' : 'postLoadModal.deliveryPostalCode', 'Postal code')}
+          {renderLabel('postalCode')}
           <Input value={value.postalCode} onChange={(event) => onChange({ postalCode: event.target.value })} placeholder={u('postLoadModal.postalCodePlaceholder', '')} />
         </div>
         <div className={cn('space-y-1', invalidClass('city'))}>
-          {renderLabel('city', side === 'pickup' ? 'postLoadModal.pickupCity' : 'postLoadModal.deliveryCity', 'City')}
+          {renderLabel('city')}
           <Input value={value.city} onChange={(event) => onChange({ city: event.target.value })} placeholder={u('postLoadModal.cityCountry', '')} />
         </div>
       </div>
@@ -143,7 +143,7 @@ const StopCard = ({ side, index, total, value, onChange, onOpenMap, u, lang, inv
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="grid grid-cols-2 gap-3">
           <div className={cn('flex h-full flex-col justify-between space-y-1', invalidClass('date'))}>
-            {renderLabel('date', side === 'pickup' ? 'postLoadModal.pickupDate' : 'postLoadModal.deliveryDate', 'Date from')}
+            {renderLabel('date')}
             <DateInput value={value.date} onChange={(date) => onChange({ date })} placeholder="dd.mm.yyyy" lang={lang} />
           </div>
           <div className={cn('flex h-full flex-col justify-between space-y-1', invalidClass('dateTo'))}>
@@ -193,7 +193,7 @@ export const RouteStopsColumn = ({
   u: Translate;
   lang: Language;
   invalidClass: (index: number, field: StopFieldKey) => string;
-  renderLabel: (index: number, field: StopFieldKey, labelKey: string, fallback: string) => ReactNode;
+  renderLabel: (index: number, field: StopFieldKey) => ReactNode;
 }) => (
   <div className="space-y-3">
     {stops.map((stop, index) => (
@@ -208,7 +208,7 @@ export const RouteStopsColumn = ({
         u={u}
         lang={lang}
         invalidClass={(field) => invalidClass(index, field)}
-        renderLabel={(field, labelKey, fallback) => renderLabel(index, field, labelKey, fallback)}
+        renderLabel={(field) => renderLabel(index, field)}
       />
     ))}
     <button
