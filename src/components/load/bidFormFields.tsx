@@ -8,7 +8,9 @@ import { Language } from '../../types';
 
 /** The controls shared by the transport bid form and the warehousing bid form. */
 
-export const fieldInputClass = 'h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary dark:border-slate-800 dark:bg-slate-950 dark:text-white disabled:cursor-default';
+// Form controls intentionally use a very quiet edge. They should read as part of the card, not
+// as separate heavy boxes - particularly when a bid has several additional-charge rows.
+export const fieldInputClass = 'h-11 w-full rounded-2xl border border-slate-200/75 bg-slate-50/80 px-3.5 text-sm text-slate-700 shadow-sm shadow-slate-200/20 outline-none placeholder:text-slate-400 focus:border-primary/40 focus:bg-white focus:ring-4 focus:ring-primary/5 dark:border-slate-700/70 dark:bg-slate-900/70 dark:text-white dark:shadow-none dark:focus:bg-slate-900 disabled:cursor-default';
 
 export const Checkbox = ({ checked, onChange, disabled = false, className }: { checked: boolean; onChange: () => void; disabled?: boolean; className?: string }) => (
   <span className={cn('relative inline-flex h-4 w-4 shrink-0 items-center justify-center', className)}>

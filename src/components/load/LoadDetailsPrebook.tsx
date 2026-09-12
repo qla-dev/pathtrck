@@ -16,6 +16,7 @@ import {
   Map as MapIcon,
   MapPin,
   Package,
+  Plane,
   Repeat,
   Route as RouteIcon,
   Ruler,
@@ -25,6 +26,8 @@ import {
   ShieldCheck,
   Sparkles,
   Thermometer,
+  Ship,
+  Train,
   Truck,
   Pencil,
   UsersRound,
@@ -33,7 +36,7 @@ import {
 
 import { RouteMapModal } from '../maps/RouteMapModal';
 import { cn } from '../../lib/cn';
-import { estimateLoadDistanceKm } from '../../lib/loadGeo';
+import { estimateLoadDistanceKm, getPlaceCoord } from '../../lib/loadGeo';
 import {
   createEmptyOfferDraft,
   getBidState,
@@ -156,11 +159,12 @@ const countryFlagUrl = (countryCode: string) => `https://flagcdn.com/w40/${count
 
 // One stop on the vertical route timeline, the same shape the post-load form uses for its route
 // column - icon rail on the left, dashed line running down to the next stop.
-const RouteStop = ({ icon: Icon, tone, label, value, countryCode, note, last = false }: {
+const RouteStop = ({ icon: Icon, tone, label, value, address, countryCode, note, last = false }: {
   icon: typeof MapPin;
   tone: string;
   label: string;
   value: string;
+  address?: string;
   countryCode?: string;
   note?: string;
   last?: boolean;
@@ -178,6 +182,7 @@ const RouteStop = ({ icon: Icon, tone, label, value, countryCode, note, last = f
         {countryCode && <img src={countryFlagUrl(countryCode)} alt="" className="h-3 w-[18px] shrink-0 rounded-sm object-cover" />}
         <span className="truncate">{value}</span>
       </p>
+      {address && <p className="mt-0.5 truncate text-[10px] font-medium text-slate-500 dark:text-slate-400">{address}</p>}
       {note && <p className="mt-0.5 truncate text-[10px] text-slate-400">{note}</p>}
     </div>
   </div>
@@ -473,8 +478,12 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
   const goodsNote = getGoodsNote(load.goodsType, u);
   const pickupLabel = load.pickup || 'Nije definisano';
   const deliveryLabel = load.delivery || 'Nije definisano';
+  // A saved street pin is best, but city-only loads must still be routable. The city-centre
+  // fallback is the same coordinate source used to calculate the displayed distance.
+  const pickupRoutePosition = load.pickupPosition ?? (load.pickup ? getPlaceCoord(load.pickup) : undefined);
+  const deliveryRoutePosition = load.deliveryPosition ?? (load.delivery ? getPlaceCoord(load.delivery) : undefined);
   const routeDistanceKm = load.pickup && load.delivery ? estimateLoadDistanceKm(load.pickup, load.delivery) : 0;
-  const canShowRouteMap = Boolean(load.pickupPosition && load.deliveryPosition);
+  const canShowRouteMap = Boolean(pickupRoutePosition && deliveryRoutePosition);
   const trackingLabel = load.trackingNumber || '—';
   const loadCurrency = load.price.split(' ')[0] || 'EUR';
   const cargoValueLabel = load.cargoValue ? `${loadCurrency} ${load.cargoValue.toLocaleString()}` : '—';
@@ -519,6 +528,19 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
   const paymentTermsLabel = load.paymentDueDays
     ? `${load.paymentDueDays} ${u('common.days', 'days')}`
     : load.paymentTerms || '—';
+  const TransportTypeIcon = load.transportType === 'air' ? Plane : load.transportType === 'sea' ? Ship : load.transportType === 'rail' ? Train : load.transportType === 'warehouse' ? Warehouse : Truck;
+  const transportTypeLabel = load.transportType === 'air' ? 'Air' : load.transportType === 'sea' ? 'Sea' : load.transportType === 'rail' ? 'Rail' : load.transportType === 'warehouse' ? 'Warehouse' : 'Road';
+  const requirementLabels = [
+    load.requiresAdr && 'ADR', load.requiresTailLift && 'Tail lift', load.cmrRequired && 'CMR',
+    load.customsRequired && 'Customs', load.insuranceRequired && 'Insurance', load.certificationRequired && 'Certification',
+    load.inspectionServicesRequired && 'Inspection', load.palletExchangeRequired && 'Pallet exchange',
+    load.tollRoadsIncluded && 'Toll roads', load.ferryIncluded && 'Ferry', load.mustBeTrackable && 'Trackable',
+    ...(load.specialRequirements ?? []),
+  ].filter(Boolean) as string[];
+  const equipmentLabel = [load.truckType, ...(load.bodyTypes ?? [])].filter(Boolean).join(', ') || '—';
+  const containerLabel = (load.containerSelections ?? []).map(({ type, quantity }) => `${quantity || 1} × ${type || ''}`).filter(Boolean).join(', ') || '—';
+  const loadingEquipmentLabel = (load.loadingMethods ?? []).join(', ') || 'Not specified';
+  const contactLabel = [load.contact?.name, load.contact?.phone, load.contact?.email].filter(Boolean).join(' · ') || load.shipperName || 'Not specified';
   const actionPriceLabel = load.isNegotiable === true
     ? u('Highest offer', 'Highest offer')
     : u('reservation.fixedTargetPrice', 'Fixed target price');
@@ -916,6 +938,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                   <div className="mb-3 flex items-center gap-2 text-primary">
                     <RouteIcon className="h-4 w-4" />
                     <p className="text-[10px] font-black uppercase tracking-wider">{u('postLoadModal.routeSummaryTitle', 'Route')}</p>
+                    <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[10px] font-black uppercase tracking-wider"><TransportTypeIcon className="h-3.5 w-3.5" />{transportTypeLabel}</span>
                   </div>
                   <div className="flex min-w-0 flex-1 flex-col">
                     {/* A storage request has no pickup - it names the warehouse the goods are held
@@ -926,6 +949,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                         tone="bg-emerald-500 shadow-emerald-500/20"
                         label={u('legacy.loadDetails.pickup', 'Pickup')}
                         value={pickupLabel}
+                        address={load.pickupAddress}
                         countryCode={pickupCountryCode}
                         note={load.pickupAt ? formatLoadDate(load.pickupAt) : undefined}
                       />
@@ -935,6 +959,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                       icon={isStorage ? Warehouse : MapPin}
                       tone="bg-blue-500 shadow-blue-500/20"
                       label={isStorage ? u('postLoadModal.warehousePreferredLocation', 'Preferred warehouse location') : u('legacy.loadDetails.delivery', 'Delivery')}
+                      address={load.deliveryAddress}
                       value={isStorage && load.storageRadiusKm ? `${deliveryLabel} · +${load.storageRadiusKm} km` : deliveryLabel}
                       countryCode={deliveryCountryCode}
                       note={isStorage ? (load.storageStartDate || undefined) : (load.eta ? formatLoadDate(load.eta) : undefined)}
@@ -960,33 +985,31 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                   <div className="absolute -right-16 -top-20 h-48 w-48 rounded-full bg-primary/20 blur-3xl dark:bg-primary/25" />
                   <div className="absolute -bottom-24 left-1/3 h-44 w-44 rounded-full bg-cyan-400/25 blur-3xl dark:bg-cyan-400/15" />
                   <div className="relative flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-600 dark:text-cyan-300">{u('legacy.loadDetails.routePlan', 'Route overview')}</p>
-                    <span className="flex h-7 w-7 items-center justify-center rounded-full border border-cyan-500/50 bg-white/70 text-cyan-600 dark:bg-cyan-300/15 dark:text-cyan-200"><Truck className="h-4 w-4" /></span>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-600 dark:text-cyan-300">{u('legacy.loadDetails.loadProfile', 'Load profile')}</p>
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full border border-cyan-500/50 bg-white/70 text-cyan-600 dark:bg-cyan-300/15 dark:text-cyan-200"><TransportTypeIcon className="h-4 w-4" /></span>
                   </div>
 
                   <div className="relative mt-2.5 flex flex-wrap items-center gap-1.5">
-                    <span className={cn('rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider', getStatusTone(currentStatus))}>{currentStatus}</span>
-                    {bookingStatusLabel && <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-sky-600">{bookingStatusLabel}</span>}
                     <span className={cn('rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider', getGoodsTone(load.goodsType))}>{load.goodsType}</span>
-                    <span className={cn('rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider', getPaymentTone(load.paymentTerms))}>{paymentTermsLabel}</span>
+                    <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-cyan-700">{transportTypeLabel}</span>
                   </div>
 
                   <div className="relative mt-3 grid flex-1 grid-cols-2 items-stretch gap-2 border-t border-sky-200/80 pt-3 dark:border-white/10">
                     <div className="flex items-center gap-2.5 rounded-xl border border-white/80 bg-white/70 px-3 py-2.5 shadow-sm backdrop-blur-sm dark:border-white/15 dark:bg-white/8">
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cyan-500/15 text-cyan-600 dark:text-cyan-300"><Hash className="h-4 w-4" /></div>
-                      <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Load ID</p><p className="truncate text-sm font-bold">#{load.id}</p></div>
+                      <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Weight</p><p className="truncate text-sm font-bold">{load.weight} kg</p></div>
                     </div>
                     <div className="flex items-center gap-2.5 rounded-xl border border-white/80 bg-white/70 px-3 py-2.5 shadow-sm backdrop-blur-sm dark:border-white/15 dark:bg-white/8">
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-500/15 text-violet-600 dark:text-violet-300"><CalendarClock className="h-4 w-4" /></div>
-                      <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Transit</p><p className="truncate text-sm font-bold">{load.transitDays ? `${load.transitDays} days` : 'To be confirmed'}</p></div>
+                      <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Dimensions</p><p className="truncate text-sm font-bold">{load.length && load.width && load.height ? `${load.length} × ${load.width} × ${load.height} m` : '—'}</p></div>
                     </div>
                     <div className="flex items-center gap-2.5 rounded-xl border border-white/80 bg-white/70 px-3 py-2.5 shadow-sm backdrop-blur-sm dark:border-white/15 dark:bg-white/8">
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-300"><Box className="h-4 w-4" /></div>
-                      <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Cargo</p><p className="truncate text-sm font-bold">{load.cargoType || 'General cargo'}</p></div>
+                      <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Units / volume</p><p className="truncate text-sm font-bold">{load.pallets ? `${load.pallets} pallets` : load.volume ? `${load.volume} m³` : '—'}</p></div>
                     </div>
                     <div className="flex items-center gap-2.5 rounded-xl border border-white/80 bg-white/70 px-3 py-2.5 shadow-sm backdrop-blur-sm dark:border-white/15 dark:bg-white/8">
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-300"><CalendarDays className="h-4 w-4" /></div>
-                      <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">ETA</p><p className="truncate text-sm font-bold">{formatLoadDate(load.eta)}</p></div>
+                      <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Equipment</p><p className="truncate text-sm font-bold">{equipmentLabel}</p></div>
                     </div>
                   </div>
                 </div>
@@ -1029,9 +1052,9 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
               </div>
 
               <div className="grid gap-4 xl:grid-cols-12">
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 xl:col-span-6">
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 xl:col-span-4">
                   <p className="mb-2.5 text-[10px] font-black uppercase tracking-wider text-primary">
-                    {u('legacy.loadDetails.handlingCompliance', 'Handling & Compliance')}
+                    {u('legacy.loadDetails.handlingCompliance', 'Load requirements & compliance')}
                   </p>
                   <div className="grid gap-2 md:grid-cols-2">
                     <div className="flex items-start gap-2.5 rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-800">
@@ -1039,17 +1062,31 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                       <p className="text-[13px] leading-snug text-slate-700 dark:text-slate-300">{goodsNote}</p>
                     </div>
                     <div className="flex items-start gap-2.5 rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-800">
-                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
-                      <p className="text-[13px] leading-snug text-slate-700 dark:text-slate-300">
-                        {u(
-                          'legacy.loadDetails.liveRouteAlertsEnabled',
-                          'Live route alerts are enabled for risk, congestion, and checkpoint delay anomalies.'
-                        )}
-                      </p>
+                      <Box className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                      <div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-wider text-slate-400">{u('legacy.loadDetails.container', 'Containers')}</p><p className="truncate text-[13px] leading-snug text-slate-700 dark:text-slate-300">{containerLabel}</p></div>
                     </div>
                   </div>
+                  <div className="mt-2 rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-800">
+                    <p className="mb-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400">{u('legacy.loadDetails.requirements', 'Requested services')}</p>
+                    {requirementLabels.length ? <div className="flex flex-wrap gap-1.5">{requirementLabels.map((item) => <span key={item} className="rounded-full bg-primary/10 px-2 py-1 text-[10px] font-bold text-primary">{item}</span>)}</div> : <p className="text-[13px] text-slate-500">{u('legacy.loadDetails.noSpecialRequirements', 'No special requirements')}</p>}
+                  </div>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 xl:col-span-6">
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 xl:col-span-4">
+                  <p className="mb-2.5 text-[10px] font-black uppercase tracking-wider text-primary">{u('legacy.loadDetails.postingDetails', 'Posting details')}</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <InfoTile label={u('postLoadModal.transportMode', 'Transport type')} value={load.transportMode || transportTypeLabel} />
+                    <InfoTile label={u('postLoadModal.deliveryProof', 'Delivery proof')} value={load.deliveryProof || '—'} />
+                    <InfoTile label={u('postLoadModal.pickupDate', 'Pickup window')} value={[load.pickupWindowStart && formatLoadDate(load.pickupWindowStart), load.pickupWindowEnd && formatLoadDate(load.pickupWindowEnd)].filter(Boolean).join(' – ') || '—'} />
+                    <InfoTile label={u('postLoadModal.deliveryDate', 'Delivery window')} value={[load.deliveryWindowStart && formatLoadDate(load.deliveryWindowStart), load.deliveryWindowEnd && formatLoadDate(load.deliveryWindowEnd)].filter(Boolean).join(' – ') || '—'} />
+                    <InfoTile label={u('postLoadModal.temperature', 'Temperature')} value={load.temperatureControlled ? `${load.temperatureMin ?? '—'} to ${load.temperatureMax ?? '—'} °C` : 'Ambient'} />
+                    <InfoTile label={u('postLoadModal.characteristics', 'Characteristics')} value={(load.characteristics ?? []).join(', ') || '—'} />
+                    <InfoTile label={u('postLoadModal.loadingEquipment', 'Loading equipment')} value={loadingEquipmentLabel} />
+                    <InfoTile label={u('postLoadModal.packagingMethod', 'Packaging')} value={load.quantityMeasure || 'Not specified'} />
+                  </div>
+                  <div className="mt-2 rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-800"><p className="text-[10px] font-black uppercase tracking-wider text-slate-400">{u('postLoadModal.contact', 'Contact')}</p><p className="mt-1 text-[13px] font-semibold text-slate-700 dark:text-slate-200">{contactLabel}</p></div>
+                  {(load.notes || load.externalComments) && <div className="mt-2 rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-800"><p className="text-[10px] font-black uppercase tracking-wider text-slate-400">{u('postLoadModal.notes', 'Notes')}</p><p className="mt-1 whitespace-pre-wrap text-[13px] text-slate-700 dark:text-slate-200">{load.externalComments || load.notes}</p></div>}
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 xl:col-span-4">
                   <p className="mb-2.5 text-[10px] font-black uppercase tracking-wider text-primary">
                     {u('tracking.attachedDocuments', 'Attached documents')}
                   </p>
@@ -1138,12 +1175,12 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
         onBookLoad={currentStatus === 'Posted' ? () => bookLoad() : undefined}
       />
 
-      {load.pickupPosition && load.deliveryPosition && (
+      {pickupRoutePosition && deliveryRoutePosition && (
         <RouteMapModal
           open={routeMapOpen}
           lang={lang}
-          pickup={{ label: pickupLabel, position: load.pickupPosition }}
-          delivery={{ label: deliveryLabel, position: load.deliveryPosition }}
+          pickup={{ label: pickupLabel, position: pickupRoutePosition }}
+          delivery={{ label: deliveryLabel, position: deliveryRoutePosition }}
           onClose={() => setRouteMapOpen(false)}
         />
       )}

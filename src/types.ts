@@ -82,10 +82,13 @@ export interface Load {
   cargoValue?: number;
   isFragile?: boolean;
   urgency?: 'Standard' | 'Express';
-  loadingMethods?: Array<'Forklift' | 'Crane' | 'Manual'>;
+  loadingMethods?: string[];
   transitDays?: number;
   pickup: string;
   delivery: string;
+  /** Exact street addresses for the pickup and delivery route stops, when supplied. */
+  pickupAddress?: string;
+  deliveryAddress?: string;
   // Stop coordinates, when the load carries them - what lets the details view draw the real
   // driving route instead of only naming the two cities.
   pickupPosition?: [number, number];
@@ -139,6 +142,22 @@ export interface Load {
   pallets?: number;
   truckType?: string;
   bodyTypes?: string[];
+  containerSelections?: Array<{ type?: string; quantity?: number }>;
+  specialRequirements?: string[];
+  characteristics?: string[];
+  requiresTailLift?: boolean;
+  mustBeTrackable?: boolean;
+  certificationRequired?: boolean;
+  inspectionServicesRequired?: boolean;
+  insuranceRequired?: boolean;
+  temperatureControlled?: boolean;
+  transportMode?: string;
+  deliveryProof?: string;
+  shipmentValueCurrency?: string;
+  quantityMeasure?: string;
+  contact?: Record<string, unknown>;
+  notes?: string;
+  externalComments?: string;
   requiresAdr?: boolean;
   tollRoadsIncluded?: boolean;
   ferryIncluded?: boolean;

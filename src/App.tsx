@@ -5094,11 +5094,10 @@ const mapDatabaseRecordToLoad = (record: Record<string, unknown>): Load => {
                 .filter(Boolean)
                 .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
                 .join(" ") || "—";
+  // Keep every Post a Load equipment value. The old narrow filter silently discarded valid
+  // choices such as “Vehicle with ramp” and “Forklift: Yes” before the preview could show them.
   const loadingMethods = Array.isArray(record.loading_methods)
-    ? record.loading_methods.filter(
-        (method): method is "Forklift" | "Crane" | "Manual" =>
-          ["Forklift", "Crane", "Manual"].includes(String(method)),
-      )
+    ? record.loading_methods.map(String).filter(Boolean)
     : [];
   const pickupDate = Date.parse(String(pickup?.window_starts_at || ""));
   const deliveryDate = Date.parse(
@@ -5128,11 +5127,13 @@ const mapDatabaseRecordToLoad = (record: Record<string, unknown>): Load => {
     loadingMethods,
     transitDays,
     pickup: [pickup?.city, pickup?.country_code].filter(Boolean).join(", "),
+    pickupAddress: pickup?.address == null ? undefined : String(pickup.address),
     delivery:
       [delivery?.city, delivery?.country_code].filter(Boolean).join(", ") ||
       [record.warehouse_city, record.warehouse_country_code]
         .filter(Boolean)
         .join(", "),
+    deliveryAddress: delivery?.address == null ? undefined : String(delivery.address),
     pickupPosition: stopPosition(pickup),
     deliveryPosition: stopPosition(delivery),
     pickupAt: String(pickup?.window_starts_at || ""),
@@ -5247,12 +5248,28 @@ const mapDatabaseRecordToLoad = (record: Record<string, unknown>): Load => {
     truckType:
       record.vehicle_type == null ? undefined : String(record.vehicle_type),
     bodyTypes: Array.isArray(record.body_types) ? record.body_types.map(String) : [],
+    containerSelections: Array.isArray(record.container_selections) ? record.container_selections as Array<{ type?: string; quantity?: number }> : [],
+    specialRequirements: Array.isArray(record.special_requirements) ? record.special_requirements.map(String) : [],
+    characteristics: Array.isArray(record.characteristics) ? record.characteristics.map(String) : [],
     requiresAdr: Boolean(record.requires_adr),
+    requiresTailLift: Boolean(record.requires_tail_lift),
+    mustBeTrackable: Boolean(record.must_be_trackable),
     tollRoadsIncluded: Boolean(record.toll_roads_included),
     ferryIncluded: Boolean(record.ferry_included),
     cmrRequired: Boolean(record.cmr_required),
     palletExchangeRequired: Boolean(record.pallet_exchange_required),
     customsRequired: Boolean(record.customs_required),
+    certificationRequired: Boolean(record.certification_required),
+    inspectionServicesRequired: Boolean(record.inspection_services_required),
+    insuranceRequired: Boolean(record.insurance_required),
+    temperatureControlled: record.temperature_min != null || record.temperature_max != null,
+    transportMode: record.transport_mode == null ? undefined : String(record.transport_mode),
+    deliveryProof: record.delivery_proof == null ? undefined : String(record.delivery_proof),
+    shipmentValueCurrency: record.shipment_value_currency == null ? undefined : String(record.shipment_value_currency),
+    quantityMeasure: record.quantity_measure == null ? undefined : String(record.quantity_measure),
+    contact: record.contact && typeof record.contact === 'object' ? record.contact as Record<string, unknown> : undefined,
+    notes: record.notes == null ? undefined : String(record.notes),
+    externalComments: record.external_comments == null ? undefined : String(record.external_comments),
     pickupWindowStart:
       pickup?.window_starts_at == null
         ? undefined

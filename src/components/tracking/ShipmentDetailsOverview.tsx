@@ -12,8 +12,9 @@ import { ui, trPackageStatus } from '../../i18n';
 import { formatDate } from '../../lib/dates';
 import { checklistOwner, checklistSentence, countPendingActions } from '../../lib/shipmentChecklist';
 import { ShipmentChecklistTable } from './ShipmentChecklistTable';
+import { api } from '../../services/api';
 
-type SubTab = 'overview' | 'operations' | 'documents' | 'notes' | 'activity';
+type SubTab = 'overview' | 'operations' | 'documents' | 'notes' | 'activity' | 'charges';
 
 type Props = {
   shipment: Package;
@@ -90,6 +91,8 @@ export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userI
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [subTab, setSubTab] = useState<SubTab>(initialSubTab);
   const [sendingReminder, setSendingReminder] = useState(false);
+  const [chargeDraft, setChargeDraft] = useState({ type: '', condition: '', rate: '', unit: '' });
+  const [chargesSaving, setChargesSaving] = useState(false);
   const details = new Map((shipment.details || []).map((detail) => [detail.key, detail.value]));
   const parties = record(workspace?.parties_snapshot);
   const customer = record(parties.customer);
@@ -129,6 +132,7 @@ export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userI
   const viewerOwns = (key: unknown) => role === 'superadmin'
     || (checklistOwner(key) === 'customer' ? viewerIsCustomer : viewerIsProvider);
   const viewerOwnsNextTask = nextTask ? viewerOwns(nextTask.key) : false;
+  const charges = array(workspace?.additional_charges);
   const nextTaskSentence = nextTask ? checklistSentence(lang, nextTask.key, nextTaskOwnerLabel) : '';
 
   const sendReminder = async () => {
@@ -152,6 +156,7 @@ export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userI
     },
     { key: 'documents', label: u('shipmentDetails.documents', 'Documents'), icon: FileText },
     { key: 'notes', label: u('shipmentDetails.notes', 'Notes'), icon: ClipboardCheck },
+    { key: 'charges', label: u('shipmentDetails.additionalCharges', 'Additional charges'), icon: CircleDollarSign, badge: charges.filter((charge) => !charge.approved).length || undefined },
     { key: 'activity', label: u('shipmentDetails.recentActivity', 'Recent activity'), icon: ActivityIcon },
   ];
 
@@ -362,6 +367,14 @@ export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userI
       )}
 
       {subTab === 'notes' && notesSlot}
+
+      {subTab === 'charges' && <Panel title={u('shipmentDetails.additionalCharges', 'Additional charges')} icon={CircleDollarSign}>
+        <div className="space-y-3">
+          {charges.map((charge) => <div key={String(charge.id)} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/70 bg-slate-50/45 p-4 shadow-sm shadow-slate-200/20 dark:border-slate-700/70 dark:bg-slate-900/40 dark:shadow-none"><div><p className="font-bold text-slate-900 dark:text-white">{String(charge.type || 'Additional charge')}</p><p className="text-xs text-slate-500">{String(charge.condition || '')}</p></div><div className="flex items-center gap-3"><span className={charge.approved ? 'font-black text-emerald-600' : 'font-black text-amber-600'}>{String(charge.rate || 0)} {String(charge.unit || '')}</span>{charge.approved ? <CheckCircle2 className="h-5 w-5 text-emerald-500" /> : viewerIsCustomer || role === 'superadmin' ? <button type="button" disabled={chargesSaving} onClick={() => { setChargesSaving(true); void api.shipmentWorkspaces.update(String(workspace?.id), { approve_additional_charge_id: charge.id }).finally(() => setChargesSaving(false)); }} className="rounded-xl bg-primary px-3 py-2 text-xs font-bold text-white shadow-sm shadow-primary/20">{u('shipmentDetails.approve', 'Approve')}</button> : <span className="text-xs font-bold text-amber-600">{u('shipmentDetails.customerApprovalRequired', 'Customer approval required')}</span>}</div></div>)}
+          {!charges.length && <p className="text-sm text-slate-500">{u('shipmentDetails.noAdditionalCharges', 'No additional charges.')}</p>}
+          {(viewerIsProvider || role === 'superadmin') && <div className="grid gap-2 border-t border-slate-200/60 pt-4 md:grid-cols-4 dark:border-slate-800"><input value={chargeDraft.type} onChange={(event) => setChargeDraft({ ...chargeDraft, type: event.target.value })} placeholder="Charge" className="h-11 rounded-2xl border border-slate-200/75 bg-slate-50/80 px-3.5 text-sm outline-none placeholder:text-slate-400 focus:border-primary/40 focus:bg-white focus:ring-4 focus:ring-primary/5 dark:border-slate-700/70 dark:bg-slate-900" /><input value={chargeDraft.condition} onChange={(event) => setChargeDraft({ ...chargeDraft, condition: event.target.value })} placeholder="Reason / condition" className="h-11 rounded-2xl border border-slate-200/75 bg-slate-50/80 px-3.5 text-sm outline-none placeholder:text-slate-400 focus:border-primary/40 focus:bg-white focus:ring-4 focus:ring-primary/5 dark:border-slate-700/70 dark:bg-slate-900" /><input value={chargeDraft.rate} onChange={(event) => setChargeDraft({ ...chargeDraft, rate: event.target.value })} placeholder="Amount" type="number" className="h-11 rounded-2xl border border-slate-200/75 bg-slate-50/80 px-3.5 text-sm outline-none placeholder:text-slate-400 focus:border-primary/40 focus:bg-white focus:ring-4 focus:ring-primary/5 dark:border-slate-700/70 dark:bg-slate-900" /><button type="button" disabled={!chargeDraft.type || !chargeDraft.rate || chargesSaving} onClick={() => { setChargesSaving(true); void api.shipmentWorkspaces.update(String(workspace?.id), { additional_charges: [{ ...chargeDraft, rate: Number(chargeDraft.rate) }] }).then(() => setChargeDraft({ type: '', condition: '', rate: '', unit: '' })).finally(() => setChargesSaving(false)); }} className="rounded-2xl bg-primary px-4 text-sm font-bold text-white shadow-sm shadow-primary/20">Add charge</button></div>}
+        </div>
+      </Panel>}
 
       {subTab === 'activity' && (
         <Panel title={u('shipmentDetails.recentActivity', 'Recent activity')} icon={ActivityIcon}>{activityList}</Panel>

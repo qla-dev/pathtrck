@@ -22,6 +22,7 @@ import {
   Star,
   Timer,
   Truck,
+  Warehouse,
   Wallet,
   Zap,
 } from 'lucide-react';
@@ -374,6 +375,7 @@ export const LoadsTable = ({ lang, loads, userId, ownerMode = false, storageMode
                   </div>
                 </td>
                 <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
+                  {!isStorage && <span title={load.transportType || 'road'} className="mr-2 inline-flex h-7 w-7 align-middle items-center justify-center rounded-lg bg-slate-50 dark:bg-slate-800">{load.transportType === 'air' ? <Plane className="h-3.5 w-3.5 text-sky-500" /> : load.transportType === 'sea' ? <Ship className="h-3.5 w-3.5 text-cyan-600" /> : load.transportType === 'rail' ? <Train className="h-3.5 w-3.5 text-amber-500" /> : <Truck className="h-3.5 w-3.5 text-primary" />}</span>}
                   {/* A storage request is one location, not a route - a distance from it to itself
                       would just read as a misleading 0 km. */}
                   {isStorage ? '—' : `${estimateLoadDistanceKm(load.pickup, load.delivery)} km`}

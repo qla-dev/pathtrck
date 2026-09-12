@@ -4,6 +4,7 @@ const CITY_COORDINATES: Record<string, [number, number]> = {
   'Zagreb, HR': [45.815, 15.9819],
   'Berlin, DE': [52.52, 13.405],
   'Sarajevo, BA': [43.8563, 18.4131],
+  'Istanbul, TR': [41.0082, 28.9784],
   'Banja Luka, BA': [44.7722, 17.191],
   'Shanghai, CN': [31.2304, 121.4737],
   'Odesa, UA': [46.4825, 30.7233],
