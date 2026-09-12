@@ -3,7 +3,7 @@ import { lenaIcon } from '../../lib/lenaIcons';
 import { latestLoadScan } from '../../lib/lenaLoadCanvas';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { CheckCircle2, Clock3, FileSearch, FileText, FileUp, MapPinned, MessageCircle, Package, ReceiptText, Search, Warehouse, type LucideIcon } from 'lucide-react';
+import { CheckCircle2, Clock3, ExternalLink, FileSearch, FileText, FileUp, MapPinned, MessageCircle, Package, ReceiptText, Scale, Search, Warehouse, type LucideIcon } from 'lucide-react';
 
 import { api } from '../../services/api';
 import { Language } from '../../types';
@@ -30,6 +30,19 @@ const LOAD_READY_MARKER_GLOBAL = /\[\[LOAD_READY_TO_POST(?::complete)?\]\]/g;
 const LENA_STEP_MARKER_PATTERN = /\[\[LENA_STEP:([a-zA-Z]+)\]\]/;
 const LENA_STEP_MARKER_GLOBAL = /\[\[LENA_STEP:[a-zA-Z]+\]\]/g;
 const LENA_SKIP_MARKER_GLOBAL = /\[\[LENA_SKIP:[a-zA-Z]+\]\]/g;
+const LEGAL_SOURCES_PATTERN = /\[\[LEGAL_SOURCES:([a-z0-9,-]+)\]\]/;
+const LEGAL_SOURCES_GLOBAL = /\[\[LEGAL_SOURCES:[a-z0-9,-]+\]\]/g;
+
+const legalSourceTitles: Record<string, string> = {
+  'customs-tariff-law': 'Zakon o carinskoj tarifi',
+  'customs-policy-amendment-2026': 'Izmjene Odluke o carinskoj politici u BiH',
+  'customs-declaration-instructions': 'Uputstvo o carinskoj prijavi i deklaraciji',
+  'jci-fields': 'Prilog 1: Polja za popunjavanje JCI', 'jci-import': 'Prilog 3: Uvoz, uputstva o JCI',
+  'customs-value': 'Uputstvo o utvrđivanju carinske vrijednosti', 'customs-debt-security': 'Uputstvo o osiguranju carinskog duga',
+  'customs-warehouse': 'Uputstvo o carinskom skladištu', 'inward-processing': 'Uputstvo o unutrašnjoj obradi',
+  'home-import-clearance': 'Uputstvo o kućnom uvoznom carinjenju', 'temporary-import': 'Uputstvo o privremenom uvozu',
+  'efta-agreement': 'Ugovor EFTA', 'cefta-origin': 'Uputstvo o pravilima porijekla u CEFTA trgovini', 'cefta-joint-committee': 'Odluka Zajedničkog odbora CEFTA',
+};
 
 const LENA_OUT_OF_TOKENS_PATTERN = /\[\[LENA_OUT_OF_TOKENS\]\]/;
 const LENA_OUT_OF_TOKENS_GLOBAL = /\[\[LENA_OUT_OF_TOKENS\]\]/g;
@@ -281,6 +294,10 @@ export const useLenaEmbeddedMessages = ({
     () => new Set(messages.filter((message) => LOAD_READY_MARKER.test(message.text)).map((message) => message.id)),
     [messages]
   );
+  const legalSourcesByMessage = useMemo(() => new Map(messages.flatMap((message) => {
+    const ids = message.text.match(LEGAL_SOURCES_PATTERN)?.[1].split(',').filter((id) => legalSourceTitles[id]);
+    return ids?.length ? [[message.id, ids] as const] : [];
+  })), [messages]);
   const questionnaireSuggestionsByMessage = useMemo(() => {
     const latestMessage = messages.at(-1);
     if (!latestMessage || latestMessage.sender !== 'other') return new Map<string, { step: string; group: SuggestedReplyGroup }>();
@@ -361,6 +378,7 @@ export const useLenaEmbeddedMessages = ({
       .replace(LENA_STEP_MARKER_GLOBAL, '')
       .replace(LENA_OUT_OF_TOKENS_GLOBAL, '')
       .replace(LENA_SKIP_MARKER_GLOBAL, lenaText(lang).ui['lena.shared.2'])
+      .replace(LEGAL_SOURCES_GLOBAL, '')
       .trim();
     return {
       ...message,
@@ -390,7 +408,8 @@ export const useLenaEmbeddedMessages = ({
     const locationChoice = locationChoiceByMessage.get(message.id);
     const loadReady = loadReadyMessageIds.has(message.id);
     const outOfTokens = outOfTokensMessageIds.has(message.id);
-    if (!embeddedLoad && !locationLoad && !mapLoad && !statusLoad && (!hasBooking || !handleBook) && quickActions.length === 0 && !suggestedReplies && !locationChoice && !loadReady && !outOfTokens) return null;
+    const legalSources = legalSourcesByMessage.get(message.id) || [];
+    if (!embeddedLoad && !locationLoad && !mapLoad && !statusLoad && (!hasBooking || !handleBook) && quickActions.length === 0 && !suggestedReplies && !locationChoice && !loadReady && !outOfTokens && legalSources.length === 0) return null;
 
     // Messages that show a timestamp get its (invisible-until-hover, but still laid out) line as
     // extra breathing room above this block for free; messages without one (e.g. the welcome
@@ -399,6 +418,7 @@ export const useLenaEmbeddedMessages = ({
     return (
       <div className={`flex w-full max-w-xl flex-col gap-2 ${message.time ? 'mt-2' : 'mt-[27px]'}`}>
         {outOfTokens && <LenaOutOfTokensCard lang={lang} resetAt={outOfTokensResetAt} packageIcon={outOfTokensPackageIcon} packageColor={outOfTokensPackageColor} onUpgrade={onUpgrade} onTopUp={onTopUp} />}
+        {legalSources.length > 0 && <section className="rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/70 dark:bg-amber-950/20"><div className="mb-2 flex items-center gap-2 text-xs font-black text-amber-900 dark:text-amber-200"><Scale className="h-4 w-4" />{lang === 'de' ? 'Rechtsquellen' : lang === 'bs' ? 'Pravni izvori' : 'Legal sources'}</div><div className="space-y-1.5">{legalSources.map((id) => <a key={id} href={`/api/legal-sources/${id}`} target="_blank" rel="noreferrer" className="flex items-center justify-between gap-2 rounded-lg bg-white px-2.5 py-2 text-xs font-semibold text-primary hover:underline dark:bg-slate-900"><span>{legalSourceTitles[id]}</span><ExternalLink className="h-3.5 w-3.5 shrink-0" /></a>)}</div></section>}
         {embeddedLoad && (
           <LenaLoadDetailsCard
             lang={lang}
@@ -440,7 +460,7 @@ export const useLenaEmbeddedMessages = ({
         )}
       </div>
     );
-  }, [bookingOffers, resolvedEmbeddedLoads, fallbackLoadId, lang, loadDetailCards, loadLocationCards, loadMapCards, loadReadyMessageIds, loadStatusCards, locationChoiceByMessage, onBookLoad, onLoadReady, onOpenLoad, onQuickAction, onStepAnswer, onSuggestedDraftChange, onSuggestedReply, onTopUp, onUpgrade, outOfTokensMessageIds, outOfTokensPackageColor, outOfTokensPackageIcon, outOfTokensResetAt, questionnaireSuggestionsByMessage, quickActionLabels, quickActionsByMessage]);
+  }, [bookingOffers, resolvedEmbeddedLoads, fallbackLoadId, lang, legalSourcesByMessage, loadDetailCards, loadLocationCards, loadMapCards, loadReadyMessageIds, loadStatusCards, locationChoiceByMessage, onBookLoad, onLoadReady, onOpenLoad, onQuickAction, onStepAnswer, onSuggestedDraftChange, onSuggestedReply, onTopUp, onUpgrade, outOfTokensMessageIds, outOfTokensPackageColor, outOfTokensPackageIcon, outOfTokensResetAt, questionnaireSuggestionsByMessage, quickActionLabels, quickActionsByMessage]);
 
   const extraContentVersion = `${embeddedLoadIds.join(',')}:${Object.keys(resolvedEmbeddedLoads).sort().join(',')}:${[...quickActionsByMessage.keys()].join(',')}:${[...questionnaireSuggestionsByMessage.keys()].join(',')}:${[...locationChoiceByMessage.keys()].join(',')}:${[...loadReadyMessageIds].join(',')}:${[...outOfTokensMessageIds].join(',')}`;
 
