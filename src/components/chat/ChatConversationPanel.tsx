@@ -52,6 +52,10 @@ type ChatConversationPanelProps = {
    *  out inside the bubble, directly under the text and above the hover timestamp. */
   renderMessageBeforeTime?: (message: ChatMessage) => ReactNode;
   extraContentVersion?: string | number;
+  /** Remounts the message list (replaying its entry animation and resetting its scroll) when this
+   *  changes. Defaults to the conversation id; pass a token that only moves on a real thread switch
+   *  when the id itself can change under a thread that the user is already reading. */
+  entryAnimationKey?: string | number;
   onAttachFile?: (file: File) => void | Promise<void>;
   attachmentAccept?: string;
   attachmentBusy?: boolean;
@@ -95,6 +99,7 @@ export const ChatConversationPanel = ({
   renderMessageExtra,
   renderMessageBeforeTime,
   extraContentVersion,
+  entryAnimationKey,
   onAttachFile,
   attachmentAccept,
   attachmentBusy = false,
@@ -124,6 +129,12 @@ export const ChatConversationPanel = ({
   const knownMessageIdsRef = useRef(new Set(activeConversation.messages.map((message) => message.id)));
   const knownMessagesConversationIdRef = useRef<string | null>(null);
   const [typingMessageId, setTypingMessageId] = useState<string | null>(null);
+  // The reply lands a render or two after the assistant stops "thinking" (the saved messages are
+  // merged into the history by an effect). Dropping the indicator the moment thinking ends would
+  // shrink the thread by its height and grow it straight back, which reads as the conversation
+  // jumping. So the indicator holds its place until the reply it is standing in for is on screen.
+  const [holdThinkingIndicator, setHoldThinkingIndicator] = useState(false);
+  const previousOtherTypingRef = useRef(false);
   const [isDraggingAttachment, setIsDraggingAttachment] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const hasAttachmentHandler = activeConversation.isAiDispatch && Boolean(onAttachFile);
@@ -159,6 +170,23 @@ export const ChatConversationPanel = ({
     const file = event.dataTransfer.files?.[0];
     if (file) void onAttachFile?.(file);
   };
+
+  // A freshly appended assistant reply has to render through the typewriter from its very first
+  // render. setTypingMessageId can only switch it on from a layout effect, one commit later, which
+  // leaves a commit where the reply is laid out at its full height - and the scroll effects in that
+  // same commit measure exactly that height, so the thread lurches down by the whole length of the
+  // reply and snaps back when the typewriter takes over at one character. Known ids are updated in
+  // that same effect, so a reply that is not in them yet is one this render is seeing for the first
+  // time. The conversation check keeps a freshly opened thread from replaying its last reply: the
+  // known ids still belong to the previous conversation until that effect catches up.
+  const latestMessage = activeConversation.messages.at(-1);
+  const freshAiReplyId = Boolean(activeConversation.isAiDispatch)
+    && knownMessagesConversationIdRef.current === activeConversation.id
+    && latestMessage?.sender === 'other'
+    && !knownMessageIdsRef.current.has(latestMessage.id)
+    ? latestMessage.id
+    : null;
+  const animatingMessageId = freshAiReplyId ?? typingMessageId;
 
   const scrollMessageListToBottom = useCallback((behavior: ScrollBehavior = 'auto') => {
     const messageList = messageListRef.current;
@@ -198,8 +226,28 @@ export const ChatConversationPanel = ({
 
     if (activeConversation.isAiDispatch && appendedNewMessage?.sender === 'other') {
       setTypingMessageId(appendedNewMessage.id);
+      // The reply is on screen in this same commit, so the indicator can go without a gap.
+      setHoldThinkingIndicator(false);
     }
   }, [activeConversation.id, activeConversation.isAiDispatch, activeConversation.messages]);
+
+  useLayoutEffect(() => {
+    const wasTyping = previousOtherTypingRef.current;
+    previousOtherTypingRef.current = otherTyping;
+    // Arm on the rising edge only. Re-arming while thinking is still flagged could hold an
+    // indicator for a reply that has already rendered.
+    if (otherTyping) {
+      if (!wasTyping) {
+        setHoldThinkingIndicator(true);
+      }
+      return undefined;
+    }
+    if (!holdThinkingIndicator) return undefined;
+    // Released above as soon as the reply renders; this is only the escape hatch for a reply that
+    // never arrives (a failed request), so the indicator cannot get stuck.
+    const timer = window.setTimeout(() => setHoldThinkingIndicator(false), 1000);
+    return () => window.clearTimeout(timer);
+  }, [holdThinkingIndicator, otherTyping]);
 
   useLayoutEffect(() => {
     // Scroll only the message list. scrollIntoView also scrolls outer ancestors,
@@ -217,7 +265,7 @@ export const ChatConversationPanel = ({
       return;
     }
     scrollMessageListToBottom(isSameConversation ? 'smooth' : 'auto');
-  }, [activeConversation.id, activeConversation.messages.length, otherTyping, scrollMessageListToBottom]);
+  }, [activeConversation.id, activeConversation.messages.length, entryAnimationKey, otherTyping, scrollMessageListToBottom]);
 
   useLayoutEffect(() => {
     if (extraContentVersion === undefined) return;
@@ -292,7 +340,7 @@ export const ChatConversationPanel = ({
 
     <div className="relative flex-1 min-h-0 overflow-hidden bg-slate-50/70 dark:bg-slate-950/40">
       <motion.div
-        key={activeConversation.id}
+        key={entryAnimationKey ?? activeConversation.id}
         ref={messageListRef}
         className="absolute inset-0 overflow-x-hidden overflow-y-auto p-4"
         onScroll={(event) => {
@@ -318,7 +366,7 @@ export const ChatConversationPanel = ({
         <div key={m.id} className={cn('group relative', index > 0 && (turnChanged ? 'mt-14' : 'mt-3'), isAiAnswer ? 'w-full' : 'w-fit max-w-[min(85%,36rem)]', m.sender === 'me' ? 'ml-auto' : m.sender === 'system' ? 'mx-auto' : 'mr-auto')}>
           {/* The greeting and the out-of-messages card carry no copyable answer of their own, so
               neither offers the copy affordance - both are recognised by their message id. */}
-          {m.sender === 'other' && typingMessageId !== m.id && !m.id.startsWith('welcome-') && !m.id.startsWith('blocked-') && (
+          {m.sender === 'other' && animatingMessageId !== m.id && !m.id.startsWith('welcome-') && !m.id.startsWith('blocked-') && (
             <button
               type="button"
               onClick={() => void copyMessage(m.id, m.text)}
@@ -353,7 +401,7 @@ export const ChatConversationPanel = ({
                     : 'dark:text-slate-200'
               )}
             >
-              {typingMessageId === m.id ? (
+              {animatingMessageId === m.id ? (
                 <TypewriterText
                   text={m.text}
                   render={renderMessageText}
@@ -365,7 +413,7 @@ export const ChatConversationPanel = ({
                 />
               ) : renderMessageText(m.text)}
             </p>
-            {typingMessageId !== m.id && renderMessageBeforeTime?.(m)}
+            {animatingMessageId !== m.id && renderMessageBeforeTime?.(m)}
             {m.time && m.sender !== 'me' && (
               <p
                 className={cn(
@@ -446,11 +494,11 @@ export const ChatConversationPanel = ({
               )}
             </div>
           )}
-          {typingMessageId !== m.id && renderMessageExtra?.(m)}
+          {animatingMessageId !== m.id && renderMessageExtra?.(m)}
         </div>
         );
       })}
-      {otherTyping && (
+      {(otherTyping || holdThinkingIndicator) && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

@@ -8,6 +8,7 @@ import { useApiList } from '../../hooks/useApiList';
 import { getRouteInsights } from '../../services/geminiService';
 import { flatpickrI18n, ui } from '../../i18n';
 import { cn } from '../../lib/cn';
+import { formatClockTime } from '../../lib/dates';
 import { Card } from '../ui/Card';
 
 type ViewMode = 'all' | 'today' | 'calendar';
@@ -68,7 +69,7 @@ export const HistoryView = ({ lang }: { lang: Language }) => {
       origin: String(loadStops[0]?.city || 'â€”'), destination: String(loadStops[loadStops.length - 1]?.city || 'â€”'),
       vehicle: String(((row.vehicle || {}) as Record<string, unknown>).registration_number || 'â€”'), fuel: `${Number(row.fuel_liters || 0)} L`, cost: `EUR ${Number(row.estimated_cost || 0).toLocaleString(numberFormatLocale)}`,
       confidence: Number(row.ai_confidence || 0), status: status === 'completed' ? 'Completed' : status === 'delayed' ? 'Delayed' : 'Optimized',
-      events: events.map((event) => ({ time: String(event.recorded_at || event.created_at || '').slice(11, 16), title: String(event.event_type || event.status || 'Update'), note: String(event.description || event.location_name || '') })),
+      events: events.map((event) => ({ time: formatClockTime(event.recorded_at || event.created_at), title: String(event.event_type || event.status || 'Update'), note: String(event.description || event.location_name || '') })),
     };
   }), [routesResult.items, numberFormatLocale]);
   const [leftMode, setLeftMode] = useState<ViewMode>('all');

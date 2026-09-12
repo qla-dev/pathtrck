@@ -30,8 +30,11 @@ const LOAD_READY_MARKER_GLOBAL = /\[\[LOAD_READY_TO_POST(?::complete)?\]\]/g;
 const LENA_STEP_MARKER_PATTERN = /\[\[LENA_STEP:([a-zA-Z]+)\]\]/;
 const LENA_STEP_MARKER_GLOBAL = /\[\[LENA_STEP:[a-zA-Z]+\]\]/g;
 const LENA_SKIP_MARKER_GLOBAL = /\[\[LENA_SKIP:[a-zA-Z]+\]\]/g;
-const LEGAL_SOURCES_PATTERN = /\[\[LEGAL_SOURCES:([a-z0-9,-]+)\]\]/;
-const LEGAL_SOURCES_GLOBAL = /\[\[LEGAL_SOURCES:[a-z0-9,-]+\]\]/g;
+// The id list can come back empty ("[[LEGAL_SOURCES:]]") when no catalogue document supports the
+// answer, so both patterns accept an empty list: the marker must still be stripped from the visible
+// text, and an empty list must yield no source cards.
+const LEGAL_SOURCES_PATTERN = /\[\[LEGAL_SOURCES:\s*([a-z0-9,-]*?)\s*\]\]/;
+const LEGAL_SOURCES_GLOBAL = /\[\[LEGAL_SOURCES:?\s*[a-z0-9,-]*?\s*\]\]/g;
 
 const legalSourceTitles: Record<string, string> = {
   'customs-tariff-law': 'Zakon o carinskoj tarifi',
@@ -298,6 +301,12 @@ export const useLenaEmbeddedMessages = ({
     const ids = message.text.match(LEGAL_SOURCES_PATTERN)?.[1].split(',').filter((id) => legalSourceTitles[id]);
     return ids?.length ? [[message.id, ids] as const] : [];
   })), [messages]);
+  // Insertion order follows the thread, so the first key is the earliest message carrying sources:
+  // the greeting that legal consultations mode opens with.
+  const firstLegalSourcesMessageId = useMemo(
+    () => legalSourcesByMessage.keys().next().value ?? null,
+    [legalSourcesByMessage]
+  );
   const questionnaireSuggestionsByMessage = useMemo(() => {
     const latestMessage = messages.at(-1);
     if (!latestMessage || latestMessage.sender !== 'other') return new Map<string, { step: string; group: SuggestedReplyGroup }>();
@@ -466,9 +475,17 @@ export const useLenaEmbeddedMessages = ({
     const legalSources = legalSourcesByMessage.get(message.id) || [];
     if (legalSources.length === 0) return null;
 
+    // Entering legal consultations greets the user with the whole library, so the first block in a
+    // conversation is the catalogue itself. Every block after it was selected for one answer, and
+    // says so, rather than reading like the library has changed.
+    const isSourceCatalogue = message.id === firstLegalSourcesMessageId;
+    const label = isSourceCatalogue
+      ? (lang === 'bs' ? 'IZVORI:' : lang === 'de' ? 'QUELLEN:' : 'SOURCES:')
+      : (lang === 'bs' ? 'IZVOR ZA OVAJ ODGOVOR:' : lang === 'de' ? 'QUELLE FÜR DIESE ANTWORT:' : 'SOURCE FOR THIS ANSWER:');
+
     return (
       <div className="mt-2 space-y-1 [container-type:inline-size]">
-        <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">{lang === 'bs' ? 'IZVORI:' : lang === 'de' ? 'QUELLEN:' : 'SOURCES:'}</p>
+        <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</p>
         {Array.from({ length: Math.ceil(legalSources.length / 4) }, (_, rowIndex) => (
           <div key={rowIndex} className="flex items-center gap-2">{legalSources.slice(rowIndex * 4, rowIndex * 4 + 4).map((id) => {
             const sourceTitle = legalSourceTitles[id];
@@ -477,7 +494,7 @@ export const useLenaEmbeddedMessages = ({
         ))}
       </div>
     );
-  }, [lang, legalSourcesByMessage]);
+  }, [firstLegalSourcesMessageId, lang, legalSourcesByMessage]);
 
   const extraContentVersion = `${embeddedLoadIds.join(',')}:${Object.keys(resolvedEmbeddedLoads).sort().join(',')}:${[...quickActionsByMessage.keys()].join(',')}:${[...questionnaireSuggestionsByMessage.keys()].join(',')}:${[...locationChoiceByMessage.keys()].join(',')}:${[...loadReadyMessageIds].join(',')}:${[...outOfTokensMessageIds].join(',')}:${[...legalSourcesByMessage.keys()].join(',')}`;
 

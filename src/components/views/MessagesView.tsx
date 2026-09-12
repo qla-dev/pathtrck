@@ -18,6 +18,7 @@ import { buildScanFieldRows, ScanFieldPatch } from '../modals/scanFieldRows';
 import { analyzeLenaAttachment, archiveLenaAttachment, latestLoadScan, LENA_LOAD_FILE_ACCEPT, LenaAttachment, loadDraftRecordToScan } from '../../lib/lenaLoadCanvas';
 import { LENA_AI_GENERAL_SUBJECT, LenaQuickAction, lenaConversationSubjectTitle, lenaQuickActionFromMessage, lenaQuickActionMarker } from '../../lib/useLenaAiChat';
 import { withMinDelay } from '../../lib/timing';
+import { formatClockTime, localTimestampForApi } from '../../lib/dates';
 import { lenaStepInputMask, MASKABLE_GUIDED_STEPS } from '../../lib/lenaStepInputMask';
 import { useLenaTokenBalance } from '../../lib/useLenaTokenBalance';
 
@@ -57,6 +58,26 @@ type OptimisticMessage = {
   // Present only for a questionnaire pill answer, so a failed retry replays through
   // sendGuidedAnswerValue (the deterministic path) instead of sendMessageValue (the AI path).
   step?: string;
+  // Ids of this user's saved messages that were already on screen when the bubble was queued. The
+  // bubble is retired once a saved message from outside that set arrives, which is what makes the
+  // handover from optimistic to stored seamless. Matching on ids rather than on the body keeps it
+  // correct for the messages whose text is rewritten for display (quick-action markers become
+  // their menu label, skip markers become "choose later").
+  sentIdsBefore: string[];
+};
+
+/**
+ * True once the accumulated history holds the saved copy of an optimistic bubble.
+ *
+ * Removing a bubble when its request resolves is what made the thread jump: the preview merge that
+ * adds the saved message runs in an effect, so a request-driven removal can land one render
+ * earlier, and for that frame the message exists in neither list. The thread then shrinks by a
+ * bubble, the scroll position follows it, and both snap back a frame later.
+ */
+const optimisticMessageConfirmed = (message: OptimisticMessage, saved: Conversation['messages'] | undefined): boolean => {
+  if (message.status === 'failed' || !saved) return false;
+  const before = new Set(message.sentIdsBefore);
+  return saved.some((candidate) => candidate.sender === 'me' && !before.has(candidate.id));
 };
 
 type MessageHistoryState = {
@@ -109,7 +130,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
       id: isDraftCreatedMessageBody(body) ? `welcome-draft-${message.id}` : String(message.id),
       sender: Number(message.sender_user_id) === user?.id ? 'me' : 'other',
       text: action ? quickActionLabels[action] : body,
-      time: String(message.sent_at || message.created_at || '').slice(11, 16),
+      time: formatClockTime(message.sent_at || message.created_at),
       attachments: Array.isArray(message.attachments) ? message.attachments as LenaAttachment[] : undefined,
     };
   }, [quickActionLabels, user?.id]);
@@ -161,7 +182,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
         : String(row.subject || counterpart?.name || `Conversation ${row.id}`),
       role: isAiDispatch ? u('LenaAI', 'LenaAI') : String(((counterpart?.role || {}) as Record<string, unknown>).label || ''),
       channel: (String(row.channel || 'inapp') as Channel),
-      online: false, unread: 0, lastTime: String(row.last_message_at || '').slice(11, 16),
+      online: false, unread: 0, lastTime: formatClockTime(row.last_message_at),
       messages: isAiDispatch && !row.load_id && mappedMessages.length === 0
         ? [{ id: `welcome-${row.id}`, sender: 'other' as const, text: generalWelcome, time: '' }]
         : mappedMessages,
@@ -356,6 +377,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
       : hydratedBase;
     const pending = optimisticMessages
       .filter((message) => message.conversationId === greetedBase.id)
+      .filter((message) => !optimisticMessageConfirmed(message, greetedBase.messages))
       .map((message) => ({
         id: message.id,
         sender: 'me' as const,
@@ -374,6 +396,25 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     const blocked = blockedMessagesFor(greetedBase.id || EMPTY_LENA_CONVERSATION_ID);
     return pending.length || blocked.length ? { ...greetedBase, messages: [...greetedBase.messages, ...pending, ...blocked] } : greetedBase;
   }, [filteredConversations, activeId, displayedConversations, messageHistory, optimisticMessages, blockedMessages, dismissedWelcomeIds, generalWelcome, u]);
+
+  // Snapshot taken when a bubble is queued, so the saved copy can be told apart from the messages
+  // that were already there (see optimisticMessageConfirmed).
+  const savedSentMessageIds = useCallback((conversationId: string): string[] =>
+    (messageHistory[conversationId]?.messages ?? [])
+      .filter((message) => message.sender === 'me')
+      .map((message) => message.id),
+  [messageHistory]);
+
+  // Retires optimistic bubbles whose saved copy has landed in the history. This is the only place
+  // that clears them: the send paths must not, or the bubble blinks out between the request
+  // resolving and the merge that stores the saved message (see optimisticMessageConfirmed).
+  useEffect(() => {
+    setOptimisticMessages((current) => {
+      if (current.length === 0) return current;
+      const kept = current.filter((message) => !optimisticMessageConfirmed(message, messageHistory[message.conversationId]?.messages));
+      return kept.length === current.length ? current : kept;
+    });
+  }, [messageHistory]);
 
   const [canvasPanelOpen, setCanvasPanelOpen] = useState(false);
   const previousCanvas = useRef({ conversationId: '', active: false });
@@ -442,7 +483,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     setDraft('');
     setOptimisticMessages((messages) => retryId
       ? messages.map((message) => message.id === retryId ? { ...message, status: 'sending', time: optimisticTime } : message)
-      : [...messages, { id: optimisticId, conversationId, rawText: text, displayText, status: 'sending', time: optimisticTime }]);
+      : [...messages, { id: optimisticId, conversationId, rawText: text, displayText, status: 'sending', time: optimisticTime, sentIdsBefore: savedSentMessageIds(conversationId) }]);
     setMessageSending(true);
     if (isAiDispatch) setAiReplying(true);
     try {
@@ -468,7 +509,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     } catch {
       // The create request succeeded, so a refresh problem must not turn this into an unsent message.
     } finally {
-      setOptimisticMessages((messages) => messages.filter((message) => message.id !== optimisticId));
+      // The bubble stays until the saved message reaches the history (see the effect above).
     }
 
     if (isAiDispatch) {
@@ -500,7 +541,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     const optimisticTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
     setOptimisticMessages((messages) => retryId
       ? messages.map((message) => message.id === retryId ? { ...message, status: 'sending', time: optimisticTime } : message)
-      : [...messages, { id: optimisticId, conversationId, rawText, displayText, status: 'sending', time: optimisticTime, step }]);
+      : [...messages, { id: optimisticId, conversationId, rawText, displayText, status: 'sending', time: optimisticTime, step, sentIdsBefore: savedSentMessageIds(conversationId) }]);
     setMessageSending(true);
     setAiReplying(true);
     try {
@@ -512,7 +553,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
       setAiReplying(false);
       return;
     }
-    setOptimisticMessages((messages) => messages.filter((message) => message.id !== optimisticId));
+    // The bubble is retired by the history reconciliation effect, not here.
     setAiReplying(false);
     setMessageSending(false);
   }
@@ -568,7 +609,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
 
     setOptimisticMessages((messages) => retryId
       ? messages.map((message) => message.id === retryId ? { ...message, status: 'uploading', time: optimisticTime } : message)
-      : [...messages, { id: optimisticId, conversationId, rawText: body, displayText: body, status: 'uploading', time: optimisticTime, attachments: [previewAttachment], file }]);
+      : [...messages, { id: optimisticId, conversationId, rawText: body, displayText: body, status: 'uploading', time: optimisticTime, attachments: [previewAttachment], file, sentIdsBefore: savedSentMessageIds(conversationId) }]);
 
     setProcessingAttachment(true);
     setAiReplying(true);
@@ -595,7 +636,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     } catch {
       // The attachment is already stored; a transient refresh failure must not mark it as unsent.
     } finally {
-      setOptimisticMessages((messages) => messages.filter((message) => message.id !== optimisticId));
+      // The bubble stays until the saved message reaches the history (see the effect above).
     }
 
     try {
@@ -634,7 +675,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
         channel: 'inapp',
         subject: LENA_AI_GENERAL_SUBJECT,
         canvas: false,
-        last_message_at: new Date().toISOString(),
+        last_message_at: localTimestampForApi(),
         participant_ids: [user.id],
       });
       const conversationId = String(created.data.id);

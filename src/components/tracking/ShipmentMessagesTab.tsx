@@ -3,6 +3,7 @@ import { MessageSquare } from 'lucide-react';
 
 import type { Language } from '../../types';
 import { api } from '../../services/api';
+import { formatClockTime } from '../../lib/dates';
 import { ChatConversationPanel } from '../chat/ChatConversationPanel';
 import type { ChatMessage, Conversation } from '../chat/types';
 
@@ -40,7 +41,7 @@ export const ShipmentMessagesTab = ({ workspace, lang, userId }: Props) => {
       id: String(message.id),
       sender: Number(message.sender_user_id) === userId ? 'me' : 'other',
       text: String(message.body || ''),
-      time: String(message.sent_at || message.created_at || '').slice(11, 16),
+      time: formatClockTime(message.sent_at || message.created_at),
       attachments: Array.isArray(message.attachments) ? message.attachments as ChatMessage['attachments'] : undefined,
     })));
   }, [conversationId, userId]);

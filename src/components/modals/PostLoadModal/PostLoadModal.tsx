@@ -81,6 +81,7 @@ import {
 import { Language } from '../../../types';
 import { ui } from '../../../i18n';
 import { cn } from '../../../lib/cn';
+import { localTimestampForApi } from '../../../lib/dates';
 import { confirmAction, showSuccess } from '../../../lib/swal';
 import { useOutsideClick } from '../../../hooks/useOutsideClick';
 import { searchLocations } from '../../../services/locationSearch';
@@ -936,7 +937,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
               subject: `${AI_DISPATCH_SUBJECT_PREFIX}${draft.loadTitle || u('postLoadModal.draftFallbackTitle', '')}`,
               canvas: true,
               load_draft_id: newDraftId,
-              last_message_at: new Date().toISOString(),
+              last_message_at: localTimestampForApi(),
               participant_ids: [currentUser.id],
             });
             onDraftConversationCreated?.(String(created.data.id));
@@ -1200,7 +1201,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         subject: `${AI_DISPATCH_SUBJECT_PREFIX}${u('postLoadModal.warehouseTransportSuffix', '')} - ${draft.loadTitle || u('postLoadModal.draftFallbackTitle', '')}`,
         canvas: true,
         load_draft_id: newDraftId,
-        last_message_at: new Date().toISOString(),
+        last_message_at: localTimestampForApi(),
         participant_ids: [currentUser.id],
         greeting: 'warehouse_transport',
         lang,
@@ -1273,7 +1274,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         subject: `${AI_DISPATCH_SUBJECT_PREFIX}${u('postLoadModal.lastMileSubjectPrefix', '')} - ${draft.loadTitle || u('postLoadModal.draftFallbackTitle', '')}`,
         canvas: true,
         load_draft_id: newDraftId,
-        last_message_at: new Date().toISOString(),
+        last_message_at: localTimestampForApi(),
         participant_ids: [currentUser.id],
         greeting: 'last_mile',
         lang,

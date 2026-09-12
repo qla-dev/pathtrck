@@ -22,6 +22,7 @@ import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieCh
 
 import { Language } from '../../types';
 import { cn } from '../../lib/cn';
+import { formatClockTime } from '../../lib/dates';
 import { trLoadStatus, ui } from '../../i18n';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
@@ -101,7 +102,7 @@ export const CompanyWorkspaceView = ({ lang, onPostLoad }: { lang: Language; onP
     const vehicle = (row.vehicle || {}) as Record<string, unknown>;
     const status = String(row.status || '').toLowerCase();
     const progress = ({ posted: 10, opened: 20, sent: 35, in_delivery: 65, received: 90, finished: 100, cancelled: 0 } as Record<string, number>)[status] ?? 0;
-    return { id: String(row.public_id || row.id), route: `${String(stops[0]?.city || '—')} → ${String(stops[stops.length - 1]?.city || '—')}`, driver: String(driver.name || '—'), vehicle: String(vehicle.registration_number || '—'), eta: String(stops[stops.length - 1]?.window_ends_at || '').slice(11, 16) || null, progress, status: status === 'in_delivery' ? 2 : 1 };
+    return { id: String(row.public_id || row.id), route: `${String(stops[0]?.city || '—')} → ${String(stops[stops.length - 1]?.city || '—')}`, driver: String(driver.name || '—'), vehicle: String(vehicle.registration_number || '—'), eta: formatClockTime(stops[stops.length - 1]?.window_ends_at) || null, progress, status: status === 'in_delivery' ? 2 : 1 };
   }), [activeLoads]);
   const eventLoadId = (event: Record<string, unknown>) => { const shipment = (event.shipment || {}) as Record<string, unknown>; const freightLoad = (shipment.freight_load || {}) as Record<string, unknown>; return Number(event.load_id || shipment.load_id || freightLoad.id || 0); };
   const activityRows = events.items.filter((event) => companyLoads.some((load) => Number(load.id) === eventLoadId(event))).slice(0, 4).map((event) => [String(event.title || event.event_type || event.status || 'Update'), String(event.occurred_at || event.recorded_at || event.created_at || '').replace('T', ' ').slice(0, 16)]);

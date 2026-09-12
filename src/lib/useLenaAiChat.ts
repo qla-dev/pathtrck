@@ -7,6 +7,7 @@ import { showError } from './swal';
 import { analyzeLenaAttachment, archiveLenaAttachment, latestLoadScan, LenaAttachment, LenaCanvasMode, loadDraftRecordToScan } from './lenaLoadCanvas';
 import { MASKABLE_GUIDED_STEPS } from './lenaStepInputMask';
 import { withMinDelay } from './timing';
+import { formatClockTime, localTimestampForApi } from './dates';
 import { ui } from '../i18n';
 import { buildScanFieldRows } from '../components/modals/scanFieldRows';
 import { useLenaTokenBalance } from './useLenaTokenBalance';
@@ -77,10 +78,17 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
   const [startingNewChat, setStartingNewChat] = useState(false);
   const [newChatVersion, setNewChatVersion] = useState(0);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  // conversation.id changes twice for one thread: a chat with no saved row yet reports "new-N" and
+  // then its real row id as soon as the first message is stored. Keying the message list on the id
+  // would remount it on that promotion, which replays the list's entry animation and resets its
+  // scrollTop, so the thread visibly drops and snaps back the moment a message is sent. This token
+  // moves only when the user actually switches threads, which is when the animation is wanted.
+  const [entryAnimationKey, setEntryAnimationKey] = useState(0);
   useEffect(() => {
     if (initialConversationId) {
       setStartingNewChat(false);
       setSelectedConversationId(initialConversationId);
+      setEntryAnimationKey((key) => key + 1);
     }
   }, [initialConversationId]);
   const [canvasOverride, setCanvasOverride] = useState<boolean | null>(initialCanvasMode ? true : null);
@@ -130,26 +138,46 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
           id: String(message.id),
           sender: Number(message.sender_user_id) === userId ? 'me' : 'other',
           text: quickActionLabels[lenaQuickActionFromMessage(String(message.body || '')) as LenaQuickAction] || String(message.body || ''),
-          time: String(message.sent_at || message.created_at || '').slice(11, 16),
+          time: formatClockTime(message.sent_at || message.created_at),
           attachments: Array.isArray(message.attachments) ? message.attachments as LenaAttachment[] : undefined,
         }))
       : [{ id: `welcome-${newChatVersion}`, sender: 'other', text: welcomeText, time: '' }];
 
-    optimisticMessages.forEach((message) => messages.push({
-      id: message.id,
-      sender: 'me',
-      text: message.displayText,
-      time: message.time,
-      attachments: message.attachments,
-      deliveryStatus: message.status === 'failed' ? 'failed' : message.status === 'uploading' ? 'uploading' : undefined,
-      onRetry: message.status === 'failed'
-        ? (message.file
-            ? () => void attachFileValue(message.file!, message.id)
-            : message.step
-              ? () => void sendGuidedAnswer(message.step!, message.rawText, message.displayText, message.id)
-              : () => void sendMessage(message.rawText, message.displayText, message.id, message.conversationId))
-        : undefined,
-    }));
+    // The saved message and its in-flight copy overlap for a render: result.refresh() commits the
+    // stored row before the optimistic entry is cleared in the same call's finally block. Rendering
+    // both grows the thread by a bubble and snaps it back, which reads as the whole conversation
+    // jumping, so an optimistic message the row already carries is dropped here. Counting bodies
+    // rather than testing for one keeps the second of two identical messages visible while it flies.
+    const unmatchedSentBodies = new Map<string, number>();
+    rowMessages.forEach((message) => {
+      if (Number(message.sender_user_id) !== userId) return;
+      const body = String(message.body || '');
+      unmatchedSentBodies.set(body, (unmatchedSentBodies.get(body) || 0) + 1);
+    });
+
+    optimisticMessages.forEach((message) => {
+      const confirmedCopies = unmatchedSentBodies.get(message.rawText) || 0;
+      // A failed message keeps its bubble either way: it carries the retry action.
+      if (message.status !== 'failed' && confirmedCopies > 0) {
+        unmatchedSentBodies.set(message.rawText, confirmedCopies - 1);
+        return;
+      }
+      messages.push({
+        id: message.id,
+        sender: 'me',
+        text: message.displayText,
+        time: message.time,
+        attachments: message.attachments,
+        deliveryStatus: message.status === 'failed' ? 'failed' : message.status === 'uploading' ? 'uploading' : undefined,
+        onRetry: message.status === 'failed'
+          ? (message.file
+              ? () => void attachFileValue(message.file!, message.id)
+              : message.step
+                ? () => void sendGuidedAnswer(message.step!, message.rawText, message.displayText, message.id)
+                : () => void sendMessage(message.rawText, message.displayText, message.id, message.conversationId))
+          : undefined,
+      });
+    });
     blockedMessages.forEach((message) => messages.push(message));
     const firstBody = String(rowMessages.find((message) => String(message.body || '').trim())?.body || '').trim();
     const firstAction = lenaQuickActionFromMessage(firstBody);
@@ -214,7 +242,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
       channel: 'inapp',
       subject: loadId ? `${AI_DISPATCH_SUBJECT_PREFIX}${loadLabel || loadId}` : LENA_AI_GENERAL_SUBJECT,
       canvas,
-      last_message_at: new Date().toISOString(),
+      last_message_at: localTimestampForApi(),
       participant_ids: [userId],
     });
     return Number(created.data.id);
@@ -229,6 +257,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
     setCanvasMode('new_load');
     setSelectedConversationId(null);
     setNewChatVersion((version) => version + 1);
+    setEntryAnimationKey((key) => key + 1);
   };
 
   const sidebarConversations = useMemo<Conversation[]>(() => availableRows.map((item) => {
@@ -252,7 +281,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
       channel: 'inapp',
       online: true,
       unread: 0,
-      lastTime: String(lastMessage?.sent_at || lastMessage?.created_at || item.last_message_at || '').slice(11, 16),
+      lastTime: formatClockTime(lastMessage?.sent_at || lastMessage?.created_at || item.last_message_at),
       messages: [],
       isAiDispatch: true,
       canvas: Boolean(item.canvas),
@@ -267,6 +296,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
     setStartingNewChat(false);
     setSelectedConversationId(id);
     setCanvasOverride(null);
+    setEntryAnimationKey((key) => key + 1);
   };
 
   const setCanvasEnabled = async (enabled: boolean, mode: LenaCanvasMode = canvasMode) => {
@@ -493,5 +523,5 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
 
   const loadDraftId = row?.load_draft_id ? String(row.load_draft_id) : null;
 
-  return { outOfTokens, tokenResetAt, tokenPackageIcon, tokenPackageColor, conversation, conversationLoading: result.loading, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, hasActiveConversation: Boolean(row), canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId, documentsVersion };
+  return { outOfTokens, tokenResetAt, tokenPackageIcon, tokenPackageColor, conversation, conversationEntryKey: entryAnimationKey, conversationLoading: result.loading, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, hasActiveConversation: Boolean(row), canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId, documentsVersion };
 };

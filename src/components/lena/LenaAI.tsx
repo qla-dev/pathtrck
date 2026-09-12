@@ -204,7 +204,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [open, onClose]);
 
-  const { tokenResetAt, tokenPackageIcon, tokenPackageColor, conversation, conversationLoading, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId, documentsVersion } = useLenaAiChat({
+  const { tokenResetAt, tokenPackageIcon, tokenPackageColor, conversation, conversationEntryKey, conversationLoading, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId, documentsVersion } = useLenaAiChat({
     userId,
     companyIds,
     loadId,
@@ -383,6 +383,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
                 thinkingLabel={u('Thinking', '')}
                 renderMessageExtra={renderMessageExtra}
                 renderMessageBeforeTime={renderMessageSources}
+                entryAnimationKey={conversationEntryKey}
                 extraContentVersion={extraContentVersion}
                 inputMask={lenaStepInputMask(pendingStep, lang)}
                 inputLocked={pendingStepHasOptions}
