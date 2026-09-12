@@ -1,7 +1,7 @@
 import { lenaText, lenaLoadWelcome } from '../../lib/lenaCatalog';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Bot, LayoutGrid, MessageCircle, Pin, Plus, Sparkles, X } from 'lucide-react';
+import { Bot, ChevronDown, ChevronUp, LayoutGrid, MessageCircle, Pin, Plus, Sparkles, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Language } from '../../types';
 import { ui } from '../../i18n';
@@ -28,6 +28,7 @@ type LenaAIProps = {
   companyIds?: number[];
   loadId?: string;
   loadLabel?: string;
+  initialConversationId?: string;
   onBookLoad?: (loadId?: string) => void | Promise<void>;
   onOpenLoad?: (loadId: string) => void;
   initialCanvasMode?: LenaCanvasMode | null;
@@ -37,7 +38,8 @@ type LenaAIProps = {
   // Actions offered by the out-of-messages card once the plan's LenaAI allowance is spent.
   onUpgrade?: () => void;
   onTopUp?: () => void;
-  onPin?: () => void;
+  onPin?: (conversationId: string) => void;
+  onConversationReady?: () => void;
 };
 
 // Reusable LenaAI chat overlay — with no loadId it's a general app assistant (opened from the
@@ -186,7 +188,7 @@ function PublicTrackingLenaAI({ open, onClose, lang, trackingNumber }: LenaAIPro
   );
 }
 
-function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, loadLabel, onBookLoad, onOpenLoad, initialCanvasMode = null, sideBarMode = false, pinnedMode = false, onApplyLoadPrefill, onBulkImported, onUpgrade, onTopUp, onPin }: LenaAIProps) {
+function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, loadLabel, initialConversationId, onBookLoad, onOpenLoad, initialCanvasMode = null, sideBarMode = false, pinnedMode = false, onApplyLoadPrefill, onBulkImported, onUpgrade, onTopUp, onPin, onConversationReady }: LenaAIProps) {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const quickActionLabels = lenaText(lang).actions as Record<import('../../lib/useLenaAiChat').LenaQuickAction, string>;
   const generalWelcome = lenaText(lang).welcome.general;
@@ -200,11 +202,12 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [open, onClose]);
 
-  const { tokenResetAt, tokenPackageIcon, tokenPackageColor, conversation, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId, documentsVersion } = useLenaAiChat({
+  const { tokenResetAt, tokenPackageIcon, tokenPackageColor, conversation, conversationLoading, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId, documentsVersion } = useLenaAiChat({
     userId,
     companyIds,
     loadId,
     loadLabel,
+    initialConversationId,
     lang,
     welcomeRole: u('LenaAI', ''),
     welcomeText: loadId ? lenaLoadWelcome(lang, loadLabel) : generalWelcome,
@@ -216,6 +219,10 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
     active: open,
   });
   const [canvasPanelOpen, setCanvasPanelOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  useEffect(() => {
+    if (open && !conversationLoading) onConversationReady?.();
+  }, [conversationLoading, onConversationReady, open]);
   const previousCanvas = useRef({ conversationId: '', active: false });
   useEffect(() => {
     if (pinnedMode) {
@@ -290,7 +297,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
     <AnimatePresence>
       {open && (
         <motion.div
-          className={sideBarMode ? "fixed inset-y-0 right-0 z-[300] w-full border-l border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 lg:w-[440px] xl:w-[480px]" : "fixed inset-0 z-[300] bg-white dark:bg-slate-950"}
+          className={sideBarMode ? `fixed bottom-0 right-0 z-[300] w-full overflow-hidden border-l border-slate-200 bg-white transition-[height] duration-300 ease-out dark:border-slate-800 dark:bg-slate-950 lg:w-[440px] xl:w-[480px] ${sidebarCollapsed ? 'h-14 border-t' : 'h-[100dvh]'}` : "fixed inset-0 z-[300] bg-white dark:bg-slate-950"}
           role="dialog"
           aria-label={loadId ? u('Ask me about the load', '') : 'LenaAI'}
           initial={{ opacity: 0, x: sideBarMode ? 440 : 0 }}
@@ -302,20 +309,37 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
             type="button"
             onClick={onClose}
             aria-label={u('login.close', '')}
-            className="absolute right-0 top-0 z-50 flex h-10 w-10 cursor-pointer items-center justify-center rounded-bl-xl border-b border-l border-slate-200 bg-slate-100 text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+            className={`absolute right-3 z-50 flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-slate-100 text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 ${sidebarCollapsed ? 'top-3' : 'top-1'}`}
           >
             <X className="h-5 w-5" />
           </button>
-          {sideBarMode && showCanvas && <button
+          {sideBarMode && <button
             type="button"
-            onClick={() => setCanvasPanelOpen(false)}
-            className="absolute right-11 top-0 z-50 flex h-10 cursor-pointer items-center gap-2 border-b border-l border-slate-200 bg-slate-100 px-3 text-xs font-bold text-primary transition-colors hover:bg-primary/10 dark:border-slate-700 dark:bg-slate-900"
-            aria-label={u('Hide draft panel', '')}
+            onClick={() => setSidebarCollapsed((current) => !current)}
+            aria-label={sidebarCollapsed ? u('Expand sidebar', 'Expand sidebar') : u('Collapse sidebar', 'Collapse sidebar')}
+            title={sidebarCollapsed ? u('Expand sidebar', 'Expand sidebar') : u('Collapse sidebar', 'Collapse sidebar')}
+            className={`absolute right-14 z-50 flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-slate-100 text-slate-600 transition-colors hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 ${sidebarCollapsed ? 'top-3' : 'top-1'}`}
+          >
+            {sidebarCollapsed ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+          </button>}
+          {sideBarMode && <button
+            type="button"
+            onClick={() => {
+              if (sidebarCollapsed) {
+                setSidebarCollapsed(false);
+              } else if (canvasEnabled) {
+                setCanvasPanelOpen((current) => !current);
+              } else {
+                void sendQuickAction('add');
+              }
+            }}
+            className={`absolute left-3 z-50 flex h-10 cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-3 text-xs font-bold text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 ${sidebarCollapsed ? 'top-2' : 'top-0 border-t-0'}`}
+            aria-label={sidebarCollapsed ? u('LenaAI', 'LenaAI') : showCanvas ? u('Hide draft panel', '') : u('Draft panel', '')}
           >
             <Sparkles className="h-4 w-4" />
-            {u('Hide draft panel', '')}
+            {sidebarCollapsed ? u('LenaAI', 'LenaAI') : showCanvas ? u('Hide draft panel', '') : u('Draft panel', '')}
           </button>}
-          <motion.div
+          {!sidebarCollapsed && <motion.div
             className={`flex h-[100dvh] min-h-0 w-full flex-col overflow-hidden bg-white dark:bg-slate-950 ${sideBarMode ? 'px-3 pb-3 pt-12' : 'p-4 md:p-7'}`}
             initial={{ opacity: 0, y: 24, scale: 0.992 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -364,22 +388,22 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
                 uploadingMessageLabel={u('Uploading...', '')}
                 attachmentOpenFailedLabel={u('The file could not be opened', '')}
                 headerActions={(
-                  <div className="flex items-center gap-2">
+                  <div className="flex shrink-0 items-center gap-2">
                   <button
                     type="button"
                     onClick={() => void handleNewChat()}
                     aria-label={u('New chat', '')}
-                    title={showCanvas ? u('New chat', '') : undefined}
-                    className={`flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-slate-100 text-xs font-bold text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 cursor-pointer ${showCanvas ? 'w-10 justify-center px-0' : 'px-3'}`}
+                    title={showCanvas || sideBarMode ? u('New chat', '') : undefined}
+                    className={`flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-slate-100 text-xs font-bold text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 cursor-pointer ${showCanvas || sideBarMode ? 'w-10 justify-center px-0' : 'px-3'}`}
                   >
                     <Plus className="h-4 w-4" />
-                    {!showCanvas && u('New chat', '')}
+                    {!showCanvas && !sideBarMode && u('New chat', '')}
                   </button>
-                  {onPin && <button type="button" onClick={onPin} aria-label={u('Pin conversation', 'Pin conversation')} title={showCanvas ? u('Pin conversation', 'Pin conversation') : undefined} className={`flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-slate-100 text-xs font-bold text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 cursor-pointer ${showCanvas ? 'w-10 justify-center px-0' : 'px-3'}`}>
+                  {onPin && <button type="button" onClick={() => onPin(conversation.id)} aria-label={u('Pin conversation', 'Pin conversation')} title={showCanvas ? u('Pin conversation', 'Pin conversation') : undefined} className={`flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-slate-100 text-xs font-bold text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 cursor-pointer ${showCanvas ? 'w-10 justify-center px-0' : 'px-3'}`}>
                     <Pin className="h-4 w-4" />
                     {!showCanvas && u('Pin conversation', 'Pin conversation')}
                   </button>}
-                  {(!loadId || pinnedMode) && <button
+                  {(!loadId || pinnedMode) && !sideBarMode && <button
                     type="button"
                     onClick={() => {
                       if (canvasEnabled) setCanvasPanelOpen((current) => !current);
@@ -416,7 +440,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
               </AnimatePresence>
               </div>
             </div>
-          </motion.div>
+          </motion.div>}
         </motion.div>
       )}
     </AnimatePresence>,

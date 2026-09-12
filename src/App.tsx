@@ -5474,7 +5474,7 @@ export default function App() {
     setBookingLoad(mapDatabaseRecordToLoad(response.data));
   };
   const [lenaAiOpen, setLenaAiOpen] = useState(false);
-  const [pinnedLena, setPinnedLena] = useState<{ loadId?: string; loadLabel?: string; refreshToken: number } | null>(null);
+  const [pinnedLena, setPinnedLena] = useState<{ conversationId?: string; loadId?: string; loadLabel?: string; refreshToken: number } | null>(null);
   const [lenaCanvasMode, setLenaCanvasMode] = useState<LenaCanvasMode | null>(
     null,
   );
@@ -7400,7 +7400,7 @@ export default function App() {
                     setCheckoutPackageId(null);
                     setPaymentModalOpen(true);
                   }}
-                  onPinConversation={(loadId, loadLabel) => setPinnedLena({ loadId, loadLabel, refreshToken: Date.now() })}
+                  onPinConversation={(conversationId, loadId, loadLabel) => setPinnedLena({ conversationId, loadId, loadLabel, refreshToken: Date.now() })}
                   refreshSignal={messagesRefreshSignal}
                   newChatSignal={messagesNewChatSignal}
                   openConversationId={openMessagesConversationId}
@@ -7570,7 +7570,7 @@ export default function App() {
               setEditLoadId(loadId);
               setIsPostLoadOpen(true);
             }}
-            onPinLenaConversation={(loadId, loadLabel) => setPinnedLena({ loadId, loadLabel, refreshToken: Date.now() })}
+            onPinLenaConversation={(conversationId, loadId, loadLabel) => setPinnedLena({ conversationId, loadId, loadLabel, refreshToken: Date.now() })}
             onClose={() => { setOpenLoadDetailsId(null); setOpenLoadDetailsTab('tracker'); }}
           />
         )}
@@ -7643,8 +7643,8 @@ export default function App() {
             setLenaAiOpen(false);
             await handleBookLoad(loadId);
           }}
-          onPin={() => {
-            setPinnedLena({ refreshToken: Date.now() });
+          onPin={(conversationId) => {
+            setPinnedLena({ conversationId, refreshToken: Date.now() });
             setLenaAiOpen(false);
           }}
         />
@@ -7655,6 +7655,7 @@ export default function App() {
           companyIds={trackingCompanyIds}
           loadId={pinnedLena?.loadId}
           loadLabel={pinnedLena?.loadLabel}
+          conversationId={pinnedLena?.conversationId}
           refreshToken={pinnedLena?.refreshToken ?? 0}
           onClose={() => setPinnedLena(null)}
         />

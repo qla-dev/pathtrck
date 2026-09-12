@@ -41,7 +41,7 @@ type MessagesViewProps = {
   // Actions offered by the out-of-messages card once the plan's LenaAI allowance is spent.
   onUpgrade?: () => void;
   onTopUp?: () => void;
-  onPinConversation?: (loadId?: string, loadLabel?: string) => void;
+  onPinConversation?: (conversationId: string, loadId?: string, loadLabel?: string) => void;
 };
 
 type OptimisticMessage = {
@@ -692,6 +692,15 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     await createNewConversation();
   };
 
+  const handlePinConversation = async () => {
+    // A blank “new conversation” has no server ID yet. Create that exact conversation first,
+    // then pin it - never substitute the most recent existing chat.
+    const conversationId = activeConversation.id === EMPTY_LENA_CONVERSATION_ID
+      ? await createNewConversation()
+      : activeConversation.id;
+    if (conversationId) onPinConversation?.(conversationId, activeConversation.loadId, activeConversation.name);
+  };
+
   const previousNewChatSignal = useRef(newChatSignal);
   useEffect(() => {
     if (previousNewChatSignal.current === newChatSignal) return;
@@ -841,7 +850,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
                   <Plus className="h-4 w-4" />
                   {!showCanvas && u('New chat', 'New chat')}
                 </button>
-                {onPinConversation && <button type="button" onClick={() => onPinConversation(activeConversation.loadId, activeConversation.name)} aria-label={u('Pin conversation', 'Pin conversation')} title={showCanvas ? u('Pin conversation', 'Pin conversation') : undefined} className={`flex h-9 cursor-pointer items-center gap-2 rounded-full border border-slate-200 bg-slate-100 text-xs font-bold text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 ${showCanvas ? 'w-9 justify-center px-0' : 'px-3'}`}><Pin className="h-4 w-4" />{!showCanvas && u('Pin conversation', 'Pin conversation')}</button>}
+                {onPinConversation && <button type="button" onClick={() => void handlePinConversation()} aria-label={u('Pin conversation', 'Pin conversation')} title={showCanvas ? u('Pin conversation', 'Pin conversation') : undefined} className={`flex h-9 cursor-pointer items-center gap-2 rounded-full border border-slate-200 bg-slate-100 text-xs font-bold text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 ${showCanvas ? 'w-9 justify-center px-0' : 'px-3'}`}><Pin className="h-4 w-4" />{!showCanvas && u('Pin conversation', 'Pin conversation')}</button>}
                 {canEnterCanvas && (
                   <button
                     type="button"

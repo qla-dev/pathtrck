@@ -33,6 +33,7 @@ type UseLenaAiChatOptions = {
   companyIds?: number[];
   loadId?: string;
   loadLabel?: string;
+  initialConversationId?: string;
   lang?: Language;
   welcomeText: string;
   welcomeRole: string;
@@ -64,7 +65,7 @@ type OptimisticLenaMessage = {
 // Shared conversation logic behind the reusable LenaAI chat (frontend/src/components/lena/LenaAI.tsx).
 // Mirrors the find-or-create/send/reply flow already proven in LoadDetailsModal.tsx's AI Dispatch
 // tab, generalized to also support a load-less "general" conversation (load_id: null).
-export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang, welcomeText, welcomeRole, sendFailedTitle, replyFailedTitle, newConversationLabel, initialCanvasMode = null, quickActionLabels, active = true }: UseLenaAiChatOptions) => {
+export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, initialConversationId, lang, welcomeText, welcomeRole, sendFailedTitle, replyFailedTitle, newConversationLabel, initialCanvasMode = null, quickActionLabels, active = true }: UseLenaAiChatOptions) => {
   const result = useApiList(
     api.conversations.list,
     loadId ? { load_id: Number(loadId), per_page: 50 } : { per_page: 100 }
@@ -76,6 +77,12 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
   const [startingNewChat, setStartingNewChat] = useState(false);
   const [newChatVersion, setNewChatVersion] = useState(0);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  useEffect(() => {
+    if (initialConversationId) {
+      setStartingNewChat(false);
+      setSelectedConversationId(initialConversationId);
+    }
+  }, [initialConversationId]);
   const [canvasOverride, setCanvasOverride] = useState<boolean | null>(initialCanvasMode ? true : null);
   // Bumped once an attachment has been filed in the Documents archive, so the draft panel's count
   // refreshes then rather than only on the next page load - the filing happens after the assistant
@@ -486,5 +493,5 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, lang
 
   const loadDraftId = row?.load_draft_id ? String(row.load_draft_id) : null;
 
-  return { outOfTokens, tokenResetAt, tokenPackageIcon, tokenPackageColor, conversation, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, hasActiveConversation: Boolean(row), canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId, documentsVersion };
+  return { outOfTokens, tokenResetAt, tokenPackageIcon, tokenPackageColor, conversation, conversationLoading: result.loading, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, hasActiveConversation: Boolean(row), canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId, documentsVersion };
 };
