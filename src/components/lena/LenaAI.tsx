@@ -132,7 +132,7 @@ function PublicTrackingLenaAI({ open, onClose, lang, trackingNumber }: LenaAIPro
     () => embeddedTracking ? { [embeddedTracking.loadId]: embeddedTracking.load } : {},
     [embeddedTracking],
   );
-  const { displayMessages, renderMessageExtra, extraContentVersion } = useLenaEmbeddedMessages({
+  const { displayMessages, renderMessageExtra, renderMessageSources, extraContentVersion } = useLenaEmbeddedMessages({
     messages,
     lang,
     preloadedLoads,
@@ -167,6 +167,7 @@ function PublicTrackingLenaAI({ open, onClose, lang, trackingNumber }: LenaAIPro
               otherTyping={thinking}
               thinkingLabel={u('Thinking', '')}
               renderMessageExtra={renderMessageExtra}
+              renderMessageBeforeTime={renderMessageSources}
               extraContentVersion={extraContentVersion}
               inputLocked
               inputLockedPlaceholder={u('landing.tracking.readOnly', '')}
@@ -248,7 +249,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
     return scan ? buildScanFieldRows(scan).length : 0;
   }, [canvasAttachments]);
 
-  const { displayMessages, renderMessageExtra, extraContentVersion, pendingStep, pendingStepHasOptions } = useLenaEmbeddedMessages({
+  const { displayMessages, renderMessageExtra, renderMessageSources, extraContentVersion, pendingStep, pendingStepHasOptions } = useLenaEmbeddedMessages({
     messages: conversation.messages,
     lang,
     fallbackLoadId: loadId,
@@ -381,6 +382,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
                 otherTyping={sending}
                 thinkingLabel={u('Thinking', '')}
                 renderMessageExtra={renderMessageExtra}
+                renderMessageBeforeTime={renderMessageSources}
                 extraContentVersion={extraContentVersion}
                 inputMask={lenaStepInputMask(pendingStep, lang)}
                 inputLocked={pendingStepHasOptions}

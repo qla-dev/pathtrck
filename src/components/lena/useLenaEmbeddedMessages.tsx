@@ -408,22 +408,15 @@ export const useLenaEmbeddedMessages = ({
     const locationChoice = locationChoiceByMessage.get(message.id);
     const loadReady = loadReadyMessageIds.has(message.id);
     const outOfTokens = outOfTokensMessageIds.has(message.id);
-    const legalSources = legalSourcesByMessage.get(message.id) || [];
-    if (!embeddedLoad && !locationLoad && !mapLoad && !statusLoad && (!hasBooking || !handleBook) && quickActions.length === 0 && !suggestedReplies && !locationChoice && !loadReady && !outOfTokens && legalSources.length === 0) return null;
+    if (!embeddedLoad && !locationLoad && !mapLoad && !statusLoad && (!hasBooking || !handleBook) && quickActions.length === 0 && !suggestedReplies && !locationChoice && !loadReady && !outOfTokens) return null;
 
     // Messages that show a timestamp get its (invisible-until-hover, but still laid out) line as
     // extra breathing room above this block for free; messages without one (e.g. the welcome
     // message, which never carries a time) need a bigger top margin here to land at the same
     // visual distance from the text instead of looking cramped.
     return (
-      <div className={`flex w-full ${legalSources.length > 0 ? 'max-w-none' : 'max-w-xl'} flex-col gap-2 ${message.time ? 'mt-2' : 'mt-[27px]'}`}>
+      <div className={`flex w-full max-w-xl flex-col gap-2 ${message.time ? 'mt-2' : 'mt-[27px]'}`}>
         {outOfTokens && <LenaOutOfTokensCard lang={lang} resetAt={outOfTokensResetAt} packageIcon={outOfTokensPackageIcon} packageColor={outOfTokensPackageColor} onUpgrade={onUpgrade} onTopUp={onTopUp} />}
-        {legalSources.length > 0 && <div className="space-y-1 [container-type:inline-size]"><p className="text-[10px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">{lang === 'bs' ? 'IZVORI:' : lang === 'de' ? 'QUELLEN:' : 'SOURCES:'}</p>{Array.from({ length: Math.ceil(legalSources.length / 4) }, (_, rowIndex) => (
-          <div key={rowIndex} className="flex items-center gap-2">{legalSources.slice(rowIndex * 4, rowIndex * 4 + 4).map((id) => {
-            const sourceTitle = legalSourceTitles[id];
-            return <a key={id} href={`${API_BASE_URL}/legal-sources/${encodeURIComponent(id)}`} target="_blank" rel="noreferrer" title={sourceTitle} className="flex max-w-[24cqw] min-w-0 cursor-pointer items-center gap-1 text-left text-xs font-semibold text-primary hover:underline"><FileText className="h-3.5 w-3.5 shrink-0" /><span className="min-w-0 truncate">{sourceTitle}</span><ExternalLink className="h-3.5 w-3.5 shrink-0" /></a>;
-          })}</div>
-        ))}</div>}
         {embeddedLoad && (
           <LenaLoadDetailsCard
             lang={lang}
@@ -465,9 +458,28 @@ export const useLenaEmbeddedMessages = ({
         )}
       </div>
     );
-  }, [bookingOffers, resolvedEmbeddedLoads, fallbackLoadId, lang, legalSourcesByMessage, loadDetailCards, loadLocationCards, loadMapCards, loadReadyMessageIds, loadStatusCards, locationChoiceByMessage, onBookLoad, onLoadReady, onOpenLoad, onQuickAction, onStepAnswer, onSuggestedDraftChange, onSuggestedReply, onTopUp, onUpgrade, outOfTokensMessageIds, outOfTokensPackageColor, outOfTokensPackageIcon, outOfTokensResetAt, questionnaireSuggestionsByMessage, quickActionLabels, quickActionsByMessage]);
+  }, [bookingOffers, resolvedEmbeddedLoads, fallbackLoadId, lang, loadDetailCards, loadLocationCards, loadMapCards, loadReadyMessageIds, loadStatusCards, locationChoiceByMessage, onBookLoad, onLoadReady, onOpenLoad, onQuickAction, onStepAnswer, onSuggestedDraftChange, onSuggestedReply, onTopUp, onUpgrade, outOfTokensMessageIds, outOfTokensPackageColor, outOfTokensPackageIcon, outOfTokensResetAt, questionnaireSuggestionsByMessage, quickActionLabels, quickActionsByMessage]);
 
-  const extraContentVersion = `${embeddedLoadIds.join(',')}:${Object.keys(resolvedEmbeddedLoads).sort().join(',')}:${[...quickActionsByMessage.keys()].join(',')}:${[...questionnaireSuggestionsByMessage.keys()].join(',')}:${[...locationChoiceByMessage.keys()].join(',')}:${[...loadReadyMessageIds].join(',')}:${[...outOfTokensMessageIds].join(',')}`;
+  // The cited laws are part of the answer, not a card attached under it, so this renders inside the
+  // message bubble above the hover timestamp rather than in renderMessageExtra below it.
+  const renderMessageSources = useCallback((message: ChatMessage) => {
+    const legalSources = legalSourcesByMessage.get(message.id) || [];
+    if (legalSources.length === 0) return null;
+
+    return (
+      <div className="mt-2 space-y-1 [container-type:inline-size]">
+        <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">{lang === 'bs' ? 'IZVORI:' : lang === 'de' ? 'QUELLEN:' : 'SOURCES:'}</p>
+        {Array.from({ length: Math.ceil(legalSources.length / 4) }, (_, rowIndex) => (
+          <div key={rowIndex} className="flex items-center gap-2">{legalSources.slice(rowIndex * 4, rowIndex * 4 + 4).map((id) => {
+            const sourceTitle = legalSourceTitles[id];
+            return <a key={id} href={`${API_BASE_URL}/legal-sources/${encodeURIComponent(id)}`} target="_blank" rel="noreferrer" title={sourceTitle} className="flex max-w-[24cqw] min-w-0 cursor-pointer items-center gap-1 text-left text-xs font-semibold text-primary hover:underline"><FileText className="h-3.5 w-3.5 shrink-0" /><span className="min-w-0 truncate">{sourceTitle}</span><ExternalLink className="h-3.5 w-3.5 shrink-0" /></a>;
+          })}</div>
+        ))}
+      </div>
+    );
+  }, [lang, legalSourcesByMessage]);
+
+  const extraContentVersion = `${embeddedLoadIds.join(',')}:${Object.keys(resolvedEmbeddedLoads).sort().join(',')}:${[...quickActionsByMessage.keys()].join(',')}:${[...questionnaireSuggestionsByMessage.keys()].join(',')}:${[...locationChoiceByMessage.keys()].join(',')}:${[...loadReadyMessageIds].join(',')}:${[...outOfTokensMessageIds].join(',')}:${[...legalSourcesByMessage.keys()].join(',')}`;
 
   // Lock typing only when the current step has a real selectable answer. Free-text steps also
   // render a lone "choose later" escape pill, but that skip action must never make weight,
@@ -477,5 +489,5 @@ export const useLenaEmbeddedMessages = ({
     .some(({ group }) => group.options.some((option) => !option.skip))
     || locationChoiceByMessage.size > 0;
 
-  return { displayMessages, renderMessageExtra, extraContentVersion, pendingStep, pendingStepHasOptions };
+  return { displayMessages, renderMessageExtra, renderMessageSources, extraContentVersion, pendingStep, pendingStepHasOptions };
 };

@@ -48,6 +48,9 @@ type ChatConversationPanelProps = {
   headerActions?: ReactNode;
   headerActionsLeading?: ReactNode;
   renderMessageExtra?: (message: ChatMessage) => ReactNode;
+  /** Content that belongs to the reply itself (e.g. LenaAI's legal source links) and so is laid
+   *  out inside the bubble, directly under the text and above the hover timestamp. */
+  renderMessageBeforeTime?: (message: ChatMessage) => ReactNode;
   extraContentVersion?: string | number;
   onAttachFile?: (file: File) => void | Promise<void>;
   attachmentAccept?: string;
@@ -90,6 +93,7 @@ export const ChatConversationPanel = ({
   headerActions,
   headerActionsLeading,
   renderMessageExtra,
+  renderMessageBeforeTime,
   extraContentVersion,
   onAttachFile,
   attachmentAccept,
@@ -361,6 +365,7 @@ export const ChatConversationPanel = ({
                 />
               ) : renderMessageText(m.text)}
             </p>
+            {typingMessageId !== m.id && renderMessageBeforeTime?.(m)}
             {m.time && m.sender !== 'me' && (
               <p
                 className={cn(

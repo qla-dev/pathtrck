@@ -397,7 +397,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     return scan ? buildScanFieldRows(scan).length : 0;
   }, [canvasAttachments]);
 
-  const { displayMessages, renderMessageExtra, extraContentVersion, pendingStep, pendingStepHasOptions } = useLenaEmbeddedMessages({
+  const { displayMessages, renderMessageExtra, renderMessageSources, extraContentVersion, pendingStep, pendingStepHasOptions } = useLenaEmbeddedMessages({
     messages: activeConversation.messages,
     lang,
     fallbackLoadId: activeConversation.loadId,
@@ -829,6 +829,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
             attachmentOpenFailedLabel={u('The file could not be opened', 'The file could not be opened')}
             onTitleClick={activeConversation.loadId && onOpenLoad ? () => onOpenLoad(activeConversation.loadId!) : undefined}
             renderMessageExtra={renderMessageExtra}
+            renderMessageBeforeTime={renderMessageSources}
             extraContentVersion={`${activeConversation.id}:${extraContentVersion}`}
             inputMask={lenaStepInputMask(pendingStep, lang)}
             inputLocked={pendingStepHasOptions}
