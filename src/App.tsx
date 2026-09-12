@@ -119,6 +119,7 @@ import { PostLoadModal } from "./components/modals/PostLoadModal";
 import { LoadDetailsModal } from "./components/tracking/LoadDetailsModal";
 import { LoadDetailsPrebook } from "./components/load/LoadDetailsPrebook";
 import { LenaAI } from "./components/lena/LenaAI";
+import { PinnedSidebar } from "./components/lena/PinnedSidebar";
 import { hsSectionIconByIndex, hsSectionToneByIndex, ScanFieldPatch } from "./components/modals/scanFieldRows";
 import { LenaCanvasMode } from "./lib/lenaLoadCanvas";
 import { LoadNotesView } from "./components/views/LoadNotesView";
@@ -5473,6 +5474,7 @@ export default function App() {
     setBookingLoad(mapDatabaseRecordToLoad(response.data));
   };
   const [lenaAiOpen, setLenaAiOpen] = useState(false);
+  const [pinnedLena, setPinnedLena] = useState<{ loadId?: string; loadLabel?: string } | null>(null);
   const [lenaCanvasMode, setLenaCanvasMode] = useState<LenaCanvasMode | null>(
     null,
   );
@@ -7567,6 +7569,7 @@ export default function App() {
               setEditLoadId(loadId);
               setIsPostLoadOpen(true);
             }}
+            onPinLenaConversation={(loadId, loadLabel) => setPinnedLena({ loadId, loadLabel })}
             onClose={() => { setOpenLoadDetailsId(null); setOpenLoadDetailsTab('tracker'); }}
           />
         )}
@@ -7639,6 +7642,19 @@ export default function App() {
             setLenaAiOpen(false);
             await handleBookLoad(loadId);
           }}
+          onPin={() => {
+            setPinnedLena({});
+            setLenaAiOpen(false);
+          }}
+        />
+        <PinnedSidebar
+          open={Boolean(pinnedLena)}
+          lang={lang}
+          userId={currentUser?.id}
+          companyIds={trackingCompanyIds}
+          loadId={pinnedLena?.loadId}
+          loadLabel={pinnedLena?.loadLabel}
+          onClose={() => setPinnedLena(null)}
         />
         {/* Mounted beside the other app-level modals so the header chip can open it from any view.
             ProfileView keeps its own instance for its own button; only one is ever open. */}

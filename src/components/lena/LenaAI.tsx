@@ -1,7 +1,7 @@
 import { lenaText, lenaLoadWelcome } from '../../lib/lenaCatalog';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Bot, LayoutGrid, MessageCircle, Plus, Sparkles, X } from 'lucide-react';
+import { Bot, LayoutGrid, MessageCircle, Pin, Plus, Sparkles, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Language } from '../../types';
 import { ui } from '../../i18n';
@@ -35,6 +35,7 @@ type LenaAIProps = {
   // Actions offered by the out-of-messages card once the plan's LenaAI allowance is spent.
   onUpgrade?: () => void;
   onTopUp?: () => void;
+  onPin?: () => void;
 };
 
 // Reusable LenaAI chat overlay — with no loadId it's a general app assistant (opened from the
@@ -183,7 +184,7 @@ function PublicTrackingLenaAI({ open, onClose, lang, trackingNumber }: LenaAIPro
   );
 }
 
-function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, loadLabel, onBookLoad, onOpenLoad, initialCanvasMode = null, sideBarMode = false, onApplyLoadPrefill, onBulkImported, onUpgrade, onTopUp }: LenaAIProps) {
+function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, loadLabel, onBookLoad, onOpenLoad, initialCanvasMode = null, sideBarMode = false, onApplyLoadPrefill, onBulkImported, onUpgrade, onTopUp, onPin }: LenaAIProps) {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const quickActionLabels = lenaText(lang).actions as Record<import('../../lib/useLenaAiChat').LenaQuickAction, string>;
   const generalWelcome = lenaText(lang).welcome.general;
@@ -326,7 +327,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
                 onDraftChange={setDraft}
                 onSend={() => void send()}
                 messagePlaceholder={u('Write a message...', '')}
-                className="min-h-[320px] min-w-0 flex-1"
+                className={`${sideBarMode && showCanvas ? 'hidden' : 'min-h-[320px] min-w-0 flex-1'}`}
                 otherTyping={sending}
                 thinkingLabel={u('Thinking', '')}
                 renderMessageExtra={renderMessageExtra}
@@ -350,21 +351,29 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
                   <button
                     type="button"
                     onClick={() => void handleNewChat()}
-                    className="flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-3 text-xs font-bold text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 cursor-pointer"
+                    aria-label={u('New chat', '')}
+                    title={showCanvas ? u('New chat', '') : undefined}
+                    className={`flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-slate-100 text-xs font-bold text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 cursor-pointer ${showCanvas ? 'w-10 justify-center px-0' : 'px-3'}`}
                   >
                     <Plus className="h-4 w-4" />
-                    {u('New chat', '')}
+                    {!showCanvas && u('New chat', '')}
                   </button>
+                  {onPin && <button type="button" onClick={onPin} aria-label={u('Pin conversation', 'Pin conversation')} title={showCanvas ? u('Pin conversation', 'Pin conversation') : undefined} className={`flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-slate-100 text-xs font-bold text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 cursor-pointer ${showCanvas ? 'w-10 justify-center px-0' : 'px-3'}`}>
+                    <Pin className="h-4 w-4" />
+                    {!showCanvas && u('Pin conversation', 'Pin conversation')}
+                  </button>}
                   {!loadId && <button
                     type="button"
                     onClick={() => {
                       if (canvasEnabled) setCanvasPanelOpen((current) => !current);
                       else void sendQuickAction('add');
                     }}
-                    className={`relative flex h-10 cursor-pointer items-center gap-2 rounded-full border px-3 text-xs font-bold transition-all ${showCanvas ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-slate-100 text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}
+                    aria-label={showCanvas ? u('Hide draft panel', '') : u('Draft panel', '')}
+                    title={showCanvas ? u('Hide draft panel', '') : undefined}
+                    className={`relative flex h-10 cursor-pointer items-center gap-2 rounded-full border text-xs font-bold transition-all ${showCanvas ? 'w-10 justify-center px-0 border-primary bg-primary text-white' : 'px-3 border-slate-200 bg-slate-100 text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}
                   >
                     <Sparkles className="h-4 w-4" />
-                    {showCanvas ? u('Hide draft panel', '') : u('Draft panel', '')}
+                    {!showCanvas && u('Draft panel', '')}
                     <span className="absolute -top-2 -right-2 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-primary px-1 text-[10px] font-black text-white dark:border-slate-950">
                       {collectedFieldCount}
                     </span>
@@ -374,7 +383,8 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
               />
               <AnimatePresence initial={false}>
                 {showCanvas && (
-                  <motion.div key="load-canvas" className="h-[42%] min-h-0 min-w-0 flex-1 lg:h-full" initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 24 }} transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}>
+                  <motion.div key="load-canvas" className={sideBarMode ? 'absolute inset-3 top-12 z-20 min-h-0' : 'h-[42%] min-h-0 min-w-0 flex-1 lg:h-full'} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 24 }} transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}>
+                    {sideBarMode && <button type="button" onClick={() => setCanvasPanelOpen(false)} className="absolute left-3 top-3 z-10 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-white/95 text-primary shadow-md dark:bg-slate-900" aria-label={u('Hide draft panel', '')} title={u('Hide draft panel', '')}><Sparkles className="h-4 w-4" /></button>}
                     <LenaLoadCanvas
                       lang={lang}
                       mode={canvasMode}

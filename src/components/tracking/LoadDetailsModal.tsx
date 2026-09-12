@@ -144,9 +144,10 @@ type LoadDetailsModalProps = {
    * PostLoadModal lives - the same handover LoadDetailsPrebook uses for its own edit button.
    */
   onEditLoad?: (loadId: string) => void;
+  onPinLenaConversation?: (loadId: string, loadLabel?: string) => void;
 };
 
-export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], onClose, onChanged, initialTab = 'tracker', onEditLoad }: LoadDetailsModalProps) => {
+export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], onClose, onChanged, initialTab = 'tracker', onEditLoad, onPinLenaConversation }: LoadDetailsModalProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [basePackage, setSelectedPackage] = useState<PackageData>(emptyPackage);
   const [detailsOpen, setDetailsOpen] = useState(true);
@@ -1680,6 +1681,10 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
       companyIds={companyIds}
       loadId={selectedPackage.id}
       loadLabel={selectedPackage.trackingNumber}
+      onPin={() => {
+        onPinLenaConversation?.(selectedPackage.id, selectedPackage.trackingNumber);
+        setLenaOpen(false);
+      }}
     />
     </>
   );
