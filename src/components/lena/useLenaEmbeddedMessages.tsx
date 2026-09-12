@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { CheckCircle2, Clock3, ExternalLink, FileSearch, FileText, FileUp, MapPinned, MessageCircle, Package, ReceiptText, Scale, Search, Warehouse, type LucideIcon } from 'lucide-react';
 
-import { api } from '../../services/api';
+import { API_BASE_URL, api } from '../../services/api';
 import { Language } from '../../types';
 import { ChatMessage } from '../chat/types';
 import { LenaBookingCard, LenaLoadDetailsCard, LenaLoadMapCard, LenaLoadStatusCard, LenaLocationCard, LenaLocationChoiceCard } from './LenaEmbeddedCards';
@@ -421,7 +421,7 @@ export const useLenaEmbeddedMessages = ({
         {legalSources.length > 0 && <div className="space-y-1 [container-type:inline-size]"><p className="text-[10px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">{lang === 'bs' ? 'IZVORI:' : lang === 'de' ? 'QUELLEN:' : 'SOURCES:'}</p>{Array.from({ length: Math.ceil(legalSources.length / 4) }, (_, rowIndex) => (
           <div key={rowIndex} className="flex items-center gap-2">{legalSources.slice(rowIndex * 4, rowIndex * 4 + 4).map((id) => {
             const sourceTitle = legalSourceTitles[id];
-            return <button key={id} type="button" onClick={() => void api.legalSources.open(id)} title={sourceTitle} className="flex max-w-[24cqw] min-w-0 cursor-pointer items-center gap-1 text-left text-xs font-semibold text-primary hover:underline"><FileText className="h-3.5 w-3.5 shrink-0" /><span className="min-w-0 truncate">{sourceTitle}</span><ExternalLink className="h-3.5 w-3.5 shrink-0" /></button>;
+            return <a key={id} href={`${API_BASE_URL}/legal-sources/${encodeURIComponent(id)}`} target="_blank" rel="noreferrer" title={sourceTitle} className="flex max-w-[24cqw] min-w-0 cursor-pointer items-center gap-1 text-left text-xs font-semibold text-primary hover:underline"><FileText className="h-3.5 w-3.5 shrink-0" /><span className="min-w-0 truncate">{sourceTitle}</span><ExternalLink className="h-3.5 w-3.5 shrink-0" /></a>;
           })}</div>
         ))}</div>}
         {embeddedLoad && (

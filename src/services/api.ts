@@ -357,7 +357,7 @@ const API_BACKENDS = {
 } as const;
 
 const configuredBackend = String(import.meta.env.VITE_API_BACKEND || 'production').toLowerCase();
-const API_BASE_URL = (API_BACKENDS[configuredBackend as keyof typeof API_BACKENDS] || API_BACKENDS.local)
+export const API_BASE_URL = (API_BACKENDS[configuredBackend as keyof typeof API_BACKENDS] || API_BACKENDS.local)
   .replace(/\/+$/, '');
 const TOKEN_STORAGE_KEY = 'freightbook_api_token';
 
