@@ -12,6 +12,7 @@ export type LenaAttachment = {
   size: number;
   loadScan?: LoadScanResult;
   bulkRows?: BulkLoadRow[];
+  documentText?: string;
   // Where the original file actually lives in server storage (see MessageAttachmentController),
   // used to build the click-to-open/download link. Undefined while the upload is still in flight.
   path?: string;
@@ -98,38 +99,37 @@ export const archiveLenaAttachment = async (file: File, loadDraftId: number | st
   }
 };
 
-export const analyzeLenaAttachment = async (file: File, mode: LenaCanvasMode, conversationId: number, current?: LoadScanResult): Promise<LenaAttachment> => {
-  if (!isSupportedLenaFile(file)) {
-    throw new Error('Use an Excel, CSV, image, or PDF file.');
+export const analyzeLenaAttachments = async (files: File[], mode: LenaCanvasMode, conversationId: number, current?: LoadScanResult): Promise<LenaAttachment[]> => {
+  if (!files.length || files.length > 5) throw new Error('Select between 1 and 5 files.');
+  for (const file of files) {
+    if (!isSupportedLenaFile(file)) throw new Error('Use an Excel, CSV, image, or PDF file.');
+    if (file.size > 15 * 1024 * 1024) throw new Error('The file is larger than 15 MB. Please use a smaller file.');
   }
-  if (file.size > 15 * 1024 * 1024) {
-    throw new Error('The file is larger than 15 MB. Please use a smaller file.');
-  }
-
-  // Persist the actual file to server storage in parallel with the (much slower) AI extraction,
-  // so the click-to-open/download link is ready close to when the message itself finishes sending.
-  const uploadPromise = api.messageAttachments.upload(conversationId, file);
-  const withUpload = (extra: Partial<LenaAttachment>) => uploadPromise.then(({ data: uploaded }) => ({
-    name: uploaded.name, type: uploaded.type, size: uploaded.size, path: uploaded.path, ...extra,
+  const encoded = await Promise.all(files.map(async (file) => {
+    if (isLenaSpreadsheet(file)) {
+      const text = await spreadsheetToText(file);
+      if (text.length < 8) throw new Error('This spreadsheet appears to be empty.');
+      return { base64: btoa(Array.from(new TextEncoder().encode(text), byte => String.fromCharCode(byte)).join('')), mimeType: 'text/plain', filename: file.name };
+    }
+    const dataUrl = await readAsDataUrl(file);
+    return { base64: dataUrl.split(',')[1] || '', mimeType: file.type || (file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : undefined), filename: file.name };
   }));
-
-  if (isLenaSpreadsheet(file)) {
-    const text = await spreadsheetToText(file);
-    if (text.length < 8) throw new Error('This spreadsheet appears to be empty.');
-    const response = await api.loads.scanBulkText(text);
-    return withUpload({ bulkRows: response.data.rows });
-  }
-
-  const dataUrl = await readAsDataUrl(file);
-  const encoded = { base64: dataUrl.split(',')[1] || '', mimeType: file.type || (file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : undefined), filename: file.name };
-  if (mode === 'bulk') {
-    const response = await api.loads.scanBulk([encoded]);
-    return withUpload({ bulkRows: response.data.rows });
-  }
-
-  const response = await api.loads.scan([encoded], current, conversationId);
-  return withUpload({ loadScan: response.data });
+  const uploaded = await Promise.all(files.map(file => api.messageAttachments.upload(conversationId, file)));
+  // One extraction request for the entire drop, including mixed spreadsheets and documents.
+  const extra: Partial<LenaAttachment> = mode === 'bulk' || files.every(isLenaSpreadsheet)
+    ? { bulkRows: (await api.loads.scanBulk(encoded)).data.rows }
+    : { loadScan: (await api.loads.scan(encoded, current, conversationId)).data };
+  return uploaded.map(({ data }, index) => ({
+    ...data,
+    ...(encoded[index].mimeType === 'text/plain'
+      ? { documentText: new TextDecoder().decode(Uint8Array.from(atob(encoded[index].base64), character => character.charCodeAt(0))) }
+      : {}),
+    ...(index === uploaded.length - 1 ? extra : {}),
+  }));
 };
+
+export const analyzeLenaAttachment = async (file: File, mode: LenaCanvasMode, conversationId: number, current?: LoadScanResult): Promise<LenaAttachment> =>
+  (await analyzeLenaAttachments([file], mode, conversationId, current))[0];
 
 // The backend now returns the full accumulated draft on every scan (not just the fields the
 // latest message/file mentioned), so the most recent scanned attachment is always the

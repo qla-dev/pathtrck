@@ -56,7 +56,8 @@ type ChatConversationPanelProps = {
    *  changes. Defaults to the conversation id; pass a token that only moves on a real thread switch
    *  when the id itself can change under a thread that the user is already reading. */
   entryAnimationKey?: string | number;
-  onAttachFile?: (file: File) => void | Promise<void>;
+  attachmentLimitLabel?: string;
+  onAttachFile?: (files: File[]) => void | Promise<void>;
   attachmentAccept?: string;
   attachmentBusy?: boolean;
   attachmentDropLabel?: string;
@@ -101,6 +102,7 @@ export const ChatConversationPanel = ({
   extraContentVersion,
   entryAnimationKey,
   onAttachFile,
+  attachmentLimitLabel = 'Select up to 5 files at once.',
   attachmentAccept,
   attachmentBusy = false,
   sendBusy = false,
@@ -167,8 +169,9 @@ export const ChatConversationPanel = ({
     event.preventDefault();
     setIsDraggingAttachment(false);
     if (!canAttach) return;
-    const file = event.dataTransfer.files?.[0];
-    if (file) void onAttachFile?.(file);
+    const files = Array.from(event.dataTransfer.files || []);
+    if (files.length > 5) { window.alert(attachmentLimitLabel); return; }
+    if (files.length) void onAttachFile?.(files);
   };
 
   // A freshly appended assistant reply has to render through the typewriter from its very first
@@ -523,11 +526,13 @@ export const ChatConversationPanel = ({
         <input
           ref={attachmentInputRef}
           type="file"
+          multiple
           accept={attachmentAccept}
           className="hidden"
           onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file) void onAttachFile?.(file);
+            const files = Array.from(event.target.files || []);
+            if (files.length > 5) window.alert(attachmentLimitLabel);
+            else if (files.length) void onAttachFile?.(files);
             event.target.value = '';
           }}
         />

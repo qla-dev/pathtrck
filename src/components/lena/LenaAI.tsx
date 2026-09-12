@@ -245,9 +245,10 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
   // A synthetic welcome is not a conversation the user has actually started yet.
   const canPinConversation = conversation.messages.some((message) => !message.id.startsWith('welcome-'));
   const collectedFieldCount = useMemo(() => {
+    if (!canvasEnabled) return 0;
     const scan = latestLoadScan(canvasAttachments);
     return scan ? buildScanFieldRows(scan).length : 0;
-  }, [canvasAttachments]);
+  }, [canvasAttachments, canvasEnabled]);
 
   const { displayMessages, renderMessageExtra, renderMessageSources, extraContentVersion, pendingStep, pendingStepHasOptions } = useLenaEmbeddedMessages({
     messages: conversation.messages,
@@ -389,6 +390,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
                 inputLocked={pendingStepHasOptions}
                 inputLockedPlaceholder={u('chat.chooseOptionAbove', '')}
                 onAttachFile={attachFile}
+                attachmentLimitLabel={u('Select up to 5 files at once.', 'Select up to 5 files at once.')}
                 attachmentAccept={LENA_LOAD_FILE_ACCEPT}
                 attachmentBusy={processingAttachment}
                 sendBusy={sending || processingAttachment}

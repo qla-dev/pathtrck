@@ -4,7 +4,7 @@ import { Language } from '../types';
 import { AI_DISPATCH_SUBJECT_PREFIX, api } from '../services/api';
 import { useApiList } from '../hooks/useApiList';
 import { showError } from './swal';
-import { analyzeLenaAttachment, archiveLenaAttachment, latestLoadScan, LenaAttachment, LenaCanvasMode, loadDraftRecordToScan } from './lenaLoadCanvas';
+import { analyzeLenaAttachments, archiveLenaAttachment, latestLoadScan, LenaAttachment, LenaCanvasMode, loadDraftRecordToScan } from './lenaLoadCanvas';
 import { MASKABLE_GUIDED_STEPS } from './lenaStepInputMask';
 import { withMinDelay } from './timing';
 import { formatClockTime, localTimestampForApi } from './dates';
@@ -57,7 +57,7 @@ type OptimisticLenaMessage = {
   conversationId?: number;
   attachments?: LenaAttachment[];
   // Kept so a failed attachment upload can retry with the exact same file, not just re-send text.
-  file?: File;
+  file?: File[];
   // Present only for a questionnaire pill answer, so a failed retry replays through
   // sendGuidedAnswer (the deterministic path) instead of sendMessage (the AI path).
   step?: string;
@@ -441,16 +441,20 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
     setSending(false);
   };
 
-  const attachFileValue = async (file: File, retryId?: string) => {
+  const attachFileValue = async (files: File[], retryId?: string) => {
+    const file = { name: files.map(file => file.name).join(', ') };
     if (!userId || sending || (processingAttachment && !retryId)) return;
     if (outOfTokens) return denyOutOfTokens(file.name);
 
     const attachmentOpensCanvas = !loadId && canvasEnabled;
-    const body = !attachmentOpensCanvas
+    const attachmentBody = !attachmentOpensCanvas
       ? `Attached ${file.name}.`
       : canvasMode === 'bulk'
       ? `Attached ${file.name} for a bulk load import.`
       : `Attached ${file.name} to prepare a new load posting.`;
+    const body = retryId
+      ? optimisticMessages.find(message => message.id === retryId)?.rawText || attachmentBody
+      : draft.trim() || attachmentBody;
 
     const optimisticId = retryId || `optimistic-attachment-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const optimisticTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -458,29 +462,29 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
     // The bubble shows immediately with just the file's local metadata, the same way a typed
     // message shows optimistically before it's saved; the card becomes clickable once the real
     // upload (see analyzeLenaAttachment) hands back a storage path.
-    const previewAttachment: LenaAttachment = { name: file.name, type: file.type || 'application/octet-stream', size: file.size };
+    const previewAttachments: LenaAttachment[] = files.map(file => ({ name: file.name, type: file.type || 'application/octet-stream', size: file.size }));
 
     setOptimisticMessages((messages) => retryId
       ? messages.map((message) => message.id === retryId ? { ...message, status: 'uploading', time: optimisticTime } : message)
-      : [...messages, { id: optimisticId, rawText: body, displayText: body, status: 'uploading', time: optimisticTime, attachments: [previewAttachment], file }]);
+      : [...messages, { id: optimisticId, rawText: body, displayText: body, status: 'uploading', time: optimisticTime, attachments: previewAttachments, file: files }]);
 
     setProcessingAttachment(true);
     let conversationId: number;
-    let attachmentScan: LenaAttachment | null = null;
+    let attachmentScans: LenaAttachment[] = [];
     try {
       // The upload needs a real conversation id up front (unlike the AI scan), so make sure one
       // exists before reading/analyzing the file.
       conversationId = await ensureConversation(attachmentOpensCanvas);
       setOptimisticMessages((messages) => messages.map((message) => message.id === optimisticId ? { ...message, conversationId } : message));
-      attachmentScan = await analyzeLenaAttachment(file, canvasMode, conversationId, latestLoadScan(canvasAttachments));
-      const attachment = attachmentScan;
+      attachmentScans = await analyzeLenaAttachments(files, canvasMode, conversationId, latestLoadScan(canvasAttachments));
       await api.messages.create({
         conversation_id: conversationId,
         sender_user_id: userId,
         body,
-        attachments: [attachment],
+        attachments: attachmentScans,
         sent_at: new Date().toISOString(),
       });
+      setDraft(current => current.trim() === body ? '' : current);
     } catch (error) {
       setOptimisticMessages((messages) => messages.map((message) => message.id === optimisticId ? { ...message, status: 'failed' } : message));
       setProcessingAttachment(false);
@@ -504,13 +508,13 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
       await withMinDelay(api.dispatchChat.reply(conversationId, lang));
       await result.refresh();
       setCanvasOverride(null);
-      if (attachmentScan) {
+      if (attachmentScans.length) {
         // That reply is what creates the draft on a first attachment, so the draft id is read back
         // from the server here rather than from this closure's now-stale conversation row.
         const conversationRow = await api.conversations.get(conversationId).catch(() => null);
-        const draftForFile = conversationRow?.data?.load_draft_id;
-        await archiveLenaAttachment(file, draftForFile ? String(draftForFile) : null, attachmentScan.loadScan);
-        setDocumentsVersion((version) => version + 1);
+        const draftForFile = conversationRow?.data?.canvas ? conversationRow.data.load_draft_id : null;
+        await Promise.all(files.map((file, index) => archiveLenaAttachment(file, draftForFile ? String(draftForFile) : null, attachmentScans[index]?.loadScan)));
+        if (draftForFile) setDocumentsVersion((version) => version + 1);
       }
     } catch (error) {
       void showError(replyFailedTitle, error instanceof Error ? error.message : undefined);
@@ -519,7 +523,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
     }
   };
 
-  const attachFile = (file: File) => attachFileValue(file);
+  const attachFile = (files: File[]) => attachFileValue(files);
 
   const loadDraftId = row?.load_draft_id ? String(row.load_draft_id) : null;
 

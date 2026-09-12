@@ -15,7 +15,7 @@ import { trPackageStatus } from '../../i18n';
 import { useLenaEmbeddedMessages } from '../lena/useLenaEmbeddedMessages';
 import { LenaLoadCanvas } from '../lena/LenaLoadCanvas';
 import { buildScanFieldRows, ScanFieldPatch } from '../modals/scanFieldRows';
-import { analyzeLenaAttachment, archiveLenaAttachment, latestLoadScan, LENA_LOAD_FILE_ACCEPT, LenaAttachment, loadDraftRecordToScan } from '../../lib/lenaLoadCanvas';
+import { analyzeLenaAttachments, archiveLenaAttachment, latestLoadScan, LENA_LOAD_FILE_ACCEPT, LenaAttachment, loadDraftRecordToScan } from '../../lib/lenaLoadCanvas';
 import { LENA_AI_GENERAL_SUBJECT, LenaQuickAction, lenaConversationSubjectTitle, lenaQuickActionFromMessage, lenaQuickActionMarker } from '../../lib/useLenaAiChat';
 import { withMinDelay } from '../../lib/timing';
 import { formatClockTime, localTimestampForApi } from '../../lib/dates';
@@ -54,7 +54,7 @@ type OptimisticMessage = {
   time: string;
   attachments?: LenaAttachment[];
   // Kept so a failed attachment upload can retry with the exact same file, not just re-send text.
-  file?: File;
+  file?: File[];
   // Present only for a questionnaire pill answer, so a failed retry replays through
   // sendGuidedAnswerValue (the deterministic path) instead of sendMessageValue (the AI path).
   step?: string;
@@ -434,9 +434,10 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     [activeConversation.messages]
   );
   const collectedFieldCount = useMemo(() => {
+    if (!activeConversation.canvas) return 0;
     const scan = latestLoadScan(canvasAttachments);
     return scan ? buildScanFieldRows(scan).length : 0;
-  }, [canvasAttachments]);
+  }, [canvasAttachments, activeConversation.canvas]);
 
   const { displayMessages, renderMessageExtra, renderMessageSources, extraContentVersion, pendingStep, pendingStepHasOptions } = useLenaEmbeddedMessages({
     messages: activeConversation.messages,
@@ -590,7 +591,8 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     return sendMessageValue(draft, draft, undefined, conversationId);
   };
 
-  async function attachFileValue(file: File, retryId?: string, targetConversationId?: string) {
+  async function attachFileValue(files: File[], retryId?: string, targetConversationId?: string) {
+    const file = { name: files.map(file => file.name).join(', ') };
     const conversationId = targetConversationId || activeConversation.id;
     const isAiDispatch = targetConversationId ? true : Boolean(activeConversation.isAiDispatch);
     if (!user || !conversationId || !isAiDispatch || messageSending || aiReplying || (processingAttachment && !retryId)) return;
@@ -598,32 +600,35 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
 
     const optimisticId = retryId || `optimistic-attachment-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const optimisticTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-    const body = activeConversation.canvas
+    const attachmentBody = activeConversation.canvas
       ? `Attached ${file.name} to prepare a new load posting.`
       : `Attached ${file.name}.`;
+    const body = retryId
+      ? optimisticMessages.find(message => message.id === retryId)?.rawText || attachmentBody
+      : draft.trim() || attachmentBody;
 
     // The bubble shows immediately with just the file's local metadata, the same way a typed
     // message shows optimistically before it's saved; the card becomes clickable once the real
     // upload (see analyzeLenaAttachment) hands back a storage path.
-    const previewAttachment: LenaAttachment = { name: file.name, type: file.type || 'application/octet-stream', size: file.size };
+    const previewAttachments: LenaAttachment[] = files.map(file => ({ name: file.name, type: file.type || 'application/octet-stream', size: file.size }));
 
     setOptimisticMessages((messages) => retryId
       ? messages.map((message) => message.id === retryId ? { ...message, status: 'uploading', time: optimisticTime } : message)
-      : [...messages, { id: optimisticId, conversationId, rawText: body, displayText: body, status: 'uploading', time: optimisticTime, attachments: [previewAttachment], file, sentIdsBefore: savedSentMessageIds(conversationId) }]);
+      : [...messages, { id: optimisticId, conversationId, rawText: body, displayText: body, status: 'uploading', time: optimisticTime, attachments: previewAttachments, file: files, sentIdsBefore: savedSentMessageIds(conversationId) }]);
 
     setProcessingAttachment(true);
     setAiReplying(true);
-    let attachmentScan: LenaAttachment | null = null;
+    let attachmentScans: LenaAttachment[] = [];
     try {
-      attachmentScan = await analyzeLenaAttachment(file, 'new_load', Number(conversationId), latestLoadScan(canvasAttachments));
-      const attachment = attachmentScan;
+      attachmentScans = await analyzeLenaAttachments(files, 'new_load', Number(conversationId), latestLoadScan(canvasAttachments));
       await api.messages.create({
         conversation_id: Number(conversationId),
         sender_user_id: user.id,
         body,
-        attachments: [attachment],
+        attachments: attachmentScans,
         sent_at: new Date().toISOString(),
       });
+      setDraft(current => current.trim() === body ? '' : current);
     } catch (error) {
       setOptimisticMessages((messages) => messages.map((message) => message.id === optimisticId ? { ...message, status: 'failed' } : message));
       setProcessingAttachment(false);
@@ -642,13 +647,13 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     try {
       await api.dispatchChat.reply(Number(conversationId), lang);
       await result.refresh();
-      if (attachmentScan) {
+      if (attachmentScans.length) {
         // That reply is what creates the draft on a first attachment, so the draft id is read back
         // from the server here rather than from the conversation row this closure captured.
         const conversationRow = await api.conversations.get(Number(conversationId)).catch(() => null);
-        const draftForFile = conversationRow?.data?.load_draft_id;
-        await archiveLenaAttachment(file, draftForFile ? String(draftForFile) : null, attachmentScan.loadScan);
-        setDocumentsVersion((version) => version + 1);
+        const draftForFile = conversationRow?.data?.canvas ? conversationRow.data.load_draft_id : null;
+        await Promise.all(files.map((file, index) => archiveLenaAttachment(file, draftForFile ? String(draftForFile) : null, attachmentScans[index]?.loadScan)));
+        if (draftForFile) setDocumentsVersion((version) => version + 1);
       }
     } catch (error) {
       void showError(
@@ -710,10 +715,10 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     }
   };
 
-  const attachFile = async (file: File) => {
+  const attachFile = async (files: File[]) => {
     const conversationId = await ensureConversationId();
     if (!conversationId) return;
-    return attachFileValue(file, undefined, conversationId);
+    return attachFileValue(files, undefined, conversationId);
   };
 
   const handleNewConversation = async () => {
@@ -855,6 +860,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
             onDraftChange={setDraft}
             onSend={sendMessage}
             onAttachFile={attachFile}
+                attachmentLimitLabel={u('Select up to 5 files at once.', 'Select up to 5 files at once.')}
             attachmentAccept={LENA_LOAD_FILE_ACCEPT}
             attachmentBusy={processingAttachment}
             sendBusy={messageSending || aiReplying || processingAttachment}

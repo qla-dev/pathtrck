@@ -139,6 +139,7 @@ export type LoadPartyMatch = {
   countryCode: string;
 };
 export type LoadScanResult = {
+  documentText?: string;
   isDocument: boolean;
   /** Which kind of paperwork the scanned file is, as a DOCUMENT_TYPES code. Empty when unclear. */
   documentType?: string;
