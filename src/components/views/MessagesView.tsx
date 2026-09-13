@@ -939,6 +939,8 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
                   conversationId={activeConversation.id}
                   draftId={activeConversation.loadDraftId}
                   documentsVersion={documentsVersion}
+                  recommendationBusy={messageSending || aiReplying}
+                  onCopyContainer={(type, quantity, label) => void sendGuidedAnswerValue('containers', `${type}:${quantity}`, label)}
                   loadId={activeConversation.loadId}
                   onOpenLoad={onOpenLoad}
                   onApplyPrefill={onApplyLoadPrefill}

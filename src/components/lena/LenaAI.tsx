@@ -456,6 +456,8 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
                       conversationId={conversation.id}
                       draftId={loadDraftId}
                       documentsVersion={documentsVersion}
+                      recommendationBusy={sending || processingAttachment}
+                      onCopyContainer={(type, quantity, label) => void sendGuidedAnswer('containers', `${type}:${quantity}`, label)}
                       onApplyPrefill={onApplyLoadPrefill}
                       onBulkImported={onBulkImported}
                     />

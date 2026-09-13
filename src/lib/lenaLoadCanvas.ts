@@ -179,7 +179,10 @@ export const loadDraftRecordToScan = (record: unknown): LoadScanResult | undefin
     lengthM: draftNumber(draft.length_m),
     widthM: draftNumber(draft.width_m),
     heightM: draftNumber(draft.height_m),
-    volumeM3: draftNumber(draft.volume_m3),
+    // The form stores per-unit CBM in per_unit mode; scans and container planning use total CBM.
+    volumeM3: draftNumber(draft.volume_m3) * (draft.dimension_scope === 'per_unit' ? draftNumber(draft.pallets) : 1),
+    quantityMeasure: draftString(draft.quantity_measure),
+    containerSelections: Array.isArray(draft.container_selections) ? draft.container_selections as NonNullable<LoadScanResult['containerSelections']> : [],
     dimensionScope: draft.dimension_scope === 'per_unit' ? 'per_unit' : 'overall',
     vehicleType: draftString(draft.vehicle_type),
     loadingEquipment: draftString(loadingMethods[0]),
@@ -272,6 +275,9 @@ export const scanPatchToDraftPayload = (patch: ScanFieldPatch): Record<string, u
   if (patch.widthM !== undefined) payload.width_m = Number(patch.widthM);
   if (patch.heightM !== undefined) payload.height_m = Number(patch.heightM);
   if (patch.volumeM3 !== undefined) payload.volume_m3 = Number(patch.volumeM3);
+  if (patch.dimensionScope !== undefined) payload.dimension_scope = patch.dimensionScope;
+  if (patch.quantityMeasure !== undefined) payload.quantity_measure = patch.quantityMeasure;
+  if (patch.containerSelections !== undefined) payload.container_selections = patch.containerSelections.map(({ type, quantity }) => ({ type, quantity: Number(quantity) }));
   if (patch.vehicleType !== undefined) payload.vehicle_type = patch.vehicleType;
   if (patch.loadingEquipment !== undefined) payload.loading_methods = patch.loadingEquipment;
   if (patch.characteristics !== undefined) payload.characteristics = patch.characteristics;

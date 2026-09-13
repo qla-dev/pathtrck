@@ -69,6 +69,8 @@ export type ScanFieldPatch = Partial<{
   widthM: string;
   heightM: string;
   volumeM3: string;
+  quantityMeasure: string;
+  containerSelections: Array<{ type: string; quantity: string }>;
   dimensionScope?: 'overall' | 'per_unit';
   vehicleType: string;
   loadingEquipment: string[];
@@ -321,7 +323,7 @@ export const buildScanFieldRows = (result: LoadScanResult, lang: string = 'en'):
         ...(result.lengthM ? { lengthM: String(result.lengthM) } : {}),
         ...(result.widthM ? { widthM: String(result.widthM) } : {}),
         ...(result.heightM ? { heightM: String(result.heightM) } : {}),
-        ...(result.volumeM3 ? { volumeM3: String(result.volumeM3) } : {}),
+        ...(result.volumeM3 ? { volumeM3: String(result.dimensionScope === 'per_unit' && result.pallets > 0 ? result.volumeM3 / result.pallets : result.volumeM3) } : {}),
         ...(result.dimensionScope ? { dimensionScope: result.dimensionScope } : {}),
       },
       icon: Ruler,

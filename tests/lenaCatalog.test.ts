@@ -4,6 +4,10 @@ import { readFileSync } from 'node:fs';
 import { installLenaCatalog, lenaField, lenaFieldChoices, lenaLoadWelcome, lenaOptionDescription, lenaOptions, lenaText, lenaTranslation, type LenaCatalogData, type LenaCatalogField, type LenaCatalogText } from '../src/lib/lenaCatalog';
 
 const schema = JSON.parse(readFileSync(new URL('../../backend/resources/lena/schema.json', import.meta.url), 'utf8'));
+const containers = JSON.parse(readFileSync(new URL('../../backend/resources/lena/container-types.json', import.meta.url), 'utf8'));
+schema.option_groups.CONTAINER_TYPE_OPTIONS = Object.keys(containers.types);
+schema.container_categories = Object.fromEntries(Object.entries(containers.types).map(([code, type]) => [code, (type as { category: string }).category]));
+Object.assign(schema.option_icons, Object.fromEntries(Object.entries(containers.types).map(([code, type]) => [code, (type as { icon: string }).icon])));
 
 const field = (overrides: Partial<LenaCatalogField>): LenaCatalogField => ({
   label: 'server label', question: 'server question', example: 'server example', step: 'title',

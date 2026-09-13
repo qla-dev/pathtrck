@@ -201,6 +201,7 @@ export const FEATURE_BY_VIEW: Record<string, Feature> = {
 
 /** Whether a navigation id may be opened at all. Views with no feature row are unrestricted. */
 export const canOpenView = (role: Role | undefined, view: string, context: AccessContext = {}): boolean => {
+  if (view === 'lena-skills') return role === 'superadmin' || role === 'master';
   const feature = FEATURE_BY_VIEW[view];
   return feature ? canAccess(role, feature, context) : true;
 };

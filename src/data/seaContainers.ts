@@ -1,6 +1,6 @@
 // Container equipment registry for the Sea and Rail transport types' "Container types" picker.
 // The codes, their equipment category and their labels all come from the LenaAI catalog
-// (backend/resources/lena/schema.json + lang/*/lena.php), so the chat and the form offer exactly
+// (backend/resources/lena/container-types.json + lang/*/lena.php), so the chat and the form offer exactly
 // the same containers. Standard dry containers are recommended first; the rest are grouped by
 // special-equipment category the way ocean carriers (CMA CGM, Maersk) present their equipment.
 import { getLenaCatalog, lenaFieldChoices } from '../lib/lenaCatalog';

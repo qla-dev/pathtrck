@@ -143,6 +143,7 @@ import { UsageView } from "./components/views/UsageView";
 import { PaymentHistoryView } from "./components/views/PaymentHistoryView";
 import { TariffsHsView } from "./components/views/TariffsHsView";
 import { LegalSourcesView } from "./components/views/LegalSourcesView";
+import { LenaSkillsView } from "./components/views/LenaSkillsView";
 import { PaymentModal } from "./components/modals/PaymentModal";
 import { BrandWordmark, FreightbookMark } from "./components/ui/BrandWordmark";
 import { PACKAGE_ICONS, PricingPlanCard } from "./components/pricing/PricingPlanCard";
@@ -7222,6 +7223,10 @@ export default function App() {
                   <User className="w-4 h-4" />
                   {t.accountSettings}
                 </button>
+                {(role === "superadmin" || role === "master") && <button
+                  onClick={() => setView("lena-skills")}
+                  className="w-full flex items-center gap-3 p-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                ><Sparkles className="w-4 h-4" />LenaAI skills</button>}
                 <button
                   onClick={() => setView("usage")}
                   className="w-full flex items-center gap-3 p-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
@@ -7574,6 +7579,7 @@ export default function App() {
               {view === "payment-history" && <PaymentHistoryView lang={lang} />}
               {view === "tariffs-hs" && <TariffsHsView lang={lang} />}
               {view === "legal-sources" && (role === "superadmin" || role === "master") && <LegalSourcesView lang={lang} />}
+              {view === "lena-skills" && (role === "superadmin" || role === "master") && <LenaSkillsView lang={lang} />}
               {view === "profile" && (
                 <ProfileView
                   role={role}

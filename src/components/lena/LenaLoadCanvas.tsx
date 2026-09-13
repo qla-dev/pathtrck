@@ -8,6 +8,7 @@ import { buildScanFieldRows, ScanFieldPatch } from '../modals/scanFieldRows';
 import { buildBulkLoadPayload } from '../modals/bulkLoadRows';
 import { BulkLoadRowsTable } from '../modals/BulkLoadRowsTable';
 import { HsCodeChip } from '../hs/HsCodeChip';
+import { LenaContainerRecommendations } from './LenaContainerRecommendations';
 
 type LenaLoadCanvasProps = {
   lang: Language;
@@ -23,9 +24,11 @@ type LenaLoadCanvasProps = {
   onOpenLoad?: (loadId: string) => void;
   onApplyPrefill?: (patch: ScanFieldPatch, conversationId: string, draftId?: string | null) => void;
   onBulkImported?: (rows: BulkLoadRow[]) => void;
+  onCopyContainer?: (type: string, quantity: number, label: string) => void;
+  recommendationBusy?: boolean;
 };
 
-export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftId, documentsVersion = 0, loadId, onOpenLoad, onApplyPrefill, onBulkImported }: LenaLoadCanvasProps) => {
+export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftId, documentsVersion = 0, loadId, onOpenLoad, onApplyPrefill, onBulkImported, onCopyContainer, recommendationBusy }: LenaLoadCanvasProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [importing, setImporting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
@@ -42,6 +45,9 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftI
     ...(mergedScan?.storageTarget ? { storageTarget: mergedScan.storageTarget as 'own' | 'exchange' } : {}),
     ...(mergedScan?.warehouseId ? { warehouseId: String(mergedScan.warehouseId) } : {}),
     ...(mergedScan?.warehouseName ? { warehouseName: mergedScan.warehouseName } : {}),
+    ...(mergedScan?.quantityMeasure ? { quantityMeasure: mergedScan.quantityMeasure } : {}),
+    ...(mergedScan?.dimensionScope ? { dimensionScope: mergedScan.dimensionScope } : {}),
+    ...(mergedScan?.containerSelections ? { containerSelections: mergedScan.containerSelections.map(({ type, quantity }) => ({ type, quantity: String(quantity) })) } : {}),
   };
 
   // Show when the draft was actually last saved as soon as the canvas opens, not just after the
@@ -189,6 +195,7 @@ export const LenaLoadCanvas = ({ lang, mode, attachments, conversationId, draftI
             </div>
           ) : (
             <div className="flex flex-col gap-1.5">
+              {mergedScan && ['sea', 'rail'].includes(mergedScan.transportType) && <LenaContainerRecommendations scan={mergedScan} lang={lang} disabled={recommendationBusy} onCopy={loadId ? undefined : onCopyContainer} />}
               {rows.map((row) => (
                 <div
                   key={row.key}

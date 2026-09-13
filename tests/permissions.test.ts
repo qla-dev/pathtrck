@@ -3,6 +3,14 @@ import test from 'node:test';
 import { accessLevel, canOpenView, resolvePermissionRole } from '../src/lib/permissions';
 
 const warehouseCompany = { warehouseCompany: true };
+test('Lena skills are accessible only to superadmin and master', () => {
+  assert.equal(canOpenView('superadmin', 'lena-skills'), true);
+  assert.equal(canOpenView('master', 'lena-skills'), true);
+  for (const role of ['user', 'driver', 'company', 'manager', 'dispatcher', 'warehouse', 'customs_officer', 'finance'] as const) {
+    assert.equal(canOpenView(role, 'lena-skills'), false);
+  }
+  assert.equal(canOpenView(undefined, 'lena-skills'), false);
+});
 const ownsWarehouse = { hasWarehouse: true, verified: true };
 const ownsFleet = { hasFleet: true, verified: true };
 

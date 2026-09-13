@@ -8,6 +8,11 @@ export type ApiEnvelope<T> = {
 };
 
 export type LegalJurisdiction = 'BA' | 'EU' | 'HR' | 'RS';
+export type LenaSkillRow = {
+  id: string; name: string; description: string; folder: string;
+  kind: 'instructions' | 'skill'; shared: boolean; modes: string[]; scanners: boolean;
+  content: string; bytes: number; updatedAt: string;
+};
 
 /** One entry of agents/lena/legal-sources.json, as listed on the superadmin "Zakoni" screen. */
 export type LegalSourceRow = {
@@ -189,6 +194,8 @@ export type LoadScanResult = {
   heightM: number;
   volumeM3: number;
   dimensionScope?: 'overall' | 'per_unit';
+  quantityMeasure?: string;
+  containerSelections?: Array<{ type: string; quantity: string | number }>;
   vehicleType: string;
   loadingEquipment: string;
   characteristics: string;
@@ -672,6 +679,9 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ company_id: options?.companyId, driver_user_id: options?.driverUserId }),
     }),
+    recommendContainers: (cargo: Partial<LoadScanResult>) => request<import('../lib/containerRecommendations').ContainerRecommendationResult>('/container-recommendations', {
+      method: 'POST', body: JSON.stringify(cargo),
+    }),
     scan: (images: ScanImage[], current?: LoadScanResult, conversationId?: number) => request<LoadScanResult>('/load-scans', {
       method: 'POST',
       body: JSON.stringify({ images, current, conversation_id: conversationId }),
@@ -785,6 +795,9 @@ export const api = {
     open: openLegalSource,
     list: (params: { search?: string; jurisdiction?: string; status?: string; page?: number; per_page?: number }) =>
       request<LegalSourceRow[]>(`/legal-sources?${queryString(params)}`),
+  },
+  lenaSkills: {
+    list: () => request<LenaSkillRow[]>('/lena-skills'),
   },
   dispatchChat: {
     reply: async (conversationId: number, lang?: string) => (await request<Record<string, unknown>>('/dispatch-chat', {
