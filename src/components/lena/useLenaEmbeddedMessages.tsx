@@ -33,8 +33,11 @@ const LENA_SKIP_MARKER_GLOBAL = /\[\[LENA_SKIP:[a-zA-Z]+\]\]/g;
 // The id list can come back empty ("[[LEGAL_SOURCES:]]") when no catalogue document supports the
 // answer, so both patterns accept an empty list: the marker must still be stripped from the visible
 // text, and an empty list must yield no source cards.
-const LEGAL_SOURCES_PATTERN = /\[\[LEGAL_SOURCES:\s*([a-z0-9,\s-]*?)\s*\]\]/;
-const LEGAL_SOURCES_GLOBAL = /\[\[LEGAL_SOURCES:?\s*[a-z0-9,\s-]*?\s*\]\]/g;
+// Historical messages have been stored with both one and two outer brackets, and some model
+// replies put line breaks after commas. Accept all of those forms so old conversations render
+// the same as new replies.
+const LEGAL_SOURCES_PATTERN = /\[{1,2}\s*LEGAL_SOURCES\s*:\s*([a-z0-9,\s-]*?)\s*\]{1,2}/i;
+const LEGAL_SOURCES_GLOBAL = /\[{1,2}\s*LEGAL_SOURCES\s*:?\s*[a-z0-9,\s-]*?\s*\]{1,2}/gi;
 
 const legalSourceTitles: Record<string, string> = {
   'customs-tariff-law': 'Zakon o carinskoj tarifi',
