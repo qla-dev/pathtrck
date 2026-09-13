@@ -12,7 +12,9 @@ export type LegalJurisdiction = 'BA' | 'EU' | 'HR' | 'RS';
 export type LenaSkillSource =
   | { type: 'legal'; id: string; title: string; file: string; jurisdiction: LegalJurisdiction }
   | { type: 'link'; title: string; url: string }
-  | { type: 'app'; title: string; view: string };
+  | { type: 'app'; title: string; view: string }
+  /** A backend JSON data file, such as the container types catalogue; opened through lenaSkills.file. */
+  | { type: 'file'; title: string; path: string; bytes: number };
 
 export type LenaSkillRow = {
   id: string; name: string; description: string; folder: string;
@@ -810,8 +812,12 @@ export const api = {
   },
   lenaSkills: {
     list: () => request<LenaSkillRow[]>('/lena-skills'),
+    file: (path: string) => request<{ path: string; content: string }>(`/lena-skills/file?${queryString({ path })}`),
   },
   dispatchChat: {
+    speech: (text: string, lang: string, signal?: AbortSignal) => fetchAuthenticatedBlob('/dispatch-chat/speech', {
+      method: 'POST', body: JSON.stringify({ text, lang: lang.split(/[-_]/)[0] }), signal,
+    }),
     /** The skills the next reply uses, named in the interface language, for LenaAI's thinking indicator. */
     skills: async (conversationId: number, lang?: string) => (await request<{ id: string; name: string }[]>('/dispatch-chat/skills', {
       method: 'POST',

@@ -399,12 +399,12 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
     }
   }
 
-  const send = async () => {
-    const trimmed = draft.trim();
+  const send = async (message = draft) => {
+    const trimmed = message.trim();
     if (canvasEnabled && pendingStep && MASKABLE_GUIDED_STEPS.includes(pendingStep) && trimmed) {
       return sendGuidedAnswer(pendingStep, trimmed, trimmed);
     }
-    return sendMessage(draft);
+    return sendMessage(message);
   };
   const sendQuickAction = async (action: LenaQuickAction) => sendMessage(lenaQuickActionMarker(action), quickActionLabels[action]);
   const sendSuggestedReply = async (value: string, displayText = value) => sendMessage(value, displayText);

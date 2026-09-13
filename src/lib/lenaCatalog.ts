@@ -53,7 +53,7 @@ export type LenaCatalogData = {
   option_icons: Record<string, string>;
   /** Legal source id to its document filename, from the backend's agents/lena/legal-sources.json. */
   legal_sources?: Record<string, string>;
-  locales: Record<Exclude<LenaCatalogLocale, 'sr_cyrl'>, LenaCatalogText> & { sr_cyrl?: LenaCatalogText };
+  locales: Record<'en' | 'de' | 'bs', LenaCatalogText> & Partial<Record<LenaCatalogLocale, LenaCatalogText>>;
 };
 let catalog: LenaCatalogData | null = null;
 

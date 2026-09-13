@@ -1,5 +1,5 @@
-import { AlertCircle, Bot, Check, Copy, Image as ImageIcon, Loader2, Mic, Paperclip, Phone, RefreshCw, Send, Video } from 'lucide-react';
-import { useCallback, useLayoutEffect, useRef, useState, type DragEvent, type ReactNode } from 'react';
+import { AlertCircle, Bot, Check, Copy, Image as ImageIcon, Loader2, Mic, Paperclip, Phone, Play, RefreshCw, Send, Video } from 'lucide-react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import { defaultStyles, FileIcon } from 'react-file-icon';
 import { cn } from '../../lib/cn';
 import { ChatMessage, Conversation } from './types';
@@ -10,6 +10,8 @@ import { formatAttachmentSize, isInlineViewableLenaAttachment } from '../../lib/
 import { api } from '../../services/api';
 import { showError } from '../../lib/swal';
 import { motion } from 'motion/react';
+import { speechErrorText } from '../../lib/speechPlayback';
+import { playServerSpeech } from '../../lib/serverSpeechPlayback';
 
 const URL_PATTERN = /(https?:\/\/[^\s]+)/g;
 
@@ -38,7 +40,7 @@ type ChatConversationPanelProps = {
   activeConversation: Conversation;
   draft: string;
   onDraftChange: (value: string) => void;
-  onSend: () => void;
+  onSend: (message?: string) => void;
   messagePlaceholder: string;
   className?: string;
   otherTyping?: boolean;
@@ -75,6 +77,7 @@ type ChatConversationPanelProps = {
   retryMessageLabel?: string;
   copyMessageLabel?: string;
   copiedMessageLabel?: string;
+  playMessageLabel?: string;
   uploadingMessageLabel?: string;
   attachmentOpenFailedLabel?: string;
   // Drives an inline unit hint and live input formatting for the draft field, keyed to whatever
@@ -88,6 +91,30 @@ type ChatConversationPanelProps = {
   loadingOlderMessages?: boolean;
   hasOlderMessages?: boolean;
   onLoadOlderMessages?: () => void;
+  voiceMode?: boolean;
+  voiceLanguage?: string;
+  onVoiceModeChange?: (enabled: boolean) => void;
+  voiceModeLabel?: string;
+  stopVoiceModeLabel?: string;
+  voiceListeningLabel?: string;
+  voiceUnsupportedLabel?: string;
+};
+
+type SpeechRecognitionEventLike = Event & { results: SpeechRecognitionResultList };
+type SpeechRecognitionLike = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start: () => void;
+  stop: () => void;
+  onend: (() => void) | null;
+  onerror: ((event: Event) => void) | null;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+};
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+type SpeechWindow = Window & {
+  SpeechRecognition?: SpeechRecognitionConstructor;
+  webkitSpeechRecognition?: SpeechRecognitionConstructor;
 };
 
 export const ChatConversationPanel = ({
@@ -121,6 +148,7 @@ export const ChatConversationPanel = ({
   retryMessageLabel = 'Retry',
   copyMessageLabel = 'Copy message',
   copiedMessageLabel = 'Copied',
+  playMessageLabel = 'Play message',
   uploadingMessageLabel = 'Uploading...',
   attachmentOpenFailedLabel = 'The file could not be opened',
   inputMask = null,
@@ -129,6 +157,13 @@ export const ChatConversationPanel = ({
   loadingOlderMessages = false,
   hasOlderMessages = false,
   onLoadOlderMessages,
+  voiceMode = false,
+  voiceLanguage = 'en-US',
+  onVoiceModeChange,
+  voiceModeLabel = 'Voice mode',
+  stopVoiceModeLabel = 'Stop voice mode',
+  voiceListeningLabel = 'Listening',
+  voiceUnsupportedLabel = 'Voice input is not supported in this browser.',
 }: ChatConversationPanelProps) => {
   const primaryActionButtonClass = 'h-9 rounded-lg bg-primary text-white flex items-center justify-center cursor-pointer transition-all hover:brightness-95';
   const messageListRef = useRef<HTMLDivElement>(null);
@@ -146,11 +181,110 @@ export const ChatConversationPanel = ({
   // shrink the thread by its height and grow it straight back, which reads as the conversation
   // jumping. So the indicator holds its place until the reply it is standing in for is on screen.
   const [holdThinkingIndicator, setHoldThinkingIndicator] = useState(false);
+  const [waitingForVoiceAudio, setWaitingForVoiceAudio] = useState(false);
+  const [hiddenVoiceReplyId, setHiddenVoiceReplyId] = useState<string | null>(null);
   const previousOtherTypingRef = useRef(false);
   const [isDraggingAttachment, setIsDraggingAttachment] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const speechCleanupRef = useRef<(() => void) | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const voiceModeRef = useRef(voiceMode);
+  const spokenMessageIdRef = useRef<string | null>(null);
   const hasAttachmentHandler = activeConversation.isAiDispatch && Boolean(onAttachFile);
   const canAttach = hasAttachmentHandler && !attachmentBusy;
+
+  const toggleVoiceMode = () => {
+    const speechWindow = window as SpeechWindow;
+    const Recognition = speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
+    if (!Recognition) {
+      window.alert(voiceUnsupportedLabel);
+      return;
+    }
+    if (isListening) {
+      voiceModeRef.current = false;
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      window.speechSynthesis?.cancel();
+      onVoiceModeChange?.(false);
+      return;
+    }
+
+    speechCleanupRef.current?.();
+    spokenMessageIdRef.current = activeConversation.messages.at(-1)?.id || null;
+    const recognition = new Recognition();
+    voiceModeRef.current = true;
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = voiceLanguage;
+    let transcript = '';
+    let autoSendScheduled = false;
+    const submitTranscript = () => {
+      if (autoSendScheduled || !voiceModeRef.current || !transcript) return;
+      autoSendScheduled = true;
+      onDraftChange(transcript);
+      window.setTimeout(() => onSend(transcript), 0);
+    };
+    recognition.onresult = (event) => {
+      transcript = Array.from(event.results)
+        .map((result) => result[0]?.transcript || '')
+        .join(' ')
+        .trim();
+      if (transcript) onDraftChange(transcript);
+      if (event.results[event.results.length - 1]?.isFinal) submitTranscript();
+    };
+    recognition.onerror = () => {
+      transcript = "";
+      setIsListening(false);
+    };
+    recognition.onend = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+      submitTranscript();
+    };
+    recognitionRef.current = recognition;
+    onVoiceModeChange?.(true);
+    setIsListening(true);
+    try { recognition.start(); } catch {
+      recognitionRef.current = null;
+      voiceModeRef.current = false;
+      setIsListening(false);
+      onVoiceModeChange?.(false);
+    }
+  };
+
+  useEffect(() => () => {
+    recognitionRef.current?.stop();
+    speechCleanupRef.current?.();
+    window.speechSynthesis?.cancel();
+  }, []);
+
+  useEffect(() => {
+    voiceModeRef.current = voiceMode;
+  }, [voiceMode]);
+
+  useLayoutEffect(() => {
+    if (!voiceMode) return;
+    const latest = activeConversation.messages.at(-1);
+    if (!latest || latest.sender !== 'other' || latest.id.startsWith('welcome-') || latest.id === spokenMessageIdRef.current) return;
+    const text = latest.text.replace(/\[\[[^\]]+\]\]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!text) return;
+    spokenMessageIdRef.current = latest.id;
+
+    speechCleanupRef.current?.();
+    setHiddenVoiceReplyId(latest.id);
+    speechCleanupRef.current = playServerSpeech(text, voiceLanguage, api.dispatchChat.speech, () => {
+      spokenMessageIdRef.current = null;
+      void showError(speechErrorText(voiceLanguage, 'failed'));
+    }, undefined, (waiting) => {
+      setWaitingForVoiceAudio(waiting);
+      if (!waiting) setHiddenVoiceReplyId(null);
+    });
+  }, [activeConversation.messages, voiceLanguage, voiceMode]);
+
+  useLayoutEffect(() => () => {
+    speechCleanupRef.current?.();
+  }, [activeConversation.id, voiceMode]);
 
   const copyMessage = async (id: string, text: string) => {
     try {
@@ -160,6 +294,15 @@ export const ChatConversationPanel = ({
     } catch {
       // Clipboard permission can be denied by the browser; the message text stays selectable regardless.
     }
+  };
+
+  const playMessage = (text: string) => {
+    const spokenText = text.replace(/\[\[[^\]]+\]\]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!spokenText) return;
+    speechCleanupRef.current?.();
+    speechCleanupRef.current = playServerSpeech(spokenText, voiceLanguage, api.dispatchChat.speech, () => {
+      void showError(speechErrorText(voiceLanguage, 'failed'));
+    }, undefined, setWaitingForVoiceAudio);
   };
 
   const handleAttachmentDragOver = (event: DragEvent<HTMLDivElement>) => {
@@ -372,6 +515,9 @@ export const ChatConversationPanel = ({
         <div className="mb-4 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
       )}
       {activeConversation.messages.map((m, index) => {
+        // Mount the whole answer (including its typewriter and actions) only when
+        // playback starts. The fresh-id guard also prevents a first-render flash.
+        if (voiceMode && (m.id === hiddenVoiceReplyId || m.id === freshAiReplyId)) return null;
         const isAiAnswer = Boolean(activeConversation.isAiDispatch) && m.sender === 'other';
         const previousSender = activeConversation.messages[index - 1]?.sender;
         const turnChanged = index > 0 && previousSender !== undefined && previousSender !== m.sender;
@@ -379,16 +525,27 @@ export const ChatConversationPanel = ({
         <div key={m.id} className={cn('group relative', index > 0 && (turnChanged ? 'mt-14' : 'mt-3'), isAiAnswer ? 'w-full' : 'w-fit max-w-[min(85%,36rem)]', m.sender === 'me' ? 'ml-auto' : m.sender === 'system' ? 'mx-auto' : 'mr-auto')}>
           {/* The greeting and the out-of-messages card carry no copyable answer of their own, so
               neither offers the copy affordance - both are recognised by their message id. */}
-          {m.sender === 'other' && animatingMessageId !== m.id && !m.id.startsWith('welcome-') && !m.id.startsWith('blocked-') && (
-            <button
-              type="button"
-              onClick={() => void copyMessage(m.id, m.copyText ?? m.text)}
-              title={copyMessageLabel}
-              aria-label={copiedMessageId === m.id ? copiedMessageLabel : copyMessageLabel}
-              className="absolute -top-7 left-0 inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 opacity-0 shadow-sm transition-opacity hover:text-slate-600 focus-visible:opacity-100 group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500 dark:hover:text-slate-300"
-            >
-              {copiedMessageId === m.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-            </button>
+          {animatingMessageId !== m.id && (
+            <div className={cn('absolute -top-7 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100', m.sender === 'me' ? 'right-0' : 'left-0')}>
+              <button
+                type="button"
+                onClick={() => void copyMessage(m.id, m.copyText ?? m.text)}
+                title={copiedMessageId === m.id ? copiedMessageLabel : copyMessageLabel}
+                aria-label={copiedMessageId === m.id ? copiedMessageLabel : copyMessageLabel}
+                className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-sm transition-colors hover:text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500 dark:hover:text-slate-300"
+              >
+                {copiedMessageId === m.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              </button>
+              <button
+                type="button"
+                onClick={() => playMessage(m.text)}
+                title={playMessageLabel}
+                aria-label={playMessageLabel}
+                className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-sm transition-colors hover:text-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500 dark:hover:text-primary"
+              >
+                <Play className="h-3.5 w-3.5" />
+              </button>
+            </div>
           )}
           <div
             className={cn(
@@ -511,7 +668,7 @@ export const ChatConversationPanel = ({
         </div>
         );
       })}
-      {(otherTyping || holdThinkingIndicator) && (
+      {(otherTyping || holdThinkingIndicator || (voiceMode && waitingForVoiceAudio)) && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -519,7 +676,7 @@ export const ChatConversationPanel = ({
           role={thinkingPhrases?.length ? undefined : 'status'}
           aria-label={thinkingPhrases?.length ? undefined : thinkingLabel}
         >
-          {thinkingPhrases?.length ? <LenaThinkingIndicator key={activeConversation.id} phrases={thinkingPhrases} timeline={thinkingTimeline} skillLabel={thinkingSkillLabel} /> : <span
+          {thinkingPhrases?.length ? <LenaThinkingIndicator key={activeConversation.id} phrases={thinkingPhrases} timeline={thinkingTimeline} skillLabel={thinkingSkillLabel} voiceMode={voiceMode} voiceLanguage={voiceLanguage} /> : <span
             aria-hidden="true"
             className="animate-text-shimmer bg-[length:200%_100%] bg-[linear-gradient(90deg,#94a3b8_20%,#334155_50%,#94a3b8_80%)] bg-clip-text text-transparent dark:bg-[linear-gradient(90deg,#64748b_20%,#f8fafc_50%,#64748b_80%)]"
           >
@@ -577,8 +734,21 @@ export const ChatConversationPanel = ({
             </span>
           )}
         </div>
-        {!activeConversation.isAiDispatch && <button className="h-9 w-9 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 flex items-center justify-center cursor-pointer transition-all"><Mic className="w-4 h-4" /></button>}
-        <button type="button" onClick={onSend} disabled={sendBusy || inputLocked} className={cn(primaryActionButtonClass, 'w-9 shrink-0 disabled:cursor-not-allowed disabled:opacity-60')}>
+        <button
+          type="button"
+          onClick={toggleVoiceMode}
+          aria-label={isListening ? stopVoiceModeLabel : voiceModeLabel}
+          aria-pressed={isListening}
+          title={isListening ? voiceListeningLabel : voiceModeLabel}
+          className={cn(
+            'relative h-9 w-9 rounded-lg flex items-center justify-center cursor-pointer transition-all',
+            isListening ? 'bg-primary text-white' : 'bg-primary/10 text-primary'
+          )}
+        >
+          <Mic className={cn('w-4 h-4', isListening && 'animate-pulse')} />
+          {isListening && <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-rose-500" />}
+        </button>
+        <button type="button" onClick={() => onSend()} disabled={sendBusy || inputLocked} className={cn(primaryActionButtonClass, 'w-9 shrink-0 disabled:cursor-not-allowed disabled:opacity-60')}>
           {sendBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
         </button>
       </div>

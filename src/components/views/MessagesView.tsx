@@ -22,6 +22,7 @@ import { replyShowingSkills, type LenaThinkingTimeline } from '../../lib/lenaThi
 import { formatClockTime, localTimestampForApi } from '../../lib/dates';
 import { lenaStepInputMask, MASKABLE_GUIDED_STEPS } from '../../lib/lenaStepInputMask';
 import { useLenaTokenBalance } from '../../lib/useLenaTokenBalance';
+import { voiceLocaleForLanguage } from '../../lib/voiceLocale';
 
 type MessagesViewProps = {
   lang: Language;
@@ -202,6 +203,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
   const [activeId, setActiveId] = useState(EMPTY_LENA_CONVERSATION_ID);
   const [draft, setDraft] = useState('');
   const [aiReplying, setAiReplying] = useState(false);
+  const [voiceMode, setVoiceMode] = useState(false);
   // The reply in flight, for the thinking indicator (see lenaThinkingTimeline.ts).
   const [thinkingTimeline, setThinkingTimeline] = useState<LenaThinkingTimeline | null>(null);
   const [messageSending, setMessageSending] = useState(false);
@@ -590,8 +592,8 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     return sendMessageValue(rawText, displayText, undefined, conversationId);
   };
 
-  const sendMessage = async () => {
-    const trimmed = draft.trim();
+  const sendMessage = async (message = draft) => {
+    const trimmed = message.trim();
     if (!trimmed) return;
     if (activeConversation.isAiDispatch && denyIfOutOfTokens(trimmed)) return;
     const conversationId = await ensureConversationId();
@@ -599,7 +601,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     if (activeConversation.canvas && pendingStep && MASKABLE_GUIDED_STEPS.includes(pendingStep)) {
       return sendGuidedAnswerValue(pendingStep, trimmed, trimmed, undefined, conversationId);
     }
-    return sendMessageValue(draft, draft, undefined, conversationId);
+    return sendMessageValue(message, message, undefined, conversationId);
   };
 
   async function attachFileValue(files: File[], retryId?: string, targetConversationId?: string) {
@@ -871,7 +873,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
             activeConversation={displayConversation}
             draft={draft}
             onDraftChange={setDraft}
-            onSend={sendMessage}
+            onSend={(message) => void sendMessage(message)}
             onAttachFile={attachFile}
                 attachmentLimitLabel={u('Select up to 5 files at once.', 'Select up to 5 files at once.')}
             attachmentAccept={LENA_LOAD_FILE_ACCEPT}
@@ -902,6 +904,13 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
             inputMask={lenaStepInputMask(pendingStep, lang)}
             inputLocked={pendingStepHasOptions}
             inputLockedPlaceholder={u('chat.chooseOptionAbove', 'Choose an option above')}
+            voiceMode={voiceMode}
+            voiceLanguage={voiceLocaleForLanguage(lang)}
+            onVoiceModeChange={setVoiceMode}
+            voiceModeLabel={u('Voice mode', 'Voice mode')}
+            stopVoiceModeLabel={u('Stop voice mode', 'Stop voice mode')}
+            voiceListeningLabel={u('Listening', 'Listening')}
+            voiceUnsupportedLabel={u('Voice input is not supported in this browser.', 'Voice input is not supported in this browser.')}
             loadingOlderMessages={Boolean(activeMessageHistory?.loadingOlder)}
             hasOlderMessages={Boolean(activeMessageHistory && activeMessageHistory.page < activeMessageHistory.lastPage)}
             onLoadOlderMessages={() => {

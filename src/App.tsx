@@ -628,7 +628,7 @@ const allLanguages: { id: Language; flag: string; label: string }[] = [
 
 const languages = allLanguages.filter(
   (language) =>
-    language.id === "en" || language.id === "bs" || language.id === "hr" || language.id === "sr" || language.id === "de",
+    isSupportedLanguage(language.id),
 );
 
 const flagCodeByLanguage: Record<Exclude<Language, null>, string> = {

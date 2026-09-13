@@ -16,6 +16,7 @@ import { LenaLoadCanvas } from './LenaLoadCanvas';
 import { LENA_LOAD_FILE_ACCEPT, LenaCanvasMode, latestLoadScan } from '../../lib/lenaLoadCanvas';
 import { buildScanFieldRows, ScanFieldPatch } from '../modals/scanFieldRows';
 import { api, BulkLoadRow, type PublicTrackingSummary } from '../../services/api';
+import { voiceLocaleForLanguage } from '../../lib/voiceLocale';
 
 type LenaAIProps = {
   open: boolean;
@@ -228,6 +229,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
   });
   const [canvasPanelOpen, setCanvasPanelOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [voiceMode, setVoiceMode] = useState(false);
   useEffect(() => {
     if (open && !conversationLoading) onConversationReady?.();
   }, [conversationLoading, onConversationReady, open]);
@@ -383,7 +385,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
                 compactHeader={sideBarMode}
                 draft={draft}
                 onDraftChange={setDraft}
-                onSend={() => void send()}
+                onSend={(message) => void send(message)}
                 messagePlaceholder={u('Write a message...', '')}
                 className={`${sideBarMode && showCanvas ? 'hidden' : 'min-h-[320px] min-w-0 flex-1'}`}
                 otherTyping={sending}
@@ -403,6 +405,13 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
                 inputMask={lenaStepInputMask(pendingStep, lang)}
                 inputLocked={pendingStepHasOptions}
                 inputLockedPlaceholder={u('chat.chooseOptionAbove', '')}
+                voiceMode={voiceMode}
+                voiceLanguage={voiceLocaleForLanguage(lang)}
+                onVoiceModeChange={setVoiceMode}
+                voiceModeLabel={u('Voice mode', 'Voice mode')}
+                stopVoiceModeLabel={u('Stop voice mode', 'Stop voice mode')}
+                voiceListeningLabel={u('Listening', 'Listening')}
+                voiceUnsupportedLabel={u('Voice input is not supported in this browser.', 'Voice input is not supported in this browser.')}
                 onAttachFile={attachFile}
                 attachmentLimitLabel={u('Select up to 5 files at once.', 'Select up to 5 files at once.')}
                 attachmentAccept={LENA_LOAD_FILE_ACCEPT}
@@ -413,6 +422,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
                 retryMessageLabel={u('chat.retry', '')}
                 copyMessageLabel={u('chat.copy', '')}
                 copiedMessageLabel={u('chat.copied', '')}
+                playMessageLabel={u('Play message', 'Play message')}
                 uploadingMessageLabel={u('Uploading...', '')}
                 attachmentOpenFailedLabel={u('The file could not be opened', '')}
                 headerActions={(

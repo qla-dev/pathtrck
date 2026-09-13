@@ -1,14 +1,14 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { BookOpen, Braces, BrainCircuit, ArrowRight, ChevronDown, CornerDownRight, Database, ExternalLink, FileText, Globe, Layers3, Network, RefreshCw, Search, Sparkles } from 'lucide-react';
+import { BookOpen, Braces, BrainCircuit, ArrowRight, ChevronDown, CornerDownRight, Database, ExternalLink, FileJson, FileText, Globe, Layers3, Network, RefreshCw, Search, Sparkles } from 'lucide-react';
 import { API_BASE_URL, api, type LenaSkillRow } from '../../services/api';
 import type { Language } from '../../types';
 import { PageHeader } from '../ui/PageHeader';
 import { cn } from '../../lib/cn';
 
 const words = {
-  en: { subtitle: 'Explore the skills behind Lena. Open a skill to see its subskills and where they are used.', all: 'All', skills: 'Skills', subskills: 'Subskills', skill: 'Skill', subskill: 'Subskill', shared: 'Shared', modes: 'Modes', refresh: 'Refresh', search: 'Search skills, subskills or content…', name: 'Name & purpose', scope: 'Used in', file: 'Source file', open: 'View instructions', expand: 'Show subskills', collapse: 'Hide subskills', empty: 'No skills match these filters.', error: 'Could not load Lena skills.', loading: 'Loading skills…', scanner: 'Document & text scanning', detail: 'Instruction preview', hint: 'Select a row to explore its instructions.', readOnly: 'Read only', clear: 'Clear filters', overview: 'Overview', resources: 'Resources', noResources: 'This item lists no resources.' },
-  de: { subtitle: 'Entdecken Sie Lenas Skills. Öffnen Sie einen Skill, um seine Sub-Skills und ihre Einsatzbereiche zu sehen.', all: 'Alle', skills: 'Skills', subskills: 'Sub-Skills', skill: 'Skill', subskill: 'Sub-Skill', shared: 'Gemeinsam genutzt', modes: 'Modi', refresh: 'Aktualisieren', search: 'Skills, Sub-Skills oder Inhalte suchen…', name: 'Name und Zweck', scope: 'Verwendet in', file: 'Quelldatei', open: 'Anweisungen ansehen', expand: 'Sub-Skills anzeigen', collapse: 'Sub-Skills ausblenden', empty: 'Keine Skills entsprechen diesen Filtern.', error: 'Lena-Skills konnten nicht geladen werden.', loading: 'Skills werden geladen…', scanner: 'Dokument- und Texterkennung', detail: 'Anweisungsvorschau', hint: 'Wählen Sie eine Zeile, um die Anweisungen zu lesen.', readOnly: 'Schreibgeschützt', clear: 'Filter löschen', overview: 'Übersicht', resources: 'Ressourcen', noResources: 'Für diesen Eintrag sind keine Ressourcen hinterlegt.' },
-  bs: { subtitle: 'Pregledajte Lenine vještine. Otvorite vještinu da vidite njene podvještine i gdje se koriste.', all: 'Sve', skills: 'Vještine', subskills: 'Podvještine', skill: 'Vještina', subskill: 'Podvještina', shared: 'Zajedničke', modes: 'Načini rada', refresh: 'Osvježi', search: 'Pretraži vještine, podvještine ili sadržaj…', name: 'Naziv i namjena', scope: 'Koristi se u', file: 'Izvorna datoteka', open: 'Pogledaj upute', expand: 'Prikaži podvještine', collapse: 'Sakrij podvještine', empty: 'Nema vještina za odabrane filtere.', error: 'Nije moguće učitati Lena vještine.', loading: 'Učitavanje vještina…', scanner: 'Skeniranje dokumenata i teksta', detail: 'Pregled uputa', hint: 'Odaberite red za pregled njegovih uputa.', readOnly: 'Samo za čitanje', clear: 'Ukloni filtere', overview: 'Pregled', resources: 'Resursi', noResources: 'Ova stavka nema navedenih resursa.' },
+  en: { subtitle: 'Explore the skills behind Lena. Open a skill to see its subskills and where they are used.', all: 'All', skills: 'Skills', subskills: 'Subskills', skill: 'Skill', subskill: 'Subskill', shared: 'Shared', modes: 'Modes', refresh: 'Refresh', search: 'Search skills, subskills or content…', name: 'Name & purpose', scope: 'Used in', file: 'Source file', open: 'View instructions', expand: 'Show subskills', collapse: 'Hide subskills', empty: 'No skills match these filters.', error: 'Could not load Lena skills.', loading: 'Loading skills…', scanner: 'Document & text scanning', detail: 'Instruction preview', hint: 'Select a row to explore its instructions.', readOnly: 'Read only', clear: 'Clear filters', overview: 'Overview', resources: 'Resources', noResources: 'This item lists no resources.', fileError: 'Could not open the file.' },
+  de: { subtitle: 'Entdecken Sie Lenas Skills. Öffnen Sie einen Skill, um seine Sub-Skills und ihre Einsatzbereiche zu sehen.', all: 'Alle', skills: 'Skills', subskills: 'Sub-Skills', skill: 'Skill', subskill: 'Sub-Skill', shared: 'Gemeinsam genutzt', modes: 'Modi', refresh: 'Aktualisieren', search: 'Skills, Sub-Skills oder Inhalte suchen…', name: 'Name und Zweck', scope: 'Verwendet in', file: 'Quelldatei', open: 'Anweisungen ansehen', expand: 'Sub-Skills anzeigen', collapse: 'Sub-Skills ausblenden', empty: 'Keine Skills entsprechen diesen Filtern.', error: 'Lena-Skills konnten nicht geladen werden.', loading: 'Skills werden geladen…', scanner: 'Dokument- und Texterkennung', detail: 'Anweisungsvorschau', hint: 'Wählen Sie eine Zeile, um die Anweisungen zu lesen.', readOnly: 'Schreibgeschützt', clear: 'Filter löschen', overview: 'Übersicht', resources: 'Ressourcen', noResources: 'Für diesen Eintrag sind keine Ressourcen hinterlegt.', fileError: 'Die Datei konnte nicht geöffnet werden.' },
+  bs: { subtitle: 'Pregledajte Lenine vještine. Otvorite vještinu da vidite njene podvještine i gdje se koriste.', all: 'Sve', skills: 'Vještine', subskills: 'Podvještine', skill: 'Vještina', subskill: 'Podvještina', shared: 'Zajedničke', modes: 'Načini rada', refresh: 'Osvježi', search: 'Pretraži vještine, podvještine ili sadržaj…', name: 'Naziv i namjena', scope: 'Koristi se u', file: 'Izvorna datoteka', open: 'Pogledaj upute', expand: 'Prikaži podvještine', collapse: 'Sakrij podvještine', empty: 'Nema vještina za odabrane filtere.', error: 'Nije moguće učitati Lena vještine.', loading: 'Učitavanje vještina…', scanner: 'Skeniranje dokumenata i teksta', detail: 'Pregled uputa', hint: 'Odaberite red za pregled njegovih uputa.', readOnly: 'Samo za čitanje', clear: 'Ukloni filtere', overview: 'Pregled', resources: 'Resursi', noResources: 'Ova stavka nema navedenih resursa.', fileError: 'Datoteku nije moguće otvoriti.' },
 };
 
 // A mode folder's AGENT.md is the skill, and everything below it (skills/*.md, legal's jurisdiction folders)
@@ -27,6 +27,16 @@ export const LenaSkillsView = ({ lang, onOpenView }: { lang: Language; onOpenVie
   const [filter, setFilter] = useState('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState<'overview' | 'resources'>('overview');
+  // The data file expanded in the Resursi tab, and the contents loaded so far (by path).
+  const [openFile, setOpenFile] = useState<string | null>(null);
+  const [fileContents, setFileContents] = useState<Record<string, string>>({});
+  const toggleFile = (path: string) => {
+    setOpenFile(current => current === path ? null : path);
+    if (fileContents[path] !== undefined) return;
+    api.lenaSkills.file(path)
+      .then(({ data }) => setFileContents(current => ({ ...current, [path]: data.content })))
+      .catch(() => setFileContents(current => ({ ...current, [path]: t.fileError })));
+  };
   // Folders whose open state the user flipped with the arrow, relative to their default.
   const [toggled, setToggled] = useState<Set<string>>(new Set());
   useEffect(() => {
@@ -145,7 +155,14 @@ export const LenaSkillsView = ({ lang, onOpenView }: { lang: Language; onOpenVie
               // Same link as the source cards under Lena's chat answers, one document per row.
               ? <ul className="max-h-[65vh] divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-100 dark:divide-slate-800 dark:border-slate-800">{(selected.sources ?? []).map((source, index) => {
                 const rowClass = 'flex w-full min-w-0 cursor-pointer items-center gap-2 px-3 py-2.5 text-left text-xs font-semibold text-primary hover:bg-violet-50 hover:underline dark:hover:bg-violet-950/30';
-                // An app screen (the internal tariff catalogue) opens in place; documents and web pages open in a new tab.
+                // A data file expands here; an app screen (the internal tariff catalogue) opens in place; documents and web pages open in a new tab.
+                if (source.type === 'file') {
+                  const fileOpen = openFile === source.path;
+                  return <li key={`file-${source.path}`}>
+                    <button type="button" onClick={() => toggleFile(source.path)} title={source.path} aria-expanded={fileOpen} className={rowClass}><FileJson className="h-3.5 w-3.5 shrink-0" /><span className="min-w-0 flex-1 truncate">{source.title}</span><span className="shrink-0 text-[10px] font-normal text-slate-400">{Math.max(1, Math.round(source.bytes / 1024))} KB</span><ChevronDown className={cn('h-3.5 w-3.5 shrink-0 transition-transform', !fileOpen && '-rotate-90')} /></button>
+                    {fileOpen && <pre className="max-h-[50vh] overflow-auto border-t border-slate-100 bg-slate-50 p-3 font-mono text-[10px] leading-5 text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">{fileContents[source.path] ?? t.loading}</pre>}
+                  </li>;
+                }
                 if (source.type === 'app') return <li key={`app-${source.view}-${index}`}><button type="button" onClick={() => onOpenView?.(source.view)} title={source.title} className={rowClass}><Database className="h-3.5 w-3.5 shrink-0" /><span className="min-w-0 flex-1 truncate">{source.title}</span><ArrowRight className="h-3.5 w-3.5 shrink-0" /></button></li>;
                 const link = source.type === 'link';
                 return <li key={link ? source.url : source.id}><a href={link ? source.url : `${API_BASE_URL}/legal-sources/${encodeURIComponent(source.id)}`} target="_blank" rel="noreferrer" title={source.title} className={rowClass}>{link ? <Globe className="h-3.5 w-3.5 shrink-0" /> : <FileText className="h-3.5 w-3.5 shrink-0" />}<span className="min-w-0 flex-1 truncate">{link ? source.title : source.file}</span><ExternalLink className="h-3.5 w-3.5 shrink-0" /></a></li>;
