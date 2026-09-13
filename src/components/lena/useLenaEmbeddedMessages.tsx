@@ -1,3 +1,4 @@
+import legalSourceManifest from '../../../../backend/agents/lena/legal-sources.json?raw';
 import { lenaText } from '../../lib/lenaCatalog';
 import { lenaIcon } from '../../lib/lenaIcons';
 import { latestLoadScan } from '../../lib/lenaLoadCanvas';
@@ -39,35 +40,12 @@ const LENA_SKIP_MARKER_GLOBAL = /\[\[LENA_SKIP:[a-zA-Z]+\]\]/g;
 const LEGAL_SOURCES_PATTERN = /\[{1,2}\s*LEGAL_SOURCES\s*:\s*([a-z0-9,\s-]*?)\s*\]{1,2}/i;
 const LEGAL_SOURCES_GLOBAL = /\[{1,2}\s*LEGAL_SOURCES\s*:?\s*[a-z0-9,\s-]*?\s*\]{1,2}/gi;
 
-const legalSourceTitles: Record<string, string> = {
-  'customs-tariff-law': 'Zakon o carinskoj tarifi',
-  'customs-policy-amendment-2026': 'Izmjene Odluke o carinskoj politici u BiH',
-  'customs-declaration-instructions': 'Uputstvo o carinskoj prijavi i deklaraciji',
-  'jci-fields': 'Prilog 1: Polja za popunjavanje JCI', 'jci-import': 'Prilog 3: Uvoz, uputstva o JCI',
-  'customs-value': 'Uputstvo o utvrđivanju carinske vrijednosti', 'customs-debt-security': 'Uputstvo o osiguranju carinskog duga',
-  'customs-warehouse': 'Uputstvo o carinskom skladištu', 'inward-processing': 'Uputstvo o unutrašnjoj obradi',
-  'home-import-clearance': 'Uputstvo o kućnom uvoznom carinjenju', 'temporary-import': 'Uputstvo o privremenom uvozu',
-  'efta-agreement': 'Ugovor EFTA', 'cefta-origin': 'Uputstvo o pravilima porijekla u CEFTA trgovini', 'cefta-joint-committee': 'Odluka Zajedničkog odbora CEFTA',
-  'eu-union-customs-code': 'EU: Carinski zakonik Unije (952/2013)',
-  'hr-import-vat-instruction': 'HR: Uputa 8/23 o obračunskom PDV-u', 'hr-import-vat-leaflet': 'HR: Letak o obračunskom PDV-u',
-  'rs-customs-law': 'RS: Carinski zakon', 'rs-vat-law': 'RS: Zakon o PDV-u',
-  'customs-policy-law-58-15': 'Zakon o carinskoj politici BiH 58/15',
-  'customs-policy-decision-13-19': 'Odluka o provođenju ZCP 13/19', 'customs-policy-amendment-54-19': 'Izmjena Odluke o provođenju ZCP 54/19',
-  'customs-policy-amendment-21-20': 'Izmjena Odluke o provođenju ZCP 21/20', 'customs-policy-amendment-6-23': 'Izmjene Odluke o provođenju ZCP 6/23',
-  'customs-offences-law': 'Zakon o carinskim prekršajima BiH', 'customs-tariff-2026': 'Carinska tarifa BiH 2026',
-  'jci-amendment-43-24': 'Izmjene Uputstva o deklaraciji 43/24', 'jci-amendment-69-25': 'Izmjene Uputstva o deklaraciji 69/25', 'jci-amendment-16-26': 'Izmjene Uputstva o JCI 16/26',
-  'jci-export': 'Prilog 2: Izvoz, uputstva o JCI', 'customs-debt-security-amendment-9-25': 'Izmjene Uputstva o osiguranju duga 9/25',
-  'transit-ncts': 'Uputstvo o provozu uz NCTS', 'transit-security': 'Uputstvo o osiguranju u provozu',
-  'duty-relief-decision': 'Odluka o oslobađanju od dažbina', 'vat-law': 'Zakon o PDV-u BiH',
-  'excise-law': 'Zakon o akcizama BiH', 'excise-law-amendment-49-14': 'Izmjene Zakona o akcizama 49/14', 'excise-law-amendment-60-14': 'Izmjene Zakona o akcizama 60/14',
-  'excise-law-amendment-91-17': 'Izmjene Zakona o akcizama 91/17', 'excise-law-amendment-50-22': 'Izmjene Zakona o akcizama 50/22',
-  'cefta-origin-amendment': 'Izmjena Uputstva o porijeklu CEFTA', 'cefta-decision-3-2015': 'Odluka CEFTA 3/2015', 'cefta-decision-1-2021': 'CEFTA odluka 1/2021 o porijeklu',
-  'saa-trade-aspects': 'Trgovinski aspekti SSP BiH-EU', 'saa-diagonal-cumulation': 'Dijagonalna kumulacija, Privremeni sporazum', 'turkey-fta': 'Ugovor o slobodnoj trgovini BiH-Turska',
-  'eu-delegated-regulation-2446': 'EU: Delegirana uredba 2015/2446', 'eu-implementing-regulation-2447': 'EU: Provedbena uredba 2015/2447', 'eu-vat-directive': 'EU: Direktiva o PDV-u 2006/112',
-  'hr-eu-customs-implementation-law': 'HR: Zakon o provedbi carinskog zakonodavstva EU', 'hr-excise-law': 'HR: Zakon o trošarinama',
-  'rs-customs-procedures-regulation': 'RS: Uredba o carinskim postupcima', 'rs-customs-procedures-annexes': 'RS: Uredba, prilozi 16 i 29',
-  'rs-vat-rulebook': 'RS: Pravilnik o PDV-u', 'rs-customs-tariff-law': 'RS: Zakon o Carinskoj tarifi', 'rs-tariff-nomenclature-2026': 'RS: Nomenklatura Carinske tarife 2026',
-};
+// Use the recorded filenames from the same local catalogue that resolves source links.
+// New catalogue entries must not require a second, manually maintained frontend list.
+const legalSourceTitles: Record<string, string> = Object.fromEntries(
+  (JSON.parse(legalSourceManifest) as { sources: { id: string; file: string }[] }).sources
+    .map((source) => [source.id, source.file]),
+);
 
 const LENA_OUT_OF_TOKENS_PATTERN = /\[\[LENA_OUT_OF_TOKENS\]\]/;
 const LENA_OUT_OF_TOKENS_GLOBAL = /\[\[LENA_OUT_OF_TOKENS\]\]/g;
