@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { playServerSpeech, speechChunks } from '../src/lib/serverSpeechPlayback';
+import { playServerSpeech, speechChunks, speechFailureDetails } from '../src/lib/serverSpeechPlayback';
 
 test('long replies preserve all text, split within API limit, and omit markers', () => {
   const text = 'A sentence. '.repeat(600).trim();
@@ -30,6 +30,17 @@ test('provider failure is reported without a browser voice fallback', async () =
   playServerSpeech('Hello', 'en', async () => { throw Error('502'); }, () => errors++, audio);
   await new Promise(r => setTimeout(r, 0));
   assert.equal(errors, 1);
+});
+
+test('the real server and browser errors are preserved for diagnosis', async () => {
+  const failure = Object.assign(new Error('The conversation_id field is required.'), { status: 422 });
+  let received: unknown;
+  const audio = { pause() {}, removeAttribute() {}, load() {} } as unknown as HTMLAudioElement;
+  playServerSpeech('Hello', 'en', async () => { throw failure; }, error => { received = error; }, audio);
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(received, failure);
+  assert.match(speechFailureDetails(received), /HTTP 422: The conversation_id/);
+  assert.match(speechFailureDetails(new DOMException('Blocked', 'NotAllowedError')), /browser blocked audio/);
 });
 
 test('thinking remains active through generation and buffering until playback starts', async () => {

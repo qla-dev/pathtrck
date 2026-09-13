@@ -9,6 +9,7 @@ import {
   Truck,
   Sparkles,
   MessageSquare,
+  Mic,
   BarChart3,
   Globe,
   Banknote,
@@ -65,6 +66,13 @@ export const PricingPlanCard = ({
   ctaLabel?: string;
 }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  const voiceSupport = ({
+    en: { title: 'LenaAI voice support', description: 'Speak to LenaAI. Text + voice replies cost 2 LenaAI messages in total.' },
+    de: { title: 'LenaAI-Sprachunterstützung', description: 'Sprechen Sie mit LenaAI. Text + Sprachantwort kosten zusammen insgesamt 2 LenaAI-Nachrichten.' },
+    bs: { title: 'Glasovna LenaAI podrška', description: 'Razgovarajte s LenaAI. Tekst + glasovni odgovor zajedno koštaju ukupno 2 LenaAI poruke.' },
+    hr: { title: 'Glasovna LenaAI podrška', description: 'Razgovarajte s LenaAI. Tekst + glasovni odgovor zajedno koštaju ukupno 2 LenaAI poruke.' },
+    sr: { title: 'Glasovna LenaAI podrška', description: 'Razgovarajte sa LenaAI. Tekst + glasovni odgovor zajedno koštaju ukupno 2 LenaAI poruke.' },
+  }[lang || 'en']);
   const PkgIcon = PACKAGE_ICONS[pkg.icon] || Rocket;
 
   const roleLabel = (role: string) => u(`pricing.role.${role}`, ROLE_LABELS[role] || role);
@@ -139,6 +147,15 @@ export const PricingPlanCard = ({
           })}
 
           <div className="space-y-3">
+            {pkg.features.some((feature) => feature.key === 'lena_ai') && (
+              <div className="flex gap-3">
+                <Mic className="w-4 h-4 mt-0.5 shrink-0 text-primary" />
+                <div>
+                  <p className="text-sm font-semibold dark:text-white leading-tight">{voiceSupport.title}</p>
+                  <p className="text-[11px] text-slate-500 leading-tight">{voiceSupport.description}</p>
+                </div>
+              </div>
+            )}
             {pkg.features.filter((feature) => feature.key !== 'lena_ai').map((feature) => {
               const FeatureIcon = FEATURE_ICONS[feature.icon || ''] || Check;
               return (

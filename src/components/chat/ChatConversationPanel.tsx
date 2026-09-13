@@ -11,7 +11,7 @@ import { api } from '../../services/api';
 import { showError } from '../../lib/swal';
 import { motion } from 'motion/react';
 import { speechErrorText } from '../../lib/speechPlayback';
-import { playServerSpeech } from '../../lib/serverSpeechPlayback';
+import { playServerSpeech, speechFailureDetails } from '../../lib/serverSpeechPlayback';
 
 const URL_PATTERN = /(https?:\/\/[^\s]+)/g;
 
@@ -40,7 +40,7 @@ type ChatConversationPanelProps = {
   activeConversation: Conversation;
   draft: string;
   onDraftChange: (value: string) => void;
-  onSend: (message?: string) => void;
+  onSend: (message?: string, source?: 'text' | 'voice') => void;
   messagePlaceholder: string;
   className?: string;
   otherTyping?: boolean;
@@ -224,7 +224,7 @@ export const ChatConversationPanel = ({
       if (autoSendScheduled || !voiceModeRef.current || !transcript) return;
       autoSendScheduled = true;
       onDraftChange(transcript);
-      window.setTimeout(() => onSend(transcript), 0);
+      window.setTimeout(() => onSend(transcript, 'voice'), 0);
     };
     recognition.onresult = (event) => {
       transcript = Array.from(event.results)
@@ -262,6 +262,11 @@ export const ChatConversationPanel = ({
 
   useEffect(() => {
     voiceModeRef.current = voiceMode;
+    if (!voiceMode) {
+      recognitionRef.current?.stop();
+      recognitionRef.current = null;
+      setIsListening(false);
+    }
   }, [voiceMode]);
 
   useLayoutEffect(() => {
@@ -274,9 +279,9 @@ export const ChatConversationPanel = ({
 
     speechCleanupRef.current?.();
     setHiddenVoiceReplyId(latest.id);
-    speechCleanupRef.current = playServerSpeech(text, voiceLanguage, (chunk, language, signal) => api.dispatchChat.speech(chunk, language, Number(activeConversation.id), signal), () => {
+    speechCleanupRef.current = playServerSpeech(text, voiceLanguage, (chunk, language, signal) => api.dispatchChat.speech(chunk, language, Number(activeConversation.id), signal), (error) => {
       spokenMessageIdRef.current = null;
-      void showError(speechErrorText(voiceLanguage, 'failed'));
+      void showError(speechErrorText(voiceLanguage, 'failed'), speechFailureDetails(error));
     }, undefined, (waiting) => {
       setWaitingForVoiceAudio(waiting);
       if (!waiting) setHiddenVoiceReplyId(null);
@@ -301,8 +306,8 @@ export const ChatConversationPanel = ({
     const spokenText = text.replace(/\[\[[^\]]+\]\]/g, ' ').replace(/\s+/g, ' ').trim();
     if (!spokenText) return;
     speechCleanupRef.current?.();
-    speechCleanupRef.current = playServerSpeech(spokenText, voiceLanguage, (chunk, language, signal) => api.dispatchChat.speech(chunk, language, Number(activeConversation.id), signal), () => {
-      void showError(speechErrorText(voiceLanguage, 'failed'));
+    speechCleanupRef.current = playServerSpeech(spokenText, voiceLanguage, (chunk, language, signal) => api.dispatchChat.speech(chunk, language, Number(activeConversation.id), signal), (error) => {
+      void showError(speechErrorText(voiceLanguage, 'failed'), speechFailureDetails(error));
     }, undefined, (waiting) => setBufferingMessageId(waiting ? id : null));
   };
 
@@ -526,7 +531,7 @@ export const ChatConversationPanel = ({
         <div key={m.id} className={cn('group relative', index > 0 && (turnChanged ? 'mt-14' : 'mt-3'), isAiAnswer ? 'w-full' : 'w-fit max-w-[min(85%,36rem)]', m.sender === 'me' ? 'ml-auto' : m.sender === 'system' ? 'mx-auto' : 'mr-auto')}>
           {/* The greeting and the out-of-messages card carry no copyable answer of their own, so
               neither offers the copy affordance - both are recognised by their message id. */}
-          {animatingMessageId !== m.id && (
+          {!m.id.startsWith('welcome-') && animatingMessageId !== m.id && (
             <div className={cn('absolute -top-7 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100', m.sender === 'me' ? 'right-0' : 'left-0')}>
               <button
                 type="button"

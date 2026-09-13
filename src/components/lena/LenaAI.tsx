@@ -265,9 +265,9 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
     onOpenLoad,
     onBookLoad,
     quickActionLabels,
-    onQuickAction: (action) => void sendQuickAction(action),
-    onSuggestedReply: (value, displayText) => void sendSuggestedReply(value, displayText),
-    onStepAnswer: (step, value, displayText) => void sendGuidedAnswer(step, value, displayText),
+    onQuickAction: (action) => { setVoiceMode(false); void sendQuickAction(action); },
+    onSuggestedReply: (value, displayText) => { setVoiceMode(false); void sendSuggestedReply(value, displayText); },
+    onStepAnswer: (step, value, displayText) => { setVoiceMode(false); void sendGuidedAnswer(step, value, displayText); },
     onSuggestedDraftChange: setDraft,
     outOfTokensResetAt: tokenResetAt,
     outOfTokensPackageIcon: tokenPackageIcon,
@@ -348,6 +348,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
               } else if (canvasEnabled) {
                 setCanvasPanelOpen((current) => !current);
               } else {
+                setVoiceMode(false);
                 void sendQuickAction('add');
               }
             }}
@@ -385,7 +386,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
                 compactHeader={sideBarMode}
                 draft={draft}
                 onDraftChange={setDraft}
-                onSend={(message) => void send(message)}
+                onSend={(message, source) => { setVoiceMode(source === 'voice'); void send(message, source); }}
                 messagePlaceholder={u('Write a message...', '')}
                 className={`${sideBarMode && showCanvas ? 'hidden' : 'min-h-[320px] min-w-0 flex-1'}`}
                 otherTyping={sending}
@@ -412,7 +413,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
                 stopVoiceModeLabel={u('Stop voice mode', 'Stop voice mode')}
                 voiceListeningLabel={u('Listening', 'Listening')}
                 voiceUnsupportedLabel={u('Voice input is not supported in this browser.', 'Voice input is not supported in this browser.')}
-                onAttachFile={attachFile}
+                onAttachFile={(files) => { setVoiceMode(false); void attachFile(files); }}
                 attachmentLimitLabel={u('Select up to 5 files at once.', 'Select up to 5 files at once.')}
                 attachmentAccept={LENA_LOAD_FILE_ACCEPT}
                 attachmentBusy={processingAttachment}
@@ -445,7 +446,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
                     type="button"
                     onClick={() => {
                       if (canvasEnabled) setCanvasPanelOpen((current) => !current);
-                      else void sendQuickAction('add');
+                      else { setVoiceMode(false); void sendQuickAction('add'); }
                     }}
                     aria-label={showCanvas ? u('Hide draft panel', '') : u('Draft panel', '')}
                     title={showCanvas ? u('Hide draft panel', '') : undefined}
@@ -469,7 +470,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
                       draftId={loadDraftId}
                       documentsVersion={documentsVersion}
                       recommendationBusy={sending || processingAttachment}
-                      onCopyContainer={(type, quantity, label) => void sendGuidedAnswer('containers', `${type}:${quantity}`, label)}
+                      onCopyContainer={(type, quantity, label) => { setVoiceMode(false); void sendGuidedAnswer('containers', `${type}:${quantity}`, label); }}
                       onApplyPrefill={onApplyLoadPrefill}
                       onBulkImported={onBulkImported}
                     />

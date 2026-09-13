@@ -1,3 +1,9 @@
+export function speechFailureDetails(error: unknown): string {
+  if (!(error instanceof Error)) return 'Unknown audio error.';
+  const status = 'status' in error && typeof error.status === 'number' ? `HTTP ${error.status}: ` : '';
+  return `${status}${error.name === 'NotAllowedError' ? 'The browser blocked audio playback. Allow sound for this site, then press play.' : error.message}`;
+}
+
 export function speechChunks(text: string, limit = 1800): string[] {
   let remaining = text.replace(/\[\[[\s\S]*?\]\]/g, ' ').trim();
   const chunks: string[] = [];
@@ -17,7 +23,7 @@ export function playServerSpeech(
   text: string,
   language: string,
   fetchAudio: (text: string, language: string, signal: AbortSignal) => Promise<Blob>,
-  onError: () => void,
+  onError: (error: unknown) => void,
   audio: HTMLAudioElement = new Audio(),
   onWaiting: (waiting: boolean) => void = () => {},
 ): () => void {
@@ -45,7 +51,7 @@ export function playServerSpeech(
         await new Promise<void>((resolve, reject) => {
           finish = resolve;
           audio.onended = () => resolve();
-          audio.onerror = () => reject(new Error('Audio playback failed'));
+          audio.onerror = () => reject(new Error(`Audio decoding failed (media error ${audio.error?.code ?? 'unknown'}).`));
           audio.play().then(() => {
             if (!controller.signal.aborted) onWaiting(false);
           }).catch(reject);
@@ -53,8 +59,8 @@ export function playServerSpeech(
         release();
         if (controller.signal.aborted) return;
       }
-    } catch {
-      if (!controller.signal.aborted) onError();
+    } catch (error) {
+      if (!controller.signal.aborted) onError(error);
     } finally { release(); if (!controller.signal.aborted) onWaiting(false); }
   })();
   return () => { controller.abort(); finish?.(); release(); onWaiting(false); };

@@ -482,7 +482,10 @@ const fetchAuthenticatedBlob = async (path: string, init?: RequestInit): Promise
   const response = await fetch(`${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`, {
     ...init, credentials: 'omit', headers,
   });
-  if (!response.ok) throw new ApiError(`File could not be loaded (${response.status}).`, response.status);
+  if (!response.ok) {
+    const failure = await response.json().catch(() => null);
+    throw new ApiError(failure?.message || `File could not be loaded (${response.status}).`, response.status, failure?.errors || {});
+  }
   return response.blob();
 };
 
@@ -823,14 +826,14 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ conversation_id: conversationId, lang }),
     })).data ?? [],
-    reply: async (conversationId: number, lang?: string) => (await request<Record<string, unknown>>('/dispatch-chat', {
+    reply: async (conversationId: number, lang?: string, source: 'text' | 'voice' = 'text') => (await request<Record<string, unknown>>('/dispatch-chat', {
       method: 'POST',
-      body: JSON.stringify({ conversation_id: conversationId, lang }),
+      body: JSON.stringify({ conversation_id: conversationId, lang, input_mode: source }),
     })).data,
-    answerStep: async (conversationId: number, step: string, value: string | null, displayText: string, skip: boolean, lang: string) =>
+    answerStep: async (conversationId: number, step: string, value: string | null, displayText: string, skip: boolean, lang: string, source: 'text' | 'voice' = 'text') =>
       (await request<Record<string, unknown>>('/lena-guided-answer', {
         method: 'POST',
-        body: JSON.stringify({ conversation_id: conversationId, step, value, display_text: displayText, skip, lang }),
+        body: JSON.stringify({ conversation_id: conversationId, step, value, display_text: displayText, skip, lang, input_mode: source }),
       })).data,
   },
   notes: resourceApi<Record<string, unknown>>('load-notes'),

@@ -8,6 +8,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
   try {
     const page = await browser.newPage();
     await page.route('**/dispatch-chat/speech', async route => {
+      if (route.request().postDataJSON().text.includes('Guided reply stays silent')) throw new Error('A button answer must not generate speech');
       const { lang, conversation_id } = route.request().postDataJSON();
       assert.equal(conversation_id, 94, 'Every speech generation must identify its conversation');
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -32,10 +33,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
       await page.goto(`http://localhost:3000/tests/speech-harness.html?lang=${lang}`);
       const mic = page.getByRole('button', { name: 'Voice mode', exact: true });
       await mic.waitFor();
-      await page.getByRole('button', { name: 'Play message', exact: true }).click();
-      assert.equal(await page.getByRole('button', { name: 'Play message', exact: true }).getAttribute('aria-busy'), 'true');
-      assert.equal(await page.getByRole('status', { name: 'Thinking', exact: true }).count(), 0);
-      await page.waitForFunction(() => window.testSpoken.length === 1);
+      assert.equal(await page.getByRole('button', { name: 'Play message', exact: true }).count(), 0, 'Greeting must not offer playback');
+      assert.equal(await page.getByRole('button', { name: 'Copy message', exact: true }).count(), 0, 'Greeting must not offer copy');
       await mic.click();
       assert.equal(await page.getByRole('button', { name: 'Stop voice mode', exact: true }).getAttribute('aria-pressed'), 'true');
       await page.evaluate(() => {
@@ -51,10 +50,14 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
       await thinking.waitFor({ state: 'visible' });
       assert.equal(await page.getByText('Odgovor: test message', { exact: true }).count(), 0, 'Reply must stay hidden while preparing audio');
       await thinking.waitFor({ state: 'hidden' });
-      await page.waitForFunction(() => window.testSpoken.length === 2);
+      await page.waitForFunction(() => window.testSpoken.length === 1);
       assert.ok(await page.evaluate(() => window.testSpoken.every(s => s.duration > 1)));
       await page.getByText('Odgovor: test message', { exact: true }).waitFor();
-      const replay = page.getByRole('button', { name: 'Play message', exact: true }).last();
+      await page.getByRole('button', { name: 'Guided answer', exact: true }).click();
+      await page.getByText('Guided reply stays silent', { exact: true }).waitFor();
+      await page.waitForTimeout(200);
+      assert.equal(await thinking.count(), 0);
+      const replay = page.getByRole('button', { name: 'Play message', exact: true }).first();
       await replay.click();
       assert.equal(await replay.getAttribute('aria-busy'), 'true');
       assert.equal(await thinking.count(), 0, 'Replay must not restart thinking');

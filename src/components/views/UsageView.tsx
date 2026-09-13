@@ -25,7 +25,7 @@ import { api } from '../../services/api';
 
 type DailyUsage = { date: string; tokens: string | number; calls: number };
 type ServiceUsage = { service: string; tokens: string | number; calls: number };
-type UsageTotals = { tokens_30d: number; calls_30d: number; tokens_all_time: number; calls_all_time: number };
+type UsageTotals = { tokens_30d: number; calls_30d: number; tokens_all_time: number; calls_all_time: number; voice_calls_all_time: number };
 type UsagePayload = { daily: DailyUsage[]; by_service: ServiceUsage[]; totals: UsageTotals };
 
 type SubscriptionPackagePayload = { id: number; slug: string; name: string; lena_ai_tokens: number };
@@ -65,6 +65,43 @@ export const UsageView = ({
   onUpgrade: () => void;
 }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  const totalsCopy = ({
+    en: {
+      voice: 'LenaAI voice messages',
+      messages: 'Total LenaAI messages used, including voice replies at ?2.',
+      voiceHelp: 'Replies to your spoken messages. Text + voice together cost 2 LenaAI messages in total.',
+      plan: 'The date your current package started.',
+      tokens: 'Total model tokens recorded across your LenaAI features.',
+    },
+    de: {
+      voice: 'LenaAI-Sprachnachrichten',
+      messages: 'Insgesamt verbrauchte LenaAI-Nachrichten, einschlie?lich Sprachantworten zum Faktor 2.',
+      voiceHelp: 'Antworten auf Ihre gesprochenen Nachrichten. Text + Sprache kosten zusammen insgesamt 2 LenaAI-Nachrichten.',
+      plan: 'Das Startdatum Ihres aktuellen Pakets.',
+      tokens: 'Insgesamt erfasste Modell-Token aller Ihrer LenaAI-Funktionen.',
+    },
+    bs: {
+      voice: 'LenaAI glasovne poruke',
+      messages: 'Ukupno iskori?tene LenaAI poruke, uklju?uju?i glasovne odgovore po cijeni ?2.',
+      voiceHelp: 'Odgovori na va?e glasovne poruke. Tekst + glas zajedno ko?taju ukupno 2 LenaAI poruke.',
+      plan: 'Datum po?etka va?eg trenutnog paketa.',
+      tokens: 'Ukupno zabilje?eni tokeni modela u svim va?im LenaAI funkcijama.',
+    },
+    hr: {
+      voice: 'LenaAI glasovne poruke',
+      messages: 'Ukupno iskori?tene LenaAI poruke, uklju?uju?i glasovne odgovore po cijeni ?2.',
+      voiceHelp: 'Odgovori na va?e glasovne poruke. Tekst + glas zajedno ko?taju ukupno 2 LenaAI poruke.',
+      plan: 'Datum po?etka va?eg trenuta?nog paketa.',
+      tokens: 'Ukupno zabilje?eni tokeni modela u svim va?im LenaAI funkcijama.',
+    },
+    sr: {
+      voice: 'LenaAI glasovne poruke',
+      messages: 'Ukupno iskori??ene LenaAI poruke, uklju?uju?i glasovne odgovore po ceni ?2.',
+      voiceHelp: 'Odgovori na va?e glasovne poruke. Tekst + glas zajedno ko?taju ukupno 2 LenaAI poruke.',
+      plan: 'Datum po?etka va?eg trenutnog paketa.',
+      tokens: 'Ukupno zabele?eni tokeni modela u svim va?im LenaAI funkcijama.',
+    },
+  }[lang || 'en']);
   const isMaster = role === 'master';
 
   const [subscription, setSubscription] = useState<MySubscriptionPayload>(null);
@@ -226,13 +263,14 @@ export const UsageView = ({
 
           <div>
             <h2 className="text-lg font-black dark:text-white mb-4">{u('usage.allTime', 'All-Time Totals')}</h2>
-            <div className={cn('grid gap-6', isUnlimited ? 'md:grid-cols-3' : 'md:grid-cols-2')}>
+            <div className={cn('grid gap-6', isUnlimited ? 'md:grid-cols-2 xl:grid-cols-4' : 'md:grid-cols-3')}>
               {isUnlimited && (
                 <Card contentClassName="p-5 flex items-center gap-4">
                   <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 text-primary"><Zap className="w-6 h-6" /></div>
                   <div>
                     <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{u('usage.tokensUsed', 'Tokens Used')}</p>
                     <p className="text-2xl font-black dark:text-white">{(usage?.totals.tokens_all_time || 0).toLocaleString()}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-500">{totalsCopy.tokens}</p>
                   </div>
                 </Card>
               )}
@@ -241,6 +279,15 @@ export const UsageView = ({
                 <div>
                   <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{u('usage.totalCalls', 'LenaAI Messages')}</p>
                   <p className="text-2xl font-black dark:text-white">{(usage?.totals.calls_all_time || 0).toLocaleString()}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-500">{totalsCopy.messages}</p>
+                </div>
+              </Card>
+              <Card contentClassName="p-5 flex items-center gap-4">
+                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 text-primary"><Mic className="w-6 h-6" /></div>
+                <div>
+                  <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{totalsCopy.voice}</p>
+                  <p className="text-2xl font-black dark:text-white">{(usage?.totals.voice_calls_all_time || 0).toLocaleString()}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-500">{totalsCopy.voiceHelp}</p>
                 </div>
               </Card>
               <Card contentClassName="p-5 flex items-center gap-4">
@@ -248,6 +295,7 @@ export const UsageView = ({
                 <div>
                   <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{u('usage.memberSince', 'Plan Started')}</p>
                   <p className="text-2xl font-black dark:text-white">{formatDate(subscription?.started_at)}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-500">{totalsCopy.plan}</p>
                 </div>
               </Card>
             </div>

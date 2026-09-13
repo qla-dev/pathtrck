@@ -451,9 +451,9 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     onOpenLoad,
     onBookLoad,
     quickActionLabels,
-    onQuickAction: (action) => void sendQuickMessage(lenaQuickActionMarker(action), quickActionLabels[action]),
-    onSuggestedReply: (value, displayText) => void sendQuickMessage(value, displayText),
-    onStepAnswer: (step, value, displayText) => void sendGuidedAnswerValue(step, value, displayText),
+    onQuickAction: (action) => { setVoiceMode(false); void sendQuickMessage(lenaQuickActionMarker(action), quickActionLabels[action]); },
+    onSuggestedReply: (value, displayText) => { setVoiceMode(false); void sendQuickMessage(value, displayText); },
+    onStepAnswer: (step, value, displayText) => { setVoiceMode(false); void sendGuidedAnswerValue(step, value, displayText); },
     onSuggestedDraftChange: setDraft,
     onLoadReady: () => setCanvasPanelOpen(true),
     outOfTokensResetAt: tokenResetAt,
@@ -477,7 +477,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     return true;
   };
 
-  async function sendMessageValue(rawText: string, displayText = rawText, retryId?: string, targetConversationId?: string) {
+  async function sendMessageValue(rawText: string, displayText = rawText, retryId?: string, targetConversationId?: string, source: 'text' | 'voice' = 'text') {
     const text = rawText.trim();
     const conversationId = targetConversationId || activeConversation.id;
     if (!text || !conversationId || !user || messageSending || aiReplying) return;
@@ -526,7 +526,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
         await replyShowingSkills({
           startedAt: thinkingStartedAt,
           skills: () => api.dispatchChat.skills(Number(conversationId), lang),
-          reply: () => withMinDelay(api.dispatchChat.reply(Number(conversationId), lang)),
+          reply: () => withMinDelay(api.dispatchChat.reply(Number(conversationId), lang, source)),
           onTimeline: setThinkingTimeline,
         });
         await result.refresh();
@@ -544,7 +544,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
   // Mirrors sendMessageValue but for a questionnaire pill answer: the value is already known and
   // valid, so this skips the load-scan + dispatch-chat AI round trip entirely (see
   // LenaGuidedAnswerController) instead of sending it as free text for the AI to normalize.
-  async function sendGuidedAnswerValue(step: string, rawText: string, displayText = rawText, retryId?: string, targetConversationId?: string) {
+  async function sendGuidedAnswerValue(step: string, rawText: string, displayText = rawText, retryId?: string, targetConversationId?: string, source: 'text' | 'voice' = 'text') {
     const conversationId = targetConversationId || activeConversation.id;
     if (!conversationId || !user || messageSending || aiReplying) return;
     const skip = rawText.startsWith('[[LENA_SKIP:');
@@ -559,7 +559,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     setMessageSending(true);
     setAiReplying(true);
     try {
-      await withMinDelay(api.dispatchChat.answerStep(Number(conversationId), step, skip ? null : rawText, displayText, skip, lang || 'en'));
+      await withMinDelay(api.dispatchChat.answerStep(Number(conversationId), step, skip ? null : rawText, displayText, skip, lang || 'en', source));
       await result.refresh();
     } catch (error) {
       setOptimisticMessages((messages) => messages.map((message) => message.id === optimisticId ? { ...message, status: 'failed' } : message));
@@ -592,16 +592,16 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     return sendMessageValue(rawText, displayText, undefined, conversationId);
   };
 
-  const sendMessage = async (message = draft) => {
+  const sendMessage = async (message = draft, source: 'text' | 'voice' = 'text') => {
     const trimmed = message.trim();
     if (!trimmed) return;
     if (activeConversation.isAiDispatch && denyIfOutOfTokens(trimmed)) return;
     const conversationId = await ensureConversationId();
     if (!conversationId) return;
     if (activeConversation.canvas && pendingStep && MASKABLE_GUIDED_STEPS.includes(pendingStep)) {
-      return sendGuidedAnswerValue(pendingStep, trimmed, trimmed, undefined, conversationId);
+      return sendGuidedAnswerValue(pendingStep, trimmed, trimmed, undefined, conversationId, source);
     }
-    return sendMessageValue(message, message, undefined, conversationId);
+    return sendMessageValue(message, message, undefined, conversationId, source);
   };
 
   async function attachFileValue(files: File[], retryId?: string, targetConversationId?: string) {
@@ -873,8 +873,8 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
             activeConversation={displayConversation}
             draft={draft}
             onDraftChange={setDraft}
-            onSend={(message) => void sendMessage(message)}
-            onAttachFile={attachFile}
+            onSend={(message, source) => { setVoiceMode(source === 'voice'); void sendMessage(message, source); }}
+            onAttachFile={(files) => { setVoiceMode(false); void attachFile(files); }}
                 attachmentLimitLabel={u('Select up to 5 files at once.', 'Select up to 5 files at once.')}
             attachmentAccept={LENA_LOAD_FILE_ACCEPT}
             attachmentBusy={processingAttachment}
@@ -964,7 +964,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
                   draftId={activeConversation.loadDraftId}
                   documentsVersion={documentsVersion}
                   recommendationBusy={messageSending || aiReplying}
-                  onCopyContainer={(type, quantity, label) => void sendGuidedAnswerValue('containers', `${type}:${quantity}`, label)}
+                  onCopyContainer={(type, quantity, label) => { setVoiceMode(false); void sendGuidedAnswerValue('containers', `${type}:${quantity}`, label); }}
                   loadId={activeConversation.loadId}
                   onOpenLoad={onOpenLoad}
                   onApplyPrefill={onApplyLoadPrefill}

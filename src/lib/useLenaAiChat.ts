@@ -318,7 +318,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
   // The reply in flight, for the thinking indicator (see lenaThinkingTimeline.ts).
   const [thinkingTimeline, setThinkingTimeline] = useState<LenaThinkingTimeline | null>(null);
 
-  async function sendMessage(rawText: string, displayText = rawText, retryId?: string, retryConversationId?: number) {
+  async function sendMessage(rawText: string, displayText = rawText, retryId?: string, retryConversationId?: number, source: 'text' | 'voice' = 'text') {
     const text = rawText.trim();
     if (!text || !userId || sending) return;
     if (outOfTokens) {
@@ -387,7 +387,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
       await replyShowingSkills({
         startedAt: thinkingStartedAt,
         skills: () => api.dispatchChat.skills(conversationId, lang),
-        reply: () => withMinDelay(api.dispatchChat.reply(conversationId, lang)),
+        reply: () => withMinDelay(api.dispatchChat.reply(conversationId, lang, source)),
         onTimeline: setThinkingTimeline,
       });
       await result.refresh();
@@ -399,12 +399,12 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
     }
   }
 
-  const send = async (message = draft) => {
+  const send = async (message = draft, source: 'text' | 'voice' = 'text') => {
     const trimmed = message.trim();
     if (canvasEnabled && pendingStep && MASKABLE_GUIDED_STEPS.includes(pendingStep) && trimmed) {
-      return sendGuidedAnswer(pendingStep, trimmed, trimmed);
+      return sendGuidedAnswer(pendingStep, trimmed, trimmed, undefined, source);
     }
-    return sendMessage(message);
+    return sendMessage(message, message, undefined, undefined, source);
   };
   const sendQuickAction = async (action: LenaQuickAction) => sendMessage(lenaQuickActionMarker(action), quickActionLabels[action]);
   const sendSuggestedReply = async (value: string, displayText = value) => sendMessage(value, displayText);
@@ -413,7 +413,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
   // skips the dispatch-chat + load-scan AI round trip entirely and resolves the draft update and
   // confirmation text deterministically server-side (see LenaGuidedAnswerController). Only free-text
   // answers still go through sendMessage's AI pipeline.
-  const sendGuidedAnswer = async (step: string, value: string, displayText: string, retryId?: string) => {
+  const sendGuidedAnswer = async (step: string, value: string, displayText: string, retryId?: string, source: 'text' | 'voice' = 'text') => {
     if (!userId || sending) return;
     if (outOfTokens) {
       setDraft('');
@@ -431,7 +431,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
     try {
       const conversationId = await ensureConversation(canvasEnabled);
       setOptimisticMessages((messages) => messages.map((message) => message.id === optimisticId ? { ...message, conversationId } : message));
-      await withMinDelay(api.dispatchChat.answerStep(conversationId, step, skip ? null : value, displayText, skip, lang || 'en'));
+      await withMinDelay(api.dispatchChat.answerStep(conversationId, step, skip ? null : value, displayText, skip, lang || 'en', source));
       // See sendMessage's matching comment: flip to the new conversation only after the list
       // already contains it, so `row` doesn't briefly resolve to undefined and flash the welcome
       // screen back before the real conversation takes over.
