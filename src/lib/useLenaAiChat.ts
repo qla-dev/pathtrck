@@ -7,6 +7,7 @@ import { showError } from './swal';
 import { analyzeLenaAttachments, archiveLenaAttachment, latestLoadScan, LenaAttachment, LenaCanvasMode, loadDraftRecordToScan } from './lenaLoadCanvas';
 import { MASKABLE_GUIDED_STEPS } from './lenaStepInputMask';
 import { withMinDelay } from './timing';
+import { replyShowingSkills, type LenaThinkingTimeline } from './lenaThinkingTimeline';
 import { formatClockTime, localTimestampForApi } from './dates';
 import { ui } from '../i18n';
 import { buildScanFieldRows } from '../components/modals/scanFieldRows';
@@ -314,6 +315,9 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
     }
   };
 
+  // The reply in flight, for the thinking indicator (see lenaThinkingTimeline.ts).
+  const [thinkingTimeline, setThinkingTimeline] = useState<LenaThinkingTimeline | null>(null);
+
   async function sendMessage(rawText: string, displayText = rawText, retryId?: string, retryConversationId?: number) {
     const text = rawText.trim();
     if (!text || !userId || sending) return;
@@ -329,6 +333,8 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
       ? messages.map((message) => message.id === retryId ? { ...message, status: 'sending', time: optimisticTime } : message)
       : [...messages, { id: optimisticId, rawText: text, displayText, status: 'sending', time: optimisticTime }]);
     setSending(true);
+    const thinkingStartedAt = Date.now();
+    setThinkingTimeline({ startedAt: thinkingStartedAt });
     let conversationId: number;
     try {
       const guidedAction = lenaQuickActionFromMessage(text);
@@ -377,7 +383,13 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
     }
 
     try {
-      await withMinDelay(api.dispatchChat.reply(conversationId, lang));
+      // The indicator names each skill the reply uses; a ready answer waits until they have been shown.
+      await replyShowingSkills({
+        startedAt: thinkingStartedAt,
+        skills: () => api.dispatchChat.skills(conversationId, lang),
+        reply: () => withMinDelay(api.dispatchChat.reply(conversationId, lang)),
+        onTimeline: setThinkingTimeline,
+      });
       await result.refresh();
       setCanvasOverride(null);
     } catch (error) {
@@ -527,5 +539,5 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
 
   const loadDraftId = row?.load_draft_id ? String(row.load_draft_id) : null;
 
-  return { outOfTokens, tokenResetAt, tokenPackageIcon, tokenPackageColor, conversation, conversationEntryKey: entryAnimationKey, conversationLoading: result.loading, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, hasActiveConversation: Boolean(row), canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId, documentsVersion };
+  return { outOfTokens, tokenResetAt, tokenPackageIcon, tokenPackageColor, conversation, conversationEntryKey: entryAnimationKey, conversationLoading: result.loading, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, hasActiveConversation: Boolean(row), canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId, documentsVersion, thinkingTimeline };
 };

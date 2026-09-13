@@ -812,6 +812,11 @@ export const api = {
     list: () => request<LenaSkillRow[]>('/lena-skills'),
   },
   dispatchChat: {
+    /** The skills the next reply uses, named in the interface language, for LenaAI's thinking indicator. */
+    skills: async (conversationId: number, lang?: string) => (await request<{ id: string; name: string }[]>('/dispatch-chat/skills', {
+      method: 'POST',
+      body: JSON.stringify({ conversation_id: conversationId, lang }),
+    })).data ?? [],
     reply: async (conversationId: number, lang?: string) => (await request<Record<string, unknown>>('/dispatch-chat', {
       method: 'POST',
       body: JSON.stringify({ conversation_id: conversationId, lang }),

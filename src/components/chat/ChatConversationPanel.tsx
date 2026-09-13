@@ -5,6 +5,7 @@ import { cn } from '../../lib/cn';
 import { ChatMessage, Conversation } from './types';
 import { TypewriterText } from './TypewriterText';
 import { LenaThinkingIndicator } from './LenaThinkingIndicator';
+import type { LenaThinkingTimeline } from '../../lib/lenaThinkingTimeline';
 import { formatAttachmentSize, isInlineViewableLenaAttachment } from '../../lib/lenaLoadCanvas';
 import { api } from '../../services/api';
 import { showError } from '../../lib/swal';
@@ -43,6 +44,10 @@ type ChatConversationPanelProps = {
   otherTyping?: boolean;
   thinkingLabel?: string;
   thinkingPhrases?: string[];
+  /** The reply in flight: names the skills LenaAI uses between its thinking phrases. */
+  thinkingTimeline?: LenaThinkingTimeline | null;
+  /** Shown before a skill's name, e.g. "koristi skill". */
+  thinkingSkillLabel?: string;
   onTitleClick?: () => void;
   headerLeading?: ReactNode;
   /** Reserves space for header actions in narrow side panels. */
@@ -95,6 +100,8 @@ export const ChatConversationPanel = ({
   otherTyping = false,
   thinkingLabel = 'Thinking',
   thinkingPhrases,
+  thinkingTimeline,
+  thinkingSkillLabel,
   onTitleClick,
   headerLeading,
   compactHeader = false,
@@ -512,7 +519,7 @@ export const ChatConversationPanel = ({
           role={thinkingPhrases?.length ? undefined : 'status'}
           aria-label={thinkingPhrases?.length ? undefined : thinkingLabel}
         >
-          {thinkingPhrases?.length ? <LenaThinkingIndicator key={activeConversation.id} phrases={thinkingPhrases} /> : <span
+          {thinkingPhrases?.length ? <LenaThinkingIndicator key={activeConversation.id} phrases={thinkingPhrases} timeline={thinkingTimeline} skillLabel={thinkingSkillLabel} /> : <span
             aria-hidden="true"
             className="animate-text-shimmer bg-[length:200%_100%] bg-[linear-gradient(90deg,#94a3b8_20%,#334155_50%,#94a3b8_80%)] bg-clip-text text-transparent dark:bg-[linear-gradient(90deg,#64748b_20%,#f8fafc_50%,#64748b_80%)]"
           >

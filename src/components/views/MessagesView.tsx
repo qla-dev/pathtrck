@@ -18,6 +18,7 @@ import { buildScanFieldRows, ScanFieldPatch } from '../modals/scanFieldRows';
 import { analyzeLenaAttachments, archiveLenaAttachment, latestLoadScan, LENA_LOAD_FILE_ACCEPT, LenaAttachment, loadDraftRecordToScan } from '../../lib/lenaLoadCanvas';
 import { LENA_AI_GENERAL_SUBJECT, LenaQuickAction, lenaConversationSubjectTitle, lenaQuickActionFromMessage, lenaQuickActionMarker } from '../../lib/useLenaAiChat';
 import { withMinDelay } from '../../lib/timing';
+import { replyShowingSkills, type LenaThinkingTimeline } from '../../lib/lenaThinkingTimeline';
 import { formatClockTime, localTimestampForApi } from '../../lib/dates';
 import { lenaStepInputMask, MASKABLE_GUIDED_STEPS } from '../../lib/lenaStepInputMask';
 import { useLenaTokenBalance } from '../../lib/useLenaTokenBalance';
@@ -201,6 +202,8 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
   const [activeId, setActiveId] = useState(EMPTY_LENA_CONVERSATION_ID);
   const [draft, setDraft] = useState('');
   const [aiReplying, setAiReplying] = useState(false);
+  // The reply in flight, for the thinking indicator (see lenaThinkingTimeline.ts).
+  const [thinkingTimeline, setThinkingTimeline] = useState<LenaThinkingTimeline | null>(null);
   const [messageSending, setMessageSending] = useState(false);
   const [optimisticMessages, setOptimisticMessages] = useState<OptimisticMessage[]>([]);
   const [processingAttachment, setProcessingAttachment] = useState(false);
@@ -487,6 +490,8 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
       : [...messages, { id: optimisticId, conversationId, rawText: text, displayText, status: 'sending', time: optimisticTime, sentIdsBefore: savedSentMessageIds(conversationId) }]);
     setMessageSending(true);
     if (isAiDispatch) setAiReplying(true);
+    const thinkingStartedAt = Date.now();
+    if (isAiDispatch) setThinkingTimeline({ startedAt: thinkingStartedAt });
     try {
       let attachments: LenaAttachment[] | undefined;
       if (activeConversation.canvas && isAiDispatch && !lenaQuickActionFromMessage(text)) {
@@ -515,7 +520,13 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
 
     if (isAiDispatch) {
       try {
-        await withMinDelay(api.dispatchChat.reply(Number(conversationId), lang));
+        // The indicator names each skill the reply uses; a ready answer waits until they have been shown.
+        await replyShowingSkills({
+          startedAt: thinkingStartedAt,
+          skills: () => api.dispatchChat.skills(Number(conversationId), lang),
+          reply: () => withMinDelay(api.dispatchChat.reply(Number(conversationId), lang)),
+          onTimeline: setThinkingTimeline,
+        });
         await result.refresh();
       } catch (error) {
         void showError(
@@ -618,6 +629,8 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
 
     setProcessingAttachment(true);
     setAiReplying(true);
+    // A fresh phrase loop, so the indicator starts at "razmišlja" rather than where the last reply left off.
+    setThinkingTimeline({ startedAt: Date.now() });
     let attachmentScans: LenaAttachment[] = [];
     try {
       attachmentScans = await analyzeLenaAttachments(files, 'new_load', Number(conversationId), latestLoadScan(canvasAttachments));
@@ -867,6 +880,8 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
             messagePlaceholder={u('Write a message...', 'Write a message...')}
             className="min-h-0 min-w-0 flex-1"
             otherTyping={aiReplying}
+            thinkingTimeline={thinkingTimeline}
+            thinkingSkillLabel={u('lena.usingSkillPhrase', 'is using skill')}
             thinkingLabel={u('Thinking', 'Thinking')}
                 thinkingPhrases={[
                   u('lena.thinkingPhrase', 'is thinking'),
