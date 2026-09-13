@@ -37,7 +37,7 @@ export const ChecklistAgentModal = ({ lang, value, onSave, onClose }: {
   onSave: (value: string) => Promise<void>;
   onClose: () => void;
 }) => {
-  const text = COPY[lang === 'bs' || lang === 'de' ? lang : 'en'];
+  const text = COPY[lang === 'bs' || lang === 'de' ? lang : lang === 'hr' || lang === 'sr' ? 'bs' : 'en'];
   const [data, setData] = useState(() => parseAgent(value));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');

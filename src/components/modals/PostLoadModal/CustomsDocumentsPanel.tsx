@@ -35,7 +35,7 @@ const COPY = {
 } as const;
 
 export function CustomsDocumentsPanel({ hsCodes, documents, onChange, lang }: Props) {
-  const text = COPY[lang === 'bs' || lang === 'de' ? lang : 'en'];
+  const text = COPY[lang === 'bs' || lang === 'de' ? lang : lang === 'hr' || lang === 'sr' ? 'bs' : 'en'];
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [catalog, setCatalog] = useState<CustomsDocument[]>([]);
   const [search, setSearch] = useState('');

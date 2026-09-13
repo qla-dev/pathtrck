@@ -117,7 +117,7 @@ const ChecklistDatePicker = memo(({ fieldKey, value, disabled, lang, onChange, e
 });
 
 export const ShipmentOperationsTab = ({ workspace, lang, role, readOnly = false, onUpdated, onLoadChanged, onVehicleReturn, loadStatus, allowPodDuringDelivery = false }: Props) => {
-  const text = COPY[lang === 'bs' || lang === 'de' ? lang : 'en'];
+  const text = COPY[lang === 'bs' || lang === 'de' ? lang : lang === 'hr' || lang === 'sr' ? 'bs' : 'en'];
   const checklist = array(workspace.operational_checklist);
   const freightLoad = record(workspace.freight_load);
   const currentStatus = String(loadStatus || freightLoad.status || '').toLowerCase().replaceAll(' ', '_');

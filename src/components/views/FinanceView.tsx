@@ -70,7 +70,7 @@ const FinanceModal = ({ title, subtitle, onClose, children }: { title: string; s
 );
 
 export const FinanceView = ({ lang }: { lang: Language }) => {
-  const copy = COPY[lang === 'bs' || lang === 'de' ? lang : 'en'];
+  const copy = COPY[lang === 'bs' || lang === 'de' ? lang : lang === 'hr' || lang === 'sr' ? 'bs' : 'en'];
   const result = useApiList(api.invoices.list, { per_page: 500 });
   const loadsResult = useApiList(api.loads.list, { per_page: 500 });
   const invoiceDocuments = useApiList(api.documents.list, { type: 'INVOICE', per_page: 500 });

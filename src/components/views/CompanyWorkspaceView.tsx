@@ -138,7 +138,8 @@ export const CompanyWorkspaceView = ({ lang, onPostLoad }: { lang: Language; onP
     return result;
   }, new Map()), [companyLoads]);
   const topCountries = useMemo(() => {
-    const countryNames = new Intl.DisplayNames([lang === 'bs' || lang === 'de' ? lang : 'en'], { type: 'region' });
+    const countryLocale = lang === 'hr' ? 'hr-HR' : lang === 'sr' ? 'sr-Cyrl-RS' : lang === 'bs' ? 'bs-BA' : lang === 'de' ? 'de-DE' : 'en-US';
+    const countryNames = new Intl.DisplayNames([countryLocale], { type: 'region' });
     return Array.from(destinationCountries, ([code, value]) => ({ code, value, name: countryNames.of(code) || code })).sort((a, b) => b.value - a.value).slice(0, 5);
   }, [destinationCountries, lang]);
   const operationalAlerts = useMemo(() => {

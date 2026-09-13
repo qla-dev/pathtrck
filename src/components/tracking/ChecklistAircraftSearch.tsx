@@ -20,7 +20,7 @@ const savedMatch = (value: string): Match | null => {
 export const ChecklistAircraftSearch = ({ value, lang, disabled, onSave, retrySignal = 0 }: {
   value: string; lang: Language; disabled: boolean; onSave: (value: string) => Promise<void>; retrySignal?: number;
 }) => {
-  const text = COPY[lang === 'bs' || lang === 'de' ? lang : 'en'];
+  const text = COPY[lang === 'bs' || lang === 'de' ? lang : lang === 'hr' || lang === 'sr' ? 'bs' : 'en'];
   const initial = savedMatch(value);
   const [query, setQuery] = useState(initial?.hex || value);
   const [match, setMatch] = useState<Match | null>(initial);

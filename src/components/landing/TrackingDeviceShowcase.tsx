@@ -69,7 +69,7 @@ function RouteScreen({ mode, text }: { mode: number; text: Text }) {
 }
 
 export function TrackingDeviceShowcase({ lang }: { lang: Language }) {
-  const text = COPY[lang === 'bs' || lang === 'de' ? lang : 'en'];
+  const text = COPY[lang === 'bs' || lang === 'de' ? lang : lang === 'hr' || lang === 'sr' ? 'bs' : 'en'];
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
   const reduced = useReducedMotion();

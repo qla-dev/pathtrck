@@ -1,4 +1,4 @@
-export type LenaCatalogLocale = 'en' | 'de' | 'bs' | 'hr' | 'sr';
+export type LenaCatalogLocale = 'en' | 'de' | 'bs' | 'hr' | 'sr' | 'sr_cyrl';
 export type LenaTransport = 'road' | 'air' | 'sea' | 'rail' | 'warehouse';
 export type LenaCatalogChoice = { label: string; value: string; skip?: boolean; description?: string; category?: string; /** The glyph name the catalog assigns this option - see lenaIcons.ts. */ icon?: string };
 export type LenaCatalogStep = {
@@ -51,7 +51,7 @@ export type LenaCatalogData = {
   option_groups: Record<string, string[] | string>;
   container_categories: Record<string, string>;
   option_icons: Record<string, string>;
-  locales: Record<LenaCatalogLocale, LenaCatalogText>;
+  locales: Record<Exclude<LenaCatalogLocale, 'sr_cyrl'>, LenaCatalogText> & { sr_cyrl?: LenaCatalogText };
 };
 let catalog: LenaCatalogData | null = null;
 
@@ -71,8 +71,9 @@ export function getLenaCatalog(): LenaCatalogData {
 }
 
 export function lenaText(locale: string | null | undefined): LenaCatalogText {
-  const active = locale === 'de' || locale === 'bs' || locale === 'hr' || locale === 'sr' ? locale : 'en';
-  return getLenaCatalog().locales[active];
+  const catalogData = getLenaCatalog();
+  const active = locale === 'de' || locale === 'bs' || locale === 'hr' ? locale : locale === 'sr' ? 'sr_cyrl' : 'en';
+  return catalogData.locales[active] ?? catalogData.locales.sr ?? catalogData.locales.en;
 }
 
 export function lenaTranslation(locale: string | null | undefined, key: string, fallback: string): string | undefined {

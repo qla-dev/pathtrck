@@ -1,4 +1,5 @@
 import { lenaTranslation } from './lib/lenaCatalog';
+import { toSerbianCyrillic } from './lib/serbianCyrillic';
 import { Language } from './types';
 import type { CustomLocale } from 'flatpickr/dist/types/locale';
 
@@ -2838,6 +2839,89 @@ const toSerbianEkavian = (value: string): string => value
   .replace(/listopad/gi, 'oktobar')
   .replace(/studeni/gi, 'novembar')
   .replace(/prosinac/gi, 'decembar');
+
+Object.assign(UI.hr, Object.fromEntries(Object.entries(UI.bs).map(([key, value]) => [key, toCroatian(value)])));
+Object.assign(UI.sr, Object.fromEntries(Object.entries(UI.bs).map(([key, value]) => [key, toSerbianEkavian(value)])));
+Object.assign(UI.sr, Object.fromEntries(Object.entries(UI.sr).map(([key, value]) => [key, toSerbianCyrillic(value)])));
+
+Object.assign(UI.sr, Object.fromEntries(Object.entries(UI.sr).map(([key, value]) => [key, toSerbianCyrillic(value)])));
+
+Object.assign(UI.bs, {
+  'fleet.status.active': 'Aktivno',
+  'fleet.status.available': 'Dostupno',
+  'fleet.status.maintenance': 'Održavanje',
+  'fleet.status.inactive': 'Neaktivno',
+  'fleet.status.on_the_road': 'Na putu',
+  'vehicle.type.light_trucks': 'Laki kamioni',
+  'vehicle.type.truck': 'Kamion',
+  'vehicle.type.other': 'Ostalo',
+  'transport.road': 'Drumski prevoz',
+  'transport.air': 'Avio prevoz',
+  'transport.sea': 'Pomorski prevoz',
+  'transport.rail': 'Željeznički prevoz',
+  'transport.warehouse': 'Skladište',
+});
+Object.assign(UI.hr, Object.fromEntries(Object.entries(UI.bs).map(([key, value]) => [key, toCroatian(value)])));
+Object.assign(UI.sr, Object.fromEntries(Object.entries(UI.bs).map(([key, value]) => [key, toSerbianEkavian(value)])));
+
+Object.assign(UI.bs, {
+  'shipmentDetails.editLoad': 'Uredi teret',
+  'shipmentDetails.status': 'Status',
+  'feed.exchangeFilters.all': 'Sve',
+  'tracking.agent': 'Agent',
+  'tracking.storage': 'Skladištenje',
+  'common.all': 'Sve',
+  'landing.model': 'Model',
+  'landing.eta': 'Očekivano vrijeme dolaska',
+  'landing.pricing.starter.name': 'Starter',
+  'landing.pricing.pro.name': 'Professional',
+  'landing.pricing.enterprise.name': 'Enterprise',
+  'home.feedMode.all': 'Sve',
+  'history.filter.all': 'Sve',
+  'history.tab.timeline': 'Vremenska linija',
+  'fleet.table.status': 'Status',
+  'legal.table.status': 'Status',
+  'pricing.plan.starter.name': 'Starter',
+  'pricing.plan.pro.name': 'Pro',
+  'pricing.plan.business.name': 'Business',
+  'payments.cvc': 'Sigurnosni kod',
+  'payments.email': 'E-mail',
+});
+Object.assign(UI.hr, Object.fromEntries(Object.entries(UI.bs).map(([key, value]) => [key, toCroatian(value)])));
+Object.assign(UI.sr, Object.fromEntries(Object.entries(UI.bs).map(([key, value]) => [key, toSerbianEkavian(value)])));
+Object.assign(UI.sr, Object.fromEntries(Object.entries(UI.sr).map(([key, value]) => [key, toSerbianCyrillic(value)])));
+
+Object.assign(UI.bs, {
+  'common.filter': 'Filteri',
+  'shipmentDetails.shipments': 'Praćenje',
+  'shipmentDetails.editLoad': 'Uredi teret',
+  'feed.exchangeFilters.all': 'Sve',
+  'tracking.agent': 'Agent',
+  'tracking.storage': 'Skladištenje',
+  'tracking.min': 'Min.',
+  'tracking.max': 'Maks.',
+  'common.all': 'Sve',
+  'landing.routeTimeline': 'Vremenska linija rute',
+  'landing.model': 'Model',
+  'landing.eta': 'Očekivano vrijeme dolaska',
+  'landing.routeProgress.startHub': 'Čvorište Zagreb',
+  'landing.routeProgress.endHub': 'Distribucijski centar Amsterdam',
+  'landing.pricing.starter.name': 'Starter',
+  'landing.pricing.pro.name': 'Professional',
+  'landing.pricing.enterprise.name': 'Enterprise',
+  'landing.stats.uptimeSla': 'SLA dostupnosti',
+  'home.feedMode.all': 'Sve',
+  'history.filter.all': 'Sve',
+  'history.tab.timeline': 'Vremenska linija',
+  'history.tab.magic': 'Pametna ruta',
+  'history.routeTimeline': 'Vremenska linija rute',
+  'history.magicTwin': 'Pametni dvojnik rute',
+  'fleet.table.status': 'Status',
+  'automations.workflow.autoAssignFallback': 'Automatski dodijeli rezervnog vozača',
+  'automations.log.routeScore': 'Ocjena rute je ponovo izračunata',
+  'legal.table.status': 'Status',
+  'legal.auto': 'automatski',
+});
 
 Object.assign(UI.hr, Object.fromEntries(Object.entries(UI.bs).map(([key, value]) => [key, toCroatian(value)])));
 Object.assign(UI.sr, Object.fromEntries(Object.entries(UI.bs).map(([key, value]) => [key, toSerbianEkavian(value)])));
@@ -8799,7 +8883,12 @@ export const translateTriplet = (lang: Language, en: string, bs: string, de: str
   return en;
 };
 
-const locale = (lang: Language) => UI[(lang || 'en') as Locale] || UI.en;
+const locale = (lang: Language) => {
+  const selected = UI[(lang || 'en') as Locale] || UI.en;
+  return lang === 'sr'
+    ? Object.fromEntries(Object.entries(selected).map(([key, value]) => [key, toSerbianCyrillic(value)]))
+    : selected;
+};
 Object.assign(UI.en, {
   'hsChip.classification': 'Customs tariff classification',
   'hsChip.parent': 'Parent section',
@@ -9937,3 +10026,33 @@ Object.assign(UI.de, {
   'setup.transportCompanyDesc': 'Transporte und Flotte verwalten, mit oder ohne eigenes Lager',
   'setup.warehouseCompanyDesc': 'Verwalten Sie Ihre Lager und Lagerabläufe',
 });
+
+// Build regional catalogs last so keys appended by later UI.bs blocks do not fall back to English.
+Object.assign(UI.hr, Object.fromEntries(Object.entries(UI.bs).map(([key, value]) => [key, toCroatian(value)])));
+Object.assign(UI.sr, Object.fromEntries(Object.entries(UI.bs).map(([key, value]) => [key, toSerbianEkavian(value)])));
+
+Object.assign(UI.bs, {
+  'shipmentDetails.editLoad': 'Uredi teret',
+  'shipmentDetails.status': 'Status',
+  'feed.exchangeFilters.all': 'Sve',
+  'tracking.agent': 'Agent',
+  'tracking.storage': 'Skladištenje',
+  'common.all': 'Sve',
+  'landing.model': 'Model',
+  'landing.eta': 'Očekivano vrijeme dolaska',
+  'landing.pricing.starter.name': 'Starter',
+  'landing.pricing.pro.name': 'Professional',
+  'landing.pricing.enterprise.name': 'Enterprise',
+  'home.feedMode.all': 'Sve',
+  'history.filter.all': 'Sve',
+  'history.tab.timeline': 'Vremenska linija',
+  'fleet.table.status': 'Status',
+  'legal.table.status': 'Status',
+  'pricing.plan.starter.name': 'Starter',
+  'pricing.plan.pro.name': 'Pro',
+  'pricing.plan.business.name': 'Business',
+  'payments.cvc': 'Sigurnosni kod',
+  'payments.email': 'E-mail',
+});
+Object.assign(UI.hr, Object.fromEntries(Object.entries(UI.bs).map(([key, value]) => [key, toCroatian(value)])));
+Object.assign(UI.sr, Object.fromEntries(Object.entries(UI.bs).map(([key, value]) => [key, toSerbianEkavian(value)])));

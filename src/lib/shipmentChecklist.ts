@@ -445,7 +445,7 @@ const STATUSES: Record<string, Record<Locale, string>> = {
 
 const MUST = { en: 'must', bs: 'mora', de: 'muss' } as const;
 
-const localeOf = (lang: Language): Locale => (lang === 'bs' || lang === 'de' ? lang : 'en');
+const localeOf = (lang: Language): Locale => (lang === 'bs' || lang === 'de' ? lang : lang === 'hr' || lang === 'sr' ? 'bs' : 'en');
 const humanize = (key: string) => key.replaceAll('_', ' ').replace(/^\w/, (letter) => letter.toUpperCase());
 
 export const checklistOwner = (key: unknown): ChecklistOwner =>

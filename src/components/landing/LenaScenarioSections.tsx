@@ -348,7 +348,7 @@ const BookingVisual = ({ text }: { text: ScenarioText }) => {
 };
 
 export const LenaScenarioSections = ({ lang }: { lang: Language }) => {
-  const locale: ScenarioLocale = lang === 'bs' || lang === 'de' ? lang : 'en';
+  const locale: ScenarioLocale = lang === 'bs' || lang === 'de' ? lang : lang === 'hr' || lang === 'sr' ? 'bs' : 'en';
   const text = copy[locale];
 
   return (

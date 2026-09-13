@@ -12,7 +12,7 @@ export const TrackerLocationLoader = ({ mode, lang }: { mode: string; lang: Lang
   const [step, setStep] = useState(0);
   const kind = mode === 'air' || mode === 'sea' || mode === 'rail' ? mode : 'road';
   const Icon = { air: Plane, sea: Ship, rail: Train, road: Truck }[kind];
-  const copy = COPY[lang === 'bs' || lang === 'de' ? lang : 'en'];
+  const copy = COPY[lang === 'bs' || lang === 'de' ? lang : lang === 'hr' || lang === 'sr' ? 'bs' : 'en'];
   useEffect(() => {
     const timer = window.setInterval(() => setStep((value) => Math.min(value + 1, 2)), 3500);
     return () => window.clearInterval(timer);

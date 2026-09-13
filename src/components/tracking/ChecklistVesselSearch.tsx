@@ -20,7 +20,7 @@ const savedMatch = (value: string): Match | null => {
 export const ChecklistVesselSearch = ({ value, lang, disabled, onSave }: {
   value: string; lang: Language; disabled: boolean; onSave: (value: string) => Promise<void>;
 }) => {
-  const text = COPY[lang === 'bs' || lang === 'de' ? lang : 'en'];
+  const text = COPY[lang === 'bs' || lang === 'de' ? lang : lang === 'hr' || lang === 'sr' ? 'bs' : 'en'];
   const initial = savedMatch(value);
   const [query, setQuery] = useState(initial?.mmsi || value);
   const [match, setMatch] = useState<Match | null>(initial);

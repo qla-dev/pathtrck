@@ -417,8 +417,8 @@ export const ProfileView = ({
   /** A driver document was filed or removed - the header badge reads the same documents. */
   onVerificationChanged?: () => void;
 }) => {
-  const text = COPY[lang === "bs" || lang === "de" ? lang : "en"];
-  const detailText = DETAIL_COPY[lang === "bs" || lang === "de" ? lang : "en"];
+  const text = COPY[lang === "bs" || lang === "de" ? lang : lang === "hr" || lang === "sr" ? "bs" : "en"];
+  const detailText = DETAIL_COPY[lang === "bs" || lang === "de" ? lang : lang === "hr" || lang === "sr" ? "bs" : "en"];
   const profileLoadScope = useMemo<Record<string, number>>(() => {
     if (!profileRecord || !profileKind) return {};
     const linkedUser = (profileRecord.user || profileRecord.owner || {}) as Record<string, unknown>;

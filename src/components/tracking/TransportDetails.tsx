@@ -242,7 +242,7 @@ export const TransportDetails = ({ kind, id, lang, variant, onClose, footer }: {
   onClose: () => void;
   footer?: ReactNode;
 }) => {
-  const text = COPY[lang === 'bs' || lang === 'de' ? lang : 'en'];
+  const text = COPY[lang === 'bs' || lang === 'de' ? lang : lang === 'hr' || lang === 'sr' ? 'bs' : 'en'];
   const [view, setView] = useState<View | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

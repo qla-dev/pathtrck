@@ -94,6 +94,7 @@ import {
   trGoodsType,
   trPaymentTerms,
 } from "./i18n";
+import { toSerbianCyrillic } from "./lib/serbianCyrillic";
 import { cn } from "./lib/cn";
 import { setDocumentMeta } from "./lib/documentMeta";
 import { SUPPORTED_CURRENCIES } from "./lib/currency";
@@ -607,10 +608,10 @@ const HeroConnectionVisual = () => {
 // --- Views ---
 
 const allLanguages: { id: Language; flag: string; label: string }[] = [
-  { id: "en", flag: "🇺🇸", label: "English" },
   { id: "bs", flag: "🇧🇦", label: "Bosanski" },
   { id: "hr", flag: "🇭🇷", label: "Hrvatski" },
   { id: "sr", flag: "🇷🇸", label: "Српски" },
+  { id: "en", flag: "🇺🇸", label: "English" },
   { id: "de", flag: "🇩🇪", label: "Deutsch" },
   { id: "pl", flag: "🇵🇱", label: "Polski" },
   { id: "ro", flag: "🇷🇴", label: "Romana" },
@@ -1317,6 +1318,11 @@ const translations: Record<Exclude<Language, null>, Record<string, string>> = {
   }),
 };
 
+Object.assign(
+  translations.sr,
+  Object.fromEntries(Object.entries(translations.sr).map(([key, value]) => [key, toSerbianCyrillic(value)])),
+);
+
 const myCargoLabels: Record<Exclude<Language, null>, string> = {
   en: "My Cargo",
   bs: "Moj teret",
@@ -1659,8 +1665,9 @@ const LandingPage = ({
   const statsLocale = activeLang === "bs" ? "bs-BA" : activeLang === "hr" ? "hr-HR" : activeLang === "sr" ? "sr-Cyrl-RS" : activeLang === "de" ? "de-DE" : "en-US";
   const formatLandingCount = (value?: number) =>
     typeof value === "number" ? new Intl.NumberFormat(statsLocale).format(value) : "—";
-  const titleMessages =
-    HERO_MAIN_TITLE_MESSAGES[activeLang] || HERO_MAIN_TITLE_MESSAGES.en;
+  const titleMessages = (HERO_MAIN_TITLE_MESSAGES[activeLang] || HERO_MAIN_TITLE_MESSAGES.en).map((message) =>
+    activeLang === "sr" ? { ...message, text: toSerbianCyrillic(message.text), keyword: toSerbianCyrillic(message.keyword) } : message,
+  );
   // The modules a signed-in account meets in the sidebar. Names come from the same label sources
   // the app itself renders (translations / nav keys), so the landing page can never advertise a
   // module under a name that does not exist once you are inside.
@@ -5739,7 +5746,7 @@ export default function App() {
         setCurrentUser(user);
         setRole(restoredRole);
         setView(getDefaultViewForRole(restoredRole, user));
-        if (isSupportedLanguage(user.language)) setLang(user.language);
+        if (!window.localStorage.getItem(LANGUAGE_STORAGE_KEY) && isSupportedLanguage(user.language)) setLang(user.language);
         setIsLanding(false);
       })
       .catch(() => {
@@ -7050,6 +7057,44 @@ export default function App() {
               </button>
             ) : null}
 
+            <ClickDropdown
+              ariaLabel="Language switcher"
+              title={currentLang.label}
+              triggerClassName="h-10 w-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary hover:scale-105 transition-all cursor-pointer flex items-center justify-center"
+              trigger={
+                <img
+                  src={getFlagUrl(currentLang.id)}
+                  srcSet={`${getFlagUrl(currentLang.id, 40)} 2x`}
+                  alt={`${currentLang.label} flag`}
+                  className="h-5 w-5 rounded-full object-cover"
+                  loading="lazy"
+                />
+              }
+              menuClassName="absolute top-full right-0 mt-2 w-40 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 p-2 z-[110]"
+            >
+              {languages.map((l) => (
+                <button
+                  key={l.id}
+                  onClick={() => setLang(l.id)}
+                  className={cn(
+                    "w-full flex items-center gap-3 p-2 rounded-xl text-sm font-medium transition-all cursor-pointer",
+                    (lang || "en") === l.id
+                      ? "bg-primary/10 text-primary"
+                      : "text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800",
+                  )}
+                >
+                  <img
+                    src={getFlagUrl(l.id)}
+                    srcSet={`${getFlagUrl(l.id, 40)} 2x`}
+                    alt={`${l.label} flag`}
+                    className="h-[15px] w-5 rounded-[2px] object-cover"
+                    loading="lazy"
+                  />
+                  <span>{l.label}</span>
+                </button>
+              ))}
+            </ClickDropdown>
+
             {isElevatedAdmin && (
               <button
                 type="button"
@@ -7096,44 +7141,6 @@ export default function App() {
             >
               <MapIcon className="w-5 h-5" />
             </button>
-
-            <ClickDropdown
-              ariaLabel="Language switcher"
-              title={currentLang.label}
-              triggerClassName="h-10 w-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary hover:scale-105 transition-all cursor-pointer flex items-center justify-center"
-              trigger={
-                <img
-                  src={getFlagUrl(currentLang.id)}
-                  srcSet={`${getFlagUrl(currentLang.id, 40)} 2x`}
-                  alt={`${currentLang.label} flag`}
-                  className="h-5 w-5 rounded-full object-cover"
-                  loading="lazy"
-                />
-              }
-              menuClassName="absolute top-full right-0 mt-2 w-40 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 p-2 z-[110]"
-            >
-                {languages.map((l) => (
-                  <button
-                    key={l.id}
-                    onClick={() => setLang(l.id)}
-                    className={cn(
-                      "w-full flex items-center gap-3 p-2 rounded-xl text-sm font-medium transition-all cursor-pointer",
-                      (lang || "en") === l.id
-                        ? "bg-primary/10 text-primary"
-                        : "text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800",
-                    )}
-                  >
-                    <img
-                      src={getFlagUrl(l.id)}
-                      srcSet={`${getFlagUrl(l.id, 40)} 2x`}
-                      alt={`${l.label} flag`}
-                      className="h-[15px] w-5 rounded-[2px] object-cover"
-                      loading="lazy"
-                    />
-                    <span>{l.label}</span>
-                  </button>
-                ))}
-            </ClickDropdown>
 
             <button
               onClick={() => setView("pricing")}

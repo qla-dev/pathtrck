@@ -22,7 +22,7 @@ const titleCase = (value: unknown) => String(value || '—').replaceAll('_', ' '
 
 /** The booking's own status, kept next to the shipment title so it reads from every sub-tab. */
 export const ShipmentOfferStatus = ({ workspace, lang, onUpdated }: Props) => {
-  const text = COPY[lang === 'bs' || lang === 'de' ? lang : 'en'];
+  const text = COPY[lang === 'bs' || lang === 'de' ? lang : lang === 'hr' || lang === 'sr' ? 'bs' : 'en'];
   const acceptedOffer = record(workspace.accepted_offer);
   const offerSnapshot = record(workspace.offer_snapshot);
   const requestType = String(acceptedOffer.request_type || offerSnapshot.request_type || 'price_offer');

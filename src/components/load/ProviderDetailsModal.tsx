@@ -34,7 +34,7 @@ const COPY = {
 } as const;
 
 export const ProviderDetailsModal = ({ open, lang, offer, onClose }: ProviderDetailsModalProps) => {
-  const text = COPY[lang === 'bs' || lang === 'de' ? lang : 'en'];
+  const text = COPY[lang === 'bs' || lang === 'de' ? lang : lang === 'hr' || lang === 'sr' ? 'bs' : 'en'];
   const company = (offer?.company || {}) as Record<string, unknown>;
   const creator = (offer?.creator || {}) as Record<string, unknown>;
   const driver = (offer?.driver || {}) as Record<string, unknown>;

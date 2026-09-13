@@ -58,7 +58,7 @@ const EDIT_COPY = {
   de: { title: 'Bewertung bearbeiten', post: 'Bewertung speichern', posting: 'Wird gespeichert…' },
 } as const;
 
-const locale = (lang: Language): 'en' | 'bs' | 'de' => lang === 'bs' || lang === 'de' ? lang : 'en';
+const locale = (lang: Language): 'en' | 'bs' | 'de' => lang === 'bs' || lang === 'de' ? lang : lang === 'hr' || lang === 'sr' ? 'bs' : 'en';
 
 const summaryFrom = (response: ApiEnvelope<Array<Record<string, unknown>>>): ReviewSummary => ({
   reviews: response.data,

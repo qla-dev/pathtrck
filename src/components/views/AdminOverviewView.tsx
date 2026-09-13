@@ -5,7 +5,7 @@ import worldMap from '@svg-maps/world';
 
 import { CompactCard } from '../ui/CompactCard';
 import { useApiList } from '../../hooks/useApiList';
-import { trLoadStatus } from '../../i18n';
+import { trLoadStatus, ui } from '../../i18n';
 import { api } from '../../services/api';
 import { Language } from '../../types';
 
@@ -28,10 +28,37 @@ const COPY = {
   },
 } as const;
 
+const regionalCopy = (language: Language): typeof COPY.bs => {
+  if (language === 'hr') {
+    return Object.fromEntries(Object.entries(COPY.bs).map(([key, value]) => [key, value
+      .replace(/kompanij/gi, 'tvrtk')
+      .replace(/prevoznic/gi, 'prijevoznič')
+      .replace(/iskorištenost/gi, 'iskorištenost')
+      .replace(/teret/gi, 'pošiljk')
+      .replace(/praćenj/gi, 'praćenj')
+      .replace(/zadnjih/gi, 'posljednjih')
+      .replace(/najbolji/gi, 'najbolji')
+      .replace(/pogledaj/gi, 'prikaži')
+      .replace(/ukupno/gi, 'ukupno')
+      .replace(/ulaz/gi, 'ulaz')
+      .replace(/izlaz/gi, 'izlaz')])) as typeof COPY.bs;
+  }
+
+  return Object.fromEntries(Object.entries(COPY.bs).map(([key, value]) => [key, value
+    .replace(/kompanij/gi, 'kompanij')
+    .replace(/prevoznic/gi, 'prevoznic')
+    .replace(/iskorištenost/gi, 'iskorišćenost')
+    .replace(/teret/gi, 'teret')
+    .replace(/praćenj/gi, 'praćenj')
+    .replace(/zadnjih/gi, 'poslednjih')
+    .replace(/najbolji/gi, 'najbolji')
+    .replace(/pogledaj/gi, 'pogledaj')
+    .replace(/ukupno/gi, 'ukupno')])) as typeof COPY.bs;
+};
+
 const tipStyle = { borderRadius: 10, border: '1px solid #e2e8f0', boxShadow: '0 8px 24px rgb(15 23 42 / .12)', fontSize: 11 };
 const number = (value: number) => value.toLocaleString('en-US');
 const EUROPE_CODES = new Set(['ad','al','am','at','az','ba','be','bg','by','ch','cy','cz','de','dk','ee','es','fi','fr','gb','ge','gr','hr','hu','ie','is','it','li','lt','lu','lv','mc','md','me','mk','mt','nl','no','pl','pt','ro','rs','ru','se','si','sk','sm','tr','ua','va','xk']);
-const COUNTRY_NAMES = new Intl.DisplayNames(['en'], { type: 'region' });
 const age = (value: unknown) => {
   const date = value ? new Date(String(value)) : null;
   if (!date || Number.isNaN(date.getTime())) return '—';
@@ -81,7 +108,9 @@ export const EuropeHeatMap = ({ values, className = 'h-[132px] w-full' }: { valu
 };
 
 export const AdminOverviewView = ({ lang }: { lang: Language }) => {
-  const t = COPY[lang === 'bs' || lang === 'de' ? lang : 'en'];
+  const t = lang === 'bs' || lang === 'de' ? COPY[lang] : lang === 'en' ? COPY.en : regionalCopy(lang);
+  const displayLocale = lang === 'hr' ? 'hr-HR' : lang === 'sr' ? 'sr-Cyrl-RS' : lang === 'bs' ? 'bs-BA' : lang === 'de' ? 'de-DE' : 'en-US';
+  const countryNames = new Intl.DisplayNames([displayLocale], { type: 'region' });
   const companies = useApiList(api.companies.list, { per_page: 500 });
   const customers = useApiList(api.customers.list, { limit: 1 });
   const drivers = useApiList(api.drivers.list, { per_page: 500 });
@@ -113,12 +142,12 @@ export const AdminOverviewView = ({ lang }: { lang: Language }) => {
   const operations = [[t.capacity, `${number(totals.capacity)} pal.`, Warehouse, 'bg-violet-100 text-violet-500'], [t.pending, number(totals.pending), MapPin, 'bg-orange-100 text-orange-500'], [t.vehicles, number(totals.vehicles), Truck, 'bg-amber-100 text-amber-500'], [t.active, number(totals.loads), Box, 'bg-blue-100 text-blue-500'], [t.utilization, `${driverUtilization}%`, Gauge, 'bg-violet-100 text-violet-500'], [t.delivery, `${onTimeDelivery}%`, ShieldCheck, 'bg-teal-100 text-teal-500']] as const;
 
   const loadPie = useMemo(() => Object.entries(loads.items.reduce<Record<string, number>>((result, row) => { const status = String(row.status || 'unknown').toLowerCase(); result[status] = (result[status] || 0) + 1; return result; }, {})).map(([status, value]) => ({ name: trLoadStatus(lang, canonicalStatus(status)), value, color: statusTone(status) })).sort((a, b) => b.value - a.value), [lang, loads.items]);
-  const fleetPie = useMemo(() => Object.entries(vehicles.items.reduce<Record<string, number>>((result, row) => { const status = String(row.status || 'unknown').replaceAll('_', ' '); result[status] = (result[status] || 0) + 1; return result; }, {})).map(([name, value], index) => ({ name, value, color: ['#19ad78', '#3288ed', '#fb823d', '#aebbc9'][index % 4] })), [vehicles.items]);
-  const activity = useMemo(() => Array.from({ length: 7 }, (_, index) => { const date = new Date(); date.setHours(0, 0, 0, 0); date.setDate(date.getDate() - (6 - index)); const next = new Date(date); next.setDate(next.getDate() + 1); const rows = loads.items.filter((row) => { const created = rowDate(row); return created >= date && created < next; }); return { day: date.toLocaleDateString(lang || 'en', { weekday: 'short' }), loads: rows.length, transit: rows.filter((x) => String(x.status) === 'in_delivery').length, delivered: rows.filter((x) => ['finished', 'received'].includes(String(x.status))).length, cancelled: rows.filter((x) => String(x.status) === 'cancelled').length }; }), [lang, loads.items]);
+  const fleetPie = useMemo(() => Object.entries(vehicles.items.reduce<Record<string, number>>((result, row) => { const status = String(row.status || 'unknown').replaceAll('_', ' '); result[status] = (result[status] || 0) + 1; return result; }, {})).map(([name, value], index) => ({ name: ui(lang, `fleet.status.${name.replaceAll(' ', '_')}`, name), value, color: ['#19ad78', '#3288ed', '#fb823d', '#aebbc9'][index % 4] })), [lang, vehicles.items]);
+  const activity = useMemo(() => Array.from({ length: 7 }, (_, index) => { const date = new Date(); date.setHours(0, 0, 0, 0); date.setDate(date.getDate() - (6 - index)); const next = new Date(date); next.setDate(next.getDate() + 1); const rows = loads.items.filter((row) => { const created = rowDate(row); return created >= date && created < next; }); return { day: date.toLocaleDateString(displayLocale, { weekday: 'short' }), loads: rows.length, transit: rows.filter((x) => String(x.status) === 'in_delivery').length, delivered: rows.filter((x) => ['finished', 'received'].includes(String(x.status))).length, cancelled: rows.filter((x) => String(x.status) === 'cancelled').length }; }), [displayLocale, loads.items]);
   const driverRows = useMemo(() => drivers.items.map((row) => { const user = (row.user || {}) as Record<string, unknown>; return [String(row.name || user.name || '—'), Number(row.completed_trips || 0)] as const; }).sort((a, b) => b[1] - a[1]).slice(0, 5), [drivers.items]);
-  const vehicleTypes = useMemo(() => Object.entries(vehicles.items.reduce<Record<string, number>>((result, row) => { const type = String(row.vehicle_type || row.transport_type || 'Other'); result[type] = (result[type] || 0) + 1; return result; }, {})).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([label, value]) => [label, value, vehicles.total ? Math.round(value / vehicles.total * 100) : 0] as const), [vehicles.items, vehicles.total]);
+  const vehicleTypes = useMemo(() => Object.entries(vehicles.items.reduce<Record<string, number>>((result, row) => { const type = String(row.vehicle_type || row.transport_type || 'Other'); result[type] = (result[type] || 0) + 1; return result; }, {})).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([label, value]) => [ui(lang, `vehicle.type.${label.toLowerCase().replaceAll(' ', '_')}`, label.replace(/light trucks?/i, lang === 'bs' || lang === 'hr' || lang === 'sr' ? 'Laki kamioni' : 'Light trucks').replace(/^truck$/i, lang === 'bs' || lang === 'hr' || lang === 'sr' ? 'Kamion' : 'Truck')), value, vehicles.total ? Math.round(value / vehicles.total * 100) : 0] as const), [lang, vehicles.items, vehicles.total]);
   const countryCounts = useMemo(() => loads.items.reduce<Map<string, number>>((result, row) => { const stops = Array.isArray(row.stops) ? row.stops as Array<Record<string, unknown>> : []; const destination = [...stops].reverse().find((stop) => String(stop.type).toLowerCase() === 'delivery') || stops.at(-1); const code = String(destination?.country_code || row.warehouse_country_code || '').toUpperCase(); if (code && code !== 'XX') result.set(code, (result.get(code) || 0) + 1); return result; }, new Map()), [loads.items]);
-  const regions = useMemo(() => Array.from(countryCounts, ([code, value]) => ({ code, label: COUNTRY_NAMES.of(code) || code, value })).sort((a, b) => b.value - a.value).slice(0, 6).map((row, index) => ({ ...row, percent: loads.total ? Math.round(row.value / loads.total * 100) : 0, color: ['#168bea', '#0ea5c6', '#24a9a3', '#3eaf87', '#7ab99e', '#94a3b8'][index] })), [countryCounts, loads.total]);
+  const regions = useMemo(() => Array.from(countryCounts, ([code, value]) => ({ code, label: countryNames.of(code) || code, value })).sort((a, b) => b.value - a.value).slice(0, 6).map((row, index) => ({ ...row, percent: loads.total ? Math.round(row.value / loads.total * 100) : 0, color: ['#168bea', '#0ea5c6', '#24a9a3', '#3eaf87', '#7ab99e', '#94a3b8'][index] })), [countryCounts, countryNames, loads.total]);
   const warehouseRows = useMemo(() => (warehouseOverview.warehouses || warehouses.items).map((row) => { const capacity = Number(row.total_capacity_pallets || 0); const occupied = Number(row.occupied_pallets || 0); return [String(row.name || '—'), occupied, Number(row.available_pallets ?? Math.max(0, capacity - occupied)), Number(row.occupancy_percent ?? (capacity ? Math.round(occupied / capacity * 100) : 0))] as const; }).sort((a, b) => b[3] - a[3]).slice(0, 5), [warehouseOverview.warehouses, warehouses.items]);
   const palletFlow = useMemo(() => Array.from({ length: 7 }, (_, index) => { const date = new Date(); date.setHours(0, 0, 0, 0); date.setDate(date.getDate() - (6 - index)); const next = new Date(date); next.setDate(next.getDate() + 1); const movements = [...(warehouseOverview.recent_arrivals || []), ...(warehouseOverview.dock_schedule || [])].filter((row) => { const when = new Date(String(row.completed_at || row.scheduled_at || 0)); return when >= date && when < next; }); return { day: date.toLocaleDateString(lang || 'en', { weekday: 'short' }), incoming: movements.filter((x) => x.direction === 'inbound').reduce((sum, x) => sum + Number(x.pallets || 0), 0), outgoing: movements.filter((x) => x.direction === 'outbound').reduce((sum, x) => sum + Number(x.pallets || 0), 0) }; }), [lang, warehouseOverview.dock_schedule, warehouseOverview.recent_arrivals]);
   const todayFlow = palletFlow.at(-1) || { incoming: 0, outgoing: 0 };

@@ -23,7 +23,7 @@ const record = (value: unknown): Record<string, unknown> => value && typeof valu
 const array = (value: unknown): Array<Record<string, unknown>> => Array.isArray(value) ? value as Array<Record<string, unknown>> : [];
 
 export const ShipmentMessagesTab = ({ workspace, lang, userId }: Props) => {
-  const text = COPY[lang === 'bs' || lang === 'de' ? lang : 'en'];
+  const text = COPY[lang === 'bs' || lang === 'de' ? lang : lang === 'hr' || lang === 'sr' ? 'bs' : 'en'];
   const conversationId = Number(workspace.conversation_id || 0);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);

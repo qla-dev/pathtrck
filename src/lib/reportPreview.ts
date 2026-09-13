@@ -7,7 +7,7 @@ const escape = (value: unknown): string => String(value ?? '—').replace(/[&<>"
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]!));
 
 export const reportHtml = (report: Report, lang: Language): string => {
-  const locale = lang === 'bs' || lang === 'de' ? lang : 'en';
+  const locale = lang === 'bs' || lang === 'de' ? lang : lang === 'hr' || lang === 'sr' ? 'bs' : 'en';
   const download = { bs: 'Preuzmi PDF', de: 'PDF herunterladen', en: 'Download PDF' }[locale];
   const generated = { bs: 'Izvještaj generisan', de: 'Bericht erstellt', en: 'Report generated' }[locale];
   return `<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><title>${escape(report.title)}</title>
@@ -30,7 +30,7 @@ export const reportHtml = (report: Report, lang: Language): string => {
 /** Same preview-first browser PDF printing used by the invoice documents. */
 export const openReportPreview = (report: Report, lang: Language): void => {
   const popup = window.open('', '_blank');
-  if (!popup) throw new Error(lang === 'bs' ? 'Dozvolite skočne prozore za pregled izvještaja.' : lang === 'de' ? 'Bitte Pop-ups für die Berichtsvorschau zulassen.' : 'Allow pop-ups to preview the report.');
+  if (!popup) throw new Error(lang === 'bs' || lang === 'hr' || lang === 'sr' ? 'Dozvolite skočne prozore za pregled izvještaja.' : lang === 'de' ? 'Bitte Pop-ups für die Berichtsvorschau zulassen.' : 'Allow pop-ups to preview the report.');
   popup.opener = null;
   popup.document.open();
   popup.document.write(reportHtml(report, lang));

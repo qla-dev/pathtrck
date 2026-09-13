@@ -42,7 +42,7 @@ const COPY = {
   },
 } as const;
 
-const locale = (lang: Language): keyof typeof COPY => lang === 'bs' || lang === 'de' ? lang : 'en';
+const locale = (lang: Language): keyof typeof COPY => lang === 'bs' || lang === 'de' ? lang : lang === 'hr' || lang === 'sr' ? 'bs' : 'en';
 
 const ProtectedPhoto = ({ photo, className }: { photo: VehicleReturnPhoto; className?: string }) => {
   const [url, setUrl] = useState('');
