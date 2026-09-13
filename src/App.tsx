@@ -5479,11 +5479,12 @@ export default function App() {
    * actually have, and the profile always qualifies because the table does not govern it.
    */
   useEffect(() => {
-    if (canOpenView(role, view, accessContext)) return;
+    const viewRole = view === "lena-skills" ? (currentUser?.role?.name as Role | undefined) || role : role;
+    if (canOpenView(viewRole, view, accessContext)) return;
     const fallback = ["tracking", "feed", "notes", "finance", "profile"]
       .find((candidate) => canOpenView(role, candidate, accessContext));
     setView(fallback ?? "profile");
-  }, [role, view, accessContext]);
+  }, [role, currentUser?.role?.name, view, accessContext]);
   // Title and social-preview tags follow the chosen language, so a shared link previews in the
   // language the visitor was reading.
   useEffect(() => {
@@ -7223,7 +7224,7 @@ export default function App() {
                   <User className="w-4 h-4" />
                   {t.accountSettings}
                 </button>
-                {(role === "superadmin" || role === "master") && <button
+                {isElevatedAdmin && <button
                   onClick={() => setView("lena-skills")}
                   className="w-full flex items-center gap-3 p-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
                 ><Sparkles className="w-4 h-4" />LenaAI skills</button>}
@@ -7579,7 +7580,7 @@ export default function App() {
               {view === "payment-history" && <PaymentHistoryView lang={lang} />}
               {view === "tariffs-hs" && <TariffsHsView lang={lang} />}
               {view === "legal-sources" && (role === "superadmin" || role === "master") && <LegalSourcesView lang={lang} />}
-              {view === "lena-skills" && (role === "superadmin" || role === "master") && <LenaSkillsView lang={lang} />}
+              {view === "lena-skills" && isElevatedAdmin && <LenaSkillsView lang={lang} />}
               {view === "profile" && (
                 <ProfileView
                   role={role}
