@@ -799,20 +799,24 @@ export const AddWarehouseModal = ({
             </div>
             <div>
               <Label>{u('addWarehouse.hazmatPermit', 'Hazardous Materials Handling Permit')}</Label>
-              <YesNo value={draft.hazmatPermit} onChange={(value) => setField('hazmatPermit', value)} />
+              <YesNo value={draft.hazmatPermit} onChange={(value) => { setField('hazmatPermit', value); if (!value) setField('hazmatPermitNumber', ''); }} />
             </div>
-            <div>
-              <Label>{u('addWarehouse.permitNumber', 'Permit Number')}</Label>
-              <TextField value={draft.hazmatPermitNumber} onChange={(event) => setField('hazmatPermitNumber', event.target.value)} placeholder="Enter permit number" />
-            </div>
+            {draft.hazmatPermit && (
+              <div>
+                <Label>{u('addWarehouse.permitNumber', 'Permit Number')}</Label>
+                <TextField value={draft.hazmatPermitNumber} onChange={(event) => setField('hazmatPermitNumber', event.target.value)} placeholder="Enter permit number" />
+              </div>
+            )}
             <div>
               <Label>{u('addWarehouse.foodGrade', 'Food Grade Storage Certified')}</Label>
-              <YesNo value={draft.foodGradeCertified} onChange={(value) => setField('foodGradeCertified', value)} />
+              <YesNo value={draft.foodGradeCertified} onChange={(value) => { setField('foodGradeCertified', value); if (!value) setField('foodGradeCertNumber', ''); }} />
             </div>
-            <div>
-              <Label>{u('addWarehouse.certificationNumber', 'Certification Number')}</Label>
-              <TextField value={draft.foodGradeCertNumber} onChange={(event) => setField('foodGradeCertNumber', event.target.value)} placeholder="Enter certification number" />
-            </div>
+            {draft.foodGradeCertified && (
+              <div>
+                <Label>{u('addWarehouse.certificationNumber', 'Certification Number')}</Label>
+                <TextField value={draft.foodGradeCertNumber} onChange={(event) => setField('foodGradeCertNumber', event.target.value)} placeholder="Enter certification number" />
+              </div>
+            )}
           </div>
         </SectionCard>
 

@@ -139,6 +139,11 @@ const TASKS: Record<string, Record<Locale, Phrase>> = {
     bs: { label: 'Otpremne instrukcije', action: 'dostaviti otpremne instrukcije' },
     de: { label: 'Versandanweisungen', action: 'die Versandanweisungen übermitteln' },
   },
+  approve_shipping_instructions: {
+    en: { label: 'Approve shipping instructions', action: 'approve the shipping instructions' },
+    bs: { label: 'Odobrenje otpremnih instrukcija', action: 'odobriti otpremne instrukcije' },
+    de: { label: 'Versandanweisungen freigeben', action: 'die Versandanweisungen freigeben' },
+  },
   vgm: {
     en: { label: 'VGM', action: 'submit the VGM' },
     bs: { label: 'VGM', action: 'dostaviti VGM' },
@@ -305,9 +310,9 @@ const HINTS: Record<string, Record<Locale, string>> = {
     de: 'Lade den unterschriebenen Ablieferbeleg hoch.',
   },
   booking_confirmation: {
-    en: 'Select Yes if the booking is confirmed, otherwise No.',
-    bs: 'Odaberi Da ili Ne za potvrdu bookinga.',
-    de: 'Wähle Ja oder Nein, um die Buchung zu bestätigen.',
+    en: 'Confirm the booking with the carrier, then mark it complete.',
+    bs: 'Potvrdi booking sa brodarom i označi zadatak završenim.',
+    de: 'Bestätige die Buchung bei der Reederei und schließe die Aufgabe ab.',
   },
   shipping_line_and_agent: {
     en: 'Enter the company name, job title, email, phone number and agent name.',
@@ -325,9 +330,14 @@ const HINTS: Record<string, Record<Locale, string>> = {
     de: 'Trage die Containernummer ein.',
   },
   shipping_instructions: {
-    en: 'Send the carrier your shipping instructions.',
-    bs: 'Pošalji brodaru otpremne instrukcije.',
-    de: 'Sende der Reederei deine Versandanweisungen.',
+    en: 'Enter the shipper, consignee and notify party for the B/L.',
+    bs: 'Unesi pošiljaoca, primaoca i stranu za obavještenje za teretnicu.',
+    de: 'Gib Versender, Empfänger und Benachrichtigungsadresse für das B/L ein.',
+  },
+  approve_shipping_instructions: {
+    en: 'Check the shipping instructions and approve them.',
+    bs: 'Provjeri otpremne instrukcije i odobri ih.',
+    de: 'Prüfe die Versandanweisungen und gib sie frei.',
   },
   vgm: {
     en: 'Submit the verified gross mass.',

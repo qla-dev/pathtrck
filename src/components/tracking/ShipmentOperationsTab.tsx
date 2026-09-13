@@ -12,6 +12,7 @@ import { api } from '../../services/api';
 import { showError } from '../../lib/swal';
 import { ShipmentChecklistTable } from './ShipmentChecklistTable';
 import { ChecklistAgentModal } from './ChecklistAgentModal';
+import { ChecklistShippingInstructionsModal } from './ChecklistShippingInstructionsModal';
 import { ChecklistVesselSearch } from './ChecklistVesselSearch';
 import { ChecklistAircraftSearch } from './ChecklistAircraftSearch';
 
@@ -128,9 +129,10 @@ export const ShipmentOperationsTab = ({ workspace, lang, role, readOnly = false,
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [aircraftRetry, setAircraftRetry] = useState(0);
   const [agentModalOpen, setAgentModalOpen] = useState<string | null>(null);
+  const [instructionsOpen, setInstructionsOpen] = useState(false);
   const readOnlyRef = useRef(readOnly);
   readOnlyRef.current = readOnly;
-  useEffect(() => { if (readOnly) setAgentModalOpen(null); }, [readOnly]);
+  useEffect(() => { if (readOnly) { setAgentModalOpen(null); setInstructionsOpen(false); } }, [readOnly]);
   const [driverOptions, setDriverOptions] = useState<FleetOption[]>([]);
   const [vehicleOptions, setVehicleOptions] = useState<FleetOption[]>([]);
 
@@ -315,6 +317,12 @@ export const ShipmentOperationsTab = ({ workspace, lang, role, readOnly = false,
     );
   };
 
+  // Tasks whose answer is a form rather than a single value are filled in their own dialog.
+  const enterDataButton = (onClick: () => void) => (
+    <button type="button" disabled={busyKey !== null} onClick={onClick}
+      className={`${CONTROL_CLASS} cursor-pointer hover:border-primary`}>{lang === 'bs' ? 'Unesi podatke' : lang === 'de' ? 'Daten eingeben' : 'Enter data'}</button>
+  );
+
   const completionButton = (item: Record<string, unknown>) => {
     const taskKey = String(item.key);
     const done = String(item.status) === 'completed';
@@ -410,7 +418,7 @@ export const ShipmentOperationsTab = ({ workspace, lang, role, readOnly = false,
       case 'security_and_customs_documents':
         return uploadField(taskKey, 'customs');
       case 'shipping_instructions':
-        return uploadField(taskKey, 'shipping_instructions');
+        return enterDataButton(() => setInstructionsOpen(true));
       case 'draft_bill_of_lading':
         return uploadField(taskKey, 'draft_bill_of_lading');
       case 'final_bill_of_lading':
@@ -419,30 +427,6 @@ export const ShipmentOperationsTab = ({ workspace, lang, role, readOnly = false,
         return uploadField(taskKey, 'draft_awb');
       case 'arrival_and_release_documents':
         return uploadField(taskKey, 'arrival_release');
-      case 'booking_confirmation': {
-        const confirmed = item.action_value === 'yes';
-        return <button type="button" role="switch"
-            disabled={busyKey !== null}
-            aria-checked={confirmed}
-            aria-label={lang === 'bs' ? 'Potvrda bookinga' : lang === 'de' ? 'Buchungsbestätigung' : 'Booking confirmation'}
-            aria-busy={busyKey === taskKey}
-            className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg px-1 text-xs font-bold text-slate-700 outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60 dark:text-slate-200"
-            onClick={async () => {
-              const answer = confirmed ? 'no' : 'yes';
-              setBusyKey(taskKey);
-              try {
-                await patchTask(taskKey, { action_value: answer, status: answer === 'yes' ? 'completed' : 'pending', completed_at: answer === 'yes' ? new Date().toISOString() : null });
-              } catch (error) {
-                void showError(text.saveFailed, error instanceof Error ? error.message : undefined);
-              } finally { setBusyKey(null); }
-            }}>
-            <span className={confirmed ? 'text-slate-400' : 'text-slate-700 dark:text-slate-200'}>{lang === 'bs' ? 'Ne' : lang === 'de' ? 'Nein' : 'No'}</span>
-            <span aria-hidden="true" className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full motion-safe:transition-colors ${confirmed ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700'}`}>
-              <span className={`absolute left-0.5 h-5 w-5 rounded-full bg-white shadow-sm motion-safe:transition-transform ${confirmed ? 'translate-x-5' : 'translate-x-0'}`} />
-            </span>
-            <span className={confirmed ? 'text-primary' : 'text-slate-400'}>{lang === 'bs' ? 'Da' : lang === 'de' ? 'Ja' : 'Yes'}</span>
-          </button>;
-      }
       case 'shipping_line_and_agent':
       case 'airline_and_agent':
         return <button type="button" disabled={busyKey !== null} onClick={() => setAgentModalOpen(taskKey)}
@@ -484,6 +468,7 @@ export const ShipmentOperationsTab = ({ workspace, lang, role, readOnly = false,
         return statusField(item);
       case 'approve_draft':
       case 'approve_awb':
+      case 'approve_shipping_instructions':
         return completionButton(item);
       default:
         return completionButton(item);
@@ -508,6 +493,12 @@ export const ShipmentOperationsTab = ({ workspace, lang, role, readOnly = false,
           return <span className="text-xs">{lang === 'bs' ? (value === 'yes' ? 'Da' : 'Ne') : lang === 'de' ? (value === 'yes' ? 'Ja' : 'Nein') : (value === 'yes' ? 'Yes' : 'No')}</span>;
         }
         let display = value;
+        if (String(item.key) === 'shipping_instructions') {
+          try {
+            const saved = record(JSON.parse(value));
+            display = ['shipper', 'consignee'].map((party) => String(record(saved[party]).company || '')).filter(Boolean).join(' → ') || value;
+          } catch { /* A file name filed before the form existed stays readable. */ }
+        }
         if (['shipping_line_and_agent', 'airline_and_agent', 'vessel_and_voyage', 'flight_details'].includes(String(item.key))) {
           try {
             const saved = record(JSON.parse(value));
@@ -531,6 +522,17 @@ export const ShipmentOperationsTab = ({ workspace, lang, role, readOnly = false,
         setBusyKey(agentModalOpen);
         try {
           await patchTask(agentModalOpen, { action_value: value, status: 'completed', completed_at: new Date().toISOString() });
+        } finally { setBusyKey(null); }
+      }}
+    />}
+    {!readOnly && instructionsOpen && <ChecklistShippingInstructionsModal
+      lang={lang}
+      value={checklist.find((item) => item.key === 'shipping_instructions')?.action_value}
+      onClose={() => setInstructionsOpen(false)}
+      onSave={async (value) => {
+        setBusyKey('shipping_instructions');
+        try {
+          await patchTask('shipping_instructions', { action_value: value, status: 'completed', completed_at: new Date().toISOString() });
         } finally { setBusyKey(null); }
       }}
     />}
