@@ -38,11 +38,22 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
       await mic.click();
       assert.equal(await page.getByRole('button', { name: 'Stop voice mode', exact: true }).getAttribute('aria-pressed'), 'true');
       await page.evaluate(() => {
-        const result = [{ transcript: 'test message' }];
+        const result = [{ transcript: 'test' }];
         result.isFinal = true;
         window.testRecognition.onresult({ results: [result] });
         window.testRecognition.onend();
       });
+      await page.waitForTimeout(2200);
+      assert.equal(await page.getByRole('button', { name: 'Stop voice mode', exact: true }).getAttribute('aria-pressed'), 'true', 'A pause under three seconds must keep recording');
+      await page.evaluate(() => {
+        window.testRecognition.onspeechstart?.();
+        const result = [{ transcript: 'message' }];
+        result.isFinal = true;
+        window.testRecognition.onresult({ results: [result] });
+        window.testRecognition.onspeechend?.();
+      });
+      await page.waitForTimeout(2200);
+      assert.equal(await page.getByRole('button', { name: 'Stop voice mode', exact: true }).getAttribute('aria-pressed'), 'true', 'Continued speech must reset the silence window');
       await mic.waitFor();
       assert.equal(await mic.getAttribute('aria-pressed'), 'false');
       assert.ok(!(await mic.getAttribute('class')).split(' ').includes('text-white'));

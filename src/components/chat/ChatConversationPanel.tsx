@@ -107,6 +107,8 @@ type SpeechRecognitionLike = {
   lang: string;
   start: () => void;
   stop: () => void;
+  onspeechstart?: (() => void) | null;
+  onspeechend?: (() => void) | null;
   onend: (() => void) | null;
   onerror: ((event: Event) => void) | null;
   onresult: ((event: SpeechRecognitionEventLike) => void) | null;
@@ -190,6 +192,7 @@ export const ChatConversationPanel = ({
   const [isListening, setIsListening] = useState(false);
   const speechCleanupRef = useRef<(() => void) | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const recordingCleanupRef = useRef<(() => void) | null>(null);
   const voiceModeRef = useRef(voiceMode);
   const spokenMessageIdRef = useRef<string | null>(null);
   const hasAttachmentHandler = activeConversation.isAiDispatch && Boolean(onAttachFile);
@@ -204,7 +207,7 @@ export const ChatConversationPanel = ({
     }
     if (isListening) {
       voiceModeRef.current = false;
-      recognitionRef.current?.stop();
+      recordingCleanupRef.current?.();
       setIsListening(false);
       window.speechSynthesis?.cancel();
       onVoiceModeChange?.(false);
@@ -215,33 +218,50 @@ export const ChatConversationPanel = ({
     spokenMessageIdRef.current = activeConversation.messages.at(-1)?.id || null;
     const recognition = new Recognition();
     voiceModeRef.current = true;
-    recognition.continuous = false;
+    recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = voiceLanguage;
     let transcript = '';
-    let autoSendScheduled = false;
-    const submitTranscript = () => {
-      if (autoSendScheduled || !voiceModeRef.current || !transcript) return;
-      autoSendScheduled = true;
-      onDraftChange(transcript);
-      window.setTimeout(() => onSend(transcript, 'voice'), 0);
-    };
-    recognition.onresult = (event) => {
-      transcript = Array.from(event.results)
-        .map((result) => result[0]?.transcript || '')
-        .join(' ')
-        .trim();
-      if (transcript) onDraftChange(transcript);
-      if (event.results[event.results.length - 1]?.isFinal) submitTranscript();
-    };
-    recognition.onerror = () => {
-      transcript = "";
-      setIsListening(false);
-    };
-    recognition.onend = () => {
-      setIsListening(false);
+    let completedTranscript = '';
+    let finished = false;
+    let silenceTimer: ReturnType<typeof setTimeout> | undefined;
+    const clearSilence = () => { clearTimeout(silenceTimer); silenceTimer = undefined; };
+    const finish = (send: boolean) => {
+      if (finished) return;
+      finished = true;
+      clearSilence();
+      recognition.onend = null;
       recognitionRef.current = null;
-      submitTranscript();
+      setIsListening(false);
+      recognition.stop();
+      if (send && voiceModeRef.current && transcript.trim()) {
+        onDraftChange(transcript);
+        onSend(transcript, 'voice');
+      }
+    };
+    recordingCleanupRef.current = () => finish(false);
+    const waitForSilence = () => {
+      clearSilence();
+      silenceTimer = setTimeout(() => finish(true), 3000);
+    };
+    recognition.onspeechstart = clearSilence;
+    recognition.onspeechend = waitForSilence;
+    recognition.onresult = (event) => {
+      if (finished) return;
+      transcript = [completedTranscript, Array.from(event.results)
+        .map((result) => result[0]?.transcript || '').join(' ')].filter(Boolean).join(' ').trim();
+      if (transcript) onDraftChange(transcript);
+      // Final recognition results are segments, not the end of the user's turn.
+      waitForSilence();
+    };
+    recognition.onerror = () => finish(false);
+    recognition.onend = () => {
+      if (finished) return;
+      // Some browsers end recognition between phrases despite continuous mode.
+      // Resume within the same silence window and preserve earlier segments.
+      completedTranscript = transcript;
+      if (!silenceTimer) waitForSilence();
+      try { recognition.start(); } catch { finish(false); }
     };
     recognitionRef.current = recognition;
     onVoiceModeChange?.(true);
@@ -255,7 +275,7 @@ export const ChatConversationPanel = ({
   };
 
   useEffect(() => () => {
-    recognitionRef.current?.stop();
+    recordingCleanupRef.current?.();
     speechCleanupRef.current?.();
     window.speechSynthesis?.cancel();
   }, []);
@@ -263,7 +283,7 @@ export const ChatConversationPanel = ({
   useEffect(() => {
     voiceModeRef.current = voiceMode;
     if (!voiceMode) {
-      recognitionRef.current?.stop();
+      recordingCleanupRef.current?.();
       recognitionRef.current = null;
       setIsListening(false);
     }
