@@ -7227,7 +7227,7 @@ export default function App() {
                 {isElevatedAdmin && <button
                   onClick={() => setView("lena-skills")}
                   className="w-full flex items-center gap-3 p-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
-                ><Sparkles className="w-4 h-4" />LenaAI skills</button>}
+                ><BrainCircuit className="w-4 h-4" />LenaAI skills</button>}
                 <button
                   onClick={() => setView("usage")}
                   className="w-full flex items-center gap-3 p-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"

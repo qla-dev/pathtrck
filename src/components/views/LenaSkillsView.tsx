@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BookOpen, Braces, Layers3, Network, RefreshCw, Search, Sparkles } from 'lucide-react';
+import { BookOpen, Braces, BrainCircuit, Layers3, Network, RefreshCw, Search, Sparkles } from 'lucide-react';
 import { api, type LenaSkillRow } from '../../services/api';
 import type { Language } from '../../types';
 import { PageHeader } from '../ui/PageHeader';
@@ -34,7 +34,7 @@ export const LenaSkillsView = ({ lang }: { lang: Language }) => {
   const skillCount = rows.filter(row => row.kind === 'skill').length;
   const sharedCount = rows.filter(row => row.shared).length;
   return <div className="w-full min-w-0 space-y-5">
-    <PageHeader icon={Sparkles} title="LenaAI skills" subtitle={t.subtitle} tone="violet"
+    <PageHeader icon={BrainCircuit} title="LenaAI skills" subtitle={t.subtitle} tone="violet"
       actions={<button type="button" onClick={() => setRefresh(v => v + 1)} disabled={loading} className="inline-flex h-9 items-center gap-2 rounded-xl border border-violet-200 px-3 text-xs font-bold text-violet-600 dark:border-violet-800 dark:text-violet-300"><RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />{t.refresh}</button>}
       stats={[
         { label: t.total, value: String(rows.length), icon: BookOpen, tone: 'bg-sky-500/10 text-sky-500' },
