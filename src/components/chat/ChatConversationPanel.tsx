@@ -706,7 +706,7 @@ export const ChatConversationPanel = ({
         >
           {thinkingPhrases?.length ? <LenaThinkingIndicator key={activeConversation.id} phrases={thinkingPhrases} timeline={thinkingTimeline} skillLabel={thinkingSkillLabel} voiceMode={voiceMode} voiceLanguage={voiceLanguage} /> : <span
             aria-hidden="true"
-            className="animate-text-shimmer bg-[length:200%_100%] bg-[linear-gradient(90deg,#94a3b8_20%,#334155_50%,#94a3b8_80%)] bg-clip-text text-transparent dark:bg-[linear-gradient(90deg,#64748b_20%,#f8fafc_50%,#64748b_80%)]"
+            className="lena-shimmer inline-block text-slate-700 dark:text-slate-50"
           >
             {thinkingLabel}
           </span>}

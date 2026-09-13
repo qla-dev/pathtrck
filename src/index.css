@@ -111,6 +111,34 @@
   border: 0;
 }
 
+/* The thinking indicator sweeps one highlight band across its whole line - the fixed "LenaAI"
+   and the phrase flipping next to it. The band is a mask on their shared row, so a single
+   animation covers both; per-element background-clip gradients each ran their own, unsynced
+   sweep and left "LenaAI" out of the effect entirely. The gradient starts and ends on the same
+   alpha, so the repeated tiles meet seamlessly as the mask travels. */
+@keyframes lena-shimmer {
+  from { -webkit-mask-position: 200% 0; mask-position: 200% 0; }
+  to { -webkit-mask-position: -200% 0; mask-position: -200% 0; }
+}
+
+.lena-shimmer {
+  --lena-shimmer-band: linear-gradient(90deg, rgb(0 0 0 / 0.45) 20%, rgb(0 0 0) 50%, rgb(0 0 0 / 0.45) 80%);
+  -webkit-mask-image: var(--lena-shimmer-band);
+  mask-image: var(--lena-shimmer-band);
+  -webkit-mask-size: 200% 100%;
+  mask-size: 200% 100%;
+  animation: lena-shimmer 2.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lena-shimmer {
+    -webkit-mask-image: none;
+    mask-image: none;
+    animation: none;
+    opacity: 0.55;
+  }
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
@@ -131,12 +159,6 @@
     to { transform: translateY(-50%); }
   }
   --animate-load-scroll: load-scroll 28s linear infinite;
-
-  @keyframes text-shimmer {
-    from { background-position: 200% 0; }
-    to { background-position: -200% 0; }
-  }
-  --animate-text-shimmer: text-shimmer 2.4s linear infinite;
 
   @keyframes upload-progress {
     0% { transform: translateX(-100%); }

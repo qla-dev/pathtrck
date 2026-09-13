@@ -3,8 +3,6 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { BrainCircuit, Mic } from 'lucide-react';
 import { lenaThinkingPhaseAt, type LenaThinkingTimeline } from '../../lib/lenaThinkingTimeline';
 
-const shimmer = 'animate-text-shimmer bg-[length:200%_100%] bg-[linear-gradient(90deg,#94a3b8_20%,#334155_50%,#94a3b8_80%)] bg-clip-text text-transparent dark:bg-[linear-gradient(90deg,#64748b_20%,#f8fafc_50%,#64748b_80%)]';
-
 type LenaThinkingIndicatorProps = {
   phrases: string[];
   /** Present while a reply is on its way: drives the phrase loop and names the skills the reply uses. */
@@ -17,9 +15,9 @@ type LenaThinkingIndicatorProps = {
 
 const SkillText = ({ label, name }: { label: string; name: string }) => (
   <span className="inline-flex items-center gap-1 whitespace-nowrap">
-    <span className={shimmer}>{label}</span>
+    {label}
     <BrainCircuit aria-hidden="true" className="h-4 w-4 shrink-0" />
-    <span className={shimmer}>{name}</span>
+    {name}
   </span>
 );
 
@@ -29,9 +27,9 @@ export const LenaThinkingIndicator = ({ phrases, timeline, skillLabel = 'is usin
   const reducedMotion = useReducedMotion();
   const phraseCount = phrases.length + (voiceMode ? 2 : 0);
   const listeningLabel = ({ en: 'is listening to your message', de: 'hört Ihre Nachricht an', bs: 'sluša vašu poruku', hr: 'sluša vašu poruku', sr: 'слуша вашу поруку' } as Record<string, string>)[voiceLanguage.split(/[-_]/)[0]] || 'is listening to your message';
-  const listeningContent = <span className="inline-flex items-center gap-1 whitespace-nowrap"><Mic aria-hidden="true" className="h-4 w-4 shrink-0" /><span className={shimmer}>{listeningLabel}</span></span>;
+  const listeningContent = <span className="inline-flex items-center gap-1 whitespace-nowrap"><Mic aria-hidden="true" className="h-4 w-4 shrink-0" />{listeningLabel}</span>;
   const recordingLabel = ({ en: 'is recording the reply', de: 'nimmt die Antwort auf', bs: 'snima odgovor', hr: 'snima odgovor', sr: 'снима одговор' } as Record<string, string>)[voiceLanguage.split(/[-_]/)[0]] || 'is recording the reply';
-  const recordingContent = <span className="inline-flex items-center gap-1 whitespace-nowrap"><Mic aria-hidden="true" className="h-4 w-4 shrink-0" /><span className={shimmer}>{recordingLabel}</span></span>;
+  const recordingContent = <span className="inline-flex items-center gap-1 whitespace-nowrap"><Mic aria-hidden="true" className="h-4 w-4 shrink-0" />{recordingLabel}</span>;
   const phase = timeline ? lenaThinkingPhaseAt(timeline, phraseCount, now) : null;
   const phaseEndsAt = phase?.endsAt;
 
@@ -58,10 +56,10 @@ export const LenaThinkingIndicator = ({ phrases, timeline, skillLabel = 'is usin
       ? { key: phase?.key ?? String(index), label: listeningLabel, content: listeningContent }
     : voiceMode && phraseIndex === phrases.length + 1
       ? { key: phase?.key ?? String(index), label: recordingLabel, content: recordingContent }
-      : { key: phase?.key ?? String(index), label: phraseAt(phraseIndex - (voiceMode ? 1 : 0)), content: <span className={shimmer}>{phraseAt(phraseIndex - (voiceMode ? 1 : 0))}</span> };
+      : { key: phase?.key ?? String(index), label: phraseAt(phraseIndex - (voiceMode ? 1 : 0)), content: phraseAt(phraseIndex - (voiceMode ? 1 : 0)) };
 
   return (
-    <span className="inline-flex max-w-full items-baseline gap-1 text-slate-500 dark:text-slate-400" role="status" aria-label={`LenaAI ${current.label}`}>
+    <span className="lena-shimmer inline-flex max-w-full items-baseline gap-1 text-slate-700 dark:text-slate-50" role="status" aria-label={`LenaAI ${current.label}`}>
       <span aria-hidden="true" className="shrink-0">LenaAI</span>
       <span aria-hidden="true" className="relative inline-grid overflow-hidden align-bottom">
         {/* Reserve the longest phrase's or skill's width so the fixed name never shifts. */}
