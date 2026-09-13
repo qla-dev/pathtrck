@@ -19,9 +19,9 @@ const PAIRS: Array<[RegExp, string]> = [
 
 export const toSerbianCyrillic = (value: string): string => {
   const tokens: string[] = [];
-  const protectedValue = value.replace(/\[\[.*?\]\]|:[a-z_]+/g, (token) => {
+  const protectedValue = value.replace(/\[\[.*?\]\]|:[a-z_]+|freightbook(?:\.ai)?|фре(?:и|ј)г?х?тбоок(?:\.(?:аи|ај|ai))?/gi, (token) => {
     const marker = `\uE000${tokens.length}\uE001`;
-    tokens.push(token);
+    tokens.push(/^(?:freightbook|фре)/i.test(token) ? 'Freightbook.ai' : token);
     return marker;
   });
   const converted = PAIRS.reduce((result, [pattern, replacement]) => result.replace(pattern, replacement), protectedValue);
