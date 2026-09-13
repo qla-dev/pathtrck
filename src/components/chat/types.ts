@@ -4,6 +4,8 @@ export type ChatMessage = {
   id: string;
   sender: 'me' | 'other' | 'system';
   text: string;
+  /** Plain-text clipboard representation, including related document links when available. */
+  copyText?: string;
   time: string;
   attachments?: import('../../lib/lenaLoadCanvas').LenaAttachment[];
   deliveryStatus?: 'failed' | 'uploading';

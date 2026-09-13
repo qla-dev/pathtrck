@@ -396,6 +396,10 @@ export const useLenaEmbeddedMessages = ({
   }, [embeddedIdsVersion, embeddedReplyVersion, preloadedLoads]);
 
   const displayMessages = useMemo(() => messages.map((message) => {
+    const legalSourceIds = message.text.match(LEGAL_SOURCES_PATTERN)?.[1]
+      .split(',')
+      .map((id) => id.trim())
+      .filter((id) => legalSourceTitles[id]) || [];
     const markerFreeText = message.text
       .replace(BOOKING_MARKER_GLOBAL_PATTERN, '')
       .replace(LOAD_DETAILS_MARKER_GLOBAL_PATTERN, '')
@@ -411,6 +415,9 @@ export const useLenaEmbeddedMessages = ({
       .trim();
     return {
       ...message,
+      copyText: legalSourceIds.length > 0
+        ? `${markerFreeText}\n\nIzvori:\n${legalSourceIds.map((id) => `${legalSourceTitles[id]}: ${API_BASE_URL}/legal-sources/${encodeURIComponent(id)}`).join('\n')}`
+        : markerFreeText,
       text: message.sender === 'other' ? removeVisibleMarkdownAsterisks(markerFreeText) : markerFreeText,
     };
   }), [lang, messages]);

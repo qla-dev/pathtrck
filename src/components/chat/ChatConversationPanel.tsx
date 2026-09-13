@@ -375,7 +375,7 @@ export const ChatConversationPanel = ({
           {m.sender === 'other' && animatingMessageId !== m.id && !m.id.startsWith('welcome-') && !m.id.startsWith('blocked-') && (
             <button
               type="button"
-              onClick={() => void copyMessage(m.id, m.text)}
+              onClick={() => void copyMessage(m.id, m.copyText ?? m.text)}
               title={copyMessageLabel}
               aria-label={copiedMessageId === m.id ? copiedMessageLabel : copyMessageLabel}
               className="absolute -top-7 left-0 inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 opacity-0 shadow-sm transition-opacity hover:text-slate-600 focus-visible:opacity-100 group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500 dark:hover:text-slate-300"
