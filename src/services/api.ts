@@ -8,13 +8,21 @@ export type ApiEnvelope<T> = {
 };
 
 export type LegalJurisdiction = 'BA' | 'EU' | 'HR' | 'RS';
+/** One resource of a Lena skill: a legal-sources.json document, a web page or a screen of this app. */
+export type LenaSkillSource =
+  | { type: 'legal'; id: string; title: string; file: string; jurisdiction: LegalJurisdiction }
+  | { type: 'link'; title: string; url: string }
+  | { type: 'app'; title: string; view: string };
+
 export type LenaSkillRow = {
   id: string; name: string; description: string; folder: string;
+  /** Display names from the file's "## Name" section. */
+  names?: Partial<Record<'bs' | 'en' | 'de', string>>;
   kind: 'instructions' | 'skill'; shared: boolean; modes: string[]; scanners: boolean;
-  /** The prompt, without the file's closing "## Sources" section. */
+  /** The prompt, without the file's closing "## Name" section. */
   content: string;
-  /** Legal sources listed in that section, resolved against legal-sources.json. */
-  sources: { id: string; title: string; file: string; jurisdiction: LegalJurisdiction }[];
+  /** The file's resources from its folder's resources/resources.json. */
+  sources: LenaSkillSource[];
   bytes: number; updatedAt: string;
 };
 

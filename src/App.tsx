@@ -7580,7 +7580,7 @@ export default function App() {
               {view === "payment-history" && <PaymentHistoryView lang={lang} />}
               {view === "tariffs-hs" && <TariffsHsView lang={lang} />}
               {view === "legal-sources" && (role === "superadmin" || role === "master") && <LegalSourcesView lang={lang} />}
-              {view === "lena-skills" && isElevatedAdmin && <LenaSkillsView lang={lang} />}
+              {view === "lena-skills" && isElevatedAdmin && <LenaSkillsView lang={lang} onOpenView={setView} />}
               {view === "profile" && (
                 <ProfileView
                   role={role}
