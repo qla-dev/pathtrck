@@ -20,7 +20,7 @@ export const LenaThinkingIndicator = ({ phrases }: { phrases: string[] }) => {
         <AnimatePresence initial={false}>
           <motion.span
             key={index}
-            className="absolute inset-0 whitespace-nowrap"
+            className="absolute inset-0 whitespace-nowrap animate-text-shimmer bg-[length:200%_100%] bg-[linear-gradient(90deg,#94a3b8_20%,#334155_50%,#94a3b8_80%)] bg-clip-text text-transparent dark:bg-[linear-gradient(90deg,#64748b_20%,#f8fafc_50%,#64748b_80%)]"
             initial={{ y: reducedMotion ? 0 : '100%', opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: reducedMotion ? 0 : '-100%', opacity: 0 }}

@@ -33,8 +33,8 @@ const LENA_SKIP_MARKER_GLOBAL = /\[\[LENA_SKIP:[a-zA-Z]+\]\]/g;
 // The id list can come back empty ("[[LEGAL_SOURCES:]]") when no catalogue document supports the
 // answer, so both patterns accept an empty list: the marker must still be stripped from the visible
 // text, and an empty list must yield no source cards.
-const LEGAL_SOURCES_PATTERN = /\[\[LEGAL_SOURCES:\s*([a-z0-9,-]*?)\s*\]\]/;
-const LEGAL_SOURCES_GLOBAL = /\[\[LEGAL_SOURCES:?\s*[a-z0-9,-]*?\s*\]\]/g;
+const LEGAL_SOURCES_PATTERN = /\[\[LEGAL_SOURCES:\s*([a-z0-9,\s-]*?)\s*\]\]/;
+const LEGAL_SOURCES_GLOBAL = /\[\[LEGAL_SOURCES:?\s*[a-z0-9,\s-]*?\s*\]\]/g;
 
 const legalSourceTitles: Record<string, string> = {
   'customs-tariff-law': 'Zakon o carinskoj tarifi',
@@ -317,7 +317,7 @@ export const useLenaEmbeddedMessages = ({
     [messages]
   );
   const legalSourcesByMessage = useMemo(() => new Map(messages.flatMap((message) => {
-    const ids = message.text.match(LEGAL_SOURCES_PATTERN)?.[1].split(',').filter((id) => legalSourceTitles[id]);
+    const ids = message.text.match(LEGAL_SOURCES_PATTERN)?.[1].split(',').map((id) => id.trim()).filter((id) => legalSourceTitles[id]);
     return ids?.length ? [[message.id, ids] as const] : [];
   })), [messages]);
   // Insertion order follows the thread, so the first key is the earliest message carrying sources:
