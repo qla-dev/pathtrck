@@ -7,6 +7,7 @@ import {
   Calendar,
   Gauge,
   MessageSquare,
+  Mic,
   ScanSearch,
   FileText,
   Layers,
@@ -38,6 +39,7 @@ type MySubscriptionPayload = {
 
 const SERVICE_ICONS: Record<string, typeof MessageSquare> = {
   dispatch_chat: MessageSquare,
+  speech: Mic,
   guided_answer: MessageSquare,
   load_scan: ScanSearch,
   load_scan_text: FileText,
@@ -88,7 +90,9 @@ export const UsageView = ({
 
   useEffect(() => { void load(); }, []);
 
-  const serviceLabel = (service: string) => u(`usage.service.${service}`, service);
+  const serviceLabel = (service: string) => service === 'speech'
+    ? ({ en: 'Voice generation', de: 'Sprachausgabe', bs: 'Generisanje glasa', hr: 'Generiranje glasa', sr: 'Генерисање гласа' }[lang || 'en'] || 'Voice generation')
+    : u(`usage.service.${service}`, service);
 
   // bs-BA has poor ICU coverage in most JS runtimes (Intl.DateTimeFormat falls back to "M08 23"
   // instead of a real month name), so months/days are formatted from the app's own translated

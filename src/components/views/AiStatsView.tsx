@@ -27,6 +27,7 @@ import { ServerDataTable, ServerDataTableColumn } from "../ui/ServerDataTable";
 
 const SERVICE_LABELS: Record<string, string> = {
   dispatch_chat: "Dispatch chat",
+  speech: "Voice generation",
   load_scan: "Load scan (file)",
   load_scan_text: "Load scan (text)",
   bulk_scan: "Bulk scan (file)",
@@ -41,6 +42,10 @@ const formatCost = (value: unknown) => {
   const n = Number(value);
   return Number.isFinite(n) && value !== null ? `$${n.toFixed(4)}` : "—";
 };
+
+const callCost = (row: Record<string, unknown>) => row.service === 'speech' && row.cost_usd == null
+  ? 'Pending'
+  : formatCost(row.cost_usd);
 
 const LENA_ALPHA_MODEL = "freightbook/lena-1.0-alpha";
 const LENA_ALPHA_DISPLAY_TOKENS = "1280";
@@ -130,6 +135,7 @@ const extractSentMessage = (row: Record<string, unknown>): string => {
   // The deterministic guided-answer path has no messages[] - fall back to what was actually
   // clicked/typed for that step.
   if (typeof req.display_text === "string") return stripLenaMarkers(req.display_text);
+  if (typeof req.input === "string") return stripLenaMarkers(req.input);
   if (typeof req.value === "string") return stripLenaMarkers(req.value);
   return "";
 };
@@ -277,7 +283,7 @@ const AiCallLogDetail = ({
                   </span>
                 )}
               </p>
-              <p className="text-xs"><span className="block font-black uppercase tracking-wider text-slate-400">Cost</span><span className="font-bold text-emerald-600 dark:text-emerald-400">{formatCost(log.cost_usd)}</span></p>
+              <p className="text-xs"><span className="block font-black uppercase tracking-wider text-slate-400">Cost</span><span className="font-bold text-emerald-600 dark:text-emerald-400">{callCost(log)}</span></p>
               <p className="truncate text-xs"><span className="block font-black uppercase tracking-wider text-slate-400">Provider</span><span className="font-bold text-slate-800 dark:text-slate-100">{String(log.provider || "—")}</span></p>
               <p className="truncate text-xs"><span className="block font-black uppercase tracking-wider text-slate-400">Finish reason</span><span className="font-bold text-slate-800 dark:text-slate-100">{String(log.finish_reason || "—")}</span></p>
               <p className="text-xs"><span className="block font-black uppercase tracking-wider text-slate-400">Temperature</span><span className="font-bold text-slate-800 dark:text-slate-100">{String(log.temperature ?? "—")}</span></p>
@@ -600,8 +606,8 @@ export const AiStatsView = ({ lang, role }: { lang: Language; role?: Role }) => 
       {
         key: "cost",
         header: "Cost",
-        render: (row) => <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{formatCost(row.cost_usd)}</span>,
-        exportValue: (row) => formatCost(row.cost_usd),
+        render: (row) => <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{callCost(row)}</span>,
+        exportValue: (row) => callCost(row),
       },
       {
         key: "attachment",
@@ -706,8 +712,8 @@ export const AiStatsView = ({ lang, role }: { lang: Language; role?: Role }) => 
       {
         key: "cost",
         header: "Cost",
-        render: (row) => <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{formatCost(row.cost_usd)}</span>,
-        exportValue: (row) => formatCost(row.cost_usd),
+        render: (row) => <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{callCost(row)}</span>,
+        exportValue: (row) => callCost(row),
       },
       {
         key: "attachment",
@@ -772,7 +778,7 @@ export const AiStatsView = ({ lang, role }: { lang: Language; role?: Role }) => 
         <PageHeader
           icon={Gauge}
           title="AI Stats"
-          subtitle="Every OpenRouter call across LenaAI chat and document scanning - including free, failed, or generic-answer calls. Nothing is hidden by default."
+          subtitle="Every OpenRouter call across LenaAI chat, voice generation, and document scanning - including free, failed, or generic-answer calls. Nothing is hidden by default."
         />
 
         <div className="grid items-stretch gap-3 sm:grid-cols-3 lg:grid-cols-6">

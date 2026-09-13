@@ -815,8 +815,8 @@ export const api = {
     file: (path: string) => request<{ path: string; content: string }>(`/lena-skills/file?${queryString({ path })}`),
   },
   dispatchChat: {
-    speech: (text: string, lang: string, signal?: AbortSignal) => fetchAuthenticatedBlob('/dispatch-chat/speech', {
-      method: 'POST', body: JSON.stringify({ text, lang: lang.split(/[-_]/)[0] }), signal,
+    speech: (text: string, lang: string, conversationId: number, signal?: AbortSignal) => fetchAuthenticatedBlob('/dispatch-chat/speech', {
+      method: 'POST', body: JSON.stringify({ text, lang: lang.split(/[-_]/)[0], conversation_id: conversationId }), signal,
     }),
     /** The skills the next reply uses, named in the interface language, for LenaAI's thinking indicator. */
     skills: async (conversationId: number, lang?: string) => (await request<{ id: string; name: string }[]>('/dispatch-chat/skills', {

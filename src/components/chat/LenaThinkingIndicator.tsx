@@ -27,7 +27,9 @@ export const LenaThinkingIndicator = ({ phrases, timeline, skillLabel = 'is usin
   const [index, setIndex] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const reducedMotion = useReducedMotion();
-  const phraseCount = phrases.length + (voiceMode ? 1 : 0);
+  const phraseCount = phrases.length + (voiceMode ? 2 : 0);
+  const listeningLabel = ({ en: 'is listening to your message', de: 'hört Ihre Nachricht an', bs: 'sluša vašu poruku', hr: 'sluša vašu poruku', sr: 'слуша вашу поруку' } as Record<string, string>)[voiceLanguage.split(/[-_]/)[0]] || 'is listening to your message';
+  const listeningContent = <span className="inline-flex items-center gap-1 whitespace-nowrap"><Mic aria-hidden="true" className="h-4 w-4 shrink-0" /><span className={shimmer}>{listeningLabel}</span></span>;
   const recordingLabel = ({ en: 'is recording the reply', de: 'nimmt die Antwort auf', bs: 'snima odgovor', hr: 'snima odgovor', sr: 'снима одговор' } as Record<string, string>)[voiceLanguage.split(/[-_]/)[0]] || 'is recording the reply';
   const recordingContent = <span className="inline-flex items-center gap-1 whitespace-nowrap"><Mic aria-hidden="true" className="h-4 w-4 shrink-0" /><span className={shimmer}>{recordingLabel}</span></span>;
   const phase = timeline ? lenaThinkingPhaseAt(timeline, phraseCount, now) : null;
@@ -52,9 +54,11 @@ export const LenaThinkingIndicator = ({ phrases, timeline, skillLabel = 'is usin
   const phraseIndex = (phase?.kind === 'phrase' ? phase.index : index) % Math.max(1, phraseCount);
   const current = phase?.kind === 'skill'
     ? { key: phase.key, label: `${skillLabel} ${phase.skill.name}`, content: <SkillText label={skillLabel} name={phase.skill.name} /> }
-    : voiceMode && phraseIndex === phrases.length
+    : voiceMode && phraseIndex === 0
+      ? { key: phase?.key ?? String(index), label: listeningLabel, content: listeningContent }
+    : voiceMode && phraseIndex === phrases.length + 1
       ? { key: phase?.key ?? String(index), label: recordingLabel, content: recordingContent }
-      : { key: phase?.key ?? String(index), label: phraseAt(phraseIndex), content: <span className={shimmer}>{phraseAt(phraseIndex)}</span> };
+      : { key: phase?.key ?? String(index), label: phraseAt(phraseIndex - (voiceMode ? 1 : 0)), content: <span className={shimmer}>{phraseAt(phraseIndex - (voiceMode ? 1 : 0))}</span> };
 
   return (
     <span className="inline-flex max-w-full items-baseline gap-1 text-slate-500 dark:text-slate-400" role="status" aria-label={`LenaAI ${current.label}`}>
@@ -63,6 +67,7 @@ export const LenaThinkingIndicator = ({ phrases, timeline, skillLabel = 'is usin
         {/* Reserve the longest phrase's or skill's width so the fixed name never shifts. */}
         {phrases.map(text => <span key={text} className="invisible col-start-1 row-start-1 whitespace-nowrap">{text}</span>)}
         {voiceMode && <span className="invisible col-start-1 row-start-1">{recordingContent}</span>}
+        {voiceMode && <span className="invisible col-start-1 row-start-1">{listeningContent}</span>}
         {(timeline?.skills ?? []).map(skill => <span key={skill.id} className="invisible col-start-1 row-start-1"><SkillText label={skillLabel} name={skill.name} /></span>)}
         <AnimatePresence initial={false}>
           <motion.span

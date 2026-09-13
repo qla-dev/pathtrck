@@ -183,6 +183,7 @@ export const ChatConversationPanel = ({
   const [holdThinkingIndicator, setHoldThinkingIndicator] = useState(false);
   const [waitingForVoiceAudio, setWaitingForVoiceAudio] = useState(false);
   const [hiddenVoiceReplyId, setHiddenVoiceReplyId] = useState<string | null>(null);
+  const [bufferingMessageId, setBufferingMessageId] = useState<string | null>(null);
   const previousOtherTypingRef = useRef(false);
   const [isDraggingAttachment, setIsDraggingAttachment] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
@@ -273,7 +274,7 @@ export const ChatConversationPanel = ({
 
     speechCleanupRef.current?.();
     setHiddenVoiceReplyId(latest.id);
-    speechCleanupRef.current = playServerSpeech(text, voiceLanguage, api.dispatchChat.speech, () => {
+    speechCleanupRef.current = playServerSpeech(text, voiceLanguage, (chunk, language, signal) => api.dispatchChat.speech(chunk, language, Number(activeConversation.id), signal), () => {
       spokenMessageIdRef.current = null;
       void showError(speechErrorText(voiceLanguage, 'failed'));
     }, undefined, (waiting) => {
@@ -296,13 +297,13 @@ export const ChatConversationPanel = ({
     }
   };
 
-  const playMessage = (text: string) => {
+  const playMessage = (id: string, text: string) => {
     const spokenText = text.replace(/\[\[[^\]]+\]\]/g, ' ').replace(/\s+/g, ' ').trim();
     if (!spokenText) return;
     speechCleanupRef.current?.();
-    speechCleanupRef.current = playServerSpeech(spokenText, voiceLanguage, api.dispatchChat.speech, () => {
+    speechCleanupRef.current = playServerSpeech(spokenText, voiceLanguage, (chunk, language, signal) => api.dispatchChat.speech(chunk, language, Number(activeConversation.id), signal), () => {
       void showError(speechErrorText(voiceLanguage, 'failed'));
-    }, undefined, setWaitingForVoiceAudio);
+    }, undefined, (waiting) => setBufferingMessageId(waiting ? id : null));
   };
 
   const handleAttachmentDragOver = (event: DragEvent<HTMLDivElement>) => {
@@ -538,12 +539,14 @@ export const ChatConversationPanel = ({
               </button>
               <button
                 type="button"
-                onClick={() => playMessage(m.text)}
+                onClick={() => playMessage(m.id, m.text)}
                 title={playMessageLabel}
                 aria-label={playMessageLabel}
+                aria-busy={bufferingMessageId === m.id}
+                disabled={bufferingMessageId === m.id}
                 className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-sm transition-colors hover:text-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500 dark:hover:text-primary"
               >
-                <Play className="h-3.5 w-3.5" />
+                {bufferingMessageId === m.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
               </button>
             </div>
           )}
