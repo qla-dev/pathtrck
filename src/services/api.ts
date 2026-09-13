@@ -11,7 +11,11 @@ export type LegalJurisdiction = 'BA' | 'EU' | 'HR' | 'RS';
 export type LenaSkillRow = {
   id: string; name: string; description: string; folder: string;
   kind: 'instructions' | 'skill'; shared: boolean; modes: string[]; scanners: boolean;
-  content: string; bytes: number; updatedAt: string;
+  /** The prompt, without the file's closing "## Sources" section. */
+  content: string;
+  /** Legal sources listed in that section, resolved against legal-sources.json. */
+  sources: { id: string; title: string; file: string; jurisdiction: LegalJurisdiction }[];
+  bytes: number; updatedAt: string;
 };
 
 /** One entry of agents/lena/legal-sources.json, as listed on the superadmin "Zakoni" screen. */
