@@ -1,5 +1,4 @@
-import legalSourceManifest from '../../../../backend/agents/lena/legal-sources.json?raw';
-import { lenaText } from '../../lib/lenaCatalog';
+import { getLenaCatalog, lenaText } from '../../lib/lenaCatalog';
 import { lenaIcon } from '../../lib/lenaIcons';
 import { latestLoadScan } from '../../lib/lenaLoadCanvas';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -40,12 +39,9 @@ const LENA_SKIP_MARKER_GLOBAL = /\[\[LENA_SKIP:[a-zA-Z]+\]\]/g;
 const LEGAL_SOURCES_PATTERN = /\[{1,2}\s*LEGAL_SOURCES\s*:\s*([a-z0-9,\s-]*?)\s*\]{1,2}/i;
 const LEGAL_SOURCES_GLOBAL = /\[{1,2}\s*LEGAL_SOURCES\s*:?\s*[a-z0-9,\s-]*?\s*\]{1,2}/gi;
 
-// Use the recorded filenames from the same local catalogue that resolves source links.
-// New catalogue entries must not require a second, manually maintained frontend list.
-const legalSourceTitles: Record<string, string> = Object.fromEntries(
-  (JSON.parse(legalSourceManifest) as { sources: { id: string; file: string }[] }).sources
-    .map((source) => [source.id, source.file]),
-);
+// Use the recorded filenames from the backend catalogue that resolves source links, served with the
+// Lena catalog (installed before the app loads). New entries need no second frontend list.
+const legalSourceTitles: Record<string, string> = getLenaCatalog().legal_sources ?? {};
 
 const LENA_OUT_OF_TOKENS_PATTERN = /\[\[LENA_OUT_OF_TOKENS\]\]/;
 const LENA_OUT_OF_TOKENS_GLOBAL = /\[\[LENA_OUT_OF_TOKENS\]\]/g;
