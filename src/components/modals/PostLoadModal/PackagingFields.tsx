@@ -71,14 +71,20 @@ type PackagingFieldsProps = {
 export const PackagingFields = ({
   value, onChange, u, fieldOptions, fieldExample, renderLabel, fieldTitle, invalidClass, packagingTrailing,
 }: PackagingFieldsProps) => {
-  const label = (field: keyof PackagingEntry) => renderLabel?.(field) ?? <FieldLabel>{fieldTitle(field)}</FieldLabel>;
+  // Give standalone labels the same block layout as labels with an action button.
+  // Inline labels otherwise reserve baseline space and push their inputs lower.
+  const label = (field: keyof PackagingEntry) => (
+    <div className="flex min-h-5 items-center">
+      {renderLabel?.(field) ?? <FieldLabel>{fieldTitle(field)}</FieldLabel>}
+    </div>
+  );
   const invalid = (field: keyof PackagingEntry) => invalidClass?.(field) ?? '';
   const packagingOptions = fieldOptions('quantityMeasure', Package);
   const calculated = calculateVolume(value);
 
   return (
     <>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid items-end gap-3 sm:grid-cols-2">
         <div className={cn('space-y-1', invalid('pallets'))}>
           {label('pallets')}
           <Input
@@ -91,7 +97,7 @@ export const PackagingFields = ({
           />
         </div>
         <div className="space-y-1">
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex min-h-5 items-center justify-between gap-2">
             <FieldLabel>{u('postLoadModal.packagingMethod', '')}</FieldLabel>
             {packagingTrailing}
           </div>
@@ -128,7 +134,9 @@ export const PackagingFields = ({
           <Input type="number" step="0.05" min="0" value={value.heightM} onChange={(event) => onChange({ heightM: event.target.value })} placeholder={fieldExample('heightM')} />
         </div>
         <div className="space-y-1">
-          <FieldLabel>{u('postLoadModal.dimensionUnit', '')}</FieldLabel>
+          <div className="flex min-h-5 items-center">
+            <FieldLabel>{u('postLoadModal.dimensionUnit', '')}</FieldLabel>
+          </div>
           <IconSelect
             value={value.lengthUnit}
             onChange={(next) => onChange(withDimensionUnit(value, next as PackagingEntry['lengthUnit']))}
@@ -150,7 +158,7 @@ export const PackagingFields = ({
           />
         </div>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid items-end gap-3 sm:grid-cols-2">
         <div className={cn('space-y-1', invalid('weightKg'))}>
           {label('weightKg')}
           <div className="flex gap-2">
@@ -174,7 +182,7 @@ export const PackagingFields = ({
           </div>
         </div>
         <div className={cn('space-y-1', invalid('volumeM3'))}>
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex min-h-5 items-center justify-between gap-2">
             {label('volumeM3')}
             <button
               type="button"

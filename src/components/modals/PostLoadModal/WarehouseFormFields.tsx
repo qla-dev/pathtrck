@@ -185,9 +185,8 @@ export type OwnedWarehouse = {
  * The Route step of a storage request.
  *
  * A storage request is not a trip: the goods are described by where they are stored, not by a leg
- * driven to get there. So there is no pickup column here - the storage destination that used to sit
- * as a full-width row above the route takes the first column instead, the preferred warehouse
- * location follows, and the third column reads the request back as storage rather than as a route.
+ * driven to get there. This step collects the preferred warehouse location and storage period;
+ * the publication sidebar selects the exchange or the receiving private warehouse.
  * Getting the goods to that warehouse is its own road load, which publishing offers to prepare.
  */
 export const WarehouseLocationFields = ({
@@ -196,9 +195,6 @@ export const WarehouseLocationFields = ({
   setDraft,
   u,
   lang,
-  ownedWarehouses,
-  onAddWarehouse,
-  onSelectOwnedWarehouse,
   onOpenWarehouseArea,
   invalidClass,
 }: {
@@ -207,9 +203,6 @@ export const WarehouseLocationFields = ({
   setDraft: Setter;
   u: (key: string, fallback: string) => string;
   lang: Language;
-  ownedWarehouses: OwnedWarehouse[];
-  onAddWarehouse: () => void;
-  onSelectOwnedWarehouse: (warehouse: OwnedWarehouse) => void;
   onOpenWarehouseArea: () => void;
   invalidClass: InvalidClass;
 }) => {
@@ -234,63 +227,6 @@ export const WarehouseLocationFields = ({
   return (
   <div className="grid gap-3 lg:grid-cols-[minmax(0,10fr)_minmax(0,2fr)]">
     <div className="min-w-0 space-y-3">
-    <section className="space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
-      <div className="flex items-center gap-2 text-primary">
-        <Warehouse className="h-4 w-4" />
-        <p className="text-xs font-black uppercase tracking-wider">{u('postLoadModal.storageTarget', '')}</p>
-      </div>
-      <div className="space-y-1">
-        <div className="relative w-[calc(50%-0.25rem)] pr-7">
-          <FieldLabel>{u('postLoadModal.storageTargetQuestion', '')}</FieldLabel>
-          <button type="button" onClick={onAddWarehouse} aria-label={u('warehouses.create', '')} title={u('warehouses.create', '')} className="absolute -top-1 right-0 z-10 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-full bg-primary text-white shadow-sm transition-colors hover:bg-primary/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 disabled:cursor-default disabled:opacity-50">
-            <Plus className="h-3 w-3" strokeWidth={3} />
-          </button>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <ChoiceCard
-            compact
-            disabled={ownedWarehouses.length === 0}
-            active={draft.storageTarget === 'own'}
-            title={u('postLoadModal.storageTargetOwn', '')}
-            description={ownedWarehouses.length === 0
-              ? u('postLoadModal.noWarehousesAdded', '')
-              : u('postLoadModal.storageTargetOwnDesc', '')}
-            icon={ArrowDownToLine}
-            onClick={() => setDraft((current) => ({ ...current, storageTarget: 'own' }))}
-          />
-          <ChoiceCard
-            compact
-            active={draft.storageTarget === 'exchange'}
-            title={u('postLoadModal.storageTargetExchange', '')}
-            description={u('postLoadModal.storageTargetExchangeDesc', '')}
-            icon={Landmark}
-            onClick={() => setDraft((current) => ({ ...current, storageTarget: 'exchange', warehouseId: '', warehouseName: '' }))}
-          />
-        </div>
-      </div>
-      {draft.storageTarget === 'own' && (
-        <div className="space-y-1">
-          <FieldLabel>{u('postLoadModal.receivingWarehouse', '')}</FieldLabel>
-          <div className={cn('flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950', invalidClass('warehouseId'))}>
-            {ownedWarehouses.map((warehouse) => (
-              <button
-                key={warehouse.id}
-                type="button"
-                onClick={() => onSelectOwnedWarehouse(warehouse)}
-                className={cn('inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-2 text-xs font-bold transition-colors', draft.warehouseId === String(warehouse.id) ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200')}
-              >
-                <Warehouse className="h-3.5 w-3.5" />
-                {warehouse.name}
-              </button>
-            ))}
-            {ownedWarehouses.length === 0 && (
-              <p className="px-1 py-2 text-xs text-slate-500">{u('postLoadModal.noOwnedWarehouses', '')}</p>
-            )}
-          </div>
-        </div>
-      )}
-    </section>
-
     <section className="space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
       <div className="flex items-center gap-2 text-orange-500">
         <Warehouse className="h-4 w-4" />

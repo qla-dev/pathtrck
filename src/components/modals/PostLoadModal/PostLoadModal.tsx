@@ -3,6 +3,8 @@ import { lenaIcon } from '../../../lib/lenaIcons';
 import { calculateVolume } from './volume';
 import { PackagingFields, applyPackagingPatch } from './PackagingFields';
 import { MorePackagingModal } from './MorePackagingModal';
+import { PublishPropery, publishText, type PublishDestination, type PublishVehicle } from './PublishPropery';
+import { RegisterVehicleModal } from '../RegisterVehicleModal';
 import { AddWarehouseModal } from '../AddWarehouseModal/AddWarehouseModal';
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
@@ -105,7 +107,6 @@ import {
   AIR_SPECIAL_REQUIREMENT_OPTIONS,
   AIR_TAIL_LIFT_REQUIREMENT,
   BODY_TYPE_OPTIONS,
-  CLOSED_EXCHANGE_OPTIONS,
   CONTACT_OPTIONS,
   INCOTERM_OPTIONS,
   SEA_PAYMENT_TERMS_OPTIONS,
@@ -294,16 +295,31 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   const [currentUser, setCurrentUser] = useState<ApiUser | null>(null);
   const [addWarehouseOpen, setAddWarehouseOpen] = useState(false);
   const [ownedWarehouses, setOwnedWarehouses] = useState<OwnedWarehouse[]>([]);
+  const [publishOpen, setPublishOpen] = useState(false);
+  const [publishDestination, setPublishDestination] = useState<PublishDestination>('exchange');
+  const [publishVehicles, setPublishVehicles] = useState<PublishVehicle[]>([]);
+  const [publishVehicleId, setPublishVehicleId] = useState('');
+  const [addVehicleOpen, setAddVehicleOpen] = useState(false);
+  const [publishResourcesLoading, setPublishResourcesLoading] = useState(true);
+  const [publishResourcesError, setPublishResourcesError] = useState(false);
+  const [publishResourcesVersion, setPublishResourcesVersion] = useState(0);
+  const [publishLastMile, setPublishLastMile] = useState(false);
+  const publicationLock = useRef(false);
+  const receiptLoad = useRef<Record<string, unknown> | null>(null);
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;
-    void api.auth.me().then((user) => { if (!cancelled) setCurrentUser(user); }).catch(() => {});
+    void api.auth.me().then((user) => { if (!cancelled) setCurrentUser(user); }).catch(() => {
+      if (!cancelled) { setPublishResourcesError(true); setPublishResourcesLoading(false); }
+    });
     return () => { cancelled = true; };
   }, [isOpen]);
   useEffect(() => {
-    if (!isOpen || draft.transportType !== 'warehouse') return undefined;
+    if (!isOpen || !currentUser) return undefined;
     let cancelled = false;
-    void api.warehouse.overview().then((response) => {
+    setPublishResourcesLoading(true);
+    setPublishResourcesError(false);
+    void Promise.all([api.warehouse.overview(), api.vehicles.list({ per_page: 500 })]).then(([response, vehicles]) => {
       if (cancelled) return;
       const rows = Array.isArray(response.data.warehouses) ? response.data.warehouses : [];
       setOwnedWarehouses(rows.map((row) => ({
@@ -315,28 +331,57 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         latitude: String(row.latitude ?? ''),
         longitude: String(row.longitude ?? ''),
       })).filter((row) => row.id > 0));
-    }).catch(() => setOwnedWarehouses([]));
+      const companyIds = new Set((currentUser.companies || []).map(company => Number(company.id)));
+      setPublishVehicles(vehicles.data.filter(row => Number(row.owner_user_id) === currentUser.id
+        || companyIds.has(Number(row.company_id))
+        || Number(row.assigned_driver_user_id) === currentUser.id
+        || (Array.isArray(row.permitted_users) && row.permitted_users.some(user => Number(user.id) === currentUser.id)))
+        .map(row => ({ id: Number(row.id), name: String(row.registration_number || row.name || row.id) })));
+    }).catch(() => { if (!cancelled) setPublishResourcesError(true); })
+      .finally(() => { if (!cancelled) setPublishResourcesLoading(false); });
     return () => { cancelled = true; };
-  }, [draft.transportType, isOpen]);
+  }, [isOpen, currentUser, publishResourcesVersion]);
   const hsSearchRef = useRef<HTMLDivElement>(null);
   useOutsideClick(hsSearchRef, () => setHsSuggestions([]), hsSuggestions.length > 0);
 
   const selectOwnedWarehouse = (warehouse: OwnedWarehouse) => {
+    setPublishDestination('warehouse');
     setDraft((current) => ({
       ...current,
       storageTarget: 'own',
       warehouseId: String(warehouse.id),
       warehouseName: warehouse.name,
-      deliveryPlaceType: 'Warehouse',
-      deliveryCity: warehouse.city,
-      deliveryCountry: warehouse.countryCode,
-      deliveryAddress: warehouse.address,
-      deliveryLatitude: warehouse.latitude,
-      deliveryLongitude: warehouse.longitude,
+      ...(current.transportType === 'warehouse' ? {
+        deliveryPlaceType: 'Warehouse',
+        deliveryCity: warehouse.city,
+        deliveryCountry: warehouse.countryCode,
+        deliveryAddress: warehouse.address,
+        deliveryLatitude: warehouse.latitude,
+        deliveryLongitude: warehouse.longitude,
+      } : {}),
     }));
   };
 
+  const selectPublishDestination = (destination: PublishDestination) => {
+    if (receiptLoad.current) return;
+    setPublishDestination(destination);
+    setDraft(current => ({ ...current, storageTarget: destination === 'warehouse' ? 'own' : 'exchange' }));
+  };
+
+  useEffect(() => {
+    if (isOpen) return;
+    setPublishOpen(false);
+    setPublishDestination('exchange');
+    setPublishVehicleId('');
+    setPublishLastMile(false);
+    receiptLoad.current = null;
+  }, [isOpen]);
+
   const resetDraftState = () => {
+    setPublishOpen(false);
+    setPublishDestination('exchange');
+    setPublishVehicleId('');
+    receiptLoad.current = null;
     setStep('cargo');
     // A locked mode is what the form opens as, so it survives the reset the way the blank draft does.
     setDraft(lockedTransportType ? { ...INITIAL_DRAFT, transportType: lockedTransportType } : INITIAL_DRAFT);
@@ -611,6 +656,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         deliveryCount: draft.extraDeliveries.length + 1,
       });
     rejectSubmit({ message: described.message || error.message, fields: described.fields });
+    if (!receiptLoad.current && described.fields.some(field => field !== 'warehouseId')) setPublishOpen(false);
   };
 
   const aiFieldCount = Object.keys(aiFilledPatch).length;
@@ -969,7 +1015,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   // Shared by the plain "Objavi" button and the "Objavi + Last Mile Delivery" flow below - the
   // latter needs to know whether the publish actually succeeded before it goes on to create a
   // second draft/conversation, without showing its own duplicate confirm prompt.
-  const publishLoad = async (): Promise<boolean> => {
+  const publishLoad = async (tracking = false): Promise<boolean> => {
     const issues = validateDraft(u, draft);
     if (issues) {
       rejectSubmit(issues);
@@ -985,7 +1031,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       const payload = buildLoadPayload(draft);
       const response = editLoadId
         ? await api.loads.update(editLoadId, payload)
-        : await api.loads.create({ ...payload, status: 'posted', published_at: new Date().toISOString() });
+        : await api.loads.create({ ...payload, status: tracking ? 'pending' : 'posted', published_at: tracking ? null : new Date().toISOString(), ...(tracking ? { vehicle_id: Number(publishVehicleId), must_be_trackable: true } : {}) });
       // Publishing a load built through the LenaAI canvas finally links the conversation that
       // built it to the real load record, and turns canvas mode off — the next message in that
       // conversation then automatically gets full load-scoped Q&A (DispatchChatController branches
@@ -1052,11 +1098,12 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     try {
       // This is an internal receipt record, not a marketplace listing. Publishing it creates the
       // scheduled inbound movement that appears under My docks.
-      const response = await api.loads.create({
-        ...buildWarehouseLoadPayload(draft),
+      const response = receiptLoad.current ? { data: receiptLoad.current } : await api.loads.create({
+        ...(draft.transportType === 'warehouse' ? buildWarehouseLoadPayload(draft) : buildLoadPayload(draft)),
         status: 'pending',
         published_at: null,
       });
+      receiptLoad.current = response.data;
       await api.warehouseMovements.create({
         warehouse_id: Number(draft.warehouseId),
         load_id: Number(response.data.id),
@@ -1072,6 +1119,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         currency: draft.freightCurrency,
         description: draft.loadTitle || null,
       });
+      receiptLoad.current = null;
       if (sourceConversationId) {
         try {
           await api.conversations.update(sourceConversationId, { load_id: response.data.id, canvas: false });
@@ -1088,48 +1136,58 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       return true;
     } catch (error) {
       rejectFromApi(error, u('postLoadModal.apiError', ''));
+      if (receiptLoad.current) setSubmitError(publishText(lang).receiptRetry);
       return false;
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const submit = async () => {
+  const openPublication = (lastMile = false) => {
     if (isSubmitting) return;
-    if (draft.transportType === 'warehouse') {
-      if (draft.storageTarget === 'own') {
-        const confirmed = await confirmAction({
-          title: u('postLoadModal.scheduleReceiptTitle', ''),
-          text: u('postLoadModal.scheduleReceiptText', ''),
-          confirmText: u('postLoadModal.scheduleReceiptConfirm', ''),
-        });
-        if (!confirmed) return;
-        await publishOwnWarehouseReceipt();
-        return;
-      }
-      const confirmed = await confirmAction({
-        title: u('postLoadModal.publishWarehouseTitle', ''),
-        text: editLoadId
-          ? u('postLoadModal.publishWarehouseText', '')
-          : u('postLoadModal.publishWarehouseWithTransportText', ''),
-        confirmText: u('postLoadModal.publishConfirm', ''),
-      });
-      if (!confirmed) return;
-      const published = await publishWarehouseLoad();
-      // Only a freshly posted request needs the transport leg - re-saving an existing one would
-      // hand the user a second, duplicate road draft for a route they already have.
-      if (published && !editLoadId) await startWarehouseTransportDraft();
+    // The receiving facility belongs to the next step; all cargo, route and contact
+    // validation stays in the form and must pass before the sidebar can open.
+    const issues = validateDraft(u, { ...draft, storageTarget: 'exchange' });
+    if (issues) {
+      setPublishOpen(false);
+      rejectSubmit(issues);
       return;
     }
-    const confirmed = await confirmAction({
-      title: editLoadId ? u('postLoadModal.saveChangesTitle', '') : u('postLoadModal.publishTitle', ''),
-      text: editLoadId
-        ? u('postLoadModal.saveChangesText', '')
-        : u('postLoadModal.publishText', ''),
-      confirmText: editLoadId ? u('common.save', '') : u('postLoadModal.publishConfirm', ''),
-    });
-    if (!confirmed) return;
-    await publishLoad();
+    setPublishLastMile(lastMile);
+    setSubmitError('');
+    setRejected(null);
+    if (!receiptLoad.current) {
+      if (draft.storageTarget === 'own') setPublishDestination('warehouse');
+      else if (draft.transportType === 'warehouse' && publishDestination === 'tracking') selectPublishDestination('exchange');
+    }
+    setPublishOpen(true);
+  };
+
+  const submit = async () => {
+    if (!editLoadId) { openPublication(); return; }
+    if (isSubmitting) return;
+    const confirmed = await confirmAction({ title: u('postLoadModal.saveChangesTitle', ''), text: u('postLoadModal.saveChangesText', ''), confirmText: u('common.save', '') });
+    if (confirmed) await publishLoad();
+  };
+
+  const confirmPublication = async () => {
+    if (publicationLock.current || isSubmitting) return;
+    if (publishDestination === 'warehouse' && !ownedWarehouses.some(w => String(w.id) === draft.warehouseId)) return;
+    if (publishDestination === 'tracking' && (draft.transportType === 'warehouse' || !publishVehicles.some(v => String(v.id) === publishVehicleId))) return;
+    const issues = validateDraft(u, draft);
+    if (issues) { setPublishOpen(false); rejectSubmit(issues); return; }
+    publicationLock.current = true;
+    try {
+      if (publishDestination === 'warehouse') { await publishOwnWarehouseReceipt(); return; }
+      if (publishDestination === 'tracking') { await publishLoad(true); return; }
+      if (publishLastMile) { await submitWithLastMile(); return; }
+      if (draft.transportType === 'warehouse') {
+        const published = await publishWarehouseLoad();
+        if (published) await startWarehouseTransportDraft();
+        return;
+      }
+      await publishLoad();
+    } finally { publicationLock.current = false; }
   };
 
   // Publishing a storage request only covers the storing - the goods still have to reach that
@@ -1210,12 +1268,6 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
 
   const submitWithLastMile = async () => {
     if (isSubmitting) return;
-    const confirmed = await confirmAction({
-      title: u('postLoadModal.publishLastMileTitle', ''),
-      text: u('postLoadModal.publishLastMileText', ''),
-      confirmText: u('postLoadModal.publishLastMileConfirm', ''),
-    });
-    if (!confirmed) return;
 
     const published = await publishLoad();
     if (!published || !currentUser) return;
@@ -1627,9 +1679,6 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       u={u}
                       lang={lang}
                       invalidClass={invalidClass}
-                      ownedWarehouses={ownedWarehouses}
-                      onAddWarehouse={() => setAddWarehouseOpen(true)}
-                      onSelectOwnedWarehouse={selectOwnedWarehouse}
                       onOpenWarehouseArea={() => setAreaMapOpen(true)}
                     />
                   ) : (
@@ -2721,50 +2770,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                         </div>
                       </div>
 
-                      <div className="flex-1 space-y-3 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
-                        <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-primary">
-                          <ShieldCheck className="h-4 w-4" />
-                          <span>{u('postLoadModal.limitPublication', '')}</span>
-                        </div>
-                        <div className="space-y-1">
-                          <FieldLabel>{u('postLoadModal.closedFreightExchange', '')}</FieldLabel>
-                          <Select
-                            value={draft.closedFreightExchange}
-                            onChange={(e) => setField('closedFreightExchange', e.target.value)}
-                          >
-                            {CLOSED_EXCHANGE_OPTIONS.map((option) => (
-                              <option key={option || 'none'} value={option}>
-                                {option || u('postLoadModal.none', '')}
-                              </option>
-                            ))}
-                          </Select>
-                        </div>
-                        <div className="space-y-1">
-                          <FieldLabel>{u('postLoadModal.closedFreightComments', '')}</FieldLabel>
-                          <Input
-                            value={draft.closedFreightComments}
-                            onChange={(e) => setField('closedFreightComments', e.target.value)}
-                            placeholder={u('postLoadModal.closedFreightCommentsPlaceholder', '')}
-                          />
-                        </div>
-                        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-800 dark:bg-slate-950 dark:text-white">
-                          <label className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={draft.publishToAllAfterMinutes}
-                              onChange={(e) => setField('publishToAllAfterMinutes', e.target.checked)}
-                            />
-                            <span>{u('postLoadModal.publishToAllAfter', '')}</span>
-                          </label>
-                          <Input
-                            type="number"
-                            value={draft.publishDelayMinutes}
-                            onChange={(e) => setField('publishDelayMinutes', e.target.value)}
-                            className="h-11 w-24"
-                          />
-                          <span>{u('postLoadModal.publishToAllAfterSuffix', '')}</span>
-                        </div>
-                      </div>
+
                     </div>
                   </div>
                 </motion.div>
@@ -2893,7 +2899,6 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                           draft.mustBeTrackable ? u('postLoadModal.mustBeTrackableShort', '') : null,
                         ].filter(Boolean).join(', ') || u('postLoadModal.none', '')}
                       />
-                      <SummaryRow label={u('postLoadModal.publicationSummary', '')} value={draft.closedFreightExchange || u('postLoadModal.openPublication', '')} />
                     </div>
                     )}
 
@@ -3024,7 +3029,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                     {isSubmitting ? <Loader2 className="w-4 h-4 shrink-0 animate-spin" /> : <Send className="w-4 h-4 shrink-0" />}
                     <span className="truncate">{isSubmitting ? u('postLoadModal.publishing', '') : u('common.postLoad', '')}</span>
                   </Button>
-                  <Button className="w-full h-11 gap-2" onClick={() => void submitWithLastMile()} disabled={isSubmitting}>
+                  <Button className="w-full h-11 gap-2" onClick={() => openPublication(true)} disabled={isSubmitting}>
                     {isSubmitting ? <Loader2 className="w-4 h-4 shrink-0 animate-spin" /> : <Truck className="w-4 h-4 shrink-0" />}
                     <span className="truncate">{isSubmitting ? u('postLoadModal.publishing', '') : u('postLoadModal.publishLastMileButton', '')}</span>
                   </Button>
@@ -3038,9 +3043,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       : editLoadId
                         ? u('common.save', '')
                         : draft.transportType === 'warehouse'
-                          ? draft.storageTarget === 'own'
-                            ? u('postLoadModal.scheduleReceiptConfirm', '')
-                            : u('common.postWarehouse', '')
+                          ? u('common.postWarehouse', '')
                           : u('common.postLoad', '')}
                   </span>
                 </Button>
@@ -3048,6 +3051,29 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
             </div>
         </div>
       </motion.div>
+      <PublishPropery
+        open={publishOpen && !addWarehouseOpen && !addVehicleOpen}
+        lang={lang} storage={draft.transportType === 'warehouse'}
+        transportLabel={transportOptions.find(option => option.id === draft.transportType)?.label || ''}
+        destination={publishDestination} onDestination={selectPublishDestination}
+        warehouses={ownedWarehouses} warehouseId={draft.warehouseId} onWarehouse={selectOwnedWarehouse}
+        vehicles={publishVehicles} vehicleId={publishVehicleId} onVehicle={setPublishVehicleId}
+        loading={publishResourcesLoading} resourceError={publishResourcesError}
+        onRetry={() => setPublishResourcesVersion(value => value + 1)}
+        onCreateWarehouse={() => setAddWarehouseOpen(true)} onCreateVehicle={() => setAddVehicleOpen(true)}
+        busy={isSubmitting} locked={Boolean(receiptLoad.current)} error={submitError}
+        onClose={() => setPublishOpen(false)} onConfirm={() => void confirmPublication()}
+      />
+      <RegisterVehicleModal open={addVehicleOpen} lang={lang} ownerUserId={currentUser?.id}
+        onClose={() => setAddVehicleOpen(false)}
+        onCreated={record => {
+          const vehicle = { id: Number(record.id), name: String(record.registration_number || record.name || record.id) };
+          setPublishVehicles(current => [...current.filter(item => item.id !== vehicle.id), vehicle]);
+          setPublishVehicleId(String(vehicle.id));
+          selectPublishDestination('tracking');
+          setAddVehicleOpen(false);
+        }}
+      />
       <AddWarehouseModal
         open={addWarehouseOpen}
         lang={lang}
