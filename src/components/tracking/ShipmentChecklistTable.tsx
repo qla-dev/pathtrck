@@ -6,7 +6,7 @@ import { Check, ClipboardCheck } from 'lucide-react';
 import type { Language, Role } from '../../types';
 import { cn } from '../../lib/cn';
 import { ui } from '../../i18n';
-import { checklistCategory, checklistCategoryLabel, checklistHint, checklistLabel, checklistOwner, checklistStatusLabel } from '../../lib/shipmentChecklist';
+import { CHECKLIST_ORDER, checklistCategory, checklistCategoryLabel, checklistHint, checklistLabel, checklistOwner, checklistStatusLabel, type ChecklistCategory } from '../../lib/shipmentChecklist';
 import { TransportDetails } from './TransportDetails';
 import { ProfileModal } from '../views/ProfileModal';
 
@@ -24,12 +24,32 @@ type Props = {
   showInstruction?: boolean;
   onRetryAircraft?: () => void;
   freightLoad?: Record<string, unknown>;
+  /** The load's own status, when the caller tracks a fresher one than the snapshot carries. */
+  loadStatus?: string;
+  /** Blocks the action of a task the load has not reached yet - set where the actions do the work. */
+  disableUnavailableActions?: boolean;
   role?: Role;
 };
 
+// The status a task stays closed until. The server only marks the proof of delivery, so the two
+// tasks that belong to the end of the trip name their own: the vehicle comes back once the load
+// has been received.
+const waitingForStatus = (item: Record<string, unknown>): ChecklistCategory | null => {
+  const status = String(item.waiting_for_status || '')
+    || (item.key === 'proof_of_delivery' ? 'in_delivery' : item.key === 'vehicle_return' ? 'received' : '');
+  return (CHECKLIST_ORDER as string[]).includes(status) ? status as ChecklistCategory : null;
+};
+
+const waitingHeading = (lang: Language) => lang === 'bs' ? 'Čeka status' : lang === 'de' ? 'Wartet auf Status' : 'Waiting for status';
+
+// How far the load has travelled along the delivery ladder. Statuses before it (posted, booked)
+// rank below every task, so a task that waits for one of them is not open yet.
+const statusRank = (value: unknown) =>
+  CHECKLIST_ORDER.indexOf(String(value || '').toLowerCase().replaceAll(' ', '_') as ChecklistCategory);
+
 const titleCase = (value: unknown) => String(value || '—').replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 
-export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolbar, renderAction, renderDueDate, renderCategory, showInstruction, onRetryAircraft, freightLoad = {}, role = 'user' }: Props) => {
+export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolbar, renderAction, renderDueDate, renderCategory, showInstruction, onRetryAircraft, freightLoad = {}, loadStatus, disableUnavailableActions = false, role = 'user' }: Props) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [trackedDetails, setTrackedDetails] = useState<{ kind: 'aircraft' | 'vessel' | 'vehicle'; id: string } | null>(null);
   const [driverProfile, setDriverProfile] = useState<Record<string, unknown> | null>(null);
@@ -61,8 +81,8 @@ export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolb
                 <th className="px-5 py-3">{u('shipmentDetails.task', 'Task')}</th>
                 {showInstruction && <th className="px-4 py-3">{u('shipmentDetails.instruction', 'What to do')}</th>}
                 <th className="px-4 py-3">{u('shipmentDetails.owner', 'Owner')}</th>
+                <th className="px-4 py-3">{waitingHeading(lang)}</th>
                 <th className="px-4 py-3">{lang === 'bs' ? 'Uslov za status' : lang === 'de' ? 'Voraussetzung für Status' : 'Required for status'}</th>
-                <th className="px-4 py-3">{lang === 'bs' ? 'Čeka status' : lang === 'de' ? 'Wartet auf Status' : 'Waiting for status'}</th>
                 <th className="px-4 py-3">{u('shipmentDetails.dueDate', 'Due date')}</th>
                 <th className="px-4 py-3">{u('shipmentDetails.status', 'Status')}</th>
                 {renderAction && <th className="px-5 py-3 text-right">{u('shipmentDetails.action', 'Action')}</th>}
@@ -72,6 +92,9 @@ export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolb
               {checklist.map((item, index) => {
                 // A finished task trades its number for a tick, so the done ones read at a glance.
                 const done = ['completed', 'approved', 'done'].includes(String(item.status || '').toLowerCase());
+                const waiting = waitingForStatus(item);
+                // The load has not reached the status this task opens at, so it is shown as waiting.
+                const locked = waiting !== null && statusRank(loadStatus ?? freightLoad.status) < statusRank(waiting);
                 let vesselConnected = false;
                 let vesselName = '';
                 // The matched transport, whichever kind the task tracks, so the
@@ -92,8 +115,8 @@ export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolb
                 }
 
                 return (
-                  <tr key={String(item.key)}>
-                    <td className="px-5 py-4 font-bold text-slate-800 dark:text-slate-100">
+                  <tr key={String(item.key)} className={cn('h-[76px]', locked && 'opacity-60')}>
+                    <td className="whitespace-nowrap px-5 py-4 font-bold text-slate-800 dark:text-slate-100">
                       <span className={cn(
                         'mr-3 inline-flex h-6 w-6 items-center justify-center rounded-full border text-xs',
                         done
@@ -106,7 +129,7 @@ export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolb
                     </td>
                     {showInstruction && (
                       <td className="max-w-[260px] px-4 py-4 text-xs font-medium text-slate-500">
-                        {checklistHint(lang, item.key)}
+                        <span title={checklistHint(lang, item.key)} className="line-clamp-2">{checklistHint(lang, item.key)}</span>
                       </td>
                     )}
                     <td className="px-4 py-4 text-slate-600 dark:text-slate-300">
@@ -114,12 +137,12 @@ export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolb
                         ? u('shipmentDetails.customer', 'Customer')
                         : u('shipmentDetails.provider', 'Provider')}
                     </td>
+                    <td className="px-4 py-4 text-xs font-semibold text-slate-600 dark:text-slate-300">{waiting ? checklistCategoryLabel(lang, waiting) : '—'}</td>
                     <td className="px-4 py-4 text-xs font-semibold text-slate-600 dark:text-slate-300">{renderCategory?.(item) ?? checklistCategoryLabel(lang, checklistCategory(item))}</td>
-                    <td className="px-4 py-4 text-xs font-semibold text-slate-600 dark:text-slate-300">{item.waiting_for_status === 'in_delivery' || item.key === 'proof_of_delivery' ? checklistCategoryLabel(lang, 'in_delivery') : '—'}</td>
                     <td className={cn('px-4 py-4 font-semibold', done ? 'text-slate-400' : 'text-rose-500')}>{renderDueDate?.(item) ?? dueDate}</td>
                     <td className="px-4 py-4">
                       <span className={cn(
-                        'rounded-full px-2.5 py-1 text-[10px] font-black uppercase',
+                        'whitespace-nowrap rounded-full px-2.5 py-1 text-[10px] font-black uppercase',
                         vesselConnected
                           ? 'bg-primary/10 text-primary'
                           : done
@@ -130,19 +153,23 @@ export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolb
                           ? (item.key === 'flight_details'
                             ? (lang === 'bs' ? 'Avion povezan' : lang === 'de' ? 'Flugzeug zugeordnet' : 'Aircraft matched')
                             : (lang === 'bs' ? 'Brod povezan' : lang === 'de' ? 'Schiff zugeordnet' : 'Vessel matched'))
-                          : checklistStatusLabel(lang, item.status)}
+                          : waiting && locked && !done
+                            // Until the load gets there, the status the task waits for says more
+                            // than "pending": nobody can act on it yet.
+                            ? `${waitingHeading(lang)}: ${checklistCategoryLabel(lang, waiting)}`
+                            : checklistStatusLabel(lang, item.status)}
                       </span>
                       {item.key === 'flight_details' && done && !vesselConnected && <p className="mt-2 max-w-xs text-xs text-slate-500">
                         {lang === 'bs' ? 'Avion trenutno nije pronađen i praćenje je onemogućeno.' : lang === 'de' ? 'Das Flugzeug wurde derzeit nicht gefunden und Tracking ist deaktiviert.' : 'The aircraft was not found and tracking is disabled.'}
                         {onRetryAircraft && <> <button type="button" onClick={onRetryAircraft} className="cursor-pointer font-bold text-primary underline">{lang === 'bs' ? 'Pokušaj ponovo' : lang === 'de' ? 'Erneut versuchen' : 'Try again'}</button></>}
                       </p>}
                       {item.key === 'vehicle_registrations' && Boolean(freightLoad.vehicle_id) && <button type="button" onClick={() => setTrackedDetails({ kind: 'vehicle', id: String(freightLoad.vehicle_id) })}
-                        className="mt-2 flex cursor-pointer items-center gap-1 rounded-md text-left text-xs text-slate-500 underline-offset-2 hover:underline focus-visible:outline-primary">
+                        className="mt-2 flex cursor-pointer items-center gap-1 whitespace-nowrap rounded-md text-left text-xs text-slate-500 underline-offset-2 hover:underline focus-visible:outline-primary">
                         <Check aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-primary" />
                         <span><strong className="font-semibold text-primary">{lang === 'bs' ? 'Vozilo dodijeljeno' : lang === 'de' ? 'Fahrzeug zugewiesen' : 'Vehicle assigned'}: </strong>{String(vehicle.registration_number || freightLoad.vehicle_id)}</span>
                       </button>}
                       {item.key === 'assign_driver_and_vehicle' && Boolean(driverRecord.id) && <button type="button" onClick={() => setDriverProfile({ ...driverRecord, user: driver })}
-                        className="mt-2 flex cursor-pointer items-center gap-1 rounded-md text-left text-xs text-slate-500 underline-offset-2 hover:underline focus-visible:outline-primary">
+                        className="mt-2 flex cursor-pointer items-center gap-1 whitespace-nowrap rounded-md text-left text-xs text-slate-500 underline-offset-2 hover:underline focus-visible:outline-primary">
                         <Check aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-primary" />
                         <span><strong className="font-semibold text-primary">{lang === 'bs' ? 'Vozač dodijeljen' : lang === 'de' ? 'Fahrer zugewiesen' : 'Driver assigned'}: </strong>{String(driver.name || driver.id)}</span>
                       </button>}
@@ -155,7 +182,11 @@ export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolb
                         <span><strong className="font-semibold text-primary">{lang === 'bs' ? 'Tracking omogućen' : lang === 'de' ? 'Tracking aktiviert' : 'Tracking enabled'}: </strong>{vesselName}</span>
                       </p>)}
                     </td>
-                    {renderAction && <td className="px-5 py-4 text-right">{renderAction(item, index)}</td>}
+                    {renderAction && <td className="px-5 py-4 text-right" title={locked && waiting ? `${waitingHeading(lang)}: ${checklistCategoryLabel(lang, waiting)}` : undefined}>
+                      {locked && disableUnavailableActions
+                        ? <fieldset disabled className="pointer-events-none inline-flex justify-end">{renderAction(item, index)}</fieldset>
+                        : renderAction(item, index)}
+                    </td>}
                   </tr>
                 );
               })}

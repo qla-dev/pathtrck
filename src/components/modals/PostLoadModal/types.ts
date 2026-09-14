@@ -3,6 +3,31 @@ import { CustomerOption } from '../../customer/CustomerSelect';
 import { CustomsDocument, HsCodeMatch, LoadScanResult } from '../../../services/api';
 import { ScanFieldPatch } from '../scanFieldRows';
 
+/**
+ * One packaging line of a load: how many of what, how big each is and how much it weighs. The
+ * cargo step fills the load's own line straight into the draft; further lines are added in the
+ * packaging dialog and kept in `extraPackaging`.
+ */
+export type PackagingEntry = {
+  pallets: string;
+  quantityMeasure: string;
+  lengthM: string;
+  lengthUnit: 'm' | 'cm' | 'mm';
+  widthM: string;
+  widthUnit: 'm' | 'cm' | 'mm';
+  heightM: string;
+  heightUnit: 'm' | 'cm' | 'mm';
+  weightKg: string;
+  weightUnit: 't' | 'kg';
+  volumeM3: string;
+  dimensionScope: 'overall' | 'per_unit';
+};
+
+export const EMPTY_PACKAGING: PackagingEntry = {
+  pallets: '', quantityMeasure: '', lengthM: '', lengthUnit: 'm', widthM: '', widthUnit: 'm',
+  heightM: '', heightUnit: 'm', weightKg: '', weightUnit: 't', volumeM3: '', dimensionScope: 'overall',
+};
+
 export type PostLoadModalProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -152,6 +177,8 @@ export type LoadDraft = {
   heightUnit: 'm' | 'cm' | 'mm';
   volumeM3: string;
   dimensionScope: 'overall' | 'per_unit';
+  /** The packagings beyond the one above, each described the same way. */
+  extraPackaging: PackagingEntry[];
   declaredValue: string;
   additionalInfo: string;
   loadingEquipment: string[];
@@ -297,6 +324,7 @@ export const INITIAL_DRAFT: LoadDraft = {
   heightUnit: 'm',
   volumeM3: '',
   dimensionScope: 'overall',
+  extraPackaging: [],
   declaredValue: '',
   additionalInfo: '',
   loadingEquipment: [],

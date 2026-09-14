@@ -1,7 +1,8 @@
-import type { LoadDraft } from './types';
+import type { PackagingEntry } from './types';
 
-export const calculateVolume = (draft: LoadDraft): string | null => {
-  const toMetres = (value: string, unit: LoadDraft['lengthUnit']) =>
+// Reads only the packaging fields, so it serves the load's own line and every added one alike.
+export const calculateVolume = (draft: PackagingEntry): string | null => {
+  const toMetres = (value: string, unit: PackagingEntry['lengthUnit']) =>
     Number(value) / ({ m: 1, cm: 100, mm: 1000 } as const)[unit];
   const dimensions = [
     toMetres(draft.lengthM, draft.lengthUnit),

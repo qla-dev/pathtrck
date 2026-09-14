@@ -479,6 +479,8 @@ export const ShipmentOperationsTab = ({ workspace, lang, role, readOnly = false,
     <>
     <ShipmentChecklistTable
       freightLoad={freightLoad}
+      loadStatus={currentStatus}
+      disableUnavailableActions
       role={role}
       onRetryAircraft={!readOnly && busyKey === null ? () => setAircraftRetry((count) => count + 1) : undefined}
       checklist={checklist}

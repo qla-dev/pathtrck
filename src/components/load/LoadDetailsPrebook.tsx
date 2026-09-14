@@ -64,6 +64,7 @@ import { LoadAssignmentModal } from './LoadAssignmentModal';
 import { LoadBidModal } from './LoadBidModal';
 import { WarehouseBidModal, seedWarehouseDraft } from './WarehouseBidModal';
 import { LoadOffersPanel } from './LoadOffersPanel';
+import type { OfferStatus } from './OfferStatusPicker';
 import { CustomsDocumentList } from './CustomsDocumentList';
 import { WarehouseReceiveButton } from '../views/WarehouseReceiveButton';
 
@@ -217,6 +218,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
   const [offersLoading, setOffersLoading] = useState(false);
   const [routeMapOpen, setRouteMapOpen] = useState(false);
   const [actionMessage, setActionMessage] = useState('');
+  const [changingStatusOfferId, setChangingStatusOfferId] = useState<string | null>(null);
   const [currentStatus, setCurrentStatus] = useState<Load['status']>(load?.status || 'Pending');
   const [statusChanging, setStatusChanging] = useState(false);
   const [isBooking, setIsBooking] = useState(false);
@@ -332,6 +334,23 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
       onChanged?.();
       if (workspace?.id && load) onOperationsOpen?.(Number(workspace.id), load.id);
     } catch (error) { setActionMessage(error instanceof Error ? error.message : 'Offer could not be approved.'); }
+  };
+
+  // Every decision other than accepting (which books the shipment) and rejecting (which warns
+  // first) is simply written onto the offer.
+  const changeOfferStatus = async (offer: Record<string, unknown>, status: OfferStatus) => {
+    const offerId = String(offer.id);
+    setChangingStatusOfferId(offerId);
+    setActionMessage(u('offerStatus.saving', 'Saving offer status...'));
+    try {
+      await api.offers.update(offerId, { status });
+      setOffers((current) => current.map((item) => (String(item.id) === offerId ? { ...item, status } : item)));
+      setActionMessage(u('offerStatus.saved', 'Offer status updated.'));
+    } catch (error) {
+      setActionMessage(error instanceof Error ? error.message : u('offerStatus.failed', 'Offer status could not be changed.'));
+    } finally {
+      setChangingStatusOfferId(null);
+    }
   };
 
   const rejectOffer = async (offer: Record<string, unknown>) => {
@@ -717,6 +736,8 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                 role={role}
                 onApprove={(offer) => void approveOffer(offer)}
                 onReject={(offer) => void rejectOffer(offer)}
+                onChangeStatus={(offer, status) => void changeOfferStatus(offer, status)}
+                changingStatusOfferId={changingStatusOfferId}
                 onSendCounter={sendCounterOffer}
                 onBack={() => setBodyView('details')}
               />

@@ -1,6 +1,8 @@
 import { lenaText, lenaField, lenaFieldChoices, lenaOptionDescription, lenaOptionIcon } from '../../../lib/lenaCatalog';
 import { lenaIcon } from '../../../lib/lenaIcons';
 import { calculateVolume } from './volume';
+import { PackagingFields, applyPackagingPatch } from './PackagingFields';
+import { MorePackagingModal } from './MorePackagingModal';
 import { AddWarehouseModal } from '../AddWarehouseModal/AddWarehouseModal';
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
@@ -9,7 +11,6 @@ import {
   Apple,
   Blinds,
   Box,
-  Boxes,
   Container,
   CalendarDays,
   Camera,
@@ -44,7 +45,6 @@ import {
   Recycle,
   RotateCcw,
   Route,
-  Ruler,
   ArrowDownToLine,
   Barcode,
   BadgeCheck,
@@ -71,7 +71,6 @@ import {
   UserRound,
   UtensilsCrossed,
   Warehouse,
-  Weight,
   Wine,
   Wrench,
   X,
@@ -133,8 +132,8 @@ import {
   toApiDate,
   fromApiDateTime,
   fromApiWeightKg,
+  packagingFromApi,
   toApiWeightKg,
-  toApiLengthM,
   buildLoadFieldsPayload,
   buildLoadStopsPayload,
   buildLoadPayload,
@@ -273,6 +272,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   // Which stop the full-screen address picker is currently choosing a point for - the side plus
   // its position on that side, since either column can hold several stops.
   const [addressMap, setAddressMap] = useState<{ side: StopSide; index: number } | null>(null);
+  const [packagingOpen, setPackagingOpen] = useState(false);
   const [areaMapOpen, setAreaMapOpen] = useState(false);
   // The draft as it stood when a submit was rejected, kept alongside the fields that were
   // rejected: a field stops being outlined the moment its value changes, no matter which control
@@ -438,7 +438,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         pickupPlaceType: String(pickup.place_type || INITIAL_DRAFT.pickupPlaceType), pickupCity: String(pickup.city || ''), pickupPostalCode: String(pickup.postal_code || ''), pickupCountry: String(pickup.country_code || 'BA'), pickupAddress: String(pickup.address || ''), pickupPort: String(pickup.port || ''), pickupAirport: String(pickup.airport || ''), pickupLatitude: String(pickup.latitude || ''), pickupLongitude: String(pickup.longitude || ''), pickupDate: pickupStart.date, pickupDateTo: pickupEnd.date, pickupTimeFrom: pickupStart.time, pickupTimeTo: pickupEnd.time,
         deliveryPlaceType: String(delivery.place_type || INITIAL_DRAFT.deliveryPlaceType), deliveryCity: String(delivery.city || record.warehouse_city || ''), deliveryPostalCode: String(delivery.postal_code || ''), deliveryCountry: String(delivery.country_code || record.warehouse_country_code || 'BA'), deliveryAddress: String(delivery.address || record.warehouse_address || ''), deliveryPort: String(delivery.port || ''), deliveryAirport: String(delivery.airport || ''), deliveryLatitude: String(delivery.latitude || record.warehouse_latitude || ''), deliveryLongitude: String(delivery.longitude || record.warehouse_longitude || ''), deliveryRadiusKm: String(record.warehouse_radius_km || delivery.radius_km || INITIAL_DRAFT.deliveryRadiusKm), deliveryDate: deliveryStart.date || String(record.storage_start_date || '').slice(0, 10), deliveryDateTo: deliveryEnd.date || String(record.storage_end_date || '').slice(0, 10), deliveryTimeFrom: deliveryStart.time, deliveryTimeTo: deliveryEnd.time,
         transitDays: String(record.transit_days || ''),
-        dimensionScope: record.dimension_scope === 'per_unit' ? 'per_unit' : 'overall', loadTitle: String(record.title || ''), cargoType: String(record.cargo_type || 'FTL'), goodsType: String(record.goods_type || 'General'), hsCodes, customsDocuments: Array.isArray(record.customs_documents) ? record.customs_documents as LoadDraft['customsDocuments'] : [], weightKg: fromApiWeightKg(record.weight_kg), pallets: String(record.pallets || ''), quantityMeasure: String(record.quantity_measure || ''), lengthM: String(record.length_m || ''), widthM: String(record.width_m || ''), heightM: String(record.height_m || ''), volumeM3: String(record.volume_m3 || ''), declaredValue: String(record.declared_value || ''), budget: String(record.budget || ''), freightCurrency: String(record.currency || 'EUR'), shipmentValueCurrency: String(record.shipment_value_currency || record.currency || 'EUR'), paymentDueDays: String(record.payment_due_days || ''), paymentDeferred: terms === 'deferred', seaPaymentTerms: SEA_PAYMENT_TERMS_OPTIONS.includes(terms) ? terms : '', incoterm: String(record.incoterms || ''),
+        dimensionScope: record.dimension_scope === 'per_unit' ? 'per_unit' : 'overall', loadTitle: String(record.title || ''), cargoType: String(record.cargo_type || 'FTL'), goodsType: String(record.goods_type || 'General'), hsCodes, customsDocuments: Array.isArray(record.customs_documents) ? record.customs_documents as LoadDraft['customsDocuments'] : [], weightKg: fromApiWeightKg(record.weight_kg), pallets: String(record.pallets || ''), quantityMeasure: String(record.quantity_measure || ''), extraPackaging: packagingFromApi(record.extra_packaging), lengthM: String(record.length_m || ''), widthM: String(record.width_m || ''), heightM: String(record.height_m || ''), volumeM3: String(record.volume_m3 || ''), declaredValue: String(record.declared_value || ''), budget: String(record.budget || ''), freightCurrency: String(record.currency || 'EUR'), shipmentValueCurrency: String(record.shipment_value_currency || record.currency || 'EUR'), paymentDueDays: String(record.payment_due_days || ''), paymentDeferred: terms === 'deferred', seaPaymentTerms: SEA_PAYMENT_TERMS_OPTIONS.includes(terms) ? terms : '', incoterm: String(record.incoterms || ''),
         loadingEquipment: Array.isArray(record.handling_requirements) ? record.handling_requirements.map(String) : Array.isArray(record.loading_methods) ? record.loading_methods.map(String) : [], vehicleType: String(record.vehicle_type || INITIAL_DRAFT.vehicleType), characteristics: Array.isArray(record.characteristics) ? record.characteristics.map(String) : [], specialRequirements: Array.isArray(record.special_requirements) ? record.special_requirements.map(String) : [], deliveryProof: String(record.delivery_proof || ''), temperatureControlled: record.temperature_min != null || record.temperature_max != null, temperatureMin: String(record.temperature_min ?? ''), temperatureMax: String(record.temperature_max ?? ''),
         containerSelections: Array.isArray(record.container_selections) ? (record.container_selections as Array<Record<string, unknown>>).map((row) => ({ type: String(row.type || ''), quantity: String(row.quantity ?? '1') })) : [],
         blType: String(record.bl_type || ''), dgUnNumber: String(record.dg_un_number || ''), dgImoClass: String(record.dg_imo_class || ''), dgPackingGroup: String(record.dg_packing_group || ''), dgProperShippingName: String(record.dg_proper_shipping_name || ''),
@@ -579,32 +579,6 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     });
   };
 
-  const conciseNumber = (value: number) => String(Number(value.toFixed(6)));
-  const changeWeightUnit = (nextUnit: LoadDraft['weightUnit']) => {
-    setDraft((current) => ({
-      ...current,
-      weightKg: current.weightKg
-        ? conciseNumber(toApiWeightKg(current.weightKg, current.weightUnit) / (nextUnit === 't' ? 1000 : 1))
-        : '',
-      weightUnit: nextUnit,
-    }));
-  };
-  const changeDimensionUnit = (nextUnit: LoadDraft['lengthUnit']) => {
-    setDraft((current) => {
-      const multiplier = ({ m: 1, cm: 100, mm: 1000 } as const)[nextUnit];
-      const convert = (value: string, unit: LoadDraft['lengthUnit']) =>
-        value ? conciseNumber(toApiLengthM(value, unit) * multiplier) : '';
-      return {
-        ...current,
-        lengthM: convert(current.lengthM, current.lengthUnit),
-        widthM: convert(current.widthM, current.widthUnit),
-        heightM: convert(current.heightM, current.heightUnit),
-        lengthUnit: nextUnit,
-        widthUnit: nextUnit,
-        heightUnit: nextUnit,
-      };
-    });
-  };
 
   const invalidFields = useMemo(
     () => new Set(rejected ? rejected.fields.filter((field) => draft[field] === rejected.draft[field]) : []),
@@ -1340,6 +1314,17 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
           setAreaMapOpen(false);
         }}
       />
+      {packagingOpen && (
+        <MorePackagingModal
+          entries={draft.extraPackaging}
+          onSave={(entries) => setDraft((current) => ({ ...current, extraPackaging: entries }))}
+          onClose={() => setPackagingOpen(false)}
+          u={u}
+          fieldOptions={fieldOptions}
+          fieldExample={fieldExample}
+          fieldTitle={fieldTitle}
+        />
+      )}
       <AddressMapModal
         open={addressMap !== null}
         lang={lang}
@@ -2483,92 +2468,28 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                             )}
                           </div>
                         </div>
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          <div className={cn('space-y-1', invalidClass('pallets'))}>
-                            {fieldLabel('pallets')}
-                            <Input
-                              type="number"
-                              step="1"
-                              min="0"
-                              value={draft.pallets}
-                              onChange={(event) => setField('pallets', event.target.value)}
-                              placeholder={fieldExample('pallets')}
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <FieldLabel>{u('postLoadModal.packagingMethod', '')}</FieldLabel>
-                            <IconSelect
-                              value={draft.quantityMeasure}
-                              onChange={(next) => setField('quantityMeasure', next)}
-                              placeholder={u('postLoadModal.selectPackagingMethod', '')}
-                              ariaLabel={u('postLoadModal.packagingMethod', '')}
-                              icon={Package}
-                              searchable
-                              searchPlaceholder={u('postLoadModal.searchPackagingMethod', '')}
-                              noResults={u('postLoadModal.noPackagingMethods', '')}
-                              options={[
-                                ...(draft.quantityMeasure && !selectedPackageType ? [{ value: draft.quantityMeasure, label: draft.quantityMeasure, icon: Package }] : []),
-                                ...fieldOptions('quantityMeasure', Package),
-                              ]}
-                            />
-                          </div>
-                        </div>
-                        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_5rem_minmax(0,1.4fr)] sm:items-end">
-                          <div className={cn('space-y-1', invalidClass('lengthM'))}>
-                            {fieldLabel('lengthM')}
-                            <Input type="number" step="0.1" min="0.1" value={draft.lengthM} onChange={(e) => setField('lengthM', e.target.value)} placeholder={fieldExample('lengthM')} />
-                          </div>
-                          <div className={cn('space-y-1', invalidClass('widthM'))}>
-                            {fieldLabel('widthM')}
-                            <Input type="number" step="0.05" min="0" value={draft.widthM} onChange={(e) => setField('widthM', e.target.value)} placeholder={fieldExample('widthM')} />
-                          </div>
-                          <div className={cn('space-y-1', invalidClass('heightM'))}>
-                            {fieldLabel('heightM')}
-                            <Input type="number" step="0.05" min="0" value={draft.heightM} onChange={(e) => setField('heightM', e.target.value)} placeholder={fieldExample('heightM')} />
-                          </div>
-                          <div className="space-y-1">
-                            <FieldLabel>{u('postLoadModal.dimensionUnit', '')}</FieldLabel>
-                            <IconSelect value={draft.lengthUnit} onChange={(value) => changeDimensionUnit(value as LoadDraft['lengthUnit'])} placeholder="m" ariaLabel={u('postLoadModal.dimensionUnit', '')} icon={Ruler} options={fieldOptions('lengthUnit', Ruler)} />
-                          </div>
-                          <div className="space-y-1">
-                            {fieldLabel('dimensionScope')}
-                            <IconSelect value={draft.dimensionScope} onChange={(value) => setField('dimensionScope', value as LoadDraft['dimensionScope'])} placeholder="" ariaLabel={fieldTitle('dimensionScope')} icon={Boxes} options={fieldOptions('dimensionScope', Boxes)} />
-                          </div>
-                        </div>
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          <div className={cn('space-y-1', invalidClass('weightKg'))}>
-                            {fieldLabel('weightKg')}
-                            <div className="flex gap-2">
-                              <Input
-                                type="number"
-                                step="0.1"
-                                min="0.1"
-                                value={draft.weightKg}
-                                onChange={(e) => setField('weightKg', e.target.value)}
-                                placeholder={draft.weightUnit === 't' ? '24.0' : fieldExample('weightKg')}
-                              />
-                              <IconSelect
-                                value={draft.weightUnit}
-                                onChange={(value) => changeWeightUnit(value as LoadDraft['weightUnit'])}
-                                placeholder="t"
-                                ariaLabel={u('postLoadModal.weightUnit', '')}
-                                icon={Weight}
-                                className="w-24 shrink-0"
-                                options={fieldOptions('weightUnit', Weight)}
-                              />
-                            </div>
-                          </div>
-                          <div className={cn('space-y-1', invalidClass('volumeM3'))}>
-                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                              {fieldLabel('volumeM3')}
-                              <button type="button" disabled={calculateVolume(draft) === null} onClick={() => setField('volumeM3', calculateVolume(draft) ?? draft.volumeM3)} className="inline-flex items-center gap-1 text-xs font-semibold text-primary disabled:cursor-not-allowed disabled:opacity-40">
-                                <RotateCcw className="h-3 w-3" />
-                                {u('postLoadModal.recalculateVolume', '')}
-                              </button>
-                            </div>
-                            <Input type="number" step="any" min="0" value={draft.volumeM3} onChange={(e) => setField('volumeM3', e.target.value)} placeholder={fieldExample('volumeM3')} />
-                          </div>
-                        </div>
+                        <PackagingFields
+                          value={draft}
+                          onChange={(patch) => setDraft((current) => applyPackagingPatch(current, patch))}
+                          u={u}
+                          fieldOptions={fieldOptions}
+                          fieldExample={fieldExample}
+                          fieldTitle={fieldTitle}
+                          renderLabel={(field) => fieldLabel(field as keyof ScanFieldPatch & keyof LoadDraft)}
+                          invalidClass={(field) => invalidClass(field as keyof LoadDraft)}
+                          packagingTrailing={
+                            <button
+                              type="button"
+                              onClick={() => setPackagingOpen(true)}
+                              className="mr-1 inline-flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap text-[10px] font-bold uppercase tracking-wider text-primary"
+                            >
+                              <Plus className="h-2.5 w-2.5" />
+                              {draft.extraPackaging.length
+                                ? u('postLoadModal.morePackagingCount', '+:count more packaging').replace(':count', String(draft.extraPackaging.length))
+                                : u('postLoadModal.morePackaging', 'More packaging?')}
+                            </button>
+                          }
+                        />
                         <div className="space-y-1">
                           <FieldLabel>{u('postLoadModal.additionalInfo', '')}</FieldLabel>
                           <div className="grid grid-cols-3 gap-2">

@@ -107,6 +107,8 @@ export type VehicleReturnInspection = {
   has_damage: boolean;
   damage_notes?: string | null;
   parking_location?: string | null;
+  parking_latitude?: number | string | null;
+  parking_longitude?: number | string | null;
   inspected_at: string;
   recorded_by?: { id: number; name: string } | null;
   photos: VehicleReturnPhoto[];
@@ -605,13 +607,17 @@ export const api = {
   },
   vehicleReturns: {
     history: (vehicleId: number | string) => request<VehicleReturnInspection[]>(`/vehicles/${vehicleId}/return-inspections`),
-    create: (loadId: number | string, data: { mileageKm: number; fuelLevelPercent: number; hasDamage: boolean; damageNotes?: string; parkingLocation?: string; photos: File[] }) => {
+    create: (loadId: number | string, data: { mileageKm: number; fuelLevelPercent: number; hasDamage: boolean; damageNotes?: string; parkingLocation?: string; parkingLatitude?: number | null; parkingLongitude?: number | null; photos: File[] }) => {
       const form = new FormData();
       form.append('mileage_km', String(data.mileageKm));
       form.append('fuel_level_percent', String(data.fuelLevelPercent));
       form.append('has_damage', data.hasDamage ? '1' : '0');
       if (data.damageNotes) form.append('damage_notes', data.damageNotes);
       if (data.parkingLocation) form.append('parking_location', data.parkingLocation);
+      if (data.parkingLatitude != null && data.parkingLongitude != null) {
+        form.append('parking_latitude', String(data.parkingLatitude));
+        form.append('parking_longitude', String(data.parkingLongitude));
+      }
       data.photos.forEach((photo) => form.append('photos[]', photo));
       return request<VehicleReturnInspection>(`/loads/${loadId}/vehicle-return`, { method: 'POST', body: form });
     },

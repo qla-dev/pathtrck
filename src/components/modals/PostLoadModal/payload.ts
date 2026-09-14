@@ -1,4 +1,5 @@
-import { EQUIPMENT_COVERED_REQUIREMENTS, LoadDraft, isContainerTransport } from './types';
+import { EMPTY_PACKAGING, EQUIPMENT_COVERED_REQUIREMENTS, LoadDraft, isContainerTransport } from './types';
+import type { PackagingEntry } from './types';
 import type { RouteStopDraft } from './types';
 import { StopSide, routeStopsOf } from './routeStops';
 import type { EquipmentCoveredRequirement } from './types';
@@ -42,6 +43,20 @@ export const fromApiDateTime = (value: unknown) => {
   return { date: `${String(parsed.getDate()).padStart(2, '0')}.${String(parsed.getMonth() + 1).padStart(2, '0')}.${parsed.getFullYear()}`, time: `${String(parsed.getHours()).padStart(2, '0')}:${String(parsed.getMinutes()).padStart(2, '0')}` };
 };
 
+/** Turns saved packaging lines back into form entries, in the units the form edits in. */
+export const packagingFromApi = (value: unknown): PackagingEntry[] =>
+  (Array.isArray(value) ? value as Array<Record<string, unknown>> : []).map((entry) => ({
+    ...EMPTY_PACKAGING,
+    pallets: entry.pallets == null ? '' : String(entry.pallets),
+    quantityMeasure: String(entry.quantity_measure || ''),
+    weightKg: fromApiWeightKg(entry.weight_kg),
+    lengthM: entry.length_m == null ? '' : String(entry.length_m),
+    widthM: entry.width_m == null ? '' : String(entry.width_m),
+    heightM: entry.height_m == null ? '' : String(entry.height_m),
+    volumeM3: entry.volume_m3 == null ? '' : String(entry.volume_m3),
+    dimensionScope: entry.dimension_scope === 'per_unit' ? 'per_unit' : 'overall',
+  }));
+
 export const fromApiWeightKg = (value: unknown) => {
   const weightKg = Number(value);
   if (!Number.isFinite(weightKg) || weightKg <= 0) return '';
@@ -74,6 +89,17 @@ export const buildLoadFieldsPayload = (draft: LoadDraft) => ({
   volume_m3: draft.volumeM3 ? Number(draft.volumeM3) : null,
   pallets: draft.pallets ? Number(draft.pallets) : null,
   quantity_measure: draft.quantityMeasure || null,
+  // Every packaging line beyond the load's own, stored in API units like the fields above.
+  extra_packaging: draft.extraPackaging.map((entry) => ({
+    pallets: entry.pallets ? Number(entry.pallets) : null,
+    quantity_measure: entry.quantityMeasure || null,
+    weight_kg: entry.weightKg ? toApiWeightKg(entry.weightKg, entry.weightUnit) : null,
+    length_m: entry.lengthM ? toApiLengthM(entry.lengthM, entry.lengthUnit) : null,
+    width_m: entry.widthM ? toApiLengthM(entry.widthM, entry.widthUnit) : null,
+    height_m: entry.heightM ? toApiLengthM(entry.heightM, entry.heightUnit) : null,
+    volume_m3: entry.volumeM3 ? Number(entry.volumeM3) : null,
+    dimension_scope: entry.dimensionScope,
+  })),
   declared_value: draft.declaredValue ? Number(draft.declaredValue) : null,
   shipment_value_currency: draft.shipmentValueCurrency,
   budget: draft.budget ? Number(draft.budget) : null,

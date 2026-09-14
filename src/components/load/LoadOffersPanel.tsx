@@ -19,12 +19,12 @@ import {
   Route,
   Truck,
   UserCheck,
-  XCircle,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Language, Load, Offer } from '../../types';
 import type { Role } from '../../types';
 import { ui } from '../../i18n';
+import { OfferStatusPicker, type OfferStatus } from './OfferStatusPicker';
 import { formatShortDate } from '../../lib/loadDetails';
 import { PAYMENT_TERMS_OPTIONS, PRICE_BASIS_OPTIONS, buildCounterOfferPayload, chargeLabel, getLatestOfferPerThread, offerDraftFromRecord } from '../../lib/offerBid';
 import { Button } from '../ui/Button';
@@ -65,8 +65,13 @@ type LoadOffersPanelProps = {
   actionMessage?: string;
   userId?: number;
   role: Role;
+  /** Runs the booking confirmation: accepting is what turns the offer into a shipment. */
   onApprove: (offer: Record<string, unknown>) => void;
   onReject: (offer: Record<string, unknown>) => void;
+  /** Records any other decision on the offer, without touching the shipment. */
+  onChangeStatus?: (offer: Record<string, unknown>, status: OfferStatus) => void;
+  /** The offer whose status is being written right now, so its picker shows the spinner. */
+  changingStatusOfferId?: string | null;
   onSendCounter: (payload: Record<string, unknown>) => Promise<void>;
   onBack?: () => void;
 };
@@ -81,6 +86,8 @@ export const LoadOffersPanel = ({
   role,
   onApprove,
   onReject,
+  onChangeStatus,
+  changingStatusOfferId,
   onSendCounter,
   onBack,
 }: LoadOffersPanelProps) => {
@@ -284,15 +291,16 @@ export const LoadOffersPanel = ({
                     </div>
                   )}
 
-                  <div className="mt-auto flex items-center gap-2">
-                    <Button className="h-11 flex-1 shadow-lg shadow-primary/20" disabled={decided} onClick={() => onApprove(offer)}>
-                      {accepted ? <><CheckCircle2 className="mr-2 h-4 w-4" />{u('Approved', 'Approved')}</> : isReservation ? u('reservation.accept', 'Accept request') : u('Approve', 'Approve')}
-                    </Button>
-                    {!accepted && (
-                      <Button variant="outline" className="h-11 flex-1 border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900/50" disabled={decided} onClick={() => onReject(offer)}>
-                        {rejected ? <><XCircle className="mr-2 h-4 w-4" />{u('Rejected', 'Rejected')}</> : u('Reject', 'Reject')}
-                      </Button>
-                    )}
+                  {/* The decision is the offer's own status. Accepting runs the booking flow that
+                      creates the shipment; every other status is just recorded on the offer. */}
+                  <div className="mt-auto">
+                    <OfferStatusPicker
+                      lang={lang}
+                      status={status}
+                      isChanging={changingStatusOfferId === offerId}
+                      disabled={accepted}
+                      onChange={(next) => next === 'accepted' ? onApprove(offer) : next === 'rejected' ? onReject(offer) : onChangeStatus?.(offer, next)}
+                    />
                   </div>
                 </div>
               </article>

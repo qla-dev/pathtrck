@@ -19,6 +19,7 @@ import { TrackingMapCard } from '../tracking/TrackingMapCard';
 import { trackingMarkerIcon } from '../tracking/trackingMapMarker';
 import { INCOTERM_OPTIONS, ROAD_CHARACTERISTIC_OPTIONS, VEHICLE_OPTIONS } from '../modals/loadFormOptions';
 import { IconSelect, type IconSelectOption } from '../ui/IconSelect';
+import { ScrollableRow } from '../modals/PostLoadModal/ScrollableRow';
 
 type TrackingStatusFilter = PackageData['status'] | 'all';
 export type TrackingLayoutMode = 'list' | 'grid' | 'map';
@@ -493,40 +494,42 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
       {/* Sidebar List */}
       <div className={cn('w-full', layout === 'map' && 'h-full')}>
         {(isCompanyOperationsRole(role) || role === 'driver') && layout !== 'map' && fleetCapacity.length > 0 && (
-          <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {fleetCapacity.map((vehicle) => (
-              <div key={vehicle.key} className="rounded-2xl border border-slate-200 bg-white px-4 py-4 dark:border-slate-800 dark:bg-slate-900">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                      <Truck className="h-5 w-5" />
+          <ScrollableRow className="mb-5">
+            <div className="flex gap-3">
+              {fleetCapacity.map((vehicle) => (
+                <div key={vehicle.key} className="w-[19rem] shrink-0 snap-start rounded-2xl border border-slate-200 bg-white px-4 py-4 dark:border-slate-800 dark:bg-slate-900">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                        <Truck className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-black text-slate-900 dark:text-white">{vehicle.title}</p>
+                        <p className="truncate text-[11px] text-slate-500">
+                          {[vehicle.subtitle, `${vehicle.loads} ${u('tracking.activeLoads', 'active loads')}`].filter(Boolean).join(' · ')}
+                        </p>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-black text-slate-900 dark:text-white">{vehicle.title}</p>
-                      <p className="truncate text-[11px] text-slate-500">
-                        {[vehicle.subtitle, `${vehicle.loads} ${u('tracking.activeLoads', 'active loads')}`].filter(Boolean).join(' · ')}
-                      </p>
-                    </div>
+                    <p className="whitespace-nowrap text-lg font-black text-slate-900 dark:text-white">
+                      {vehicle.weightKg.toLocaleString()} kg
+                    </p>
                   </div>
-                  <p className="whitespace-nowrap text-lg font-black text-slate-900 dark:text-white">
-                    {vehicle.weightKg.toLocaleString()} kg
-                  </p>
+  
+                  <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                    <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${vehicle.usedPercentage}%` }} />
+                  </div>
+                  <div className="mt-2 flex items-center justify-between gap-3">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                      <span className="text-sm font-black text-primary">{vehicle.usedPercentage}%</span> {u('tracking.cargoUsed', 'Cargo')}
+                    </p>
+                    <p className="text-right text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                      <span className="text-sm font-black text-slate-900 dark:text-white">{vehicle.remainingPercentage}%</span> {u('tracking.freeSpace', 'Free space')}
+                    </p>
+                  </div>
                 </div>
-
-                <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                  <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${vehicle.usedPercentage}%` }} />
-                </div>
-                <div className="mt-2 flex items-center justify-between gap-3">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    <span className="text-sm font-black text-primary">{vehicle.usedPercentage}%</span> {u('tracking.cargoUsed', 'Cargo')}
-                  </p>
-                  <p className="text-right text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    <span className="text-sm font-black text-slate-900 dark:text-white">{vehicle.remainingPercentage}%</span> {u('tracking.freeSpace', 'Free space')}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </ScrollableRow>
         )}
 
         <div className={cn('relative', layout === 'map' && 'h-full min-h-0 overflow-hidden')}>
@@ -748,7 +751,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
                   </span>
                 </div>
               </div>
-              <p className="font-bold dark:text-white">{pkg.recipient || '—'}</p>
+              <p title={pkg.recipient || undefined} className="truncate font-bold dark:text-white">{pkg.recipient || '—'}</p>
               <p className="mt-1 truncate text-[11px] font-semibold text-slate-400">
                 {u('tracking.bookingReference', 'Booking reference')}: {pkg.bookingReference || '—'}
               </p>
