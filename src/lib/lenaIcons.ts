@@ -5,7 +5,7 @@
 import {
   AlertTriangle, ArrowDownToLine, ArrowUpFromLine, BadgeCheck, Banknote, Blinds, Box, Boxes,
   Building2, CalendarDays, CircleDot, CircleOff, Clock3, Coins, Container, DoorOpen, Droplet,
-  FileText, Forklift, Gem, Globe, Handshake, HelpCircle, Landmark, Layers, Lock, MapPin, Maximize2,
+  FileSearch, FileText, Forklift, Gem, Globe, Handshake, HelpCircle, Landmark, Layers, Lock, MapPin, Maximize2, MessageCircle,
   Package, Package2, PackageCheck, PackageOpen, PanelBottom, Pill, Plane, PlaneLanding, Radar,
   RotateCcw, Route, Ruler, ScanEye, ScanLine, ShieldAlert, ShieldCheck, Ship, Snowflake, Tags,
   ThermometerSnowflake, TrainFront, Truck, Umbrella, UserRound, UtensilsCrossed, Warehouse, Weight,
@@ -14,7 +14,7 @@ import {
 
 const ICONS: Record<string, LucideIcon> = {
   AlertTriangle, ArrowDownToLine, ArrowUpFromLine, BadgeCheck, Banknote, Blinds, Box, Boxes,
-  Building2, CalendarDays, CircleOff, Clock3, Coins, Container, DoorOpen, Droplet, FileText,
+  Building2, CalendarDays, CircleOff, Clock3, Coins, Container, DoorOpen, Droplet, FileSearch, FileText, MessageCircle,
   Forklift, Gem, Globe, Handshake, HelpCircle, Landmark, Layers, Lock, MapPin, Maximize2, Package,
   Package2, PackageCheck, PackageOpen, PanelBottom, Pill, Plane, PlaneLanding, Radar, RotateCcw,
   Route, Ruler, ScanEye, ScanLine, ShieldAlert, ShieldCheck, Ship, Snowflake, Tags,
