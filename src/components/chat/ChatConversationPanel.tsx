@@ -197,6 +197,7 @@ export const ChatConversationPanel = ({
   const spokenMessageIdRef = useRef<string | null>(null);
   const awaitingVoiceReplyRef = useRef(false);
   const voiceConversationKey = entryAnimationKey ?? activeConversation.id;
+  const previousVoiceConversationKeyRef = useRef(voiceConversationKey);
   const hasAttachmentHandler = activeConversation.isAiDispatch && Boolean(onAttachFile);
   const canAttach = hasAttachmentHandler && !attachmentBusy;
 
@@ -296,6 +297,10 @@ export const ChatConversationPanel = ({
   // Switching threads must cancel recording before its silence timer can submit,
   // and must never interpret saved history as a reply to the previous voice turn.
   useLayoutEffect(() => {
+    const previousKey = previousVoiceConversationKeyRef.current;
+    previousVoiceConversationKeyRef.current = voiceConversationKey;
+    // Messages creates the saved thread during its first send. Keep that voice turn.
+    if (previousKey === '__new_lena_conversation__' && awaitingVoiceReplyRef.current) return;
     awaitingVoiceReplyRef.current = false;
     voiceModeRef.current = false;
     recordingCleanupRef.current?.();
