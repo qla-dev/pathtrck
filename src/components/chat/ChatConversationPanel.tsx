@@ -195,6 +195,8 @@ export const ChatConversationPanel = ({
   const recordingCleanupRef = useRef<(() => void) | null>(null);
   const voiceModeRef = useRef(voiceMode);
   const spokenMessageIdRef = useRef<string | null>(null);
+  const awaitingVoiceReplyRef = useRef(false);
+  const voiceConversationKey = entryAnimationKey ?? activeConversation.id;
   const hasAttachmentHandler = activeConversation.isAiDispatch && Boolean(onAttachFile);
   const canAttach = hasAttachmentHandler && !attachmentBusy;
 
@@ -235,6 +237,7 @@ export const ChatConversationPanel = ({
       setIsListening(false);
       recognition.stop();
       if (send && voiceModeRef.current && transcript.trim()) {
+        awaitingVoiceReplyRef.current = true;
         onDraftChange(transcript);
         onSend(transcript, 'voice');
       }
@@ -283,18 +286,34 @@ export const ChatConversationPanel = ({
   useEffect(() => {
     voiceModeRef.current = voiceMode;
     if (!voiceMode) {
+      awaitingVoiceReplyRef.current = false;
       recordingCleanupRef.current?.();
       recognitionRef.current = null;
       setIsListening(false);
     }
   }, [voiceMode]);
 
+  // Switching threads must cancel recording before its silence timer can submit,
+  // and must never interpret saved history as a reply to the previous voice turn.
   useLayoutEffect(() => {
-    if (!voiceMode) return;
+    awaitingVoiceReplyRef.current = false;
+    voiceModeRef.current = false;
+    recordingCleanupRef.current?.();
+    speechCleanupRef.current?.();
+    setIsListening(false);
+    setWaitingForVoiceAudio(false);
+    setHiddenVoiceReplyId(null);
+    setBufferingMessageId(null);
+    onVoiceModeChange?.(false);
+  }, [voiceConversationKey]);
+
+  useLayoutEffect(() => {
+    if (!voiceMode || !awaitingVoiceReplyRef.current) return;
     const latest = activeConversation.messages.at(-1);
     if (!latest || latest.sender !== 'other' || latest.id.startsWith('welcome-') || latest.id === spokenMessageIdRef.current) return;
     const text = latest.text.replace(/\[\[[^\]]+\]\]/g, ' ').replace(/\s+/g, ' ').trim();
     if (!text) return;
+    awaitingVoiceReplyRef.current = false;
     spokenMessageIdRef.current = latest.id;
 
     speechCleanupRef.current?.();
