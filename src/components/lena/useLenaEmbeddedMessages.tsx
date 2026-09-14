@@ -11,6 +11,7 @@ import { ChatMessage } from '../chat/types';
 import { LenaBookingCard, LenaLoadDetailsCard, LenaLoadMapCard, LenaLoadStatusCard, LenaLocationCard, LenaLocationChoiceCard } from './LenaEmbeddedCards';
 import { LenaOutOfTokensCard } from './LenaOutOfTokensCard';
 import { LenaQuickAction } from '../../lib/useLenaAiChat';
+import { legalChoiceMessageIds } from '../../lib/lenaLegalChoices';
 
 const EMPTY_PRELOADED_LOADS: Record<string, Record<string, unknown>> = {};
 const BOOKING_MARKER_PATTERN = /\[\[OFFER_BOOKING(?::(\d+))?\]\]/;
@@ -200,6 +201,8 @@ export const useLenaEmbeddedMessages = ({
   onTopUp,
 }: UseLenaEmbeddedMessagesOptions) => {
   const latestStep = messages.at(-1)?.text.match(LENA_STEP_MARKER_PATTERN)?.[1] ?? null;
+  const legalChoiceIds = useMemo(() => legalChoiceMessageIds(messages,
+    Object.values(getLenaCatalog().locales).map((text) => text.legal_welcome || '')), [messages]);
   const [warehouseChoices, setWarehouseChoices] = useState<WarehouseChoice[]>([]);
   const [customerChoices, setCustomerChoices] = useState<WarehouseChoice[]>([]);
   const [customerSearch, setCustomerSearch] = useState('');
@@ -417,11 +420,12 @@ export const useLenaEmbeddedMessages = ({
       : (offeredLoadId && onOpenLoad ? () => onOpenLoad(offeredLoadId) : undefined);
 
     const quickActions = quickActionsByMessage.get(message.id) || [];
+    const legalChoices = legalChoiceIds.has(message.id) ? lenaText(lang).legal_choices ?? [] : [];
     const suggestedReplies = questionnaireSuggestionsByMessage.get(message.id);
     const locationChoice = locationChoiceByMessage.get(message.id);
     const loadReady = loadReadyMessageIds.has(message.id);
     const outOfTokens = outOfTokensMessageIds.has(message.id);
-    if (!embeddedLoad && !locationLoad && !mapLoad && !statusLoad && (!hasBooking || !handleBook) && quickActions.length === 0 && !suggestedReplies && !locationChoice && !loadReady && !outOfTokens) return null;
+    if (!embeddedLoad && !locationLoad && !mapLoad && !statusLoad && (!hasBooking || !handleBook) && quickActions.length === 0 && legalChoices.length === 0 && !suggestedReplies && !locationChoice && !loadReady && !outOfTokens) return null;
 
     // Messages that show a timestamp get its (invisible-until-hover, but still laid out) line as
     // extra breathing room above this block for free; messages without one (e.g. the welcome
@@ -441,6 +445,16 @@ export const useLenaEmbeddedMessages = ({
         {mapLoad && <LenaLoadMapCard lang={lang} load={mapLoad} />}
         {statusLoad && <LenaLoadStatusCard lang={lang} load={statusLoad} />}
         {hasBooking && handleBook && <LenaBookingCard lang={lang} load={bookingLoad} onBook={handleBook} />}
+        {legalChoices.length > 0 && onSuggestedReply && (
+          <div className="flex flex-wrap gap-2">
+            {legalChoices.map((choice) => {
+              const Icon = lenaIcon(choice.icon);
+              return <button key={choice.value} type="button" onClick={() => onSuggestedReply(choice.value, choice.label)} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-primary/20 bg-white px-3 py-1.5 text-xs font-bold text-primary shadow-sm transition-colors hover:border-primary hover:bg-primary hover:text-white dark:bg-slate-900">
+                <Icon className="h-3.5 w-3.5" />{choice.label}
+              </button>;
+            })}
+          </div>
+        )}
         {quickActions.length > 0 && quickActionLabels && onQuickAction && (
           <div className="flex flex-wrap gap-2">
             {quickActions.map((action) => {
@@ -471,7 +485,7 @@ export const useLenaEmbeddedMessages = ({
         )}
       </div>
     );
-  }, [bookingOffers, resolvedEmbeddedLoads, fallbackLoadId, lang, loadDetailCards, loadLocationCards, loadMapCards, loadReadyMessageIds, loadStatusCards, locationChoiceByMessage, onBookLoad, onLoadReady, onOpenLoad, onQuickAction, onStepAnswer, onSuggestedDraftChange, onSuggestedReply, onTopUp, onUpgrade, outOfTokensMessageIds, outOfTokensPackageColor, outOfTokensPackageIcon, outOfTokensResetAt, questionnaireSuggestionsByMessage, quickActionLabels, quickActionsByMessage]);
+  }, [legalChoiceIds, bookingOffers, resolvedEmbeddedLoads, fallbackLoadId, lang, loadDetailCards, loadLocationCards, loadMapCards, loadReadyMessageIds, loadStatusCards, locationChoiceByMessage, onBookLoad, onLoadReady, onOpenLoad, onQuickAction, onStepAnswer, onSuggestedDraftChange, onSuggestedReply, onTopUp, onUpgrade, outOfTokensMessageIds, outOfTokensPackageColor, outOfTokensPackageIcon, outOfTokensResetAt, questionnaireSuggestionsByMessage, quickActionLabels, quickActionsByMessage]);
 
   // The cited laws are part of the answer, not a card attached under it, so this renders inside the
   // message bubble above the hover timestamp rather than in renderMessageExtra below it.

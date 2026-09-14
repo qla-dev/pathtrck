@@ -34,6 +34,8 @@ export type LenaCatalogField = {
   unit: string;
 };
 export type LenaCatalogText = {
+  legal_welcome?: string;
+  legal_choices?: LenaCatalogChoice[];
   ui: Record<string, string>;
   actions: Record<string, string>;
   welcome: { general: string; load: string; load_named: string };
