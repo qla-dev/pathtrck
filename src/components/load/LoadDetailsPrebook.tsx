@@ -67,6 +67,7 @@ import { LoadOffersPanel } from './LoadOffersPanel';
 import type { OfferStatus } from './OfferStatusPicker';
 import { CustomsDocumentList } from './CustomsDocumentList';
 import { WarehouseReceiveButton } from '../views/WarehouseReceiveButton';
+import { MapContainer, Marker, Polyline, TileLayer } from 'react-leaflet';
 
 type LoadDetailsPrebookProps = {
   open: boolean;
@@ -188,6 +189,22 @@ const RouteStop = ({ icon: Icon, tone, label, value, address, countryCode, note,
     </div>
   </div>
 );
+
+const RoutePreview = ({ pickup, delivery }: { pickup?: [number, number]; delivery?: [number, number] }) => {
+  if (!pickup || !delivery) return null;
+  const center: [number, number] = [(pickup[0] + delivery[0]) / 2, (pickup[1] + delivery[1]) / 2];
+  const points: [number, number][] = [pickup, delivery];
+  return (
+    <div className="relative mb-3 h-44 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
+      <MapContainer center={center} zoom={5} scrollWheelZoom={false} dragging={false} zoomControl={false} className="h-full w-full">
+        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap contributors" />
+        <Polyline positions={points} pathOptions={{ color: '#1687f8', weight: 4, opacity: 0.9 }} />
+        <Marker position={pickup} />
+        <Marker position={delivery} />
+      </MapContainer>
+    </div>
+  );
+};
 
 // Compact key/value tile shared by the snapshot, financial and cargo blocks - one padding scale
 // for the whole modal instead of every block picking its own.
@@ -319,6 +336,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
       cancelText: u('common.cancel', 'Cancel'),
       icon: 'warning',
     });
+
     if (!confirmed) return;
     setActionMessage('Approving offer...');
     try {
@@ -613,7 +631,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
     <AnimatePresence onExitComplete={() => { if (isClosing) onClose(); }}>
     {open && !isClosing && (
     <motion.div
-      className="fixed inset-0 z-140 bg-white dark:bg-slate-950"
+      className="fixed inset-0 z-140 bg-slate-50 dark:bg-slate-950"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -621,21 +639,22 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
     >
       <div className={`absolute inset-0 transition-[padding-right] duration-300 ease-out ${lenaOpen ? 'lg:pr-[440px] xl:pr-[480px]' : ''}`}>
         <motion.div
-          className="flex h-[100dvh] w-full min-h-0 flex-col overflow-hidden bg-white dark:bg-slate-950"
+          className="flex h-[100dvh] w-full min-h-0 flex-col overflow-hidden bg-slate-50 dark:bg-slate-950"
           initial={{ opacity: 0, y: 24, scale: 0.992 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 16, scale: 0.996 }}
           transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
         >
-          <div className="h-16 shrink-0 px-5 md:px-7 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+          <div className="h-[76px] shrink-0 border-b border-slate-200 bg-white px-5 md:px-8 dark:border-slate-800 dark:bg-slate-900 flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-wider text-primary leading-none">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-600 leading-none">
                 {u('legacy.loadDetails.loadDetails', 'Load Details')}
               </p>
               <h2 className="mt-0.5 flex min-w-0 items-baseline gap-1.5 text-base font-black leading-tight dark:text-white md:text-lg">
-                <span className="shrink-0 font-mono text-primary">{trackingLabel}</span>
-                <span className="shrink-0 text-slate-300 dark:text-slate-600">·</span>
-                <span className="truncate">{load.title}</span>
+                <span className="truncate text-slate-950 dark:text-white">{pickupLabel}</span>
+                <span className="shrink-0 text-primary">→</span>
+                <span className="truncate text-slate-950 dark:text-white">{deliveryLabel}</span>
+                <span className="hidden shrink-0 font-mono text-xs font-bold text-slate-400 sm:inline">#{trackingLabel}</span>
               </h2>
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -724,7 +743,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 md:p-5">
+          <div className="flex-1 overflow-y-auto p-3 md:p-5">
             {(role === 'superadmin' || (userId != null && load.customerUserId === userId)) && bodyView === 'offers' ? (
               <LoadOffersPanel
                 lang={lang}
@@ -742,7 +761,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                 onBack={() => setBodyView('details')}
               />
             ) : (
-            <div className="space-y-4">
+            <div className="mx-auto max-w-[1440px] space-y-3">
               <div className="grid xl:grid-cols-12 gap-4">
                 <div className="xl:col-span-8">
                   <div className="grid h-full content-between gap-2 sm:grid-cols-2 xl:grid-cols-4">
@@ -952,15 +971,16 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                 </div>
               </div>
 
-              <div className="grid gap-4 xl:grid-cols-12">
+              <div className="grid gap-3 xl:grid-cols-12">
                 {/* Route column, same shape as the post-load form's - the two stops on a timeline,
                     the distance between them, and the map that draws the actual driving route. */}
-                <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 xl:col-span-3">
-                  <div className="mb-3 flex items-center gap-2 text-primary">
+                <div className="flex min-h-[330px] flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 xl:col-span-7">
+                  <div className="mb-2 flex items-center gap-2 text-primary">
                     <RouteIcon className="h-4 w-4" />
                     <p className="text-[10px] font-black uppercase tracking-wider">{u('postLoadModal.routeSummaryTitle', 'Route')}</p>
                     <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[10px] font-black uppercase tracking-wider"><TransportTypeIcon className="h-3.5 w-3.5" />{transportTypeLabel}</span>
                   </div>
+                  <RoutePreview pickup={pickupRoutePosition} delivery={deliveryRoutePosition} />
                   <div className="flex min-w-0 flex-1 flex-col">
                     {/* A storage request has no pickup - it names the warehouse the goods are held
                         in, and the trip that brings them there is a road load of its own. */}
@@ -994,19 +1014,19 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                     type="button"
                     disabled={!canShowRouteMap}
                     onClick={() => setRouteMapOpen(true)}
-                    className="mt-2 h-10 w-full gap-2 rounded-xl disabled:cursor-not-allowed disabled:opacity-60"
+                    className="mt-2 h-9 w-fit gap-2 rounded-lg px-3 text-xs disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <MapIcon className="h-4 w-4" />
                     {u('postLoadModal.showRouteMap', 'Show route')}
                   </Button>
                 </div>
 
-              <section className="overflow-hidden rounded-2xl border border-sky-100 bg-gradient-to-br from-white via-sky-50 to-cyan-100 text-slate-900 shadow-lg shadow-sky-950/5 dark:border-slate-800 dark:bg-slate-950 dark:text-white xl:col-span-5">
+              <section className="overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-900 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-white xl:col-span-5">
                 <div className="relative isolate flex h-full flex-col p-4">
-                  <div className="absolute -right-16 -top-20 h-48 w-48 rounded-full bg-primary/20 blur-3xl dark:bg-primary/25" />
-                  <div className="absolute -bottom-24 left-1/3 h-44 w-44 rounded-full bg-cyan-400/25 blur-3xl dark:bg-cyan-400/15" />
+                  <div className="absolute -right-16 -top-20 h-48 w-48 rounded-full bg-sky-100/70 blur-3xl dark:bg-sky-900/20" />
+                  <div className="absolute -bottom-24 left-1/3 h-44 w-44 rounded-full bg-emerald-100/60 blur-3xl dark:bg-emerald-900/15" />
                   <div className="relative flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-600 dark:text-cyan-300">{u('legacy.loadDetails.loadProfile', 'Load profile')}</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{u('legacy.loadDetails.loadProfile', 'Load overview')}</p>
                     <span className="flex h-7 w-7 items-center justify-center rounded-full border border-cyan-500/50 bg-white/70 text-cyan-600 dark:bg-cyan-300/15 dark:text-cyan-200"><TransportTypeIcon className="h-4 w-4" /></span>
                   </div>
 
@@ -1036,7 +1056,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                 </div>
               </section>
 
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 xl:col-span-4">
+                <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 xl:col-span-4">
                   <div className="space-y-2.5">
                     <p className="text-[10px] font-black uppercase tracking-wider text-primary">
                       {u('legacy.loadDetails.financialTerms', 'Financial Terms')}

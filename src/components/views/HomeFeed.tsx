@@ -12,7 +12,7 @@ import {
 import { MOCK_LOADS } from '../../mockData';
 import { Language, Load, Role } from '../../types';
 import { FilterLoads, FilterLoadsProps } from '../load/FilterLoads';
-import { LoadDetailsPrebook } from '../load/LoadDetailsPrebook';
+import { LoadDetailsPrebookReference } from '../load/LoadDetailsPrebookReference';
 import { LoadItem } from '../load/LoadItem';
 import { LoadsTable } from '../load/LoadsTable';
 import { EmptyState } from '../ui/EmptyState';
@@ -625,7 +625,7 @@ export const HomeFeed = ({
         </div>
       )}
 
-      <LoadDetailsPrebook
+      <LoadDetailsPrebookReference
         open={Boolean(selectedLoad)}
         load={selectedLoad}
         lang={lang}

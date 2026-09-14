@@ -1,9 +1,9 @@
 import { FormEvent, useState } from 'react';
-import { Download, FileCheck2, Loader2, X } from 'lucide-react';
+import { Download, FileCheck2, FileText, Loader2, X } from 'lucide-react';
 import type { Language } from '../../types';
 import { api, type CustomsDocument } from '../../services/api';
 
-type Props = { loadId: string | number; documents?: CustomsDocument[]; lang: Language; className?: string };
+type Props = { loadId: string | number; documents?: CustomsDocument[]; lang: Language; className?: string; variant?: 'list' | 'cards' };
 type FormValues = Record<string, string | boolean>;
 
 const COPY = {
@@ -24,6 +24,9 @@ const LABELS: Record<string, { en: string; bs: string; de: string }> = {
   currency_tariff: { en: 'Currency rate to BAM', bs: 'Kurs valute u BAM', de: 'Wechselkurs zu BAM' }, place: { en: 'Place of signature', bs: 'Mjesto potpisa', de: 'Ort der Unterschrift' }, broj: { en: 'Number', bs: 'Broj', de: 'Nummer' }, roba: { en: 'Goods', bs: 'Roba', de: 'Ware' }, rok: { en: 'Deadline (days)', bs: 'Rok (dana)', de: 'Frist (Tage)' }, nedost_dok: { en: 'Missing documents', bs: 'Nedostajući dokumenti', de: 'Fehlende Dokumente' }, odgovorna_osoba: { en: 'Responsible person and phone', bs: 'Odgovorna osoba i telefon', de: 'Verantwortliche Person und Telefon' }, razlog_np: { en: 'Reason', bs: 'Razlog', de: 'Grund' },
   broj_odobrenja: { en: 'Approval number', bs: 'Broj odobrenja', de: 'Genehmigungsnummer' }, rok_do_ci: { en: 'Customs office deadline', bs: 'Rok do (CI)', de: 'Frist der Zollstelle' }, moguci_car_dug: { en: 'Possible customs debt', bs: 'Mogući carinski dug', de: 'Mögliche Zollschuld' }, banka: { en: 'Bank', bs: 'Banka', de: 'Bank' }, broj_banke: { en: 'Bank reference', bs: 'Broj banke', de: 'Bankreferenz' }, datum_od_banka: { en: 'Bank date from', bs: 'Datum od (banka)', de: 'Bankdatum von' }, datum_do_banka: { en: 'Bank date to', bs: 'Datum do (banka)', de: 'Bankdatum bis' }, iznos_garancije: { en: 'Guarantee amount', bs: 'Iznos garancije', de: 'Garantiebetrag' }, valuta: { en: 'Currency', bs: 'Valuta', de: 'Währung' }, vazi_od: { en: 'Valid from', bs: 'Važi od', de: 'Gültig von' }, vazi_do: { en: 'Valid until', bs: 'Važi do', de: 'Gültig bis' }, broj_rc: { en: 'RC number', bs: 'Broj RC', de: 'RC-Nummer' },
 };
+
+// File-type swatches for the card grid, cycled so neighbouring documents are easy to tell apart.
+const CARD_TONES = ['bg-rose-50 text-rose-500 dark:bg-rose-500/10', 'bg-blue-50 text-blue-500 dark:bg-blue-500/10', 'bg-emerald-50 text-emerald-500 dark:bg-emerald-500/10'];
 
 const TEXTAREAS = new Set(['text_before', 'text_after', 'osiguranje_text']);
 const DATES = new Set(['datum_od_banka', 'datum_do_banka', 'vazi_od', 'vazi_do']);
@@ -46,7 +49,7 @@ function DocumentForm({ document, lang, busy, onClose, onSubmit }: { document: C
   </div>;
 }
 
-export function CustomsDocumentList({ loadId, documents = [], lang, className = '' }: Props) {
+export function CustomsDocumentList({ loadId, documents = [], lang, className = '', variant = 'list' }: Props) {
   const activeLang = lang === 'bs' || lang === 'de' ? lang : 'en';
   const text = COPY[activeLang];
   const [downloading, setDownloading] = useState<string | null>(null);
@@ -62,5 +65,9 @@ export function CustomsDocumentList({ loadId, documents = [], lang, className = 
 
   if (documents.length === 0) return <div className={`rounded-xl border border-dashed border-slate-200 px-3 py-8 text-center text-xs text-slate-500 dark:border-slate-700 ${className}`}>{text.empty}</div>;
 
-  return <div className={className}><div className="space-y-2">{documents.map((document) => <div key={document.code} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-800 dark:bg-slate-950"><FileCheck2 className="h-4 w-4 shrink-0 text-primary" /><span className="shrink-0 rounded-md bg-primary/10 px-2 py-1 font-mono text-[11px] font-black text-primary">{document.code}</span><p className="min-w-0 flex-1 text-xs font-bold leading-4 text-slate-800 dark:text-slate-100">{document.label}</p>{document.downloadable && <button type="button" title={text.download} disabled={downloading !== null} onClick={() => document.formType ? setConfiguredDocument(document) : void download(document)} className="cursor-pointer rounded-lg p-2 text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-50">{downloading === document.code ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}</button>}</div>)}</div>{error && <p className="mt-2 text-xs font-semibold text-red-500">{error}</p>}{configuredDocument && <DocumentForm document={configuredDocument} lang={activeLang} busy={downloading === configuredDocument.code} onClose={() => setConfiguredDocument(null)} onSubmit={(values) => void download(configuredDocument, values)} />}</div>;
+  const downloadButton = (document: CustomsDocument, tone = 'text-primary hover:bg-primary/10') => document.downloadable && <button type="button" title={text.download} disabled={downloading !== null} onClick={() => document.formType ? setConfiguredDocument(document) : void download(document)} className={`cursor-pointer rounded-lg p-2 transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${tone}`}>{downloading === document.code ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}</button>;
+
+  return <div className={className}>{variant === 'cards'
+    ? <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-5">{documents.map((document, index) => <div key={document.code} className="flex min-w-0 items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-800 dark:bg-slate-900"><span className={`flex h-9 w-8 shrink-0 items-center justify-center rounded-md ${CARD_TONES[index % CARD_TONES.length]}`}><FileText className="h-4.5 w-4.5" /></span><div className="min-w-0 flex-1"><p className="truncate text-xs font-bold text-slate-800 dark:text-slate-100" title={document.label}>{document.label}</p><p className="mt-0.5 truncate text-[10px] font-medium text-slate-500">{document.code}{document.formType ? ` · ${document.formType.toUpperCase()}` : ''}</p></div>{downloadButton(document, 'text-slate-400 hover:bg-slate-100 hover:text-primary dark:hover:bg-slate-800')}</div>)}</div>
+    : <div className="space-y-2">{documents.map((document) => <div key={document.code} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-800 dark:bg-slate-950"><FileCheck2 className="h-4 w-4 shrink-0 text-primary" /><span className="shrink-0 rounded-md bg-primary/10 px-2 py-1 font-mono text-[11px] font-black text-primary">{document.code}</span><p className="min-w-0 flex-1 text-xs font-bold leading-4 text-slate-800 dark:text-slate-100">{document.label}</p>{downloadButton(document)}</div>)}</div>}{error && <p className="mt-2 text-xs font-semibold text-red-500">{error}</p>}{configuredDocument && <DocumentForm document={configuredDocument} lang={activeLang} busy={downloading === configuredDocument.code} onClose={() => setConfiguredDocument(null)} onSubmit={(values) => void download(configuredDocument, values)} />}</div>;
 }
