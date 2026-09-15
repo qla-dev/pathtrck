@@ -53,6 +53,7 @@ import {
   Warehouse,
   ContactRound,
   Smartphone,
+  Container,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useScrollDownReveal } from "./hooks/useScrollDownReveal";
@@ -116,6 +117,8 @@ import { VesselView } from "./components/views/VesselView";
 import { ProfileView } from "./components/views/ProfileView";
 import { AutomationsView } from "./components/views/AutomationsView";
 import { canOpenView } from "./lib/permissions";
+// Three.js is large, so the planner loads only when its page opens.
+const LoadPlanningView = React.lazy(() => import("./components/views/LoadPlanningView"));
 import { DriverVerificationModal } from "./components/modals/DriverVerificationModal";
 import { PostLoadModal } from "./components/modals/PostLoadModal";
 import { LoadDetailsModal } from "./components/tracking/LoadDetailsModal";
@@ -6745,6 +6748,11 @@ export default function App() {
           label: u("nav.globalFleet", "Global Fleet"),
           icon: Truck,
         },
+        {
+          id: "load-planning",
+          label: u("nav.loadPlanning", "LTL / LCL Planning"),
+          icon: Container,
+        },
         { id: "finance", label: u("nav.finance", "Finance"), icon: Banknote },
         {
           id: "email-studio",
@@ -6801,6 +6809,7 @@ export default function App() {
                 ]
               : []),
             ...(hasFleet ? [{ id: "fleet", label: t.myFleet, icon: Truck }] : []),
+            { id: "load-planning", label: u("nav.loadPlanning", "LTL / LCL Planning"), icon: Container },
             ...(canManageTeam
               ? [{ id: "company-team", label: u("nav.teamPermissions", "Team & Permissions"), icon: Users }]
               : []),
@@ -7560,6 +7569,11 @@ export default function App() {
                   userId={currentUser?.id}
                   companyIds={trackingCompanyIds}
                 />
+              )}
+              {view === "load-planning" && (
+                <React.Suspense fallback={null}>
+                  <LoadPlanningView lang={lang} userId={currentUser?.id} />
+                </React.Suspense>
               )}
               {view === "pricing" && (
                 <PricingView
