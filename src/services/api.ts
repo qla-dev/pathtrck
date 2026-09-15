@@ -795,6 +795,13 @@ export const api = {
       return request<Record<string, unknown>>(query ? `/warehouse/overview?${query}` : '/warehouse/overview');
     },
   },
+  // Real cargo for the load planner's rack rows, a page at a time: warehouse stock and current tracking loads.
+  loadPlanning: {
+    warehouseRack: (params: { page?: number; per_page?: number } = {}) =>
+      request<{ items: Record<string, unknown>[]; warehouses: Record<string, unknown>[] }>(`/load-planning/racks/warehouse?${queryString(params)}`),
+    trackingRack: (params: { page?: number; per_page?: number } = {}) =>
+      request<Record<string, unknown>[]>(`/load-planning/racks/tracking?${queryString(params)}`),
+  },
   aiCallLogs: {
     ...resourceApi<Record<string, unknown>>('ai-call-logs'),
     // Master-only: permanently deletes a conversation's ai_call_logs rows AND the conversation

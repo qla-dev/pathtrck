@@ -4,6 +4,7 @@ import {
   ArrowDown,
   ArrowUp,
   Box,
+  Copy,
   Container,
   DoorOpen,
   Download,
@@ -12,7 +13,7 @@ import {
   Layers,
   ListOrdered,
   Maximize,
-  MoreHorizontal,
+  Navigation2,
   Plus,
   RotateCcw,
   RotateCw,
@@ -33,7 +34,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { api } from '../../services/api';
-import { Language } from '../../types';
+import { Language, Role } from '../../types';
 import { cn } from '../../lib/cn';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
@@ -41,8 +42,8 @@ import { PageHeader } from '../ui/PageHeader';
 import { PinnedPanel } from '../ui/PinnedPanel';
 import { SmallModal } from '../ui/SmallModal';
 import { planningLabels } from '../planning/labels';
-import { autoPlan, Cargo, COLORS, Equipment, EQUIPMENT, fits, Plan, readPlan, revalidate, validEquipment, volume } from '../planning/model';
-import type { SceneView } from '../planning/PlanningScene';
+import { autoPlan, Cargo, COLORS, Equipment, EQUIPMENT, fits, Plan, rackSlotsPerPage, readPlan, revalidate, validEquipment, volume, type RackItem, type RackPage } from '../planning/model';
+import type { CameraSnapshot, SceneView } from '../planning/PlanningScene';
 
 // Three.js is heavy, so the page renders first and each scene streams in behind a skeleton.
 const PlanningScene = React.lazy(() => import('../planning/PlanningScene').then(module => ({ default: module.PlanningScene })));
@@ -90,6 +91,7 @@ const SETTINGS_TABS: { value: SettingsTab; icon: LucideIcon }[] = [
   { value: 'sequence', icon: ListOrdered },
 ];
 const SCREENS: { value: SceneView; icon: LucideIcon }[] = [
+  { value: 'overview', icon: Box },
   { value: 'exterior', icon: Container },
   { value: 'loading', icon: DoorOpen },
   { value: 'top', icon: Eye },
@@ -115,27 +117,23 @@ const SceneSkeleton = ({ label }: { label: string }) => (
   </div>
 );
 
-export default function LoadPlanningView({ lang, userId }: { lang: Language; userId?: number }) {
+export default function LoadPlanningView({ lang, userId, role }: { lang: Language; userId?: number; role?: Role }) {
   const t = planningLabels(lang);
   const [plan, setPlan] = useState<Plan>({ version: 1, name: '', equipment: { ...EQUIPMENT[0] }, cargo: [] });
-  const [view, setView] = useState<SceneView>('exterior');
-  // Only the View sidebar opens and closes; Settings is always pinned and just collapses.
-  const [panel, setPanel] = useState<'view' | null>(null);
+  const [view, setView] = useState<SceneView>('overview');
+  const [activeView, setActiveView] = useState<SceneView | null>('overview');
   const [selected, setSelected] = useState('');
-  const [warehouse, setWarehouse] = useState(false), [walls, setWalls] = useState(true), [dimensionsOn, setDimensionsOn] = useState(true);
+  // The virtual workspace always starts as a complete warehouse overview: a generic 40HC container
+  // between both rack systems. The scene animates the two rack groups into this initial state.
+  const [warehouse, setWarehouse] = useState(true), [walls, setWalls] = useState(true), [dimensionsOn, setDimensionsOn] = useState(true);
+  const [tracking, setTracking] = useState(true);
+  const [racks, setRacks] = useState<{ warehouse?: RackPage; tracking?: RackPage }>({});
+  const [rackPick, setRackPick] = useState<RackItem | null>(null);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('equipment');
   const [equipmentTab, setEquipmentTab] = useState<'container' | 'vehicle' | 'custom'>(() => (plan.equipment.truck ? 'vehicle' : 'container'));
   const [carrying, setCarrying] = useState(false);
-  // The View sidebar opens at once with placeholders; live previews then mount one at a time after the
-  // slide-in, so creating their WebGL scenes never stalls the panel animation.
-  const [previewCount, setPreviewCount] = useState(0);
-  useEffect(() => {
-    if (panel !== 'view') { setPreviewCount(0); return; }
-    let count = 0;
-    const timer = setInterval(() => { count += 1; setPreviewCount(count); if (count >= SCREENS.length) clearInterval(timer); }, 180);
-    return () => clearInterval(timer);
-  }, [panel]);
   const [reset, setReset] = useState(0), [zoom, setZoom] = useState(0), [overview, setOverview] = useState(0);
+  const [cameraSnapshot, setCameraSnapshot] = useState(0);
   const [adding, setAdding] = useState(false), [notice, setNotice] = useState('');
   const [vehicles, setVehicles] = useState<Record<string, unknown>[]>([]);
   const [fleetError, setFleetError] = useState(false);
@@ -157,12 +155,8 @@ export default function LoadPlanningView({ lang, userId }: { lang: Language; use
     }, trackingQuery ? 300 : 0);
     return () => { active = false; clearTimeout(timer); };
   }, [adding, trackingQuery]);
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(key);
-      if (stored) { const p = readPlan(JSON.parse(stored)); if (p) setPlan(p); else setNotice(t.failed); }
-    } catch { setNotice(t.failed); }
-  }, [key]);
+  // Entering the virtual workspace is intentionally a fresh planning session. Saved plans remain
+  // available through Import, but should not replace the generic scene that opens from “Go virtual”.
   useEffect(() => {
     let active = true;
     const load = async () => {
@@ -187,19 +181,7 @@ export default function LoadPlanningView({ lang, userId }: { lang: Language; use
   const volumePercent = usedVolume / volume(e) * 100, weightPercent = usedWeight / e.payload * 100;
   const occupiedLength = Math.max(0, ...placed.map(c => c.x + c.length));
 
-  const togglePanel = (next: 'view') => setPanel(currentPanel => currentPanel === next ? null : next);
   const settingsTabLabels: Record<SettingsTab, string> = { equipment: t.equipment, cargo: t.shipments, utilization: t.usage, sequence: t.order };
-  // An open sidebar rolls over the page header, so each sidebar carries its own View / Settings switch.
-  const panelSwitch = (
-    <>
-      {([['view', Eye, t.viewPanel]] as const).map(([id, Icon, label]) => (
-        <button key={id} type="button" aria-pressed={panel === id} aria-label={label} title={label} onClick={() => togglePanel(id)}
-          className={cn('flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-xl border transition-colors', panel === id ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-slate-100 text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300')}>
-          <Icon className="h-4 w-4" />
-        </button>
-      ))}
-    </>
-  );
   const changeEquipment = (next: Equipment) => { if (!validEquipment(next)) { setNotice(t.invalid); return; } setPlan(p => ({ ...p, equipment: next, cargo: revalidate(p.cargo, next) })); };
   const move = (id: string, x: number, y: number, z: number) => {
     const c = cargo.find(c => c.id === id); if (!c) return;
@@ -210,11 +192,12 @@ export default function LoadPlanningView({ lang, userId }: { lang: Language; use
   const unplace = (id: string) => setPlan(p => ({ ...p, cargo: revalidate(p.cargo.map(c => (c.id === id ? { ...c, placed: false } : c)), p.equipment) }));
   const remove = (id: string) => setPlan(p => ({ ...p, cargo: revalidate(p.cargo.filter(c => c.id !== id), e) }));
   const rotate = () => { if (!current) return; const next = { ...current, length: current.width, width: current.length }; if (current.placed && !fits(next, cargo, e)) { setNotice(t.invalid); return; } setPlan(p => ({ ...p, cargo: revalidate(p.cargo.map(c => c.id === selected ? next : c), e) })); };
+  const copyCamera = (snapshot: CameraSnapshot) => { void navigator.clipboard?.writeText(JSON.stringify(snapshot, null, 2)); setNotice('Camera POV copied as JSON.'); };
   const reorder = (id: string, delta: number) => { const next = [...cargo], i = next.findIndex(c => c.id === id), j = i + delta; if (j < 0 || j >= next.length) return; [next[i], next[j]] = [next[j], next[i]]; setPlan(p => ({ ...p, cargo: next })); };
   // Bringing cargo out is staged like a warehouse move: turn to the overview (Settings collapses so it can be seen),
   // bring in the racks if hidden, lift the walls away, then take the cargo off the shelves.
   const stage = (bringOut: () => void) => {
-    setView('exterior'); setOverview(n => n + 1);
+    setView('overview'); setOverview(n => n + 1);
     let wait = 700;
     if (!warehouse) { setTimeout(() => setWarehouse(true), wait); wait += 1300; }
     if (walls) { setTimeout(() => setWalls(false), wait); wait += 700; }
@@ -223,8 +206,72 @@ export default function LoadPlanningView({ lang, userId }: { lang: Language; use
   // Switching the warehouse on turns to the overview first so the racks drop into a view that shows them; off just lifts them away.
   const toggleWarehouse = () => {
     if (warehouse) { setWarehouse(false); return; }
-    setView('exterior'); setOverview(n => n + 1);
+    setView('overview'); setOverview(n => n + 1);
     setTimeout(() => setWarehouse(true), 700);
+  };
+  const toggleTracking = () => {
+    if (tracking) { setTracking(false); return; }
+    setView('overview'); setOverview(n => n + 1);
+    setTimeout(() => setTracking(true), 700);
+  };
+  // Real cargo for the inner rack rows, one page of rack slots at a time: warehouse stock on one side, current tracking loads on the other.
+  const loadRack = async (side: 'warehouse' | 'tracking', page: number) => {
+    const per_page = rackSlotsPerPage(plan.equipment.length);
+    const text = (value: unknown) => (value == null ? '' : String(value));
+    const positiveOrUndefined = (value: unknown) => (Number(value) > 0 ? Number(value) : undefined);
+    try {
+      if (side === 'warehouse') {
+        const response = await api.loadPlanning.warehouseRack({ page, per_page });
+        const labelsById = new Map((response.data.warehouses ?? []).map(w => [text(w.id), `${text(w.name)} · ${Number(w.occupied_pallets ?? 0).toLocaleString()} ${t.rackPallets}`] as [string, string]));
+        const items: RackItem[] = (response.data.items ?? []).map(row => {
+          const load = (row.load ?? null) as Record<string, unknown> | null;
+          return {
+            key: text(row.key), side, title: text(load?.title || row.description || row.customer_name) || t.warehouse,
+            group: text(row.warehouse_id), groupLabel: labelsById.get(text(row.warehouse_id)) ?? text(row.warehouse_name),
+            pallets: Number(row.pallets) || 0, weight: Number(row.weight_kg) || 0, volume: Number(row.cbm) || 0,
+            customer: text(row.customer_name), status: text(load?.status), storageType: text(row.storage_type), storedSince: text(row.stored_since),
+            route: text(row.warehouse_name), reference: load?.id ? `#${text(load.id)}` : '', loadId: load?.id ? text(load.id) : undefined,
+            length: positiveOrUndefined(load?.length_m), width: positiveOrUndefined(load?.width_m), height: positiveOrUndefined(load?.height_m),
+          };
+        });
+        const meta = response.meta ?? {};
+        setRacks(r => ({ ...r, warehouse: { items, page: Number(meta.current_page ?? page), lastPage: Number(meta.last_page ?? 1), total: Number(meta.total ?? items.length) } }));
+      } else {
+        const response = await api.loadPlanning.trackingRack({ page, per_page });
+        const meta = response.meta ?? {}, total = Number(meta.total ?? response.data.length);
+        const items: RackItem[] = response.data.map(row => ({
+          key: `t:${text(row.id)}`, side, title: text(row.title) || text(row.reference), group: 'tracking', groupLabel: `${t.tracking} · ${total.toLocaleString()}`,
+          pallets: Number(row.pallets) || 0, weight: Number(row.weight_kg) || 0, volume: Number(row.volume_m3) || 0,
+          customer: text(row.customer), status: text(row.status).replaceAll('_', ' '), storageType: text(row.goods_type), storedSince: '',
+          route: [row.pickup_city, row.delivery_city].filter(Boolean).join(' → '), reference: text(row.reference), loadId: text(row.id),
+          length: positiveOrUndefined(row.length_m), width: positiveOrUndefined(row.width_m), height: positiveOrUndefined(row.height_m),
+        }));
+        setRacks(r => ({ ...r, tracking: { items, page: Number(meta.current_page ?? page), lastPage: Number(meta.last_page ?? 1), total } }));
+      }
+    } catch { setNotice(t.rackFailed); }
+  };
+  // Slot counts follow the unit's length, so another unit starts the racks again from page one.
+  useEffect(() => { setRacks({}); }, [plan.equipment.length]);
+  useEffect(() => { if (warehouse && !racks.warehouse) void loadRack('warehouse', 1); }, [warehouse, racks.warehouse]);
+  useEffect(() => { if (tracking && !racks.tracking) void loadRack('tracking', 1); }, [tracking, racks.tracking]);
+  // A rack unit becomes cargo waiting in front of the unit: pallets as EUR pallets sharing the weight, otherwise one unit of the recorded size.
+  const putInFront = (item: RackItem) => {
+    const room = 300 - cargo.length;
+    if (room <= 0) { setNotice(t.countLimit); return; }
+    const pallets = Math.min(Math.floor(item.pallets), room), count = Math.max(1, pallets);
+    const height = pallets
+      ? Math.min(Math.max(item.volume ? item.volume / (pallets * .96) : 1.2, .3), 2.6)
+      : Math.min(Math.max(item.height ?? (item.volume && item.length && item.width ? item.volume / (item.length * item.width) : 1), .1), 3);
+    const color = COLORS[cargo.length % COLORS.length];
+    const entries: Cargo[] = Array.from({ length: count }, (_, i) => ({
+      id: crypto.randomUUID(), name: `${item.title.slice(0, 80)}${count > 1 ? ` · ${i + 1}` : ''}`, customer: item.customer.slice(0, 120),
+      length: pallets ? 1.2 : Math.min(item.length ?? 1.2, 30), width: pallets ? .8 : Math.min(item.width ?? .8, 10), height: round(height),
+      weight: round(item.weight ? Math.max(item.weight / count, .01) : 100), color, shape: pallets ? 'pallet' : 'box', stackable: false,
+      pickup: '', delivery: '', documents: [item.storageType, item.status].filter(Boolean).join(' · ').slice(0, 2000),
+      x: 0, y: 0, z: 0, placed: false, loadId: item.loadId, reference: item.reference, rackKey: item.key,
+    }));
+    setRackPick(null);
+    stage(() => setPlan(p => ({ ...p, cargo: [...p.cargo, ...entries] })));
   };
   const openAdd = () => { setDraft(EMPTY_DRAFT); setDraftKey(k => k + 1); setTrackingQuery(''); setAdding(true); };
   const chooseLoad = (next: Draft) => { setDraft(next); setDraftKey(k => k + 1); };
@@ -266,7 +313,8 @@ export default function LoadPlanningView({ lang, userId }: { lang: Language; use
       <input ref={importInput} type="file" accept=".json,application/json" hidden onChange={event => void importPlan(event.target.files?.[0])} />
       <div className="absolute inset-0">
         <React.Suspense fallback={<SceneSkeleton label={t.loading3d} />}>
-          <PlanningScene equipment={e} cargo={cargo} view={view} selected={selected} onSelect={setSelected} onMove={move} onCarry={setCarrying} onUnplace={unplace} warehouse={warehouse} walls={walls} dimensions={dimensionsOn} reset={reset} zoom={zoom} overview={overview} unavailable={t.unavailable} />
+          <PlanningScene equipment={e} cargo={cargo} view={view} selected={selected} onSelect={setSelected} onMove={move} onRotate={rotate} onFreeRoam={() => setActiveView(null)} onCarry={setCarrying} onUnplace={unplace} tracking={tracking} racks={racks} pickedRack={rackPick?.key} loadMoreLabel={t.loadMore} cameraSnapshot={cameraSnapshot} onCameraSnapshot={copyCamera}
+            onRackMore={side => void loadRack(side, (racks[side]?.page ?? 1) + 1)} onRackPick={setRackPick} warehouse={warehouse} walls={walls} dimensions={dimensionsOn} reset={reset} zoom={zoom} overview={overview} unavailable={t.unavailable} />
         </React.Suspense>
       </div>
 
@@ -287,15 +335,14 @@ export default function LoadPlanningView({ lang, userId }: { lang: Language; use
               className="inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-full border border-primary bg-primary px-4 text-sm font-medium text-white transition-all hover:bg-primary-dark active:scale-95 disabled:cursor-not-allowed disabled:opacity-50">
               <Sparkles className="h-4 w-4" />{t.organize}
             </button>
-            {/* Perspective switch; its last option opens the sidebar with live previews of every screen. On narrow screens it scrolls sideways. */}
-            <div role="group" aria-label="3D" className="inline-flex min-w-0 items-center overflow-x-auto rounded-full border border-sky-200/80 bg-sky-50/70 p-1 dark:border-slate-700 dark:bg-slate-900">
-              {[...SCREENS.map(({ value, icon }) => ({ key: value, label: t[value], icon, active: view === value, onClick: () => setView(value) })),
-                { key: 'more', label: t.more, icon: MoreHorizontal, active: panel === 'view', onClick: () => togglePanel('view') }].map(({ key, label, icon: Icon, active, onClick }) => (
-                <button key={key} type="button" aria-label={label} title={label} aria-pressed={active} aria-expanded={key === 'more' ? active : undefined} onClick={onClick}
-                  className={cn('inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full transition-all active:scale-95', active ? 'bg-primary text-white' : 'text-slate-500 hover:text-primary dark:text-slate-300')}>
+            <div role="group" aria-label="3D views" className="flex flex-wrap items-center justify-end gap-2">
+              {SCREENS.map(({ value, icon: Icon }) => {
+                const label=value==='overview'?'Overview':t[value];
+                return <button key={value} type="button" aria-pressed={activeView===value} onClick={()=>{setView(value);setActiveView(value);}}
+                  title={label} aria-label={label} className={cn('inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border transition-all active:scale-95',activeView===value?'border-primary bg-primary text-white shadow-md shadow-primary/20':'border-sky-200 bg-white/80 text-slate-600 hover:border-primary hover:bg-primary/10 hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300')}>
                   <Icon className="h-4 w-4" />
-                </button>
-              ))}
+                </button>;
+              })}
             </div>
           </div>
         )}
@@ -310,14 +357,18 @@ export default function LoadPlanningView({ lang, userId }: { lang: Language; use
         <button type="button" aria-pressed={warehouse} aria-label={t.warehouse} title={t.warehouse} onClick={toggleWarehouse} className={overlayToggle(warehouse)}>
           <Warehouse className="h-4 w-4" />
         </button>
+        <button type="button" aria-pressed={tracking} aria-label={t.tracking} title={t.tracking} onClick={toggleTracking} className={overlayToggle(tracking)}>
+          <Navigation2 className="h-4 w-4" />
+        </button>
         <button type="button" aria-pressed={dimensionsOn} aria-label={t.dimensionLabels} title={t.dimensionLabels} onClick={() => setDimensionsOn(current => !current)} className={overlayToggle(dimensionsOn)}>
           <Ruler className="h-4 w-4" />
         </button>
         </div>
         <div className="pointer-events-auto flex gap-1.5">
-          <Button variant="outline" className={toolButton} title={t.zoomIn} aria-label={t.zoomIn} onClick={() => setZoom(z => z + 1)}><ZoomIn className="h-4 w-4" /></Button>
-          <Button variant="outline" className={toolButton} title={t.zoomOut} aria-label={t.zoomOut} onClick={() => setZoom(z => z - 1)}><ZoomOut className="h-4 w-4" /></Button>
-          <Button variant="outline" className={toolButton} title={t.reset} aria-label={t.reset} onClick={() => setReset(n => n + 1)}><RotateCcw className="h-4 w-4" /></Button>
+          <Button variant="outline" className={toolButton} title={t.zoomIn} aria-label={t.zoomIn} onClick={() => { setActiveView(null); setZoom(z => z + 1); }}><ZoomIn className="h-4 w-4" /></Button>
+          <Button variant="outline" className={toolButton} title={t.zoomOut} aria-label={t.zoomOut} onClick={() => { setActiveView(null); setZoom(z => z - 1); }}><ZoomOut className="h-4 w-4" /></Button>
+          <Button variant="outline" className={toolButton} title={t.reset} aria-label={t.reset} onClick={() => { setActiveView(view); setReset(n => n + 1); }}><RotateCcw className="h-4 w-4" /></Button>
+          {role === 'superadmin' && <Button variant="outline" className={toolButton} title="Copy camera POV JSON" aria-label="Copy camera POV JSON" onClick={() => setCameraSnapshot(n => n + 1)}><Copy className="h-4 w-4" /></Button>}
           <Button variant="outline" className={toolButton} title={t.fullscreen} aria-label={t.fullscreen} onClick={() => { if (document.fullscreenElement) void document.exitFullscreen(); else void viewport.current?.requestFullscreen(); }}><Maximize className="h-4 w-4" /></Button>
         </div>
       </div>
@@ -333,21 +384,7 @@ export default function LoadPlanningView({ lang, userId }: { lang: Language; use
       </div>
         <p role={carrying ? 'status' : undefined} className={cn('pointer-events-none absolute bottom-3 left-3 max-w-[55%] rounded-xl px-3 py-1.5 text-[11px] backdrop-blur', carrying ? 'block bg-primary font-bold text-white shadow-lg' : 'hidden bg-white/85 text-slate-600 md:block dark:bg-slate-900/85 dark:text-slate-300')}>{carrying ? t.releaseHint : t.hint}</p>
 
-      <PinnedPanel open={panel === 'view'} className="z-[310]" icon={Eye} title={t.viewPanel} subtitle={t.viewHint} onClose={() => setPanel(null)} closeLabel={t.close} collapseLabel={t.collapse} expandLabel={t.expand}>
-        {SCREENS.map(({ value, icon: Icon }, index) => (
-          <button key={value} type="button" aria-pressed={view === value} onClick={() => setView(value)}
-            className={cn('block w-full overflow-hidden rounded-2xl border text-left transition-colors', view === value ? 'border-primary ring-2 ring-primary/30' : 'border-slate-200 hover:border-primary/60 dark:border-slate-800')}>
-            <span className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200"><Icon className="h-4 w-4 text-primary" />{t[value]}</span>
-            <span className="block h-36 bg-slate-100 dark:bg-slate-900">
-              {index < previewCount
-                ? <React.Suspense fallback={<SceneSkeleton label={t.loading3d} />}><PlanningScene mini equipment={e} cargo={cargo} view={value} warehouse={warehouse} walls={walls} unavailable={t.unavailable} /></React.Suspense>
-                : <SceneSkeleton label={t.loading3d} />}
-            </span>
-          </button>
-        ))}
-      </PinnedPanel>
-
-      <PinnedPanel open collapseSignal={overview} actions={panelSwitch} icon={Settings2} title={t.settings} subtitle={t.settingsHint} collapseLabel={t.collapse} expandLabel={t.expand} defaultCollapsed collapsedTitle={cargo.length ? t.seePlan : t.startPlanning}
+      <PinnedPanel open collapseSignal={overview} icon={Settings2} title={t.settings} subtitle={t.settingsHint} collapseLabel={t.collapse} expandLabel={t.expand} defaultCollapsed collapsedTitle={cargo.length ? t.seePlan : t.startPlanning}
         placeholder={(
           <div role="status" aria-label={t.loading3d} className="min-h-0 flex-1 animate-pulse space-y-3 p-3">
             <div className="h-16 rounded-2xl bg-slate-100 dark:bg-slate-800" />
@@ -565,6 +602,47 @@ export default function LoadPlanningView({ lang, userId }: { lang: Language; use
             </form>
           </SmallModal>
         )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {rackPick && (() => {
+          const inPlan = cargo.some(c => c.rackKey === rackPick.key);
+          const stored = rackPick.storedSince && !Number.isNaN(Date.parse(rackPick.storedSince)) ? new Date(rackPick.storedSince).toLocaleDateString() : '';
+          const details: [string, string][] = [
+            [rackPick.side === 'warehouse' ? t.warehouse : t.route, rackPick.side === 'warehouse' ? rackPick.groupLabel : rackPick.route],
+            [t.customer, rackPick.customer],
+            [t.status, rackPick.status],
+            [t.pieces, rackPick.pallets ? `${rackPick.pallets.toLocaleString()} ${t.rackPallets}` : ''],
+            [t.weight, rackPick.weight ? `${rackPick.weight.toLocaleString()} kg` : ''],
+            [t.volume, rackPick.volume ? `${rackPick.volume.toLocaleString()} m³` : ''],
+            [t.cargoDimensions, rackPick.length && rackPick.width && rackPick.height ? `${rackPick.length} × ${rackPick.width} × ${rackPick.height}` : ''],
+            [t.storageType, rackPick.storageType],
+            [t.storedSince, stored],
+          ];
+          return (
+            <SmallModal labelledBy="load-planning-rack" onClose={() => setRackPick(null)} className="max-w-md">
+              <div className="space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className={labelClass}>{rackPick.side === 'warehouse' ? t.warehouse : t.tracking}</p>
+                    <h2 id="load-planning-rack" className="text-base font-black text-slate-900 dark:text-white">{rackPick.title}</h2>
+                    {rackPick.reference && <p className="text-xs text-slate-500">{rackPick.reference}</p>}
+                  </div>
+                  <button type="button" onClick={() => setRackPick(null)} aria-label={t.close} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"><X className="h-4 w-4" /></button>
+                </div>
+                <dl className="grid grid-cols-2 gap-3">
+                  {details.filter(([, value]) => value).map(([label, value]) => (
+                    <div key={label} className="min-w-0"><dt className={labelClass}>{label}</dt><dd className="truncate text-sm font-bold text-slate-800 dark:text-slate-100">{value}</dd></div>
+                  ))}
+                </dl>
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" className="rounded-full" onClick={() => setRackPick(null)}>{t.close}</Button>
+                  <Button type="button" className="gap-2 rounded-full" disabled={inPlan} onClick={() => putInFront(rackPick)}><Truck className="h-4 w-4" />{inPlan ? t.inPlan : t.putInFront}</Button>
+                </div>
+              </div>
+            </SmallModal>
+          );
+        })()}
       </AnimatePresence>
     </motion.div>
   );

@@ -1,5 +1,12 @@
 export type Equipment = { code: string; length: number; width: number; height: number; payload: number; doorWidth: number; doorHeight: number; openTop: boolean; truck: boolean; registration?: string };
-export type Cargo = { id: string; name: string; customer: string; length: number; width: number; height: number; weight: number; color: string; shape: 'box' | 'pallet' | 'pipe' | 'drum'; stackable: boolean; pickup: string; delivery: string; documents: string; x: number; y: number; z: number; placed: boolean; loadId?: string; reference?: string };
+export type Cargo = { id: string; name: string; customer: string; length: number; width: number; height: number; weight: number; color: string; shape: 'box' | 'pallet' | 'pipe' | 'drum'; stackable: boolean; pickup: string; delivery: string; documents: string; x: number; y: number; z: number; placed: boolean; loadId?: string; reference?: string; rackKey?: string };
+/** A real unit on a rack row: a warehouse stock row or a current tracking load, normalised from the rack APIs. */
+export type RackItem = { key: string; side: 'warehouse' | 'tracking'; title: string; group: string; groupLabel: string; pallets: number; weight: number; volume: number; customer: string; status: string; storageType: string; storedSince: string; route: string; reference: string; loadId?: string; length?: number; width?: number; height?: number };
+export type RackPage = { items: RackItem[]; page: number; lastPage: number; total: number };
+/** Rack geometry shared by scene and view: bays 3 m apart along a row, three levels of three slots; the last bay stays free for "load more". */
+export const rackSpan = (length: number) => Math.ceil((length / 2 + 6) / 3) * 3;
+export const rackBays = (length: number) => Math.floor((2 * rackSpan(length)) / 3 + 1e-6) + 1;
+export const rackSlotsPerPage = (length: number) => (rackBays(length) - 1) * 9;
 export type Plan = { version: 1; name: string; equipment: Equipment; cargo: Cargo[] };
 // Planning defaults, editable to match the actual unit. Dimensions are internal metres.
 export const EQUIPMENT: Equipment[] = [

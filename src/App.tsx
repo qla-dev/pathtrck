@@ -53,7 +53,7 @@ import {
   Warehouse,
   ContactRound,
   Smartphone,
-  Container,
+  Navigation2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useScrollDownReveal } from "./hooks/useScrollDownReveal";
@@ -97,6 +97,7 @@ import {
 } from "./i18n";
 import { toSerbianCyrillic } from "./lib/serbianCyrillic";
 import { cn } from "./lib/cn";
+import { Virtual3DIcon } from "./components/ui/Virtual3DIcon";
 import { setDocumentMeta } from "./lib/documentMeta";
 import { SUPPORTED_CURRENCIES } from "./lib/currency";
 import { Button } from "./components/ui/Button";
@@ -6731,7 +6732,7 @@ export default function App() {
         {
           id: "tracking",
           label: u("nav.globalTracking", "Global Tracking"),
-          icon: PackageIcon,
+          icon: Navigation2,
         },
         {
           id: "warehouses",
@@ -6747,11 +6748,6 @@ export default function App() {
           id: "fleet",
           label: u("nav.globalFleet", "Global Fleet"),
           icon: Truck,
-        },
-        {
-          id: "load-planning",
-          label: u("nav.loadPlanning", "LTL / LCL Planning"),
-          icon: Container,
         },
         { id: "finance", label: u("nav.finance", "Finance"), icon: Banknote },
         {
@@ -6804,12 +6800,11 @@ export default function App() {
                   {
                     id: "tracking",
                     label: u("nav.liveTracking", "Live tracking"),
-                    icon: PackageIcon,
+                    icon: Navigation2,
                   },
                 ]
               : []),
             ...(hasFleet ? [{ id: "fleet", label: t.myFleet, icon: Truck }] : []),
-            { id: "load-planning", label: u("nav.loadPlanning", "LTL / LCL Planning"), icon: Container },
             ...(canManageTeam
               ? [{ id: "company-team", label: u("nav.teamPermissions", "Team & Permissions"), icon: Users }]
               : []),
@@ -6854,7 +6849,7 @@ export default function App() {
               {
                 id: "tracking",
                 label: u("nav.liveTracking", "Live tracking"),
-                icon: PackageIcon,
+                icon: Navigation2,
               },
               {
                 id: "warehouses",
@@ -6955,7 +6950,7 @@ export default function App() {
               aria-label={!isSidebarOpen ? item.label : undefined}
               onClick={() => navigateTo(item.id)}
               className={cn(
-                "group relative w-full flex items-center rounded-xl py-2 transition-all cursor-pointer",
+                "group relative w-full flex items-center rounded-xl py-2 outline-none transition-all cursor-pointer focus:outline-none",
                 isSidebarOpen ? "gap-3 px-3" : "justify-center px-0",
                 isNavItemActive(item.id)
                   ? "bg-primary text-white shadow-lg shadow-primary/20"
@@ -7076,6 +7071,17 @@ export default function App() {
                 <span>{u("common.postLoad", "Post Load")}</span>
               </button>
             ) : null}
+
+            {(isWarehouseCompany || role === "user" || role === "driver" || isCompanyOperationsRole(role) || isElevatedAdmin) && (
+              <button
+                type="button"
+                onClick={() => setView("load-planning")}
+                className="h-10 rounded-full border border-primary/30 bg-primary/10 px-4 text-primary inline-flex items-center gap-2 text-xs font-bold transition-all hover:scale-[1.02] hover:bg-primary hover:text-white cursor-pointer whitespace-nowrap dark:border-primary/40"
+              >
+                <Virtual3DIcon className="w-4 h-4" />
+                <span>Go virtual</span>
+              </button>
+            )}
 
             <ClickDropdown
               ariaLabel="Language switcher"
@@ -7573,7 +7579,7 @@ export default function App() {
               )}
               {view === "load-planning" && (
                 <React.Suspense fallback={null}>
-                  <LoadPlanningView lang={lang} userId={currentUser?.id} />
+                  <LoadPlanningView lang={lang} userId={currentUser?.id} role={role} />
                 </React.Suspense>
               )}
               {view === "pricing" && (

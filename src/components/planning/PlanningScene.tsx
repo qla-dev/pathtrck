@@ -4,10 +4,12 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
-import { Cargo, Equipment, fits } from './model';
+import { Cargo, COLORS, Equipment, fits, rackBays, rackSpan, type RackItem, type RackPage } from './model';
 
-export type SceneView = 'exterior' | 'loading' | 'top' | 'side';
-type Props = { equipment: Equipment; cargo: Cargo[]; view: SceneView; warehouse?: boolean; walls?: boolean; dimensions?: boolean; overview?: number; selected?: string; onSelect?: (id: string) => void; onMove?: (id: string, x: number, y: number, z: number) => void; onCarry?: (carrying: boolean) => void; onUnplace?: (id: string) => void; reset?: number; zoom?: number; unavailable: string; mini?: boolean };
+export type SceneView = 'overview' | 'exterior' | 'loading' | 'top' | 'side';
+export type CameraSnapshot = { view: SceneView; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; fov: number };
+type MoveDirection = 'forward' | 'backward' | 'left' | 'right';
+type Props = { equipment: Equipment; cargo: Cargo[]; view: SceneView; warehouse?: boolean; tracking?: boolean; racks?: { warehouse?: RackPage; tracking?: RackPage }; pickedRack?: string; loadMoreLabel?: string; walls?: boolean; dimensions?: boolean; overview?: number; selected?: string; onSelect?: (id: string) => void; onMove?: (id: string, x: number, y: number, z: number) => void; onRotate?: () => void; onFreeRoam?: () => void; onCarry?: (carrying: boolean) => void; onUnplace?: (id: string) => void; onRackMore?: (side: 'warehouse' | 'tracking') => void; onRackPick?: (item: RackItem) => void; reset?: number; zoom?: number; cameraSnapshot?: number; onCameraSnapshot?: (snapshot: CameraSnapshot) => void; unavailable: string; mini?: boolean };
 
 // Tetris-style floor grid: 20 cm cells, so pallet and carton sizes land on whole cells.
 const CELL = .2, EPS = 1e-4;
@@ -71,7 +73,15 @@ export function PlanningScene(props: Props) {
   const host = useRef<HTMLDivElement>(null);
   const latest = useRef(props); latest.current = props;
   const [failed, setFailed] = useState(false);
-  const runtime = useRef<{ redraw: () => void; changeView: () => void; zoom: (n: number) => void; overview: () => void } | null>(null);
+  const [flashedMove, setFlashedMove] = useState<MoveDirection | null>(null);
+  const flashTimer = useRef<number | null>(null);
+  const runtime = useRef<{ redraw: () => void; changeView: () => void; zoom: (n: number) => void; overview: () => void; move: (direction: MoveDirection) => void; snapshot: () => CameraSnapshot } | null>(null);
+  const flashMove = (direction: MoveDirection) => {
+    if (flashTimer.current !== null) window.clearTimeout(flashTimer.current);
+    setFlashedMove(direction);
+    flashTimer.current = window.setTimeout(() => { setFlashedMove(null); flashTimer.current = null; }, 180);
+  };
+  useEffect(() => () => { if (flashTimer.current !== null) window.clearTimeout(flashTimer.current); }, []);
   useEffect(() => {
     const element = host.current!;
     let renderer: T.WebGLRenderer;
@@ -90,8 +100,9 @@ export function PlanningScene(props: Props) {
     let activeCamera: T.Camera = latest.current.mini ? ortho : camera;
     const controls = new OrbitControls(camera,renderer.domElement);
     // Orbit (drag) and pan (right-drag or Shift+drag) share one hand cursor, closed while the view moves.
-    controls.addEventListener('start', () => element.classList.add('is-grabbing'));
+    controls.addEventListener('start', () => { element.classList.add('is-grabbing'); latest.current.onFreeRoam?.(); });
     controls.addEventListener('end', () => element.classList.remove('is-grabbing'));
+    controls.touches.ONE = T.TOUCH.ROTATE; controls.touches.TWO = T.TOUCH.DOLLY_PAN;
     controls.enableDamping = true; controls.maxPolarAngle = Math.PI/2 - .02; controls.minDistance = 2; controls.maxDistance = 60; controls.enabled = !latest.current.mini;
     scene.add(new T.HemisphereLight(0xffffff,0x697984,2.6));
     const sun = new T.DirectionalLight(0xffffff,3.5); sun.position.set(-3,16,10); sun.castShadow = true; sun.shadow.mapSize.set(2048,2048); sun.shadow.camera.left=-18;sun.shadow.camera.right=18;sun.shadow.camera.top=18;sun.shadow.camera.bottom=-18; scene.add(sun);
@@ -105,11 +116,18 @@ export function PlanningScene(props: Props) {
     // and from the floor into it. Positions are model-local group positions.
     const lastPos=new Map<string,T.Vector3>(),flights=new Map<string,{from:T.Vector3;to:T.Vector3;start:number;arc:number}>();
     const mountedAt=performance.now();
-    let racks=new T.Group(), racksBack=new T.Group(), shell=new T.Group(), rackShow=latest.current.warehouse?1:0, shellShow=latest.current.walls===false?0:1;
+    // racks: the warehouse side (+z); racksBack: the tracking side (-z). Each drops in with its own toggle.
+    // Rack props can already be on at mount; begin at zero so the opening overview always drops both
+    // warehouse and tracking racks into place instead of rendering them fully formed.
+    let racks=new T.Group(), racksBack=new T.Group(), shell=new T.Group(), rackShow=0, trackShow=0, shellShow=latest.current.walls===false?0:1;
+    // Real rack units and "load more" bays, the page each side last drew (to animate a swap), and every unit's shelf spot.
+    let rackMeshes:T.Object3D[]=[],hoveredRack='',paintedPick:string|undefined;
+    const rackDrawn:{warehouse?:number;tracking?:number}={},rackHome=new Map<string,T.Vector3>();
     // Toggles animate instead of popping: warehouse racks drop in from above, walls lift away and settle back.
     const applyToggles=()=>{
       const ease=(p:number)=>1-Math.pow(1-p,3);
       racks.visible=rackShow>.01;racks.position.y=(1-ease(rackShow))*9;
+      racksBack.visible=trackShow>.01;racksBack.position.y=(1-ease(trackShow))*9;
       // Walls fly well clear of the frame, growing slightly as they rise, before they are hidden.
       const lift=1-ease(shellShow);shell.visible=shellShow>.01;shell.position.y=lift*18;shell.scale.setScalar(1+lift*.2);
     };
@@ -125,7 +143,7 @@ export function PlanningScene(props: Props) {
     const redraw=() => {
       const {equipment:e,cargo,selected,mini}=latest.current;
       const oldRoof=roof.position.y; dispose(model);scene.remove(model);model=new T.Group();scene.add(model);
-      roof=new T.Group();side=new T.Group();doors=[];cargoMeshes=[];racks=new T.Group();racksBack=new T.Group();racks.add(racksBack);shell=new T.Group();
+      roof=new T.Group();side=new T.Group();doors=[];cargoMeshes=[];racks=new T.Group();racksBack=new T.Group();rackMeshes=[];rackHome.clear();shell=new T.Group();
       const L=e.length,W=e.width,H=e.height;
       // The container contrasts with the page: near-black steel on the light theme, near-white on the dark one.
       const isDark=document.documentElement.classList.contains('dark');
@@ -141,16 +159,53 @@ export function PlanningScene(props: Props) {
         // The warehouse floor uses the same 20 cm cells as the unit's floor, lined up with them, so a carried unit snaps anywhere.
         const grid=new T.GridHelper(40,200,dark?0x3b4a5e:0xbdcdd7,dark?0x2a3648:0xd0dce3);grid.position.set(Math.round(L/2/CELL)*CELL,ground+.01,Math.round(W/2/CELL)*CELL);
         (grid.material as T.LineBasicMaterial).transparent=true;(grid.material as T.LineBasicMaterial).opacity=.55;model.add(grid);groundGrid=grid;
-        {const model=racks;
+        {
           // Mirrored rack rows centred on the unit, far enough out that the default cameras stand inside the aisle.
-          const span=Math.ceil((L/2+6)/3)*3;
-          // Rows behind the unit (-z) sit where the side view's camera stands, so they get their own group to hide in that view.
-          for (const dz of [-15,-11.5,11.5,15]) for (let x=L/2-span;x<=L/2+span+.01;x+=3) {const z=W/2+dz,row=dz<0?racksBack:model;
-            for(const y of [1,2.5,4]){box(row,x,y,z,2.6,.08,1.2,'#517386');for(let i=0;i<3;i++)box(row,x-.8+i*.8,y+.42,z,.65,.8,.9,['#bd9367','#c4a079','#ac8053'][i]);}
-            for(const dx of [-1.3,1.3])box(row,x+dx,2.4,z,.09,4.8,1.25,'#607e90');
+          // Two rows per side: the inner row carries real cargo (warehouse stock on +z, tracking loads on -z) and
+          // filler fills every other slot. Rows behind the unit (-z) also hide in the side view, whose camera stands there.
+          const span=rackSpan(L),bays=rackBays(L),filler=['#bd9367','#c4a079','#ac8053'],pages=latest.current.racks,now=performance.now();
+          const taken=new Set(cargo.map(c=>c.rackKey).filter(Boolean)),still=matchMedia('(prefers-reduced-motion: reduce)').matches;
+          const groupColor=(group:string)=>COLORS[[...group].reduce((n,ch)=>(n*31+ch.charCodeAt(0))>>>0,7)%COLORS.length];
+          for (const dz of [-15,-11.5,11.5,15]) {
+            const side:'warehouse'|'tracking'=dz<0?'tracking':'warehouse',row=dz<0?racksBack:racks,z=W/2+dz;
+            const page=Math.abs(dz)<12?pages?.[side]:undefined,fresh=Boolean(page&&rackDrawn[side]!==page.page);
+            if(page)rackDrawn[side]=page.page;
+            let lastGroup='';
+            for (let bay=0;bay<bays;bay++) {
+              const x=L/2-span+bay*3;
+              if(page&&bay===bays-1&&page.page<page.lastPage){
+                // "Load more": a see-through rack one bay past the last; pressing it swaps in the next page.
+                const ghost=new T.Group();ghost.userData.rackMore=side;
+                for(const y of [1,2.5,4])box(ghost,x,y,z,2.6,.08,1.2,'#38bdf8',.3);
+                for(const dx of [-1.3,1.3])box(ghost,x+dx,2.4,z,.09,4.8,1.25,'#38bdf8',.4);
+                box(ghost,x,2.4,z,2.7,4.8,1.3,'#38bdf8',.1);
+                const tag=label(latest.current.loadMoreLabel??'Load more',.8);tag.position.set(x,5.4,z);ghost.add(tag);
+                row.add(ghost);rackMeshes.push(ghost);
+                continue;
+              }
+              for(const dx of [-1.3,1.3])box(row,x+dx,2.4,z,.09,4.8,1.25,'#607e90');
+              [1,2.5,4].forEach((y,level)=>{
+                box(row,x,y,z,2.6,.08,1.2,'#517386');
+                for(let i=0;i<3;i++){
+                  const slot=bay*9+level*3+i,item=page&&bay<bays-1?page.items[slot]:undefined,sx=x-.8+i*.8,home=new T.Vector3(sx,y+.42,z);
+                  if(!item){box(row,sx,y+.42,z,.65,.8,.9,filler[i]);continue;}
+                  rackHome.set(item.key,home.clone());
+                  // Already put in front of the unit: its slot stays empty.
+                  if(taken.has(item.key))continue;
+                  const unit=new T.Group();unit.userData.rackItem=item;unit.userData.home=home.clone();unit.userData.toward=dz<0?1:-1;
+                  const mesh=new T.Mesh(new T.BoxGeometry(.65,.8,.9),new T.MeshStandardMaterial({map:faceTexture((item.reference||item.title).slice(0,10),groupColor(item.group)),roughness:.7,emissive:0xffffff,emissiveIntensity:0}));
+                  mesh.castShadow=true;unit.add(mesh);unit.position.copy(home);
+                  // A new page slides in slot by slot from the "load more" bay.
+                  if(fresh&&!still){unit.userData.slideFrom=new T.Vector3(L/2-span+(bays-1)*3,y+.42,z);unit.userData.slideStart=now+slot*22;unit.position.copy(unit.userData.slideFrom);}
+                  row.add(unit);rackMeshes.push(unit);
+                  // Like the size labels: each warehouse (or the tracking run) is named above the slot where it starts.
+                  if(item.group!==lastGroup){lastGroup=item.group;if(latest.current.dimensions!==false){const tag=label(item.groupLabel,.75);tag.position.set(sx,5.35,z);row.add(tag);}}
+                }
+              });
+            }
           }
         }
-        model.add(racks);
+        model.add(racks);model.add(racksBack);
       }
       box(model,L/2,-.1,W/2,L+.2,.2,W+.2,steel.base);
       // One plain floor plate: no plank seams, so the snap grid is the only pattern on it.
@@ -232,7 +287,7 @@ export function PlanningScene(props: Props) {
           // Moved since last draw: fly from where it was. New on the floor (after first load): taken off the shelf of the
           // near rack row, lined up with its floor spot, then set down beside the unit.
           const rackSpan=Math.ceil((L/2+6)/3)*3,fromShelf=!prev&&!c.placed&&performance.now()-mountedAt>1500;
-          const from=calm?null:prev&&prev.distanceTo(target)>.01?prev.clone():fromShelf?new T.Vector3(Math.min(Math.max(target.x,L/2-rackSpan),L/2+rackSpan-c.length),2.54,W/2+11.5-c.width/2):null;
+          const from=calm?null:prev&&prev.distanceTo(target)>.01?prev.clone():fromShelf?((c.rackKey?rackHome.get(c.rackKey)?.clone():undefined)??new T.Vector3(Math.min(Math.max(target.x,L/2-rackSpan),L/2+rackSpan-c.length),2.54,W/2+11.5-c.width/2)):null;
           if(from){const lifts=(from.y<=ground+.05)!==(target.y<=ground+.05);flights.set(c.id,{from,to:target.clone(),start:performance.now()+batch++*90,arc:fromShelf?.8:lifts?Math.max(1.6,H*.5):prev?.3:0});group.position.copy(from);}
           else{flights.delete(c.id);lastPos.set(c.id,target.clone());group.position.copy(target);}
         }
@@ -263,13 +318,17 @@ export function PlanningScene(props: Props) {
       roofTarget=view==='top'?e.height+2:0;
       sideTarget=(view==='top'||view==='side')?.12:1;
       // Open doors fold back against the side walls, as in the door-opening reference.
-      doorTarget=view==='exterior'?0:Math.PI*.9;
+      doorTarget=(view==='overview'||view==='exterior')?0:Math.PI*.9;
       // Frame the whole unit for the viewport's aspect; the small offset keeps screen-up along -z so length reads left to right.
       const aspect=Math.max(element.clientWidth,1)/Math.max(element.clientHeight,1),tan=Math.tan(T.MathUtils.degToRad(camera.fov/2)),reach=L/2+(e.truck?2.6:1.6);
       if(view==='top'){const d=Math.max(reach/(tan*aspect),(e.width/2+.8)/tan);target.set(0,e.height+d,d*.02);}
       // Side view looks from the back long side (-z): waiting cargo stands on the front side and would block it.
       else if(view==='side') target.set(0,e.height/2,-(Math.max(reach/(tan*aspect),(e.height/2+.6)/tan)+e.width/2));
       else if(view==='loading')target.set(L/2+6,e.height*.8,.15);
+      // The virtual workspace opens as a wide, high three-quarter overview: both rack aisles and the
+      // generic container stay in frame, matching the initial planning view rather than a close exterior shot.
+      // Captured wide free-roam starting POV for the generic 40HC workspace.
+      else if(view==='overview')target.set(-35.1141,14.67,30.5209);
       else target.set(L*.72,Math.max(5,L*.55),L*.85);
       // Flat projections use the orthographic camera; other previews keep the perspective view, just without controls.
       if(mini&&view!=='top'&&view!=='side'){activeCamera=camera;camera.position.copy(target);controls.target.set(0,e.height/2,0);camera.lookAt(controls.target);}
@@ -280,7 +339,7 @@ export function PlanningScene(props: Props) {
       }
       // Bird's-eye stays square to the container: pan and zoom only, no orbiting into a diagonal. Leftover orbit
       // momentum is settled first (one undamped update), otherwise it keeps turning the camera after the switch.
-      else{controls.enableDamping=false;controls.update();controls.enableDamping=true;transition=1;controls.enableRotate=view!=='top';controls.mouseButtons.LEFT=view==='top'?T.MOUSE.PAN:T.MOUSE.ROTATE;controls.target.set(0,view==='top'?0:e.height/2,0);}
+      else{controls.enableDamping=false;controls.update();controls.enableDamping=true;transition=1;controls.enableRotate=view!=='top';controls.mouseButtons.LEFT=view==='top'?T.MOUSE.PAN:T.MOUSE.ROTATE;if(view==='overview')controls.target.set(-.9773,-2.3667,.9352);else controls.target.set(0,view==='top'?0:e.height/2,0);}
       redraw();resize();
     };
     const resize=()=>{const w=element.clientWidth,h=element.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);resolution.set(w,h);ghostLine.resolution.set(w,h);cargoMeshes.forEach(group=>(group.userData.edges as LineSegments2|undefined)?.material.resolution.set(w,h));camera.aspect=w/h;camera.updateProjectionMatrix();const {equipment:e,view}=latest.current;const span=Math.max(e.length/2+(e.truck?2.6:.4),((view==='top'?e.width:e.height)/2+.35)*w/h);ortho.left=-span;ortho.right=span;ortho.top=span*h/w;ortho.bottom=-span*h/w;ortho.updateProjectionMatrix();};
@@ -303,8 +362,23 @@ export function PlanningScene(props: Props) {
       let id='';
       if(!latest.current.mini&&event.buttons===0){hit(event);const c=latest.current.cargo.find(c=>c.id===pickedCargo()?.userData.cargoId);id=c&&(!c.placed||canPick())?c.id:'';}
       if(id!==hovered){hovered=id;paintEdges();}
+      // Rack units and "load more" bays light up too, when no unit of the plan is under the pointer.
+      let rackKey='';
+      if(!id&&!latest.current.mini&&event.buttons===0){hit(event);const rack=pickedRack();rackKey=rack?.userData.rackItem?.key??(rack?.userData.rackMore?`more:${rack.userData.rackMore}`:'');}
+      if(rackKey!==hoveredRack){hoveredRack=rackKey;paintRack();}
     };
-    const leave=()=>{if(!drag&&hovered){hovered='';paintEdges();}};
+    const leave=()=>{if(!drag&&hovered){hovered='';paintEdges();}if(hoveredRack){hoveredRack='';paintRack();}};
+    // Raycasts ignore visibility, so units on a rack side that is switched off are left out explicitly.
+    const pickedRack=()=>{
+      let object:T.Object3D|null=raycaster.intersectObjects(rackMeshes.filter(m=>m.parent?.visible!==false),true).find(h=>(h.object as T.Mesh).isMesh)?.object??null;
+      while(object&&!object.userData.rackItem&&!object.userData.rackMore)object=object.parent;
+      return object;
+    };
+    const paintRack=()=>rackMeshes.forEach(m=>{
+      const key=m.userData.rackItem?.key??`more:${m.userData.rackMore}`,lit=key===hoveredRack||key===latest.current.pickedRack;
+      if(m.userData.rackMore){m.scale.setScalar(lit?1.04:1);return;}
+      m.traverse(o=>{const material=(o as T.Mesh).material as T.MeshStandardMaterial|undefined;if(material?.emissive)material.emissiveIntensity=lit?.35:0;});
+    });
     // While a unit is held it hovers over its snapped landing spot; a see-through outline marks that spot,
     // green when the unit fits there and red when it does not.
     let drag: {id:string; cargo:Cargo; origin:T.Vector3; plane:T.Plane; grab:T.Vector2; x:number; y:number; z:number; ok:boolean; outside:boolean} | null=null;
@@ -325,7 +399,26 @@ export function PlanningScene(props: Props) {
       ghostFill.color.setHex(fill);ghostLine.color.setHex(line);
     };
     const hit=(event:PointerEvent)=>{const r=renderer.domElement.getBoundingClientRect();pointer.set((event.clientX-r.left)/r.width*2-1,-(event.clientY-r.top)/r.height*2+1);raycaster.setFromCamera(pointer,activeCamera);};
+    // A precision touchpad does not emit two touch pointers. Its two-finger drag is a pixel-mode wheel event,
+    // while its pinch is a Ctrl+wheel event. OrbitControls handles the latter as a dolly; pan the former here.
+    const trackpadPan=(event:WheelEvent)=>{
+      if (!controls.enabled || event.ctrlKey || event.deltaMode !== WheelEvent.DOM_DELTA_PIXEL) return;
+      if (Math.abs(event.deltaX)+Math.abs(event.deltaY)<.01) return;
+      latest.current.onFreeRoam?.();
+      event.preventDefault();event.stopImmediatePropagation();
+      const visibleHeight=2*camera.position.distanceTo(controls.target)*Math.tan(T.MathUtils.degToRad(camera.fov/2));
+      const unitPerPixel=visibleHeight/Math.max(element.clientHeight,1)*controls.panSpeed;
+      const right=new T.Vector3().setFromMatrixColumn(camera.matrix,0);
+      const up=new T.Vector3().setFromMatrixColumn(camera.matrix,1);
+      const shift=right.multiplyScalar(-event.deltaX*unitPerPixel).addScaledVector(up,event.deltaY*unitPerPixel);
+      camera.position.add(shift);controls.target.add(shift);controls.update();
+    };
     const down=(event:PointerEvent)=>{
+      // This listener runs in the capture phase so mouse presses on cargo can claim the gesture before
+      // OrbitControls. A touch must pass through instead: OrbitControls needs both pointerdown events in
+      // order to enter its DOLLY_PAN state, and claiming the first one makes a two-finger gesture look like
+      // a one-finger drag.
+      if (event.pointerType === 'touch') return;
       // OrbitControls pans on any of Ctrl, Cmd or Shift. Only Ctrl/Cmd should, so the left-button mapping is
       // chosen per press: its modifier branch then yields pan for Ctrl and plain orbit for Shift alone.
       const panKey=event.ctrlKey||event.metaKey;
@@ -339,7 +432,12 @@ export function PlanningScene(props: Props) {
       const picked=group&&latest.current.cargo.find(c=>c.id===group!.userData.cargoId);
       // Units waiting outside stay pickable even when closed walls hide the ones inside.
       if(!picked||(picked.placed&&!canPick()))group=null;
-      if(!group||!picked){emptyPress={x:event.clientX,y:event.clientY};return;}
+      if(!group||!picked){
+        // A rack unit or "load more" bay acts on release, so dragging across the racks still orbits the camera.
+        const rack=latest.current.mini?null:pickedRack();
+        if(rack){rackPress={x:event.clientX,y:event.clientY,target:rack};return;}
+        emptyPress={x:event.clientX,y:event.clientY};return;
+      }
       const id=picked.id,c=picked;
       // Picked from wherever it is now (inside, on the floor outside, or mid-flight), which also ends any flight.
       const origin=group.position.clone();flights.delete(id);lastPos.set(id,origin.clone());
@@ -379,17 +477,41 @@ export function PlanningScene(props: Props) {
         lastPos.set(d.id,held);flights.set(d.id,{from:held,to:d.origin.clone(),start:performance.now(),arc:.3});
       }
     };
+    const moveCamera=(direction:MoveDirection)=>{
+      if(drag||!controls.enabled)return;
+      latest.current.onFreeRoam?.();
+      const step=Math.max(latest.current.equipment.length*.025,.2);
+      const forward=camera.getWorldDirection(new T.Vector3()).setY(0);
+      if(forward.lengthSq()<1e-6)forward.set(1,0,0);
+      forward.normalize();
+      const right=new T.Vector3().crossVectors(forward,new T.Vector3(0,1,0)).normalize();
+      const shift={forward,backward:forward.clone().multiplyScalar(-1),left:right.clone().multiplyScalar(-1),right}[direction].multiplyScalar(step);
+      camera.position.add(shift);controls.target.add(shift);controls.update();
+    };
     const key=(event:KeyboardEvent)=>{
-      if(!drag||(event.key!=='Enter'&&event.key!=='Escape'))return;
       if((event.target as HTMLElement|null)?.closest?.('input,textarea,select,[contenteditable="true"]'))return;
+      // Game-style movement follows the current point of view: W/S travel straight forward/backward and
+      // A/D strafe. Project onto the floor so a tilted camera never flies upward or downward.
+      if(!drag&&controls.enabled){
+        const direction:Record<string,MoveDirection>={KeyW:'forward',KeyS:'backward',KeyA:'left',KeyD:'right'};
+        if(direction[event.code]){event.preventDefault();flashMove(direction[event.code]);moveCamera(direction[event.code]);return;}
+        if(event.code==='KeyR'&&latest.current.selected){event.preventDefault();latest.current.onRotate?.();return;}
+      }
+      if(!drag||(event.key!=='Enter'&&event.key!=='Escape'))return;
       event.preventDefault();release(event.key==='Enter');
     };
     // Clicking again releases like Enter. The click that lifted the unit never set pressAt, so it cannot drop it at once.
-    let pressAt:{x:number;y:number}|null=null,lifting=false,emptyPress:{x:number;y:number}|null=null;
+    let pressAt:{x:number;y:number}|null=null,lifting=false,emptyPress:{x:number;y:number}|null=null,rackPress:{x:number;y:number;target:T.Object3D}|null=null;
     const up=(event:PointerEvent)=>{
       if(renderer.domElement.hasPointerCapture(event.pointerId))renderer.domElement.releasePointerCapture(event.pointerId);
       // The press that lifted the unit (a click or a drag) only ends that gesture: the unit stays lifted.
       if(lifting){lifting=false;return;}
+      const rack=rackPress;rackPress=null;
+      if(!drag&&rack&&event.button===0&&Math.hypot(event.clientX-rack.x,event.clientY-rack.y)<5){
+        if(rack.target.userData.rackMore)latest.current.onRackMore?.(rack.target.userData.rackMore);
+        else latest.current.onRackPick?.(rack.target.userData.rackItem);
+        return;
+      }
       // A click on empty space (not a camera drag) clears the selection.
       const empty=emptyPress;emptyPress=null;
       if(!drag&&empty&&event.button===0&&latest.current.selected&&Math.hypot(event.clientX-empty.x,event.clientY-empty.y)<5)latest.current.onSelect?.('');
@@ -397,7 +519,7 @@ export function PlanningScene(props: Props) {
       if(drag&&start&&event.button===0&&Math.hypot(event.clientX-start.x,event.clientY-start.y)<5)release(true);
     };
     const cancel=()=>release(false);
-    renderer.domElement.addEventListener('pointerdown',down,true);renderer.domElement.addEventListener('pointermove',move);window.addEventListener('keydown',key);renderer.domElement.addEventListener('pointerup',up);renderer.domElement.addEventListener('pointercancel',cancel);renderer.domElement.addEventListener('pointerleave',leave);
+    renderer.domElement.addEventListener('pointerdown',down,true);renderer.domElement.addEventListener('pointermove',move);renderer.domElement.addEventListener('wheel',trackpadPan,{capture:true,passive:false});window.addEventListener('keydown',key);renderer.domElement.addEventListener('pointerup',up);renderer.domElement.addEventListener('pointercancel',cancel);renderer.domElement.addEventListener('pointerleave',leave);
     controls.addEventListener('start',()=>{transition=0;});
     const observer=new ResizeObserver(resize);observer.observe(element);
     const theme=new MutationObserver(()=>redraw());theme.observe(document.documentElement,{attributes:true,attributeFilter:['class']});
@@ -406,9 +528,9 @@ export function PlanningScene(props: Props) {
     const refreshLogo=()=>{if(!alive)return;resetBrandLogo();redraw();};
     logoMark?.addEventListener('load',refreshLogo);
     void document.fonts?.load(`bold 64px ${BRAND_FONT}`).then(refreshLogo,()=>{});
-    runtime.current={redraw,changeView,zoom:n=>{camera.position.sub(controls.target).multiplyScalar(n).add(controls.target);controls.update();},
+    runtime.current={redraw,changeView,move:moveCamera,snapshot:()=>({view:latest.current.view,position:{x:+camera.position.x.toFixed(4),y:+camera.position.y.toFixed(4),z:+camera.position.z.toFixed(4)},target:{x:+controls.target.x.toFixed(4),y:+controls.target.y.toFixed(4),z:+controls.target.z.toFixed(4)},fov:camera.fov}),zoom:n=>{camera.position.sub(controls.target).multiplyScalar(n).add(controls.target);controls.update();},
       // High three-quarter overview of the unit with both rack rows in frame, used before cargo is brought out.
-      overview:()=>{const e=latest.current.equipment;if(latest.current.mini)return;target.set(e.length*.45,e.length*.85+6,e.length*1.05+8);controls.target.set(0,0,0);transition=1;}};
+      overview:()=>{if(latest.current.mini)return;target.set(-35.1141,14.67,30.5209);controls.target.set(-.9773,-2.3667,.9352);transition=1;}};
     changeView();camera.position.copy(target);controls.update();
     let frame=0,last=performance.now(); const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
     const animate=(now=performance.now())=>{
@@ -423,23 +545,40 @@ export function PlanningScene(props: Props) {
         const pos=f.from.clone().lerp(f.to,k);pos.y+=Math.sin(Math.PI*k)*f.arc;placeCargo(id,pos.x,pos.y,pos.z);lastPos.set(id,pos);
         if(p>=1){lastPos.set(id,f.to.clone());flights.delete(id);}
       });
+      // Rack units: a new page slides in from the "load more" bay; the unit whose card is open is pulled out toward the aisle.
+      if(latest.current.pickedRack!==paintedPick){paintedPick=latest.current.pickedRack;paintRack();}
+      rackMeshes.forEach(m=>{
+        const item=m.userData.rackItem as RackItem|undefined,home=m.userData.home as T.Vector3|undefined;if(!item||!home)return;
+        const from=m.userData.slideFrom as T.Vector3|undefined;
+        if(from){const p=Math.min(Math.max((clock-m.userData.slideStart)/600,0),1);m.position.lerpVectors(from,home,1-Math.pow(1-p,3));if(p>=1)delete m.userData.slideFrom;return;}
+        m.position.z=T.MathUtils.lerp(m.position.z,home.z+m.userData.toward*(item.key===latest.current.pickedRack?.6:0),speed);
+      });
       if(drag)placeCargo(drag.id,drag.x,drag.y+.16,drag.z);
       if(floorGrid)(floorGrid.material as T.LineBasicMaterial).opacity=drag?.6:.25;
       if(groundGrid)(groundGrid.material as T.LineBasicMaterial).opacity=drag?.95:.55;
-      rackShow=T.MathUtils.lerp(rackShow,latest.current.warehouse?1:0,speed*.6);shellShow=T.MathUtils.lerp(shellShow,latest.current.walls===false?0:1,speed*.6);applyToggles();racksBack.visible=latest.current.view!=='side';
+      rackShow=T.MathUtils.lerp(rackShow,latest.current.warehouse?1:0,speed*.6);trackShow=T.MathUtils.lerp(trackShow,latest.current.tracking?1:0,speed*.6);shellShow=T.MathUtils.lerp(shellShow,latest.current.walls===false?0:1,speed*.6);applyToggles();racksBack.visible=racksBack.visible&&latest.current.view!=='side';
       roof.position.y=T.MathUtils.lerp(roof.position.y,roofTarget,speed);roof.visible=!latest.current.equipment.openTop&&roof.position.y<latest.current.equipment.height+1.6;
       side.traverse(obj=>{const m=(obj as T.Mesh).material as T.MeshStandardMaterial;if(m){m.transparent=true;m.opacity=sideTarget; m.depthWrite=sideTarget>.5&&!m.userData.decal;}});
       doors.forEach((d,i)=>{d.rotation.y=T.MathUtils.lerp(d.rotation.y,(i===0?1:-1)*doorTarget,speed);});
       controls.update();renderer.render(scene,activeCamera);
     };animate();
-    return()=>{alive=false;logoMark?.removeEventListener('load',refreshLogo);cancelAnimationFrame(frame);observer.disconnect();theme.disconnect();dispose(ghost);controls.dispose();dispose(model);renderer.dispose();renderer.domElement.removeEventListener('pointerdown',down,true);renderer.domElement.removeEventListener('pointermove',move);window.removeEventListener('keydown',key);renderer.domElement.removeEventListener('pointerup',up);renderer.domElement.removeEventListener('pointercancel',cancel);renderer.domElement.removeEventListener('pointerleave',leave);renderer.domElement.remove();runtime.current=null;};
+    return()=>{alive=false;logoMark?.removeEventListener('load',refreshLogo);cancelAnimationFrame(frame);observer.disconnect();theme.disconnect();dispose(ghost);controls.dispose();dispose(model);renderer.dispose();renderer.domElement.removeEventListener('pointerdown',down,true);renderer.domElement.removeEventListener('pointermove',move);renderer.domElement.removeEventListener('wheel',trackpadPan,true);window.removeEventListener('keydown',key);renderer.domElement.removeEventListener('pointerup',up);renderer.domElement.removeEventListener('pointercancel',cancel);renderer.domElement.removeEventListener('pointerleave',leave);renderer.domElement.remove();runtime.current=null;};
   }, []);
-  useEffect(()=>{runtime.current?.redraw();},[props.cargo,props.selected,props.dimensions]);
+  useEffect(()=>{runtime.current?.redraw();},[props.cargo,props.selected,props.dimensions,props.racks,props.loadMoreLabel]);
   useEffect(()=>{runtime.current?.changeView();},[props.view,props.equipment,props.reset]);
+  const previousSnapshot=useRef(props.cameraSnapshot??0);
+  useEffect(()=>{const next=props.cameraSnapshot??0;if(next!==previousSnapshot.current)props.onCameraSnapshot?.(runtime.current?.snapshot());previousSnapshot.current=next;},[props.cameraSnapshot,props.onCameraSnapshot]);
   const previousZoom=useRef(props.zoom??0);
   useEffect(()=>{const next=props.zoom??0;if(next!==previousZoom.current)runtime.current?.zoom(next>previousZoom.current?.8:1.25);previousZoom.current=next;},[props.zoom]);
   // Declared after the view effect, so a view switch in the same update does not override the overview camera.
   const previousOverview=useRef(props.overview??0);
   useEffect(()=>{const next=props.overview??0;if(next!==previousOverview.current)runtime.current?.overview();previousOverview.current=next;},[props.overview]);
-  return <div ref={host} className={`h-full w-full overflow-hidden ${props.mini ? '' : '[&_canvas]:!cursor-grab [&.is-grabbing_canvas]:!cursor-grabbing'}`} role="img" aria-label={`3D ${props.equipment.code} ${props.view}`}>{failed&&<p className="p-6 text-slate-600">{props.unavailable}</p>}</div>;
+  const moveButton=(direction:MoveDirection,label:string)=><button type="button" aria-label={`Move ${label}`} onPointerDown={()=>flashMove(direction)} onClick={()=>{flashMove(direction);runtime.current?.move(direction);}} className={`flex size-9 cursor-pointer items-center justify-center rounded-full border text-xs font-black shadow-lg outline-none backdrop-blur transition hover:border-primary hover:bg-primary hover:text-white focus:outline-none active:scale-95 active:border-primary active:bg-primary active:text-white dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 ${flashedMove===direction?'border-primary bg-primary text-white':'border-slate-200 bg-white/95 text-slate-700'}`}>{label}</button>;
+  return <div ref={host} className={`relative h-full w-full overflow-hidden ${props.mini ? '' : '[&_canvas]:!cursor-grab [&.is-grabbing_canvas]:!cursor-grabbing'}`} role="group" aria-label={`3D ${props.equipment.code} ${props.view}`}>
+    {failed&&<p className="p-6 text-slate-600">{props.unavailable}</p>}
+    {!props.mini&&<div className="absolute bottom-14 left-3 z-10 grid grid-cols-3 gap-1" aria-label="Camera movement controls">
+      <span />{moveButton('forward','W')}<span />
+      {moveButton('left','A')}{moveButton('backward','S')}{moveButton('right','D')}
+    </div>}
+  </div>;
 }
