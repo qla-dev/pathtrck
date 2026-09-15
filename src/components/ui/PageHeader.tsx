@@ -42,11 +42,14 @@ export const HeaderStatCard = ({ label, value, icon: Icon, tone, className }: He
 );
 
 type PageHeaderProps = {
-  icon: LucideIcon;
-  title: string;
+  icon?: LucideIcon;
+  /** Usually text; a page may pass an inline input to make its title editable. */
+  title: ReactNode;
   subtitle?: ReactNode;
   subtitleIcon?: LucideIcon;
   tone?: PageHeaderTone;
+  /** Controls rendered before the icon and title - quick toggles that belong to the whole page. */
+  leading?: ReactNode;
   /** Chip rendered left of the actions - status, counters, "live" indicators. */
   badge?: ReactNode;
   actions?: ReactNode;
@@ -123,6 +126,7 @@ export const PageHeader = ({
   subtitle,
   subtitleIcon: SubtitleIcon,
   tone = 'primary',
+  leading,
   badge,
   actions,
   filters,
@@ -139,9 +143,12 @@ export const PageHeader = ({
     <div className={cn('space-y-3', className)}>
       <section className={cn('flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-gradient-to-r px-4 py-3', palette.shell)}>
         <div className="flex min-w-0 items-center gap-3">
-          <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white', palette.icon)}>
-            <Icon className="h-4 w-4" />
-          </div>
+          {leading && <div className="flex shrink-0 items-center gap-2">{leading}</div>}
+          {Icon && (
+            <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white', palette.icon)}>
+              <Icon className="h-4 w-4" />
+            </div>
+          )}
           <div className="min-w-0">
             <h1 className="truncate text-base font-black leading-tight text-slate-900 dark:text-white">{title}</h1>
             {subtitle && (
@@ -153,7 +160,7 @@ export const PageHeader = ({
           </div>
         </div>
         {(badge || actions) && (
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
             {badge && <div className={cn('flex items-center gap-2 rounded-xl border px-3 py-1.5', palette.chip)}>{badge}</div>}
             {actions}
           </div>

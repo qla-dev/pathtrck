@@ -7305,7 +7305,7 @@ export default function App() {
             // on a 2560px display (and ~950px on an ultrawide) while looking fine on a 1366px
             // laptop, so it only ever showed up on wider client machines.
             "flex-1 min-h-0 w-full max-w-none",
-            view === "map" || view === "aircraft" || view === "vessels" || isTrackingMapActive
+            view === "map" || view === "aircraft" || view === "vessels" || view === "load-planning" || isTrackingMapActive
               ? "p-0"
               : view === "warehouse-overview" || view === "warehouses" || view === "docks" || view === "admin"
                 ? "p-4 pb-24 md:pb-4"

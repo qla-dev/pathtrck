@@ -12,6 +12,7 @@ import {
   Layers,
   ListOrdered,
   Maximize,
+  MoreHorizontal,
   Plus,
   RotateCcw,
   RotateCw,
@@ -19,6 +20,7 @@ import {
   Save,
   Search,
   Settings2,
+  Sparkles,
   Square,
   Trash2,
   Truck,
@@ -37,7 +39,6 @@ import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { PageHeader } from '../ui/PageHeader';
 import { PinnedPanel } from '../ui/PinnedPanel';
-import { SegmentedControl } from '../ui/SegmentedControl';
 import { SmallModal } from '../ui/SmallModal';
 import { planningLabels } from '../planning/labels';
 import { autoPlan, Cargo, COLORS, Equipment, EQUIPMENT, fits, Plan, readPlan, revalidate, validEquipment, volume } from '../planning/model';
@@ -76,10 +77,10 @@ function loadDraft(row: Record<string, unknown>): Draft {
 // The same field and label treatment as the other workspace screens.
 const fieldClass = 'h-10 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white';
 const labelClass = 'mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-500';
-const toolButton = 'h-9 w-9 rounded-xl bg-white p-0 shadow-sm dark:bg-slate-900';
+const toolButton = 'h-9 w-9 rounded-xl bg-white p-0 dark:bg-slate-900';
 const overlayToggle = (on: boolean) => cn(
-  'pointer-events-auto inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border shadow-sm backdrop-blur transition-all active:scale-95',
-  on ? 'border-primary bg-primary text-white shadow-primary/20' : 'border-slate-200 bg-white/90 text-slate-600 hover:text-primary dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-300',
+  'pointer-events-auto inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border backdrop-blur transition-all active:scale-95',
+  on ? 'border-primary bg-primary text-white' :'border-slate-200 bg-white/90 text-slate-600 hover:text-primary dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-300',
 );
 type SettingsTab = 'equipment' | 'cargo' | 'utilization' | 'sequence';
 const SETTINGS_TABS: { value: SettingsTab; icon: LucideIcon }[] = [
@@ -116,12 +117,15 @@ const SceneSkeleton = ({ label }: { label: string }) => (
 
 export default function LoadPlanningView({ lang, userId }: { lang: Language; userId?: number }) {
   const t = planningLabels(lang);
-  const [plan, setPlan] = useState<Plan>({ version: 1, name: 'LTL / LCL', equipment: { ...EQUIPMENT[0] }, cargo: [] });
+  const [plan, setPlan] = useState<Plan>({ version: 1, name: '', equipment: { ...EQUIPMENT[0] }, cargo: [] });
   const [view, setView] = useState<SceneView>('exterior');
-  const [panel, setPanel] = useState<'settings' | 'view' | null>(null);
+  // Only the View sidebar opens and closes; Settings is always pinned and just collapses.
+  const [panel, setPanel] = useState<'view' | null>(null);
   const [selected, setSelected] = useState('');
   const [warehouse, setWarehouse] = useState(false), [walls, setWalls] = useState(true), [dimensionsOn, setDimensionsOn] = useState(true);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('equipment');
+  const [equipmentTab, setEquipmentTab] = useState<'container' | 'vehicle' | 'custom'>(() => (plan.equipment.truck ? 'vehicle' : 'container'));
+  const [carrying, setCarrying] = useState(false);
   // The View sidebar opens at once with placeholders; live previews then mount one at a time after the
   // slide-in, so creating their WebGL scenes never stalls the panel animation.
   const [previewCount, setPreviewCount] = useState(0);
@@ -131,7 +135,7 @@ export default function LoadPlanningView({ lang, userId }: { lang: Language; use
     const timer = setInterval(() => { count += 1; setPreviewCount(count); if (count >= SCREENS.length) clearInterval(timer); }, 180);
     return () => clearInterval(timer);
   }, [panel]);
-  const [reset, setReset] = useState(0), [zoom, setZoom] = useState(0);
+  const [reset, setReset] = useState(0), [zoom, setZoom] = useState(0), [overview, setOverview] = useState(0);
   const [adding, setAdding] = useState(false), [notice, setNotice] = useState('');
   const [vehicles, setVehicles] = useState<Record<string, unknown>[]>([]);
   const [fleetError, setFleetError] = useState(false);
@@ -183,13 +187,13 @@ export default function LoadPlanningView({ lang, userId }: { lang: Language; use
   const volumePercent = usedVolume / volume(e) * 100, weightPercent = usedWeight / e.payload * 100;
   const occupiedLength = Math.max(0, ...placed.map(c => c.x + c.length));
 
-  const togglePanel = (next: 'settings' | 'view') => setPanel(currentPanel => currentPanel === next ? null : next);
+  const togglePanel = (next: 'view') => setPanel(currentPanel => currentPanel === next ? null : next);
   const settingsTabLabels: Record<SettingsTab, string> = { equipment: t.equipment, cargo: t.shipments, utilization: t.usage, sequence: t.order };
   // An open sidebar rolls over the page header, so each sidebar carries its own View / Settings switch.
   const panelSwitch = (
     <>
-      {([['view', Eye, t.viewPanel], ['settings', Settings2, t.settings]] as const).map(([id, Icon, label]) => (
-        <button key={id} type="button" aria-pressed={panel === id} aria-label={label} title={label} onClick={() => setPanel(id)}
+      {([['view', Eye, t.viewPanel]] as const).map(([id, Icon, label]) => (
+        <button key={id} type="button" aria-pressed={panel === id} aria-label={label} title={label} onClick={() => togglePanel(id)}
           className={cn('flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-xl border transition-colors', panel === id ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-slate-100 text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300')}>
           <Icon className="h-4 w-4" />
         </button>
@@ -202,19 +206,48 @@ export default function LoadPlanningView({ lang, userId }: { lang: Language; use
     const next = { ...c, x, y, z, placed: true }; if (!fits(next, cargo, e)) { setNotice(t.invalid); return; }
     setPlan(p => ({ ...p, cargo: revalidate(p.cargo.map(c => c.id === id ? next : c), e) })); setSelected(id); setNotice('');
   };
+  // Taken out of the unit: back to waiting outside. Anything that stood on it loses its support and comes out too.
+  const unplace = (id: string) => setPlan(p => ({ ...p, cargo: revalidate(p.cargo.map(c => (c.id === id ? { ...c, placed: false } : c)), p.equipment) }));
   const remove = (id: string) => setPlan(p => ({ ...p, cargo: revalidate(p.cargo.filter(c => c.id !== id), e) }));
   const rotate = () => { if (!current) return; const next = { ...current, length: current.width, width: current.length }; if (current.placed && !fits(next, cargo, e)) { setNotice(t.invalid); return; } setPlan(p => ({ ...p, cargo: revalidate(p.cargo.map(c => c.id === selected ? next : c), e) })); };
   const reorder = (id: string, delta: number) => { const next = [...cargo], i = next.findIndex(c => c.id === id), j = i + delta; if (j < 0 || j >= next.length) return; [next[i], next[j]] = [next[j], next[i]]; setPlan(p => ({ ...p, cargo: next })); };
+  // Bringing cargo out is staged like a warehouse move: turn to the overview (Settings collapses so it can be seen),
+  // bring in the racks if hidden, lift the walls away, then take the cargo off the shelves.
+  const stage = (bringOut: () => void) => {
+    setView('exterior'); setOverview(n => n + 1);
+    let wait = 700;
+    if (!warehouse) { setTimeout(() => setWarehouse(true), wait); wait += 1300; }
+    if (walls) { setTimeout(() => setWalls(false), wait); wait += 700; }
+    setTimeout(bringOut, wait);
+  };
+  // Switching the warehouse on turns to the overview first so the racks drop into a view that shows them; off just lifts them away.
+  const toggleWarehouse = () => {
+    if (warehouse) { setWarehouse(false); return; }
+    setView('exterior'); setOverview(n => n + 1);
+    setTimeout(() => setWarehouse(true), 700);
+  };
   const openAdd = () => { setDraft(EMPTY_DRAFT); setDraftKey(k => k + 1); setTrackingQuery(''); setAdding(true); };
   const chooseLoad = (next: Draft) => { setDraft(next); setDraftKey(k => k + 1); };
   const addCargo = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault(); const data = new FormData(event.currentTarget), num = (k: string) => Number(data.get(k));
     const count = num('pieces'); if (!Number.isInteger(count) || count < 1 || cargo.length + count > 300) { setNotice(t.countLimit); return; }
     const entries: Cargo[] = Array.from({ length: count }, (_, i) => ({ id: crypto.randomUUID(), name: String(data.get('name')) + (count > 1 ? ` · ${i + 1}` : ''), customer: String(data.get('customer')), length: num('length'), width: num('width'), height: num('height'), weight: num('weight'), shape: data.get('shape') as Cargo['shape'], stackable: data.get('stackable') === 'on', color: COLORS[cargo.length % COLORS.length], pickup: String(data.get('pickup')), delivery: String(data.get('delivery')), documents: String(data.get('documents')), x: 0, y: 0, z: 0, placed: false, loadId: draft.loadId, reference: draft.reference }));
-    setPlan(p => ({ ...p, cargo: [...p.cargo, ...entries] })); setSelected(entries[0].id); setAdding(false); setNotice('');
+    setAdding(false); setNotice('');
+    stage(() => { setPlan(p => ({ ...p, cargo: [...p.cargo, ...entries] })); setSelected(entries[0].id); });
   };
-  const sample = () => { if (cargo.length) return; const items: Cargo[] = ['A', 'B', 'C', 'D', 'E', 'F'].flatMap((name, i) => Array.from({ length: 2 }, (_, j) => ({ id: crypto.randomUUID(), name: `${name}-${j + 1}`, customer: '', length: 1.2, width: .8, height: 1 + i % 3 * .3, weight: 250 + i * 50, color: COLORS[i], shape: 'pallet' as const, stackable: false, pickup: '', delivery: '', documents: '', x: 0, y: 0, z: 0, placed: false }))); setPlan(p => ({ ...p, cargo: autoPlan(items, e) })); };
-  const runAutoPlan = () => { setPlan(p => ({ ...p, cargo: autoPlan(p.cargo, e) })); setView('top'); setNotice(''); };
+  const sample = () => { if (cargo.length) return; const items: Cargo[] = ['A', 'B', 'C', 'D', 'E', 'F'].flatMap((name, i) => Array.from({ length: 2 }, (_, j) => ({ id: crypto.randomUUID(), name: `${name}-${j + 1}`, customer: '', length: 1.2, width: .8, height: 1 + i % 3 * .3, weight: 250 + i * 50, color: COLORS[i], shape: 'pallet' as const, stackable: false, pickup: '', delivery: '', documents: '', x: 0, y: 0, z: 0, placed: false })));
+    // The example lands outside the unit, sorted on the warehouse floor.
+    stage(() => setPlan(p => (p.cargo.length ? p : { ...p, cargo: items })));
+  };
+  // Packs everything into the unit. Closed walls lift away first so the flight in is visible, then settle back.
+  const organize = () => {
+    if (!cargo.length) return;
+    const lift = walls, wait = lift ? 650 : 0;
+    if (lift) setWalls(false);
+    setTimeout(() => setPlan(p => ({ ...p, cargo: autoPlan(p.cargo, p.equipment) })), wait);
+    if (lift) setTimeout(() => setWalls(true), wait + cargo.length * 90 + 1300);
+    setNotice('');
+  };
   const save = () => { try { localStorage.setItem(key, JSON.stringify(plan)); setNotice(t.saved); } catch { setNotice(t.failed); } };
   const exportPlan = () => { const url = URL.createObjectURL(new Blob([JSON.stringify(plan, null, 2)], { type: 'application/json' })); const a = document.createElement('a'); a.href = url; a.download = 'freightbook-loading-plan.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); };
   const importPlan = async (file?: File) => { if (!file) return; try { if (file.size > 2_000_000) throw Error(); const next = readPlan(JSON.parse(await file.text())); if (!next) throw Error(); setPlan(next); setSelected(''); setNotice(''); } catch { setNotice(t.failed); } if (importInput.current) importInput.current.value = ''; };
@@ -227,63 +260,80 @@ export default function LoadPlanningView({ lang, userId }: { lang: Language; use
   };
 
   return (
-    // Fills the view's height like Messages: the preview takes whatever the header leaves, so the page
-    // never scrolls, and the pinned sidebars roll over it instead of squeezing it.
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex h-full min-h-0 flex-col gap-3">
+    // Like the map: the scene fills the whole content area edge to edge, and the header floats over it.
+    // Nothing takes height from the scene, so the page never scrolls and pinned sidebars roll over it.
+    <motion.div ref={viewport} role="region" aria-label={`3D · ${e.registration || e.code}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative h-full min-h-0 w-full overflow-hidden bg-slate-100 dark:bg-slate-950">
+      <input ref={importInput} type="file" accept=".json,application/json" hidden onChange={event => void importPlan(event.target.files?.[0])} />
+      <div className="absolute inset-0">
+        <React.Suspense fallback={<SceneSkeleton label={t.loading3d} />}>
+          <PlanningScene equipment={e} cargo={cargo} view={view} selected={selected} onSelect={setSelected} onMove={move} onCarry={setCarrying} onUnplace={unplace} warehouse={warehouse} walls={walls} dimensions={dimensionsOn} reset={reset} zoom={zoom} overview={overview} unavailable={t.unavailable} />
+        </React.Suspense>
+      </div>
+
+      {/* Header, then the equipment name under it, both on the same 12px inset from the scene's left edge. */}
+      <div className="pointer-events-none absolute inset-x-3 top-3 z-10 flex flex-col items-start gap-3">
       <PageHeader
-        icon={Container}
-        title={`${t.title} · 3D · ${e.registration || e.code}`}
-        subtitle={t.subtitle}
+        className="pointer-events-auto w-full"
+        leading={e.truck ? <Truck className="h-5 w-5 text-primary" /> : <Container className="h-5 w-5 text-primary" />}
+        // The plan name is edited in place, the same way Post a new load titles a load.
+        title={(
+          <input value={plan.name} maxLength={100} aria-label={t.planName} placeholder={t.planPlaceholder} onChange={ev => setPlan(p => ({ ...p, name: ev.target.value }))}
+            className="-mx-1 w-[22rem] max-w-full cursor-text truncate rounded-md bg-transparent px-1 text-base font-black leading-tight tracking-tight text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-primary/40 md:text-lg dark:text-white" />
+        )}
+        subtitle={`3D · ${e.registration || e.code} · ${t.subtitle}`}
         actions={(
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <Button variant={panel === 'view' ? 'primary' : 'outline'} className="gap-2 rounded-full" aria-expanded={panel === 'view'} onClick={() => togglePanel('view')}><Eye className="h-4 w-4" />{t.viewPanel}</Button>
-            <Button variant={panel === 'settings' ? 'primary' : 'outline'} className="gap-2 rounded-full" aria-expanded={panel === 'settings'} onClick={() => togglePanel('settings')}><Settings2 className="h-4 w-4" />{t.settings}</Button>
+          <div className="flex w-full min-w-0 items-center justify-end gap-2 lg:w-auto">
+            <button type="button" disabled={!cargo.length} onClick={organize}
+              className="inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-full border border-primary bg-primary px-4 text-sm font-medium text-white transition-all hover:bg-primary-dark active:scale-95 disabled:cursor-not-allowed disabled:opacity-50">
+              <Sparkles className="h-4 w-4" />{t.organize}
+            </button>
+            {/* Perspective switch; its last option opens the sidebar with live previews of every screen. On narrow screens it scrolls sideways. */}
+            <div role="group" aria-label="3D" className="inline-flex min-w-0 items-center overflow-x-auto rounded-full border border-sky-200/80 bg-sky-50/70 p-1 dark:border-slate-700 dark:bg-slate-900">
+              {[...SCREENS.map(({ value, icon }) => ({ key: value, label: t[value], icon, active: view === value, onClick: () => setView(value) })),
+                { key: 'more', label: t.more, icon: MoreHorizontal, active: panel === 'view', onClick: () => togglePanel('view') }].map(({ key, label, icon: Icon, active, onClick }) => (
+                <button key={key} type="button" aria-label={label} title={label} aria-pressed={active} aria-expanded={key === 'more' ? active : undefined} onClick={onClick}
+                  className={cn('inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full transition-all active:scale-95', active ? 'bg-primary text-white' : 'text-slate-500 hover:text-primary dark:text-slate-300')}>
+                  <Icon className="h-4 w-4" />
+                </button>
+              ))}
+            </div>
           </div>
         )}
       />
-      <input ref={importInput} type="file" accept=".json,application/json" hidden onChange={event => void importPlan(event.target.files?.[0])} />
 
-      {notice && (
-        <div role="status" className="flex items-center justify-between gap-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-2.5 text-sm text-sky-800 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-200">
-          {notice}
-          <button type="button" aria-label={t.cancel} onClick={() => setNotice('')} className="rounded-lg p-1 hover:bg-sky-100 dark:hover:bg-sky-900"><X className="h-4 w-4" /></button>
+      {/* Under the header: scene toggles and equipment name on the left, view tools on the right. */}
+      <div className="flex w-full items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+        <button type="button" aria-pressed={walls} aria-label={t.walls} title={t.walls} onClick={() => setWalls(current => !current)} className={overlayToggle(walls)}>
+          {walls ? <Box className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+        </button>
+        <button type="button" aria-pressed={warehouse} aria-label={t.warehouse} title={t.warehouse} onClick={toggleWarehouse} className={overlayToggle(warehouse)}>
+          <Warehouse className="h-4 w-4" />
+        </button>
+        <button type="button" aria-pressed={dimensionsOn} aria-label={t.dimensionLabels} title={t.dimensionLabels} onClick={() => setDimensionsOn(current => !current)} className={overlayToggle(dimensionsOn)}>
+          <Ruler className="h-4 w-4" />
+        </button>
         </div>
-      )}
-
-      <section ref={viewport} role="region" aria-label={`3D · ${e.registration || e.code}`} className="relative min-h-[320px] min-w-0 flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-950">
-        {/* The scene is the box's background, edge to edge; everything else floats above it. */}
-        <div className="absolute inset-0">
-          <React.Suspense fallback={<SceneSkeleton label={t.loading3d} />}>
-            <PlanningScene equipment={e} cargo={cargo} view={view} selected={selected} onSelect={setSelected} onMove={move} warehouse={warehouse} walls={walls} dimensions={dimensionsOn} reset={reset} zoom={zoom} unavailable={t.unavailable} />
-          </React.Suspense>
-        </div>
-        <div className="pointer-events-none absolute inset-x-3 top-3 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <button type="button" aria-pressed={walls} aria-label={t.walls} title={t.walls} onClick={() => setWalls(current => !current)} className={overlayToggle(walls)}>
-              {walls ? <Box className="h-4 w-4" /> : <Square className="h-4 w-4" />}
-            </button>
-            <button type="button" aria-pressed={warehouse} aria-label={t.warehouse} title={t.warehouse} onClick={() => setWarehouse(current => !current)} className={overlayToggle(warehouse)}>
-              <Warehouse className="h-4 w-4" />
-            </button>
-            <button type="button" aria-pressed={dimensionsOn} aria-label={t.dimensionLabels} title={t.dimensionLabels} onClick={() => setDimensionsOn(current => !current)} className={overlayToggle(dimensionsOn)}>
-              <Ruler className="h-4 w-4" />
-            </button>
-          </div>
-          {/* Quick perspective switch; the View sidebar offers the same screens as live previews. */}
-          <div className="pointer-events-auto max-w-full overflow-x-auto rounded-full bg-white/80 shadow-sm backdrop-blur dark:bg-slate-900/80 [&_button]:shrink-0 [&_button]:whitespace-nowrap">
-            <SegmentedControl<SceneView> value={view} onChange={setView} label="3D" options={SCREENS.map(({ value, icon }) => ({ value, label: t[value], icon }))} />
-          </div>
-        </div>
-        <p className="pointer-events-none absolute bottom-3 left-3 hidden max-w-[55%] rounded-xl bg-white/85 px-3 py-1.5 text-[11px] text-slate-600 backdrop-blur md:block dark:bg-slate-900/85 dark:text-slate-300">{t.hint}</p>
-        <div className="absolute bottom-3 right-3 flex gap-1.5">
-            <Button variant="outline" className={toolButton} title={t.zoomIn} aria-label={t.zoomIn} onClick={() => setZoom(z => z + 1)}><ZoomIn className="h-4 w-4" /></Button>
-            <Button variant="outline" className={toolButton} title={t.zoomOut} aria-label={t.zoomOut} onClick={() => setZoom(z => z - 1)}><ZoomOut className="h-4 w-4" /></Button>
-            <Button variant="outline" className={toolButton} title={t.reset} aria-label={t.reset} onClick={() => setReset(n => n + 1)}><RotateCcw className="h-4 w-4" /></Button>
+        <div className="pointer-events-auto flex gap-1.5">
+          <Button variant="outline" className={toolButton} title={t.zoomIn} aria-label={t.zoomIn} onClick={() => setZoom(z => z + 1)}><ZoomIn className="h-4 w-4" /></Button>
+          <Button variant="outline" className={toolButton} title={t.zoomOut} aria-label={t.zoomOut} onClick={() => setZoom(z => z - 1)}><ZoomOut className="h-4 w-4" /></Button>
+          <Button variant="outline" className={toolButton} title={t.reset} aria-label={t.reset} onClick={() => setReset(n => n + 1)}><RotateCcw className="h-4 w-4" /></Button>
           <Button variant="outline" className={toolButton} title={t.fullscreen} aria-label={t.fullscreen} onClick={() => { if (document.fullscreenElement) void document.exitFullscreen(); else void viewport.current?.requestFullscreen(); }}><Maximize className="h-4 w-4" /></Button>
         </div>
-      </section>
+      </div>
+      {/* Notices float over the scene, so they never resize it or re-frame its camera. */}
+      {notice && (
+          <div className="flex w-full justify-center">
+            <div role="status" className="pointer-events-auto flex max-w-lg items-center gap-3 rounded-2xl border border-sky-200 bg-sky-50/95 px-4 py-2.5 text-sm text-sky-800 shadow-lg backdrop-blur dark:border-sky-900 dark:bg-sky-950/90 dark:text-sky-200">
+              {notice}
+              <button type="button" aria-label={t.cancel} onClick={() => setNotice('')} className="rounded-lg p-1 hover:bg-sky-100 dark:hover:bg-sky-900"><X className="h-4 w-4" /></button>
+            </div>
+          </div>
+        )}
+      </div>
+        <p role={carrying ? 'status' : undefined} className={cn('pointer-events-none absolute bottom-3 left-3 max-w-[55%] rounded-xl px-3 py-1.5 text-[11px] backdrop-blur', carrying ? 'block bg-primary font-bold text-white shadow-lg' : 'hidden bg-white/85 text-slate-600 md:block dark:bg-slate-900/85 dark:text-slate-300')}>{carrying ? t.releaseHint : t.hint}</p>
 
-      <PinnedPanel open={panel === 'view'} actions={panelSwitch} icon={Eye} title={t.viewPanel} subtitle={t.viewHint} onClose={() => setPanel(null)} closeLabel={t.close} collapseLabel={t.collapse} expandLabel={t.expand}>
+      <PinnedPanel open={panel === 'view'} className="z-[310]" icon={Eye} title={t.viewPanel} subtitle={t.viewHint} onClose={() => setPanel(null)} closeLabel={t.close} collapseLabel={t.collapse} expandLabel={t.expand}>
         {SCREENS.map(({ value, icon: Icon }, index) => (
           <button key={value} type="button" aria-pressed={view === value} onClick={() => setView(value)}
             className={cn('block w-full overflow-hidden rounded-2xl border text-left transition-colors', view === value ? 'border-primary ring-2 ring-primary/30' : 'border-slate-200 hover:border-primary/60 dark:border-slate-800')}>
@@ -297,7 +347,14 @@ export default function LoadPlanningView({ lang, userId }: { lang: Language; use
         ))}
       </PinnedPanel>
 
-      <PinnedPanel open={panel === 'settings'} actions={panelSwitch} icon={Settings2} title={t.settings} subtitle={t.settingsHint} onClose={() => setPanel(null)} closeLabel={t.close} collapseLabel={t.collapse} expandLabel={t.expand}
+      <PinnedPanel open collapseSignal={overview} actions={panelSwitch} icon={Settings2} title={t.settings} subtitle={t.settingsHint} collapseLabel={t.collapse} expandLabel={t.expand} defaultCollapsed collapsedTitle={cargo.length ? t.seePlan : t.startPlanning}
+        placeholder={(
+          <div role="status" aria-label={t.loading3d} className="min-h-0 flex-1 animate-pulse space-y-3 p-3">
+            <div className="h-16 rounded-2xl bg-slate-100 dark:bg-slate-800" />
+            <div className="h-40 rounded-2xl bg-slate-100 dark:bg-slate-800" />
+            <div className="h-24 rounded-2xl bg-slate-100 dark:bg-slate-800" />
+          </div>
+        )}
         toolbar={(
           <div role="tablist" aria-label={t.settings} className="grid grid-cols-4 gap-1 rounded-2xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-800 dark:bg-slate-900">
             {SETTINGS_TABS.map(({ value, icon: Icon }) => (
@@ -317,9 +374,35 @@ export default function LoadPlanningView({ lang, userId }: { lang: Language; use
         )}>
         {settingsTab === 'equipment' && <Card className="shadow-none" contentClassName="space-y-3 p-3">
           <CardHeading icon={e.truck ? Truck : Container} tone="text-violet-500" title={t.equipment} subtitle={`${e.length} × ${e.width} × ${e.height} m · ${e.payload.toLocaleString()} kg`} />
-          <label className="block"><span className={labelClass}>{t.planName}</span><input className={fieldClass} value={plan.name} maxLength={100} onChange={ev => setPlan(p => ({ ...p, name: ev.target.value }))} /></label>
-          <label className="block"><span className={labelClass}>{t.equipment}</span><select className={fieldClass} value={e.code} onChange={ev => changeEquipment({ ...EQUIPMENT.find(e => e.code === ev.target.value)! })}>{EQUIPMENT.map(e => <option key={e.code}>{e.code}</option>)}</select></label>
-          <label className="block"><span className={labelClass}>{t.vehicle}</span><select className={fieldClass} value={String(vehicles.find(v => v.registration_number === e.registration)?.id ?? '')} onChange={ev => selectVehicle(ev.target.value)}><option value="">{t.custom}</option>{vehicles.map(v => <option key={String(v.id)} value={String(v.id)}>{String(v.registration_number)}</option>)}</select></label>
+          <div role="tablist" aria-label={t.equipment} className="grid grid-cols-3 gap-1 rounded-2xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-800 dark:bg-slate-900">
+            {([['container', Container, t.containerTab], ['vehicle', Truck, t.vehicleTab], ['custom', Ruler, t.customTab]] as const).map(([value, Icon, label]) => (
+              <button key={value} type="button" role="tab" aria-selected={equipmentTab === value} onClick={() => setEquipmentTab(value)}
+                className={cn('flex min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs font-bold transition-colors', equipmentTab === value ? 'bg-primary text-white shadow-md shadow-primary/20' : 'text-slate-500 hover:text-primary dark:text-slate-300')}>
+                <Icon className="h-4 w-4 shrink-0" /><span className="truncate">{label}</span>
+              </button>
+            ))}
+          </div>
+          {equipmentTab === 'container' && (
+            <label className="block"><span className={labelClass}>{t.containerTab}</span>
+              <select className={fieldClass} value={e.truck ? '' : e.code} onChange={ev => changeEquipment({ ...EQUIPMENT.find(item => item.code === ev.target.value)! })}>
+                {e.truck && <option value="" disabled>—</option>}
+                {EQUIPMENT.filter(item => !item.truck).map(item => <option key={item.code} value={item.code}>{item.code}</option>)}
+              </select>
+            </label>
+          )}
+          {equipmentTab === 'vehicle' && (
+            <>
+              <label className="block"><span className={labelClass}>{t.vehicle}</span>
+                <select className={fieldClass} value={e.truck ? String(vehicles.find(v => v.registration_number === e.registration)?.id ?? 'ltl') : ''} onChange={ev => { if (ev.target.value === 'ltl') changeEquipment({ ...EQUIPMENT.find(item => item.truck)! }); else selectVehicle(ev.target.value); }}>
+                  {!e.truck && <option value="" disabled>—</option>}
+                  <option value="ltl">{t.boxTruck}</option>
+                  {vehicles.map(v => <option key={String(v.id)} value={String(v.id)}>{String(v.registration_number)}</option>)}
+                </select>
+              </label>
+              {fleetError && <p role="alert" className="text-[11px] text-amber-600">{t.fleetFailed}</p>}
+            </>
+          )}
+          {equipmentTab === 'custom' && <>
           <div className="grid grid-cols-2 gap-2">
             {(['length', 'width', 'height', 'doorWidth', 'doorHeight', 'payload'] as const).map(k => (
               <label key={`${e.code}-${e.registration}-${k}-${e[k]}`}><span className={labelClass}>{t[k]} ({k === 'payload' ? 'kg' : 'm'})</span>
@@ -328,8 +411,7 @@ export default function LoadPlanningView({ lang, userId }: { lang: Language; use
             ))}
           </div>
           <p className="text-[11px] text-slate-500">{t.defaults}</p>
-          {fleetError && <p role="alert" className="text-[11px] text-amber-600">{t.fleetFailed}</p>}
-          <Button className="h-10 w-full gap-2 rounded-full" onClick={runAutoPlan}><WandSparkles className="h-4 w-4" />{t.auto}</Button>
+          </>}
         </Card>}
 
         {settingsTab === 'cargo' && <Card className="shadow-none" contentClassName="p-3">
