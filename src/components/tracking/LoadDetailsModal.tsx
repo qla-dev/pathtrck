@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { podCopy, podFailureReason } from './ChecklistPodModal';
 import L from 'leaflet';
 import { MapContainer, TileLayer, Marker, Popup, CircleMarker, Polyline, Tooltip, useMap } from 'react-leaflet';
 import { ChevronRight, Package as PackageIcon, RotateCcw, Share2, Star, Route, Lock, Coins, Loader2, Sparkles, FileBarChart2, Upload, FileSpreadsheet, Fuel, BedDouble, ParkingCircle, Landmark, ReceiptText, FileText, FileCheck2, Printer, Play, Pause, MessageSquare, StickyNote } from 'lucide-react';
@@ -341,7 +342,11 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
   );
 
   const isStorage = selectedPackage.transportType === 'warehouse';
+  const failedPod = Array.isArray(shipmentWorkspace?.operational_checklist) && shipmentWorkspace.operational_checklist.some(
+    (item: Record<string, unknown>) => item.key === 'proof_of_delivery' && Boolean(podFailureReason(item.action_value))
+  );
   const storageStatusLabel = (status: PackageData['status']) => {
+    if (!isStorage && status === 'Received' && failedPod) return podCopy(lang).failed;
     const labels: Partial<Record<PackageData['status'], string>> = { Posted: 'published', Booked: 'booked', Opened: 'receiving', Received: 'stored', Finished: 'dispatched' };
     return isStorage && labels[status] ? u(`storage.status.${labels[status]}`, status) : trPackageStatus(lang, status);
   };

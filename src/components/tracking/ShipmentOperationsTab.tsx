@@ -15,6 +15,7 @@ import { ChecklistAgentModal } from './ChecklistAgentModal';
 import { ChecklistShippingInstructionsModal } from './ChecklistShippingInstructionsModal';
 import { ChecklistVesselSearch } from './ChecklistVesselSearch';
 import { ChecklistAircraftSearch } from './ChecklistAircraftSearch';
+import { ChecklistPodModal, podCopy, podFailureReason } from './ChecklistPodModal';
 
 type Props = {
   workspace: Record<string, unknown>;
@@ -122,7 +123,7 @@ export const ShipmentOperationsTab = ({ workspace, lang, role, readOnly = false,
   const checklist = array(workspace.operational_checklist);
   const freightLoad = record(workspace.freight_load);
   const currentStatus = String(loadStatus || freightLoad.status || '').toLowerCase().replaceAll(' ', '_');
-  const canSubmitPod = currentStatus === 'in_delivery' && (!readOnly || allowPodDuringDelivery);
+  const canSubmitPod = ['in_delivery', 'received'].includes(currentStatus) && (!readOnly || allowPodDuringDelivery);
   const taskReadOnly = (key: string) => key === 'proof_of_delivery' ? !canSubmitPod : readOnlyRef.current;
   const loadId = String(workspace.load_id || freightLoad.id || '');
   const dueDate = formatDate(freightLoad.etd_at || workspace.booked_at, lang);
@@ -130,6 +131,7 @@ export const ShipmentOperationsTab = ({ workspace, lang, role, readOnly = false,
   const [aircraftRetry, setAircraftRetry] = useState(0);
   const [agentModalOpen, setAgentModalOpen] = useState<string | null>(null);
   const [instructionsOpen, setInstructionsOpen] = useState(false);
+  const [podOpen, setPodOpen] = useState(false);
   const readOnlyRef = useRef(readOnly);
   readOnlyRef.current = readOnly;
   useEffect(() => { if (readOnly) { setAgentModalOpen(null); setInstructionsOpen(false); } }, [readOnly]);
@@ -414,7 +416,7 @@ export const ShipmentOperationsTab = ({ workspace, lang, role, readOnly = false,
       case 'cmr_and_documents':
         return uploadField(taskKey, 'cmr');
       case 'proof_of_delivery':
-        return uploadField(taskKey, 'pod');
+        return <button type="button" disabled={busyKey !== null || !canSubmitPod} onClick={() => setPodOpen(true)} className={`${CONTROL_CLASS} cursor-pointer hover:border-primary`}>{podCopy(lang).title}</button>;
       case 'security_and_customs_documents':
         return uploadField(taskKey, 'customs');
       case 'shipping_instructions':
@@ -495,6 +497,7 @@ export const ShipmentOperationsTab = ({ workspace, lang, role, readOnly = false,
           return <span className="text-xs">{lang === 'bs' ? (value === 'yes' ? 'Da' : 'Ne') : lang === 'de' ? (value === 'yes' ? 'Ja' : 'Nein') : (value === 'yes' ? 'Yes' : 'No')}</span>;
         }
         let display = value;
+        if (item.key === 'proof_of_delivery' && podFailureReason(value)) display = `${podCopy(lang).failed}: ${podFailureReason(value)}`;
         if (String(item.key) === 'shipping_instructions') {
           try {
             const saved = record(JSON.parse(value));
@@ -515,6 +518,23 @@ export const ShipmentOperationsTab = ({ workspace, lang, role, readOnly = false,
       showInstruction
     />
     <AnimatePresence>
+    {podOpen && canSubmitPod && <ChecklistPodModal lang={lang}
+      value={checklist.find((item) => item.key === 'proof_of_delivery')?.action_value}
+      onClose={() => setPodOpen(false)}
+      onUpload={async (file) => {
+        setBusyKey('proof_of_delivery');
+        try {
+          await api.documents.upload({ file, loadId, type: 'pod', name: file.name });
+          await patchTask('proof_of_delivery', { action_value: file.name, status: 'completed', completed_at: new Date().toISOString() });
+          await onLoadChanged?.();
+        } finally { setBusyKey(null); }
+      }}
+      onFailure={async (value) => {
+        setBusyKey('proof_of_delivery');
+        try { await patchTask('proof_of_delivery', { action_value: value, status: 'completed', completed_at: new Date().toISOString() }); }
+        finally { setBusyKey(null); }
+      }}
+    />}
     {!readOnly && agentModalOpen && <ChecklistAgentModal
       key={agentModalOpen}
       lang={lang}
