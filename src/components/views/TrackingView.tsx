@@ -16,6 +16,7 @@ import { checklistTransportSummary, countPendingActions } from '../../lib/shipme
 import { LOAD_STATUS_OPTIONS, LoadStatusIcon } from '../load/LoadStatusPicker';
 import { LoadDetailsModal } from '../tracking/LoadDetailsModal';
 import { TrackingMapCard } from '../tracking/TrackingMapCard';
+import { VehicleTrackingMap, vehicleMapCopy } from '../tracking/VehicleTrackingMap';
 import { trackingMarkerIcon } from '../tracking/trackingMapMarker';
 import { INCOTERM_OPTIONS, ROAD_CHARACTERISTIC_OPTIONS, VEHICLE_OPTIONS } from '../modals/loadFormOptions';
 import { IconSelect, type IconSelectOption } from '../ui/IconSelect';
@@ -172,6 +173,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
   const dateCellRef = useRef<HTMLDivElement>(null);
   const [openLoadId, setOpenLoadId] = useState<string | null>(null);
   const [mapSelectedId, setMapSelectedId] = useState<string | null>(null);
+  const [mapMode, setMapMode] = useState<'loads' | 'vehicles'>('loads');
   const [mapCardPoint, setMapCardPoint] = useState<L.Point | null>(null);
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -533,7 +535,11 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
         )}
 
         <div className={cn('relative', layout === 'map' && 'h-full min-h-0 overflow-hidden')}>
-          {layout === 'map' && (
+          {layout === 'map' && mapMode === 'vehicles' && <VehicleTrackingMap lang={lang} role={role} userId={userId} companyIds={companyIds} onOpenLoad={setOpenLoadId} />}
+          {layout === 'map' && <div className="absolute left-4 top-4 z-[1001] inline-flex h-12 w-[284px] max-w-[calc(100%-2rem)] items-center rounded-full border border-sky-200 bg-white/90 p-1 shadow-sm backdrop-blur-xl dark:border-sky-800 dark:bg-slate-900/90" role="group" aria-label={`${vehicleMapCopy(lang).loads} / ${vehicleMapCopy(lang).vehicles}`}>
+            {(['loads', 'vehicles'] as const).map((mode) => { const Icon = mode === 'loads' ? PackageIcon : Truck; return <button key={mode} type="button" aria-pressed={mapMode === mode} onClick={() => { setMapMode(mode); setMapSelectedId(null); }} className={cn('flex h-full flex-1 cursor-pointer items-center justify-center gap-2 rounded-full text-sm font-bold transition-all', mapMode === mode ? 'bg-primary text-white shadow-md shadow-sky-500/25' : 'text-slate-500 hover:bg-sky-50 dark:text-slate-300 dark:hover:bg-slate-800')}><Icon className="h-4 w-4" />{vehicleMapCopy(lang)[mode]}</button>; })}
+          </div>}
+          {layout === 'map' && mapMode === 'loads' && (
             <div className="absolute inset-0 z-0">
               <MapContainer ref={mapRef} key="tracking-map" center={[48.5, 14.8]} zoom={5} zoomControl={false} className="h-full w-full">
                 <TileLayer
@@ -587,7 +593,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
             </div>
           )}
 
-          <div className={cn(layout === 'map' ? 'pointer-events-none absolute inset-x-0 top-0 z-10 space-y-3 overflow-visible p-4' : undefined)}>
+          <div className={cn(layout === 'map' ? 'pointer-events-none absolute inset-x-0 top-[64px] z-10 space-y-3 overflow-visible p-4' : undefined, layout === 'map' && mapMode === 'vehicles' && 'hidden')}>
         {/* One row whatever the status count is: the chips share the width and scroll if it runs out. */}
         {/* The scroller clips whatever leaves the chip's box — the hover lift, the selected ring and
             its offset — so the row carries enough padding to keep all of it inside, and cancels that
