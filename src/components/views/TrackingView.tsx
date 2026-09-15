@@ -174,6 +174,9 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
   const [openLoadId, setOpenLoadId] = useState<string | null>(null);
   const [mapSelectedId, setMapSelectedId] = useState<string | null>(null);
   const [mapMode, setMapMode] = useState<'loads' | 'vehicles'>('loads');
+  const [vehicleChipSlot, setVehicleChipSlot] = useState<HTMLDivElement | null>(null);
+  const mapSwitchRef = useRef<HTMLDivElement>(null);
+  const [mapSwitchWidth, setMapSwitchWidth] = useState<number | null>(null);
   const [mapCardPoint, setMapCardPoint] = useState<L.Point | null>(null);
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -221,6 +224,16 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
   useEffect(() => {
     onLayoutModeChange?.(layout);
   }, [layout, onLayoutModeChange]);
+
+  // The switch sizes itself against the status chips; remember that width so toggling to vehicles
+  // (whose chip count differs) does not resize it.
+  useEffect(() => {
+    const node = mapSwitchRef.current;
+    if (!node || layout !== 'map' || mapMode !== 'loads') return;
+    const observer = new ResizeObserver(() => setMapSwitchWidth(node.offsetWidth));
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [layout, mapMode]);
 
   useEffect(() => {
     if (requestedLayout) setLayout(requestedLayout);
@@ -535,10 +548,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
         )}
 
         <div className={cn('relative', layout === 'map' && 'h-full min-h-0 overflow-hidden')}>
-          {layout === 'map' && mapMode === 'vehicles' && <VehicleTrackingMap lang={lang} role={role} userId={userId} companyIds={companyIds} onOpenLoad={setOpenLoadId} />}
-          {layout === 'map' && <div className="absolute left-4 top-4 z-[1001] inline-flex h-12 w-[284px] max-w-[calc(100%-2rem)] items-center rounded-full border border-sky-200 bg-white/90 p-1 shadow-sm backdrop-blur-xl dark:border-sky-800 dark:bg-slate-900/90" role="group" aria-label={`${vehicleMapCopy(lang).loads} / ${vehicleMapCopy(lang).vehicles}`}>
-            {(['loads', 'vehicles'] as const).map((mode) => { const Icon = mode === 'loads' ? PackageIcon : Truck; return <button key={mode} type="button" aria-pressed={mapMode === mode} onClick={() => { setMapMode(mode); setMapSelectedId(null); }} className={cn('flex h-full flex-1 cursor-pointer items-center justify-center gap-2 rounded-full text-sm font-bold transition-all', mapMode === mode ? 'bg-primary text-white shadow-md shadow-sky-500/25' : 'text-slate-500 hover:bg-sky-50 dark:text-slate-300 dark:hover:bg-slate-800')}><Icon className="h-4 w-4" />{vehicleMapCopy(lang)[mode]}</button>; })}
-          </div>}
+          {layout === 'map' && mapMode === 'vehicles' && <VehicleTrackingMap lang={lang} role={role} userId={userId} companyIds={companyIds} onOpenLoad={setOpenLoadId} headerSlot={vehicleChipSlot} />}
           {layout === 'map' && mapMode === 'loads' && (
             <div className="absolute inset-0 z-0">
               <MapContainer ref={mapRef} key="tracking-map" center={[48.5, 14.8]} zoom={5} zoomControl={false} className="h-full w-full">
@@ -593,14 +603,14 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
             </div>
           )}
 
-          <div className={cn(layout === 'map' ? 'pointer-events-none absolute inset-x-0 top-[64px] z-10 space-y-3 overflow-visible p-4' : undefined, layout === 'map' && mapMode === 'vehicles' && 'hidden')}>
+          <div className={cn(layout === 'map' ? 'pointer-events-none absolute inset-x-0 top-0 z-10 space-y-3 overflow-visible p-4' : undefined)}>
         {/* One row whatever the status count is: the chips share the width and scroll if it runs out. */}
         {/* The scroller clips whatever leaves the chip's box — the hover lift, the selected ring and
             its offset — so the row carries enough padding to keep all of it inside, and cancels that
             padding with negative margins so the chips still line up with everything else. */}
-        <div className={cn('-mx-2 -mt-2 mb-2 flex gap-3 overflow-x-auto p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden', layout === 'map' && 'pointer-events-auto gap-2')}>
-          {(['all', ...trackingStatusFilters] as TrackingStatusFilter[]).map((status) => (
-            <button type="button" key={status} onClick={() => setStatusFilter(status)} className={cn('flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-full border text-sm font-bold transition-all hover:-translate-y-0.5', layout === 'map' ? 'h-9 gap-1.5 px-3 text-xs' : 'h-14 px-5', statusCardColors(status), layout === 'map'
+        <div className={cn('-mx-2 -mt-2 mb-2 flex gap-3 overflow-x-auto p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden', layout === 'map' && 'pointer-events-auto items-center gap-2')}>
+          {!(layout === 'map' && mapMode === 'vehicles') && (['all', ...trackingStatusFilters] as TrackingStatusFilter[]).map((status) => (
+            <button type="button" key={status} onClick={() => setStatusFilter(status)} className={cn('flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-full border text-sm font-bold transition-all hover:-translate-y-0.5', layout === 'map' ? 'h-9 flex-[1_1_0px] gap-1.5 px-3 text-xs' : 'h-14 px-5', statusCardColors(status), layout === 'map'
               ? statusFilter === status
                 ? 'bg-white shadow-md ring-2 ring-current ring-offset-2 ring-offset-white/40 dark:bg-slate-900 dark:ring-offset-slate-900/40'
                 : 'bg-white/25 backdrop-blur-md hover:bg-white/40 dark:bg-slate-900/25 dark:hover:bg-slate-900/40'
@@ -610,9 +620,18 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
               <span className="opacity-70">{statusCounts[status]}</span>
             </button>
           ))}
+          {/* Vehicle mode fills this slot with its own chips (portalled from VehicleTrackingMap). */}
+          {layout === 'map' && mapMode === 'vehicles' && <div ref={setVehicleChipSlot} className="contents" />}
+          {/* Grows twice as much as a chip plus its own padding and border (10px), so each inner
+              button ends up exactly one chip wide and tall. */}
+          {layout === 'map' && (
+            <div ref={mapSwitchRef} style={mapMode === 'vehicles' && mapSwitchWidth ? { flex: `0 0 ${mapSwitchWidth}px` } : undefined} role="group" aria-label={`${vehicleMapCopy(lang).loads} / ${vehicleMapCopy(lang).vehicles}`} className="flex flex-[2_0_10px] items-center rounded-full border border-sky-200/80 bg-sky-50/70 p-1 backdrop-blur-md dark:border-slate-700 dark:bg-slate-900">
+              {(['loads', 'vehicles'] as const).map((mode) => { const Icon = mode === 'loads' ? PackageIcon : Truck; return <button key={mode} type="button" aria-pressed={mapMode === mode} onClick={() => { setMapMode(mode); setMapSelectedId(null); }} className={cn('flex h-9 flex-[1_1_0px] cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-3 text-xs font-bold transition-all active:scale-95', mapMode === mode ? 'bg-primary text-white shadow-md shadow-primary/20' : 'text-slate-500 hover:text-primary dark:text-slate-300')}><Icon className="h-3.5 w-3.5 shrink-0" />{vehicleMapCopy(lang)[mode]}</button>; })}
+            </div>
+          )}
         </div>
 
-        <div className={cn('overflow-visible rounded-2xl border border-slate-200 dark:border-slate-800', layout === 'map' ? 'pointer-events-auto border-white/60 bg-white/25 shadow-md shadow-slate-900/10 backdrop-blur-md dark:border-white/10 dark:bg-slate-900/25' : 'bg-white dark:bg-slate-900')}>
+        <div className={cn('overflow-visible rounded-2xl border border-slate-200 dark:border-slate-800', layout === 'map' && mapMode === 'vehicles' && 'hidden', layout === 'map' ?'pointer-events-auto border-white/60 bg-white/25 shadow-md shadow-slate-900/10 backdrop-blur-md dark:border-white/10 dark:bg-slate-900/25' : 'bg-white dark:bg-slate-900')}>
             <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
               <div className="flex min-w-0 flex-1 items-center gap-2">
                 <div className="relative min-w-56 flex-1 sm:max-w-80"><Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={u('tracking.searchPlaceholder', 'Search shipment number, booking ref...')} className={cn('h-10 w-full rounded-lg border bg-white pl-9 pr-3 text-xs outline-none focus:border-primary dark:bg-slate-950 dark:text-white', layout === 'map' ? 'border-slate-200/50 dark:border-slate-700/40' : 'border-slate-200 dark:border-slate-700')} /></div>

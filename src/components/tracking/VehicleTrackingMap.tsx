@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import L from 'leaflet';
 import { MapContainer, Marker, Popup, TileLayer, ZoomControl, useMap } from 'react-leaflet';
-import { Truck, Search, UserRound, Building2, Package, ArrowRight, Gauge } from 'lucide-react';
+import { Truck, Search, UserRound, Building2, Package, ArrowRight, Gauge, LayoutGrid, MapPinOff } from 'lucide-react';
 import type { Language, Role } from '../../types';
 import { api } from '../../services/api';
 import { useApiList } from '../../hooks/useApiList';
@@ -10,11 +11,11 @@ import { mapLoadToPackage } from '../../lib/loadDetails';
 import { trPackageStatus } from '../../i18n';
 
 const COPY = {
-  en: { loads: 'Loads', vehicles: 'Vehicles', search: 'Search registration, model, driver…', capacity: 'Capacity', aboard: 'On board', free: 'Free space', cargo: 'Loads on board', empty: 'No loads on board', noGps: 'Without location', none: 'No vehicles found', loading: 'Loading fleet…', error: 'Could not load fleet data.', retry: 'Retry', updated: 'Last position', specs: 'Vehicle specifications', driver: 'Driver', company: 'Company', unknown: 'Unknown', owner: 'Owner', documents: 'Documents' },
-  bs: { loads: 'Tereti', vehicles: 'Vozila', search: 'Traži registraciju, model, vozača…', capacity: 'Kapacitet', aboard: 'Utovareno', free: 'Slobodno', cargo: 'Tereti u vozilu', empty: 'Nema utovarenih tereta', noGps: 'Bez lokacije', none: 'Nema pronađenih vozila', loading: 'Učitavanje flote…', error: 'Podaci flote nisu dostupni.', retry: 'Pokušaj ponovo', updated: 'Zadnja lokacija', specs: 'Specifikacije vozila', driver: 'Vozač', company: 'Kompanija', unknown: 'Nepoznato', owner: 'Vlasnik', documents: 'Dokumenti' },
-  de: { loads: 'Ladungen', vehicles: 'Fahrzeuge', search: 'Kennzeichen, Modell, Fahrer suchen…', capacity: 'Kapazität', aboard: 'Geladen', free: 'Verfügbar', cargo: 'Geladene Ladungen', empty: 'Keine Ladungen an Bord', noGps: 'Ohne Standort', none: 'Keine Fahrzeuge gefunden', loading: 'Flotte wird geladen…', error: 'Flottendaten konnten nicht geladen werden.', retry: 'Erneut versuchen', updated: 'Letzte Position', specs: 'Fahrzeugspezifikationen', driver: 'Fahrer', company: 'Unternehmen', unknown: 'Unbekannt', owner: 'Eigentümer', documents: 'Dokumente' },
-  hr: { loads: 'Tereti', vehicles: 'Vozila', search: 'Traži registraciju, model, vozača…', capacity: 'Kapacitet', aboard: 'Utovareno', free: 'Slobodno', cargo: 'Tereti u vozilu', empty: 'Nema utovarenih tereta', noGps: 'Bez lokacije', none: 'Nema pronađenih vozila', loading: 'Učitavanje flote…', error: 'Podaci flote nisu dostupni.', retry: 'Pokušaj ponovno', updated: 'Zadnja lokacija', specs: 'Specifikacije vozila', driver: 'Vozač', company: 'Tvrtka', unknown: 'Nepoznato', owner: 'Vlasnik', documents: 'Dokumenti' },
-  sr: { loads: 'Tereti', vehicles: 'Vozila', search: 'Traži registraciju, model, vozača…', capacity: 'Kapacitet', aboard: 'Utovareno', free: 'Slobodno', cargo: 'Tereti u vozilu', empty: 'Nema utovarenih tereta', noGps: 'Bez lokacije', none: 'Nema pronađenih vozila', loading: 'Učitavanje flote…', error: 'Podaci flote nisu dostupni.', retry: 'Pokušaj ponovo', updated: 'Poslednja lokacija', specs: 'Specifikacije vozila', driver: 'Vozač', company: 'Kompanija', unknown: 'Nepoznato', owner: 'Vlasnik', documents: 'Dokumenti' },
+  en: { all: 'All', loads: 'Loads', vehicles: 'Vehicles', search: 'Search registration, model, driver…', capacity: 'Capacity', aboard: 'On board', free: 'Free space', cargo: 'Loads on board', empty: 'No loads on board', noGps: 'Without location', none: 'No vehicles found', loading: 'Loading fleet…', error: 'Could not load fleet data.', retry: 'Retry', updated: 'Last position', specs: 'Vehicle specifications', driver: 'Driver', company: 'Company', unknown: 'Unknown', owner: 'Owner', documents: 'Documents' },
+  bs: { all: 'Sva', loads: 'Tereti', vehicles: 'Vozila', search: 'Traži registraciju, model, vozača…', capacity: 'Kapacitet', aboard: 'Utovareno', free: 'Slobodno', cargo: 'Tereti u vozilu', empty: 'Nema utovarenih tereta', noGps: 'Bez lokacije', none: 'Nema pronađenih vozila', loading: 'Učitavanje flote…', error: 'Podaci flote nisu dostupni.', retry: 'Pokušaj ponovo', updated: 'Zadnja lokacija', specs: 'Specifikacije vozila', driver: 'Vozač', company: 'Kompanija', unknown: 'Nepoznato', owner: 'Vlasnik', documents: 'Dokumenti' },
+  de: { all: 'Alle', loads: 'Ladungen', vehicles: 'Fahrzeuge', search: 'Kennzeichen, Modell, Fahrer suchen…', capacity: 'Kapazität', aboard: 'Geladen', free: 'Verfügbar', cargo: 'Geladene Ladungen', empty: 'Keine Ladungen an Bord', noGps: 'Ohne Standort', none: 'Keine Fahrzeuge gefunden', loading: 'Flotte wird geladen…', error: 'Flottendaten konnten nicht geladen werden.', retry: 'Erneut versuchen', updated: 'Letzte Position', specs: 'Fahrzeugspezifikationen', driver: 'Fahrer', company: 'Unternehmen', unknown: 'Unbekannt', owner: 'Eigentümer', documents: 'Dokumente' },
+  hr: { all: 'Sva', loads: 'Tereti', vehicles: 'Vozila', search: 'Traži registraciju, model, vozača…', capacity: 'Kapacitet', aboard: 'Utovareno', free: 'Slobodno', cargo: 'Tereti u vozilu', empty: 'Nema utovarenih tereta', noGps: 'Bez lokacije', none: 'Nema pronađenih vozila', loading: 'Učitavanje flote…', error: 'Podaci flote nisu dostupni.', retry: 'Pokušaj ponovno', updated: 'Zadnja lokacija', specs: 'Specifikacije vozila', driver: 'Vozač', company: 'Tvrtka', unknown: 'Nepoznato', owner: 'Vlasnik', documents: 'Dokumenti' },
+  sr: { all: 'Sva', loads: 'Tereti', vehicles: 'Vozila', search: 'Traži registraciju, model, vozača…', capacity: 'Kapacitet', aboard: 'Utovareno', free: 'Slobodno', cargo: 'Tereti u vozilu', empty: 'Nema utovarenih tereta', noGps: 'Bez lokacije', none: 'Nema pronađenih vozila', loading: 'Učitavanje flote…', error: 'Podaci flote nisu dostupni.', retry: 'Pokušaj ponovo', updated: 'Poslednja lokacija', specs: 'Specifikacije vozila', driver: 'Vozač', company: 'Kompanija', unknown: 'Nepoznato', owner: 'Vlasnik', documents: 'Dokumenti' },
 };
 export const vehicleMapCopy = (lang: Language) => COPY[lang as keyof typeof COPY] || COPY.en;
 type RecordData = Record<string, unknown>;
@@ -65,12 +66,18 @@ const VehicleCard = ({ vehicle, loads, lang, cargoError, onOpenLoad }: { vehicle
   </div>;
 };
 
-export const VehicleTrackingMap = ({ lang, role, userId, companyIds, onOpenLoad }: { lang: Language; role: Role; userId?: number; companyIds: number[]; onOpenLoad: (id: string) => void }) => {
+const chipClass = (active: boolean) => `flex h-9 flex-[1_1_0px] shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-xs font-bold transition-all hover:-translate-y-0.5 ${active
+  ? 'bg-white shadow-md ring-2 ring-current ring-offset-2 ring-offset-white/40 dark:bg-slate-900 dark:ring-offset-slate-900/40'
+  : 'bg-white/25 backdrop-blur-md hover:bg-white/40 dark:bg-slate-900/25 dark:hover:bg-slate-900/40'}`;
+
+export const VehicleTrackingMap = ({ lang, role, userId, companyIds, onOpenLoad, headerSlot }: { lang: Language; role: Role; userId?: number; companyIds: number[]; onOpenLoad: (id: string) => void; headerSlot?: HTMLElement | null }) => {
   const t = vehicleMapCopy(lang);
   const fleet = useApiList(api.vehicles.list, { per_page: 100 });
   const cargo = useApiList(api.loads.list, { per_page: 500, tracking: true, statuses: 'in_delivery' });
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const markerRefs = useRef(new Map<string, L.Marker>());
   useEffect(() => { if (fleet.hasMore && !fleet.loading && !fleet.loadingMore && !fleet.error) void fleet.loadMore(); }, [fleet.hasMore, fleet.loading, fleet.loadingMore, fleet.error, fleet.loadMore]);
   useEffect(() => { if (cargo.hasMore && !cargo.loading && !cargo.loadingMore && !cargo.error) void cargo.loadMore(); }, [cargo.hasMore, cargo.loading, cargo.loadingMore, cargo.error, cargo.loadMore]);
   const vehicles = useMemo(() => fleet.items.filter((vehicle) => {
@@ -79,23 +86,53 @@ export const VehicleTrackingMap = ({ lang, role, userId, companyIds, onOpenLoad 
     return own && [vehicle.registration_number, vehicle.make, vehicle.model, record(vehicle.assigned_driver).name].join(' ').toLocaleLowerCase().includes(query.toLocaleLowerCase().trim());
   }), [fleet.items, role, userId, companyIds, query]);
   const points = useMemo(() => vehicles.flatMap((vehicle) => { const location = vehiclePosition(vehicle); return location ? [location.point] : []; }), [vehicles]);
-  const unlocated = vehicles.filter((vehicle) => !vehiclePosition(vehicle));
-  const selectedVehicle = unlocated.find((vehicle) => String(vehicle.id) === selected);
-  const card = (vehicle: RecordData) => <VehicleCard vehicle={vehicle} loads={cargo.items.filter((load) => String(load.vehicle_id) === String(vehicle.id))} lang={lang} cargoError={Boolean(cargo.error) || cargo.loading || cargo.loadingMore || cargo.hasMore} onOpenLoad={onOpenLoad} />;
-  return <div className="absolute inset-0">
-    <MapContainer center={[48.5, 14.8]} zoom={5} zoomControl={false} className="h-full w-full">
+  const cargoPending = Boolean(cargo.error) || cargo.loading || cargo.loadingMore || cargo.hasMore;
+  const loadsFor = (vehicle: RecordData) => cargo.items.filter((load) => String(load.vehicle_id) === String(vehicle.id));
+  // Located vehicles show their card as a map popup; the rest get it pinned bottom-left.
+  const selectedVehicle = vehicles.find((vehicle) => String(vehicle.id) === selected && !vehiclePosition(vehicle));
+  const card = (vehicle: RecordData) => <VehicleCard vehicle={vehicle} loads={loadsFor(vehicle)} lang={lang} cargoError={cargoPending} onOpenLoad={onOpenLoad} />;
+  const showAll = () => {
+    setSelected(null);
+    const map = mapRef.current;
+    if (!map) return;
+    map.closePopup();
+    if (points.length) map.flyToBounds(L.latLngBounds(points), { paddingTopLeft: [40, 160], paddingBottomRight: [40, 40], maxZoom: 12, duration: 0.6 });
+  };
+  const focusVehicle = (vehicle: RecordData) => {
+    const id = String(vehicle.id);
+    if (selected === id) { showAll(); return; }
+    setSelected(id);
+    const map = mapRef.current, location = vehiclePosition(vehicle);
+    if (!map) return;
+    map.closePopup();
+    if (!location) return;
+    map.once('moveend', () => markerRefs.current.get(id)?.openPopup());
+    map.flyTo(location.point, Math.max(map.getZoom(), 9), { duration: 0.6 });
+  };
+  const headerChips = <>
+    <button type="button" aria-pressed={selected === null} onClick={showAll} className={`${chipClass(selected === null)} border-slate-400 text-slate-700 dark:text-slate-200`}><LayoutGrid className="h-3.5 w-3.5 shrink-0" /><span>{t.all}</span><span className="opacity-70">{vehicles.length}</span></button>
+    {vehicles.map((vehicle) => {
+      const id = String(vehicle.id), located = Boolean(vehiclePosition(vehicle));
+      return <button key={id} type="button" aria-pressed={selected === id} title={located ? undefined : t.noGps} onClick={() => focusVehicle(vehicle)} className={`${chipClass(selected === id)} ${located ? 'border-sky-400 text-sky-700 dark:text-sky-300' : 'border-dashed border-slate-400 text-slate-500 dark:text-slate-400'}`}>
+        {located ? <Truck className="h-3.5 w-3.5 shrink-0" /> : <MapPinOff className="h-3.5 w-3.5 shrink-0" />}<span>{String(vehicle.registration_number || `#${id}`)}</span>{!cargoPending && <span className="opacity-70">{loadsFor(vehicle).length}</span>}
+      </button>;
+    })}
+  </>;
+  return <div className="absolute inset-0 z-0">
+    {headerSlot && createPortal(headerChips, headerSlot)}
+    <MapContainer ref={mapRef} center={[48.5, 14.8]} zoom={5} zoomControl={false} className="h-full w-full">
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap contributors" />
       <ZoomControl position="bottomright" /><Bounds points={points} />
-      {vehicles.map((vehicle) => { const location = vehiclePosition(vehicle); if (!location) return null; return <Marker key={String(vehicle.id)} position={location.point} title={String(vehicle.registration_number || '')} icon={trackingMarkerIcon(String(vehicle.transport_type || 'road'), 'Booked')}
-        eventHandlers={{ mouseover: (event) => event.target.openPopup() }}><Popup maxWidth={320} minWidth={280} autoPanPaddingTopLeft={[20, 160]} autoPanPaddingBottomRight={[20, 30]}>{card(vehicle)}</Popup></Marker>; })}
+      {vehicles.map((vehicle) => { const id = String(vehicle.id), location = vehiclePosition(vehicle); if (!location) return null; return <Marker key={id} position={location.point} title={String(vehicle.registration_number || '')} icon={trackingMarkerIcon(String(vehicle.transport_type || 'road'), 'Booked')}
+        ref={(marker) => { if (marker) markerRefs.current.set(id, marker); else markerRefs.current.delete(id); }}
+        eventHandlers={{ mouseover: (event) => event.target.openPopup(), popupopen: () => setSelected(id), popupclose: () => setSelected((current) => current === id ? null : current) }}><Popup maxWidth={320} minWidth={280} autoPanPaddingTopLeft={[20, 160]} autoPanPaddingBottomRight={[20, 30]}>{card(vehicle)}</Popup></Marker>; })}
     </MapContainer>
-    <div className="absolute left-4 right-4 top-[76px] z-[1000] flex flex-wrap items-center gap-3 rounded-2xl border border-white/60 bg-white/90 p-3 shadow-lg backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/90">
+    <div className="absolute left-4 right-4 top-[82px] z-[1000] flex flex-wrap items-center gap-3 rounded-2xl border border-white/60 bg-white/90 p-3 shadow-lg backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/90">
       <Search className="h-4 w-4 text-sky-500" /><input aria-label={t.search} value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t.search} className="min-w-0 flex-1 bg-transparent text-sm outline-none dark:text-white" /><span className="text-xs font-bold text-sky-600">{vehicles.length} {t.vehicles.toLocaleLowerCase()}</span>
       {(fleet.loading || fleet.loadingMore) && <span className="text-xs text-slate-500">{t.loading}</span>}
       {(fleet.error || cargo.error) && <button className="text-xs text-rose-600" onClick={() => { void fleet.refresh(); void cargo.refresh(); }}>{t.error} {t.retry}</button>}
       {!fleet.loading && !fleet.error && vehicles.length === 0 && <span className="text-xs text-slate-500">{t.none}</span>}
     </div>
-    {unlocated.length > 0 && <div className="absolute bottom-6 left-4 z-[1000] max-w-[calc(100%-5rem)] rounded-xl border border-white/60 bg-white/95 p-3 shadow-lg dark:bg-slate-900"><div className="mb-2 text-xs font-bold text-slate-500">{t.noGps} · {unlocated.length}</div><div className="flex max-w-96 gap-2 overflow-x-auto">{unlocated.map((vehicle) => <button key={String(vehicle.id)} onClick={() => setSelected(selected === String(vehicle.id) ? null : String(vehicle.id))} className="flex shrink-0 items-center gap-2 rounded-lg bg-sky-50 px-3 py-2 text-xs font-bold text-sky-700"><Truck className="h-4 w-4" />{String(vehicle.registration_number)}</button>)}</div></div>}
-    {selectedVehicle && <div className="absolute bottom-28 left-4 z-[1001] overflow-hidden rounded-2xl shadow-2xl"><button aria-label="Close" onClick={() => setSelected(null)} className="absolute right-2 top-1 text-xl text-white">×</button>{card(selectedVehicle)}</div>}
+    {selectedVehicle && <div className="absolute bottom-6 left-4 z-[1001] overflow-hidden rounded-2xl shadow-2xl"><button aria-label="Close" onClick={() => setSelected(null)} className="absolute right-2 top-1 text-xl text-white">×</button>{card(selectedVehicle)}</div>}
   </div>;
 };
