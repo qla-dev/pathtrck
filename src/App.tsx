@@ -7310,7 +7310,7 @@ export default function App() {
               : view === "warehouse-overview" || view === "warehouses" || view === "docks" || view === "admin"
                 ? "p-4 pb-24 md:pb-4"
                 : "p-6 pb-24 md:pb-6",
-            view === "messages" || view === "map" || view === "aircraft" || view === "vessels"
+            view === "messages" || view === "map" || view === "aircraft" || view === "vessels" || view === "load-planning"
               ? "overflow-hidden"
               : "overflow-y-auto",
           )}
@@ -7323,6 +7323,7 @@ export default function App() {
                   view === "map" ||
                   view === "aircraft" ||
                   view === "vessels" ||
+                  view === "load-planning" ||
                   isTrackingMapActive) &&
                   "h-full",
               )}
