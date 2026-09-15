@@ -14,6 +14,19 @@ export type IconSelectOption = {
   toneClass?: string;
 };
 
+/** A logo when there is one, the icon only when there is not or it fails to load - never both stacked. */
+const OptionGraphic = ({ option, selected }: { option: IconSelectOption; selected: boolean }) => {
+  const [logoFailed, setLogoFailed] = useState(false);
+  const OptionIcon = option.icon;
+  return (
+    <span className="flex h-4 w-4 shrink-0 items-center justify-center">
+      {option.logoUrl && !logoFailed
+        ? <img src={option.logoUrl} alt="" className="h-4 w-4 object-contain" onError={() => setLogoFailed(true)} />
+        : <OptionIcon className={cn('h-3.5 w-3.5', option.toneClass || (selected ? 'text-primary' : undefined))} />}
+    </span>
+  );
+};
+
 type IconSelectProps = {
   value: string;
   onChange: (value: string) => void;
@@ -101,22 +114,9 @@ export const IconSelect = ({ value, onChange, options, placeholder, icon: FieldI
     setQuery('');
   };
 
-  const optionGraphic = (option: IconSelectOption, selectedGraphic = false) => {
-    const OptionIcon = option.icon;
-    return (
-      <span className="relative flex h-4 w-4 shrink-0 items-center justify-center">
-        <OptionIcon className={cn('h-3.5 w-3.5', option.toneClass || (selectedGraphic ? 'text-primary' : undefined))} />
-        {option.logoUrl && (
-          <img
-            src={option.logoUrl}
-            alt=""
-            className="absolute inset-0 h-4 w-4 object-contain"
-            onError={(event) => { event.currentTarget.style.display = 'none'; }}
-          />
-        )}
-      </span>
-    );
-  };
+  const optionGraphic = (option: IconSelectOption, selectedGraphic = false) => (
+    <OptionGraphic key={option.logoUrl || option.value} option={option} selected={selectedGraphic} />
+  );
 
   const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (event.key === 'Escape') {

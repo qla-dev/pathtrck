@@ -529,7 +529,8 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
                 {step === 0 && (
                   <div className="grid gap-3 lg:grid-cols-3">
                     <div className="flex flex-col gap-3">
-                      <div className="space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
+                      {/* Without the truck-only trailer card below, this card takes the column's full height. */}
+                      <div className={cn('space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-800', draft.transportType !== 'truck' && 'flex-1')}>
                         <div className="flex items-center gap-2 text-primary">
                           <Truck className="h-4 w-4" />
                           <p className="text-xs font-black uppercase tracking-wider">{u('fleet.vehicleTypeBlock', 'Vehicle type')}</p>
