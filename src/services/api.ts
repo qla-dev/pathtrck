@@ -776,6 +776,7 @@ export const api = {
   routes: resourceApi<Record<string, unknown>>('routes'),
   trackingEvents: resourceApi<Record<string, unknown>>('tracking-events'),
   conversations: resourceApi<Record<string, unknown>>('conversations'),
+  openSupportConversation: () => request<Record<string, unknown>>('/support-conversation', { method: 'POST' }),
   messages: resourceApi<Record<string, unknown>>('messages'),
   loadDrafts: resourceApi<Record<string, unknown>>('load-drafts'),
   warehouses: {

@@ -5529,6 +5529,15 @@ export default function App() {
     string | null
   >(null);
   const [isDark, setIsDark] = useState(false);
+  useEffect(() => {
+    const openSupport = (event: Event) => {
+      setOpenMessagesConversationId((event as CustomEvent<string>).detail);
+      setView('messages');
+      setMessagesRefreshSignal((current) => current + 1);
+    };
+    window.addEventListener('open-support-chat', openSupport);
+    return () => window.removeEventListener('open-support-chat', openSupport);
+  }, []);
   const [isSidebarOpen, setIsSidebarOpen] = useState(() =>
     getInitialSidebarState(),
   );
@@ -7614,6 +7623,11 @@ export default function App() {
             }}
             onPinLenaConversation={(conversationId, loadId, loadLabel) => setPinnedLena({ conversationId, loadId, loadLabel, refreshToken: Date.now() })}
             onStartGenericLenaChat={() => setPinnedLena({ refreshToken: Date.now() })}
+            onOpenSupportChat={(conversationId) => {
+              setOpenMessagesConversationId(conversationId);
+              setView('messages');
+              setMessagesRefreshSignal((current) => current + 1);
+            }}
             onClose={() => { setOpenLoadDetailsId(null); setOpenLoadDetailsTab('tracker'); }}
           />
         )}

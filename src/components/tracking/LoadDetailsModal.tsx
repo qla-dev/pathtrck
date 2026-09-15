@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { podCopy, podFailureReason } from './ChecklistPodModal';
+import { isBackwardLoadStatus, statusSupportCopy } from '../../lib/loadStatusProgression';
 import L from 'leaflet';
 import { MapContainer, TileLayer, Marker, Popup, CircleMarker, Polyline, Tooltip, useMap } from 'react-leaflet';
 import { ChevronRight, Package as PackageIcon, RotateCcw, Share2, Star, Route, Lock, Coins, Loader2, Sparkles, FileBarChart2, Upload, FileSpreadsheet, Fuel, BedDouble, ParkingCircle, Landmark, ReceiptText, FileText, FileCheck2, Printer, Play, Pause, MessageSquare, StickyNote } from 'lucide-react';
@@ -147,9 +148,10 @@ type LoadDetailsModalProps = {
   onEditLoad?: (loadId: string) => void;
   onPinLenaConversation?: (conversationId: string, loadId: string, loadLabel?: string) => void;
   onStartGenericLenaChat?: () => void;
+  onOpenSupportChat?: (conversationId: string) => void;
 };
 
-export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], onClose, onChanged, initialTab = 'tracker', onEditLoad, onPinLenaConversation, onStartGenericLenaChat }: LoadDetailsModalProps) => {
+export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], onClose, onChanged, initialTab = 'tracker', onEditLoad, onPinLenaConversation, onStartGenericLenaChat, onOpenSupportChat }: LoadDetailsModalProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [basePackage, setSelectedPackage] = useState<PackageData>(emptyPackage);
   const [detailsOpen, setDetailsOpen] = useState(true);
@@ -364,7 +366,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
       : 0;
   // Receipt is the carrier's - they finish the drive and say the cargo is delivered. Review is the
   // recipient's, and it is the only status they can set themselves.
-  const canSelectStatus = (status: PackageData['status']) => hideFinishedStatus && status === 'Finished' ? false
+  const canSelectStatus = (status: PackageData['status']) => role === 'superadmin' ? true : hideFinishedStatus && status === 'Finished' ? false
     : isStorage ? canManageStatuses
       : (canManageStatuses && status !== 'Review') || (role === 'user' && status === 'Review');
   const receivedActionLabel = lang === 'bs'
@@ -568,8 +570,22 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
   };
 
   const changeLoadStatus = async (status: PackageData['status']) => {
+    if (statusChanging || status === selectedPackage.status) return;
+    if (role !== 'superadmin' && isBackwardLoadStatus(selectedPackage.status, status)) {
+      const copy = statusSupportCopy(lang);
+      if (await confirmAction({ title: copy.title, text: copy.body, confirmText: copy.open, cancelText: copy.cancel, icon: 'warning' })) {
+        try {
+          const response = await api.openSupportConversation();
+          onOpenSupportChat?.(String(response.data.id));
+          if (!onOpenSupportChat) window.dispatchEvent(new CustomEvent('open-support-chat', { detail: String(response.data.id) }));
+          onClose();
+        } catch { void showError(copy.error); }
+      }
+      return;
+    }
     if (!canChangeStatus || !canSelectStatus(status) || !selectedPackage.id || statusChanging || status === selectedPackage.status) return;
-    if (status === 'In delivery' || status === 'Received' || status === 'Review') {
+    const adminReversal = role === 'superadmin' && isBackwardLoadStatus(selectedPackage.status, status);
+    if (!adminReversal && (status === 'In delivery' || status === 'Received' || status === 'Review')) {
       const category = status === 'Review' ? 'review' : status === 'Received' ? 'received' : 'in_delivery';
       const items = selectedPackage.operationalChecklist || [];
       const pending = pendingForCategory(items, category);
@@ -581,7 +597,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
         return;
       }
     }
-    if (status === 'Finished' && selectedPackage.transportType === 'road' && !isStorage) {
+    if (!adminReversal && status === 'Finished' && selectedPackage.transportType === 'road' && !isStorage) {
       const confirmed = await confirmAction({
         title: lang === 'bs' ? 'Povratak vozila' : lang === 'de' ? 'Fahrzeugrückgabe' : 'Vehicle return',
         text: lang === 'bs' ? 'Otvoriti obrazac za povratak vozila i završiti transport?' : lang === 'de' ? 'Fahrzeugrückgabe öffnen und den Transport abschließen?' : 'Open the vehicle return form to finish this transport?',
@@ -593,7 +609,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
 
     // Review is the recipient's own step and the API will not take it without a review on record, so
     // it routes through the composer: submitting the review is what moves the load on.
-    if (status === 'Review' && !isStorage) {
+    if (!adminReversal && status === 'Review' && !isStorage) {
       setReceiveReviewPending(true);
       setRightTab('review');
       return;
@@ -1049,7 +1065,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
                     <button
                       type="button"
                       key={status}
-                      disabled={!canChangeStatus || !canSelectStatus(status) || statusChanging !== null}
+                      disabled={statusChanging !== null || (!(role !== 'superadmin' && isBackwardLoadStatus(selectedPackage.status, status)) && (!canChangeStatus || !canSelectStatus(status)))}
                       onClick={() => void changeLoadStatus(status)}
                       aria-label={`${u('tracking.changeStatusConfirm', 'Change status')}: ${storageStatusLabel(status)}`}
                       className={cn(
