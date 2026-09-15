@@ -17,6 +17,7 @@ import { LENA_LOAD_FILE_ACCEPT, LenaCanvasMode, latestLoadScan } from '../../lib
 import { buildScanFieldRows, ScanFieldPatch } from '../modals/scanFieldRows';
 import { api, BulkLoadRow, type PublicTrackingSummary } from '../../services/api';
 import { voiceLocaleForLanguage } from '../../lib/voiceLocale';
+import { lenaImageGeneratingLabel } from './LenaImageGeneratingPlaceholder';
 
 type LenaAIProps = {
   open: boolean;
@@ -29,6 +30,8 @@ type LenaAIProps = {
   companyIds?: number[];
   loadId?: string;
   loadLabel?: string;
+  /** Superadmin or master: offers LenaAI's AI training mode. */
+  canUseTraining?: boolean;
   initialConversationId?: string;
   onBookLoad?: (loadId?: string) => void | Promise<void>;
   onOpenLoad?: (loadId: string) => void;
@@ -197,7 +200,7 @@ function PublicTrackingLenaAI({ open, onClose, lang, trackingNumber }: LenaAIPro
   );
 }
 
-function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, loadLabel, initialConversationId, onBookLoad, onOpenLoad, initialCanvasMode = null, sideBarMode = false, pinnedMode = false, onApplyLoadPrefill, onBulkImported, onUpgrade, onTopUp, onPin, onConversationReady, onStartGenericChat }: LenaAIProps) {
+function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, loadLabel, initialConversationId, onBookLoad, onOpenLoad, initialCanvasMode = null, sideBarMode = false, pinnedMode = false, onApplyLoadPrefill, onBulkImported, onUpgrade, onTopUp, onPin, onConversationReady, onStartGenericChat, canUseTraining = false }: LenaAIProps) {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const quickActionLabels = lenaText(lang).actions as Record<import('../../lib/useLenaAiChat').LenaQuickAction, string>;
   const generalWelcome = lenaText(lang).welcome.general;
@@ -211,7 +214,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [open, onClose]);
 
-  const { tokenResetAt, tokenPackageIcon, tokenPackageColor, conversation, conversationEntryKey, conversationLoading, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId, documentsVersion, thinkingTimeline } = useLenaAiChat({
+  const { tokenResetAt, tokenPackageIcon, tokenPackageColor, conversation, conversationEntryKey, conversationLoading, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId, documentsVersion, thinkingTimeline, generatingImage } = useLenaAiChat({
     userId,
     companyIds,
     loadId,
@@ -265,6 +268,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
     onOpenLoad,
     onBookLoad,
     quickActionLabels,
+    canUseTraining,
     onQuickAction: (action) => { setVoiceMode(false); void sendQuickAction(action); },
     onSuggestedReply: (value, displayText) => { setVoiceMode(false); void sendSuggestedReply(value, displayText); },
     onStepAnswer: (step, value, displayText) => { setVoiceMode(false); void sendGuidedAnswer(step, value, displayText); },
@@ -391,6 +395,8 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
                 className={`${sideBarMode && showCanvas ? 'hidden' : 'min-h-[320px] min-w-0 flex-1'}`}
                 otherTyping={sending}
                 thinkingTimeline={thinkingTimeline}
+                imageGenerating={generatingImage}
+                imageGeneratingLabel={lenaImageGeneratingLabel(lang)}
                 thinkingSkillLabel={u('lena.usingSkillPhrase', 'is using skill')}
                 thinkingLabel={u('Thinking', '')}
                 thinkingPhrases={[

@@ -3,7 +3,7 @@ import { lenaIcon } from '../../lib/lenaIcons';
 import { latestLoadScan } from '../../lib/lenaLoadCanvas';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { CheckCircle2, Clock3, ExternalLink, FileSearch, FileText, FileUp, MapPinned, MessageCircle, Package, ReceiptText, Scale, Search, Warehouse, type LucideIcon } from 'lucide-react';
+import { CheckCircle2, Clock3, ExternalLink, FileSearch, FileText, FileUp, GraduationCap, ImagePlus, MapPinned, MessageCircle, Package, ReceiptText, Scale, Search, Warehouse, type LucideIcon } from 'lucide-react';
 
 import { API_BASE_URL, api } from '../../services/api';
 import { Language } from '../../types';
@@ -179,6 +179,8 @@ type UseLenaEmbeddedMessagesOptions = {
   outOfTokensPackageColor?: string | null;
   onUpgrade?: () => void;
   onTopUp?: () => void;
+  /** Superadmin or master: the AI training buttons are shown. Everyone else never sees them. */
+  canUseTraining?: boolean;
 };
 
 export const useLenaEmbeddedMessages = ({
@@ -199,6 +201,7 @@ export const useLenaEmbeddedMessages = ({
   outOfTokensPackageColor,
   onUpgrade,
   onTopUp,
+  canUseTraining = false,
 }: UseLenaEmbeddedMessagesOptions) => {
   const latestStep = messages.at(-1)?.text.match(LENA_STEP_MARKER_PATTERN)?.[1] ?? null;
   const legalChoiceIds = useMemo(() => legalChoiceMessageIds(messages,
@@ -282,11 +285,13 @@ export const useLenaEmbeddedMessages = ({
   // display-only cleanup.
   const quickActionsByMessage = useMemo(
     () => new Map(messages.flatMap((message, index) => {
-      const actions = message.text.match(LENA_OPTIONS_PATTERN)?.[1].split(',') as LenaQuickAction[] | undefined;
+      // The welcome carries the training button for everyone; only superadmins get to see it.
+      const actions = (message.text.match(LENA_OPTIONS_PATTERN)?.[1].split(',') as LenaQuickAction[] | undefined)
+        ?.filter((action) => canUseTraining || !action.startsWith('training'));
       const hasUserAnswerAfter = messages.slice(index + 1).some((laterMessage) => laterMessage.sender === 'me');
       return actions?.length && !hasUserAnswerAfter ? [[message.id, actions] as const] : [];
     })),
-    [messages]
+    [messages, canUseTraining]
   );
   const outOfTokensMessageIds = useMemo(
     () => new Set(messages.filter((message) => LENA_OUT_OF_TOKENS_PATTERN.test(message.text)).map((message) => message.id)),
@@ -458,7 +463,7 @@ export const useLenaEmbeddedMessages = ({
         {quickActions.length > 0 && quickActionLabels && onQuickAction && (
           <div className="flex flex-wrap gap-2">
             {quickActions.map((action) => {
-              const Icon = action === 'add' || action === 'legal_upload_load' ? FileUp : action === 'storage' ? Warehouse : action === 'tracking' ? MapPinned : action === 'booking' ? ReceiptText : action === 'free' ? MessageCircle : action === 'legal' ? Scale : FileSearch;
+              const Icon = action === 'add' || action === 'legal_upload_load' ? FileUp : action === 'storage' ? Warehouse : action === 'tracking' ? MapPinned : action === 'booking' ? ReceiptText : action === 'free' ? MessageCircle : action === 'legal' ? Scale : action === 'training' ? GraduationCap : action === 'training_image_yes' ? ImagePlus : FileSearch;
               return <button key={action} type="button" onClick={() => onQuickAction(action)} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-primary/20 bg-white px-3 py-1.5 text-xs font-bold text-primary shadow-sm transition-colors hover:border-primary hover:bg-primary hover:text-white dark:bg-slate-900">
                 <Icon className="h-3.5 w-3.5" />{quickActionLabels[action]}
               </button>;

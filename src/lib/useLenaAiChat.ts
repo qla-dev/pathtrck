@@ -4,7 +4,7 @@ import { Language } from '../types';
 import { AI_DISPATCH_SUBJECT_PREFIX, api } from '../services/api';
 import { useApiList } from '../hooks/useApiList';
 import { showError } from './swal';
-import { analyzeLenaAttachments, archiveLenaAttachment, latestLoadScan, LenaAttachment, LenaCanvasMode, loadDraftRecordToScan } from './lenaLoadCanvas';
+import { analyzeLenaAttachments, archiveLenaAttachment, latestLoadScan, LenaAttachment, LenaCanvasMode, loadDraftRecordToScan, uploadLenaAttachments } from './lenaLoadCanvas';
 import { MASKABLE_GUIDED_STEPS } from './lenaStepInputMask';
 import { withMinDelay } from './timing';
 import { replyShowingSkills, type LenaThinkingTimeline } from './lenaThinkingTimeline';
@@ -17,11 +17,21 @@ import { lenaConversationMessages } from './lenaConversationMessages';
 export const LENA_AI_GENERAL_SUBJECT = `${AI_DISPATCH_SUBJECT_PREFIX}General`;
 const LENA_STEP_MARKER_PATTERN = /\[\[LENA_STEP:([a-zA-Z]+)\]\]/;
 
-export type LenaQuickAction = 'add' | 'storage' | 'tracking' | 'booking' | 'hs' | 'free' | 'legal' | 'legal_upload_analyze' | 'legal_upload_load' | 'upload_yes' | 'upload_no' | 'start_add_yes' | 'start_add_no' | 'continue_add_yes' | 'continue_add_no';
+export type LenaQuickAction = 'add' | 'storage' | 'tracking' | 'booking' | 'hs' | 'free' | 'legal' | 'legal_upload_analyze' | 'legal_upload_load' | 'upload_yes' | 'upload_no' | 'start_add_yes' | 'start_add_no' | 'continue_add_yes' | 'continue_add_no' | 'training' | 'training_image_yes' | 'training_image_no';
 export const lenaQuickActionMarker = (action: LenaQuickAction) => `[[LENA_ACTION:${action}]]`;
-const LENA_QUICK_ACTION_PATTERN = /^\[\[LENA_ACTION:(add|storage|tracking|booking|hs|free|legal|legal_upload_analyze|legal_upload_load|upload_yes|upload_no|start_add_yes|start_add_no|continue_add_yes|continue_add_no)\]\]$/;
+const LENA_QUICK_ACTION_PATTERN = /^\[\[LENA_ACTION:(add|storage|tracking|booking|hs|free|legal|legal_upload_analyze|legal_upload_load|upload_yes|upload_no|start_add_yes|start_add_no|continue_add_yes|continue_add_no|training|training_image_yes|training_image_no)\]\]$/;
 export const lenaQuickActionFromMessage = (text: string): LenaQuickAction | undefined =>
   text.match(LENA_QUICK_ACTION_PATTERN)?.[1] as LenaQuickAction | undefined;
+/** The buttons that switch a conversation's mode, as DispatchChatController::activeGuidedMode reads them. */
+const LENA_MODE_ACTIONS: LenaQuickAction[] = ['add', 'storage', 'tracking', 'booking', 'hs', 'free', 'legal', 'legal_upload_load', 'training', 'training_image_yes', 'training_image_no'];
+/** Whether the latest mode button in these message bodies (oldest first) is AI training. */
+export const lenaTrainingActive = (bodies: string[]): boolean => {
+  for (let index = bodies.length - 1; index >= 0; index -= 1) {
+    const action = lenaQuickActionFromMessage(bodies[index].trim());
+    if (action && LENA_MODE_ACTIONS.includes(action)) return action.startsWith('training');
+  }
+  return false;
+};
 export const lenaConversationSubjectTitle = (subject: unknown): string => {
   const value = String(subject || '').trim();
   const title = value.startsWith(AI_DISPATCH_SUBJECT_PREFIX)
@@ -317,6 +327,14 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
 
   // The reply in flight, for the thinking indicator (see lenaThinkingTimeline.ts).
   const [thinkingTimeline, setThinkingTimeline] = useState<LenaThinkingTimeline | null>(null);
+  // True while an approved training image is being drawn - the chat swaps its thinking indicator for
+  // an image placeholder.
+  const [generatingImage, setGeneratingImage] = useState(false);
+  // In AI training mode an attachment is a design reference, so it is stored without the load scan.
+  const trainingActive = useMemo(
+    () => lenaTrainingActive((row && Array.isArray(row.messages) ? row.messages as Array<Record<string, unknown>> : []).map((message) => String(message.body || ''))),
+    [row],
+  );
 
   async function sendMessage(rawText: string, displayText = rawText, retryId?: string, retryConversationId?: number, source: 'text' | 'voice' = 'text') {
     const text = rawText.trim();
@@ -338,6 +356,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
     let conversationId: number;
     try {
       const guidedAction = lenaQuickActionFromMessage(text);
+      setGeneratingImage(guidedAction === 'training_image_yes');
       const entersCanvas = guidedAction === 'add' || guidedAction === 'storage' || guidedAction === 'start_add_yes' || guidedAction === 'legal_upload_load';
       const exitsCanvas = guidedAction === 'continue_add_no';
       const desiredCanvas = !loadId && (entersCanvas || (!exitsCanvas && canvasEnabled));
@@ -365,6 +384,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
     } catch (error) {
       setOptimisticMessages((messages) => messages.map((message) => message.id === optimisticId ? { ...message, status: 'failed' } : message));
       setSending(false);
+      setGeneratingImage(false);
       return;
     }
 
@@ -396,6 +416,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
       void showError(replyFailedTitle, error instanceof Error ? error.message : undefined);
     } finally {
       setSending(false);
+      setGeneratingImage(false);
     }
   }
 
@@ -488,7 +509,9 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
       // exists before reading/analyzing the file.
       conversationId = await ensureConversation(attachmentOpensCanvas);
       setOptimisticMessages((messages) => messages.map((message) => message.id === optimisticId ? { ...message, conversationId } : message));
-      attachmentScans = await analyzeLenaAttachments(files, canvasMode, conversationId, latestLoadScan(canvasAttachments));
+      attachmentScans = trainingActive
+        ? await uploadLenaAttachments(files, conversationId)
+        : await analyzeLenaAttachments(files, canvasMode, conversationId, latestLoadScan(canvasAttachments));
       await api.messages.create({
         conversation_id: conversationId,
         sender_user_id: userId,
@@ -520,7 +543,8 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
       await withMinDelay(api.dispatchChat.reply(conversationId, lang));
       await result.refresh();
       setCanvasOverride(null);
-      if (attachmentScans.length) {
+      // Training screenshots are not paperwork, so they stay out of the Documents archive.
+      if (attachmentScans.length && !trainingActive) {
         // That reply is what creates the draft on a first attachment, so the draft id is read back
         // from the server here rather than from this closure's now-stale conversation row.
         const conversationRow = await api.conversations.get(conversationId).catch(() => null);
@@ -539,5 +563,5 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
 
   const loadDraftId = row?.load_draft_id ? String(row.load_draft_id) : null;
 
-  return { outOfTokens, tokenResetAt, tokenPackageIcon, tokenPackageColor, conversation, conversationEntryKey: entryAnimationKey, conversationLoading: result.loading, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, hasActiveConversation: Boolean(row), canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId, documentsVersion, thinkingTimeline };
+  return { generatingImage, trainingActive, outOfTokens, tokenResetAt, tokenPackageIcon, tokenPackageColor, conversation, conversationEntryKey: entryAnimationKey, conversationLoading: result.loading, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, hasActiveConversation: Boolean(row), canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId, documentsVersion, thinkingTimeline };
 };

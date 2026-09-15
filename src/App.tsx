@@ -7432,6 +7432,7 @@ export default function App() {
               {view === "messages" && (
                 <MessagesView
                   lang={lang}
+                  canUseTraining={isElevatedAdmin}
                   onOpenLoad={(loadId) => setOpenLoadDetailsId(loadId)}
                   onBookLoad={handleBookLoad}
                   onApplyLoadPrefill={(patch, conversationId, draftId) => {
@@ -7670,6 +7671,7 @@ export default function App() {
           lang={lang}
           userId={currentUser?.id}
           companyIds={trackingCompanyIds}
+          canUseTraining={isElevatedAdmin}
           initialCanvasMode={lenaCanvasMode}
           onUpgrade={() => {
             setLenaAiOpen(false);

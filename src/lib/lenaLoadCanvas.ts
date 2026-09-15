@@ -16,6 +16,8 @@ export type LenaAttachment = {
   // Where the original file actually lives in server storage (see MessageAttachmentController),
   // used to build the click-to-open/download link. Undefined while the upload is still in flight.
   path?: string;
+  // An image LenaAI drew in AI training mode (see DispatchChatController::generateTrainingImage).
+  generated?: boolean;
 };
 
 const spreadsheetExtensions = ['.xlsx', '.xls', '.csv'];
@@ -130,6 +132,19 @@ export const analyzeLenaAttachments = async (files: File[], mode: LenaCanvasMode
 
 export const analyzeLenaAttachment = async (file: File, mode: LenaCanvasMode, conversationId: number, current?: LoadScanResult): Promise<LenaAttachment> =>
   (await analyzeLenaAttachments([file], mode, conversationId, current))[0];
+
+/**
+ * Stores files in the conversation without reading them as freight documents - for AI training mode,
+ * where a screenshot is a design reference for the model to look at, not a load to extract.
+ */
+export const uploadLenaAttachments = async (files: File[], conversationId: number): Promise<LenaAttachment[]> => {
+  if (!files.length || files.length > 5) throw new Error('Select between 1 and 5 files.');
+  for (const file of files) {
+    if (!isSupportedLenaFile(file)) throw new Error('Use an Excel, CSV, image, or PDF file.');
+    if (file.size > 15 * 1024 * 1024) throw new Error('The file is larger than 15 MB. Please use a smaller file.');
+  }
+  return (await Promise.all(files.map((file) => api.messageAttachments.upload(conversationId, file)))).map(({ data }) => data);
+};
 
 // The backend now returns the full accumulated draft on every scan (not just the fields the
 // latest message/file mentioned), so the most recent scanned attachment is always the

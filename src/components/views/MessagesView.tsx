@@ -15,8 +15,9 @@ import { trPackageStatus } from '../../i18n';
 import { useLenaEmbeddedMessages } from '../lena/useLenaEmbeddedMessages';
 import { LenaLoadCanvas } from '../lena/LenaLoadCanvas';
 import { buildScanFieldRows, ScanFieldPatch } from '../modals/scanFieldRows';
-import { analyzeLenaAttachments, archiveLenaAttachment, latestLoadScan, LENA_LOAD_FILE_ACCEPT, LenaAttachment, loadDraftRecordToScan } from '../../lib/lenaLoadCanvas';
-import { LENA_AI_GENERAL_SUBJECT, LenaQuickAction, lenaConversationSubjectTitle, lenaQuickActionFromMessage, lenaQuickActionMarker } from '../../lib/useLenaAiChat';
+import { analyzeLenaAttachments, archiveLenaAttachment, latestLoadScan, LENA_LOAD_FILE_ACCEPT, LenaAttachment, loadDraftRecordToScan, uploadLenaAttachments } from '../../lib/lenaLoadCanvas';
+import { LENA_AI_GENERAL_SUBJECT, LenaQuickAction, lenaConversationSubjectTitle, lenaQuickActionFromMessage, lenaQuickActionMarker, lenaTrainingActive } from '../../lib/useLenaAiChat';
+import { lenaImageGeneratingLabel } from '../lena/LenaImageGeneratingPlaceholder';
 import { withMinDelay } from '../../lib/timing';
 import { replyShowingSkills, type LenaThinkingTimeline } from '../../lib/lenaThinkingTimeline';
 import { formatClockTime, localTimestampForApi } from '../../lib/dates';
@@ -45,6 +46,8 @@ type MessagesViewProps = {
   onUpgrade?: () => void;
   onTopUp?: () => void;
   onPinConversation?: (conversationId: string, loadId?: string, loadLabel?: string) => void;
+  /** Superadmin or master: offers LenaAI's AI training mode. */
+  canUseTraining?: boolean;
 };
 
 type OptimisticMessage = {
@@ -107,7 +110,7 @@ const isDraftCreatedMessageBody = (body: string): boolean =>
 // "your draft was created" message carries a welcome- prefixed id too, but it is a real message.
 const isSyntheticWelcomeId = (id: string): boolean => id.startsWith('welcome-') && !id.startsWith('welcome-draft-');
 
-export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill, onBulkImported, refreshSignal, newChatSignal, openConversationId, onConversationOpened, onUpgrade, onTopUp, onPinConversation }: MessagesViewProps) => {
+export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill, onBulkImported, refreshSignal, newChatSignal, openConversationId, onConversationOpened, onUpgrade, onTopUp, onPinConversation, canUseTraining = false }: MessagesViewProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const quickActionLabels = lenaText(lang).actions as Record<LenaQuickAction, string>;
   const generalWelcome = lenaText(lang).welcome.general;
@@ -203,6 +206,8 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
   const [activeId, setActiveId] = useState(EMPTY_LENA_CONVERSATION_ID);
   const [draft, setDraft] = useState('');
   const [aiReplying, setAiReplying] = useState(false);
+  // True while an approved training image is being drawn (the chat shows an image placeholder).
+  const [generatingImage, setGeneratingImage] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
   // The reply in flight, for the thinking indicator (see lenaThinkingTimeline.ts).
   const [thinkingTimeline, setThinkingTimeline] = useState<LenaThinkingTimeline | null>(null);
@@ -438,6 +443,13 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     () => activeConversation.messages.flatMap((message) => message.attachments || []),
     [activeConversation.messages]
   );
+  // This view shows a pressed mode button by its label, so the labels are mapped back to their
+  // markers to tell whether the conversation is in AI training mode.
+  const trainingActive = useMemo(() => {
+    const modeActions: LenaQuickAction[] = ['add', 'storage', 'tracking', 'booking', 'hs', 'free', 'legal', 'legal_upload_load', 'training', 'training_image_yes', 'training_image_no'];
+    const markerByLabel = new Map(modeActions.map((action) => [quickActionLabels[action], lenaQuickActionMarker(action)]));
+    return lenaTrainingActive(activeConversation.messages.filter((message) => message.sender === 'me').map((message) => markerByLabel.get(message.text) ?? ''));
+  }, [activeConversation.messages, quickActionLabels]);
   const collectedFieldCount = useMemo(() => {
     if (!activeConversation.canvas) return 0;
     const scan = latestLoadScan(canvasAttachments);
@@ -451,6 +463,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     onOpenLoad,
     onBookLoad,
     quickActionLabels,
+    canUseTraining,
     onQuickAction: (action) => { setVoiceMode(false); void sendQuickMessage(lenaQuickActionMarker(action), quickActionLabels[action]); },
     onSuggestedReply: (value, displayText) => { setVoiceMode(false); void sendQuickMessage(value, displayText); },
     onStepAnswer: (step, value, displayText) => { setVoiceMode(false); void sendGuidedAnswerValue(step, value, displayText); },
@@ -492,6 +505,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
       : [...messages, { id: optimisticId, conversationId, rawText: text, displayText, status: 'sending', time: optimisticTime, sentIdsBefore: savedSentMessageIds(conversationId) }]);
     setMessageSending(true);
     if (isAiDispatch) setAiReplying(true);
+    setGeneratingImage(isAiDispatch && lenaQuickActionFromMessage(text) === 'training_image_yes');
     const thinkingStartedAt = Date.now();
     if (isAiDispatch) setThinkingTimeline({ startedAt: thinkingStartedAt });
     try {
@@ -509,6 +523,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
       setOptimisticMessages((messages) => messages.map((message) => message.id === optimisticId ? { ...message, status: 'failed' } : message));
       setMessageSending(false);
       setAiReplying(false);
+      setGeneratingImage(false);
       return;
     }
 
@@ -539,6 +554,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     }
     setAiReplying(false);
     setMessageSending(false);
+    setGeneratingImage(false);
   }
 
   // Mirrors sendMessageValue but for a questionnaire pill answer: the value is already known and
@@ -635,7 +651,10 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     setThinkingTimeline({ startedAt: Date.now() });
     let attachmentScans: LenaAttachment[] = [];
     try {
-      attachmentScans = await analyzeLenaAttachments(files, 'new_load', Number(conversationId), latestLoadScan(canvasAttachments));
+      // In AI training mode a screenshot is a design reference, stored without the load scan.
+      attachmentScans = trainingActive
+        ? await uploadLenaAttachments(files, Number(conversationId))
+        : await analyzeLenaAttachments(files, 'new_load', Number(conversationId), latestLoadScan(canvasAttachments));
       await api.messages.create({
         conversation_id: Number(conversationId),
         sender_user_id: user.id,
@@ -662,7 +681,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     try {
       await api.dispatchChat.reply(Number(conversationId), lang);
       await result.refresh();
-      if (attachmentScans.length) {
+      if (attachmentScans.length && !trainingActive) {
         // That reply is what creates the draft on a first attachment, so the draft id is read back
         // from the server here rather than from the conversation row this closure captured.
         const conversationRow = await api.conversations.get(Number(conversationId)).catch(() => null);
@@ -883,6 +902,8 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
             className="min-h-0 min-w-0 flex-1"
             otherTyping={aiReplying}
             thinkingTimeline={thinkingTimeline}
+            imageGenerating={generatingImage}
+            imageGeneratingLabel={lenaImageGeneratingLabel(lang)}
             thinkingSkillLabel={u('lena.usingSkillPhrase', 'is using skill')}
             thinkingLabel={u('Thinking', 'Thinking')}
                 thinkingPhrases={[

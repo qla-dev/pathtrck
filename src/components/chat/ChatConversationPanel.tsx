@@ -7,6 +7,7 @@ import { TypewriterText } from './TypewriterText';
 import { LenaThinkingIndicator } from './LenaThinkingIndicator';
 import type { LenaThinkingTimeline } from '../../lib/lenaThinkingTimeline';
 import { formatAttachmentSize, isInlineViewableLenaAttachment } from '../../lib/lenaLoadCanvas';
+import { LenaGeneratedImage, LenaImageGeneratingPlaceholder } from '../lena/LenaImageGeneratingPlaceholder';
 import { api } from '../../services/api';
 import { showError } from '../../lib/swal';
 import { motion } from 'motion/react';
@@ -50,6 +51,9 @@ type ChatConversationPanelProps = {
   thinkingTimeline?: LenaThinkingTimeline | null;
   /** Shown before a skill's name, e.g. "koristi skill". */
   thinkingSkillLabel?: string;
+  /** An approved training image is being drawn: the thinking indicator becomes an image placeholder. */
+  imageGenerating?: boolean;
+  imageGeneratingLabel?: string;
   onTitleClick?: () => void;
   headerLeading?: ReactNode;
   /** Reserves space for header actions in narrow side panels. */
@@ -131,6 +135,8 @@ export const ChatConversationPanel = ({
   thinkingPhrases,
   thinkingTimeline,
   thinkingSkillLabel,
+  imageGenerating = false,
+  imageGeneratingLabel = 'LenaAI is drawing your image',
   onTitleClick,
   headerLeading,
   compactHeader = false,
@@ -617,7 +623,7 @@ export const ChatConversationPanel = ({
                 // this pulls the text back up to sit flush with the top of the bubble/row.
                 'whitespace-pre-wrap text-base -mt-[3px]',
                 m.sender === 'me'
-                  ? 'text-right text-white'
+                  ? 'text-left text-white'
                   : m.sender === 'system'
                     ? 'text-amber-800'
                     : 'dark:text-slate-200'
@@ -648,6 +654,10 @@ export const ChatConversationPanel = ({
             )}
           </div>
           {m.attachments?.filter((attachment) => attachment.name !== 'LenaAI conversation').map((attachment, index) => {
+            // A picture LenaAI drew is shown as the picture, not as a file to download.
+            if (attachment.generated && attachment.path) {
+              return <LenaGeneratedImage key={`${attachment.name}-${index}`} path={attachment.path} name={attachment.name} />;
+            }
             const extension = attachmentExtension(attachment.name);
             const uploading = m.sender === 'me' && m.deliveryStatus === 'uploading';
             const cardClassName = cn(
@@ -720,7 +730,7 @@ export const ChatConversationPanel = ({
         </div>
         );
       })}
-      {(otherTyping || holdThinkingIndicator || (voiceMode && waitingForVoiceAudio)) && (
+      {imageGenerating ? <LenaImageGeneratingPlaceholder label={imageGeneratingLabel} /> : (otherTyping || holdThinkingIndicator || (voiceMode && waitingForVoiceAudio)) && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -774,6 +784,23 @@ export const ChatConversationPanel = ({
               onDraftChange(nextValue);
             }}
             onKeyDown={(e) => e.key === 'Enter' && !sendBusy && !inputLocked && onSend()}
+            // A pasted screenshot or photo is attached like a picked file; pasted text is left alone.
+            onPaste={(event) => {
+              if (!hasAttachmentHandler || attachmentBusy) return;
+              const images = Array.from(event.clipboardData?.files || []).filter((file) => file.type.startsWith('image/'));
+              if (!images.length) return;
+              event.preventDefault();
+              if (images.length > 5) {
+                window.alert(attachmentLimitLabel);
+                return;
+              }
+              const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+              void onAttachFile?.(images.map((file, index) => new File(
+                [file],
+                `pasted-image-${stamp}${images.length > 1 ? `-${index + 1}` : ''}.${file.type.split('/')[1]?.replace('jpeg', 'jpg') || 'png'}`,
+                { type: file.type },
+              )));
+            }}
             placeholder={inputLocked ? (inputLockedPlaceholder ?? messagePlaceholder) : messagePlaceholder}
             className={cn(
               'h-9 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 dark:text-white outline-none pl-3 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 dark:disabled:bg-slate-900',

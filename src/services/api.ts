@@ -814,6 +814,8 @@ export const api = {
       });
     },
     open: openMessageAttachment,
+    /** The file's bytes, for showing an image inline (the endpoint needs the Bearer token, so no plain <img src>). */
+    blob: fetchAttachmentBlob,
   },
   legalSources: {
     open: openLegalSource,
