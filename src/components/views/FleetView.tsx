@@ -19,6 +19,7 @@ import {
   Download,
   Trash2,
   Building2,
+  Handshake,
 } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, Area, Line, PieChart, Pie, Cell, Legend } from 'recharts';
 import { Language, Role } from '../../types';
@@ -62,6 +63,8 @@ type FleetVehicle = {
   ownershipType: string;
   companyId?: string;
   companyName?: string;
+  /** Someone else's truck, listed because it is carrying one of this company's loads right now. */
+  external?: boolean;
   source?: Record<string, unknown>;
 };
 
@@ -224,7 +227,7 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
       if (page >= lastPage || response.data.length === 0) break;
     }
     const scopedRows = rows.filter((row) => {
-      if (isCompanyOperationsRole(role) && companyIds.length > 0) return companyIds.includes(Number(row.company_id));
+      if (isCompanyOperationsRole(role) && companyIds.length > 0) return companyIds.includes(Number(row.company_id)) || Boolean(row.carrying_your_load);
       if (role === 'driver' && userId) {
         const permittedUsers = Array.isArray(row.permitted_users)
           ? row.permitted_users as Array<Record<string, unknown>>
@@ -241,7 +244,9 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
     });
     setVehicles(scopedRows.map((row) => {
       const locations = Array.isArray(row.locations) ? row.locations as Array<Record<string, unknown>> : [];
-      const lastLocation = locations[locations.length - 1];
+      const lastLocation = (row.latest_location && typeof row.latest_location === 'object'
+        ? row.latest_location
+        : locations[locations.length - 1]) as Record<string, unknown> | undefined;
       const features = (row.features && typeof row.features === 'object' ? row.features : {}) as Record<string, unknown>;
       const status = String(row.status || 'idle').toLowerCase();
       return {
@@ -257,6 +262,7 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
         configuration: String(features.configuration || '—'), capacityKg: Number(row.capacity_kg || 0), volumeM3: Number(row.capacity_m3 || 0),
         ownershipType: String(row.ownership_type || 'owned'),
         companyId: row.company_id ? String(row.company_id) : '',
+        external: isCompanyOperationsRole(role) && !companyIds.includes(Number(row.company_id)),
         companyName: row.company && typeof row.company === 'object' ? String((row.company as Record<string, unknown>).name || '') : '',
         source: row,
       };
@@ -477,7 +483,8 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
             </span>
           </div>
           <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {vehicles.map((vehicle) => {
+            {/* A partner's truck is only on loan to this view - it is not the company's to share. */}
+            {vehicles.filter((vehicle) => !vehicle.external).map((vehicle) => {
               const shared = Boolean(sharedAccess[vehicle.id]);
               const VehicleIcon = vehicleTypeIcon[vehicle.transportType];
               return (
@@ -587,6 +594,13 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
                               <Building2 className="h-3 w-3 shrink-0" />{v.companyName || u('fleet.noCompany', 'No company')}
                             </p>
                           )}
+                          {v.external && (
+                            <p className="mt-0.5 inline-flex max-w-full items-center gap-1 truncate rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-black uppercase text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">
+                              <Handshake className="h-3 w-3 shrink-0" />
+                              {u('fleet.partnerVehicle', 'Partner vehicle')}
+                              {v.source?.owner && typeof v.source.owner === 'object' ? ` · ${String((v.source.owner as Record<string, unknown>).name || '')}` : ''}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -659,15 +673,18 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
                         >
                           <MapIcon className="w-4 h-4" />
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => openEditVehicle(v)}
-                          title={u('fleet.editVehicleTitle', 'Edit vehicle')}
-                          aria-label={u('fleet.editVehicleTitle', 'Edit vehicle')}
-                          className="cursor-pointer rounded-lg bg-slate-100 p-2 transition hover:text-primary dark:bg-slate-800"
-                        >
-                          <Settings className="w-4 h-4" />
-                        </button>
+                        {/* A partner's truck can be followed here, not edited. */}
+                        {!v.external && (
+                          <button
+                            type="button"
+                            onClick={() => openEditVehicle(v)}
+                            title={u('fleet.editVehicleTitle', 'Edit vehicle')}
+                            aria-label={u('fleet.editVehicleTitle', 'Edit vehicle')}
+                            className="cursor-pointer rounded-lg bg-slate-100 p-2 transition hover:text-primary dark:bg-slate-800"
+                          >
+                            <Settings className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

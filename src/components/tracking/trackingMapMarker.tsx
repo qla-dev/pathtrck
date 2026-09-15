@@ -12,12 +12,13 @@ const STATUS_MARKER_COLORS: Record<PackageData['status'], string> = {
 const TRANSPORT_MARKER_ICONS = { air: Plane, sea: Ship, rail: Train, road: Truck } as const;
 const markerIconCache = new Map<string, L.DivIcon>();
 
-export const trackingMarkerIcon = (transportType: string, status: PackageData['status']) => {
-  const key = `${transportType}|${status}`;
+/** `colorOverride` replaces the status colour - the vehicle map colours by whose truck it is instead. */
+export const trackingMarkerIcon = (transportType: string, status: PackageData['status'], colorOverride?: string) => {
+  const key = `${transportType}|${status}|${colorOverride || ''}`;
   const cached = markerIconCache.get(key);
   if (cached) return cached;
 
-  const color = STATUS_MARKER_COLORS[status] || '#64748b';
+  const color = colorOverride || STATUS_MARKER_COLORS[status] || '#64748b';
   const Icon = TRANSPORT_MARKER_ICONS[transportType as keyof typeof TRANSPORT_MARKER_ICONS] || Truck;
   const glyph = renderToStaticMarkup(<Icon width={16} height={16} color="#ffffff" strokeWidth={2.4} />);
   const icon = L.divIcon({
