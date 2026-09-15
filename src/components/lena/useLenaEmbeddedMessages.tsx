@@ -10,7 +10,7 @@ import { Language } from '../../types';
 import { ChatMessage } from '../chat/types';
 import { LenaBookingCard, LenaLoadDetailsCard, LenaLoadMapCard, LenaLoadStatusCard, LenaLocationCard, LenaLocationChoiceCard } from './LenaEmbeddedCards';
 import { LenaOutOfTokensCard } from './LenaOutOfTokensCard';
-import { LenaQuickAction } from '../../lib/useLenaAiChat';
+import { LenaQuickAction, lenaConversationSubjectTitle } from '../../lib/useLenaAiChat';
 import { legalChoiceMessageIds } from '../../lib/lenaLegalChoices';
 
 const EMPTY_PRELOADED_LOADS: Record<string, Record<string, unknown>> = {};
@@ -31,6 +31,12 @@ const LOAD_READY_MARKER_GLOBAL = /\[\[LOAD_READY_TO_POST(?::complete)?\]\]/g;
 const LENA_STEP_MARKER_PATTERN = /\[\[LENA_STEP:([a-zA-Z]+)\]\]/;
 const LENA_STEP_MARKER_GLOBAL = /\[\[LENA_STEP:[a-zA-Z]+\]\]/g;
 const LENA_SKIP_MARKER_GLOBAL = /\[\[LENA_SKIP:[a-zA-Z]+\]\]/g;
+// AI training: LenaAI asks the admin to pick another conversation, and the pick names it back
+// (see agents/lena/training/skills/refer-to-conversation.md).
+const LENA_PICK_CONVERSATION_PATTERN = /\[\[LENA_PICK:conversation\]\]/;
+const LENA_PICK_CONVERSATION_GLOBAL = /\[\[LENA_PICK:conversation\]\]/g;
+const LENA_CONVERSATION_REF_GLOBAL = /\[\[LENA_CONVERSATION:\d+\]\]\s*/g;
+const CONVERSATION_REF_LABEL: Record<string, string> = { bs: 'Konverzacija', hr: 'Razgovor', sr: 'Конверзација', de: 'Unterhaltung', en: 'Conversation' };
 // The id list can come back empty ("[[LEGAL_SOURCES:]]") when no catalogue document supports the
 // answer, so both patterns accept an empty list: the marker must still be stripped from the visible
 // text, and an empty list must yield no source cards.
@@ -293,6 +299,35 @@ export const useLenaEmbeddedMessages = ({
     })),
     [messages, canUseTraining]
   );
+  // The conversation picker: shown under LenaAI's latest message when it asks the admin to choose
+  // another conversation to reference. The list is theirs, newest first, and searches by subject.
+  const conversationPickMessageId = useMemo(() => {
+    const latestMessage = messages.at(-1);
+    return canUseTraining && latestMessage?.sender === 'other' && LENA_PICK_CONVERSATION_PATTERN.test(latestMessage.text)
+      ? latestMessage.id
+      : null;
+  }, [messages, canUseTraining]);
+  const [conversationSearch, setConversationSearch] = useState('');
+  const [conversationChoices, setConversationChoices] = useState<SuggestedReply[]>([]);
+  useEffect(() => {
+    if (!conversationPickMessageId) return undefined;
+    let cancelled = false;
+    api.conversations.list({ per_page: 50, ...(conversationSearch ? { search: conversationSearch } : {}) })
+      .then((response) => {
+        if (cancelled) return;
+        setConversationChoices(response.data.map((row) => {
+          const lastActive = row.last_message_at ? new Date(String(row.last_message_at)) : null;
+          const date = lastActive && !Number.isNaN(lastActive.getTime()) ? ` · ${lastActive.toLocaleDateString(lang)}` : '';
+          return { label: `${lenaConversationSubjectTitle(row.subject) || `#${row.id}`}${date}`, value: String(row.id), icon: MessageCircle };
+        }));
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [conversationPickMessageId, conversationSearch, lang]);
+  const conversationPickGroup = useMemo<SuggestedReplyGroup>(
+    () => ({ options: conversationChoices, searchable: true, onSearch: setConversationSearch }),
+    [conversationChoices],
+  );
   const outOfTokensMessageIds = useMemo(
     () => new Set(messages.filter((message) => LENA_OUT_OF_TOKENS_PATTERN.test(message.text)).map((message) => message.id)),
     [messages]
@@ -397,6 +432,8 @@ export const useLenaEmbeddedMessages = ({
       .replace(LENA_OUT_OF_TOKENS_GLOBAL, '')
       .replace(LENA_SKIP_MARKER_GLOBAL, lenaText(lang).ui['lena.shared.2'])
       .replace(LEGAL_SOURCES_GLOBAL, '')
+      .replace(LENA_PICK_CONVERSATION_GLOBAL, '')
+      .replace(LENA_CONVERSATION_REF_GLOBAL, `${CONVERSATION_REF_LABEL[lang] ?? CONVERSATION_REF_LABEL.en}: `)
       .trim();
     return {
       ...message,
@@ -430,7 +467,7 @@ export const useLenaEmbeddedMessages = ({
     const locationChoice = locationChoiceByMessage.get(message.id);
     const loadReady = loadReadyMessageIds.has(message.id);
     const outOfTokens = outOfTokensMessageIds.has(message.id);
-    if (!embeddedLoad && !locationLoad && !mapLoad && !statusLoad && (!hasBooking || !handleBook) && quickActions.length === 0 && legalChoices.length === 0 && !suggestedReplies && !locationChoice && !loadReady && !outOfTokens) return null;
+    if (!embeddedLoad && !locationLoad && !mapLoad && !statusLoad && (!hasBooking || !handleBook) && quickActions.length === 0 && legalChoices.length === 0 && !suggestedReplies && !locationChoice && !loadReady && !outOfTokens && conversationPickMessageId !== message.id) return null;
 
     // Messages that show a timestamp get its (invisible-until-hover, but still laid out) line as
     // extra breathing room above this block for free; messages without one (e.g. the welcome
@@ -482,6 +519,13 @@ export const useLenaEmbeddedMessages = ({
             }}
           />
         )}
+        {conversationPickMessageId === message.id && onSuggestedReply && (
+          <SearchableSuggestionPills
+            group={conversationPickGroup}
+            lang={lang}
+            onSubmit={(value, label) => onSuggestedReply(`[[LENA_CONVERSATION:${value}]] ${label ?? `#${value}`}`, label)}
+          />
+        )}
         {suggestedReplies && onStepAnswer && <QuestionnaireSuggestionPills group={suggestedReplies.group} lang={lang} onSubmit={(value, displayText) => onStepAnswer(suggestedReplies.step, value, displayText ?? value)} onSelectionChange={onSuggestedDraftChange} />}
         {loadReady && (
           <button type="button" onClick={onLoadReady} className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-left transition-colors hover:border-emerald-400 dark:border-emerald-900/70 dark:bg-emerald-950/30">
@@ -490,7 +534,7 @@ export const useLenaEmbeddedMessages = ({
         )}
       </div>
     );
-  }, [legalChoiceIds, bookingOffers, resolvedEmbeddedLoads, fallbackLoadId, lang, loadDetailCards, loadLocationCards, loadMapCards, loadReadyMessageIds, loadStatusCards, locationChoiceByMessage, onBookLoad, onLoadReady, onOpenLoad, onQuickAction, onStepAnswer, onSuggestedDraftChange, onSuggestedReply, onTopUp, onUpgrade, outOfTokensMessageIds, outOfTokensPackageColor, outOfTokensPackageIcon, outOfTokensResetAt, questionnaireSuggestionsByMessage, quickActionLabels, quickActionsByMessage]);
+  }, [legalChoiceIds, bookingOffers, resolvedEmbeddedLoads, fallbackLoadId, lang, loadDetailCards, loadLocationCards, loadMapCards, loadReadyMessageIds, loadStatusCards, locationChoiceByMessage, onBookLoad, onLoadReady, onOpenLoad, onQuickAction, onStepAnswer, onSuggestedDraftChange, onSuggestedReply, onTopUp, onUpgrade, outOfTokensMessageIds, outOfTokensPackageColor, outOfTokensPackageIcon, outOfTokensResetAt, questionnaireSuggestionsByMessage, quickActionLabels, quickActionsByMessage, conversationPickMessageId, conversationPickGroup]);
 
   // The cited laws are part of the answer, not a card attached under it, so this renders inside the
   // message bubble above the hover timestamp rather than in renderMessageExtra below it.
