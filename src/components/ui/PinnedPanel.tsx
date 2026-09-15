@@ -30,6 +30,7 @@ type PinnedPanelProps = {
   /** Shown on the first expand while the panel grows; the real contents mount once it has finished. */
   placeholder?: ReactNode;
   className?: string;
+  contentClassName?: string;
   children: ReactNode;
 };
 
@@ -39,7 +40,7 @@ const shellButton = 'flex h-8 w-8 shrink-0 cursor-pointer items-center justify-c
  * The pinned right-hand sidebar shell from LenaAI's pinned mode (same width, height, collapse and
  * close controls), for page tools that stay open beside the page instead of covering it.
  */
-export const PinnedPanel = ({ open, title, subtitle, icon: Icon, onClose, closeLabel, collapseLabel, expandLabel, actions, toolbar, footer, defaultCollapsed = false, collapsedTitle, collapseSignal, placeholder, className, children }: PinnedPanelProps) => {
+export const PinnedPanel = ({ open, title, subtitle, icon: Icon, onClose, closeLabel, collapseLabel, expandLabel, actions, toolbar, footer, defaultCollapsed = false, collapsedTitle, collapseSignal, placeholder, className, contentClassName, children }: PinnedPanelProps) => {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   useEffect(() => { if (collapseSignal) setCollapsed(true); }, [collapseSignal]);
   useEffect(() => { if (open) setCollapsed(defaultCollapsed); }, [open, defaultCollapsed]);
@@ -89,7 +90,7 @@ export const PinnedPanel = ({ open, title, subtitle, icon: Icon, onClose, closeL
           </header>
           {!collapsed && !ready && placeholder}
           {showContent && toolbar && <div className="shrink-0 border-b border-slate-200 p-3 dark:border-slate-800">{toolbar}</div>}
-          {showContent && <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">{children}</div>}
+          {showContent && <div className={cn('min-h-0 flex-1 space-y-3 overflow-y-auto p-3', contentClassName)}>{children}</div>}
           {showContent && footer && <footer className="shrink-0 border-t border-slate-200 p-3 dark:border-slate-800">{footer}</footer>}
         </motion.aside>
       )}

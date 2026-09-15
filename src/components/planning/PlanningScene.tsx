@@ -529,8 +529,24 @@ export function PlanningScene(props: Props) {
     logoMark?.addEventListener('load',refreshLogo);
     void document.fonts?.load(`bold 64px ${BRAND_FONT}`).then(refreshLogo,()=>{});
     runtime.current={redraw,changeView,move:moveCamera,snapshot:()=>({view:latest.current.view,position:{x:+camera.position.x.toFixed(4),y:+camera.position.y.toFixed(4),z:+camera.position.z.toFixed(4)},target:{x:+controls.target.x.toFixed(4),y:+controls.target.y.toFixed(4),z:+controls.target.z.toFixed(4)},fov:camera.fov}),zoom:n=>{camera.position.sub(controls.target).multiplyScalar(n).add(controls.target);controls.update();},
-      // Every rack has its own world position and aisle direction; use those instead of a sample camera point.
-      focusRack:()=>{if(latest.current.mini)return;const key=latest.current.pickedRack,unit=rackMeshes.find(mesh=>mesh.userData.rackItem?.key===key);if(!unit)return;const item=unit.userData.rackItem as RackItem,world=new T.Vector3();unit.getWorldPosition(world);const toward=Number(unit.userData.toward)||1;target.set(world.x-5.5,world.y+2.8,world.z+toward*5.4);controls.target.set(world.x,world.y+.35,world.z+toward*.25);camera.fov=38;camera.updateProjectionMatrix();transition=1;},
+      // The recorded camera is anchored to the topmost, leftmost box on the inner first rack.
+      // Other packages inherit that exact composition by translating both camera points by delta.
+      focusRack:()=>{
+        if(latest.current.mini)return;
+        const key=latest.current.pickedRack,unit=rackMeshes.find(mesh=>mesh.userData.rackItem?.key===key);
+        if(!unit)return;
+        const homeWorld=(mesh:T.Object3D)=>model.localToWorld((mesh.userData.home as T.Vector3).clone());
+        const candidates=rackMeshes.filter(mesh=>mesh.userData.rackItem).sort((a,b)=>{
+          const ah=a.userData.home as T.Vector3,bh=b.userData.home as T.Vector3;
+          return (bh.y-ah.y)||(ah.x-bh.x)||(Math.abs(ah.z)-Math.abs(bh.z));
+        });
+        const anchor=candidates[0];
+        if(!anchor)return;
+        const delta=homeWorld(unit).sub(homeWorld(anchor));
+        target.set(-24.4245+delta.x,6.4092+delta.y,-3.2267+delta.z);
+        controls.target.set(-17.7375+delta.x,3.0814+delta.y,-12.1113+delta.z);
+        camera.fov=38;camera.updateProjectionMatrix();transition=1;
+      },
       // High three-quarter overview of the unit with both rack rows in frame, used before cargo is brought out.
       overview:()=>{if(latest.current.mini)return;target.set(-35.1141,14.67,30.5209);controls.target.set(-.9773,-2.3667,.9352);transition=1;}};
     changeView();camera.position.copy(target);controls.update();

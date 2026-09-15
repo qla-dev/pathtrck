@@ -653,7 +653,7 @@ export default function LoadPlanningView({ lang, userId, role }: { lang: Languag
             [t.storedSince, stored],
           ];
           return (
-            <PinnedPanel open icon={Box} title={rackPick.title} subtitle={rackPick.reference || (rackPick.side === 'warehouse' ? t.warehouse : t.tracking)} onClose={() => setRackPick(null)} closeLabel={t.close} collapseLabel={t.collapse} expandLabel={t.expand} className="left-3 right-auto top-3 bottom-3 h-auto w-[min(calc(100vw-1.5rem),30rem)] lg:w-[min(calc(100vw-1.5rem),30rem)]" footer={
+            <PinnedPanel open icon={Box} title={rackPick.title} subtitle={rackPick.reference || (rackPick.side === 'warehouse' ? t.warehouse : t.tracking)} onClose={() => setRackPick(null)} closeLabel={t.close} collapseLabel={t.collapse} expandLabel={t.expand} contentClassName="!p-0" className="left-0 right-auto top-0 bottom-0 w-[min(100vw,30rem)] lg:w-[min(100vw,30rem)]" footer={
               <div className="flex gap-2">
                 <Button type="button" variant="outline" className="flex-1 rounded-full" onClick={() => setRackPick(null)}>{t.close}</Button>
                 <Button type="button" className="flex-1 gap-2 rounded-full" disabled={inPlan} onClick={() => putInFront(rackPick)}><Truck className="h-4 w-4" />{inPlan ? t.inPlan : t.putInFront}</Button>
