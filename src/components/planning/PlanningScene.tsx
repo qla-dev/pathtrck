@@ -75,7 +75,7 @@ export function PlanningScene(props: Props) {
   const [failed, setFailed] = useState(false);
   const [flashedMove, setFlashedMove] = useState<MoveDirection | null>(null);
   const flashTimer = useRef<number | null>(null);
-  const runtime = useRef<{ redraw: () => void; changeView: () => void; zoom: (n: number) => void; overview: () => void; move: (direction: MoveDirection) => void; snapshot: () => CameraSnapshot } | null>(null);
+  const runtime = useRef<{ redraw: () => void; changeView: () => void; zoom: (n: number) => void; overview: () => void; focusRack: () => void; move: (direction: MoveDirection) => void; snapshot: () => CameraSnapshot } | null>(null);
   const flashMove = (direction: MoveDirection) => {
     if (flashTimer.current !== null) window.clearTimeout(flashTimer.current);
     setFlashedMove(direction);
@@ -529,6 +529,8 @@ export function PlanningScene(props: Props) {
     logoMark?.addEventListener('load',refreshLogo);
     void document.fonts?.load(`bold 64px ${BRAND_FONT}`).then(refreshLogo,()=>{});
     runtime.current={redraw,changeView,move:moveCamera,snapshot:()=>({view:latest.current.view,position:{x:+camera.position.x.toFixed(4),y:+camera.position.y.toFixed(4),z:+camera.position.z.toFixed(4)},target:{x:+controls.target.x.toFixed(4),y:+controls.target.y.toFixed(4),z:+controls.target.z.toFixed(4)},fov:camera.fov}),zoom:n=>{camera.position.sub(controls.target).multiplyScalar(n).add(controls.target);controls.update();},
+      // Every rack has its own world position and aisle direction; use those instead of a sample camera point.
+      focusRack:()=>{if(latest.current.mini)return;const key=latest.current.pickedRack,unit=rackMeshes.find(mesh=>mesh.userData.rackItem?.key===key);if(!unit)return;const item=unit.userData.rackItem as RackItem,world=new T.Vector3();unit.getWorldPosition(world);const toward=Number(unit.userData.toward)||1;target.set(world.x-5.5,world.y+2.8,world.z+toward*5.4);controls.target.set(world.x,world.y+.35,world.z+toward*.25);camera.fov=38;camera.updateProjectionMatrix();transition=1;},
       // High three-quarter overview of the unit with both rack rows in frame, used before cargo is brought out.
       overview:()=>{if(latest.current.mini)return;target.set(-35.1141,14.67,30.5209);controls.target.set(-.9773,-2.3667,.9352);transition=1;}};
     changeView();camera.position.copy(target);controls.update();
@@ -566,6 +568,7 @@ export function PlanningScene(props: Props) {
   }, []);
   useEffect(()=>{runtime.current?.redraw();},[props.cargo,props.selected,props.dimensions,props.racks,props.loadMoreLabel]);
   useEffect(()=>{runtime.current?.changeView();},[props.view,props.equipment,props.reset]);
+  useEffect(()=>{if(props.pickedRack)runtime.current?.focusRack();},[props.pickedRack]);
   const previousSnapshot=useRef(props.cameraSnapshot??0);
   useEffect(()=>{const next=props.cameraSnapshot??0;if(next!==previousSnapshot.current)props.onCameraSnapshot?.(runtime.current?.snapshot());previousSnapshot.current=next;},[props.cameraSnapshot,props.onCameraSnapshot]);
   const previousZoom=useRef(props.zoom??0);

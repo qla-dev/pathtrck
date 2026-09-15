@@ -3,19 +3,20 @@ import { motion, useReducedMotion } from 'motion/react';
 import { cn } from '../../lib/cn';
 
 /** Render conditional instances inside AnimatePresence to retain the dialog during its exit. */
-export const SmallModal = ({ children, labelledBy, onClose, closeDisabled = false, onEscape, className }: {
+export const SmallModal = ({ children, labelledBy, onClose, closeDisabled = false, onEscape, className, modal = true }: {
   children: ReactNode;
   labelledBy: string;
   onClose: () => void;
   closeDisabled?: boolean;
   onEscape?: () => void;
   className?: string;
+  modal?: boolean;
 }) => {
   const dialog = useRef<HTMLDialogElement>(null);
   const reducedMotion = useReducedMotion();
   useEffect(() => {
     const element = dialog.current;
-    element?.showModal();
+    if (modal) element?.showModal(); else element?.show();
     return () => element?.close();
   }, []);
 

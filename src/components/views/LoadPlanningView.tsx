@@ -4,8 +4,12 @@ import {
   ArrowDown,
   ArrowUp,
   Box,
+  Building2,
+  CalendarDays,
+  ChevronRight,
   Copy,
   Container,
+  Coins,
   DoorOpen,
   Download,
   Eye,
@@ -78,6 +82,35 @@ function loadDraft(row: Record<string, unknown>): Draft {
 // The same field and label treatment as the other workspace screens.
 const fieldClass = 'h-10 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-primary dark:border-slate-700 dark:bg-slate-950 dark:text-white';
 const labelClass = 'mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-500';
+
+const RackSummaryCard = ({ item }: { item: RackItem }) => {
+  const warehouse = item.side === 'warehouse';
+  const status = item.status ? item.status.replaceAll('_', ' ') : '—';
+  const route = item.route || item.groupLabel || '—';
+  return <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+    <div className="mb-2 flex items-center justify-between gap-3">
+      <span className="min-w-0 truncate font-mono text-sm font-bold text-primary">{item.reference || `#${item.key}`}</span>
+      <div className="flex shrink-0 items-center gap-2">
+        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase text-slate-600 dark:bg-slate-800 dark:text-slate-300"><Truck className="h-3 w-3" />{warehouse ? 'WAREHOUSE' : 'ROAD'}</span>
+        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-bold uppercase text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">{status}</span>
+      </div>
+    </div>
+    <p className="truncate text-base font-black text-slate-900 dark:text-white">{item.title || '—'}</p>
+    <p className="mt-1 truncate text-xs font-semibold text-slate-400">Booking reference: {item.reference || '—'}</p>
+    <div className="mt-3 grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+      <div className="flex min-w-0 items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-300"><span className="text-base">{warehouse ? '🏢' : '📍'}</span><span className="truncate text-xs font-bold">{warehouse ? item.groupLabel || 'Warehouse' : route.split(' → ')[0] || '—'}</span></div>
+      <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+      <div className="flex min-w-0 items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300"><span className="text-base">{warehouse ? '📦' : '📍'}</span><span className="truncate text-xs font-bold">{warehouse ? item.storageType || 'Stored' : route.split(' → ')[1] || '—'}</span></div>
+    </div>
+    <div className="mt-3 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+      {([{ icon: Building2, label: warehouse ? 'Warehouse' : 'Carrier', value: item.groupLabel || '—', tone: 'text-primary' }, { icon: Truck, label: 'Driver', value: '—', tone: 'text-sky-500' }, { icon: Truck, label: 'Vehicle', value: '—', tone: 'text-violet-500' }] as { icon: LucideIcon; label: string; value: string; tone: string }[]).map(({ icon: Icon, label, value, tone }) => <div key={label} className="flex min-w-0 items-center gap-2 rounded-xl bg-slate-50 px-2 py-2 dark:bg-slate-950"><Icon className={`h-4 w-4 shrink-0 ${tone}`} /><div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p><p className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{value}</p></div></div>)}
+    </div>
+    <div className="mt-2 grid grid-cols-2 gap-2">
+      <div className="flex min-w-0 items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-950"><Coins className="h-4 w-4 shrink-0 text-emerald-500" /><div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pieces</p><p className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{item.pallets || 0} pallets</p></div></div>
+      <div className="flex min-w-0 items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-950"><CalendarDays className="h-4 w-4 shrink-0 text-violet-500" /><div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Transit</p><p className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">Not scheduled</p></div></div>
+    </div>
+  </div>;
+};
 const toolButton = 'h-9 w-9 rounded-xl bg-white p-0 dark:bg-slate-900';
 const overlayToggle = (on: boolean) => cn(
   'pointer-events-auto inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border backdrop-blur transition-all active:scale-95',
@@ -620,27 +653,21 @@ export default function LoadPlanningView({ lang, userId, role }: { lang: Languag
             [t.storedSince, stored],
           ];
           return (
-            <SmallModal labelledBy="load-planning-rack" onClose={() => setRackPick(null)} className="max-w-md">
+            <PinnedPanel open icon={Box} title={rackPick.title} subtitle={rackPick.reference || (rackPick.side === 'warehouse' ? t.warehouse : t.tracking)} onClose={() => setRackPick(null)} closeLabel={t.close} collapseLabel={t.collapse} expandLabel={t.expand} className="left-3 right-auto top-3 bottom-3 h-auto w-[min(calc(100vw-1.5rem),30rem)] lg:w-[min(calc(100vw-1.5rem),30rem)]" footer={
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" className="flex-1 rounded-full" onClick={() => setRackPick(null)}>{t.close}</Button>
+                <Button type="button" className="flex-1 gap-2 rounded-full" disabled={inPlan} onClick={() => putInFront(rackPick)}><Truck className="h-4 w-4" />{inPlan ? t.inPlan : t.putInFront}</Button>
+              </div>
+            }>
               <div className="space-y-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className={labelClass}>{rackPick.side === 'warehouse' ? t.warehouse : t.tracking}</p>
-                    <h2 id="load-planning-rack" className="text-base font-black text-slate-900 dark:text-white">{rackPick.title}</h2>
-                    {rackPick.reference && <p className="text-xs text-slate-500">{rackPick.reference}</p>}
-                  </div>
-                  <button type="button" onClick={() => setRackPick(null)} aria-label={t.close} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"><X className="h-4 w-4" /></button>
-                </div>
+                <RackSummaryCard item={rackPick} />
                 <dl className="grid grid-cols-2 gap-3">
                   {details.filter(([, value]) => value).map(([label, value]) => (
                     <div key={label} className="min-w-0"><dt className={labelClass}>{label}</dt><dd className="truncate text-sm font-bold text-slate-800 dark:text-slate-100">{value}</dd></div>
                   ))}
                 </dl>
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" className="rounded-full" onClick={() => setRackPick(null)}>{t.close}</Button>
-                  <Button type="button" className="gap-2 rounded-full" disabled={inPlan} onClick={() => putInFront(rackPick)}><Truck className="h-4 w-4" />{inPlan ? t.inPlan : t.putInFront}</Button>
-                </div>
               </div>
-            </SmallModal>
+            </PinnedPanel>
           );
         })()}
       </AnimatePresence>
