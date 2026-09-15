@@ -80,7 +80,7 @@ const MATRIX: Record<Feature, AccessLevel[]> = {
   globalTracking:     [ F, F, F, F, F, F, F, F, F, N ],
   warehouse:          [ F, F, F, N, F, F, V, N, V, V ],
   docks:              [ F, V, V, N, F, F, N, N, V, N ],
-  fleet:              [ F, F, F, F, N, N, N, N, F, F ],
+  fleet:              [ F, F, F, F, N, N, N, F, F, F ],
   finance:            [ F, V, V, N, V, V, V, N, V, F ],
   emailStudio:        [ F, N, N, N, N, N, N, N, N, N ],
   documents:          [ F, F, F, F, F, F, F, F, F, F ],
@@ -106,6 +106,8 @@ const OWNED_FEATURES: Partial<Record<Feature, 'warehouse' | 'fleet'>> = {
   fleet: 'fleet',
 };
 const OWNERSHIP_GATED_ROLES: PermissionRole[] = ['company', 'manager', 'dispatcher', 'forwarder'];
+/** Drivers run their own trucks with no company behind them to verify, so their switch alone decides. */
+const SELF_DECLARED_ROLES: PermissionRole[] = ['driver'];
 
 export type AccessContext = {
   /** The profile switch: this account operates warehouses of its own. */
@@ -164,6 +166,10 @@ export const accessLevel = (
   if (owned && OWNERSHIP_GATED_ROLES.includes(permissionRole)) {
     const declared = owned === 'warehouse' ? context.hasWarehouse : context.hasFleet;
     if (!(declared && context.verified)) return 'none';
+  }
+  if (owned && SELF_DECLARED_ROLES.includes(permissionRole)) {
+    const declared = owned === 'warehouse' ? context.hasWarehouse : context.hasFleet;
+    if (!declared) return 'none';
   }
   return level;
 };

@@ -52,9 +52,18 @@ test('a driver carries loads and nothing administrative', () => {
   assert.equal(accessLevel('driver', 'freightExchange'), 'full');
   assert.equal(accessLevel('driver', 'globalTracking'), 'full');
   assert.equal(accessLevel('driver', 'commandCenter'), 'view');
-  for (const feature of ['customers', 'carriers', 'warehouse', 'docks', 'fleet', 'finance', 'tariffs'] as const) {
+  for (const feature of ['customers', 'carriers', 'warehouse', 'docks', 'finance', 'tariffs'] as const) {
     assert.equal(accessLevel('driver', feature), 'none', feature);
   }
+});
+
+test('a driver runs the fleet they declare, with no company to verify', () => {
+  assert.equal(accessLevel('driver', 'fleet', { hasFleet: true }), 'full');
+  assert.equal(accessLevel('driver', 'fleet'), 'none');
+  assert.equal(canOpenView('driver', 'fleet', { hasFleet: true }), true);
+  assert.equal(canOpenView('driver', 'fleet'), false);
+  // The fleet switch still opens nothing on the warehouse side.
+  assert.equal(accessLevel('driver', 'warehouse', { hasFleet: true, hasWarehouse: true }), 'none');
 });
 
 test('a customer reads rather than acts, except where nothing is theirs', () => {

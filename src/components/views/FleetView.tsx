@@ -18,6 +18,7 @@ import {
   FileText,
   Download,
   Trash2,
+  Building2,
 } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, Area, Line, PieChart, Pie, Cell, Legend } from 'recharts';
 import { Language, Role } from '../../types';
@@ -59,8 +60,13 @@ type FleetVehicle = {
   capacityKg: number;
   volumeM3: number;
   ownershipType: string;
+  companyId?: string;
+  companyName?: string;
   source?: Record<string, unknown>;
 };
+
+/** The superadmin's company picker value for vehicles that belong to no company. */
+const NO_COMPANY = 'none';
 
 const INITIAL_VEHICLES: FleetVehicle[] = [
   {
@@ -133,7 +139,30 @@ const INITIAL_VEHICLES: FleetVehicle[] = [
 
 export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Language; role?: Role; userId?: number; companyIds?: number[] }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
-  const [vehicles, setVehicles] = useState<FleetVehicle[]>([]);
+  const [allVehicles, setVehicles] = useState<FleetVehicle[]>([]);
+  const isPlatformAdmin = role === 'superadmin' || role === 'master';
+  const [companyFilter, setCompanyFilter] = useState('all');
+  // Every company that has vehicles, largest fleet first, so the picker reads like a leaderboard.
+  const companyOptions = useMemo(() => {
+    const counts = new Map<string, { name: string; count: number }>();
+    allVehicles.forEach((vehicle) => {
+      const key = vehicle.companyId || NO_COMPANY;
+      const entry = counts.get(key) || { name: vehicle.companyName || '', count: 0 };
+      counts.set(key, { ...entry, count: entry.count + 1 });
+    });
+    return [...counts.entries()].sort(([keyA, a], [keyB, b]) => (keyA === NO_COMPANY ? 1 : keyB === NO_COMPANY ? -1 : b.count - a.count || a.name.localeCompare(b.name)));
+  }, [allVehicles]);
+  // A superadmin sees every vehicle, narrowed to one company when picked and otherwise grouped by
+  // company name (vehicles with no company last). Everyone else already gets only their own.
+  const vehicles = useMemo(() => {
+    if (!isPlatformAdmin) return allVehicles;
+    const picked = companyFilter === 'all'
+      ? allVehicles
+      : allVehicles.filter((vehicle) => (vehicle.companyId || NO_COMPANY) === companyFilter);
+    return [...picked].sort((a, b) => (!a.companyName ? 1 : 0) - (!b.companyName ? 1 : 0)
+      || (a.companyName || '').localeCompare(b.companyName || '')
+      || a.systemName.localeCompare(b.systemName));
+  }, [allVehicles, companyFilter, isPlatformAdmin]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [sharedAccess, setSharedAccess] = useState<Record<string, boolean>>({});
 
@@ -186,8 +215,15 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
   }, []);
 
   const loadVehicles = async () => {
-    const response = await api.vehicles.list({ per_page: 100 });
-    const scopedRows = response.data.filter((row) => {
+    // Every page, not just the first hundred - a superadmin's view is the whole platform's fleet.
+    const rows: Array<Record<string, unknown>> = [];
+    for (let page = 1; ; page += 1) {
+      const response = await api.vehicles.list({ per_page: 100, page });
+      rows.push(...response.data);
+      const lastPage = Number((response as { meta?: { last_page?: number } }).meta?.last_page || 1);
+      if (page >= lastPage || response.data.length === 0) break;
+    }
+    const scopedRows = rows.filter((row) => {
       if (isCompanyOperationsRole(role) && companyIds.length > 0) return companyIds.includes(Number(row.company_id));
       if (role === 'driver' && userId) {
         const permittedUsers = Array.isArray(row.permitted_users)
@@ -199,7 +235,7 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
             : {};
           return Number(permittedUser.id) === userId && Boolean(pivot.can_view);
         });
-        return Number(row.owner_user_id) === userId || hasViewGrant;
+        return Number(row.owner_user_id) === userId || Number(row.assigned_driver_user_id) === userId || hasViewGrant;
       }
       return true;
     });
@@ -220,6 +256,8 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
         capacity: row.capacity_kg ? `${Number(row.capacity_kg).toLocaleString()} kg` : '—', volume: row.capacity_m3 ? `${row.capacity_m3} m³` : '—',
         configuration: String(features.configuration || '—'), capacityKg: Number(row.capacity_kg || 0), volumeM3: Number(row.capacity_m3 || 0),
         ownershipType: String(row.ownership_type || 'owned'),
+        companyId: row.company_id ? String(row.company_id) : '',
+        companyName: row.company && typeof row.company === 'object' ? String((row.company as Record<string, unknown>).name || '') : '',
         source: row,
       };
     }));
@@ -328,6 +366,27 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
         subtitle={u('fleet.subtitle', 'Manage and monitor your vehicle assets')}
         actions={(
           <div className="flex flex-wrap items-center justify-end gap-2">
+            {isPlatformAdmin && (
+              <IconSelect
+                value={companyFilter}
+                onChange={setCompanyFilter}
+                options={[
+                  { value: 'all', label: `${u('fleet.allCompanies', 'All companies')} (${allVehicles.length})`, icon: Building2 },
+                  ...companyOptions.map(([key, entry]) => ({
+                    value: key,
+                    label: `${key === NO_COMPANY ? u('fleet.noCompany', 'No company') : entry.name || `#${key}`} (${entry.count})`,
+                    icon: Building2,
+                  })),
+                ]}
+                placeholder={u('fleet.allCompanies', 'All companies')}
+                ariaLabel={u('fleet.filterByCompany', 'Filter vehicles by company')}
+                icon={Building2}
+                searchable
+                searchPlaceholder={u('fleet.searchCompanies', 'Search companies...')}
+                noResults={u('fleet.noCompanies', 'No companies found.')}
+                className="w-64 max-w-full [&_button]:h-11 [&_button]:rounded-full [&_button]:text-sm"
+              />
+            )}
             <div className="inline-flex items-center rounded-full border border-sky-200/80 bg-sky-50/70 p-1 dark:border-slate-700 dark:bg-slate-900">
               <button
                 type="button"
@@ -523,6 +582,11 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
                         <div className="min-w-0">
                           <p className="truncate font-bold dark:text-white">{v.systemName}</p>
                           <p className="truncate text-xs text-slate-500">{v.model}</p>
+                          {isPlatformAdmin && (
+                            <p className="flex items-center gap-1 truncate text-[11px] font-bold text-primary">
+                              <Building2 className="h-3 w-3 shrink-0" />{v.companyName || u('fleet.noCompany', 'No company')}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </td>
