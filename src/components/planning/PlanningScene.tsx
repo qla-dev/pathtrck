@@ -9,6 +9,7 @@ import { Cargo, COLORS, Equipment, fits, rackBays, rackSpan, type RackItem, type
 export type SceneView = 'overview' | 'exterior' | 'loading' | 'top' | 'side';
 export type CameraSnapshot = { view: SceneView; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; fov: number };
 type MoveDirection = 'forward' | 'backward' | 'left' | 'right';
+type LoadDirection = 'up' | 'down' | 'left' | 'right' | 'rotate-left' | 'rotate-right';
 type Props = { equipment: Equipment; cargo: Cargo[]; view: SceneView; warehouse?: boolean; tracking?: boolean; racks?: { warehouse?: RackPage; tracking?: RackPage }; pickedRack?: string; loadMoreLabel?: string; walls?: boolean; dimensions?: boolean; overview?: number; selected?: string; onSelect?: (id: string) => void; onMove?: (id: string, x: number, y: number, z: number) => void; onRotate?: () => void; onFreeRoam?: () => void; onCarry?: (carrying: boolean) => void; onUnplace?: (id: string) => void; onRackMore?: (side: 'warehouse' | 'tracking') => void; onRackPick?: (item: RackItem) => void; reset?: number; zoom?: number; cameraSnapshot?: number; onCameraSnapshot?: (snapshot: CameraSnapshot) => void; unavailable: string; mini?: boolean };
 
 // Tetris-style floor grid: 20 cm cells, so pallet and carton sizes land on whole cells.
@@ -74,12 +75,17 @@ export function PlanningScene(props: Props) {
   const latest = useRef(props); latest.current = props;
   const [failed, setFailed] = useState(false);
   const [flashedMove, setFlashedMove] = useState<MoveDirection | null>(null);
+  const [flashedLoad, setFlashedLoad] = useState<LoadDirection | null>(null);
   const flashTimer = useRef<number | null>(null);
   const runtime = useRef<{ redraw: () => void; changeView: () => void; zoom: (n: number) => void; overview: () => void; focusRack: () => void; move: (direction: MoveDirection) => void; snapshot: () => CameraSnapshot } | null>(null);
   const flashMove = (direction: MoveDirection) => {
     if (flashTimer.current !== null) window.clearTimeout(flashTimer.current);
     setFlashedMove(direction);
     flashTimer.current = window.setTimeout(() => { setFlashedMove(null); flashTimer.current = null; }, 180);
+  };
+  const flashLoad = (direction: LoadDirection) => {
+    setFlashedLoad(direction);
+    window.setTimeout(() => setFlashedLoad(current => current === direction ? null : current), 180);
   };
   useEffect(() => () => { if (flashTimer.current !== null) window.clearTimeout(flashTimer.current); }, []);
   useEffect(() => {
@@ -488,6 +494,14 @@ export function PlanningScene(props: Props) {
       const shift={forward,backward:forward.clone().multiplyScalar(-1),left:right.clone().multiplyScalar(-1),right}[direction].multiplyScalar(step);
       camera.position.add(shift);controls.target.add(shift);controls.update();
     };
+    const moveLoad=(direction:LoadDirection)=>{
+      const selected=latest.current.cargo.find(c=>c.id===latest.current.selected);
+      if(!selected||!selected.placed)return;
+      if(direction==='rotate-left'||direction==='rotate-right'){latest.current.onRotate?.();return;}
+      const step=.2;
+      const delta={up:{x:0,z:-step},down:{x:0,z:step},left:{x:-step,z:0},right:{x:step,z:0}}[direction];
+      latest.current.onMove?.(selected.id,selected.x+delta.x,selected.y,selected.z+delta.z);
+    };
     const key=(event:KeyboardEvent)=>{
       if((event.target as HTMLElement|null)?.closest?.('input,textarea,select,[contenteditable="true"]'))return;
       // Game-style movement follows the current point of view: W/S travel straight forward/backward and
@@ -495,7 +509,8 @@ export function PlanningScene(props: Props) {
       if(!drag&&controls.enabled){
         const direction:Record<string,MoveDirection>={KeyW:'forward',KeyS:'backward',KeyA:'left',KeyD:'right'};
         if(direction[event.code]){event.preventDefault();flashMove(direction[event.code]);moveCamera(direction[event.code]);return;}
-        if(event.code==='KeyR'&&latest.current.selected){event.preventDefault();latest.current.onRotate?.();return;}
+        const loadDirection:Record<string,LoadDirection>={Numpad8:'up',Numpad2:'down',Numpad4:'left',Numpad6:'right',Numpad7:'rotate-left',Numpad9:'rotate-right'};
+        if(latest.current.selected&&loadDirection[event.code]){event.preventDefault();flashLoad(loadDirection[event.code]);moveLoad(loadDirection[event.code]);return;}
       }
       if(!drag||(event.key!=='Enter'&&event.key!=='Escape'))return;
       event.preventDefault();release(event.key==='Enter');
@@ -528,7 +543,7 @@ export function PlanningScene(props: Props) {
     const refreshLogo=()=>{if(!alive)return;resetBrandLogo();redraw();};
     logoMark?.addEventListener('load',refreshLogo);
     void document.fonts?.load(`bold 64px ${BRAND_FONT}`).then(refreshLogo,()=>{});
-    runtime.current={redraw,changeView,move:moveCamera,snapshot:()=>({view:latest.current.view,position:{x:+camera.position.x.toFixed(4),y:+camera.position.y.toFixed(4),z:+camera.position.z.toFixed(4)},target:{x:+controls.target.x.toFixed(4),y:+controls.target.y.toFixed(4),z:+controls.target.z.toFixed(4)},fov:camera.fov}),zoom:n=>{camera.position.sub(controls.target).multiplyScalar(n).add(controls.target);controls.update();},
+    runtime.current={redraw,changeView,move:moveCamera,moveLoad,snapshot:()=>({view:latest.current.view,position:{x:+camera.position.x.toFixed(4),y:+camera.position.y.toFixed(4),z:+camera.position.z.toFixed(4)},target:{x:+controls.target.x.toFixed(4),y:+controls.target.y.toFixed(4),z:+controls.target.z.toFixed(4)},fov:camera.fov}),zoom:n=>{camera.position.sub(controls.target).multiplyScalar(n).add(controls.target);controls.update();},
       // The recorded camera is anchored to the topmost, leftmost box on the inner first rack.
       // Other packages inherit that exact composition by translating both camera points by delta.
       focusRack:()=>{
@@ -593,11 +608,17 @@ export function PlanningScene(props: Props) {
   const previousOverview=useRef(props.overview??0);
   useEffect(()=>{const next=props.overview??0;if(next!==previousOverview.current)runtime.current?.overview();previousOverview.current=next;},[props.overview]);
   const moveButton=(direction:MoveDirection,label:string)=><button type="button" aria-label={`Move ${label}`} onPointerDown={()=>flashMove(direction)} onClick={()=>{flashMove(direction);runtime.current?.move(direction);}} className={`flex size-9 cursor-pointer items-center justify-center rounded-full border text-xs font-black shadow-lg outline-none backdrop-blur transition hover:border-primary hover:bg-primary hover:text-white focus:outline-none active:scale-95 active:border-primary active:bg-primary active:text-white dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 ${flashedMove===direction?'border-primary bg-primary text-white':'border-slate-200 bg-white/95 text-slate-700'}`}>{label}</button>;
+  const loadButton=(direction:LoadDirection,label:string)=><button type="button" aria-label={`Move selected load ${label}`} onPointerDown={()=>flashLoad(direction)} onClick={()=>{flashLoad(direction);runtime.current?.moveLoad(direction);}} className={`flex size-9 cursor-pointer items-center justify-center rounded-full border text-xs font-black shadow-lg outline-none backdrop-blur transition hover:border-primary hover:bg-primary hover:text-white focus:outline-none active:scale-95 active:border-primary active:bg-primary active:text-white dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 ${flashedLoad===direction?'border-primary bg-primary text-white':'border-slate-200 bg-white/95 text-slate-700'}`}>{label}</button>;
   return <div ref={host} className={`relative h-full w-full overflow-hidden ${props.mini ? '' : '[&_canvas]:!cursor-grab [&.is-grabbing_canvas]:!cursor-grabbing'}`} role="group" aria-label={`3D ${props.equipment.code} ${props.view}`}>
     {failed&&<p className="p-6 text-slate-600">{props.unavailable}</p>}
     {!props.mini&&<div className="absolute bottom-14 left-3 z-10 grid grid-cols-3 gap-1" aria-label="Camera movement controls">
       <span />{moveButton('forward','W')}<span />
       {moveButton('left','A')}{moveButton('backward','S')}{moveButton('right','D')}
+    </div>}
+    {!props.mini&&props.selected&&<div className="absolute bottom-14 right-3 z-10 grid grid-cols-3 gap-1" aria-label="Selected load movement controls">
+      {loadButton('rotate-left','7')}{loadButton('up','8')}{loadButton('rotate-right','9')}
+      {loadButton('left','4')}<span />{loadButton('right','6')}
+      <span /><span>{loadButton('down','2')}</span><span />
     </div>}
   </div>;
 }
