@@ -50,8 +50,9 @@ import { PinnedPanelLeft } from '../ui/PinnedPanelLeft';
 import { PinnedSidebar } from '../lena/PinnedSidebar';
 import { SmallModal } from '../ui/SmallModal';
 import { planningLabels } from '../planning/labels';
-import { autoPlan, Cargo, COLORS, Equipment, EQUIPMENT, fits, Plan, RACK_SLOTS_PER_PAGE, readPlan, revalidate, validEquipment, volume, type RackItem, type RackPage } from '../planning/model';
+import { autoPlan, Cargo, COLORS, Equipment, EQUIPMENT, fits, Plan, RACK_SLOTS_PER_PAGE, readPlan, revalidate, validEquipment, vehicleEquipment, volume, type RackItem, type RackPage } from '../planning/model';
 import type { CameraSnapshot, SceneView } from '../planning/PlanningScene';
+import type { GarageItem } from '../planning/garage';
 
 // Three.js is heavy, so the page renders first and each scene streams in behind a skeleton.
 const PlanningScene = React.lazy(() => import('../planning/PlanningScene').then(module => ({ default: module.PlanningScene })));
@@ -178,6 +179,8 @@ export default function LoadPlanningView({ lang, userId, role }: { lang: Languag
   // Clicking Lena's office opens her chat pinned on the left; the number restarts it, as the app's right-hand one does.
   // It shares the left edge with a picked rack, so opening either closes the other.
   const [lenaChat, setLenaChat] = useState<number | null>(null);
+  // A vehicle or container type picked in the Garage; its details take the same left edge.
+  const [garagePick, setGaragePick] = useState<GarageItem | null>(null);
   const [openLoadId, setOpenLoadId] = useState<string | null>(null);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('equipment');
   const [equipmentTab, setEquipmentTab] = useState<'container' | 'vehicle' | 'custom'>(() => (plan.equipment.truck ? 'vehicle' : 'container'));
@@ -370,10 +373,7 @@ export default function LoadPlanningView({ lang, userId, role }: { lang: Languag
   const importPlan = async (file?: File) => { if (!file) return; try { if (file.size > 2_000_000) throw Error(); const next = readPlan(JSON.parse(await file.text())); if (!next) throw Error(); setPlan(next); setSelected(''); setNotice(''); } catch { setNotice(t.failed); } if (importInput.current) importInput.current.value = ''; };
   const selectVehicle = (id: string) => {
     const v = vehicles.find(v => String(v.id) === id); if (!v) { changeEquipment({ ...EQUIPMENT[0] }); return; }
-    const f = (v.features ?? {}) as Record<string, unknown>, base = EQUIPMENT.find(e => e.truck)!, width = Number(f.width_m) || base.width, height = Number(f.height_m) || base.height;
-    // Vehicles record volume but not body dimensions, so length follows capacity_m3 at default width and height.
-    const fromVolume = Number(v.capacity_m3) / (width * height);
-    changeEquipment({ ...base, registration: String(v.registration_number), length: Number(f.length_m) || (fromVolume > 0 && fromVolume <= 30 ? Math.round(fromVolume * 100) / 100 : base.length), width, height, doorWidth: Math.min(base.doorWidth, width), doorHeight: Math.min(base.doorHeight, height), payload: Number(v.capacity_kg) || base.payload });
+    changeEquipment(vehicleEquipment(v));
   };
 
   return (
@@ -384,7 +384,8 @@ export default function LoadPlanningView({ lang, userId, role }: { lang: Languag
       <div className="absolute inset-0">
         <React.Suspense fallback={<SceneSkeleton label={t.loading3d} />}>
           <PlanningScene equipment={e} cargo={cargo} view={view} selected={selected} onSelect={setSelected} onMove={move} onRotate={rotate} onFreeRoam={() => setActiveView(null)} onCarry={setCarrying} onUnplace={unplace} tracking={tracking} racks={racks} pickedRack={rackPick?.key} loadMoreLabel={t.loadMore} cameraSnapshot={cameraSnapshot} onCameraSnapshot={copyCamera}
-            onRackMore={side => void loadRack(side, (racks[side]?.page ?? 1) + 1)} onRackPick={item => { setLenaChat(null); setRackPick(item); }} onLenaOffice={() => { setRackPick(null); setLenaChat(Date.now()); }} warehouse={warehouse} walls={walls} dimensions={dimensionsOn} seeThrough={seeThrough} ambient={ambient} lenaOffice={lenaOffice} reset={reset} zoom={zoom} overview={overview} unavailable={t.unavailable} />
+            onRackMore={side => void loadRack(side, (racks[side]?.page ?? 1) + 1)} onRackPick={item => { setLenaChat(null); setGaragePick(null); setRackPick(item); }} onLenaOffice={() => { setRackPick(null); setGaragePick(null); setLenaChat(Date.now()); }}
+            garageVehicles={vehicles} pickedGarage={garagePick?.key} onGaragePick={item => { setRackPick(null); setLenaChat(null); setGaragePick(item); }} warehouse={warehouse} walls={walls} dimensions={dimensionsOn} seeThrough={seeThrough} ambient={ambient} lenaOffice={lenaOffice} reset={reset} zoom={zoom} overview={overview} unavailable={t.unavailable} />
         </React.Suspense>
       </div>
 
@@ -739,6 +740,40 @@ export default function LoadPlanningView({ lang, userId, role }: { lang: Languag
                   ))}
                 </div>
               </div>
+            </PinnedPanelLeft>
+          );
+        })()}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {garagePick && (() => {
+          const g = garagePick.equipment, v = garagePick.kind === 'vehicle' ? garagePick.vehicle : null;
+          const f = (v?.features ?? {}) as Record<string, unknown>, text = (value: unknown) => (value == null ? '' : String(value));
+          const details: [string, string][] = v ? [
+            [t.vehicle, text(v.registration_number)],
+            ['Type', text(v.vehicle_type)],
+            ['Make / model', [text(v.make), text(v.model)].filter(Boolean).join(' ')],
+            ['Year', text(v.year)],
+            [t.status, text(v.status)],
+            ['Body', text(f.body_type)],
+            [t.payload, Number(v.capacity_kg) ? `${Number(v.capacity_kg).toLocaleString()} kg` : ''],
+            [t.volume, Number(v.capacity_m3) ? `${Number(v.capacity_m3).toLocaleString()} m³` : ''],
+            [t.dimensions, `${g.length} × ${g.width} × ${g.height} m`],
+          ] : [
+            [t.containerTab, g.code],
+            [t.dimensions, `${g.length} × ${g.width} × ${g.height} m`],
+            [t.volume, `${volume(g).toFixed(1)} m³`],
+            [t.payload, `${g.payload.toLocaleString()} kg`],
+            ['Door', `${g.doorWidth} × ${g.doorHeight} m`],
+            ['Open top', g.openTop ? 'Yes' : 'No'],
+          ];
+          return (
+            <PinnedPanelLeft open icon={v ? Truck : Container} title={v ? text(v.registration_number) || t.vehicle : g.code} subtitle={v ? [text(v.make), text(v.model)].filter(Boolean).join(' ') || 'Garage · fleet' : 'Garage · container types'} onClose={() => setGaragePick(null)} closeLabel={t.close} collapseLabel={t.collapse} expandLabel={t.expand}>
+              <dl className="grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-x-4 gap-y-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                {details.filter(([, value]) => value).map(([label, value]) => (
+                  <div key={label} className="min-w-0"><dt className={cn(labelClass, 'break-words')}>{label}</dt><dd className="truncate text-sm font-bold text-slate-800 dark:text-slate-100" title={value}>{value}</dd></div>
+                ))}
+              </dl>
             </PinnedPanelLeft>
           );
         })()}

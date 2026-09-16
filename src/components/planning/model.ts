@@ -18,6 +18,17 @@ export const EQUIPMENT: Equipment[] = [
   { code: '40OT', length: 12.029, width: 2.35, height: 2.38, payload: 26500, doorWidth: 2.34, doorHeight: 2.28, openTop: true, truck: false },
   { code: 'LTL', length: 7.2, width: 2.45, height: 2.4, payload: 6000, doorWidth: 2.4, doorHeight: 2.35, openTop: false, truck: true },
 ];
+/**
+ * A registered road vehicle as planning equipment: a box truck sized from its record. Vehicles record
+ * volume but rarely body dimensions, so without them length follows capacity_m3 at the default width
+ * and height.
+ */
+export function vehicleEquipment(v: Record<string, unknown>): Equipment {
+  const f = (v.features ?? {}) as Record<string, unknown>, base = EQUIPMENT.find(e => e.truck)!;
+  const width = Number(f.width_m) || base.width, height = Number(f.height_m) || base.height;
+  const fromVolume = Number(v.capacity_m3) / (width * height);
+  return { ...base, registration: String(v.registration_number), length: Number(f.length_m) || (fromVolume > 0 && fromVolume <= 30 ? Math.round(fromVolume * 100) / 100 : base.length), width, height, doorWidth: Math.min(base.doorWidth, width), doorHeight: Math.min(base.doorHeight, height), payload: Number(v.capacity_kg) || base.payload };
+}
 export const COLORS = ['#38bdf8', '#fbbf24', '#4ade80', '#fb7185', '#a78bfa', '#2dd4bf'];
 const EPS = 0.0001;
 export const volume = (c: Pick<Cargo, 'length' | 'width' | 'height'>) => c.length * c.width * c.height;

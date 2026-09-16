@@ -24,7 +24,13 @@ const CARRY_POSE: [string, number][] = [['UpperArm.L', -1.15], ['UpperArm.R', -1
 
 /** Roles are decorative, taken from the system's own labels; anyone not signed in is just a Worker. */
 const ROLES = ['Dispatcher', 'Manager', 'Customs Agent', 'Finance', 'Driver'];
-const WORKER_ROLE = 'Worker';
+const WORKER_ROLE = 'Warehouse worker';
+/** The Garage's own crew: mechanics, who fix the fleet and look over the unit in the warehouse. */
+const GARAGE_CREW = 5, MECHANIC_ROLE = 'Mechanic';
+/** However the mechanics' days go, this many trucks - or every truck, if there are fewer - always have one on them. */
+const MIN_SERVICED = 3;
+/** Warehouse workers who start the day by the Garage's container row rather than in the warehouse. */
+const AT_CONTAINERS = 3;
 
 const FONT = 'bold 44px sans-serif';
 const TAG_TONE = '#132638';
@@ -47,6 +53,10 @@ export type Footprint = { x0: number; x1: number; z0: number; z1: number };
 let parked: Footprint[] = [];
 /** Where a worker stands outside an office window for a consultation, handed over by the office layer. */
 export type ConsultSpot = { id: string; x: number; z: number };
+/** Where a mechanic stands to work on a parked truck, handed over by the Garage. */
+export type ServiceSpot = { id: string; x: number; z: number; face: number };
+/** The trucks parked in the Garage right now, set the same way as `consults`. */
+let services: ServiceSpot[] = [];
 /** The offices currently standing, set the same way as `parked`; empty while that layer is off. */
 let consults: ConsultSpot[] = [];
 /** How often a worker looking for something to do drops in at an office instead, if one is free. */
@@ -69,6 +79,12 @@ type Worker = {
   visit: string | null;
   /** Mid side step, making way: walking, but with the bubble up until the step is done. */
   steppingAside: boolean;
+  /** The room this worker belongs to and returns to between jobs. */
+  home: 'warehouse' | 'garage';
+  /** The truck a mechanic has taken on, so no two work on the same one. */
+  service: string | null;
+  /** The truck a mechanic last left, so a hand-over goes to someone else when anyone else can take it. */
+  lastService: string | null;
 };
 
 /** The scene's own label look: a dark rounded plate with white text, drawn over everything else. */
@@ -238,6 +254,20 @@ const spawnSpot = (e: Equipment, side: number, all: Worker[]): T.Vector3 => {
   return point;
 };
 
+/**
+ * Somewhere in the Garage clear of anyone already there: along the front of the parked trucks for the
+ * mechanics, or along the front of the container row for warehouse workers who start the day there.
+ */
+const garageSpawn = (e: Equipment, all: Worker[], near: 'trucks' | 'containers'): T.Vector3 => {
+  const garage = ROOMS.find(room => room.key === 'garage')!, ground = groundOf(e);
+  // Just off the front truck row (it ends 4.4 m in from the lane's middle) or the container row (from 13.4 m).
+  const band = near === 'trucks' ? { from: -3.9, span: 1.5 } : { from: 11.2, span: 1.8 };
+  const place = () => new T.Vector3(e.length / 2 + (Math.random() * 2 - 1) * 14, ground, e.width / 2 + garage.z + band.from + Math.random() * band.span);
+  let point = place();
+  for (let tries = 0; tries < 8 && all.some(other => Math.hypot(other.root.position.x - point.x, other.root.position.z - point.z) < SPACING * 1.6); tries++) point = place();
+  return point;
+};
+
 const pickGoal = (e: Equipment, side?: number): Goal => (Math.random() < .25 ? unitSpot(e) : baySpot(e, side));
 
 /**
@@ -268,8 +298,14 @@ const routeTo = (e: Equipment, from: T.Vector3, to: T.Vector3, lane: number, fli
   if (a === b) {
     if (a === 'warehouse') return aisleRoute(e, from, to, lane, flip);
     if (a === 'hall') { const x = s.laneFor(from.z, to.z); return [new T.Vector3(x, y, from.z), new T.Vector3(x, y, to.z), to.clone()]; }
-    // Fleet and Docks are empty rooms: square across them.
-    return [new T.Vector3(to.x, y, from.z), to.clone()];
+    // Garage and Docks have no aisles: square across, by whichever corner is clear - or, with trucks in
+    // the way, down the open strip inside the door and across from there.
+    const list = obstacles(e);
+    const corner = [new T.Vector3(to.x, y, from.z), new T.Vector3(from.x, y, to.z)]
+      .find(c => clearLeg(list, from.x, from.z, c.x, c.z) && clearLeg(list, c.x, c.z, to.x, to.z));
+    if (corner) return [corner, to.clone()];
+    const strip = s.inside(a).x;
+    return [new T.Vector3(strip, y, from.z), new T.Vector3(strip, y, to.z), to.clone()];
   }
   const path: T.Vector3[] = [];
   // Which way along the hall this walk goes decides its lane, from its first step in the hall to its last.
@@ -458,11 +494,14 @@ const roamHall = (w: Worker, e: Equipment) => {
   w.path = [...routeTo(e, p, new T.Vector3(x, s.ground, near), w.lane, w.flip), new T.Vector3(x, s.ground, far)];
 };
 
-/** Over to Fleet or Docks, by the doors, to a spot somewhere inside. */
+/**
+ * Over to Garage or Docks, by the doors, to a spot in the lane down the middle of the room - the Garage
+ * keeps its sides for vehicles and containers, and the lane is what leads from its door.
+ */
 const visitRoom = (w: Worker, e: Equipment) => {
-  const others = ROOMS.filter(room => room.key !== 'warehouse'), room = others[Math.floor(Math.random() * others.length)];
-  const inner = ROOM / 2 - 4;
-  const spot = new T.Vector3(e.length / 2 + (Math.random() * 2 - 1) * inner, groundOf(e), e.width / 2 + room.z + (Math.random() * 2 - 1) * inner);
+  // Anyone's own room is no visit, and the warehouse is all aisles rather than somewhere to stand.
+  const others = ROOMS.filter(room => room.key !== 'warehouse' && room.key !== w.home), room = others[Math.floor(Math.random() * others.length)];
+  const spot = new T.Vector3(e.length / 2 + (Math.random() * 2 - 1) * (ROOM / 2 - 4), groundOf(e), e.width / 2 + room.z + (Math.random() * 2 - 1) * 2.5);
   w.visit = room.key;
   w.goal = 'visit_room';
   w.face = Math.random() * Math.PI * 2;
@@ -491,10 +530,76 @@ const makeWay = (w: Worker, e: Equipment, other: Worker, hx: number, hz: number)
   fadeTo(w, 'Walking', .1);
 };
 
+/** A mechanic takes on a parked truck nobody else is working on; false when every one is taken. */
+const takeTruck = (w: Worker, e: Equipment, spot: ServiceSpot) => {
+  w.service = spot.id;
+  w.goal = 'fix_truck';
+  w.face = spot.face;
+  w.path = routeTo(e, w.root.position, new T.Vector3(spot.x, groundOf(e), spot.z), w.lane, w.flip);
+};
+
+/**
+ * A mechanic takes on a parked truck nobody else is working on; false when every one is taken. Never the
+ * one just left: going straight back to it would mean nobody ever takes over.
+ */
+const fixTruck = (w: Worker, e: Equipment, all: Worker[]) => {
+  const free = services.filter(spot => spot.id !== w.lastService && !all.some(other => other !== w && other.service === spot.id));
+  if (!free.length) return false;
+  takeTruck(w, e, free[Math.floor(Math.random() * free.length)]);
+  return true;
+};
+
+/**
+ * Keeps the fleet serviced. Up to MIN_SERVICED trucks - all of them, when there are fewer - always have a
+ * mechanic on them, at work or on the way. The moment one is left, finished or walked away from for an
+ * office, the nearest free mechanic drops what they are doing and takes it over; whoever just left it is
+ * only sent back when nobody else can go. A mechanic in the middle of a consultation is not pulled out.
+ */
+const dispatchMechanics = (all: Worker[], e: Equipment) => {
+  const mechanics = all.filter(w => w.home === 'garage');
+  // A truck that has gone from the Garage is nobody's job any more.
+  for (const w of mechanics) if (w.service && !services.some(spot => spot.id === w.service)) w.service = null;
+  const taken = new Set(mechanics.flatMap(w => (w.service ? [w.service] : [])));
+  for (let missing = Math.min(MIN_SERVICED, services.length) - taken.size; missing > 0; missing--) {
+    const truck = services.find(spot => !taken.has(spot.id));
+    const free = mechanics.filter(w => !w.service && w.skill !== 'consult');
+    if (!truck || !free.length) return;
+    const distance = (w: Worker) => Math.hypot(w.root.position.x - truck.x, w.root.position.z - truck.z);
+    const pick = free.sort((a, b) => Number(a.lastService === truck.id) - Number(b.lastService === truck.id) || distance(a) - distance(b))[0];
+    if (pick.skill) { endSkill(pick); pick.pause = 0; }
+    pick.consult = null; pick.visit = null;
+    takeTruck(pick, e, truck);
+    fadeTo(pick, 'Walking');
+    taken.add(truck.id);
+  }
+};
+
+/** Over to the unit in the warehouse, to stand off its door end facing the doors. */
+const inspectContainer = (w: Worker, e: Equipment) => {
+  w.goal = 'inspect_container';
+  // Facing -x, at the doors.
+  w.face = -Math.PI / 2;
+  w.path = routeTo(e, w.root.position, new T.Vector3(e.length + 1.4, groundOf(e), e.width / 2 + (Math.random() * 2 - 1) * .8), w.lane, w.flip);
+};
+
+/** A mechanic's next job: mostly the trucks, sometimes the unit, now and then a consultation or an outing. */
+const retargetMechanic = (w: Worker, e: Equipment, all: Worker[]) => {
+  if (Math.random() < CONSULT_CHANCE && bookConsult(w, e, all)) return;
+  const roll = Math.random();
+  if (roll < OUTINGS.leave) { stepOut(w, e); return; }
+  if (roll < OUTINGS.leave + OUTINGS.roam) { roamHall(w, e); return; }
+  if (roll < OUTINGS.leave + OUTINGS.roam + OUTINGS.visit) { visitRoom(w, e); return; }
+  if (roll < .75 && fixTruck(w, e, all)) return;
+  inspectContainer(w, e);
+};
+
 const retarget = (w: Worker, e: Equipment, all: Worker[]) => {
-  // Whatever sends a worker looking for something new ends any booking or visit it held, done or abandoned.
+  // Whatever sends a worker looking for something new ends any booking, visit or job it held, done or abandoned.
   w.consult = null;
   w.visit = null;
+  if (w.service) w.lastService = w.service;
+  w.service = null;
+  if (w.home === 'garage') { retargetMechanic(w, e, all); return; }
   // A package is never abandoned: whatever sends a carrier looking for something new - walled in, a
   // stand-off, nowhere to step - it goes back to finishing the delivery instead.
   if (w.holding) { headForDelivery(w, e); return; }
@@ -650,7 +755,10 @@ export function createAmbientCrew(scene: T.Scene) {
         if (disposed) return;
         // Scaled from its own bounding box, so the crew is people-sized whatever units the model uses.
         const height = new T.Box3().setFromObject(gltf.scene).getSize(new T.Vector3()).y || 1;
-        for (let i = 0; i < COUNT; i++) {
+        const total = COUNT + GARAGE_CREW;
+        for (let i = 0; i < total; i++) {
+          // The first ones are the warehouse crew; the rest are the Garage's mechanics.
+          const home = i < COUNT ? 'warehouse' : 'garage';
           const root = SkeletonUtils.clone(gltf.scene);
           root.scale.setScalar(1.75 / height);
           root.traverse(obj => { if ((obj as T.Mesh).isMesh) obj.castShadow = true; });
@@ -660,12 +768,13 @@ export function createAmbientCrew(scene: T.Scene) {
             if (EMOTES.includes(clip.name)) { action.clampWhenFinished = true; action.loop = T.LoopOnce; }
             actions[clip.name] = action;
           }
-          const role = i < ROLES.length ? ROLES[i] : WORKER_ROLE;
+          const role = home === 'garage' ? MECHANIC_ROLE : i < ROLES.length ? ROLES[i] : WORKER_ROLE;
           const tag = plate(measure(role)), bubble = plate(measure(`${WIDEST_LABEL}...`));
           paint(tag, role, TAG_TONE);
           bubble.sprite.visible = false;
           // Half start behind the unit and half in front, so the crew is never all on one side.
-          root.position.copy(spawnSpot(e, i % 2 ? 1 : -1, workers));
+          const byContainers = home === 'warehouse' && i >= ROLES.length && i < ROLES.length + AT_CONTAINERS;
+          root.position.copy(home === 'garage' ? garageSpawn(e, workers, 'trucks') : byContainers ? garageSpawn(e, workers, 'containers') : spawnSpot(e, i % 2 ? 1 : -1, workers));
           actions.Idle?.play();
           // One crate each, hidden until an errand needs it, so none is ever built or thrown away mid-run.
           const crate = new T.Mesh(new T.BoxGeometry(.5, .4, .5), new T.MeshStandardMaterial({ color: '#bd9367', roughness: .8 }));
@@ -679,25 +788,29 @@ export function createAmbientCrew(scene: T.Scene) {
             // Lanes are spread rather than random: random ones cluster, which is what we are avoiding.
             // Lanes are spread rather than random: random ones cluster, which is what we are avoiding.
             // Half start rounding rows from each end, so the two ends share the traffic from the off.
-            pause: Math.random() * 4, speed: .9 + Math.random() * .6, lane: (i / COUNT) * 1.6, flip: i % 2 === 0,
+            pause: Math.random() * 4, speed: .9 + Math.random() * .6, lane: (i / total) * 1.6, flip: i % 2 === 0,
             role, tag, bubble, skill: null, dots: 0, dotTimer: 0, crate, holding: false, arms,
             // Only the unsigned ones run packages, and they start from alternate sides.
             carrier: role === WORKER_ROLE, from: i % 2 ? 1 : -1, consult: null, visit: null, steppingAside: false,
+            home, service: null, lastService: null,
           };
-          retarget(worker, e, workers);
+          // Mechanics choose their first job on their first tick, once the Garage has handed over its trucks.
+          if (home === 'warehouse') retarget(worker, e, workers);
           workers.push(worker);
         }
       }, undefined, () => {});
     },
 
     /** Ticks every worker. The crew sits beside the unit, so it takes the unit's offset by hand. */
-    update(dt: number, e: Equipment, visible: boolean, waiting: Footprint[] = [], offices: ConsultSpot[] = []) {
+    update(dt: number, e: Equipment, visible: boolean, waiting: Footprint[] = [], offices: ConsultSpot[] = [], trucks: ServiceSpot[] = []) {
       parked = waiting;
       consults = offices;
+      services = trucks;
       if (!workers.length) return;
       group.position.set(-e.length / 2, 0, -e.width / 2);
       group.visible = visible;
       if (!visible) return;
+      dispatchMechanics(workers, e);
       for (const worker of workers) step(worker, dt, e, workers);
     },
 

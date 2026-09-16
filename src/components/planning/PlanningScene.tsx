@@ -2,7 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as T from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createAmbientCrew, type Footprint } from './ambientCrew';
+import { BRAND_FONT, brandLogo, logoMark, resetBrandLogo } from './brandLogo';
 import { createLenaOffice } from './lenaOffice';
+import { createGarage, type FleetVehicle, type GarageItem } from './garage';
+import { createConveyor } from './conveyor';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
@@ -13,7 +16,7 @@ export type SceneView = 'overview' | 'exterior' | 'loading' | 'top' | 'side';
 export type CameraSnapshot = { view: SceneView; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; fov: number };
 type MoveDirection = 'forward' | 'backward' | 'left' | 'right';
 type LoadDirection = 'up' | 'down' | 'left' | 'right' | 'rotate-left' | 'rotate-right';
-type Props = { equipment: Equipment; cargo: Cargo[]; view: SceneView; warehouse?: boolean; tracking?: boolean; racks?: { warehouse?: RackPage; tracking?: RackPage }; pickedRack?: string; loadMoreLabel?: string; walls?: boolean; dimensions?: boolean; seeThrough?: boolean; ambient?: boolean; lenaOffice?: boolean; onLenaOffice?: () => void; overview?: number; selected?: string; onSelect?: (id: string) => void; onMove?: (id: string, x: number, y: number, z: number) => void; onRotate?: () => void; onFreeRoam?: () => void; onCarry?: (carrying: boolean) => void; onUnplace?: (id: string) => void; onRackMore?: (side: 'warehouse' | 'tracking') => void; onRackPick?: (item: RackItem) => void; reset?: number; zoom?: number; cameraSnapshot?: number; onCameraSnapshot?: (snapshot: CameraSnapshot) => void; unavailable: string; mini?: boolean };
+type Props = { equipment: Equipment; cargo: Cargo[]; view: SceneView; warehouse?: boolean; tracking?: boolean; racks?: { warehouse?: RackPage; tracking?: RackPage }; pickedRack?: string; loadMoreLabel?: string; walls?: boolean; dimensions?: boolean; seeThrough?: boolean; ambient?: boolean; lenaOffice?: boolean; onLenaOffice?: () => void; garageVehicles?: FleetVehicle[]; pickedGarage?: string; onGaragePick?: (item: GarageItem) => void; overview?: number; selected?: string; onSelect?: (id: string) => void; onMove?: (id: string, x: number, y: number, z: number) => void; onRotate?: () => void; onFreeRoam?: () => void; onCarry?: (carrying: boolean) => void; onUnplace?: (id: string) => void; onRackMore?: (side: 'warehouse' | 'tracking') => void; onRackPick?: (item: RackItem) => void; reset?: number; zoom?: number; cameraSnapshot?: number; onCameraSnapshot?: (snapshot: CameraSnapshot) => void; unavailable: string; mini?: boolean };
 
 // Tetris-style floor grid: 20 cm cells, so pallet and carton sizes land on whole cells.
 const CELL = .2, EPS = 1e-4;
@@ -26,29 +29,6 @@ function snapAxis(value: number, size: number, limit: number, edges: number[]) {
   return Math.min(Math.max(best, 0), Math.max(0, limit - size));
 }
 
-// There is no logo PNG in the project, so the full logo (star mark + "Freightbook.ai") is composed from the
-// same parts as BrandWordmark: its star path and gradient, the brand font and the primary colour.
-const BRAND_FONT = '"FacebookSansBold", "Space Grotesk", sans-serif';
-const MARK_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 24 24"><defs><linearGradient id="g" x1="3" y1="20" x2="21" y2="4" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#FACC15"/><stop offset=".28" stop-color="#22C55E"/><stop offset=".56" stop-color="#3B82F6"/><stop offset=".82" stop-color="#EF4444"/><stop offset="1" stop-color="#F97316"/></linearGradient></defs><path d="M12 1.75C13.35 6.65 17.35 10.65 22.25 12C17.35 13.35 13.35 17.35 12 22.25C10.65 17.35 6.65 13.35 1.75 12C6.65 10.65 10.65 6.65 12 1.75Z" fill="url(#g)"/></svg>';
-const logoMark = typeof Image === 'undefined' ? null : Object.assign(new Image(), { src: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(MARK_SVG)}` });
-const logoCache: Partial<Record<'dark' | 'light' | 'white', HTMLCanvasElement>> = {};
-const resetBrandLogo = () => { delete logoCache.dark; delete logoCache.light; delete logoCache.white; };
-/** The composed logo on a transparent canvas: dark or white wordmark, or 'white' for an all-white logo (star included). Null until the star has loaded. */
-function brandLogo(tone: 'dark' | 'light' | 'white') {
-  if (!logoMark?.complete || !logoMark.naturalWidth) return null;
-  const cached = logoCache[tone]; if (cached) return cached;
-  const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d')!, size = 128, font = `bold ${Math.round(size * .6)}px ${BRAND_FONT}`;
-  ctx.font = font;
-  const main = ctx.measureText('Freightbook').width, ai = ctx.measureText('.ai').width;
-  canvas.width = Math.ceil(size * 1.15 + main + ai + 8); canvas.height = size; // resizing resets the context
-  ctx.drawImage(logoMark, 4, 4, size - 8, size - 8);
-  ctx.font = font; ctx.textBaseline = 'middle';
-  ctx.fillStyle = tone === 'dark' ? '#0f172a' : '#ffffff'; ctx.fillText('Freightbook', size * 1.1, size * .54);
-  ctx.fillStyle = '#00AEEF'; ctx.fillText('.ai', size * 1.1 + main, size * .54);
-  // All-white: keep the drawn shapes' coverage but paint every pixel white.
-  if (tone === 'white') { ctx.globalCompositeOperation = 'source-in'; ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height); }
-  return (logoCache[tone] = canvas);
-}
 
 function label(text: string, scale = 1) {
   const font = 'bold 44px sans-serif', canvas = document.createElement('canvas'), ctx = canvas.getContext('2d')!;
@@ -121,6 +101,10 @@ export function PlanningScene(props: Props) {
     const crew = createAmbientCrew(scene);
     // LenaAI's office row at the far end of the aisle, a layer of its own like the crew.
     const office = createLenaOffice(scene);
+    // The Garage room's vehicles and container stack, pickable like rack units.
+    const garage = createGarage(scene);
+    // The conveyor belt along the rooms' back edge, packages flowing along it.
+    const conveyor = createConveyor(scene);
     // Where the waiting cargo ended up, so the crew walks around it rather than through it.
     let stagedBoxes: Footprint[] = [];
     let roof = new T.Group(), side = new T.Group(), doors: T.Group[] = [], cargoMeshes: T.Object3D[] = [];
@@ -393,8 +377,12 @@ export function PlanningScene(props: Props) {
       let lena=false;
       if(!id&&!rackKey&&!latest.current.mini&&event.buttons===0){hit(event);lena=office.pick(raycaster);}
       office.hover(lena);
+      // Then anything in the Garage.
+      let garageKey='';
+      if(!id&&!rackKey&&!lena&&!latest.current.mini&&event.buttons===0){hit(event);garageKey=garage.pick(raycaster)?.key??'';}
+      garage.hover(garageKey);
     };
-    const leave=()=>{if(!drag&&hovered){hovered='';paintEdges();}if(hoveredRack){hoveredRack='';paintRack();}office.hover(false);};
+    const leave=()=>{if(!drag&&hovered){hovered='';paintEdges();}if(hoveredRack){hoveredRack='';paintRack();}office.hover(false);garage.hover('');};
     // Raycasts ignore visibility, so units on a rack side that is switched off are left out explicitly.
     const pickedRack=()=>{
       let object:T.Object3D|null=raycaster.intersectObjects(rackMeshes.filter(m=>m.parent?.visible!==false),true).find(h=>(h.object as T.Mesh).isMesh)?.object??null;
@@ -480,6 +468,8 @@ export function PlanningScene(props: Props) {
         if(rack){rackPress={x:event.clientX,y:event.clientY,target:rack};return;}
         // Lena's office also acts on release, so a drag that starts on it still orbits.
         if(!latest.current.mini&&office.pick(raycaster)){officePress={x:event.clientX,y:event.clientY};return;}
+        const parked=latest.current.mini?null:garage.pick(raycaster);
+        if(parked){garagePress={x:event.clientX,y:event.clientY,item:parked};return;}
         emptyPress={x:event.clientX,y:event.clientY};return;
       }
       const id=picked.id,c=picked;
@@ -554,7 +544,7 @@ export function PlanningScene(props: Props) {
       event.preventDefault();release(event.key==='Enter');
     };
     // Clicking again releases like Enter. The click that lifted the unit never set pressAt, so it cannot drop it at once.
-    let pressAt:{x:number;y:number}|null=null,lifting=false,emptyPress:{x:number;y:number}|null=null,rackPress:{x:number;y:number;target:T.Object3D}|null=null,officePress:{x:number;y:number}|null=null;
+    let pressAt:{x:number;y:number}|null=null,lifting=false,emptyPress:{x:number;y:number}|null=null,rackPress:{x:number;y:number;target:T.Object3D}|null=null,officePress:{x:number;y:number}|null=null,garagePress:{x:number;y:number;item:GarageItem}|null=null;
     const up=(event:PointerEvent)=>{
       if(renderer.domElement.hasPointerCapture(event.pointerId))renderer.domElement.releasePointerCapture(event.pointerId);
       // The press that lifted the unit (a click or a drag) only ends that gesture: the unit stays lifted.
@@ -563,6 +553,13 @@ export function PlanningScene(props: Props) {
       if(!drag&&rack&&event.button===0&&Math.hypot(event.clientX-rack.x,event.clientY-rack.y)<5){
         if(rack.target.userData.rackMore)latest.current.onRackMore?.(rack.target.userData.rackMore);
         else latest.current.onRackPick?.(rack.target.userData.rackItem);
+        return;
+      }
+      const parked=garagePress;garagePress=null;
+      if(!drag&&parked&&event.button===0&&Math.hypot(event.clientX-parked.x,event.clientY-parked.y)<5){
+        const view=garage.focus(parked.item.key);
+        if(view){target.copy(view.position);controls.target.copy(view.target);camera.fov=38;camera.updateProjectionMatrix();transition=1;}
+        latest.current.onFreeRoam?.();latest.current.onGaragePick?.(parked.item);
         return;
       }
       const lena=officePress;officePress=null;
@@ -587,8 +584,8 @@ export function PlanningScene(props: Props) {
     let alive=true;
     // Ambient crew, in its own layer beside the unit. Skipped in previews and under reduced motion.
     if(!latest.current.mini&&!matchMedia('(prefers-reduced-motion: reduce)').matches)crew.load(latest.current.equipment);
-    if(!latest.current.mini)office.load(latest.current.equipment);
-    const refreshLogo=()=>{if(!alive)return;resetBrandLogo();redraw();};
+    if(!latest.current.mini){office.load(latest.current.equipment);garage.load();conveyor.load();}
+    const refreshLogo=()=>{if(!alive)return;resetBrandLogo();redraw();garage.refresh();};
     logoMark?.addEventListener('load',refreshLogo);
     void document.fonts?.load(`bold 64px ${BRAND_FONT}`).then(refreshLogo,()=>{});
     runtime.current={redraw,changeView,move:moveCamera,moveLoad,snapshot:()=>({view:latest.current.view,position:{x:+camera.position.x.toFixed(4),y:+camera.position.y.toFixed(4),z:+camera.position.z.toFixed(4)},target:{x:+controls.target.x.toFixed(4),y:+controls.target.y.toFixed(4),z:+controls.target.z.toFixed(4)},fov:camera.fov}),zoom:n=>{camera.position.sub(controls.target).multiplyScalar(n).add(controls.target);controls.update();},
@@ -657,10 +654,12 @@ export function PlanningScene(props: Props) {
       side.traverse(obj=>{const m=(obj as T.Mesh).material as T.MeshStandardMaterial;if(!m)return;if(!m.transparent){m.transparent=true;m.needsUpdate=true;}m.opacity=sideOpacity;m.depthWrite=sideOpacity>.5&&!m.userData.decal;});
       doors.forEach((d,i)=>{d.rotation.y=T.MathUtils.lerp(d.rotation.y,(i===0?1:-1)*doorTarget,speed);});
       office.update(dt,latest.current.equipment,latest.current.lenaOffice!==false,reduced,crew.consulting());
-      crew.update(dt,latest.current.equipment,latest.current.ambient!==false,[...stagedBoxes,...office.footprints(latest.current.equipment)],office.consultSpots(latest.current.equipment));
+      conveyor.update(latest.current.equipment,dt,reduced);
+      garage.setVehicles(latest.current.garageVehicles??[]);garage.update(latest.current.equipment,latest.current.pickedGarage,speed);
+      crew.update(dt,latest.current.equipment,latest.current.ambient!==false,[...stagedBoxes,...office.footprints(latest.current.equipment),...garage.footprints(latest.current.equipment)],office.consultSpots(latest.current.equipment),garage.serviceSpots(latest.current.equipment));
       controls.update();renderer.render(scene,activeCamera);
     };animate();
-    return()=>{alive=false;logoMark?.removeEventListener('load',refreshLogo);cancelAnimationFrame(frame);observer.disconnect();theme.disconnect();dispose(ghost);controls.dispose();dispose(model);crew.dispose();office.dispose();renderer.dispose();renderer.domElement.removeEventListener('pointerdown',down,true);renderer.domElement.removeEventListener('pointermove',move);renderer.domElement.removeEventListener('wheel',trackpadPan,true);window.removeEventListener('keydown',key);renderer.domElement.removeEventListener('pointerup',up);renderer.domElement.removeEventListener('pointercancel',cancel);renderer.domElement.removeEventListener('pointerleave',leave);renderer.domElement.remove();runtime.current=null;};
+    return()=>{alive=false;logoMark?.removeEventListener('load',refreshLogo);cancelAnimationFrame(frame);observer.disconnect();theme.disconnect();dispose(ghost);controls.dispose();dispose(model);crew.dispose();office.dispose();garage.dispose();conveyor.dispose();renderer.dispose();renderer.domElement.removeEventListener('pointerdown',down,true);renderer.domElement.removeEventListener('pointermove',move);renderer.domElement.removeEventListener('wheel',trackpadPan,true);window.removeEventListener('keydown',key);renderer.domElement.removeEventListener('pointerup',up);renderer.domElement.removeEventListener('pointercancel',cancel);renderer.domElement.removeEventListener('pointerleave',leave);renderer.domElement.remove();runtime.current=null;};
   }, []);
   useEffect(()=>{runtime.current?.redraw();},[props.cargo,props.selected,props.dimensions,props.racks,props.loadMoreLabel]);
   useEffect(()=>{runtime.current?.changeView();},[props.view,props.equipment,props.reset]);

@@ -4,7 +4,7 @@ import * as T from 'three';
  * The site around the unit, in world metres with the unit's centre at the origin. It is fixed: a longer
  * or shorter unit never resizes a floor or moves a rack.
  *
- * Three square rooms stand side by side across z - Fleet, the warehouse the unit is planned in, Docks -
+ * Three square rooms stand side by side across z - Garage, the warehouse the unit is planned in, Docks -
  * and one hall runs the full width of all three along their far (+x) end. The offices stand in the hall.
  */
 export const ROOM = 36;
@@ -13,7 +13,7 @@ export const HALL_DEPTH = 8;
 export const HALL_X = ROOM / 2;
 /** Left to right as seen from the default camera, which looks along +x: -z is on the left. */
 export const ROOMS = [
-  { key: 'fleet', title: 'FLEET', z: -ROOM },
+  { key: 'garage', title: 'GARAGE', z: -ROOM },
   { key: 'warehouse', title: 'WAREHOUSE', z: 0 },
   { key: 'docks', title: 'DOCKS', z: ROOM },
 ] as const;
