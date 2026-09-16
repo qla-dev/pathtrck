@@ -37,6 +37,7 @@ type Worker = {
   root: T.Object3D; mixer: T.AnimationMixer; actions: Record<string, T.AnimationAction>; current: string;
   path: T.Vector3[]; goal: SkillName; face: number; pause: number; speed: number; lane: number; flip: boolean;
   role: string; tag: Plate; bubble: Plate; skill: SkillName | null; dots: number; dotTimer: number;
+  crate: T.Mesh; holding: boolean;
 };
 
 /** The scene's own label look: a dark rounded plate with white text, drawn over everything else. */
@@ -154,7 +155,13 @@ const spawnSpot = (e: Equipment, side: number, all: Worker[]): T.Vector3 => {
   return point;
 };
 
-const pickGoal = (e: Equipment, side?: number): Goal => (Math.random() < .25 ? unitSpot(e) : baySpot(e, side));
+const pickGoal = (e: Equipment, side?: number): Goal => {
+  const roll = Math.random();
+  // An errand starts where the package is: the tracking rows, whichever side the worker is on.
+  if (roll < .2) return { ...baySpot(e, -1), skill: 'carry' };
+  if (roll < .4) return unitSpot(e);
+  return baySpot(e, side);
+};
 
 /**
  * Somewhere nobody else is already headed. Two workers sent to the same bay walk the same line and
@@ -248,7 +255,29 @@ const interact = (w: Worker, other: Worker, e: Equipment) => {
   w.path = []; other.path = [];
 };
 
+/** The far end of an errand: the warehouse rows, where whatever was collected gets put away. */
+const headForDelivery = (w: Worker, e: Equipment) => {
+  const drop = baySpot(e, 1);
+  w.goal = 'carry';
+  w.face = drop.face;
+  w.path = routeTo(e, w.root.position, drop.point, w.lane, w.flip);
+};
+
+const takeCrate = (w: Worker, e: Equipment) => {
+  w.holding = true;
+  w.crate.visible = true;
+  // The bubble stays up for the walk across, so the errand reads as one job rather than two.
+  paint(w.bubble, SKILLS.carry.label, BUBBLE_TONE());
+  w.bubble.sprite.visible = true;
+  headForDelivery(w, e);
+};
+
+const dropCrate = (w: Worker) => { w.holding = false; w.crate.visible = false; };
+
 const retarget = (w: Worker, e: Equipment, all: Worker[]) => {
+  // A package is never abandoned: whatever sends a carrier looking for something new - walled in, a
+  // stand-off, nowhere to step - it goes back to finishing the delivery instead.
+  if (w.holding) { headForDelivery(w, e); return; }
   const goal = freeGoal(e, all, w);
   w.goal = goal.skill;
   w.face = goal.face;
@@ -261,6 +290,11 @@ const step = (w: Worker, dt: number, e: Equipment, all: Worker[]) => {
   // Labels ride above the worker rather than parenting to it, so the model's scale never touches them.
   w.tag.sprite.position.set(pos.x, head, pos.z);
   w.bubble.sprite.position.set(pos.x, head + .62, pos.z);
+  // Carried out in front, turning with whoever is holding it.
+  if (w.holding) {
+    w.crate.position.set(pos.x + Math.sin(w.root.rotation.y) * .45, groundOf(e) + .95, pos.z + Math.cos(w.root.rotation.y) * .45);
+    w.crate.rotation.y = w.root.rotation.y;
+  }
 
   if (w.skill) {
     // Loading dots, the same idea as Lena's thinking line.
@@ -271,9 +305,16 @@ const step = (w: Worker, dt: number, e: Equipment, all: Worker[]) => {
   if (w.pause > 0) {
     w.pause -= dt;
     if (w.pause <= 0) {
+      const finished = w.skill;
       endSkill(w);
+      // An errand runs its routine at both ends: take the package, then carry it over and set it down.
+      if (finished === 'carry' && !w.holding) takeCrate(w, e);
+      else if (finished === 'carry') { dropCrate(w); retarget(w, e, all); }
+      // Interrupted while carrying - stood aside, or stopped to talk - so pick the delivery back up
+      // rather than wandering off with the package still in hand.
+      else if (w.holding && !w.path.length) headForDelivery(w, e);
       // A finished routine leaves no path, so that picks somewhere new; a wait resumes the route.
-      if (!w.path.length) retarget(w, e, all);
+      else if (!w.path.length) retarget(w, e, all);
       fadeTo(w, 'Walking');
     }
     return;
@@ -373,7 +414,10 @@ export function createAmbientCrew(scene: T.Scene) {
           // Half start behind the unit and half in front, so the crew is never all on one side.
           root.position.copy(spawnSpot(e, i % 2 ? 1 : -1, workers));
           actions.Idle?.play();
-          group.add(root, tag.sprite, bubble.sprite);
+          // One crate each, hidden until an errand needs it, so none is ever built or thrown away mid-run.
+          const crate = new T.Mesh(new T.BoxGeometry(.5, .4, .5), new T.MeshStandardMaterial({ color: '#bd9367', roughness: .8 }));
+          crate.castShadow = true; crate.visible = false;
+          group.add(root, tag.sprite, bubble.sprite, crate);
           const worker: Worker = {
             root, mixer, actions, current: 'Idle', path: [], goal: 'inspect', face: 0,
             // Staggered pauses, so ten of them never step in unison, and each rounds a row on its own line.
@@ -381,7 +425,7 @@ export function createAmbientCrew(scene: T.Scene) {
             // Lanes are spread rather than random: random ones cluster, which is what we are avoiding.
             // Half start rounding rows from each end, so the two ends share the traffic from the off.
             pause: Math.random() * 4, speed: .9 + Math.random() * .6, lane: (i / COUNT) * 1.6, flip: i % 2 === 0,
-            role, tag, bubble, skill: null, dots: 0, dotTimer: 0,
+            role, tag, bubble, skill: null, dots: 0, dotTimer: 0, crate, holding: false,
           };
           retarget(worker, e, workers);
           workers.push(worker);
