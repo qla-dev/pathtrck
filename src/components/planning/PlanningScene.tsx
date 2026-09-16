@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as T from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { createAmbientCrew } from './ambientCrew';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
@@ -10,7 +11,7 @@ export type SceneView = 'overview' | 'exterior' | 'loading' | 'top' | 'side';
 export type CameraSnapshot = { view: SceneView; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; fov: number };
 type MoveDirection = 'forward' | 'backward' | 'left' | 'right';
 type LoadDirection = 'up' | 'down' | 'left' | 'right' | 'rotate-left' | 'rotate-right';
-type Props = { equipment: Equipment; cargo: Cargo[]; view: SceneView; warehouse?: boolean; tracking?: boolean; racks?: { warehouse?: RackPage; tracking?: RackPage }; pickedRack?: string; loadMoreLabel?: string; walls?: boolean; dimensions?: boolean; seeThrough?: boolean; overview?: number; selected?: string; onSelect?: (id: string) => void; onMove?: (id: string, x: number, y: number, z: number) => void; onRotate?: () => void; onFreeRoam?: () => void; onCarry?: (carrying: boolean) => void; onUnplace?: (id: string) => void; onRackMore?: (side: 'warehouse' | 'tracking') => void; onRackPick?: (item: RackItem) => void; reset?: number; zoom?: number; cameraSnapshot?: number; onCameraSnapshot?: (snapshot: CameraSnapshot) => void; unavailable: string; mini?: boolean };
+type Props = { equipment: Equipment; cargo: Cargo[]; view: SceneView; warehouse?: boolean; tracking?: boolean; racks?: { warehouse?: RackPage; tracking?: RackPage }; pickedRack?: string; loadMoreLabel?: string; walls?: boolean; dimensions?: boolean; seeThrough?: boolean; ambient?: boolean; overview?: number; selected?: string; onSelect?: (id: string) => void; onMove?: (id: string, x: number, y: number, z: number) => void; onRotate?: () => void; onFreeRoam?: () => void; onCarry?: (carrying: boolean) => void; onUnplace?: (id: string) => void; onRackMore?: (side: 'warehouse' | 'tracking') => void; onRackPick?: (item: RackItem) => void; reset?: number; zoom?: number; cameraSnapshot?: number; onCameraSnapshot?: (snapshot: CameraSnapshot) => void; unavailable: string; mini?: boolean };
 
 // Tetris-style floor grid: 20 cm cells, so pallet and carton sizes land on whole cells.
 const CELL = .2, EPS = 1e-4;
@@ -113,6 +114,7 @@ export function PlanningScene(props: Props) {
     scene.add(new T.HemisphereLight(0xffffff,0x697984,2.6));
     const sun = new T.DirectionalLight(0xffffff,3.5); sun.position.set(-3,16,10); sun.castShadow = true; sun.shadow.mapSize.set(2048,2048); sun.shadow.camera.left=-18;sun.shadow.camera.right=18;sun.shadow.camera.top=18;sun.shadow.camera.bottom=-18; scene.add(sun);
     let model = new T.Group(); scene.add(model);
+    const crew = createAmbientCrew(scene);
     let roof = new T.Group(), side = new T.Group(), doors: T.Group[] = [], cargoMeshes: T.Object3D[] = [];
     let roofTarget=0, sideTarget=1, doorTarget=0;
     let floorGrid: T.LineSegments | null = null, groundGrid: T.GridHelper | null = null;
@@ -541,6 +543,8 @@ export function PlanningScene(props: Props) {
     const theme=new MutationObserver(()=>redraw());theme.observe(document.documentElement,{attributes:true,attributeFilter:['class']});
     // The composed logo needs the star image and the brand font; redraw once each is ready.
     let alive=true;
+    // Ambient crew, in its own layer beside the unit. Skipped in previews and under reduced motion.
+    if(!latest.current.mini&&!matchMedia('(prefers-reduced-motion: reduce)').matches)crew.load(latest.current.equipment);
     const refreshLogo=()=>{if(!alive)return;resetBrandLogo();redraw();};
     logoMark?.addEventListener('load',refreshLogo);
     void document.fonts?.load(`bold 64px ${BRAND_FONT}`).then(refreshLogo,()=>{});
@@ -609,9 +613,10 @@ export function PlanningScene(props: Props) {
       // stays transparent for its own per-view fade, and needs the same flag when that is reversed.
       side.traverse(obj=>{const m=(obj as T.Mesh).material as T.MeshStandardMaterial;if(!m)return;if(!m.transparent){m.transparent=true;m.needsUpdate=true;}m.opacity=sideOpacity;m.depthWrite=sideOpacity>.5&&!m.userData.decal;});
       doors.forEach((d,i)=>{d.rotation.y=T.MathUtils.lerp(d.rotation.y,(i===0?1:-1)*doorTarget,speed);});
+      crew.update(dt,latest.current.equipment,latest.current.ambient!==false);
       controls.update();renderer.render(scene,activeCamera);
     };animate();
-    return()=>{alive=false;logoMark?.removeEventListener('load',refreshLogo);cancelAnimationFrame(frame);observer.disconnect();theme.disconnect();dispose(ghost);controls.dispose();dispose(model);renderer.dispose();renderer.domElement.removeEventListener('pointerdown',down,true);renderer.domElement.removeEventListener('pointermove',move);renderer.domElement.removeEventListener('wheel',trackpadPan,true);window.removeEventListener('keydown',key);renderer.domElement.removeEventListener('pointerup',up);renderer.domElement.removeEventListener('pointercancel',cancel);renderer.domElement.removeEventListener('pointerleave',leave);renderer.domElement.remove();runtime.current=null;};
+    return()=>{alive=false;logoMark?.removeEventListener('load',refreshLogo);cancelAnimationFrame(frame);observer.disconnect();theme.disconnect();dispose(ghost);controls.dispose();dispose(model);crew.dispose();renderer.dispose();renderer.domElement.removeEventListener('pointerdown',down,true);renderer.domElement.removeEventListener('pointermove',move);renderer.domElement.removeEventListener('wheel',trackpadPan,true);window.removeEventListener('keydown',key);renderer.domElement.removeEventListener('pointerup',up);renderer.domElement.removeEventListener('pointercancel',cancel);renderer.domElement.removeEventListener('pointerleave',leave);renderer.domElement.remove();runtime.current=null;};
   }, []);
   useEffect(()=>{runtime.current?.redraw();},[props.cargo,props.selected,props.dimensions,props.racks,props.loadMoreLabel]);
   useEffect(()=>{runtime.current?.changeView();},[props.view,props.equipment,props.reset]);

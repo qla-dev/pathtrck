@@ -18,6 +18,7 @@ import {
   ListOrdered,
   Maximize,
   Navigation2,
+  PersonStanding,
   Plus,
   RotateCcw,
   RotateCw,
@@ -167,6 +168,7 @@ export default function LoadPlanningView({ lang, userId, role }: { lang: Languag
   // The virtual workspace always starts as a complete warehouse overview: a generic 40HC container
   // between both rack systems. The scene animates the two rack groups into this initial state.
   const [warehouse, setWarehouse] = useState(true), [wallsMode, setWallsMode] = useState<'solid' | 'through' | 'off'>('solid'), [dimensionsOn, setDimensionsOn] = useState(true);
+  const [ambient, setAmbient] = useState(true);
   // Walls cycle solid → see through → off; the scene still takes the two plain flags it always did.
   const walls = wallsMode !== 'off', seeThrough = wallsMode === 'through';
   const [tracking, setTracking] = useState(true);
@@ -380,7 +382,7 @@ export default function LoadPlanningView({ lang, userId, role }: { lang: Languag
       <div className="absolute inset-0">
         <React.Suspense fallback={<SceneSkeleton label={t.loading3d} />}>
           <PlanningScene equipment={e} cargo={cargo} view={view} selected={selected} onSelect={setSelected} onMove={move} onRotate={rotate} onFreeRoam={() => setActiveView(null)} onCarry={setCarrying} onUnplace={unplace} tracking={tracking} racks={racks} pickedRack={rackPick?.key} loadMoreLabel={t.loadMore} cameraSnapshot={cameraSnapshot} onCameraSnapshot={copyCamera}
-            onRackMore={side => void loadRack(side, (racks[side]?.page ?? 1) + 1)} onRackPick={setRackPick} warehouse={warehouse} walls={walls} dimensions={dimensionsOn} seeThrough={seeThrough} reset={reset} zoom={zoom} overview={overview} unavailable={t.unavailable} />
+            onRackMore={side => void loadRack(side, (racks[side]?.page ?? 1) + 1)} onRackPick={setRackPick} warehouse={warehouse} walls={walls} dimensions={dimensionsOn} seeThrough={seeThrough} ambient={ambient} reset={reset} zoom={zoom} overview={overview} unavailable={t.unavailable} />
         </React.Suspense>
       </div>
 
@@ -429,6 +431,9 @@ export default function LoadPlanningView({ lang, userId, role }: { lang: Languag
         </button>
         <button type="button" aria-pressed={dimensionsOn} aria-label={t.dimensionLabels} title={t.dimensionLabels} onClick={() => setDimensionsOn(current => !current)} className={overlayToggle(dimensionsOn)}>
           <Ruler className="h-4 w-4" />
+        </button>
+        <button type="button" aria-pressed={ambient} aria-label={t.ambient} title={t.ambient} onClick={() => setAmbient(current => !current)} className={overlayToggle(ambient)}>
+          <PersonStanding className="h-4 w-4" />
         </button>
         </div>
         <div className="pointer-events-auto flex gap-1.5">
