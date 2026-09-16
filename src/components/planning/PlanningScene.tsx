@@ -77,7 +77,7 @@ export function PlanningScene(props: Props) {
   const [flashedMove, setFlashedMove] = useState<MoveDirection | null>(null);
   const [flashedLoad, setFlashedLoad] = useState<LoadDirection | null>(null);
   const flashTimer = useRef<number | null>(null);
-  const runtime = useRef<{ redraw: () => void; changeView: () => void; zoom: (n: number) => void; overview: () => void; focusRack: () => void; move: (direction: MoveDirection) => void; snapshot: () => CameraSnapshot } | null>(null);
+  const runtime = useRef<{ redraw: () => void; changeView: () => void; zoom: (n: number) => void; overview: () => void; focusRack: () => void; move: (direction: MoveDirection) => void; moveLoad: (direction: LoadDirection) => void; snapshot: () => CameraSnapshot } | null>(null);
   const flashMove = (direction: MoveDirection) => {
     if (flashTimer.current !== null) window.clearTimeout(flashTimer.current);
     setFlashedMove(direction);
@@ -198,7 +198,7 @@ export function PlanningScene(props: Props) {
                   rackHome.set(item.key,home.clone());
                   // Already put in front of the unit: its slot stays empty.
                   if(taken.has(item.key))continue;
-                  const unit=new T.Group();unit.userData.rackItem=item;unit.userData.home=home.clone();unit.userData.toward=dz<0?1:-1;
+                  const unit=new T.Group();unit.userData.rackItem=item;unit.userData.home=home.clone();unit.userData.rackId=`${side}:${z}`;unit.userData.toward=dz<0?1:-1;
                   const mesh=new T.Mesh(new T.BoxGeometry(.65,.8,.9),new T.MeshStandardMaterial({map:faceTexture((item.reference||item.title).slice(0,10),groupColor(item.group)),roughness:.7,emissive:0xffffff,emissiveIntensity:0}));
                   mesh.castShadow=true;unit.add(mesh);unit.position.copy(home);
                   // A new page slides in slot by slot from the "load more" bay.
@@ -550,14 +550,20 @@ export function PlanningScene(props: Props) {
         if(latest.current.mini)return;
         const key=latest.current.pickedRack,unit=rackMeshes.find(mesh=>mesh.userData.rackItem?.key===key);
         if(!unit)return;
+        const rackId=unit.userData.rackId;
         const homeWorld=(mesh:T.Object3D)=>model.localToWorld((mesh.userData.home as T.Vector3).clone());
-        const candidates=rackMeshes.filter(mesh=>mesh.userData.rackItem).sort((a,b)=>{
+        const rowItems=rackMeshes.filter(mesh=>mesh.userData.rackItem&&mesh.userData.rackId===rackId).sort((a,b)=>{
           const ah=a.userData.home as T.Vector3,bh=b.userData.home as T.Vector3;
           return (bh.y-ah.y)||(ah.x-bh.x)||(Math.abs(ah.z)-Math.abs(bh.z));
         });
-        const anchor=candidates[0];
-        if(!anchor)return;
-        const delta=homeWorld(unit).sub(homeWorld(anchor));
+        const allItems=rackMeshes.filter(mesh=>mesh.userData.rackItem).sort((a,b)=>{
+          const ah=a.userData.home as T.Vector3,bh=b.userData.home as T.Vector3;
+          return (bh.y-ah.y)||(ah.x-bh.x)||(Math.abs(ah.z)-Math.abs(bh.z));
+        });
+        const rackAnchor=rowItems[0],firstRackAnchor=allItems[0];
+        if(!rackAnchor||!firstRackAnchor)return;
+        // Translate by rack-row position only. Packages on the same rack therefore share one camera.
+        const delta=homeWorld(rackAnchor).sub(homeWorld(firstRackAnchor));
         target.set(-24.4245+delta.x,6.4092+delta.y,-3.2267+delta.z);
         controls.target.set(-17.7375+delta.x,3.0814+delta.y,-12.1113+delta.z);
         camera.fov=38;camera.updateProjectionMatrix();transition=1;
