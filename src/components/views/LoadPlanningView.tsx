@@ -47,9 +47,10 @@ import { Card } from '../ui/Card';
 import { PageHeader } from '../ui/PageHeader';
 import { PinnedPanel } from '../ui/PinnedPanel';
 import { PinnedPanelLeft } from '../ui/PinnedPanelLeft';
+import { PinnedSidebar } from '../lena/PinnedSidebar';
 import { SmallModal } from '../ui/SmallModal';
 import { planningLabels } from '../planning/labels';
-import { autoPlan, Cargo, COLORS, Equipment, EQUIPMENT, fits, Plan, rackSlotsPerPage, readPlan, revalidate, validEquipment, volume, type RackItem, type RackPage } from '../planning/model';
+import { autoPlan, Cargo, COLORS, Equipment, EQUIPMENT, fits, Plan, RACK_SLOTS_PER_PAGE, readPlan, revalidate, validEquipment, volume, type RackItem, type RackPage } from '../planning/model';
 import type { CameraSnapshot, SceneView } from '../planning/PlanningScene';
 
 // Three.js is heavy, so the page renders first and each scene streams in behind a skeleton.
@@ -174,6 +175,9 @@ export default function LoadPlanningView({ lang, userId, role }: { lang: Languag
   const [tracking, setTracking] = useState(true);
   const [racks, setRacks] = useState<{ warehouse?: RackPage; tracking?: RackPage }>({});
   const [rackPick, setRackPick] = useState<RackItem | null>(null);
+  // Clicking Lena's office opens her chat pinned on the left; the number restarts it, as the app's right-hand one does.
+  // It shares the left edge with a picked rack, so opening either closes the other.
+  const [lenaChat, setLenaChat] = useState<number | null>(null);
   const [openLoadId, setOpenLoadId] = useState<string | null>(null);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('equipment');
   const [equipmentTab, setEquipmentTab] = useState<'container' | 'vehicle' | 'custom'>(() => (plan.equipment.truck ? 'vehicle' : 'container'));
@@ -284,7 +288,7 @@ export default function LoadPlanningView({ lang, userId, role }: { lang: Languag
   };
   // Real cargo for the inner rack rows, one page of rack slots at a time: warehouse stock on one side, current tracking loads on the other.
   const loadRack = async (side: 'warehouse' | 'tracking', page: number) => {
-    const per_page = rackSlotsPerPage(plan.equipment.length);
+    const per_page = RACK_SLOTS_PER_PAGE;
     const text = (value: unknown) => (value == null ? '' : String(value));
     const positiveOrUndefined = (value: unknown) => (Number(value) > 0 ? Number(value) : undefined);
     try {
@@ -318,8 +322,6 @@ export default function LoadPlanningView({ lang, userId, role }: { lang: Languag
       }
     } catch { setNotice(t.rackFailed); }
   };
-  // Slot counts follow the unit's length, so another unit starts the racks again from page one.
-  useEffect(() => { setRacks({}); }, [plan.equipment.length]);
   useEffect(() => { if (warehouse && !racks.warehouse) void loadRack('warehouse', 1); }, [warehouse, racks.warehouse]);
   useEffect(() => { if (tracking && !racks.tracking) void loadRack('tracking', 1); }, [tracking, racks.tracking]);
   // A rack unit becomes cargo waiting in front of the unit: pallets as EUR pallets sharing the weight, otherwise one unit of the recorded size.
@@ -382,7 +384,7 @@ export default function LoadPlanningView({ lang, userId, role }: { lang: Languag
       <div className="absolute inset-0">
         <React.Suspense fallback={<SceneSkeleton label={t.loading3d} />}>
           <PlanningScene equipment={e} cargo={cargo} view={view} selected={selected} onSelect={setSelected} onMove={move} onRotate={rotate} onFreeRoam={() => setActiveView(null)} onCarry={setCarrying} onUnplace={unplace} tracking={tracking} racks={racks} pickedRack={rackPick?.key} loadMoreLabel={t.loadMore} cameraSnapshot={cameraSnapshot} onCameraSnapshot={copyCamera}
-            onRackMore={side => void loadRack(side, (racks[side]?.page ?? 1) + 1)} onRackPick={setRackPick} warehouse={warehouse} walls={walls} dimensions={dimensionsOn} seeThrough={seeThrough} ambient={ambient} lenaOffice={lenaOffice} reset={reset} zoom={zoom} overview={overview} unavailable={t.unavailable} />
+            onRackMore={side => void loadRack(side, (racks[side]?.page ?? 1) + 1)} onRackPick={item => { setLenaChat(null); setRackPick(item); }} onLenaOffice={() => { setRackPick(null); setLenaChat(Date.now()); }} warehouse={warehouse} walls={walls} dimensions={dimensionsOn} seeThrough={seeThrough} ambient={ambient} lenaOffice={lenaOffice} reset={reset} zoom={zoom} overview={overview} unavailable={t.unavailable} />
         </React.Suspense>
       </div>
 
@@ -741,6 +743,8 @@ export default function LoadPlanningView({ lang, userId, role }: { lang: Languag
           );
         })()}
       </AnimatePresence>
+
+      <PinnedSidebar side="left" startFresh open={lenaChat !== null} lang={lang} userId={userId} refreshToken={lenaChat ?? 0} onStartGenericChat={() => setLenaChat(Date.now())} onClose={() => setLenaChat(null)} />
 
       {openLoadId && (
         <React.Suspense fallback={null}>

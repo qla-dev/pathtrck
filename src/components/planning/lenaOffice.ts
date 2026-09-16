@@ -3,7 +3,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 import { BUBBLE_TONE, measure, paint, plate, type ConsultSpot, type Footprint } from './ambientCrew';
-import { rackBays, rackSpan, type Equipment } from './model';
+import { type Equipment } from './model';
+import { HALL_DEPTH, HALL_X, KERB } from './rooms';
 import { SKILLS } from './skills';
 
 const MODEL_URL = '/models/RobotExpressive.glb';
@@ -34,11 +35,10 @@ const doorOf = (): Hole => ({ x0: .55, x1: 1.45, y0: 0, y1: 2.1 });
 const windowOf = (s: Spec): Hole => (s.lena ? { x0: 2.35, x1: s.width - .45, y0: .95, y1: 2.2 } : { x0: 2.5, x1: s.width - .8, y0: 1.15, y1: 2.1 });
 
 /**
- * Where the row of offices stands: past the far end of the racks, with the doors facing back up the
- * aisle. The line the crew takes round the row ends reaches under a metre past them, and a visitor
- * stands between that and the windows, so the row keeps well over two metres clear.
+ * Where the row of offices stands, in the unit's model coordinates: backed right up to the hall's far
+ * kerb (the skid overhangs the body by 5 cm), doors facing back up the aisle across the open hall.
  */
-const frontOf = (e: Equipment) => e.length / 2 - rackSpan(e.length) + (rackBays(e.length) - 1) * 3 + 1.3 + 2.3;
+const frontOf = (e: Equipment) => e.length / 2 + HALL_X + HALL_DEPTH - KERB - .05 - DEPTH;
 
 type Tick = (time: number, dt: number) => void;
 
@@ -189,9 +189,16 @@ export function createLenaOffice(scene: T.Scene) {
   const layer = new T.Group(); layer.visible = false; scene.add(layer);
   const roots: T.Group[] = [], ticks: Tick[] = [];
   const signs: { ctx: CanvasRenderingContext2D; texture: T.CanvasTexture; spec: Spec }[] = [];
-  let pad: T.Group | null = null, show = 0, time = 0, disposed = false, built = false;
+  let show = 0, time = 0, disposed = false, built = false;
   type Seated = { mixer: T.AnimationMixer; sit: T.AnimationAction; head?: T.Object3D; swivel: T.Group; bubble: ReturnType<typeof plate>; spec: Spec; status: number; statusTimer: number; dots: number; dotTimer: number; phase: number };
   const seated: Seated[] = [];
+  /**
+   * Lena's office is pickable, and hovering it lifts it the way a rack unit lifts: a white emissive wash
+   * over its own surfaces. Those that already glow - sign, lamps, strip - are left alone, and so is the
+   * robot, whose materials its clones in the other offices share.
+   */
+  let lenaRoot: T.Group | null = null, lit = false;
+  const washable: T.MeshStandardMaterial[] = [];
   /**
    * Each office's swivel chair, where on it the occupant sits and which way they face at work. The chair
    * stands in the office's own frame; `at` and `turn` are in the chair's, which turns for a visitor.
@@ -345,6 +352,14 @@ export function createLenaOffice(scene: T.Scene) {
       box(root, .52, .28, .01, glowMat, winX, deskTop + .3, deskZ - .08, false);
     }
 
+    if (s.lena) {
+      // Collected now, before anyone sits in the chair.
+      root.traverse(obj => {
+        const material = (obj as T.Mesh).material as T.MeshStandardMaterial | undefined;
+        if (material?.isMeshStandardMaterial && !material.emissiveMap && material.emissive.getHex() === 0 && !washable.includes(material)) washable.push(material);
+      });
+      lenaRoot = root;
+    }
     layer.add(root); roots.push(root);
   };
 
@@ -352,7 +367,6 @@ export function createLenaOffice(scene: T.Scene) {
     const front = frontOf(e), ground = groundOf(e);
     layer.position.set(-e.length / 2, Math.pow(1 - show, 3) * 9, -e.width / 2);
     roots.forEach((root, i) => { root.position.set(front + DEPTH / 2, ground, e.width / 2 + OFFICES[i].offset); root.rotation.y = -Math.PI / 2; });
-    pad?.position.set(front + DEPTH / 2, ground, e.width / 2);
   };
 
   return {
@@ -362,13 +376,6 @@ export function createLenaOffice(scene: T.Scene) {
       const primary = BUBBLE_TONE();
       OFFICES.forEach((s, i) => build(s, i, primary));
 
-      // A concrete apron under the row, with a safety line along the front: the offices stand just past
-      // the end of the warehouse slab, so without it they would float.
-      pad = new T.Group();
-      const apron = mesh(pad, new T.BoxGeometry(DEPTH + 2.4, .04, 21), std('#3b4757', { roughness: .9 }), -.1, .02, 0, false);
-      apron.receiveShadow = true;
-      mesh(pad, new T.BoxGeometry(.1, .012, 21), new T.MeshBasicMaterial({ color: '#facc15' }), -DEPTH / 2 - .85, .045, 0, false);
-      layer.add(pad);
       // The sign font may still be loading; letter the signs again once it lands.
       void document.fonts?.ready.then(() => { if (disposed) return; for (const sign of signs) { paintSign(sign.ctx, sign.spec, primary); sign.texture.needsUpdate = true; } });
       place(e);
@@ -400,6 +407,18 @@ export function createLenaOffice(scene: T.Scene) {
           seated.push({ mixer, sit, head, swivel, bubble, spec, status: 0, statusTimer: i * 1.7, dots: 0, dotTimer: 0, phase: i * 2.1 });
         });
       }, undefined, () => {});
+    },
+
+    /** Whether a ray (already set from the pointer) lands on Lena's office - only once it is standing. */
+    pick(raycaster: T.Raycaster): boolean {
+      if (!lenaRoot || !layer.visible || show < .9) return false;
+      return raycaster.intersectObject(lenaRoot, true).some(hit => (hit.object as T.Mesh).isMesh);
+    },
+
+    hover(on: boolean) {
+      if (on === lit) return;
+      lit = on;
+      for (const material of washable) { material.emissive.setHex(on ? 0xffffff : 0); material.emissiveIntensity = on ? .35 : 1; }
     },
 
     /** Eases the row in and out like the racks, then ticks the signs, screen, hologram and the three at their desks. */

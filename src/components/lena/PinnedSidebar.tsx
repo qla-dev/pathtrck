@@ -17,10 +17,14 @@ type PinnedSidebarProps = {
   onClose: () => void;
   onApplyLoadPrefill?: (patch: ScanFieldPatch, conversationId: string, draftId?: string | null) => void;
   onStartGenericChat?: () => void;
+  /** The edge it docks to; the app shell's own is on the right. */
+  side?: 'left' | 'right';
+  /** Opens on the welcome greeting rather than the latest conversation. */
+  startFresh?: boolean;
 };
 
 /** A persistent Lena host owned by the app shell, rather than by a modal or a page. */
-export const PinnedSidebar = ({ open, lang, userId, companyIds, loadId, loadLabel, conversationId, refreshToken, onClose, onApplyLoadPrefill, onStartGenericChat }: PinnedSidebarProps) => {
+export const PinnedSidebar = ({ open, lang, userId, companyIds, loadId, loadLabel, conversationId, refreshToken, onClose, onApplyLoadPrefill, onStartGenericChat, side = 'right', startFresh }: PinnedSidebarProps) => {
   const [visibleToken, setVisibleToken] = useState(refreshToken);
   const [refreshing, setRefreshing] = useState(false);
   const hasMounted = useRef(false);
@@ -44,8 +48,8 @@ export const PinnedSidebar = ({ open, lang, userId, companyIds, loadId, loadLabe
     return undefined;
   }, [open, refreshToken, visibleToken]);
 
-  return <aside className="fixed inset-y-0 right-0 z-[320]">
-    <LenaAI key={visibleToken} open={open} sideBarMode pinnedMode onClose={onClose} lang={lang} userId={userId} companyIds={companyIds} loadId={loadId} loadLabel={loadLabel} initialConversationId={conversationId} onConversationReady={() => setRefreshing(false)} onApplyLoadPrefill={onApplyLoadPrefill} onStartGenericChat={onStartGenericChat} />
-    {open && refreshing && <div className="fixed inset-y-0 right-0 z-[400] flex w-full items-center justify-center bg-white/82 backdrop-blur-sm dark:bg-slate-950/82 lg:w-[440px] xl:w-[480px]" aria-live="polite" aria-label="Refreshing pinned conversation"><div className="flex flex-col items-center gap-3 text-primary"><LoaderCircle className="h-9 w-9 animate-spin" /><span className="text-sm font-bold">Loading conversation...</span></div></div>}
+  return <aside className={`fixed inset-y-0 z-[320] ${side === 'left' ? 'left-0' : 'right-0'}`}>
+    <LenaAI key={visibleToken} open={open} sideBarMode sideBarSide={side} pinnedMode onClose={onClose} lang={lang} userId={userId} companyIds={companyIds} loadId={loadId} loadLabel={loadLabel} initialConversationId={conversationId} startFresh={startFresh} onConversationReady={() => setRefreshing(false)} onApplyLoadPrefill={onApplyLoadPrefill} onStartGenericChat={onStartGenericChat} />
+    {open && refreshing && <div className={`fixed inset-y-0 z-[400] flex w-full items-center justify-center bg-white/82 backdrop-blur-sm dark:bg-slate-950/82 ${side === 'left' ? 'left-0 md:w-[max(20vw,360px)]' : 'right-0 lg:w-[440px] xl:w-[480px]'}`} aria-live="polite" aria-label="Refreshing pinned conversation"><div className="flex flex-col items-center gap-3 text-primary"><LoaderCircle className="h-9 w-9 animate-spin" /><span className="text-sm font-bold">Loading conversation...</span></div></div>}
   </aside>;
 };

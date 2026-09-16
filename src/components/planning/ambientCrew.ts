@@ -2,7 +2,8 @@ import * as T from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
-import { rackBays, rackSpan, type Equipment } from './model';
+import { RACK_BAYS, RACK_SPAN, type Equipment } from './model';
+import { DOOR, HALL_DEPTH, HALL_X, ROOM, ROOMS } from './rooms';
 import { SKILLS, WIDEST_LABEL, type SkillName } from './skills';
 
 const MODEL_URL = '/models/RobotExpressive.glb';
@@ -50,6 +51,8 @@ export type ConsultSpot = { id: string; x: number; z: number };
 let consults: ConsultSpot[] = [];
 /** How often a worker looking for something to do drops in at an office instead, if one is free. */
 const CONSULT_CHANCE = .15;
+/** How often one of the rest leaves the warehouse instead: stepping out, a round of the hall, a visit to another room. */
+const OUTINGS = { leave: .06, roam: .05, visit: .07 };
 type Plate = { sprite: T.Sprite; canvas: HTMLCanvasElement; texture: T.CanvasTexture };
 /** Where to go, what to do there, and which way to turn once standing on the spot. */
 type Goal = { point: T.Vector3; skill: SkillName; face: number };
@@ -62,6 +65,8 @@ type Worker = {
   carrier: boolean; from: number;
   /** The office this worker has booked, from setting off until the consultation is over. */
   consult: string | null;
+  /** The room a visit is to, for the bubble. */
+  visit: string | null;
 };
 
 /** The scene's own label look: a dark rounded plate with white text, drawn over everything else. */
@@ -92,23 +97,48 @@ export const measure = (text: string) => {
 
 /** The x span a rack row covers, from its first bay to its last, with room for a body at each end. */
 const rowSpan = (e: Equipment) => {
-  const span = rackSpan(e.length), first = e.length / 2 - span;
-  return { x0: first - 1.4, x1: first + (rackBays(e.length) - 1) * 3 + 1.4 };
+  const first = e.length / 2 - RACK_SPAN;
+  return { x0: first - 1.4, x1: first + (RACK_BAYS - 1) * 3 + 1.4 };
 };
 
 /** Everything a worker has to walk around, in the same model-local metres the scene uses. */
 const obstacles = (e: Equipment): Footprint[] => {
   const { x0, x1 } = rowSpan(e);
   const rows = ROWS.map(dz => ({ x0, x1, z0: e.width / 2 + dz - .8, z1: e.width / 2 + dz + .8 }));
+  // Room edges: each room's hall side is closed but for its door, and the rooms are closed off from each
+  // other along their whole depth. The outside of the site is the floor bounds.
+  const edge = e.length / 2 + HALL_X, centre = e.width / 2, back = e.length / 2 - ROOM / 2;
+  const wall: Footprint[] = ROOMS.flatMap(room => {
+    const door = centre + room.z;
+    return [{ x0: edge - .3, x1: edge + .3, z0: door - ROOM / 2, z1: door - DOOR / 2 }, { x0: edge - .3, x1: edge + .3, z0: door + DOOR / 2, z1: door + ROOM / 2 }];
+  });
+  for (const z of [centre - ROOM / 2, centre + ROOM / 2]) wall.push({ x0: back - .5, x1: edge + .3, z0: z - .3, z1: z + .3 });
   // The unit itself, a truck's cab reaching out past its nose, then whatever is stacked on the floor.
-  return [...rows, { x0: e.truck ? -2.6 : -.3, x1: e.length + .3, z0: -.3, z1: e.width + .3 }, ...parked];
+  return [...rows, ...wall, { x0: e.truck ? -2.6 : -.3, x1: e.length + .3, z0: -.3, z1: e.width + .3 }, ...parked];
+};
+
+type Area = 'hall' | (typeof ROOMS)[number]['key'];
+/**
+ * The site as the crew walks it: which area a point is in, the spot just inside each room's door and the
+ * lane along the hall past the doors - clear of anyone standing at an office window.
+ */
+const site = (e: Equipment) => {
+  const ground = groundOf(e), edge = e.length / 2 + HALL_X, centre = e.width / 2;
+  const doorZ = (area: Area) => centre + (ROOMS.find(room => room.key === area)?.z ?? 0);
+  return {
+    ground, edge,
+    lane: edge + .9,
+    areaOf: (p: T.Vector3): Area => (p.x > edge ? 'hall' : ROOMS.reduce((best, room) => (Math.abs(p.z - centre - room.z) < Math.abs(p.z - centre - best.z) ? room : best)).key),
+    /** The warehouse's is clear of the row ends; the other rooms are empty, so theirs is just inside. */
+    inside: (area: Area) => new T.Vector3(area === 'warehouse' ? rowSpan(e).x1 + .45 : edge - 1.2, ground, doorZ(area)),
+  };
 };
 
 /** The warehouse floor slab, inset so nobody walks off its edge. */
 const floorBounds = (e: Equipment): Footprint => {
-  const halfX = Math.max(36, e.length + 24) / 2 - .8;
-  // The offices stand just past the end of the slab, so their windows widen it that far.
-  return { x0: e.length / 2 - halfX, x1: Math.max(e.length / 2 + halfX, ...consults.map(c => c.x + .3)), z0: e.width / 2 - 17.2, z1: e.width / 2 + 17.2 };
+  // The whole site - all three rooms and the hall across them; the walls between are obstacles with doors in them.
+  const halfZ = ROOM * ROOMS.length / 2 - .8;
+  return { x0: e.length / 2 - ROOM / 2 + .8, x1: e.length / 2 + HALL_X + HALL_DEPTH - .5, z0: e.width / 2 - halfZ, z1: e.width / 2 + halfZ };
 };
 
 const within = (b: Footprint, x: number, z: number) => x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1;
@@ -143,7 +173,7 @@ const facing = (towards: number, from: number) => Math.atan2(0, towards - from);
 /** A bay to inspect: a random rack row, standing in the aisle on the unit's side of it. */
 const baySpot = (e: Equipment, side?: number): Goal => {
   const rows = side ? ROWS.filter(dz => Math.sign(dz) === side) : ROWS;
-  const span = rackSpan(e.length), bays = rackBays(e.length), dz = rows[Math.floor(Math.random() * rows.length)];
+  const span = RACK_SPAN, bays = RACK_BAYS, dz = rows[Math.floor(Math.random() * rows.length)];
   const rackZ = e.width / 2 + dz, standZ = rackZ + (dz < 0 ? STANDOFF : -STANDOFF);
   return {
     point: new T.Vector3(e.length / 2 - span + Math.floor(Math.random() * Math.max(1, bays - 1)) * 3, groundOf(e), standZ),
@@ -207,13 +237,41 @@ const freeGoal = (e: Equipment, all: Worker[], self: Worker): Goal => {
 };
 
 /**
- * Rows are parallel walls running along x, all sharing one x span, so the only way from one aisle to
- * the next is around their ends - which are clear of the unit as well. When something stands between
- * the two z values, the route goes out to the nearer end, along it, and back in; otherwise straight.
- * Each worker rounds the end on its own slightly different line, so ten of them do not file through
- * one point.
+ * A walk anywhere on the site. Within one area it is that area's own route; between areas it always goes
+ * by the doors - out of the room it starts in, along the hall lane, and in through the door of the room it
+ * ends in - since nobody crosses a room's edge anywhere else.
  */
 const routeTo = (e: Equipment, from: T.Vector3, to: T.Vector3, lane: number, flip = false): T.Vector3[] => {
+  const s = site(e), a = s.areaOf(from), b = s.areaOf(to), y = s.ground;
+  if (a === b) {
+    if (a === 'warehouse') return aisleRoute(e, from, to, lane, flip);
+    if (a === 'hall') return [new T.Vector3(s.lane, y, from.z), new T.Vector3(s.lane, y, to.z), to.clone()];
+    // Fleet and Docks are empty rooms: square across them.
+    return [new T.Vector3(to.x, y, from.z), to.clone()];
+  }
+  const path: T.Vector3[] = [];
+  let at = from;
+  if (a !== 'hall') {
+    const inside = s.inside(a);
+    path.push(...(a === 'warehouse' ? aisleRoute(e, from, inside, lane, flip, true) : [new T.Vector3(inside.x, y, from.z), inside]));
+    at = new T.Vector3(s.lane, y, inside.z);
+    path.push(at);
+  }
+  if (b === 'hall') return [...path, ...routeTo(e, at, to, lane, flip)];
+  const inside = s.inside(b);
+  path.push(new T.Vector3(s.lane, y, at.z), new T.Vector3(s.lane, y, inside.z), inside);
+  return [...path, ...routeTo(e, inside, to, lane, flip)];
+};
+
+/**
+ * Inside the warehouse. Rows are parallel walls running along x, all sharing one x span, so the only way
+ * from one aisle to the next is around their ends - which are clear of the unit as well. When something
+ * stands between the two z values, the route goes out to the nearer end, along it, and back in; otherwise
+ * straight. Each worker rounds the end on its own slightly different line, so ten of them do not file
+ * through one point. `toDoor` always takes the end by the door: the other end's last leg would run
+ * through the unit.
+ */
+const aisleRoute = (e: Equipment, from: T.Vector3, to: T.Vector3, lane: number, flip = false, toDoor = false): T.Vector3[] => {
   const list = obstacles(e);
   const low = Math.min(from.z, to.z), high = Math.max(from.z, to.z);
   const wall = list.find(b => b.z1 > low && b.z0 < high);
@@ -231,7 +289,7 @@ const routeTo = (e: Equipment, from: T.Vector3, to: T.Vector3, lane: number, fli
   const preferred = (flip ? !nearer : nearer) ? left : right, other = preferred === left ? right : left;
   // Standing off the end of the unit, the far row end lies straight through it. That first leg is
   // blocked from its first step, and every retarget rebuilds the same one - so take the open end.
-  const edge = clearLeg(list, from.x, from.z, preferred, from.z) || !clearLeg(list, from.x, from.z, other, from.z) ? preferred : other;
+  const edge = toDoor ? right : clearLeg(list, from.x, from.z, preferred, from.z) || !clearLeg(list, from.x, from.z, other, from.z) ? preferred : other;
   return [new T.Vector3(edge, to.y, from.z), new T.Vector3(edge, to.y, to.z), to.clone()];
 };
 
@@ -243,13 +301,19 @@ const fadeTo = (w: Worker, name: string, duration = .4) => {
   w.current = name;
 };
 
+/** What a worker's bubble says for a routine: a visit names its room, everything else its own label. */
+const labelOf = (w: Worker, name: SkillName) => {
+  const room = name === 'visit_room' ? ROOMS.find(r => r.key === w.visit) : undefined;
+  return room ? `${room.title.charAt(0)}${room.title.slice(1).toLowerCase()} visit` : SKILLS[name].label;
+};
+
 const startSkill = (w: Worker, name: SkillName) => {
   const skill = SKILLS[name];
   w.skill = name;
   w.pause = skill.min + Math.random() * (skill.max - skill.min);
   w.dots = 0; w.dotTimer = 0;
   fadeTo(w, skill.clips[Math.floor(Math.random() * skill.clips.length)], .2);
-  paint(w.bubble, skill.label, BUBBLE_TONE());
+  paint(w.bubble, labelOf(w, name), BUBBLE_TONE());
   w.bubble.sprite.visible = true;
 };
 
@@ -332,32 +396,67 @@ const dropCrate = (w: Worker) => { w.holding = false; w.crate.visible = false; }
 /**
  * Books a consultation at a free office and sets off for it. Nobody queues: an office someone else has
  * booked - on the way there or already at the window - is simply not offered, so each has one visitor
- * at most. The walk goes along the aisle, round the far end of the racks and up to the window, and is
- * only taken when those legs are clear; otherwise the worker does something else this time.
+ * at most. The hall is only reached through a door, so the walk goes out of whichever room the worker is
+ * in, along the hall and up to the window.
  */
 const bookConsult = (w: Worker, e: Equipment, all: Worker[]) => {
   const free = consults.filter(c => !all.some(other => other !== w && other.consult === c.id));
   if (!free.length) return false;
   const spot = free[Math.floor(Math.random() * free.length)];
-  const p = w.root.position, edge = rowSpan(e).x1 + .45, list = obstacles(e), ground = groundOf(e);
-  if (!clearLeg(list, p.x, p.z, edge, p.z) || !clearLeg(list, edge, p.z, edge, spot.z)) return false;
   w.consult = spot.id;
   w.goal = 'consult';
   // Facing +x, into the office.
   w.face = Math.PI / 2;
-  w.path = [new T.Vector3(edge, ground, p.z), new T.Vector3(edge, ground, spot.z), new T.Vector3(spot.x, ground, spot.z)];
+  w.path = routeTo(e, w.root.position, new T.Vector3(spot.x, groundOf(e), spot.z), w.lane, w.flip);
   return true;
 };
 
+/** Out of the warehouse into the hall, to stand a while somewhere clear of the lane and the office windows. */
+const stepOut = (w: Worker, e: Equipment) => {
+  const s = site(e), reach = ROOM * ROOMS.length / 2 - 2;
+  const spot = new T.Vector3(s.edge + 2.2 + Math.random() * 2, s.ground, e.width / 2 + (Math.random() * 2 - 1) * reach);
+  w.goal = 'leave_room';
+  // Looking back at the rooms.
+  w.face = -Math.PI / 2;
+  w.path = routeTo(e, w.root.position, spot, w.lane, w.flip);
+};
+
+/** Into the hall and along it end to end: the nearer end first, then the whole length to the far one. */
+const roamHall = (w: Worker, e: Equipment) => {
+  const s = site(e), reach = ROOM * ROOMS.length / 2 - 1.5, p = w.root.position;
+  const [near, far] = [e.width / 2 - reach, e.width / 2 + reach].sort((a, b) => Math.abs(a - p.z) - Math.abs(b - p.z));
+  w.goal = 'roam_hall';
+  // Facing the way the round went, as if about to turn back.
+  w.face = far > near ? 0 : Math.PI;
+  w.path = [...routeTo(e, p, new T.Vector3(s.lane, s.ground, near), w.lane, w.flip), new T.Vector3(s.lane, s.ground, far)];
+};
+
+/** Over to Fleet or Docks, by the doors, to a spot somewhere inside. */
+const visitRoom = (w: Worker, e: Equipment) => {
+  const others = ROOMS.filter(room => room.key !== 'warehouse'), room = others[Math.floor(Math.random() * others.length)];
+  const inner = ROOM / 2 - 4;
+  const spot = new T.Vector3(e.length / 2 + (Math.random() * 2 - 1) * inner, groundOf(e), e.width / 2 + room.z + (Math.random() * 2 - 1) * inner);
+  w.visit = room.key;
+  w.goal = 'visit_room';
+  w.face = Math.random() * Math.PI * 2;
+  w.path = routeTo(e, w.root.position, spot, w.lane, w.flip);
+};
+
 const retarget = (w: Worker, e: Equipment, all: Worker[]) => {
-  // Whatever sends a worker looking for something new ends any booking it held, done or abandoned.
+  // Whatever sends a worker looking for something new ends any booking or visit it held, done or abandoned.
   w.consult = null;
+  w.visit = null;
   // A package is never abandoned: whatever sends a carrier looking for something new - walled in, a
   // stand-off, nowhere to step - it goes back to finishing the delivery instead.
   if (w.holding) { headForDelivery(w, e); return; }
   if (Math.random() < CONSULT_CHANCE && bookConsult(w, e, all)) return;
   // Runners only run: whatever sends one looking for something to do, it goes and fetches the next one.
   if (w.carrier) { startErrand(w, e); return; }
+  // The rest now and then leave the warehouse for a while.
+  const outing = Math.random();
+  if (outing < OUTINGS.leave) { stepOut(w, e); return; }
+  if (outing < OUTINGS.leave + OUTINGS.roam) { roamHall(w, e); return; }
+  if (outing < OUTINGS.leave + OUTINGS.roam + OUTINGS.visit) { visitRoom(w, e); return; }
   const goal = freeGoal(e, all, w);
   w.goal = goal.skill;
   w.face = goal.face;
@@ -382,7 +481,7 @@ const step = (w: Worker, dt: number, e: Equipment, all: Worker[]) => {
   if (w.skill) {
     // Loading dots, the same idea as Lena's thinking line.
     w.dotTimer += dt;
-    if (w.dotTimer > .45) { w.dotTimer = 0; w.dots = (w.dots + 1) % 4; paint(w.bubble, SKILLS[w.skill].label + '.'.repeat(w.dots), BUBBLE_TONE()); }
+    if (w.dotTimer > .45) { w.dotTimer = 0; w.dots = (w.dots + 1) % 4; paint(w.bubble, labelOf(w, w.skill) + '.'.repeat(w.dots), BUBBLE_TONE()); }
   }
 
   if (w.pause > 0) {
@@ -446,7 +545,8 @@ const step = (w: Worker, dt: number, e: Equipment, all: Worker[]) => {
     if (range > LOOKAHEAD || range < 1e-4) return false;
     return (ox * dx + oz * dz) / (range * dist) > .7;
   });
-  if (ahead && w.goal !== 'consult') {
+  // Walks with a fixed shape - to a window, a hall round's two ends - are not rerouted.
+  if (ahead && w.goal !== 'consult' && w.goal !== 'roam_hall') {
     // Round the other end of the row on a different line, rather than queueing behind them.
     w.flip = !w.flip;
     w.lane = (w.lane + .8) % 1.6;
@@ -524,7 +624,7 @@ export function createAmbientCrew(scene: T.Scene) {
             pause: Math.random() * 4, speed: .9 + Math.random() * .6, lane: (i / COUNT) * 1.6, flip: i % 2 === 0,
             role, tag, bubble, skill: null, dots: 0, dotTimer: 0, crate, holding: false, arms,
             // Only the unsigned ones run packages, and they start from alternate sides.
-            carrier: role === WORKER_ROLE, from: i % 2 ? 1 : -1, consult: null,
+            carrier: role === WORKER_ROLE, from: i % 2 ? 1 : -1, consult: null, visit: null,
           };
           retarget(worker, e, workers);
           workers.push(worker);

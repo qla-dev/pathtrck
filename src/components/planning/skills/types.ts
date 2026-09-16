@@ -5,7 +5,7 @@
  * and how long it runs. Nothing here calls a model or the network, and nothing should - the crew is
  * set dressing that has to stay free and predictable.
  */
-export type SkillName = 'inspect' | 'unit' | 'carry' | 'interact_eachother' | 'avoid' | 'aside' | 'consult' | 'receive';
+export type SkillName = 'inspect' | 'unit' | 'carry' | 'interact_eachother' | 'avoid' | 'aside' | 'consult' | 'receive' | 'leave_room' | 'roam_hall' | 'visit_room';
 
 export type Skill = {
   name: SkillName;

@@ -6,13 +6,14 @@ import { createLenaOffice } from './lenaOffice';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
-import { Cargo, COLORS, Equipment, fits, rackBays, rackSpan, type RackItem, type RackPage } from './model';
+import { Cargo, COLORS, Equipment, fits, RACK_BAYS, RACK_SPAN, type RackItem, type RackPage } from './model';
+import { createHall, createRoom, HALL_X, ROOM, ROOMS } from './rooms';
 
 export type SceneView = 'overview' | 'exterior' | 'loading' | 'top' | 'side';
 export type CameraSnapshot = { view: SceneView; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; fov: number };
 type MoveDirection = 'forward' | 'backward' | 'left' | 'right';
 type LoadDirection = 'up' | 'down' | 'left' | 'right' | 'rotate-left' | 'rotate-right';
-type Props = { equipment: Equipment; cargo: Cargo[]; view: SceneView; warehouse?: boolean; tracking?: boolean; racks?: { warehouse?: RackPage; tracking?: RackPage }; pickedRack?: string; loadMoreLabel?: string; walls?: boolean; dimensions?: boolean; seeThrough?: boolean; ambient?: boolean; lenaOffice?: boolean; overview?: number; selected?: string; onSelect?: (id: string) => void; onMove?: (id: string, x: number, y: number, z: number) => void; onRotate?: () => void; onFreeRoam?: () => void; onCarry?: (carrying: boolean) => void; onUnplace?: (id: string) => void; onRackMore?: (side: 'warehouse' | 'tracking') => void; onRackPick?: (item: RackItem) => void; reset?: number; zoom?: number; cameraSnapshot?: number; onCameraSnapshot?: (snapshot: CameraSnapshot) => void; unavailable: string; mini?: boolean };
+type Props = { equipment: Equipment; cargo: Cargo[]; view: SceneView; warehouse?: boolean; tracking?: boolean; racks?: { warehouse?: RackPage; tracking?: RackPage }; pickedRack?: string; loadMoreLabel?: string; walls?: boolean; dimensions?: boolean; seeThrough?: boolean; ambient?: boolean; lenaOffice?: boolean; onLenaOffice?: () => void; overview?: number; selected?: string; onSelect?: (id: string) => void; onMove?: (id: string, x: number, y: number, z: number) => void; onRotate?: () => void; onFreeRoam?: () => void; onCarry?: (carrying: boolean) => void; onUnplace?: (id: string) => void; onRackMore?: (side: 'warehouse' | 'tracking') => void; onRackPick?: (item: RackItem) => void; reset?: number; zoom?: number; cameraSnapshot?: number; onCameraSnapshot?: (snapshot: CameraSnapshot) => void; unavailable: string; mini?: boolean };
 
 // Tetris-style floor grid: 20 cm cells, so pallet and carton sizes land on whole cells.
 const CELL = .2, EPS = 1e-4;
@@ -170,15 +171,19 @@ export function PlanningScene(props: Props) {
       const ground=groundOf(e);groundGrid=null;
       if (!mini) {
         const dark=document.documentElement.classList.contains('dark');
-        box(model,L/2,ground-.08,W/2,Math.max(36,L+24),.16,36,dark?'#1e293b':'#d9e3e8');
+        // The site stays put around the unit's centre whatever the unit: Fleet, this warehouse and Docks side by side,
+        // and the hall with the offices across their far end.
+        const site=new T.Group();site.position.set(L/2,ground,W/2);model.add(site);
+        for(const room of ROOMS){const shell=createRoom({dark,title:room.title,withGrid:room.key!=='warehouse'});shell.position.z=room.z;site.add(shell);}
+        const hall=createHall({dark});hall.position.x=HALL_X;site.add(hall);
         // The warehouse floor uses the same 20 cm cells as the unit's floor, lined up with them, so a carried unit snaps anywhere.
-        const grid=new T.GridHelper(40,200,dark?0x3b4a5e:0xbdcdd7,dark?0x2a3648:0xd0dce3);grid.position.set(Math.round(L/2/CELL)*CELL,ground+.01,Math.round(W/2/CELL)*CELL);
+        const grid=new T.GridHelper(ROOM,ROOM/CELL,dark?0x3b4a5e:0xbdcdd7,dark?0x2a3648:0xd0dce3);grid.position.set(Math.round(L/2/CELL)*CELL,ground+.01,Math.round(W/2/CELL)*CELL);
         (grid.material as T.LineBasicMaterial).transparent=true;(grid.material as T.LineBasicMaterial).opacity=.55;model.add(grid);groundGrid=grid;
         {
           // Mirrored rack rows centred on the unit, far enough out that the default cameras stand inside the aisle.
           // Two rows per side: the inner row carries real cargo (warehouse stock on +z, tracking loads on -z) and
           // filler fills every other slot. Rows behind the unit (-z) also hide in the side view, whose camera stands there.
-          const span=rackSpan(L),bays=rackBays(L),filler=['#bd9367','#c4a079','#ac8053'],pages=latest.current.racks,now=performance.now();
+          const span=RACK_SPAN,bays=RACK_BAYS,filler=['#bd9367','#c4a079','#ac8053'],pages=latest.current.racks,now=performance.now();
           const taken=new Set(cargo.map(c=>c.rackKey).filter(Boolean)),still=matchMedia('(prefers-reduced-motion: reduce)').matches;
           const groupColor=(group:string)=>COLORS[[...group].reduce((n,ch)=>(n*31+ch.charCodeAt(0))>>>0,7)%COLORS.length];
           for (const dz of [-15,-11.5,11.5,15]) {
@@ -304,8 +309,8 @@ export function PlanningScene(props: Props) {
         else{
           // Moved since last draw: fly from where it was. New on the floor (after first load): taken off the shelf of the
           // near rack row, lined up with its floor spot, then set down beside the unit.
-          const rackSpan=Math.ceil((L/2+6)/3)*3,fromShelf=!prev&&!c.placed&&performance.now()-mountedAt>1500;
-          const from=calm?null:prev&&prev.distanceTo(target)>.01?prev.clone():fromShelf?((c.rackKey?rackHome.get(c.rackKey)?.clone():undefined)??new T.Vector3(Math.min(Math.max(target.x,L/2-rackSpan),L/2+rackSpan-c.length),2.54+ground,W/2+11.5-c.width/2)):null;
+          const fromShelf=!prev&&!c.placed&&performance.now()-mountedAt>1500;
+          const from=calm?null:prev&&prev.distanceTo(target)>.01?prev.clone():fromShelf?((c.rackKey?rackHome.get(c.rackKey)?.clone():undefined)??new T.Vector3(Math.min(Math.max(target.x,L/2-RACK_SPAN),L/2+RACK_SPAN-c.length),2.54+ground,W/2+11.5-c.width/2)):null;
           if(from){const lifts=(from.y<=ground+.05)!==(target.y<=ground+.05);flights.set(c.id,{from,to:target.clone(),start:performance.now()+batch++*90,arc:fromShelf?.8:lifts?Math.max(1.6,H*.5):prev?.3:0});group.position.copy(from);}
           else{flights.delete(c.id);lastPos.set(c.id,target.clone());group.position.copy(target);}
         }
@@ -384,8 +389,12 @@ export function PlanningScene(props: Props) {
       let rackKey='';
       if(!id&&!latest.current.mini&&event.buttons===0){hit(event);const rack=pickedRack();rackKey=rack?.userData.rackItem?.key??(rack?.userData.rackMore?`more:${rack.userData.rackMore}`:'');}
       if(rackKey!==hoveredRack){hoveredRack=rackKey;paintRack();}
+      // Lena's office lights up last, when neither cargo nor a rack is under the pointer.
+      let lena=false;
+      if(!id&&!rackKey&&!latest.current.mini&&event.buttons===0){hit(event);lena=office.pick(raycaster);}
+      office.hover(lena);
     };
-    const leave=()=>{if(!drag&&hovered){hovered='';paintEdges();}if(hoveredRack){hoveredRack='';paintRack();}};
+    const leave=()=>{if(!drag&&hovered){hovered='';paintEdges();}if(hoveredRack){hoveredRack='';paintRack();}office.hover(false);};
     // Raycasts ignore visibility, so units on a rack side that is switched off are left out explicitly.
     const pickedRack=()=>{
       let object:T.Object3D|null=raycaster.intersectObjects(rackMeshes.filter(m=>m.parent?.visible!==false),true).find(h=>(h.object as T.Mesh).isMesh)?.object??null;
@@ -469,6 +478,8 @@ export function PlanningScene(props: Props) {
         // A rack unit or "load more" bay acts on release, so dragging across the racks still orbits the camera.
         const rack=latest.current.mini?null:pickedRack();
         if(rack){rackPress={x:event.clientX,y:event.clientY,target:rack};return;}
+        // Lena's office also acts on release, so a drag that starts on it still orbits.
+        if(!latest.current.mini&&office.pick(raycaster)){officePress={x:event.clientX,y:event.clientY};return;}
         emptyPress={x:event.clientX,y:event.clientY};return;
       }
       const id=picked.id,c=picked;
@@ -543,7 +554,7 @@ export function PlanningScene(props: Props) {
       event.preventDefault();release(event.key==='Enter');
     };
     // Clicking again releases like Enter. The click that lifted the unit never set pressAt, so it cannot drop it at once.
-    let pressAt:{x:number;y:number}|null=null,lifting=false,emptyPress:{x:number;y:number}|null=null,rackPress:{x:number;y:number;target:T.Object3D}|null=null;
+    let pressAt:{x:number;y:number}|null=null,lifting=false,emptyPress:{x:number;y:number}|null=null,rackPress:{x:number;y:number;target:T.Object3D}|null=null,officePress:{x:number;y:number}|null=null;
     const up=(event:PointerEvent)=>{
       if(renderer.domElement.hasPointerCapture(event.pointerId))renderer.domElement.releasePointerCapture(event.pointerId);
       // The press that lifted the unit (a click or a drag) only ends that gesture: the unit stays lifted.
@@ -552,6 +563,13 @@ export function PlanningScene(props: Props) {
       if(!drag&&rack&&event.button===0&&Math.hypot(event.clientX-rack.x,event.clientY-rack.y)<5){
         if(rack.target.userData.rackMore)latest.current.onRackMore?.(rack.target.userData.rackMore);
         else latest.current.onRackPick?.(rack.target.userData.rackItem);
+        return;
+      }
+      const lena=officePress;officePress=null;
+      if(!drag&&lena&&event.button===0&&Math.hypot(event.clientX-lena.x,event.clientY-lena.y)<5){
+        // The offices stand at a fixed spot in the hall, so the POV is fixed too.
+        target.set(15.1164,2.7328,-1.7064);controls.target.set(17.5175,2.4098,-1.3793);camera.fov=38;camera.updateProjectionMatrix();transition=1;
+        latest.current.onFreeRoam?.();latest.current.onLenaOffice?.();
         return;
       }
       // A click on empty space (not a camera drag) clears the selection.

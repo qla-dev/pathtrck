@@ -19,9 +19,25 @@ import { api, BulkLoadRow, type PublicTrackingSummary } from '../../services/api
 import { voiceLocaleForLanguage } from '../../lib/voiceLocale';
 import { lenaImageGeneratingLabel } from './LenaImageGeneratingPlaceholder';
 
+/**
+ * Where the chat portals to: the element in fullscreen while there is one, since anything portaled to the
+ * body is hidden behind it - the 3D load planner, for one, goes fullscreen and pins this chat beside it.
+ */
+const usePortalRoot = () => {
+  const [root, setRoot] = useState<Element>(() => document.fullscreenElement ?? document.body);
+  useEffect(() => {
+    const sync = () => setRoot(document.fullscreenElement ?? document.body);
+    document.addEventListener('fullscreenchange', sync);
+    return () => document.removeEventListener('fullscreenchange', sync);
+  }, []);
+  return root;
+};
+
 type LenaAIProps = {
   open: boolean;
   sideBarMode?: boolean;
+  /** Which edge a sidebar docks to. Left takes PinnedPanelLeft's width without its extension column. */
+  sideBarSide?: 'left' | 'right';
   /** A pinned sidebar is intentionally a single conversation, never the chat inbox. */
   pinnedMode?: boolean;
   onClose: () => void;
@@ -33,6 +49,8 @@ type LenaAIProps = {
   /** Superadmin or master: offers LenaAI's AI training mode. */
   canUseTraining?: boolean;
   initialConversationId?: string;
+  /** Opens on the welcome greeting rather than the latest conversation. */
+  startFresh?: boolean;
   onBookLoad?: (loadId?: string) => void | Promise<void>;
   onOpenLoad?: (loadId: string) => void;
   initialCanvasMode?: LenaCanvasMode | null;
@@ -61,6 +79,7 @@ export function LenaAI(props: LenaAIProps) {
 }
 
 function PublicTrackingLenaAI({ open, onClose, lang, trackingNumber }: LenaAIProps & { trackingNumber: string }) {
+  const portalRoot = usePortalRoot();
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [result, setResult] = useState<PublicTrackingSummary | null>(null);
   const [thinking, setThinking] = useState(true);
@@ -196,11 +215,12 @@ function PublicTrackingLenaAI({ open, onClose, lang, trackingNumber }: LenaAIPro
         </motion.div>
       )}
     </AnimatePresence>,
-    document.body,
+    portalRoot,
   );
 }
 
-function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, loadLabel, initialConversationId, onBookLoad, onOpenLoad, initialCanvasMode = null, sideBarMode = false, pinnedMode = false, onApplyLoadPrefill, onBulkImported, onUpgrade, onTopUp, onPin, onConversationReady, onStartGenericChat, canUseTraining = false }: LenaAIProps) {
+function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, loadLabel, initialConversationId, startFresh, onBookLoad, onOpenLoad, initialCanvasMode = null, sideBarMode = false, sideBarSide = 'right', pinnedMode = false, onApplyLoadPrefill, onBulkImported, onUpgrade, onTopUp, onPin, onConversationReady, onStartGenericChat, canUseTraining = false }: LenaAIProps) {
+  const portalRoot = usePortalRoot();
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const quickActionLabels = lenaText(lang).actions as Record<import('../../lib/useLenaAiChat').LenaQuickAction, string>;
   const generalWelcome = lenaText(lang).welcome.general;
@@ -220,6 +240,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
     loadId,
     loadLabel,
     initialConversationId,
+    startFresh,
     lang,
     welcomeRole: u('LenaAI', ''),
     welcomeText: loadId ? lenaLoadWelcome(lang, loadLabel) : generalWelcome,
@@ -319,12 +340,12 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
     <AnimatePresence>
       {open && (
         <motion.div
-          className={sideBarMode ? `fixed bottom-0 right-0 z-[300] w-full overflow-hidden border-l border-slate-200 bg-white transition-[height] duration-300 ease-out dark:border-slate-800 dark:bg-slate-950 lg:w-[440px] xl:w-[480px] ${sidebarCollapsed ? 'h-14 border-t' : 'h-[100dvh]'}` : "fixed inset-0 z-[300] bg-white dark:bg-slate-950"}
+          className={sideBarMode ? `fixed bottom-0 z-[300] w-full overflow-hidden border-slate-200 bg-white transition-[height] duration-300 ease-out dark:border-slate-800 dark:bg-slate-950 ${sideBarSide === 'left' ? 'left-0 border-r md:w-[max(20vw,360px)]' : 'right-0 border-l lg:w-[440px] xl:w-[480px]'} ${sidebarCollapsed ? 'h-14 border-t' : 'h-[100dvh]'}` : "fixed inset-0 z-[300] bg-white dark:bg-slate-950"}
           role="dialog"
           aria-label={loadId ? u('Ask me about the load', '') : 'LenaAI'}
-          initial={{ opacity: 0, x: sideBarMode ? 440 : 0 }}
+          initial={{ opacity: 0, x: sideBarMode ? (sideBarSide === 'left' ? -440 : 440) : 0 }}
           animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: sideBarMode ? 440 : 0 }}
+          exit={{ opacity: 0, x: sideBarMode ? (sideBarSide === 'left' ? -440 : 440) : 0 }}
           transition={{ duration: 0.2, ease: 'easeOut' }}
         >
           <button
@@ -489,6 +510,6 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
         </motion.div>
       )}
     </AnimatePresence>,
-    document.body
+    portalRoot
   );
 }
