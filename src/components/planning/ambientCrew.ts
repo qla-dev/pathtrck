@@ -29,7 +29,7 @@ const FONT = 'bold 44px sans-serif';
 const TAG_TONE = '#132638';
 /** Bubbles take the app's primary, read from the theme so a rebrand carries through here too. */
 let bubbleTone = '';
-const BUBBLE_TONE = () => {
+export const BUBBLE_TONE = () => {
   if (!bubbleTone) bubbleTone = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#00AEEF';
   return bubbleTone;
 };
@@ -44,6 +44,12 @@ export type Footprint = { x0: number; x1: number; z0: number; z1: number };
  * worker synchronously, so two scenes sharing this module can never read each other's.
  */
 let parked: Footprint[] = [];
+/** Where a worker stands outside an office window for a consultation, handed over by the office layer. */
+export type ConsultSpot = { id: string; x: number; z: number };
+/** The offices currently standing, set the same way as `parked`; empty while that layer is off. */
+let consults: ConsultSpot[] = [];
+/** How often a worker looking for something to do drops in at an office instead, if one is free. */
+const CONSULT_CHANCE = .15;
 type Plate = { sprite: T.Sprite; canvas: HTMLCanvasElement; texture: T.CanvasTexture };
 /** Where to go, what to do there, and which way to turn once standing on the spot. */
 type Goal = { point: T.Vector3; skill: SkillName; face: number };
@@ -54,10 +60,12 @@ type Worker = {
   crate: T.Mesh; holding: boolean; arms: { bone: T.Object3D; pitch: number }[];
   /** Only plain workers run packages, and they do nothing else; `from` is the side they collect from. */
   carrier: boolean; from: number;
+  /** The office this worker has booked, from setting off until the consultation is over. */
+  consult: string | null;
 };
 
 /** The scene's own label look: a dark rounded plate with white text, drawn over everything else. */
-const plate = (width: number): Plate => {
+export const plate = (width: number): Plate => {
   const canvas = document.createElement('canvas');
   canvas.width = width; canvas.height = 76;
   const texture = new T.CanvasTexture(canvas); texture.colorSpace = T.SRGBColorSpace;
@@ -68,7 +76,7 @@ const plate = (width: number): Plate => {
 };
 
 /** Repaints a plate in place - the canvas is kept, so changing text costs no new texture. */
-const paint = (p: Plate, text: string, tone: string) => {
+export const paint = (p: Plate, text: string, tone: string) => {
   const ctx = p.canvas.getContext('2d')!;
   ctx.clearRect(0, 0, p.canvas.width, p.canvas.height);
   ctx.fillStyle = tone; ctx.beginPath(); ctx.roundRect(0, 0, p.canvas.width, 76, 18); ctx.fill();
@@ -77,7 +85,7 @@ const paint = (p: Plate, text: string, tone: string) => {
   p.texture.needsUpdate = true;
 };
 
-const measure = (text: string) => {
+export const measure = (text: string) => {
   const ctx = document.createElement('canvas').getContext('2d')!;
   ctx.font = FONT; return Math.ceil(ctx.measureText(text).width) + 48;
 };
@@ -99,7 +107,8 @@ const obstacles = (e: Equipment): Footprint[] => {
 /** The warehouse floor slab, inset so nobody walks off its edge. */
 const floorBounds = (e: Equipment): Footprint => {
   const halfX = Math.max(36, e.length + 24) / 2 - .8;
-  return { x0: e.length / 2 - halfX, x1: e.length / 2 + halfX, z0: e.width / 2 - 17.2, z1: e.width / 2 + 17.2 };
+  // The offices stand just past the end of the slab, so their windows widen it that far.
+  return { x0: e.length / 2 - halfX, x1: Math.max(e.length / 2 + halfX, ...consults.map(c => c.x + .3)), z0: e.width / 2 - 17.2, z1: e.width / 2 + 17.2 };
 };
 
 const within = (b: Footprint, x: number, z: number) => x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1;
@@ -320,10 +329,33 @@ const escape = (w: Worker, e: Equipment, list: Footprint[]) => {
 
 const dropCrate = (w: Worker) => { w.holding = false; w.crate.visible = false; };
 
+/**
+ * Books a consultation at a free office and sets off for it. Nobody queues: an office someone else has
+ * booked - on the way there or already at the window - is simply not offered, so each has one visitor
+ * at most. The walk goes along the aisle, round the far end of the racks and up to the window, and is
+ * only taken when those legs are clear; otherwise the worker does something else this time.
+ */
+const bookConsult = (w: Worker, e: Equipment, all: Worker[]) => {
+  const free = consults.filter(c => !all.some(other => other !== w && other.consult === c.id));
+  if (!free.length) return false;
+  const spot = free[Math.floor(Math.random() * free.length)];
+  const p = w.root.position, edge = rowSpan(e).x1 + .45, list = obstacles(e), ground = groundOf(e);
+  if (!clearLeg(list, p.x, p.z, edge, p.z) || !clearLeg(list, edge, p.z, edge, spot.z)) return false;
+  w.consult = spot.id;
+  w.goal = 'consult';
+  // Facing +x, into the office.
+  w.face = Math.PI / 2;
+  w.path = [new T.Vector3(edge, ground, p.z), new T.Vector3(edge, ground, spot.z), new T.Vector3(spot.x, ground, spot.z)];
+  return true;
+};
+
 const retarget = (w: Worker, e: Equipment, all: Worker[]) => {
+  // Whatever sends a worker looking for something new ends any booking it held, done or abandoned.
+  w.consult = null;
   // A package is never abandoned: whatever sends a carrier looking for something new - walled in, a
   // stand-off, nowhere to step - it goes back to finishing the delivery instead.
   if (w.holding) { headForDelivery(w, e); return; }
+  if (Math.random() < CONSULT_CHANCE && bookConsult(w, e, all)) return;
   // Runners only run: whatever sends one looking for something to do, it goes and fetches the next one.
   if (w.carrier) { startErrand(w, e); return; }
   const goal = freeGoal(e, all, w);
@@ -361,7 +393,11 @@ const step = (w: Worker, dt: number, e: Equipment, all: Worker[]) => {
       // A run has a routine at each end: take the package, carry it over, set it down - then turn
       // round and clear the other side, so a runner is always on a job.
       if (finished === 'carry' && !w.holding) takeCrate(w, e);
-      else if (finished === 'carry') { dropCrate(w); w.from = -w.from; startErrand(w, e); }
+      else if (finished === 'carry') {
+        dropCrate(w); w.from = -w.from;
+        // Hands free between runs is when a runner might drop in at an office.
+        if (!(Math.random() < CONSULT_CHANCE && bookConsult(w, e, all))) startErrand(w, e);
+      }
       else {
         // Interrupted mid-run - gave way, stood aside, stopped to talk - so put the carrying bubble
         // back up and pick the delivery up again rather than wandering off with the package.
@@ -410,7 +446,7 @@ const step = (w: Worker, dt: number, e: Equipment, all: Worker[]) => {
     if (range > LOOKAHEAD || range < 1e-4) return false;
     return (ox * dx + oz * dz) / (range * dist) > .7;
   });
-  if (ahead) {
+  if (ahead && w.goal !== 'consult') {
     // Round the other end of the row on a different line, rather than queueing behind them.
     w.flip = !w.flip;
     w.lane = (w.lane + .8) % 1.6;
@@ -488,7 +524,7 @@ export function createAmbientCrew(scene: T.Scene) {
             pause: Math.random() * 4, speed: .9 + Math.random() * .6, lane: (i / COUNT) * 1.6, flip: i % 2 === 0,
             role, tag, bubble, skill: null, dots: 0, dotTimer: 0, crate, holding: false, arms,
             // Only the unsigned ones run packages, and they start from alternate sides.
-            carrier: role === WORKER_ROLE, from: i % 2 ? 1 : -1,
+            carrier: role === WORKER_ROLE, from: i % 2 ? 1 : -1, consult: null,
           };
           retarget(worker, e, workers);
           workers.push(worker);
@@ -497,13 +533,19 @@ export function createAmbientCrew(scene: T.Scene) {
     },
 
     /** Ticks every worker. The crew sits beside the unit, so it takes the unit's offset by hand. */
-    update(dt: number, e: Equipment, visible: boolean, waiting: Footprint[] = []) {
+    update(dt: number, e: Equipment, visible: boolean, waiting: Footprint[] = [], offices: ConsultSpot[] = []) {
       parked = waiting;
+      consults = offices;
       if (!workers.length) return;
       group.position.set(-e.length / 2, 0, -e.width / 2);
       group.visible = visible;
       if (!visible) return;
       for (const worker of workers) step(worker, dt, e, workers);
+    },
+
+    /** The offices with someone standing at the window right now, for the office layer to show. */
+    consulting(): string[] {
+      return workers.flatMap(w => (w.skill === 'consult' && w.consult ? [w.consult] : []));
     },
 
     dispose() {

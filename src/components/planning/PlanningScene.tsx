@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as T from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createAmbientCrew, type Footprint } from './ambientCrew';
+import { createLenaOffice } from './lenaOffice';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
@@ -11,7 +12,7 @@ export type SceneView = 'overview' | 'exterior' | 'loading' | 'top' | 'side';
 export type CameraSnapshot = { view: SceneView; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; fov: number };
 type MoveDirection = 'forward' | 'backward' | 'left' | 'right';
 type LoadDirection = 'up' | 'down' | 'left' | 'right' | 'rotate-left' | 'rotate-right';
-type Props = { equipment: Equipment; cargo: Cargo[]; view: SceneView; warehouse?: boolean; tracking?: boolean; racks?: { warehouse?: RackPage; tracking?: RackPage }; pickedRack?: string; loadMoreLabel?: string; walls?: boolean; dimensions?: boolean; seeThrough?: boolean; ambient?: boolean; overview?: number; selected?: string; onSelect?: (id: string) => void; onMove?: (id: string, x: number, y: number, z: number) => void; onRotate?: () => void; onFreeRoam?: () => void; onCarry?: (carrying: boolean) => void; onUnplace?: (id: string) => void; onRackMore?: (side: 'warehouse' | 'tracking') => void; onRackPick?: (item: RackItem) => void; reset?: number; zoom?: number; cameraSnapshot?: number; onCameraSnapshot?: (snapshot: CameraSnapshot) => void; unavailable: string; mini?: boolean };
+type Props = { equipment: Equipment; cargo: Cargo[]; view: SceneView; warehouse?: boolean; tracking?: boolean; racks?: { warehouse?: RackPage; tracking?: RackPage }; pickedRack?: string; loadMoreLabel?: string; walls?: boolean; dimensions?: boolean; seeThrough?: boolean; ambient?: boolean; lenaOffice?: boolean; overview?: number; selected?: string; onSelect?: (id: string) => void; onMove?: (id: string, x: number, y: number, z: number) => void; onRotate?: () => void; onFreeRoam?: () => void; onCarry?: (carrying: boolean) => void; onUnplace?: (id: string) => void; onRackMore?: (side: 'warehouse' | 'tracking') => void; onRackPick?: (item: RackItem) => void; reset?: number; zoom?: number; cameraSnapshot?: number; onCameraSnapshot?: (snapshot: CameraSnapshot) => void; unavailable: string; mini?: boolean };
 
 // Tetris-style floor grid: 20 cm cells, so pallet and carton sizes land on whole cells.
 const CELL = .2, EPS = 1e-4;
@@ -110,11 +111,15 @@ export function PlanningScene(props: Props) {
     controls.addEventListener('start', () => { element.classList.add('is-grabbing'); latest.current.onFreeRoam?.(); });
     controls.addEventListener('end', () => element.classList.remove('is-grabbing'));
     controls.touches.ONE = T.TOUCH.ROTATE; controls.touches.TWO = T.TOUCH.DOLLY_PAN;
-    controls.enableDamping = true; controls.maxPolarAngle = Math.PI/2 - .02; controls.minDistance = 2; controls.maxDistance = 60; controls.enabled = !latest.current.mini;
+    controls.enableDamping = true; controls.maxPolarAngle = Math.PI/2 - .02; controls.minDistance = 2; controls.maxDistance = 60;
+    // Zoom heads for whatever is under the pointer, not the orbit centre, so the far end of the floor is in reach.
+    controls.zoomToCursor = true; controls.enabled = !latest.current.mini;
     scene.add(new T.HemisphereLight(0xffffff,0x697984,2.6));
     const sun = new T.DirectionalLight(0xffffff,3.5); sun.position.set(-3,16,10); sun.castShadow = true; sun.shadow.mapSize.set(2048,2048); sun.shadow.camera.left=-18;sun.shadow.camera.right=18;sun.shadow.camera.top=18;sun.shadow.camera.bottom=-18; scene.add(sun);
     let model = new T.Group(); scene.add(model);
     const crew = createAmbientCrew(scene);
+    // LenaAI's office row at the far end of the aisle, a layer of its own like the crew.
+    const office = createLenaOffice(scene);
     // Where the waiting cargo ended up, so the crew walks around it rather than through it.
     let stagedBoxes: Footprint[] = [];
     let roof = new T.Group(), side = new T.Group(), doors: T.Group[] = [], cargoMeshes: T.Object3D[] = [];
@@ -415,7 +420,22 @@ export function PlanningScene(props: Props) {
     // A precision touchpad does not emit two touch pointers. Its two-finger drag is a pixel-mode wheel event,
     // while its pinch is a Ctrl+wheel event. OrbitControls handles the latter as a dolly; pan the former here.
     const trackpadPan=(event:WheelEvent)=>{
-      if (!controls.enabled || event.ctrlKey || event.deltaMode !== WheelEvent.DOM_DELTA_PIXEL) return;
+      if (!controls.enabled) return;
+      // A pinch that has already brought the camera as close to the orbit centre as it goes would stop dead,
+      // pinned to whatever it orbits. Instead it walks on towards the pointer, carrying the centre along, as W does.
+      if (event.ctrlKey && event.deltaY < 0 && camera.position.distanceTo(controls.target) <= controls.minDistance + .05) {
+        latest.current.onFreeRoam?.();
+        event.preventDefault();event.stopImmediatePropagation();
+        const rect=renderer.domElement.getBoundingClientRect();
+        const ray=new T.Raycaster();ray.setFromCamera(new T.Vector2((event.clientX-rect.left)/rect.width*2-1,-(event.clientY-rect.top)/rect.height*2+1),camera);
+        const forward=ray.ray.direction.clone().setY(0);
+        if(forward.lengthSq()<1e-6)camera.getWorldDirection(forward).setY(0);
+        if(forward.lengthSq()<1e-6)forward.set(1,0,0);
+        const shift=forward.normalize().multiplyScalar(Math.min(Math.max(-event.deltaY*.04,.05),1.5));
+        camera.position.add(shift);controls.target.add(shift);controls.update();
+        return;
+      }
+      if (event.ctrlKey || event.deltaMode !== WheelEvent.DOM_DELTA_PIXEL) return;
       if (Math.abs(event.deltaX)+Math.abs(event.deltaY)<.01) return;
       latest.current.onFreeRoam?.();
       event.preventDefault();event.stopImmediatePropagation();
@@ -549,6 +569,7 @@ export function PlanningScene(props: Props) {
     let alive=true;
     // Ambient crew, in its own layer beside the unit. Skipped in previews and under reduced motion.
     if(!latest.current.mini&&!matchMedia('(prefers-reduced-motion: reduce)').matches)crew.load(latest.current.equipment);
+    if(!latest.current.mini)office.load(latest.current.equipment);
     const refreshLogo=()=>{if(!alive)return;resetBrandLogo();redraw();};
     logoMark?.addEventListener('load',refreshLogo);
     void document.fonts?.load(`bold 64px ${BRAND_FONT}`).then(refreshLogo,()=>{});
@@ -617,10 +638,11 @@ export function PlanningScene(props: Props) {
       // stays transparent for its own per-view fade, and needs the same flag when that is reversed.
       side.traverse(obj=>{const m=(obj as T.Mesh).material as T.MeshStandardMaterial;if(!m)return;if(!m.transparent){m.transparent=true;m.needsUpdate=true;}m.opacity=sideOpacity;m.depthWrite=sideOpacity>.5&&!m.userData.decal;});
       doors.forEach((d,i)=>{d.rotation.y=T.MathUtils.lerp(d.rotation.y,(i===0?1:-1)*doorTarget,speed);});
-      crew.update(dt,latest.current.equipment,latest.current.ambient!==false,stagedBoxes);
+      office.update(dt,latest.current.equipment,latest.current.lenaOffice!==false,reduced,crew.consulting());
+      crew.update(dt,latest.current.equipment,latest.current.ambient!==false,[...stagedBoxes,...office.footprints(latest.current.equipment)],office.consultSpots(latest.current.equipment));
       controls.update();renderer.render(scene,activeCamera);
     };animate();
-    return()=>{alive=false;logoMark?.removeEventListener('load',refreshLogo);cancelAnimationFrame(frame);observer.disconnect();theme.disconnect();dispose(ghost);controls.dispose();dispose(model);crew.dispose();renderer.dispose();renderer.domElement.removeEventListener('pointerdown',down,true);renderer.domElement.removeEventListener('pointermove',move);renderer.domElement.removeEventListener('wheel',trackpadPan,true);window.removeEventListener('keydown',key);renderer.domElement.removeEventListener('pointerup',up);renderer.domElement.removeEventListener('pointercancel',cancel);renderer.domElement.removeEventListener('pointerleave',leave);renderer.domElement.remove();runtime.current=null;};
+    return()=>{alive=false;logoMark?.removeEventListener('load',refreshLogo);cancelAnimationFrame(frame);observer.disconnect();theme.disconnect();dispose(ghost);controls.dispose();dispose(model);crew.dispose();office.dispose();renderer.dispose();renderer.domElement.removeEventListener('pointerdown',down,true);renderer.domElement.removeEventListener('pointermove',move);renderer.domElement.removeEventListener('wheel',trackpadPan,true);window.removeEventListener('keydown',key);renderer.domElement.removeEventListener('pointerup',up);renderer.domElement.removeEventListener('pointercancel',cancel);renderer.domElement.removeEventListener('pointerleave',leave);renderer.domElement.remove();runtime.current=null;};
   }, []);
   useEffect(()=>{runtime.current?.redraw();},[props.cargo,props.selected,props.dimensions,props.racks,props.loadMoreLabel]);
   useEffect(()=>{runtime.current?.changeView();},[props.view,props.equipment,props.reset]);
