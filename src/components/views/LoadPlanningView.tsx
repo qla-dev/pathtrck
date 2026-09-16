@@ -23,6 +23,7 @@ import {
   RotateCw,
   Ruler,
   Save,
+  ScanEye,
   Search,
   Settings2,
   Sparkles,
@@ -115,9 +116,13 @@ const RackSummaryCard = ({ item }: { item: RackItem }) => {
   </div>;
 };
 const toolButton = 'h-9 w-9 rounded-xl bg-white p-0 dark:bg-slate-900';
-const overlayToggle = (on: boolean) => cn(
+// 'partial' is the middle step of a three-way toggle: the active blue border and text, but the
+// resting background, so it reads as "on, but not fully" against both themes.
+const overlayToggle = (on: boolean | 'partial') => cn(
   'pointer-events-auto inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border backdrop-blur transition-all active:scale-95',
-  on ? 'border-primary bg-primary text-white' :'border-slate-200 bg-white/90 text-slate-600 hover:text-primary dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-300',
+  on === 'partial' ? 'border-primary bg-white/90 text-primary dark:border-primary dark:bg-slate-900/90 dark:text-primary'
+    : on ? 'border-primary bg-primary text-white'
+    : 'border-slate-200 bg-white/90 text-slate-600 hover:text-primary dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-300',
 );
 type SettingsTab = 'equipment' | 'cargo' | 'utilization' | 'sequence';
 const SETTINGS_TABS: { value: SettingsTab; icon: LucideIcon }[] = [
@@ -161,7 +166,9 @@ export default function LoadPlanningView({ lang, userId, role }: { lang: Languag
   const [selected, setSelected] = useState('');
   // The virtual workspace always starts as a complete warehouse overview: a generic 40HC container
   // between both rack systems. The scene animates the two rack groups into this initial state.
-  const [warehouse, setWarehouse] = useState(true), [walls, setWalls] = useState(true), [dimensionsOn, setDimensionsOn] = useState(true);
+  const [warehouse, setWarehouse] = useState(true), [wallsMode, setWallsMode] = useState<'solid' | 'through' | 'off'>('solid'), [dimensionsOn, setDimensionsOn] = useState(true);
+  // Walls cycle solid → see through → off; the scene still takes the two plain flags it always did.
+  const walls = wallsMode !== 'off', seeThrough = wallsMode === 'through';
   const [tracking, setTracking] = useState(true);
   const [racks, setRacks] = useState<{ warehouse?: RackPage; tracking?: RackPage }>({});
   const [rackPick, setRackPick] = useState<RackItem | null>(null);
@@ -169,6 +176,16 @@ export default function LoadPlanningView({ lang, userId, role }: { lang: Languag
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('equipment');
   const [equipmentTab, setEquipmentTab] = useState<'container' | 'vehicle' | 'custom'>(() => (plan.equipment.truck ? 'vehicle' : 'container'));
   const [carrying, setCarrying] = useState(false);
+  const [panel, setPanel] = useState<'view' | null>(null);
+  // The View sidebar opens at once with placeholders; live previews then mount one at a time after the
+  // slide-in, so creating their WebGL scenes never stalls the panel animation.
+  const [previewCount, setPreviewCount] = useState(0);
+  useEffect(() => {
+    if (panel !== 'view') { setPreviewCount(0); return; }
+    let count = 0;
+    const timer = setInterval(() => { count += 1; setPreviewCount(count); if (count >= SCREENS.length) clearInterval(timer); }, 180);
+    return () => clearInterval(timer);
+  }, [panel]);
   const [reset, setReset] = useState(0), [zoom, setZoom] = useState(0), [overview, setOverview] = useState(0);
   const [cameraSnapshot, setCameraSnapshot] = useState(0);
   const [adding, setAdding] = useState(false), [notice, setNotice] = useState('');
@@ -219,6 +236,18 @@ export default function LoadPlanningView({ lang, userId, role }: { lang: Languag
   const occupiedLength = Math.max(0, ...placed.map(c => c.x + c.length));
 
   const settingsTabLabels: Record<SettingsTab, string> = { equipment: t.equipment, cargo: t.shipments, utilization: t.usage, sequence: t.order };
+  const togglePanel = (next: 'view') => setPanel(currentPanel => currentPanel === next ? null : next);
+  // An open sidebar rolls over the page header, so it carries its own View switch.
+  const panelSwitch = (
+    <>
+      {([['view', Eye, t.viewPanel]] as const).map(([id, Icon, label]) => (
+        <button key={id} type="button" aria-pressed={panel === id} aria-label={label} title={label} onClick={() => togglePanel(id)}
+          className={cn('flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-xl border transition-colors', panel === id ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-slate-100 text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300')}>
+          <Icon className="h-4 w-4" />
+        </button>
+      ))}
+    </>
+  );
   const changeEquipment = (next: Equipment) => { if (!validEquipment(next)) { setNotice(t.invalid); return; } setPlan(p => ({ ...p, equipment: next, cargo: revalidate(p.cargo, next) })); };
   const move = (id: string, x: number, y: number, z: number) => {
     const c = cargo.find(c => c.id === id); if (!c) return;
@@ -237,7 +266,7 @@ export default function LoadPlanningView({ lang, userId, role }: { lang: Languag
     setView('overview'); setOverview(n => n + 1);
     let wait = 700;
     if (!warehouse) { setTimeout(() => setWarehouse(true), wait); wait += 1300; }
-    if (walls) { setTimeout(() => setWalls(false), wait); wait += 700; }
+    if (walls) { setTimeout(() => setWallsMode('off'), wait); wait += 700; }
     setTimeout(bringOut, wait);
   };
   // Switching the warehouse on turns to the overview first so the racks drop into a view that shows them; off just lifts them away.
@@ -326,10 +355,10 @@ export default function LoadPlanningView({ lang, userId, role }: { lang: Languag
   // Packs everything into the unit. Closed walls lift away first so the flight in is visible, then settle back.
   const organize = () => {
     if (!cargo.length) return;
-    const lift = walls, wait = lift ? 650 : 0;
-    if (lift) setWalls(false);
+    const lift = walls, restore = wallsMode, wait = lift ? 650 : 0;
+    if (lift) setWallsMode('off');
     setTimeout(() => setPlan(p => ({ ...p, cargo: autoPlan(p.cargo, p.equipment) })), wait);
-    if (lift) setTimeout(() => setWalls(true), wait + cargo.length * 90 + 1300);
+    if (lift) setTimeout(() => setWallsMode(restore), wait + cargo.length * 90 + 1300);
     setNotice('');
   };
   const save = () => { try { localStorage.setItem(key, JSON.stringify(plan)); setNotice(t.saved); } catch { setNotice(t.failed); } };
@@ -351,7 +380,7 @@ export default function LoadPlanningView({ lang, userId, role }: { lang: Languag
       <div className="absolute inset-0">
         <React.Suspense fallback={<SceneSkeleton label={t.loading3d} />}>
           <PlanningScene equipment={e} cargo={cargo} view={view} selected={selected} onSelect={setSelected} onMove={move} onRotate={rotate} onFreeRoam={() => setActiveView(null)} onCarry={setCarrying} onUnplace={unplace} tracking={tracking} racks={racks} pickedRack={rackPick?.key} loadMoreLabel={t.loadMore} cameraSnapshot={cameraSnapshot} onCameraSnapshot={copyCamera}
-            onRackMore={side => void loadRack(side, (racks[side]?.page ?? 1) + 1)} onRackPick={setRackPick} warehouse={warehouse} walls={walls} dimensions={dimensionsOn} reset={reset} zoom={zoom} overview={overview} unavailable={t.unavailable} />
+            onRackMore={side => void loadRack(side, (racks[side]?.page ?? 1) + 1)} onRackPick={setRackPick} warehouse={warehouse} walls={walls} dimensions={dimensionsOn} seeThrough={seeThrough} reset={reset} zoom={zoom} overview={overview} unavailable={t.unavailable} />
         </React.Suspense>
       </div>
 
@@ -388,8 +417,9 @@ export default function LoadPlanningView({ lang, userId, role }: { lang: Languag
       {/* Under the header: scene toggles and equipment name on the left, view tools on the right. */}
       <div className="flex w-full items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
-        <button type="button" aria-pressed={walls} aria-label={t.walls} title={t.walls} onClick={() => setWalls(current => !current)} className={overlayToggle(walls)}>
-          {walls ? <Box className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+        <button type="button" aria-pressed={walls} aria-label={wallsMode === 'solid' ? t.walls : wallsMode === 'through' ? t.seeThrough : t.wallsOff} title={wallsMode === 'solid' ? t.walls : wallsMode === 'through' ? t.seeThrough : t.wallsOff}
+          onClick={() => setWallsMode(current => current === 'solid' ? 'through' : current === 'through' ? 'off' : 'solid')} className={overlayToggle(wallsMode === 'through' ? 'partial' : wallsMode === 'solid')}>
+          {wallsMode === 'solid' ? <Box className="h-4 w-4" /> : wallsMode === 'through' ? <ScanEye className="h-4 w-4" /> : <Square className="h-4 w-4" />}
         </button>
         <button type="button" aria-pressed={warehouse} aria-label={t.warehouse} title={t.warehouse} onClick={toggleWarehouse} className={overlayToggle(warehouse)}>
           <Warehouse className="h-4 w-4" />
@@ -421,7 +451,21 @@ export default function LoadPlanningView({ lang, userId, role }: { lang: Languag
       </div>
         <p role={carrying ? 'status' : undefined} className={cn('pointer-events-none absolute bottom-3 left-3 max-w-[55%] rounded-xl px-3 py-1.5 text-[11px] backdrop-blur', carrying ? 'block bg-primary font-bold text-white shadow-lg' : 'hidden bg-white/85 text-slate-600 md:block dark:bg-slate-900/85 dark:text-slate-300')}>{carrying ? t.releaseHint : t.hint}</p>
 
-      <PinnedPanel open collapseSignal={overview} icon={Settings2} title={t.settings} subtitle={t.settingsHint} collapseLabel={t.collapse} expandLabel={t.expand} defaultCollapsed collapsedTitle={cargo.length ? t.seePlan : t.startPlanning}
+      <PinnedPanel open={panel === 'view'} className="z-[310]" icon={Eye} title={t.viewPanel} subtitle={t.viewHint} onClose={() => setPanel(null)} closeLabel={t.close} collapseLabel={t.collapse} expandLabel={t.expand}>
+        {SCREENS.map(({ value, icon: Icon }, index) => (
+          <button key={value} type="button" aria-pressed={view === value} onClick={() => { setView(value); setActiveView(value); setReset(n => n + 1); }}
+            className={cn('block w-full overflow-hidden rounded-2xl border text-left transition-colors', view === value ? 'border-primary ring-2 ring-primary/30' : 'border-slate-200 hover:border-primary/60 dark:border-slate-800')}>
+            <span className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200"><Icon className="h-4 w-4 text-primary" />{value === 'overview' ? 'Overview' : t[value]}</span>
+            <span className="block h-36 bg-slate-100 dark:bg-slate-900">
+              {index < previewCount
+                ? <React.Suspense fallback={<SceneSkeleton label={t.loading3d} />}><PlanningScene mini equipment={e} cargo={cargo} view={value} warehouse={warehouse} walls={walls} unavailable={t.unavailable} /></React.Suspense>
+                : <SceneSkeleton label={t.loading3d} />}
+            </span>
+          </button>
+        ))}
+      </PinnedPanel>
+
+      <PinnedPanel open collapseSignal={overview} actions={panelSwitch} icon={Settings2} title={t.settings} subtitle={t.settingsHint} collapseLabel={t.collapse} expandLabel={t.expand} defaultCollapsed collapsedTitle={cargo.length ? t.seePlan : t.startPlanning}
         placeholder={(
           <div role="status" aria-label={t.loading3d} className="min-h-0 flex-1 animate-pulse space-y-3 p-3">
             <div className="h-16 rounded-2xl bg-slate-100 dark:bg-slate-800" />

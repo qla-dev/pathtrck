@@ -10,7 +10,7 @@ export type SceneView = 'overview' | 'exterior' | 'loading' | 'top' | 'side';
 export type CameraSnapshot = { view: SceneView; position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; fov: number };
 type MoveDirection = 'forward' | 'backward' | 'left' | 'right';
 type LoadDirection = 'up' | 'down' | 'left' | 'right' | 'rotate-left' | 'rotate-right';
-type Props = { equipment: Equipment; cargo: Cargo[]; view: SceneView; warehouse?: boolean; tracking?: boolean; racks?: { warehouse?: RackPage; tracking?: RackPage }; pickedRack?: string; loadMoreLabel?: string; walls?: boolean; dimensions?: boolean; overview?: number; selected?: string; onSelect?: (id: string) => void; onMove?: (id: string, x: number, y: number, z: number) => void; onRotate?: () => void; onFreeRoam?: () => void; onCarry?: (carrying: boolean) => void; onUnplace?: (id: string) => void; onRackMore?: (side: 'warehouse' | 'tracking') => void; onRackPick?: (item: RackItem) => void; reset?: number; zoom?: number; cameraSnapshot?: number; onCameraSnapshot?: (snapshot: CameraSnapshot) => void; unavailable: string; mini?: boolean };
+type Props = { equipment: Equipment; cargo: Cargo[]; view: SceneView; warehouse?: boolean; tracking?: boolean; racks?: { warehouse?: RackPage; tracking?: RackPage }; pickedRack?: string; loadMoreLabel?: string; walls?: boolean; dimensions?: boolean; seeThrough?: boolean; overview?: number; selected?: string; onSelect?: (id: string) => void; onMove?: (id: string, x: number, y: number, z: number) => void; onRotate?: () => void; onFreeRoam?: () => void; onCarry?: (carrying: boolean) => void; onUnplace?: (id: string) => void; onRackMore?: (side: 'warehouse' | 'tracking') => void; onRackPick?: (item: RackItem) => void; reset?: number; zoom?: number; cameraSnapshot?: number; onCameraSnapshot?: (snapshot: CameraSnapshot) => void; unavailable: string; mini?: boolean };
 
 // Tetris-style floor grid: 20 cm cells, so pallet and carton sizes land on whole cells.
 const CELL = .2, EPS = 1e-4;
@@ -182,15 +182,16 @@ export function PlanningScene(props: Props) {
               if(page&&bay===bays-1&&page.page<page.lastPage){
                 // "Load more": a see-through rack one bay past the last; pressing it swaps in the next page.
                 const ghost=new T.Group();ghost.userData.rackMore=side;
-                for(const y of [1,2.5,4])box(ghost,x,y,z,2.6,.08,1.2,'#38bdf8',.3);
-                for(const dx of [-1.3,1.3])box(ghost,x+dx,2.4,z,.09,4.8,1.25,'#38bdf8',.4);
-                box(ghost,x,2.4,z,2.7,4.8,1.3,'#38bdf8',.1);
-                const tag=label(latest.current.loadMoreLabel??'Load more',.8);tag.position.set(x,5.4,z);ghost.add(tag);
+                for(const y of [1,2.5,4].map(v=>v+ground))box(ghost,x,y,z,2.6,.08,1.2,'#38bdf8',.3);
+                for(const dx of [-1.3,1.3])box(ghost,x+dx,2.4+ground,z,.09,4.8,1.25,'#38bdf8',.4);
+                box(ghost,x,2.4+ground,z,2.7,4.8,1.3,'#38bdf8',.1);
+                const tag=label(latest.current.loadMoreLabel??'Load more',.8);tag.position.set(x,5.4+ground,z);ghost.add(tag);
                 row.add(ghost);rackMeshes.push(ghost);
                 continue;
               }
-              for(const dx of [-1.3,1.3])box(row,x+dx,2.4,z,.09,4.8,1.25,'#607e90');
-              [1,2.5,4].forEach((y,level)=>{
+              for(const dx of [-1.3,1.3])box(row,x+dx,2.4+ground,z,.09,4.8,1.25,'#607e90');
+              // Shelf heights sit on the warehouse floor, which is the unit's ground, not y=0.
+              [1,2.5,4].map(v=>v+ground).forEach((y,level)=>{
                 box(row,x,y,z,2.6,.08,1.2,'#517386');
                 for(let i=0;i<3;i++){
                   const slot=bay*9+level*3+i,item=page&&bay<bays-1?page.items[slot]:undefined,sx=x-.8+i*.8,home=new T.Vector3(sx,y+.42,z);
@@ -205,7 +206,7 @@ export function PlanningScene(props: Props) {
                   if(fresh&&!still){unit.userData.slideFrom=new T.Vector3(L/2-span+(bays-1)*3,y+.42,z);unit.userData.slideStart=now+slot*22;unit.position.copy(unit.userData.slideFrom);}
                   row.add(unit);rackMeshes.push(unit);
                   // Like the size labels: each warehouse (or the tracking run) is named above the slot where it starts.
-                  if(item.group!==lastGroup){lastGroup=item.group;if(latest.current.dimensions!==false){const tag=label(item.groupLabel,.75);tag.position.set(sx,5.35,z);row.add(tag);}}
+                  if(item.group!==lastGroup){lastGroup=item.group;if(latest.current.dimensions!==false){const tag=label(item.groupLabel,.75);tag.position.set(sx,5.35+ground,z);row.add(tag);}}
                 }
               });
             }
@@ -293,7 +294,7 @@ export function PlanningScene(props: Props) {
           // Moved since last draw: fly from where it was. New on the floor (after first load): taken off the shelf of the
           // near rack row, lined up with its floor spot, then set down beside the unit.
           const rackSpan=Math.ceil((L/2+6)/3)*3,fromShelf=!prev&&!c.placed&&performance.now()-mountedAt>1500;
-          const from=calm?null:prev&&prev.distanceTo(target)>.01?prev.clone():fromShelf?((c.rackKey?rackHome.get(c.rackKey)?.clone():undefined)??new T.Vector3(Math.min(Math.max(target.x,L/2-rackSpan),L/2+rackSpan-c.length),2.54,W/2+11.5-c.width/2)):null;
+          const from=calm?null:prev&&prev.distanceTo(target)>.01?prev.clone():fromShelf?((c.rackKey?rackHome.get(c.rackKey)?.clone():undefined)??new T.Vector3(Math.min(Math.max(target.x,L/2-rackSpan),L/2+rackSpan-c.length),2.54+ground,W/2+11.5-c.width/2)):null;
           if(from){const lifts=(from.y<=ground+.05)!==(target.y<=ground+.05);flights.set(c.id,{from,to:target.clone(),start:performance.now()+batch++*90,arc:fromShelf?.8:lifts?Math.max(1.6,H*.5):prev?.3:0});group.position.copy(from);}
           else{flights.delete(c.id);lastPos.set(c.id,target.clone());group.position.copy(target);}
         }
@@ -597,7 +598,16 @@ export function PlanningScene(props: Props) {
       if(groundGrid)(groundGrid.material as T.LineBasicMaterial).opacity=drag?.95:.55;
       rackShow=T.MathUtils.lerp(rackShow,latest.current.warehouse?1:0,speed*.6);trackShow=T.MathUtils.lerp(trackShow,latest.current.tracking?1:0,speed*.6);shellShow=T.MathUtils.lerp(shellShow,latest.current.walls===false?0:1,speed*.6);applyToggles();racksBack.visible=racksBack.visible&&latest.current.view!=='side';
       roof.position.y=T.MathUtils.lerp(roof.position.y,roofTarget,speed);roof.visible=!latest.current.equipment.openTop&&roof.position.y<latest.current.equipment.height+1.6;
-      side.traverse(obj=>{const m=(obj as T.Mesh).material as T.MeshStandardMaterial;if(m){m.transparent=true;m.opacity=sideTarget; m.depthWrite=sideTarget>.5&&!m.userData.decal;}});
+      // See-through fades the whole shell - both long walls, the ends, roof, frames and doors - in any
+      // view. Decals keep their own transparency, and the near side takes the lower of shell and view.
+      const shellOpacity=latest.current.seeThrough ? .12 : 1;
+      // Three.js recompiles a material's shader when transparency flips, so the flag has to be raised
+      // on the change - without it these walls compile opaque on the first frame and never clear.
+      shell.traverse(obj=>{const m=(obj as T.Mesh).material as T.MeshStandardMaterial;if(!m)return;m.opacity=shellOpacity;if(m.userData.decal)return;const clear=shellOpacity<1;if(m.transparent!==clear){m.transparent=clear;m.needsUpdate=true;}m.depthWrite=!clear;});
+      const sideOpacity=Math.min(sideTarget,shellOpacity);
+      // The near side is a child of the shell, so the pass above may have just turned it opaque; it
+      // stays transparent for its own per-view fade, and needs the same flag when that is reversed.
+      side.traverse(obj=>{const m=(obj as T.Mesh).material as T.MeshStandardMaterial;if(!m)return;if(!m.transparent){m.transparent=true;m.needsUpdate=true;}m.opacity=sideOpacity;m.depthWrite=sideOpacity>.5&&!m.userData.decal;});
       doors.forEach((d,i)=>{d.rotation.y=T.MathUtils.lerp(d.rotation.y,(i===0?1:-1)*doorTarget,speed);});
       controls.update();renderer.render(scene,activeCamera);
     };animate();
