@@ -6,6 +6,7 @@ import { BRAND_FONT, brandLogo, logoMark, resetBrandLogo } from './brandLogo';
 import { createLenaOffice } from './lenaOffice';
 import { createGarage, type FleetVehicle, type GarageItem } from './garage';
 import { createConveyor } from './conveyor';
+import { createDocks, DOCK_EVERY } from './docks';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
@@ -105,6 +106,8 @@ export function PlanningScene(props: Props) {
     const garage = createGarage(scene);
     // The conveyor belt along the rooms' back edge, packages flowing along it.
     const conveyor = createConveyor(scene);
+    // The Docks room's wall of dock doors, fed off the conveyor.
+    const docks = createDocks(scene);
     // Where the waiting cargo ended up, so the crew walks around it rather than through it.
     let stagedBoxes: Footprint[] = [];
     let roof = new T.Group(), side = new T.Group(), doors: T.Group[] = [], cargoMeshes: T.Object3D[] = [];
@@ -584,7 +587,7 @@ export function PlanningScene(props: Props) {
     let alive=true;
     // Ambient crew, in its own layer beside the unit. Skipped in previews and under reduced motion.
     if(!latest.current.mini&&!matchMedia('(prefers-reduced-motion: reduce)').matches)crew.load(latest.current.equipment);
-    if(!latest.current.mini){office.load(latest.current.equipment);garage.load();conveyor.load();}
+    if(!latest.current.mini){office.load(latest.current.equipment);garage.load();conveyor.load();docks.load();conveyor.exitAt(ROOMS.find(room=>room.key==='docks')!.z,DOCK_EVERY,docks.receive);}
     const refreshLogo=()=>{if(!alive)return;resetBrandLogo();redraw();garage.refresh();};
     logoMark?.addEventListener('load',refreshLogo);
     void document.fonts?.load(`bold 64px ${BRAND_FONT}`).then(refreshLogo,()=>{});
@@ -654,12 +657,12 @@ export function PlanningScene(props: Props) {
       side.traverse(obj=>{const m=(obj as T.Mesh).material as T.MeshStandardMaterial;if(!m)return;if(!m.transparent){m.transparent=true;m.needsUpdate=true;}m.opacity=sideOpacity;m.depthWrite=sideOpacity>.5&&!m.userData.decal;});
       doors.forEach((d,i)=>{d.rotation.y=T.MathUtils.lerp(d.rotation.y,(i===0?1:-1)*doorTarget,speed);});
       office.update(dt,latest.current.equipment,latest.current.lenaOffice!==false,reduced,crew.consulting());
-      conveyor.update(latest.current.equipment,dt,reduced);
+      conveyor.update(latest.current.equipment,dt,reduced);docks.update(latest.current.equipment,dt,reduced);
       garage.setVehicles(latest.current.garageVehicles??[]);garage.update(latest.current.equipment,latest.current.pickedGarage,speed);
-      crew.update(dt,latest.current.equipment,latest.current.ambient!==false,[...stagedBoxes,...office.footprints(latest.current.equipment),...garage.footprints(latest.current.equipment)],office.consultSpots(latest.current.equipment),garage.serviceSpots(latest.current.equipment));
+      crew.update(dt,latest.current.equipment,latest.current.ambient!==false,[...stagedBoxes,...office.footprints(latest.current.equipment),...garage.footprints(latest.current.equipment),...docks.footprints(latest.current.equipment)],office.consultSpots(latest.current.equipment),garage.serviceSpots(latest.current.equipment));
       controls.update();renderer.render(scene,activeCamera);
     };animate();
-    return()=>{alive=false;logoMark?.removeEventListener('load',refreshLogo);cancelAnimationFrame(frame);observer.disconnect();theme.disconnect();dispose(ghost);controls.dispose();dispose(model);crew.dispose();office.dispose();garage.dispose();conveyor.dispose();renderer.dispose();renderer.domElement.removeEventListener('pointerdown',down,true);renderer.domElement.removeEventListener('pointermove',move);renderer.domElement.removeEventListener('wheel',trackpadPan,true);window.removeEventListener('keydown',key);renderer.domElement.removeEventListener('pointerup',up);renderer.domElement.removeEventListener('pointercancel',cancel);renderer.domElement.removeEventListener('pointerleave',leave);renderer.domElement.remove();runtime.current=null;};
+    return()=>{alive=false;logoMark?.removeEventListener('load',refreshLogo);cancelAnimationFrame(frame);observer.disconnect();theme.disconnect();dispose(ghost);controls.dispose();dispose(model);crew.dispose();office.dispose();garage.dispose();conveyor.dispose();docks.dispose();renderer.dispose();renderer.domElement.removeEventListener('pointerdown',down,true);renderer.domElement.removeEventListener('pointermove',move);renderer.domElement.removeEventListener('wheel',trackpadPan,true);window.removeEventListener('keydown',key);renderer.domElement.removeEventListener('pointerup',up);renderer.domElement.removeEventListener('pointercancel',cancel);renderer.domElement.removeEventListener('pointerleave',leave);renderer.domElement.remove();runtime.current=null;};
   }, []);
   useEffect(()=>{runtime.current?.redraw();},[props.cargo,props.selected,props.dimensions,props.racks,props.loadMoreLabel]);
   useEffect(()=>{runtime.current?.changeView();},[props.view,props.equipment,props.reset]);

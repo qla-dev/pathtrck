@@ -9,10 +9,13 @@ const groundOf = (e: Equipment) => (e.truck ? -.72 : -.24);
 const WIDTH = ROOM * ROOMS.length;
 /** One belt. Kept as a list, so more lanes are one entry each. */
 const BELTS = [{ x: 0, dir: 1 }];
-const BELT_WIDTH = 2.4, BELT_TOP = .5, SPEED = 1.4, RAIL = .12;
+const BELT_WIDTH = 2.4, RAIL = .12;
+export const BELT_TOP = .5, SPEED = 1.4;
+/** The main belt's centre line in world x: its inner rail flush against the rooms' back edge. */
+export const MAIN_BELT_X = -HALL_X - BELT_WIDTH / 2 - RAIL;
 /** Spacing of the cross lines printed on the belt, and of the packages riding it. */
 const LINE_STEP = .5, PACKAGE_STEP = 1.5;
-const PACKAGE_TONES = ['#bd9367', '#c4a079', '#ac8053', '#38bdf8', '#d8b48a'];
+export const PACKAGE_TONES = ['#bd9367', '#c4a079', '#ac8053', '#38bdf8', '#d8b48a'];
 
 /** Black belt with pale cross lines; it scrolls, so the lines run with the packages. */
 const beltTexture = () => {
@@ -37,9 +40,14 @@ export function createConveyor(scene: T.Scene) {
   const group = new T.Group(); group.visible = false; scene.add(group);
   const textures: T.CanvasTexture[] = [];
   let packages: T.InstancedMesh | null = null;
-  /** Each package's belt, its size and where it is along the belt. */
-  const riders: { belt: number; z: number; size: T.Vector3; spin: number }[] = [];
-  const matrix = new T.Matrix4(), rotation = new T.Quaternion(), up = new T.Vector3(0, 1, 0), position = new T.Vector3();
+  /**
+   * Each package's belt, its size, colour and where it is along the belt. `away` is one handed off the
+   * belt: its slot keeps moving, empty, and it rides again once the slot comes round to the start.
+   */
+  const riders: { belt: number; z: number; size: T.Vector3; spin: number; tone: string; away: boolean }[] = [];
+  /** Where packages leave the belt, how often, and who takes them. */
+  let exit: { z: number; every: number; take: (size: T.Vector3, tone: string, spin: number) => void } | null = null, sinceExit = 0;
+  const matrix = new T.Matrix4(), rotation = new T.Quaternion(), up = new T.Vector3(0, 1, 0), position = new T.Vector3(), none = new T.Vector3();
 
   const box = (w: number, h: number, d: number, material: T.Material | T.Material[], x: number, y: number) => {
     const mesh = new T.Mesh(new T.BoxGeometry(w, h, d), material); mesh.position.set(x, y, 0);
@@ -49,7 +57,7 @@ export function createConveyor(scene: T.Scene) {
   const place = (i: number) => {
     const rider = riders[i];
     position.set(BELTS[rider.belt].x, BELT_TOP + rider.size.y / 2, rider.z);
-    matrix.compose(position, rotation.setFromAxisAngle(up, rider.spin), rider.size);
+    matrix.compose(position, rotation.setFromAxisAngle(up, rider.spin), rider.away ? none : rider.size);
     packages!.setMatrixAt(i, matrix);
   };
 
@@ -75,27 +83,39 @@ export function createConveyor(scene: T.Scene) {
         const belt = i % BELTS.length, slot = Math.floor(i / BELTS.length);
         const size = new T.Vector3(.45 + Math.random() * .5, .3 + Math.random() * .45, .45 + Math.random() * .5);
         // Evenly spaced, with a little jitter so the flow never looks stamped out.
-        riders.push({ belt, z: -WIDTH / 2 + slot * PACKAGE_STEP + Math.random() * .6, size, spin: (Math.random() - .5) * .5 });
-        packages.setColorAt(i, colour.set(PACKAGE_TONES[Math.floor(Math.random() * PACKAGE_TONES.length)]));
+        const tone = PACKAGE_TONES[Math.floor(Math.random() * PACKAGE_TONES.length)];
+        riders.push({ belt, z: -WIDTH / 2 + slot * PACKAGE_STEP + Math.random() * .6, size, spin: (Math.random() - .5) * .5, tone, away: false });
+        packages.setColorAt(i, colour.set(tone));
         place(i);
       }
       group.add(packages);
       group.visible = true;
     },
 
+    /** Hands one package at a time off the belt as it passes `z`, no more often than `every` seconds. */
+    exitAt(z: number, every: number, take: (size: T.Vector3, tone: string, spin: number) => void) {
+      exit = { z, every, take }; sinceExit = every * .6;
+    },
+
     update(e: Equipment, dt: number, still = false) {
       if (!packages) return;
       // Its inner rail flush against the rooms' back edge.
-      group.position.set(-HALL_X - BELT_WIDTH / 2 - RAIL, groundOf(e), 0);
+      group.position.set(MAIN_BELT_X, groundOf(e), 0);
       if (still) return;
       const travel = SPEED * dt;
       // The lines move with the packages: offset is in texture repeats, one per line step.
       textures.forEach((texture, i) => { texture.offset.y += BELTS[i].dir * travel / LINE_STEP; });
+      sinceExit += dt;
       riders.forEach((rider, i) => {
-        rider.z += BELTS[rider.belt].dir * travel;
-        // Off one end, back on at the other: the flow never runs out.
-        if (rider.z > WIDTH / 2) rider.z -= WIDTH;
-        else if (rider.z < -WIDTH / 2) rider.z += WIDTH;
+        const was = rider.z, dir = BELTS[rider.belt].dir;
+        rider.z += dir * travel;
+        if (exit && !rider.away && sinceExit >= exit.every && (was - exit.z) * dir < 0 && (rider.z - exit.z) * dir >= 0) {
+          rider.away = true; sinceExit = 0;
+          exit.take(rider.size.clone(), rider.tone, rider.spin);
+        }
+        // Off one end, back on at the other: the flow never runs out - and a slot left empty fills again.
+        if (rider.z > WIDTH / 2) { rider.z -= WIDTH; rider.away = false; }
+        else if (rider.z < -WIDTH / 2) { rider.z += WIDTH; rider.away = false; }
         place(i);
       });
       packages.instanceMatrix.needsUpdate = true;

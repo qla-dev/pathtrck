@@ -501,7 +501,9 @@ const roamHall = (w: Worker, e: Equipment) => {
 const visitRoom = (w: Worker, e: Equipment) => {
   // Anyone's own room is no visit, and the warehouse is all aisles rather than somewhere to stand.
   const others = ROOMS.filter(room => room.key !== 'warehouse' && room.key !== w.home), room = others[Math.floor(Math.random() * others.length)];
-  const spot = new T.Vector3(e.length / 2 + (Math.random() * 2 - 1) * (ROOM / 2 - 4), groundOf(e), e.width / 2 + room.z + (Math.random() * 2 - 1) * 2.5);
+  // The Docks' belts and dock wall take its warehouse half, so a visit there stays in the half across from them.
+  const across = room.key === 'docks' ? 6 + Math.random() * 6 : (Math.random() * 2 - 1) * 2.5;
+  const spot = new T.Vector3(e.length / 2 + (Math.random() * 2 - 1) * (ROOM / 2 - 4), groundOf(e), e.width / 2 + room.z + across);
   w.visit = room.key;
   w.goal = 'visit_room';
   w.face = Math.random() * Math.PI * 2;
