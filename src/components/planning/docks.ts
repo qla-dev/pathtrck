@@ -7,7 +7,7 @@ import { ROOM, ROOMS } from './rooms';
 
 /** Mirrors the scene's own ground: a truck stands on its wheels, a container rests on its base. */
 const groundOf = (e: Equipment) => (e.truck ? -.72 : -.24);
-const DOCKS_Z = ROOMS.find(room => room.key === 'docks')!.z;
+export const DOCKS_Z = ROOMS.find(room => room.key === 'docks')!.z;
 
 /*
  * Everything below is in the Docks room's own frame: its centre at the origin, x along the room as in the
@@ -17,12 +17,45 @@ const DOCKS_Z = ROOMS.find(room => room.key === 'docks')!.z;
 export const DOCK_EVERY = 10;
 const WALL = { height: 7, thickness: .5, band: 2.4 };
 /** The wall's inner face, which the belts run up to and the doors sit in. */
-const WALL_FACE = -ROOM / 2 + WALL.thickness;
-const DOORS = [-8, 0, 8];
+export const WALL_FACE = -ROOM / 2 + WALL.thickness;
+export const DOORS = [-8, 0, 8];
 const DOOR_W = 3.2, DOOR_H = 3.6;
 /** The docks belt: narrower than the main one. The packages branch off to their doors at SPLIT_Z. */
 const BELT_W = 1.4, SPLIT_Z = -6;
 const LINE_STEP = .5;
+
+/**
+ * The belts wall the doors off from the rest of the room, so the crew crosses them on step-over stiles:
+ * one on the belt coming in, one each side of the split. Each is a bridge high enough for packages to
+ * pass under, with steps up and down; `alongX` is the belt it spans. They are the only gaps in the belts'
+ * footprints.
+ */
+const STILES = [{ x: -12, z: 0 }, { x: -4, z: SPLIT_Z }, { x: 4, z: SPLIT_Z }];
+const STILE_TOP = 1.35, STILE_FLAT = BELT_W / 2 + .2, STILE_RAMP = 1.4, STILE_HALF = .55;
+/** How high someone standing here is lifted by a stile - 0 anywhere off one. In the room's own frame. */
+export const stileLift = (x: number, z: number) => {
+  for (const stile of STILES) {
+    if (Math.abs(x - stile.x) > STILE_HALF) continue;
+    const across = Math.abs(z - stile.z);
+    if (across <= STILE_FLAT) return STILE_TOP;
+    if (across <= STILE_FLAT + STILE_RAMP) return STILE_TOP * (1 - (across - STILE_FLAT) / STILE_RAMP);
+  }
+  return 0;
+};
+
+/** Where a dock worker stands to inspect each door: beside it, clear of its belt, facing the wall. */
+export const DOOR_SPOTS = DOORS.map(x => new T.Vector2(x + 2.2, WALL_FACE + 1.3));
+/** The open floor every walk to a door starts from, in from the room's door. */
+export const DOCK_ENTRY = new T.Vector2(12, 4);
+/**
+ * The walk from DOCK_ENTRY to a door's spot, over whichever stiles it takes: Dock 3's side is open floor,
+ * Dock 2 is over the right-hand split stile, Dock 1 over the inbound stile and then the left-hand one.
+ */
+export const DOOR_ROUTES: T.Vector2[][] = [
+  [DOCK_ENTRY, new T.Vector2(-12, 4), new T.Vector2(-12, -3), new T.Vector2(-4, -3), new T.Vector2(-4, -10), new T.Vector2(DOOR_SPOTS[0].x, -10), DOOR_SPOTS[0]],
+  [DOCK_ENTRY, new T.Vector2(12, -3), new T.Vector2(4, -3), new T.Vector2(4, -10), new T.Vector2(DOOR_SPOTS[1].x, -10), DOOR_SPOTS[1]],
+  [DOCK_ENTRY, new T.Vector2(12, DOOR_SPOTS[2].y), DOOR_SPOTS[2]],
+];
 
 /** A package's way from the main belt to its door: in along the middle, down, across, and up to the wall. */
 const pathTo = (door: number) => [
@@ -98,7 +131,7 @@ type Door = { panel: T.Object3D; open: number; red: T.MeshStandardMaterial; gree
 type Parcel = { door: number; distance: number; path: T.Vector2[]; length: number; size: T.Vector3; spin: number };
 
 /**
- * Docks: the room right of the warehouse. A tall warehouse wall stands along its warehouse side with three
+ * Docks: the room right of the warehouse. The belts are crossed on stiles - see STILES. A tall warehouse wall stands along its warehouse side with three
  * roll-up dock doors, DOCK 1-3. Every DOCK_EVERY seconds a package leaves the main conveyor where it passes
  * the room's middle, rides in on a belt to a split in the middle of the room and on to one of the doors in
  * turn. The door rolls up as the package comes to it - its light turning from red to green - and closes
@@ -203,6 +236,18 @@ export function createDocks(scene: T.Scene) {
         doors.push({ panel, open: 0, red, green });
       });
 
+      // Stiles: a yellow deck over the belt on four posts, a flight of steps up each side.
+      for (const stile of STILES) {
+        const deckLength = STILE_FLAT * 2, width = STILE_HALF * 2;
+        add(new T.BoxGeometry(width, .08, deckLength), yellow, stile.x, STILE_TOP - .04, stile.z);
+        // Posts stop under the deck: sharing its top face would flicker.
+        for (const dx of [-1, 1]) for (const dz of [-1, 1]) add(new T.BoxGeometry(.08, STILE_TOP - .08, .08), steel, stile.x + dx * (width / 2 - .04), (STILE_TOP - .08) / 2, stile.z + dz * (deckLength / 2 - .04));
+        for (const side of [-1, 1]) for (let step = 0; step < 4; step++) {
+          const top = STILE_TOP * (4 - step) / 5, run = STILE_RAMP / 4;
+          add(new T.BoxGeometry(width, top, run), steel, stile.x, top / 2, stile.z + side * (STILE_FLAT + run * (step + .5)));
+        }
+      }
+
       packages = new T.InstancedMesh(new T.BoxGeometry(1, 1, 1), new T.MeshStandardMaterial({ roughness: .75 }), POOL);
       packages.castShadow = true; packages.frustumCulled = false;
       for (let i = 0; i < POOL; i++) { packages.setMatrixAt(i, matrix.compose(position.set(0, -10, 0), rotation, none)); packages.setColorAt(i, colour.set('#bd9367')); }
@@ -258,11 +303,17 @@ export function createDocks(scene: T.Scene) {
     footprints(e: Equipment): Footprint[] {
       if (!group.visible) return [];
       const cx = e.length / 2, cz = e.width / 2 + DOCKS_Z, pad = BELT_W / 2 + .3;
+      // The runs along x, with a gap wherever a stile crosses them.
+      const run = (x0: number, x1: number, z: number) => {
+        const cuts = STILES.filter(stile => stile.z === z && stile.x > x0 && stile.x < x1).map(stile => stile.x).sort((a, b) => a - b);
+        const edges = [x0, ...cuts.flatMap(x => [x - STILE_HALF, x + STILE_HALF]), x1];
+        return edges.flatMap((edge, i) => (i % 2 ? [] : [{ x0: edge, x1: edges[i + 1], z0: z - pad, z1: z + pad }]));
+      };
       const local: Footprint[] = [
-        { x0: -ROOM / 2, x1: pad, z0: -pad, z1: pad },
-        { x0: -pad, x1: pad, z0: SPLIT_Z - pad, z1: pad },
-        { x0: Math.min(...DOORS) - pad, x1: Math.max(...DOORS) + pad, z0: SPLIT_Z - pad, z1: SPLIT_Z + pad },
-        ...DOORS.map(x => ({ x0: x - pad, x1: x + pad, z0: -ROOM / 2, z1: SPLIT_Z })),
+        ...run(-ROOM / 2, pad, 0),
+        { x0: -pad, x1: pad, z0: SPLIT_Z - pad, z1: -pad },
+        ...run(Math.min(...DOORS) - pad, Math.max(...DOORS) + pad, SPLIT_Z),
+        ...DOORS.map(x => ({ x0: x - pad, x1: x + pad, z0: -ROOM / 2, z1: SPLIT_Z - pad })),
       ];
       return local.map(b => ({ x0: cx + b.x0, x1: cx + b.x1, z0: cz + b.z0, z1: cz + b.z1 }));
     },

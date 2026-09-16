@@ -2,6 +2,7 @@ import { aside } from './aside';
 import { avoid } from './avoid';
 import { carry } from './carry';
 import { consult } from './consult';
+import { docking } from './docking';
 import { fixTruck } from './fixTruck';
 import { inspect } from './inspect';
 import { inspectContainer } from './inspectContainer';
@@ -16,7 +17,7 @@ import { visitRoom } from './visitRoom';
 export type { Skill, SkillName };
 
 /** Every routine a worker can run, keyed by name. Add a file, then add it here. */
-export const SKILLS: Record<SkillName, Skill> = { inspect, unit, carry, interact_eachother: interactEachother, avoid, aside, consult, receive, leave_room: leaveRoom, roam_hall: roamHall, visit_room: visitRoom, fix_truck: fixTruck, inspect_container: inspectContainer };
+export const SKILLS: Record<SkillName, Skill> = { inspect, unit, carry, interact_eachother: interactEachother, avoid, aside, consult, receive, leave_room: leaveRoom, roam_hall: roamHall, visit_room: visitRoom, fix_truck: fixTruck, inspect_container: inspectContainer, docking };
 
 /** The widest bubble any routine needs, so the plate is sized once and only ever repainted. */
 export const WIDEST_LABEL = Object.values(SKILLS).reduce((widest, skill) => (skill.label.length > widest.length ? skill.label : widest), '');

@@ -4,7 +4,7 @@ import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 import { BUBBLE_TONE, measure, paint, plate, type ConsultSpot, type Footprint } from './ambientCrew';
 import { type Equipment } from './model';
-import { HALL_DEPTH, HALL_X, KERB } from './rooms';
+import { HALL_DEPTH, HALL_X, KERB, ROOM, ROOMS } from './rooms';
 import { SKILLS } from './skills';
 
 const MODEL_URL = '/models/RobotExpressive.glb';
@@ -18,16 +18,20 @@ const NAVY = '#0b1a33', STEEL = '#2c3644', SHELL = '#eef2f6';
 const FEED = ['Stacking 40HC · 26 pallets', 'Route Sarajevo → Split', 'Customs docs ready', 'ETA updated · 14:20', 'Quote sent · €1,240', 'Fleet check · 4 trucks', 'Rebalancing axle load', 'Slot booked · Dock 3'];
 
 /**
- * Offsets across the aisle, from the unit's centre line; the middle one is Lena's own and a little wider.
+ * The hall offices stand in a row, `offset` across the aisle from the unit's centre line; the middle one is
+ * Lena's own and a little wider. The Docking helpdesk stands on its own in the Docks room instead (`room`).
  * Each is manned: `role` is the tag over whoever sits inside, `status` what their bubble cycles through -
- * kept short on Lena's so it clears the hologram.
+ * kept short on Lena's so it clears the hologram. `acSide` is the end wall the AC unit hangs on.
  */
-type Spec = { width: number; title: string; subtitle: string; offset: number; role: string; status: string[]; lena?: boolean };
+type Spec = { width: number; title: string; subtitle: string; offset: number; role: string; status: string[]; lena?: boolean; room?: 'hall' | 'docks'; acSide?: number };
 const OFFICES: Spec[] = [
   { width: 5.2, title: 'Dispatch', subtitle: 'POWERED BY LenaAI', offset: -6.9, role: 'Dispatcher', status: ['Assigning drivers', 'Booking docks', 'Calling carriers', 'Tracking trucks'] },
   { width: 6, title: 'LenaAI', subtitle: 'SMART FREIGHT OFFICE', offset: 0, role: 'LenaAI', status: ['Planning loads', 'Routing trucks', 'Quoting freight', 'Answering clients'], lena: true },
   { width: 5.2, title: 'Customs', subtitle: 'POWERED BY LenaAI', offset: 6.9, role: 'Customs Officer', status: ['Checking documents', 'Stamping T1', 'Clearing customs', 'Inspecting cargo'] },
+  { width: 5.2, title: 'Docking', subtitle: 'HELPDESK · POWERED BY LenaAI', offset: 0, role: 'Docking manager', status: ['Scheduling docks', 'Checking arrivals', 'Assigning doors', 'Signing papers'], room: 'docks', acSide: -1 },
 ];
+/** The Docking helpdesk's corner of the Docks room: by the hall side, backed against the room's outer edge. */
+const DOCKS_Z = ROOMS.find(room => room.key === 'docks')!.z, HELPDESK_X = 12.5;
 
 /** An opening in the front wall, in metres from the wall's left edge and from the body's floor. */
 type Hole = { x0: number; x1: number; y0: number; y1: number };
@@ -39,6 +43,19 @@ const windowOf = (s: Spec): Hole => (s.lena ? { x0: 2.35, x1: s.width - .45, y0:
  * kerb (the skid overhangs the body by 5 cm), doors facing back up the aisle across the open hall.
  */
 const frontOf = (e: Equipment) => e.length / 2 + HALL_X + HALL_DEPTH - KERB - .05 - DEPTH;
+
+/**
+ * Where an office's centre stands and how it is turned, in the unit's model coordinates. Offices are built
+ * facing +z; hall offices turn to face back up the aisle, the helpdesk turns round to face into the Docks.
+ */
+const siteOf = (e: Equipment, s: Spec) => (s.room === 'docks'
+  ? { x: e.length / 2 + HELPDESK_X, z: e.width / 2 + DOCKS_Z + ROOM / 2 - KERB - .05 - DEPTH / 2, turn: Math.PI }
+  : { x: frontOf(e) + DEPTH / 2, z: e.width / 2 + s.offset, turn: -Math.PI / 2 });
+/** A point in an office's own frame, in the unit's model coordinates. */
+const toSite = (at: { x: number; z: number; turn: number }, x: number, z: number) => ({
+  x: at.x + x * Math.cos(at.turn) + z * Math.sin(at.turn),
+  z: at.z - x * Math.sin(at.turn) + z * Math.cos(at.turn),
+});
 
 type Tick = (time: number, dt: number) => void;
 
@@ -340,7 +357,7 @@ export function createLenaOffice(scene: T.Scene) {
       const beacon = mesh(root, new T.SphereGeometry(.05, 12, 8), glow('#ff3b3b'), mastX, top + .08 + .93, mastZ, false);
       ticks.push(time => { beacon.visible = (time + index * .7) % 1.4 < .2; });
 
-      const out = Math.sign(s.offset);
+      const out = s.acSide ?? Math.sign(s.offset);
       box(root, .34, .52, .74, std('#cfd6de', { metalness: .4 }), out * (W / 2 + .17), SKID + 1.7, -.3);
       const grille = mesh(root, new T.CylinderGeometry(.21, .21, .02, 24), std('#334155'), out * (W / 2 + .345), SKID + 1.7, -.3);
       grille.rotation.z = Math.PI / 2;
@@ -364,9 +381,9 @@ export function createLenaOffice(scene: T.Scene) {
   };
 
   const place = (e: Equipment) => {
-    const front = frontOf(e), ground = groundOf(e);
+    const ground = groundOf(e);
     layer.position.set(-e.length / 2, Math.pow(1 - show, 3) * 9, -e.width / 2);
-    roots.forEach((root, i) => { root.position.set(front + DEPTH / 2, ground, e.width / 2 + OFFICES[i].offset); root.rotation.y = -Math.PI / 2; });
+    roots.forEach((root, i) => { const at = siteOf(e, OFFICES[i]); root.position.set(at.x, ground, at.z); root.rotation.y = at.turn; });
   };
 
   return {
@@ -452,16 +469,22 @@ export function createLenaOffice(scene: T.Scene) {
      */
     consultSpots(e: Equipment): ConsultSpot[] {
       if (!built || show < .5) return [];
-      const front = frontOf(e);
-      // The office's own x runs along the aisle's z once it is turned, so the seat lines the spot up.
-      return OFFICES.map((s, i) => ({ id: s.title, x: front - .6, z: e.width / 2 + s.offset + seats[i].swivel.position.x }));
+      // Just outside the window, lined up with the seat, facing in - the office's own -z, turned with it.
+      return OFFICES.map((s, i) => {
+        const at = siteOf(e, s), spot = toSite(at, seats[i].swivel.position.x, DEPTH / 2 + .6);
+        return { id: s.title, x: spot.x, z: spot.z, face: Math.atan2(-Math.sin(at.turn), -Math.cos(at.turn)) };
+      });
     },
 
     /** The offices' ground plan, for the crew to walk around - only while the row is actually standing. */
     footprints(e: Equipment): Footprint[] {
       if (!built || show < .5) return [];
-      const front = frontOf(e);
-      return OFFICES.map(s => ({ x0: front - .3, x1: front + DEPTH + .1, z0: e.width / 2 + s.offset - s.width / 2 - .45, z1: e.width / 2 + s.offset + s.width / 2 + .45 }));
+      // The body and its AC units, with the step, turned into place.
+      return OFFICES.map(s => {
+        const at = siteOf(e, s), half = s.width / 2 + .45;
+        const corners = [[-half, -DEPTH / 2 - .1], [half, DEPTH / 2 + .3]].map(([x, z]) => toSite(at, x, z));
+        return { x0: Math.min(corners[0].x, corners[1].x), x1: Math.max(corners[0].x, corners[1].x), z0: Math.min(corners[0].z, corners[1].z), z1: Math.max(corners[0].z, corners[1].z) };
+      });
     },
 
     dispose() {

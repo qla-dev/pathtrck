@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 import { RACK_BAYS, RACK_SPAN, type Equipment } from './model';
+import { DOCKS_Z, DOOR_ROUTES, stileLift } from './docks';
 import { DOOR, HALL_DEPTH, HALL_X, ROOM, ROOMS } from './rooms';
 import { SKILLS, WIDEST_LABEL, type SkillName } from './skills';
 
@@ -29,6 +30,8 @@ const WORKER_ROLE = 'Warehouse worker';
 const GARAGE_CREW = 5, MECHANIC_ROLE = 'Mechanic';
 /** However the mechanics' days go, this many trucks - or every truck, if there are fewer - always have one on them. */
 const MIN_SERVICED = 3;
+/** The Docks' own crew, who look after the dock doors. */
+const DOCK_CREW = 3, DOCK_ROLE = 'Dock worker';
 /** Warehouse workers who start the day by the Garage's container row rather than in the warehouse. */
 const AT_CONTAINERS = 3;
 
@@ -52,7 +55,7 @@ export type Footprint = { x0: number; x1: number; z0: number; z1: number };
  */
 let parked: Footprint[] = [];
 /** Where a worker stands outside an office window for a consultation, handed over by the office layer. */
-export type ConsultSpot = { id: string; x: number; z: number };
+export type ConsultSpot = { id: string; x: number; z: number; face: number };
 /** Where a mechanic stands to work on a parked truck, handed over by the Garage. */
 export type ServiceSpot = { id: string; x: number; z: number; face: number };
 /** The trucks parked in the Garage right now, set the same way as `consults`. */
@@ -80,7 +83,7 @@ type Worker = {
   /** Mid side step, making way: walking, but with the bubble up until the step is done. */
   steppingAside: boolean;
   /** The room this worker belongs to and returns to between jobs. */
-  home: 'warehouse' | 'garage';
+  home: 'warehouse' | 'garage' | 'docks';
   /** The truck a mechanic has taken on, so no two work on the same one. */
   service: string | null;
   /** The truck a mechanic last left, so a hand-over goes to someone else when anyone else can take it. */
@@ -133,6 +136,28 @@ const obstacles = (e: Equipment): Footprint[] => {
   for (const z of [centre - ROOM / 2, centre + ROOM / 2]) wall.push({ x0: back - .5, x1: edge + .3, z0: z - .3, z1: z + .3 });
   // The unit itself, a truck's cab reaching out past its nose, then whatever is stacked on the floor.
   return [...rows, ...wall, { x0: e.truck ? -2.6 : -.3, x1: e.length + .3, z0: -.3, z1: e.width + .3 }, ...parked];
+};
+
+/** A point in the Docks room's own frame, in the unit's model coordinates. */
+const docksPoint = (e: Equipment, p: T.Vector2) => new T.Vector3(e.length / 2 + p.x, groundOf(e), e.width / 2 + DOCKS_Z + p.y);
+
+/** How high a stile lifts someone standing at a point in model coordinates - 0 anywhere off one. */
+const liftAt = (e: Equipment, x: number, z: number) => stileLift(x - e.length / 2, z - e.width / 2 - DOCKS_Z);
+
+/**
+ * The way out from among the dock belts, if a point is in there: the doors' side of the belt coming in is
+ * walled off by belts but for the stiles. It goes back along the nearest door's route, stile by stile, to
+ * the open floor that route starts from.
+ */
+const mazeExit = (e: Equipment, from: T.Vector3): T.Vector3[] | null => {
+  const x = from.x - e.length / 2, z = from.z - e.width / 2 - DOCKS_Z;
+  if (from.x > e.length / 2 + HALL_X || Math.abs(x) > ROOM / 2 || Math.abs(z) > ROOM / 2 || z >= -.7) return null;
+  let best = { route: 0, index: 1, distance: Infinity };
+  DOOR_ROUTES.forEach((route, r) => route.forEach((point, i) => {
+    const distance = Math.hypot(point.x - x, point.y - z);
+    if (i > 0 && distance < best.distance) best = { route: r, index: i, distance };
+  }));
+  return DOOR_ROUTES[best.route].slice(0, best.index + 1).reverse().map(point => docksPoint(e, point));
 };
 
 type Area = 'hall' | (typeof ROOMS)[number]['key'];
@@ -268,6 +293,14 @@ const garageSpawn = (e: Equipment, all: Worker[], near: 'trucks' | 'containers')
   return point;
 };
 
+/** Somewhere on the Docks' open floor, between the belt coming in and the far side, clear of anyone there. */
+const docksSpawn = (e: Equipment, all: Worker[]): T.Vector3 => {
+  const place = () => docksPoint(e, new T.Vector2((Math.random() * 2 - 1) * 12, 2.5 + Math.random() * 7));
+  let point = place();
+  for (let tries = 0; tries < 8 && all.some(other => Math.hypot(other.root.position.x - point.x, other.root.position.z - point.z) < SPACING * 1.6); tries++) point = place();
+  return point;
+};
+
 const pickGoal = (e: Equipment, side?: number): Goal => (Math.random() < .25 ? unitSpot(e) : baySpot(e, side));
 
 /**
@@ -294,6 +327,9 @@ const freeGoal = (e: Equipment, all: Worker[], self: Worker): Goal => {
  * ends in - since nobody crosses a room's edge anywhere else.
  */
 const routeTo = (e: Equipment, from: T.Vector3, to: T.Vector3, lane: number, flip = false): T.Vector3[] => {
+  // Down among the dock belts, the way out is back over the stiles the way in came.
+  const exit = mazeExit(e, from);
+  if (exit) return [...exit, ...routeTo(e, exit[exit.length - 1], to, lane, flip)];
   const s = site(e), a = s.areaOf(from), b = s.areaOf(to), y = s.ground;
   if (a === b) {
     if (a === 'warehouse') return aisleRoute(e, from, to, lane, flip);
@@ -467,8 +503,8 @@ const bookConsult = (w: Worker, e: Equipment, all: Worker[]) => {
   const spot = free[Math.floor(Math.random() * free.length)];
   w.consult = spot.id;
   w.goal = 'consult';
-  // Facing +x, into the office.
-  w.face = Math.PI / 2;
+  // Facing into the office.
+  w.face = spot.face;
   w.path = routeTo(e, w.root.position, new T.Vector3(spot.x, groundOf(e), spot.z), w.lane, w.flip);
   return true;
 };
@@ -584,6 +620,31 @@ const inspectContainer = (w: Worker, e: Equipment) => {
   w.path = routeTo(e, w.root.position, new T.Vector3(e.length + 1.4, groundOf(e), e.width / 2 + (Math.random() * 2 - 1) * .8), w.lane, w.flip);
 };
 
+/** A dock worker takes a dock door nobody else is on and walks to it over the stiles; false when all are taken. */
+const inspectDockDoor = (w: Worker, e: Equipment, all: Worker[]) => {
+  const free = DOOR_ROUTES.map((_, i) => i).filter(i => !all.some(other => other !== w && other.service === `door:${i}`));
+  if (!free.length) return false;
+  const door = free[Math.floor(Math.random() * free.length)], route = DOOR_ROUTES[door].map(point => docksPoint(e, point));
+  w.service = `door:${door}`;
+  w.goal = 'docking';
+  // Facing the wall and its door.
+  w.face = Math.PI;
+  w.path = [...routeTo(e, w.root.position, route[0], w.lane, w.flip), ...route.slice(1)];
+  return true;
+};
+
+/** A dock worker's next job: mostly the doors, now and then a consultation - the helpdesk among them - or an outing. */
+const retargetDockWorker = (w: Worker, e: Equipment, all: Worker[]) => {
+  if (Math.random() < CONSULT_CHANCE && bookConsult(w, e, all)) return;
+  const roll = Math.random();
+  if (roll < OUTINGS.leave) { stepOut(w, e); return; }
+  if (roll < OUTINGS.leave + OUTINGS.roam) { roamHall(w, e); return; }
+  if (roll < OUTINGS.leave + OUTINGS.roam + OUTINGS.visit) { visitRoom(w, e); return; }
+  if (inspectDockDoor(w, e, all)) return;
+  // Every door taken: a breather out in the hall instead.
+  stepOut(w, e);
+};
+
 /** A mechanic's next job: mostly the trucks, sometimes the unit, now and then a consultation or an outing. */
 const retargetMechanic = (w: Worker, e: Equipment, all: Worker[]) => {
   if (Math.random() < CONSULT_CHANCE && bookConsult(w, e, all)) return;
@@ -602,6 +663,7 @@ const retarget = (w: Worker, e: Equipment, all: Worker[]) => {
   if (w.service) w.lastService = w.service;
   w.service = null;
   if (w.home === 'garage') { retargetMechanic(w, e, all); return; }
+  if (w.home === 'docks') { retargetDockWorker(w, e, all); return; }
   // A package is never abandoned: whatever sends a carrier looking for something new - walled in, a
   // stand-off, nowhere to step - it goes back to finishing the delivery instead.
   if (w.holding) { headForDelivery(w, e); return; }
@@ -624,7 +686,7 @@ const step = (w: Worker, dt: number, e: Equipment, all: Worker[]) => {
   // The walk swings the arms, so the carry pose is laid on after the mixer has written the clip.
   // Set it before that line and the animation simply overwrites it every frame.
   if (w.holding) for (const arm of w.arms) arm.bone.rotation.x = arm.pitch;
-  const pos = w.root.position, head = groundOf(e) + 2.15;
+  const pos = w.root.position, head = groundOf(e) + liftAt(e, pos.x, pos.z) + 2.15;
   // Labels ride above the worker rather than parenting to it, so the model's scale never touches them.
   w.tag.sprite.position.set(pos.x, head, pos.z);
   w.bubble.sprite.position.set(pos.x, head + .62, pos.z);
@@ -708,7 +770,7 @@ const step = (w: Worker, dt: number, e: Equipment, all: Worker[]) => {
     return (ox * dx + oz * dz) / (range * dist) > .7 && !!heading && heading[0] * dx / dist + heading[1] * dz / dist < -.3;
   });
   // Walks with a fixed shape - to a window, a hall round's two ends - are not rerouted.
-  if (ahead && w.goal !== 'consult' && w.goal !== 'roam_hall') {
+  if (ahead && w.goal !== 'consult' && w.goal !== 'roam_hall' && w.goal !== 'docking') {
     // Round the other end of the row on a different line, rather than queueing behind them.
     w.flip = !w.flip;
     w.lane = (w.lane + .8) % 1.6;
@@ -732,7 +794,7 @@ const step = (w: Worker, dt: number, e: Equipment, all: Worker[]) => {
   const moved = Math.hypot(x - pos.x, z - pos.z);
   if (moved < 1e-4) { retarget(w, e, all); return; }
   w.root.rotation.y = Math.atan2(x - pos.x, z - pos.z);
-  pos.set(x, groundOf(e), z);
+  pos.set(x, groundOf(e) + liftAt(e, x, z), z);
   fadeTo(w, 'Walking');
 };
 
@@ -757,10 +819,10 @@ export function createAmbientCrew(scene: T.Scene) {
         if (disposed) return;
         // Scaled from its own bounding box, so the crew is people-sized whatever units the model uses.
         const height = new T.Box3().setFromObject(gltf.scene).getSize(new T.Vector3()).y || 1;
-        const total = COUNT + GARAGE_CREW;
+        const total = COUNT + GARAGE_CREW + DOCK_CREW;
         for (let i = 0; i < total; i++) {
           // The first ones are the warehouse crew; the rest are the Garage's mechanics.
-          const home = i < COUNT ? 'warehouse' : 'garage';
+          const home = i < COUNT ? 'warehouse' : i < COUNT + GARAGE_CREW ? 'garage' : 'docks';
           const root = SkeletonUtils.clone(gltf.scene);
           root.scale.setScalar(1.75 / height);
           root.traverse(obj => { if ((obj as T.Mesh).isMesh) obj.castShadow = true; });
@@ -770,13 +832,13 @@ export function createAmbientCrew(scene: T.Scene) {
             if (EMOTES.includes(clip.name)) { action.clampWhenFinished = true; action.loop = T.LoopOnce; }
             actions[clip.name] = action;
           }
-          const role = home === 'garage' ? MECHANIC_ROLE : i < ROLES.length ? ROLES[i] : WORKER_ROLE;
+          const role = home === 'docks' ? DOCK_ROLE : home === 'garage' ? MECHANIC_ROLE : i < ROLES.length ? ROLES[i] : WORKER_ROLE;
           const tag = plate(measure(role)), bubble = plate(measure(`${WIDEST_LABEL}...`));
           paint(tag, role, TAG_TONE);
           bubble.sprite.visible = false;
           // Half start behind the unit and half in front, so the crew is never all on one side.
           const byContainers = home === 'warehouse' && i >= ROLES.length && i < ROLES.length + AT_CONTAINERS;
-          root.position.copy(home === 'garage' ? garageSpawn(e, workers, 'trucks') : byContainers ? garageSpawn(e, workers, 'containers') : spawnSpot(e, i % 2 ? 1 : -1, workers));
+          root.position.copy(home === 'docks' ? docksSpawn(e, workers) : home === 'garage' ? garageSpawn(e, workers, 'trucks') : byContainers ? garageSpawn(e, workers, 'containers') : spawnSpot(e, i % 2 ? 1 : -1, workers));
           actions.Idle?.play();
           // One crate each, hidden until an errand needs it, so none is ever built or thrown away mid-run.
           const crate = new T.Mesh(new T.BoxGeometry(.5, .4, .5), new T.MeshStandardMaterial({ color: '#bd9367', roughness: .8 }));
