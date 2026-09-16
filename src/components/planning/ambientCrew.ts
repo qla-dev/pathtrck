@@ -104,6 +104,12 @@ const floorBounds = (e: Equipment): Footprint => {
 
 const within = (b: Footprint, x: number, z: number) => x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1;
 const blocked = (list: Footprint[], x: number, z: number) => list.some(b => within(b, x, z));
+/** Whether a straight walk from a to b stays clear of everything, checked every quarter metre. */
+const clearLeg = (list: Footprint[], ax: number, az: number, bx: number, bz: number) => {
+  const steps = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / .25));
+  for (let i = 1; i <= steps; i++) if (blocked(list, ax + (bx - ax) * i / steps, az + (bz - az) * i / steps)) return false;
+  return true;
+};
 const clamp = (value: number, low: number, high: number) => Math.min(Math.max(value, low), high);
 
 /** Workers keep a body's width between them, so nobody walks through anybody. */
@@ -213,7 +219,10 @@ const routeTo = (e: Equipment, from: T.Vector3, to: T.Vector3, lane: number, fli
   // line against the edge - which is exactly how the crew ends up stacked out there.
   const left = x0 - .35 - lane * .25, right = x1 + .35 + lane * .25;
   const nearer = Math.abs(from.x - left) < Math.abs(from.x - right);
-  const edge = (flip ? !nearer : nearer) ? left : right;
+  const preferred = (flip ? !nearer : nearer) ? left : right, other = preferred === left ? right : left;
+  // Standing off the end of the unit, the far row end lies straight through it. That first leg is
+  // blocked from its first step, and every retarget rebuilds the same one - so take the open end.
+  const edge = clearLeg(list, from.x, from.z, preferred, from.z) || !clearLeg(list, from.x, from.z, other, from.z) ? preferred : other;
   return [new T.Vector3(edge, to.y, from.z), new T.Vector3(edge, to.y, to.z), to.clone()];
 };
 
