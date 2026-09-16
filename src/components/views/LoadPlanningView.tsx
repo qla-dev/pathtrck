@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   ArrowDown,
@@ -671,15 +672,21 @@ export default function LoadPlanningView({ lang, userId, role }: { lang: Languag
                   ))}
                 </div>
               </div>
-              <div className="space-y-4">
-                <RackSummaryCard item={rackPick} />
-                <dl className="grid grid-cols-2 gap-3">
-                  {details.filter(([, value]) => value).map(([label, value]) => (
-                    <div key={label} className="min-w-0"><dt className={labelClass}>{label}</dt><dd className="truncate text-sm font-bold text-slate-800 dark:text-slate-100">{value}</dd></div>
-                  ))}
-                </dl>
-              </div>
+              <p className="px-3 py-3 text-xs font-semibold text-slate-500">Select a load above to inspect it.</p>
             </PinnedPanel>
+            {createPortal(
+              <aside aria-label="Selected rack load details" className="fixed bottom-0 left-0 z-[310] hidden w-full border-t border-slate-200 bg-white p-3 shadow-2xl dark:border-slate-800 dark:bg-slate-950 md:left-[30rem] md:block md:w-[calc(100vw-30rem)]">
+                <div className="mx-auto max-w-5xl">
+                  <RackSummaryCard item={rackPick} />
+                  <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900 md:grid-cols-3 lg:grid-cols-5">
+                    {details.filter(([, value]) => value).map(([label, value]) => (
+                      <div key={label} className="min-w-0"><dt className={labelClass}>{label}</dt><dd className="truncate text-sm font-bold text-slate-800 dark:text-slate-100">{value}</dd></div>
+                    ))}
+                  </dl>
+                </div>
+              </aside>,
+              document.body,
+            )}
           );
         })()}
       </AnimatePresence>
