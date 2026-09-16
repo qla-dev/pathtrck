@@ -568,8 +568,8 @@ export function PlanningScene(props: Props) {
         controls.target.set(-17.7375+delta.x,3.0814+delta.y,-12.1113+delta.z);
         camera.fov=38;camera.updateProjectionMatrix();transition=1;
       },
-      // High three-quarter overview of the unit with both rack rows in frame, used before cargo is brought out.
-      overview:()=>{if(latest.current.mini)return;target.set(-35.1141,14.67,30.5209);controls.target.set(-.9773,-2.3667,.9352);transition=1;}};
+      // Captured POV for the moment cargo is brought out of the racks, used before it lands beside the unit.
+      overview:()=>{if(latest.current.mini)return;target.set(-28.0975,8.146,-10.9204);controls.target.set(-15.6351,3.6848,-7.1515);transition=1;}};
     changeView();camera.position.copy(target);controls.update();
     let frame=0,last=performance.now(); const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
     const animate=(now=performance.now())=>{

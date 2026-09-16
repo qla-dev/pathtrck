@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   ArrowDown,
@@ -45,6 +44,7 @@ import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { PageHeader } from '../ui/PageHeader';
 import { PinnedPanel } from '../ui/PinnedPanel';
+import { PinnedPanelLeft } from '../ui/PinnedPanelLeft';
 import { SmallModal } from '../ui/SmallModal';
 import { planningLabels } from '../planning/labels';
 import { autoPlan, Cargo, COLORS, Equipment, EQUIPMENT, fits, Plan, rackSlotsPerPage, readPlan, revalidate, validEquipment, volume, type RackItem, type RackPage } from '../planning/model';
@@ -52,6 +52,8 @@ import type { CameraSnapshot, SceneView } from '../planning/PlanningScene';
 
 // Three.js is heavy, so the page renders first and each scene streams in behind a skeleton.
 const PlanningScene = React.lazy(() => import('../planning/PlanningScene').then(module => ({ default: module.PlanningScene })));
+// Load details drag in the whole tracking stack, maps included, so they stream in on first open.
+const LoadDetailsModal = React.lazy(() => import('../tracking/LoadDetailsModal').then(module => ({ default: module.LoadDetailsModal })));
 
 type Draft = { loadId?: string; reference?: string; route?: string; name: string; customer: string; length: number; width: number; height: number; weight: number | ''; pieces: number; shape: Cargo['shape']; stackable: boolean; pickup: string; delivery: string; documents: string };
 const EMPTY_DRAFT: Draft = { name: '', customer: '', length: 1.2, width: .8, height: 1, weight: 250, pieces: 1, shape: 'box', stackable: false, pickup: '', delivery: '', documents: '' };
@@ -103,8 +105,8 @@ const RackSummaryCard = ({ item }: { item: RackItem }) => {
       <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
       <div className="flex min-w-0 items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300"><span className="text-base">{warehouse ? '📦' : '📍'}</span><span className="truncate text-xs font-bold">{warehouse ? item.storageType || 'Stored' : route.split(' → ')[1] || '—'}</span></div>
     </div>
-    <div className="mt-3 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
-      {([{ icon: Building2, label: warehouse ? 'Warehouse' : 'Carrier', value: item.groupLabel || '—', tone: 'text-primary' }, { icon: Truck, label: 'Driver', value: '—', tone: 'text-sky-500' }, { icon: Truck, label: 'Vehicle', value: '—', tone: 'text-violet-500' }] as { icon: LucideIcon; label: string; value: string; tone: string }[]).map(({ icon: Icon, label, value, tone }) => <div key={label} className="flex min-w-0 items-center gap-2 rounded-xl bg-slate-50 px-2 py-2 dark:bg-slate-950"><Icon className={`h-4 w-4 shrink-0 ${tone}`} /><div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p><p className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{value}</p></div></div>)}
+    <div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(6rem,1fr))] gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+      {([{ icon: Building2, label: warehouse ? 'Warehouse' : 'Carrier', value: item.groupLabel || '—', tone: 'text-primary' }, { icon: Truck, label: 'Driver', value: '—', tone: 'text-sky-500' }, { icon: Truck, label: 'Vehicle', value: '—', tone: 'text-violet-500' }] as { icon: LucideIcon; label: string; value: string; tone: string }[]).map(({ icon: Icon, label, value, tone }) => <div key={label} className="flex min-w-0 items-center gap-2 rounded-xl bg-slate-50 px-2 py-2 dark:bg-slate-950"><Icon className={`h-4 w-4 shrink-0 ${tone}`} /><div className="min-w-0"><p className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-400" title={label}>{label}</p><p className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{value}</p></div></div>)}
     </div>
     <div className="mt-2 grid grid-cols-2 gap-2">
       <div className="flex min-w-0 items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-950"><Coins className="h-4 w-4 shrink-0 text-emerald-500" /><div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pieces</p><p className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{item.pallets || 0} pallets</p></div></div>
@@ -163,6 +165,7 @@ export default function LoadPlanningView({ lang, userId, role }: { lang: Languag
   const [tracking, setTracking] = useState(true);
   const [racks, setRacks] = useState<{ warehouse?: RackPage; tracking?: RackPage }>({});
   const [rackPick, setRackPick] = useState<RackItem | null>(null);
+  const [openLoadId, setOpenLoadId] = useState<string | null>(null);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('equipment');
   const [equipmentTab, setEquipmentTab] = useState<'container' | 'vehicle' | 'custom'>(() => (plan.equipment.truck ? 'vehicle' : 'container'));
   const [carrying, setCarrying] = useState(false);
@@ -372,7 +375,7 @@ export default function LoadPlanningView({ lang, userId, role }: { lang: Languag
             <div role="group" aria-label="3D views" className="flex flex-wrap items-center justify-end gap-2">
               {SCREENS.map(({ value, icon: Icon }) => {
                 const label=value==='overview'?'Overview':t[value];
-                return <button key={value} type="button" aria-pressed={activeView===value} onClick={()=>{setView(value);setActiveView(value);}}
+                return <button key={value} type="button" aria-pressed={activeView===value} onClick={()=>{setView(value);setActiveView(value);setReset(n=>n+1);}}
                   title={label} aria-label={label} className={cn('inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border transition-all active:scale-95',activeView===value?'border-primary bg-primary text-white shadow-md shadow-primary/20':'border-sky-200 bg-white/80 text-slate-600 hover:border-primary hover:bg-primary/10 hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300')}>
                   <Icon className="h-4 w-4" />
                 </button>;
@@ -653,18 +656,28 @@ export default function LoadPlanningView({ lang, userId, role }: { lang: Languag
             [t.storageType, rackPick.storageType],
             [t.storedSince, stored],
           ];
+          const summary = (
+            <div className="w-full">
+              <RackSummaryCard item={rackPick} />
+              <dl className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-x-4 gap-y-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                {details.filter(([, value]) => value).map(([label, value]) => (
+                  <div key={label} className="min-w-0"><dt className={cn(labelClass, 'break-words')}>{label}</dt><dd className="truncate text-sm font-bold text-slate-800 dark:text-slate-100" title={value}>{value}</dd></div>
+                ))}
+              </dl>
+            </div>
+          );
           return (
-            <PinnedPanel open icon={Box} title={rackPick.title} subtitle={rackPick.reference || (rackPick.side === 'warehouse' ? t.warehouse : t.tracking)} onClose={() => setRackPick(null)} closeLabel={t.close} collapseLabel={t.collapse} expandLabel={t.expand} contentClassName="!p-0" className="left-0 right-auto top-0 bottom-0 w-[min(100vw,30rem)] lg:w-[min(100vw,30rem)]" footer={
-              <div className="flex gap-2">
-                <Button type="button" variant="outline" className="flex-1 rounded-full" onClick={() => setRackPick(null)}>{t.close}</Button>
-                <Button type="button" className="flex-1 gap-2 rounded-full" disabled={inPlan} onClick={() => putInFront(rackPick)}><Truck className="h-4 w-4" />{inPlan ? t.inPlan : t.putInFront}</Button>
+            <PinnedPanelLeft open icon={Box} title={rackPick.title} subtitle={rackPick.reference || (rackPick.side === 'warehouse' ? t.warehouse : t.tracking)} onClose={() => setRackPick(null)} closeLabel={t.close} collapseLabel={t.collapse} expandLabel={t.expand} className={openLoadId ? 'z-[130]' : undefined} contentClassName="!p-0" extension={summary} extensionLabel="Selected rack load details" extensionFooter={
+              <div className="grid min-w-0 gap-2">
+                {rackPick.loadId && <Button type="button" variant="outline" className="min-w-0 gap-1 rounded-full px-2" onClick={() => setOpenLoadId(rackPick.loadId ?? null)}><Eye className="h-4 w-4 shrink-0" /><span className="truncate">See load details</span></Button>}
+                <Button type="button" className="min-w-0 gap-1 rounded-full px-2" disabled={inPlan} onClick={() => putInFront(rackPick)}><Truck className="h-4 w-4 shrink-0" /><span className="truncate">{inPlan ? t.inPlan : t.putInFront}</span></Button>
               </div>
             }>
-              <div className="border-b border-slate-200 dark:border-slate-800">
+              <div>
                 <p className={`${labelClass} px-3 pt-3`}>Loads on rack</p>
                 <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {[rackPick, ...(racks[rackPick.side]?.items ?? []).filter(item => item.key !== rackPick.key)].map(item => (
-                    <button key={item.key} type="button" onClick={() => setRackPick(item)} className={cn('flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-slate-50 dark:hover:bg-slate-900', item.key === rackPick.key && 'bg-sky-50 dark:bg-sky-950/30')}>
+                  {(racks[rackPick.side]?.items ?? []).map(item => (
+                    <button key={item.key} type="button" onClick={() => setRackPick(item)} className={cn('flex w-full cursor-pointer items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-slate-50 dark:hover:bg-slate-900', item.key === rackPick.key && 'bg-sky-50 dark:bg-sky-950/30')}>
                       <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300"><Box className="h-3.5 w-3.5" /></span>
                       <span className="min-w-0 flex-1"><span className="block truncate text-xs font-bold text-slate-800 dark:text-slate-100">{item.title}</span><span className="block truncate text-[11px] text-slate-500">{item.reference || item.route || item.groupLabel}</span></span>
                       <span className="shrink-0 text-[10px] font-bold uppercase text-slate-400">{item.pallets || 0} pallets</span>
@@ -672,24 +685,16 @@ export default function LoadPlanningView({ lang, userId, role }: { lang: Languag
                   ))}
                 </div>
               </div>
-              <p className="px-3 py-3 text-xs font-semibold text-slate-500">Select a load above to inspect it.</p>
-            </PinnedPanel>
-            {createPortal(
-              <aside aria-label="Selected rack load details" className="fixed bottom-0 left-0 z-[310] hidden w-full border-t border-slate-200 bg-white p-3 shadow-2xl dark:border-slate-800 dark:bg-slate-950 md:left-[30rem] md:block md:w-[calc(100vw-30rem)]">
-                <div className="mx-auto max-w-5xl">
-                  <RackSummaryCard item={rackPick} />
-                  <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900 md:grid-cols-3 lg:grid-cols-5">
-                    {details.filter(([, value]) => value).map(([label, value]) => (
-                      <div key={label} className="min-w-0"><dt className={labelClass}>{label}</dt><dd className="truncate text-sm font-bold text-slate-800 dark:text-slate-100">{value}</dd></div>
-                    ))}
-                  </dl>
-                </div>
-              </aside>,
-              document.body,
-            )}
+            </PinnedPanelLeft>
           );
         })()}
       </AnimatePresence>
+
+      {openLoadId && (
+        <React.Suspense fallback={null}>
+          <LoadDetailsModal loadId={openLoadId} lang={lang} role={role ?? null} userId={userId} onClose={() => setOpenLoadId(null)} />
+        </React.Suspense>
+      )}
     </motion.div>
   );
 }
