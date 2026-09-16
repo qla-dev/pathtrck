@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as T from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createAmbientCrew } from './ambientCrew';
+import { createAmbientCrew, type Footprint } from './ambientCrew';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
@@ -115,6 +115,8 @@ export function PlanningScene(props: Props) {
     const sun = new T.DirectionalLight(0xffffff,3.5); sun.position.set(-3,16,10); sun.castShadow = true; sun.shadow.mapSize.set(2048,2048); sun.shadow.camera.left=-18;sun.shadow.camera.right=18;sun.shadow.camera.top=18;sun.shadow.camera.bottom=-18; scene.add(sun);
     let model = new T.Group(); scene.add(model);
     const crew = createAmbientCrew(scene);
+    // Where the waiting cargo ended up, so the crew walks around it rather than through it.
+    let stagedBoxes: Footprint[] = [];
     let roof = new T.Group(), side = new T.Group(), doors: T.Group[] = [], cargoMeshes: T.Object3D[] = [];
     let roofTarget=0, sideTarget=1, doorTarget=0;
     let floorGrid: T.LineSegments | null = null, groundGrid: T.GridHelper | null = null;
@@ -286,6 +288,8 @@ export function PlanningScene(props: Props) {
           gx+=span+.9;bandDepth=Math.max(bandDepth,depth);
         }
       }
+      // The crew shares this floor, so every unit waiting on it is something to walk around.
+      stagedBoxes=cargo.filter(c=>!c.placed).map(c=>{const p=staged.get(c.id)!;return{x0:p.x,x1:p.x+c.length,z0:p.z,z1:p.z+c.width};});
       const calm=matchMedia('(prefers-reduced-motion: reduce)').matches;let batch=0;
       cargo.forEach(c=>{
         const group=new T.Group();group.userData.cargoId=c.id;model.add(group);
@@ -613,7 +617,7 @@ export function PlanningScene(props: Props) {
       // stays transparent for its own per-view fade, and needs the same flag when that is reversed.
       side.traverse(obj=>{const m=(obj as T.Mesh).material as T.MeshStandardMaterial;if(!m)return;if(!m.transparent){m.transparent=true;m.needsUpdate=true;}m.opacity=sideOpacity;m.depthWrite=sideOpacity>.5&&!m.userData.decal;});
       doors.forEach((d,i)=>{d.rotation.y=T.MathUtils.lerp(d.rotation.y,(i===0?1:-1)*doorTarget,speed);});
-      crew.update(dt,latest.current.equipment,latest.current.ambient!==false);
+      crew.update(dt,latest.current.equipment,latest.current.ambient!==false,stagedBoxes);
       controls.update();renderer.render(scene,activeCamera);
     };animate();
     return()=>{alive=false;logoMark?.removeEventListener('load',refreshLogo);cancelAnimationFrame(frame);observer.disconnect();theme.disconnect();dispose(ghost);controls.dispose();dispose(model);crew.dispose();renderer.dispose();renderer.domElement.removeEventListener('pointerdown',down,true);renderer.domElement.removeEventListener('pointermove',move);renderer.domElement.removeEventListener('wheel',trackpadPan,true);window.removeEventListener('keydown',key);renderer.domElement.removeEventListener('pointerup',up);renderer.domElement.removeEventListener('pointercancel',cancel);renderer.domElement.removeEventListener('pointerleave',leave);renderer.domElement.remove();runtime.current=null;};

@@ -34,7 +34,16 @@ const BUBBLE_TONE = () => {
   return bubbleTone;
 };
 
-type Footprint = { x0: number; x1: number; z0: number; z1: number };
+export type Footprint = { x0: number; x1: number; z0: number; z1: number };
+
+/**
+ * Cargo waiting on the floor, handed over by the scene each frame - it lays those out itself, so it
+ * is the only thing that knows where they ended up.
+ *
+ * Module-level rather than threaded through every helper: update() sets it and then steps every
+ * worker synchronously, so two scenes sharing this module can never read each other's.
+ */
+let parked: Footprint[] = [];
 type Plate = { sprite: T.Sprite; canvas: HTMLCanvasElement; texture: T.CanvasTexture };
 /** Where to go, what to do there, and which way to turn once standing on the spot. */
 type Goal = { point: T.Vector3; skill: SkillName; face: number };
@@ -83,8 +92,8 @@ const rowSpan = (e: Equipment) => {
 const obstacles = (e: Equipment): Footprint[] => {
   const { x0, x1 } = rowSpan(e);
   const rows = ROWS.map(dz => ({ x0, x1, z0: e.width / 2 + dz - .8, z1: e.width / 2 + dz + .8 }));
-  // The unit itself, a truck's cab reaching out past its nose.
-  return [...rows, { x0: e.truck ? -2.6 : -.3, x1: e.length + .3, z0: -.3, z1: e.width + .3 }];
+  // The unit itself, a truck's cab reaching out past its nose, then whatever is stacked on the floor.
+  return [...rows, { x0: e.truck ? -2.6 : -.3, x1: e.length + .3, z0: -.3, z1: e.width + .3 }, ...parked];
 };
 
 /** The warehouse floor slab, inset so nobody walks off its edge. */
@@ -479,7 +488,8 @@ export function createAmbientCrew(scene: T.Scene) {
     },
 
     /** Ticks every worker. The crew sits beside the unit, so it takes the unit's offset by hand. */
-    update(dt: number, e: Equipment, visible: boolean) {
+    update(dt: number, e: Equipment, visible: boolean, waiting: Footprint[] = []) {
+      parked = waiting;
       if (!workers.length) return;
       group.position.set(-e.length / 2, 0, -e.width / 2);
       group.visible = visible;
