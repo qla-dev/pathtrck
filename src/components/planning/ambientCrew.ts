@@ -67,6 +67,8 @@ type Worker = {
   consult: string | null;
   /** The room a visit is to, for the bubble. */
   visit: string | null;
+  /** Mid side step, making way: walking, but with the bubble up until the step is done. */
+  steppingAside: boolean;
 };
 
 /** The scene's own label look: a dark rounded plate with white text, drawn over everything else. */
@@ -127,7 +129,13 @@ const site = (e: Equipment) => {
   const doorZ = (area: Area) => centre + (ROOMS.find(room => room.key === area)?.z ?? 0);
   return {
     ground, edge,
-    lane: edge + .9,
+    /**
+     * The hall lane, one-way by direction so nobody meets anyone head-on in it: walking towards +z keeps
+     * nearer the rooms, towards -z a metre further out. Both pass every door, clear of office windows.
+     */
+    laneFor: (fromZ: number, toZ: number) => edge + (toZ >= fromZ ? 1 : 1.9),
+    /** Near a door, where every walk between areas squeezes through the same gap. */
+    atDoor: (p: T.Vector3) => Math.abs(p.x - edge) < 2.6 && ROOMS.some(room => Math.abs(p.z - centre - room.z) < 2.6),
     areaOf: (p: T.Vector3): Area => (p.x > edge ? 'hall' : ROOMS.reduce((best, room) => (Math.abs(p.z - centre - room.z) < Math.abs(p.z - centre - best.z) ? room : best)).key),
     /** The warehouse's is clear of the row ends; the other rooms are empty, so theirs is just inside. */
     inside: (area: Area) => new T.Vector3(area === 'warehouse' ? rowSpan(e).x1 + .45 : edge - 1.2, ground, doorZ(area)),
@@ -157,15 +165,29 @@ const SPACING = .9;
 const LOOKAHEAD = 2.4;
 /** Talking distance: they meet at arm's length, so they step back before starting. */
 const TALK_GAP = 1.8;
-/** Whoever stands in the way of a step, if anyone. */
+/** Routines that are only a moment's pause on the way somewhere; whoever is in one is not an obstacle. */
+const PASSING: SkillName[] = ['avoid', 'aside'];
+/**
+ * Whoever stands in the way of a step, if anyone. Someone only pausing to make way is walked past: two
+ * workers making way for each other would otherwise keep each other stood aside for good - the crowd
+ * that used to build up at a door.
+ */
 const blocker = (all: Worker[], self: Worker, x: number, z: number) => all.find(other => {
-  if (other === self) return false;
+  if (other === self || other.steppingAside || (other.skill && PASSING.includes(other.skill))) return false;
   const gap = Math.hypot(other.root.position.x - x, other.root.position.z - z);
   if (gap >= SPACING) return false;
   // Being too close already only blocks a step that closes the gap further - otherwise two workers
   // who ended up overlapping would each block every move the other made and both stand there forever.
   return gap < Math.hypot(other.root.position.x - self.root.position.x, other.root.position.z - self.root.position.z);
 });
+
+/** Which way a worker is walking, as a unit vector, or null while standing or busy. */
+const headingOf = (w: Worker): [number, number] | null => {
+  const goal = w.path[0];
+  if (!goal || w.skill || w.pause > 0) return null;
+  const dx = goal.x - w.root.position.x, dz = goal.z - w.root.position.z, d = Math.hypot(dx, dz);
+  return d < 1e-4 ? null : [dx / d, dz / d];
+};
 
 /** Facing, in the same convention the walk uses: the way to turn to look at something across z. */
 const facing = (towards: number, from: number) => Math.atan2(0, towards - from);
@@ -245,21 +267,23 @@ const routeTo = (e: Equipment, from: T.Vector3, to: T.Vector3, lane: number, fli
   const s = site(e), a = s.areaOf(from), b = s.areaOf(to), y = s.ground;
   if (a === b) {
     if (a === 'warehouse') return aisleRoute(e, from, to, lane, flip);
-    if (a === 'hall') return [new T.Vector3(s.lane, y, from.z), new T.Vector3(s.lane, y, to.z), to.clone()];
+    if (a === 'hall') { const x = s.laneFor(from.z, to.z); return [new T.Vector3(x, y, from.z), new T.Vector3(x, y, to.z), to.clone()]; }
     // Fleet and Docks are empty rooms: square across them.
     return [new T.Vector3(to.x, y, from.z), to.clone()];
   }
   const path: T.Vector3[] = [];
+  // Which way along the hall this walk goes decides its lane, from its first step in the hall to its last.
+  const hallX = s.laneFor(a === 'hall' ? from.z : s.inside(a).z, b === 'hall' ? to.z : s.inside(b).z);
   let at = from;
   if (a !== 'hall') {
     const inside = s.inside(a);
     path.push(...(a === 'warehouse' ? aisleRoute(e, from, inside, lane, flip, true) : [new T.Vector3(inside.x, y, from.z), inside]));
-    at = new T.Vector3(s.lane, y, inside.z);
+    at = new T.Vector3(hallX, y, inside.z);
     path.push(at);
   }
   if (b === 'hall') return [...path, ...routeTo(e, at, to, lane, flip)];
   const inside = s.inside(b);
-  path.push(new T.Vector3(s.lane, y, at.z), new T.Vector3(s.lane, y, inside.z), inside);
+  path.push(new T.Vector3(hallX, y, at.z), new T.Vector3(hallX, y, inside.z), inside);
   return [...path, ...routeTo(e, inside, to, lane, flip)];
 };
 
@@ -310,6 +334,8 @@ const labelOf = (w: Worker, name: SkillName) => {
 const startSkill = (w: Worker, name: SkillName) => {
   const skill = SKILLS[name];
   w.skill = name;
+  // A routine starting ends any side step, whose bubble it takes over.
+  w.steppingAside = false;
   w.pause = skill.min + Math.random() * (skill.max - skill.min);
   w.dots = 0; w.dotTimer = 0;
   fadeTo(w, skill.clips[Math.floor(Math.random() * skill.clips.length)], .2);
@@ -414,7 +440,7 @@ const bookConsult = (w: Worker, e: Equipment, all: Worker[]) => {
 /** Out of the warehouse into the hall, to stand a while somewhere clear of the lane and the office windows. */
 const stepOut = (w: Worker, e: Equipment) => {
   const s = site(e), reach = ROOM * ROOMS.length / 2 - 2;
-  const spot = new T.Vector3(s.edge + 2.2 + Math.random() * 2, s.ground, e.width / 2 + (Math.random() * 2 - 1) * reach);
+  const spot = new T.Vector3(s.edge + 2.9 + Math.random() * 1.3, s.ground, e.width / 2 + (Math.random() * 2 - 1) * reach);
   w.goal = 'leave_room';
   // Looking back at the rooms.
   w.face = -Math.PI / 2;
@@ -428,7 +454,8 @@ const roamHall = (w: Worker, e: Equipment) => {
   w.goal = 'roam_hall';
   // Facing the way the round went, as if about to turn back.
   w.face = far > near ? 0 : Math.PI;
-  w.path = [...routeTo(e, p, new T.Vector3(s.lane, s.ground, near), w.lane, w.flip), new T.Vector3(s.lane, s.ground, far)];
+  const x = s.laneFor(near, far);
+  w.path = [...routeTo(e, p, new T.Vector3(x, s.ground, near), w.lane, w.flip), new T.Vector3(x, s.ground, far)];
 };
 
 /** Over to Fleet or Docks, by the doors, to a spot somewhere inside. */
@@ -440,6 +467,28 @@ const visitRoom = (w: Worker, e: Equipment) => {
   w.goal = 'visit_room';
   w.face = Math.random() * Math.PI * 2;
   w.path = routeTo(e, w.root.position, spot, w.lane, w.flip);
+};
+
+/** How far a side step takes a worker out of the way. */
+const SIDE_STEP = 1.2;
+/**
+ * Making way for someone busy: a sharp quarter turn on the spot towards whichever side is open - away
+ * from them, if both are - a step that way, then on to where the walk was going. With neither side
+ * open, it stands off briefly and picks somewhere new instead.
+ */
+const makeWay = (w: Worker, e: Equipment, other: Worker, hx: number, hz: number) => {
+  const p = w.root.position, list = obstacles(e), bounds = floorBounds(e), ground = groundOf(e);
+  const away = Math.sign((other.root.position.x - p.x) * hz - (other.root.position.z - p.z) * hx) || 1;
+  const step = [away, -away].map(side => new T.Vector3(p.x - hz * side * SIDE_STEP, ground, p.z + hx * side * SIDE_STEP))
+    .find(point => within(bounds, point.x, point.z) && clearLeg(list, p.x, p.z, point.x, point.z));
+  if (!step) { w.path = []; startSkill(w, 'aside'); return; }
+  const destination = w.path[w.path.length - 1];
+  w.root.rotation.y = Math.atan2(step.x - p.x, step.z - p.z);
+  w.path = [step, ...(destination ? routeTo(e, step, destination, w.lane, w.flip) : [])];
+  w.steppingAside = true;
+  paint(w.bubble, labelOf(w, 'aside'), BUBBLE_TONE());
+  w.bubble.sprite.visible = true;
+  fadeTo(w, 'Walking', .1);
 };
 
 const retarget = (w: Worker, e: Equipment, all: Worker[]) => {
@@ -516,6 +565,7 @@ const step = (w: Worker, dt: number, e: Equipment, all: Worker[]) => {
   const dx = goal.x - pos.x, dz = goal.z - pos.z, dist = Math.hypot(dx, dz);
   if (dist < .3) {
     w.path.shift();
+    if (w.steppingAside) { w.steppingAside = false; if (w.holding) showCarrying(w); else if (!w.skill) w.bubble.sprite.visible = false; }
     // Standing on the spot: turn to whatever is being looked at, then run the routine.
     if (!w.path.length) { w.root.rotation.y = w.face; startSkill(w, w.goal); }
     return;
@@ -537,13 +587,18 @@ const step = (w: Worker, dt: number, e: Equipment, all: Worker[]) => {
   // Clamping to the slab can push a step back into something the check above had cleared.
   if (blocked(list, x, z)) { retarget(w, e, all); return; }
 
+  // At a door everyone files through, walking past each other for the moment it takes: giving way or
+  // stopping to talk in a gap that narrow only jams it.
+  const doorway = site(e).atDoor(pos);
   // Somebody coming the other way, not yet in the way: break step and take a different line to the
-  // same place, so the two of them pass instead of meeting.
-  const ahead = all.find(other => {
+  // same place, so the two of them pass instead of meeting. Only somebody actually walking towards us -
+  // following someone the same way is no reason to dodge.
+  const ahead = !doorway && all.find(other => {
     if (other === w || other.skill) return false;
     const ox = other.root.position.x - pos.x, oz = other.root.position.z - pos.z, range = Math.hypot(ox, oz);
     if (range > LOOKAHEAD || range < 1e-4) return false;
-    return (ox * dx + oz * dz) / (range * dist) > .7;
+    const heading = headingOf(other);
+    return (ox * dx + oz * dz) / (range * dist) > .7 && !!heading && heading[0] * dx / dist + heading[1] * dz / dist < -.3;
   });
   // Walks with a fixed shape - to a window, a hall round's two ends - are not rerouted.
   if (ahead && w.goal !== 'consult' && w.goal !== 'roam_hall') {
@@ -557,9 +612,12 @@ const step = (w: Worker, dt: number, e: Equipment, all: Worker[]) => {
 
   // Someone in the way: two on the move stop and talk, otherwise stand clear of whoever is working.
   // Either way the path is dropped, so nobody ever resumes a route that is already blocked.
-  const other = blocker(all, w, x, z);
+  const other = doorway ? undefined : blocker(all, w, x, z);
   if (other) {
-    if (other.skill) { w.path = []; startSkill(w, 'aside'); }
+    const heading = headingOf(other);
+    // Right behind someone going the same way: just wait a step for them to move on.
+    if (!other.skill && heading && heading[0] * dx / dist + heading[1] * dz / dist > .3) return;
+    if (other.skill) makeWay(w, e, other, dx / dist, dz / dist);
     else interact(w, other, e);
     return;
   }
@@ -624,7 +682,7 @@ export function createAmbientCrew(scene: T.Scene) {
             pause: Math.random() * 4, speed: .9 + Math.random() * .6, lane: (i / COUNT) * 1.6, flip: i % 2 === 0,
             role, tag, bubble, skill: null, dots: 0, dotTimer: 0, crate, holding: false, arms,
             // Only the unsigned ones run packages, and they start from alternate sides.
-            carrier: role === WORKER_ROLE, from: i % 2 ? 1 : -1, consult: null, visit: null,
+            carrier: role === WORKER_ROLE, from: i % 2 ? 1 : -1, consult: null, visit: null, steppingAside: false,
           };
           retarget(worker, e, workers);
           workers.push(worker);
