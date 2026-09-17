@@ -64,6 +64,13 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
   /** True while Lena is speaking, for the on-screen indicator. */
   const [lenaSpeaking, setLenaSpeaking] = useState(false);
   /** Mic muted by the caller. The track stays in the connection; only its audio stops flowing. */
+  /**
+   * Token usage, accumulated as the model declares it per response. The call's log row is opened
+   * when the session is minted, before any of this exists, so it is reported when the call ends.
+   */
+  const usageRef = useRef({ audio_input: 0, audio_output: 0, cached_audio_input: 0, text_input: 0, text_output: 0 });
+  const scopedIdRef = useRef<number | undefined>(undefined);
+  const startedAtRef = useRef(0);
   const [muted, setMuted] = useState(false);
   /** 0..1 microphone level, for the equaliser around the mic button. */
   const [inputLevel, setInputLevel] = useState(0);
@@ -78,6 +85,18 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
   const endedRef = useRef(false);
 
   const stop = useCallback(() => {
+    // Reported before the refs are cleared, and deliberately not awaited: hanging up must be
+    // instant, and a lost usage report costs a stats row, not a call.
+    const usage = usageRef.current;
+    if (usage.audio_input || usage.audio_output || usage.text_input || usage.text_output) {
+      void api.lenaRealtime.reportCallUsage(
+        { ...usage },
+        scopedIdRef.current,
+        startedAtRef.current ? Date.now() - startedAtRef.current : undefined,
+      ).catch(() => undefined);
+    }
+    usageRef.current = { audio_input: 0, audio_output: 0, cached_audio_input: 0, text_input: 0, text_output: 0 };
+    startedAtRef.current = 0;
     endedRef.current = true;
     channelRef.current?.close();
     channelRef.current = null;

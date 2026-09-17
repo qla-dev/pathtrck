@@ -876,7 +876,7 @@ export const api = {
       signal,
     })).data.text,
     /** The skills the next reply uses, named in the interface language, for LenaAI's thinking indicator. */
-    skills: async (conversationId: number, lang?: string) => (await request<{ id: string; name: string }[]>('/dispatch-chat/skills', {
+    /** Completes the call's log row once it ends; the realtime API only reports usage per response. */
       method: 'POST',
       body: JSON.stringify({ conversation_id: conversationId, lang }),
     })).data ?? [],
@@ -899,6 +899,12 @@ export const api = {
   lenaRealtime: {
     /** Whether this deployment has been given an OpenAI key, so the call button can be hidden. */
     status: async () => (await request<{ configured: boolean }>('/lena-realtime/status')).data.configured,
+    /** Completes the call's log row once it ends; the realtime API only reports usage per response. */
+    reportCallUsage: (usage: Record<string, number>, conversationId?: number, durationMs?: number) =>
+      request<{ recorded: boolean }>('/lena-realtime/usage', {
+        method: 'POST',
+        body: JSON.stringify({ usage, conversation_id: conversationId, duration_ms: durationMs }),
+      }),
     session: async (lang: string, conversationId?: number) => (await request<{
       client_secret: string;
       expires_at: number | null;
