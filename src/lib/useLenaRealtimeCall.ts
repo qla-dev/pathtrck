@@ -170,6 +170,19 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
     send(channel, { type: 'response.create' });
   }, [askLena, onCallerTranscript, onError]);
 
+  /**
+   * Both sides of the call, written into the thread as they are said.
+   *
+   * In free conversation nothing else writes it: the model answers out of its own head and never
+   * reaches dispatch-chat, so without this a call would leave an empty conversation behind. Sent
+   * and forgotten - a turn that fails to save must not interrupt someone mid-sentence.
+   */
+  const saveTurn = useCallback((speaker: 'caller' | 'lena', text: string) => {
+    const id = scopedIdRef.current;
+    if (!id || !text) return;
+    void api.lenaRealtime.saveTranscript(id, speaker, text).catch(() => undefined);
+  }, []);
+
   const handleEvent = useCallback((channel: RTCDataChannel, raw: string) => {
     let event: RealtimeEvent;
     try { event = JSON.parse(raw) as RealtimeEvent; } catch { return; }
@@ -197,13 +210,17 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
         if (text) {
           setTurns((current) => [...current, { id: randomId(), speaker: 'caller', text }]);
           onCallerTranscript?.(text);
+          saveTurn('caller', text);
         }
         break;
       }
       // What Lena said, transcribed from the audio she just produced.
       case 'response.output_audio_transcript.done': {
         const text = (event.transcript || '').trim();
-        if (text) setTurns((current) => [...current, { id: randomId(), speaker: 'lena', text }]);
+        if (text) {
+          setTurns((current) => [...current, { id: randomId(), speaker: 'lena', text }]);
+          saveTurn('lena', text);
+        }
         break;
       }
       case 'output_audio_buffer.started':
@@ -222,7 +239,7 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
       default:
         break;
     }
-  }, [handleToolCall, onError]);
+  }, [handleToolCall, onCallerTranscript, onError, saveTurn]);
 
   /**  is the thread the call actually ensured, which for a call placed from
    *  a blank chat did not exist when this hook was given its props. Minting against the stale prop

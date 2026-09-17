@@ -899,6 +899,12 @@ export const api = {
   lenaRealtime: {
     /** Whether this deployment has been given an OpenAI key, so the call button can be hidden. */
     status: async () => (await request<{ configured: boolean }>('/lena-realtime/status')).data.configured,
+    /** One spoken turn, saved into the thread as it was actually said. Fire-and-forget by design. */
+    saveTranscript: (conversationId: number, speaker: 'caller' | 'lena', text: string) =>
+      request<{ saved: boolean }>('/lena-realtime/transcript', {
+        method: 'POST',
+        body: JSON.stringify({ conversation_id: conversationId, speaker, text }),
+      }),
     /** Completes the call's log row once it ends; the realtime API only reports usage per response. */
     reportCallUsage: (usage: Record<string, number>, conversationId?: number, durationMs?: number) =>
       request<{ recorded: boolean }>('/lena-realtime/usage', {
