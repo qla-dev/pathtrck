@@ -225,6 +225,32 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
   }, [askLena, onCallerTranscript, onError]);
 
   /**
+   * Tells the call that the caller did something on screen - tapped an option, or typed and sent a
+   * message - so she can react to it out loud instead of carrying on as if the line were the only
+   * thing happening. A call and the thread behind it are one conversation, not two.
+   */
+  const notifyUserAction = useCallback((kind: 'click' | 'text', label: string) => {
+    const channel = channelRef.current;
+    const said = label.trim();
+    if (!channel || !said) return;
+
+    send(channel, {
+      type: 'conversation.item.create',
+      item: {
+        type: 'message',
+        role: 'user',
+        content: [{
+          type: 'input_text',
+          text: kind === 'click'
+            ? `[The caller just tapped the "${said}" button on their screen.]`
+            : `[The caller just typed and sent this in the chat: "${said}"]`,
+        }],
+      },
+    });
+    send(channel, { type: 'response.create' });
+  }, []);
+
+  /**
    * Both sides of the call, written into the thread as they are said.
    *
    * In free conversation nothing else writes it: the model answers out of its own head and never
@@ -424,5 +450,5 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
       return next;
     });
   }, []);
-  return { status, turns, consultingLena, lenaSpeaking, muted, inputLevel, toggleMute, start, stop };
+  return { status, turns, consultingLena, lenaSpeaking, muted, inputLevel, toggleMute, notifyUserAction, start, stop };
 };

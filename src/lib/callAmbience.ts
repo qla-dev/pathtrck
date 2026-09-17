@@ -13,8 +13,8 @@
 
 const AMBIENCE_SRC = '/sounds/office-ambience.mp3';
 
-/** Under a voice, not beside it. Loud enough to notice only when it stops. */
-const AMBIENCE_VOLUME = 0.05;
+/** Present enough to place her in a room, still clearly under her voice. */
+const AMBIENCE_VOLUME = 0.16;
 
 /** Fades, because an office that snaps on and off is worse than no office at all. */
 const FADE_IN_S = 1.5;

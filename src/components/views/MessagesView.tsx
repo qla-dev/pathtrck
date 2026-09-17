@@ -558,7 +558,13 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     onBookLoad,
     quickActionLabels,
     canUseTraining,
-    onQuickAction: (action) => { setVoiceMode(false); void sendQuickMessage(lenaQuickActionMarker(action), quickActionLabels[action]); },
+    onQuickAction: (action) => {
+      setVoiceMode(false);
+      // A tap during a call is part of the same conversation, so she is told about it and answers
+      // it out loud rather than going quiet while the screen moves on without her.
+      if (lenaCall?.active) lenaCall.notifyUserAction('click', quickActionLabels[action]);
+      void sendQuickMessage(lenaQuickActionMarker(action), quickActionLabels[action]);
+    },
     onSuggestedReply: (value, displayText) => { setVoiceMode(false); void sendQuickMessage(value, displayText); },
     onStepAnswer: (step, value, displayText) => { setVoiceMode(false); void sendGuidedAnswerValue(step, value, displayText); },
     onSuggestedDraftChange: setDraft,
@@ -986,7 +992,12 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
             activeConversation={displayConversation}
             draft={draft}
             onDraftChange={setDraft}
-            onSend={(message, source) => { setVoiceMode(source === 'voice'); void sendMessage(message, source); }}
+            onSend={(message, source) => {
+              setVoiceMode(source === 'voice');
+              // Typing mid-call is not a way of leaving the call - she hears what was written.
+              if (source !== 'voice' && lenaCall?.active && message?.trim()) lenaCall.notifyUserAction('text', message);
+              void sendMessage(message, source);
+            }}
             onAttachFile={(files) => { setVoiceMode(false); void attachFile(files); }}
                 attachmentLimitLabel={u('Select up to 5 files at once.', 'Select up to 5 files at once.')}
             attachmentAccept={LENA_LOAD_FILE_ACCEPT}

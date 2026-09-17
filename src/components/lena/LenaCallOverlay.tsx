@@ -34,6 +34,8 @@ type LenaCallOverlayProps = {
   onConversationCreated?: (id: number) => void;
   /** Lets the thread behind the call refresh itself after each turn. */
   onTurnComplete?: () => void;
+  /** Hands the caller's on-screen actions to the live call, so she can react to them out loud. */
+  registerNotify?: (notify: (kind: 'click' | 'text', label: string) => void) => void;
   /** Every finished turn, both sides, for optimistic rendering behind the bar. */
   onTranscriptTurn?: (speaker: 'caller' | 'lena', text: string, conversationId: number) => void;
   /** Each finished caller turn, so the screen behind the bar can show what was heard. */
@@ -64,6 +66,7 @@ export const LenaCallOverlay = ({
   onTurnComplete,
   onCallerTranscript,
   onTranscriptTurn,
+  registerNotify,
   onOpenDraftPanel,
   onError,
   connectingLabel = 'Connecting',
@@ -90,7 +93,7 @@ export const LenaCallOverlay = ({
     [companyId, conversationId, lang, onConversationCreated, onTurnComplete, userId],
   );
 
-  const { status, consultingLena, lenaSpeaking, muted, inputLevel, toggleMute, start, stop } = useLenaRealtimeCall({
+  const { status, consultingLena, lenaSpeaking, muted, inputLevel, toggleMute, notifyUserAction, start, stop } = useLenaRealtimeCall({
     lang,
     conversationId,
     askLena: delegate.ask,
@@ -121,6 +124,9 @@ export const LenaCallOverlay = ({
     }
   }, [delegate, open, start, stop]);
 
+  // Published upward so a view can tell the call what the caller just did on screen.
+  useEffect(() => { registerNotify?.(notifyUserAction); }, [notifyUserAction, registerNotify]);
+
   const hangUp = () => { stop(); onClose(); };
 
   const statusLabel = status === 'connecting' ? connectingLabel
@@ -139,74 +145,83 @@ export const LenaCallOverlay = ({
       {open && (
         <motion.div
           key="lena-call"
-          className="fixed bottom-4 right-4 z-[400] flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/95 px-4 py-3 shadow-2xl backdrop-blur-sm"
+          // Sits exactly where the sidebar's own LenaAI button sits, at the same width (the 256px
+          // rail less its 16px padding) and the same corner radius - so a call reads as that button
+          // having come alive rather than as a panel dropped on top of the app.
+          className="fixed bottom-4 left-4 z-[400] w-56 rounded-xl border border-white/10 bg-slate-950/95 p-3 shadow-2xl backdrop-blur-sm"
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 16 }}
           role="dialog"
           aria-label={titleLabel}
         >
-          <span className={cn(
-            'flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-white transition-all',
-            lenaSpeaking && 'animate-pulse',
-          )}>
-            {status === 'connecting' || consultingLena
-              ? <Loader2 className="h-4 w-4 animate-spin" />
-              : <Sparkles className="h-4 w-4" />}
-          </span>
-
-          <span className="flex min-w-0 flex-col">
-            <span className="truncate text-xs font-bold text-white">{titleLabel}</span>
-            <span className="truncate text-[11px] text-slate-300" aria-live="polite">
-              {skillLine || statusLabel}
+          <div className="flex items-center gap-2">
+            <span className={cn(
+              'flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-white transition-all',
+              lenaSpeaking && 'animate-pulse',
+            )}>
+              {status === 'connecting' || consultingLena
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <Sparkles className="h-4 w-4" />}
             </span>
-          </span>
 
-          {onOpenDraftPanel && (
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="truncate text-xs font-bold text-white">{titleLabel}</span>
+              <span className="truncate text-[10px] text-slate-300" aria-live="polite">
+                {skillLine || statusLabel}
+              </span>
+            </span>
+          </div>
+
+          {/* Controls on their own row: three of them will not fit beside the label at this width,
+              and shrinking them to fit would make the hang-up button hard to hit in a moving cab. */}
+          <div className="mt-3 flex items-center gap-2">
+            {onOpenDraftPanel && (
+              <button
+                type="button"
+                onClick={onOpenDraftPanel}
+                aria-label={draftPanelLabel}
+                title={draftPanelLabel}
+                className="flex h-9 flex-1 cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-white/10 text-white transition-all hover:bg-white/20"
+              >
+                <Sparkles className="h-4 w-4" />
+              </button>
+            )}
+
             <button
               type="button"
-              onClick={onOpenDraftPanel}
-              aria-label={draftPanelLabel}
-              title={draftPanelLabel}
-              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/10 text-white transition-all hover:bg-white/20"
+              onClick={toggleMute}
+              aria-label={muted ? unmuteLabel : muteLabel}
+              aria-pressed={muted}
+              title={muted ? unmuteLabel : muteLabel}
+              className={cn(
+                'relative flex h-9 flex-1 cursor-pointer items-center justify-center rounded-lg transition-all',
+                muted ? 'bg-rose-600/20 text-rose-300 hover:bg-rose-600/30' : 'bg-white/10 text-white hover:bg-white/20',
+              )}
             >
-              <Sparkles className="h-4 w-4" />
+              {/* The ring is the level meter: it grows with the caller's voice, so a driver can see
+                  at a glance that the call is hearing them. It is hidden while muted, where a
+                  moving ring would say the opposite of what the button says. */}
+              {!muted && (
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 rounded-lg border-2 border-primary/70"
+                  style={{ opacity: 0.25 + inputLevel * 0.75 }}
+                />
+              )}
+              {muted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
             </button>
-          )}
 
-          <button
-            type="button"
-            onClick={toggleMute}
-            aria-label={muted ? unmuteLabel : muteLabel}
-            aria-pressed={muted}
-            title={muted ? unmuteLabel : muteLabel}
-            className={cn(
-              'relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-full transition-all',
-              muted ? 'bg-rose-600/20 text-rose-300 hover:bg-rose-600/30' : 'bg-white/10 text-white hover:bg-white/20',
-            )}
-          >
-            {/* The ring is the level meter: it grows with the caller's voice, so a driver can see
-                at a glance that the call is hearing them. It is hidden while muted, where a moving
-                ring would say the opposite of what the button says. */}
-            {!muted && (
-              <span
-                aria-hidden
-                className="pointer-events-none absolute inset-0 rounded-full border-2 border-primary/70"
-                style={{ transform: `scale(${1 + inputLevel * 0.45})`, opacity: 0.25 + inputLevel * 0.75 }}
-              />
-            )}
-            {muted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-          </button>
-
-          <button
-            type="button"
-            onClick={hangUp}
-            aria-label={hangUpLabel}
-            title={hangUpLabel}
-            className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-rose-600 text-white transition-all hover:bg-rose-500"
-          >
-            <PhoneOff className="h-4 w-4" />
-          </button>
+            <button
+              type="button"
+              onClick={hangUp}
+              aria-label={hangUpLabel}
+              title={hangUpLabel}
+              className="flex h-9 flex-1 cursor-pointer items-center justify-center rounded-lg bg-rose-600 text-white transition-all hover:bg-rose-500"
+            >
+              <PhoneOff className="h-4 w-4" />
+            </button>
+          </div>
         </motion.div>
       )}
     </AnimatePresence>,
