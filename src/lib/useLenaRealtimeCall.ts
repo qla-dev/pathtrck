@@ -3,6 +3,34 @@ import { api } from '../services/api';
 import { startCallRingback } from './callRingback';
 
 /** How long the caller hears it ring before Lena picks up - the length of the ring recording. */
+/**
+ * How she answers the phone. Fixed wording rather than left to the model, because a signature that
+ * changes every call is not a signature - and because a greeting the caller does not recognise is
+ * the first second of every call spent working out whether anyone picked up.
+ */
+const CALL_GREETINGS: Record<string, string> = {
+  bs: 'Halo, Lena je.',
+  hr: 'Halo, Lena je.',
+  sr: 'Halo, Lena je.',
+  en: 'Hello, Lena here.',
+  de: 'Hallo, hier ist Lena.',
+};
+
+const greetingFor = (lang: string): string =>
+  CALL_GREETINGS[lang.split(/[-_]/)[0].toLowerCase()] ?? CALL_GREETINGS.en;
+
+/**
+ * The data channel opens a beat after the SDP answer is applied, and anything sent before then is
+ * dropped on the floor - which is why the greeting sometimes never happened. Resolves as soon as
+ * it is usable, or gives up so a wedged channel cannot hold a call open in silence forever.
+ */
+const whenChannelOpen = (channel: RTCDataChannel, timeoutMs = 5000): Promise<boolean> =>
+  new Promise((resolve) => {
+    if (channel.readyState === 'open') { resolve(true); return; }
+    const timer = window.setTimeout(() => resolve(false), timeoutMs);
+    channel.addEventListener('open', () => { window.clearTimeout(timer); resolve(true); }, { once: true });
+  });
+
 const RINGBACK_MS = 2500;
 
 /**
@@ -349,8 +377,21 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
       if (endedRef.current) return;
 
       // Nothing has been said yet, so the first turn has to be asked for: left alone the model
-      // waits for the caller, and both sides sit in silence listening to each other.
-      send(channel, { type: 'response.create' });
+      // waits for the caller, and both sides sit in silence listening to each other. Waiting for
+      // the channel first is what makes this reliable - sent early it is silently discarded.
+      const ready = await whenChannelOpen(channel);
+      if (endedRef.current || !ready) return;
+
+      send(channel, {
+        type: 'response.create',
+        response: {
+          // Given per response rather than left to the session prompt, so the way she answers the
+          // phone is the same every single time.
+          instructions: `Greet the caller by saying exactly this and nothing else: "${greetingFor(lang)}" `
+            + 'Then stop and listen. Do not introduce yourself further, do not list what you can do, '
+            + 'and do not ask any questions yet.',
+        },
+      });
     } catch (error) {
       stop();
       onError(error);

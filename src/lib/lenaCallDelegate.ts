@@ -71,7 +71,8 @@ export const createLenaCallDelegate = ({
     });
     activeConversationId = Number(created.data.id);
 
-    // The thread is put into free roam before a word is spoken. The backend reads a conversation's
+    // The thread is put into free roam before a word is spoken - the gateway mode whose skill can
+    // reach every other one, which is where a call placed from the header button belongs. The backend reads a conversation's
     // mode from the last mode marker in its messages, so writing one here is what guarantees a call
     // starts as conversation - rather than leaving the mode to whatever the first exchange looks
     // like, which is how a call once opened a load questionnaire nobody had asked for.
@@ -79,7 +80,7 @@ export const createLenaCallDelegate = ({
       await api.messages.create({
         conversation_id: activeConversationId,
         sender_user_id: userId,
-        body: '[[LENA_ACTION:free]]',
+        body: '[[LENA_ACTION:freeroam]]',
         sent_at: localTimestampForApi(),
       });
     } catch {
