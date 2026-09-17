@@ -100,8 +100,20 @@ export const createLenaCallDelegate = ({
   let pendingStep: string | null = null;
 
   /** True when this call had no thread to join, which is what makes it a free-chat call. */
-  const startedFresh = ! conversationId;
 
+  /**
+   * Whether this call is still just talking. A call placed from no conversation starts that way,
+   * and stays that way until a task is entered - after which questions belong to that task's mode
+   * and must reach it, not be handed back for her to answer out of her own head.
+   *
+   * Only the load questionnaire sets a pending step, so without this a call that entered training,
+   * tracking, HS, booking, storage or legal would look identical to free roam on the very next
+   * question and never reach any of them.
+   */
+  let inFreeRoam = ! conversationId;
+
+  /** The modes that ARE free conversation, so leaving a task returns the call to talking. */
+  const FREE_ROAM_ACTIONS = ['freeroam', 'free'];
   const ask = async (question: string, action?: string): Promise<string> => {
     const id = await ensureConversation();
 
@@ -110,11 +122,14 @@ export const createLenaCallDelegate = ({
     // every sentence a round trip and would write a paraphrase over what was actually said, so a
     // plain question here is handed straight back for her to answer herself. Entering a task
     // (an action) or working one already under way still goes through the real pipeline.
-    if (startedFresh && !action && !pendingStep) {
+    if (inFreeRoam && !action && !pendingStep) {
       return 'This is ordinary conversation, not a task. Answer the caller yourself, in your own '
         + 'words, without looking anything up. Use this tool only when they ask for one of your '
         + 'tasks - posting a load, storage, tracking, booking, HS codes, or a legal question.';
     }
+
+    // Entering a task leaves free roam; picking free roam again returns to it.
+    if (action) inFreeRoam = FREE_ROAM_ACTIONS.includes(action);
 
     // A step with a fixed answer shape is answered through the guided endpoint - the same one the
     // buttons and the masked input use. This is what writes the value into the load draft; a plain
