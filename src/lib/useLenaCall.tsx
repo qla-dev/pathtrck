@@ -9,19 +9,16 @@ import { LenaCallOverlay } from '../components/lena/LenaCallOverlay';
  * navigating away unmounts the view and hangs up mid-sentence. So the overlay is mounted once
  * here, above everything that can be navigated between, and views only ask for a call rather
  * than hosting one.
- *
- * Minimising is the reason this matters: it swaps the overlay's own rendering between full
- * screen and a corner bar, which is a render, not an unmount - the call does not notice.
  */
 
 /** Everything a view knows about the call it wants, which the provider then holds for its life. */
 export type LenaCallRequest = Omit<
   Parameters<typeof LenaCallOverlay>[0],
-  'open' | 'onClose' | 'minimised' | 'onMinimise' | 'onRestore'
+  'open' | 'onClose'
 >;
 
 type LenaCallContextValue = {
-  /** True from the moment a call is placed until it is hung up, minimised or not. */
+  /** True from the moment a call is placed until it is hung up. */
   active: boolean;
   activeConversationId?: number;
   startCall: (request: LenaCallRequest) => void;
@@ -32,17 +29,9 @@ const LenaCallContext = createContext<LenaCallContextValue | null>(null);
 
 export const LenaCallProvider = ({ children }: { children: ReactNode }) => {
   const [request, setRequest] = useState<LenaCallRequest | null>(null);
-  const [minimised, setMinimised] = useState(false);
 
-  const startCall = useCallback((next: LenaCallRequest) => {
-    setMinimised(false);
-    setRequest(next);
-  }, []);
-
-  const endCall = useCallback(() => {
-    setRequest(null);
-    setMinimised(false);
-  }, []);
+  const startCall = useCallback((next: LenaCallRequest) => setRequest(next), []);
+  const endCall = useCallback(() => setRequest(null), []);
 
   const value = useMemo<LenaCallContextValue>(() => ({
     active: request !== null,
@@ -54,22 +43,7 @@ export const LenaCallProvider = ({ children }: { children: ReactNode }) => {
   return (
     <LenaCallContext.Provider value={value}>
       {children}
-      {request && (
-        <LenaCallOverlay
-          {...request}
-          open
-          minimised={minimised}
-          onMinimise={() => setMinimised(true)}
-          onRestore={() => setMinimised(false)}
-          onOpenDraftPanel={request.onOpenDraftPanel && (() => {
-            // Opening the panel is only useful if the caller can see it, so this doubles as
-            // "minimise": the call carries on in the corner over the draft it is filling in.
-            request.onOpenDraftPanel?.();
-            setMinimised(true);
-          })}
-          onClose={endCall}
-        />
-      )}
+      {request && <LenaCallOverlay {...request} open onClose={endCall} />}
     </LenaCallContext.Provider>
   );
 };

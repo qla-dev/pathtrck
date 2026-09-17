@@ -176,14 +176,17 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onError }: 
     }
   }, [handleToolCall, onError]);
 
-  const start = useCallback(async () => {
+  /**  is the thread the call actually ensured, which for a call placed from
+   *  a blank chat did not exist when this hook was given its props. Minting against the stale prop
+   *  is what made a first call fail validation. */
+  const start = useCallback(async (scopedConversationId?: number) => {
     if (status !== 'idle') return;
     endedRef.current = false;
     setTurns([]);
     setStatus('connecting');
 
     try {
-      const session = await api.lenaRealtime.session(lang, conversationId);
+      const session = await api.lenaRealtime.session(lang, scopedConversationId ?? conversationId);
       if (endedRef.current) return;
 
       const stream = await navigator.mediaDevices.getUserMedia({

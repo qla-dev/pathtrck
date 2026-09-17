@@ -276,12 +276,8 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
     speakingLabel: u('Lena is speaking', 'Lena is speaking'),
     consultingLabel: u('Checking with Lena', 'Checking with Lena'),
     hangUpLabel: u('Hang up', 'Hang up'),
-    emptyTranscriptLabel: u('Say something to start.', 'Say something to start.'),
-    callerLabel: u('You', 'You'),
     muteLabel: u('Mute microphone', 'Mute microphone'),
     unmuteLabel: u('Unmute microphone', 'Unmute microphone'),
-    minimiseLabel: u('Minimise call', 'Minimise call'),
-    restoreLabel: u('Back to call', 'Back to call'),
     draftPanelLabel: u('Draft panel', 'Draft panel'),
     usingSkillLabel: u('lena.usingSkillPhrase', 'is using skill'),
   });
