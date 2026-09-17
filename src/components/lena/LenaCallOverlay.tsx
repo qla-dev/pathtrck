@@ -34,6 +34,8 @@ type LenaCallOverlayProps = {
   onConversationCreated?: (id: number) => void;
   /** Lets the thread behind the call refresh itself after each turn. */
   onTurnComplete?: () => void;
+  /** Every finished turn, both sides, for optimistic rendering behind the bar. */
+  onTranscriptTurn?: (speaker: 'caller' | 'lena', text: string) => void;
   /** Each finished caller turn, so the screen behind the bar can show what was heard. */
   onCallerTranscript?: (text: string) => void;
   /** Offered only when the caller is somewhere the panel can actually open. */
@@ -61,6 +63,7 @@ export const LenaCallOverlay = ({
   onConversationCreated,
   onTurnComplete,
   onCallerTranscript,
+  onTranscriptTurn,
   onOpenDraftPanel,
   onError,
   connectingLabel = 'Connecting',
@@ -92,6 +95,7 @@ export const LenaCallOverlay = ({
     conversationId,
     askLena: delegate.ask,
     onCallerTranscript,
+    onTranscriptTurn,
     onError,
   });
 

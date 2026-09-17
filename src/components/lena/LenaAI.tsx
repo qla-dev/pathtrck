@@ -266,7 +266,11 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
     userId: Number(userId),
     companyId: companyIds?.[0],
     conversationId: Number.isFinite(Number(conversation.id)) ? Number(conversation.id) : undefined,
-    onConversationCreated: (id) => selectConversation(String(id)),
+    onConversationCreated: (id) => {
+      // Same reason as MessagesView: the list has to know the thread exists before selecting it.
+      selectConversation(String(id));
+      void refreshConversation();
+    },
     onTurnComplete: () => { void refreshConversation(); },
     // With only the bar on screen there is nowhere else the caller can see what was heard, so each
     // finished turn lands in the message box the way the mic button's own preview does.

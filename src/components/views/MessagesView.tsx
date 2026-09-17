@@ -57,6 +57,8 @@ type OptimisticMessage = {
   rawText: string;
   displayText: string;
   status: 'sending' | 'failed' | 'uploading';
+  /** Who said it. Spoken call turns come from both sides; everything else is the user's own. */
+  speaker?: 'me' | 'other';
   time: string;
   attachments?: LenaAttachment[];
   // Kept so a failed attachment upload can retry with the exact same file, not just re-send text.
@@ -83,7 +85,9 @@ type OptimisticMessage = {
 const optimisticMessageConfirmed = (message: OptimisticMessage, saved: Conversation['messages'] | undefined): boolean => {
   if (message.status === 'failed' || !saved) return false;
   const before = new Set(message.sentIdsBefore);
-  return saved.some((candidate) => candidate.sender === 'me' && !before.has(candidate.id));
+  // A spoken turn is retired by a saved message from its own side, not by the user's next one.
+  const side = message.speaker ?? 'me';
+  return saved.some((candidate) => candidate.sender === side && !before.has(candidate.id));
 };
 
 type MessageHistoryState = {
@@ -221,13 +225,37 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     userId: Number(user?.id),
     companyId: Number.isFinite(Number(user?.companies?.[0]?.id)) ? Number(user?.companies?.[0]?.id) : undefined,
     conversationId: Number.isFinite(Number(activeConversation.id)) ? Number(activeConversation.id) : undefined,
-    onConversationCreated: (id) => setActiveId(String(id)),
+    onConversationCreated: (id) => {
+      // The thread list is fetched, and switching to an id it has not seen yet falls through to the
+      // empty placeholder - which renders the welcome and its chips, making a call look like it
+      // never left the start screen. Refreshing is what puts the call's own thread on screen.
+      setActiveId(String(id));
+      void result.refresh();
+    },
     // Each spoken turn is saved as an ordinary message, so refreshing is what puts it on screen
     // behind the call - and what lets the draft panel notice the load and open itself.
     onTurnComplete: () => { void result.refresh(); },
     // With only the bar on screen there is nowhere else the caller can see what was heard, so each
     // finished turn lands in the message box the way the mic button's own preview does.
     onCallerTranscript: (text) => setDraft(text),
+    // Spoken turns appear the moment they are transcribed rather than after a refresh. In free
+    // roam nothing else would put them on screen at all: the delegate never runs, so there is no
+    // reply to wait for and nothing to trigger a reload - the call would look like it was talking
+    // to itself. The server copy still lands underneath and retires the bubble.
+    onTranscriptTurn: (speaker, text) => {
+      const conversationId = String(lenaCall?.activeConversationId ?? activeConversation.id);
+      if (!conversationId || conversationId === EMPTY_LENA_CONVERSATION_ID) return;
+      setOptimisticMessages((messages) => [...messages, {
+        id: `call-${speaker}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        conversationId,
+        rawText: text,
+        displayText: text,
+        status: 'sending',
+        speaker: speaker === 'lena' ? 'other' : 'me',
+        time: formatClockTime(new Date()),
+        sentIdsBefore: savedSentMessageIds(conversationId),
+      }]);
+    },
     onOpenDraftPanel: () => setCanvasPanelOpen(true),
     onError: (error) => void showError(u('The call could not be completed.', 'The call could not be completed.'), error instanceof Error ? error.message : undefined),
     titleLabel: u('Call with Lena', 'Call with Lena'),
@@ -430,7 +458,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
       .filter((message) => !optimisticMessageConfirmed(message, greetedBase.messages))
       .map((message) => ({
         id: message.id,
-        sender: 'me' as const,
+        sender: (message.speaker ?? 'me') as 'me' | 'other',
         text: message.displayText,
         time: message.time,
         attachments: message.attachments,

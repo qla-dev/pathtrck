@@ -73,6 +73,8 @@ type UseLenaRealtimeCallOptions = {
   askLena: (question: string, action?: string) => Promise<string>;
   /** Each finished caller turn, so the chat input can show what was heard while only the bar is up. */
   onCallerTranscript?: (text: string) => void;
+  /** Every finished turn, both sides, the moment it is transcribed - for optimistic rendering. */
+  onTranscriptTurn?: (speaker: 'caller' | 'lena', text: string) => void;
   onError: (error: unknown) => void;
 };
 
@@ -88,7 +90,7 @@ type RealtimeEvent = {
 
 const randomId = () => Math.random().toString(36).slice(2);
 
-export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTranscript, onError }: UseLenaRealtimeCallOptions) => {
+export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTranscript, onTranscriptTurn, onError }: UseLenaRealtimeCallOptions) => {
   const [status, setStatus] = useState<LenaCallStatus>('idle');
   const [turns, setTurns] = useState<LenaCallTurn[]>([]);
   /** True from the moment a tool call starts until its answer is handed back. */
@@ -228,8 +230,9 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
   const saveTurn = useCallback((speaker: 'caller' | 'lena', text: string) => {
     const id = scopedIdRef.current;
     if (!id || !text) return;
+    onTranscriptTurn?.(speaker, text);
     void api.lenaRealtime.saveTranscript(id, speaker, text).catch(() => undefined);
-  }, []);
+  }, [onTranscriptTurn]);
 
   const handleEvent = useCallback((channel: RTCDataChannel, raw: string) => {
     let event: RealtimeEvent;
