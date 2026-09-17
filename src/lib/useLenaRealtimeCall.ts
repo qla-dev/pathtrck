@@ -74,6 +74,8 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
    */
   const usageRef = useRef({ audio_input: 0, audio_output: 0, cached_audio_input: 0, text_input: 0, text_output: 0 });
   const scopedIdRef = useRef<number | undefined>(undefined);
+  /** Spoken turns from the caller so far. Zero means nobody has asked for anything yet. */
+  const callerTurnsRef = useRef(0);
   const ringbackRef = useRef<(() => void) | null>(null);
   const startedAtRef = useRef(0);
   const [muted, setMuted] = useState(false);
@@ -101,6 +103,7 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
       ).catch(() => undefined);
     }
     usageRef.current = { audio_input: 0, audio_output: 0, cached_audio_input: 0, text_input: 0, text_output: 0 };
+    callerTurnsRef.current = 0;
     startedAtRef.current = 0;
     endedRef.current = true;
     // Hanging up during the ring must silence it, or the tone outlives the call it belonged to.
@@ -147,6 +150,23 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
       const parsed = JSON.parse(event.arguments || '{}') as { question?: string; action?: string };
       const question = String(parsed.question || '').trim();
       const action = String(parsed.action || '').trim() || undefined;
+      // A call placed from no conversation starts in free chat, and STAYS there until the caller
+      // has actually asked for something. The prompt says so too, but a prompt is a nudge: this is
+      // what stops her opening a load questionnaire against a caller who has not yet said a word.
+      if (action && callerTurnsRef.current === 0) {
+        setConsultingLena(false);
+        send(channel, {
+          type: 'conversation.item.create',
+          item: {
+            type: 'function_call_output',
+            call_id: event.call_id,
+            output: 'The caller has not asked for anything yet. Do not start a task. Greet them if you have not, then wait and listen.',
+          },
+        });
+        send(channel, { type: 'response.create' });
+        return;
+      }
+
       // The model is told to always fill this in; an empty one means it called the tool by mistake,
       // and saying so is better than sending Lena an empty message that starts a pointless turn.
       // An action is a button press and carries no question of its own, so either one is enough.
@@ -210,6 +230,7 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
         if (text) {
           setTurns((current) => [...current, { id: randomId(), speaker: 'caller', text }]);
           onCallerTranscript?.(text);
+          callerTurnsRef.current += 1;
           saveTurn('caller', text);
         }
         break;

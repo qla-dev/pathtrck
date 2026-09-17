@@ -330,8 +330,6 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
     quickActionLabels,
     canUseTraining,
     onQuickAction: (action) => { setVoiceMode(false); void sendQuickAction(action); },
-    onCallLena: callAvailable ? () => { setVoiceMode(false); startLenaCall(); } : undefined,
-    callLenaLabel: u('Call Lena', 'Call Lena'),
     onSuggestedReply: (value, displayText) => { setVoiceMode(false); void sendSuggestedReply(value, displayText); },
     onStepAnswer: (step, value, displayText) => { setVoiceMode(false); void sendGuidedAnswer(step, value, displayText); },
     onSuggestedDraftChange: setDraft,

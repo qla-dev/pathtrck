@@ -70,6 +70,23 @@ export const createLenaCallDelegate = ({
       participant_ids: [userId],
     });
     activeConversationId = Number(created.data.id);
+
+    // The thread is put into free roam before a word is spoken. The backend reads a conversation's
+    // mode from the last mode marker in its messages, so writing one here is what guarantees a call
+    // starts as conversation - rather than leaving the mode to whatever the first exchange looks
+    // like, which is how a call once opened a load questionnaire nobody had asked for.
+    try {
+      await api.messages.create({
+        conversation_id: activeConversationId,
+        sender_user_id: userId,
+        body: '[[LENA_ACTION:free]]',
+        sent_at: localTimestampForApi(),
+      });
+    } catch {
+      // Free roam is the server's default for a thread with no mode marker anyway, so a failure
+      // here costs nothing worth failing the call over.
+    }
+
     onConversationCreated?.(activeConversationId);
     return activeConversationId;
   };
@@ -81,8 +98,22 @@ export const createLenaCallDelegate = ({
    */
   let pendingStep: string | null = null;
 
+  /** True when this call had no thread to join, which is what makes it a free-chat call. */
+  const startedFresh = ! conversationId;
+
   const ask = async (question: string, action?: string): Promise<string> => {
     const id = await ensureConversation();
+
+    // A call placed from no conversation is free chat: the two of you talking, recorded by the
+    // transcript, with nothing else in the loop. Answering it through dispatch-chat would make
+    // every sentence a round trip and would write a paraphrase over what was actually said, so a
+    // plain question here is handed straight back for her to answer herself. Entering a task
+    // (an action) or working one already under way still goes through the real pipeline.
+    if (startedFresh && !action && !pendingStep) {
+      return 'This is ordinary conversation, not a task. Answer the caller yourself, in your own '
+        + 'words, without looking anything up. Use this tool only when they ask for one of your '
+        + 'tasks - posting a load, storage, tracking, booking, HS codes, or a legal question.';
+    }
 
     // A step with a fixed answer shape is answered through the guided endpoint - the same one the
     // buttons and the masked input use. This is what writes the value into the load draft; a plain
