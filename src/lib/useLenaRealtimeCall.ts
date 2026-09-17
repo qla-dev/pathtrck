@@ -7,7 +7,7 @@ import { api } from '../services/api';
  * The division of labour matters here. The realtime model is only the voice: it listens, speaks,
  * and handles the turn-taking that lets a caller interrupt mid-sentence. It knows nothing about
  * freight. Every question that needs real knowledge or real work is delegated back to the Lena
- * that already exists, through the single `ask_lena` tool the server defines - which this hook
+ * that already exists, through the single `freightbook_lookup` tool the server defines - which this hook
  * executes by calling the very same endpoints the text chat uses.
  *
  * That is why a call covers all of Lena's skills rather than a chosen few: posting a load, the
@@ -39,6 +39,8 @@ type UseLenaRealtimeCallOptions = {
    * whoever owns the chat, so a call and the visible thread stay the same conversation.
    */
   askLena: (question: string, action?: string) => Promise<string>;
+  /** Each finished caller turn, so the chat input can show what was heard while only the bar is up. */
+  onCallerTranscript?: (text: string) => void;
   onError: (error: unknown) => void;
 };
 
@@ -54,7 +56,7 @@ type RealtimeEvent = {
 
 const randomId = () => Math.random().toString(36).slice(2);
 
-export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onError }: UseLenaRealtimeCallOptions) => {
+export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTranscript, onError }: UseLenaRealtimeCallOptions) => {
   const [status, setStatus] = useState<LenaCallStatus>('idle');
   const [turns, setTurns] = useState<LenaCallTurn[]>([]);
   /** True from the moment a tool call starts until its answer is handed back. */
@@ -110,7 +112,7 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onError }: 
   };
 
   const handleToolCall = useCallback(async (channel: RTCDataChannel, event: RealtimeEvent) => {
-    if (event.name !== 'ask_lena' || !event.call_id) return;
+    if (event.name !== 'freightbook_lookup' || !event.call_id) return;
 
     let output: string;
     setConsultingLena(true);
@@ -139,7 +141,7 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onError }: 
     });
     // The model does not speak the tool result on its own; this asks it to.
     send(channel, { type: 'response.create' });
-  }, [askLena, onError]);
+  }, [askLena, onCallerTranscript, onError]);
 
   const handleEvent = useCallback((channel: RTCDataChannel, raw: string) => {
     let event: RealtimeEvent;
@@ -149,7 +151,10 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onError }: 
       // What the caller said, once the model has finished transcribing their turn.
       case 'conversation.item.input_audio_transcription.completed': {
         const text = (event.transcript || '').trim();
-        if (text) setTurns((current) => [...current, { id: randomId(), speaker: 'caller', text }]);
+        if (text) {
+          setTurns((current) => [...current, { id: randomId(), speaker: 'caller', text }]);
+          onCallerTranscript?.(text);
+        }
         break;
       }
       // What Lena said, transcribed from the audio she just produced.

@@ -225,6 +225,9 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     // Each spoken turn is saved as an ordinary message, so refreshing is what puts it on screen
     // behind the call - and what lets the draft panel notice the load and open itself.
     onTurnComplete: () => { void result.refresh(); },
+    // With only the bar on screen there is nowhere else the caller can see what was heard, so each
+    // finished turn lands in the message box the way the mic button's own preview does.
+    onCallerTranscript: (text) => setDraft(text),
     onOpenDraftPanel: () => setCanvasPanelOpen(true),
     onError: (error) => void showError(u('The call could not be completed.', 'The call could not be completed.'), error instanceof Error ? error.message : undefined),
     titleLabel: u('Call with Lena', 'Call with Lena'),

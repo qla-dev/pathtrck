@@ -268,6 +268,9 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
     conversationId: Number.isFinite(Number(conversation.id)) ? Number(conversation.id) : undefined,
     onConversationCreated: (id) => selectConversation(String(id)),
     onTurnComplete: () => { void refreshConversation(); },
+    // With only the bar on screen there is nowhere else the caller can see what was heard, so each
+    // finished turn lands in the message box the way the mic button's own preview does.
+    onCallerTranscript: (text) => setDraft(text),
     onOpenDraftPanel: () => setCanvasPanelOpen(true),
     onError: (error) => void showError(u('The call could not be completed.', 'The call could not be completed.'), error instanceof Error ? error.message : undefined),
     titleLabel: u('Call with Lena', 'Call with Lena'),
