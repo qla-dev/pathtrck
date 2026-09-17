@@ -13,6 +13,7 @@ import { showError } from '../../lib/swal';
 import { motion } from 'motion/react';
 import { speechErrorText } from '../../lib/speechPlayback';
 import { playServerSpeech, speechFailureDetails } from '../../lib/serverSpeechPlayback';
+import { startVoiceRecording, voiceRecordingErrorText, voiceRecordingSupported } from '../../lib/voiceRecording';
 
 const URL_PATTERN = /(https?:\/\/[^\s]+)/g;
 
@@ -101,6 +102,7 @@ type ChatConversationPanelProps = {
   voiceModeLabel?: string;
   stopVoiceModeLabel?: string;
   voiceListeningLabel?: string;
+  transcribingLabel?: string;
   voiceUnsupportedLabel?: string;
 };
 
@@ -171,6 +173,7 @@ export const ChatConversationPanel = ({
   voiceModeLabel = 'Voice mode',
   stopVoiceModeLabel = 'Stop voice mode',
   voiceListeningLabel = 'Listening',
+  transcribingLabel = 'Transcribing',
   voiceUnsupportedLabel = 'Voice input is not supported in this browser.',
 }: ChatConversationPanelProps) => {
   const primaryActionButtonClass = 'h-9 rounded-lg bg-primary text-white flex items-center justify-center cursor-pointer transition-all hover:brightness-95';
@@ -196,8 +199,14 @@ export const ChatConversationPanel = ({
   const [isDraggingAttachment, setIsDraggingAttachment] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
+  // The gap between the speaker falling silent and the transcript coming back. The mic button
+  // holds its active look throughout, so a turn never looks as though it was dropped.
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const speechCleanupRef = useRef<(() => void) | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  // Separate from recognitionRef: that one is the fallback engine, which sends what it hears.
+  // This one only ever writes to the draft field so the speaker can watch their words appear.
+  const previewStopRef = useRef<(() => void) | null>(null);
   const recordingCleanupRef = useRef<(() => void) | null>(null);
   const voiceModeRef = useRef(voiceMode);
   const spokenMessageIdRef = useRef<string | null>(null);
@@ -207,26 +216,21 @@ export const ChatConversationPanel = ({
   const hasAttachmentHandler = activeConversation.isAiDispatch && Boolean(onAttachFile);
   const canAttach = hasAttachmentHandler && !attachmentBusy;
 
-  const toggleVoiceMode = () => {
+  // Voice input has two engines. The primary records the microphone and sends the audio to Whisper
+  // on the server, which hears accented Bosnian, Croatian, Serbian and German - and freight
+  // vocabulary - far better than anything built into a browser, and works in browsers with no
+  // speech engine at all. The browser's own SpeechRecognition stays as the fallback, used when
+  // recording or the transcription request fails, so a bad network still leaves voice mode usable
+  // wherever it used to work. Both engines end a turn the same way: three seconds of silence.
+  const startBrowserRecognition = (): boolean => {
     const speechWindow = window as SpeechWindow;
     const Recognition = speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
-    if (!Recognition) {
-      window.alert(voiceUnsupportedLabel);
-      return;
-    }
-    if (isListening) {
-      voiceModeRef.current = false;
-      recordingCleanupRef.current?.();
-      setIsListening(false);
-      window.speechSynthesis?.cancel();
-      onVoiceModeChange?.(false);
-      return;
-    }
+    if (!Recognition) return false;
 
-    speechCleanupRef.current?.();
-    spokenMessageIdRef.current = activeConversation.messages.at(-1)?.id || null;
+    previewStopRef.current?.();
+    previewStopRef.current = null;
+
     const recognition = new Recognition();
-    voiceModeRef.current = true;
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = voiceLanguage;
@@ -274,17 +278,174 @@ export const ChatConversationPanel = ({
       try { recognition.start(); } catch { finish(false); }
     };
     recognitionRef.current = recognition;
-    onVoiceModeChange?.(true);
     setIsListening(true);
     try { recognition.start(); } catch {
       recognitionRef.current = null;
-      voiceModeRef.current = false;
       setIsListening(false);
-      onVoiceModeChange?.(false);
+      return false;
     }
+    return true;
+  };
+
+  /**
+   * Live on-screen text while the speaker is still talking.
+   *
+   * Whisper is accurate but silent: it cannot say anything until the recording is finished and
+   * uploaded, which leaves several seconds where a person is speaking into what looks like a dead
+   * microphone. The browser's engine is the opposite - rough, but it streams words as they are
+   * said. So both run: this one writes interim text to the draft purely so there is something to
+   * watch, and Whisper overwrites it with the real transcript before anything is sent. Nothing
+   * this produces is ever submitted, so its inaccuracy costs nothing.
+   *
+   * Returns a stop function, or null where the browser has no engine - in which case the mic
+   * button's listening state is the only feedback, which is what a Firefox user gets today.
+   */
+  const startPreviewRecognition = (): (() => void) | null => {
+    const speechWindow = window as SpeechWindow;
+    const Recognition = speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
+    if (!Recognition) return null;
+
+    const recognition = new Recognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = voiceLanguage;
+    let stopped = false;
+
+    recognition.onresult = (event) => {
+      if (stopped) return;
+      const heard = Array.from(event.results).map((result) => result[0]?.transcript || '').join(' ').trim();
+      if (heard) onDraftChange(heard);
+    };
+    // A preview failing is not worth telling anyone about - the real transcript is still coming.
+    recognition.onerror = () => {};
+    recognition.onend = () => {
+      if (stopped) return;
+      // Chrome ends recognition between phrases even in continuous mode; keep the preview alive
+      // for as long as the recording it is shadowing.
+      try { recognition.start(); } catch { /* the turn is over */ }
+    };
+
+    try { recognition.start(); } catch { return null; }
+
+    return () => {
+      if (stopped) return;
+      stopped = true;
+      recognition.onend = null;
+      recognition.onresult = null;
+      try { recognition.stop(); } catch { /* already stopped */ }
+    };
+  };
+  const startServerRecording = (): boolean => {
+    if (!voiceRecordingSupported()) return false;
+
+    // A brand-new thread has no numeric id yet. The endpoint accepts that and simply does not
+    // scope the call to a conversation; sending the sentinel string would fail validation.
+    const numericId = Number(activeConversation.id);
+    const scopedConversationId = Number.isFinite(numericId) ? numericId : undefined;
+
+    // Handing over mid-turn must never leave two engines holding the microphone at once.
+    const fallBackToBrowser = () => {
+      recordingCleanupRef.current?.();
+      recordingCleanupRef.current = null;
+      setIsTranscribing(false);
+      if (!voiceModeRef.current) return;
+      if (!startBrowserRecognition()) {
+        voiceModeRef.current = false;
+        setIsListening(false);
+        onVoiceModeChange?.(false);
+        void showError(voiceUnsupportedLabel);
+      }
+    };
+
+    previewStopRef.current?.();
+    previewStopRef.current = startPreviewRecognition();
+    const stopPreview = () => { previewStopRef.current?.(); previewStopRef.current = null; };
+
+    const cancel = startVoiceRecording({
+      onResult: (audio) => {
+        stopPreview();
+        setIsListening(false);
+        setIsTranscribing(true);
+        void (async () => {
+          try {
+            const text = (await api.dispatchChat.transcribe(audio, voiceLanguage, scopedConversationId)).trim();
+            setIsTranscribing(false);
+            // Voice mode may have been switched off while the upload was in flight.
+            if (!voiceModeRef.current) return;
+            // Whisper heard nothing usable. The preview's guess is still sitting in the box and
+            // must not be left there looking like a transcript waiting to be sent.
+            if (!text) { onDraftChange(''); startServerRecording(); return; }
+            awaitingVoiceReplyRef.current = true;
+            onDraftChange(text);
+            onSend(text, 'voice');
+          } catch {
+            // The recording is gone by the time transcription fails, so this turn cannot be
+            // recovered - hand the microphone to the browser engine for the next one.
+            setIsTranscribing(false);
+            fallBackToBrowser();
+          }
+        })();
+      },
+      // Nothing was said. Listen again rather than dropping out of voice mode: a driver who takes
+      // a moment to think should not have to re-arm the microphone.
+      onEmpty: () => {
+        stopPreview();
+        onDraftChange('');
+        if (voiceModeRef.current) startServerRecording();
+      },
+      onError: (error) => {
+        stopPreview();
+        // A blocked or missing microphone defeats the fallback too, so say so instead of looping.
+        const blocked = typeof DOMException !== 'undefined' && error instanceof DOMException
+          && (error.name === 'NotAllowedError' || error.name === 'NotFoundError');
+        if (blocked) {
+          voiceModeRef.current = false;
+          recordingCleanupRef.current = null;
+          setIsListening(false);
+          setIsTranscribing(false);
+          onVoiceModeChange?.(false);
+          void showError(voiceRecordingErrorText(error, voiceUnsupportedLabel));
+          return;
+        }
+        fallBackToBrowser();
+      },
+    });
+
+    recordingCleanupRef.current = () => { stopPreview(); cancel(); };
+    setIsListening(true);
+    return true;
+  };
+
+  const toggleVoiceMode = () => {
+    if (isListening || isTranscribing) {
+      voiceModeRef.current = false;
+      previewStopRef.current?.();
+      previewStopRef.current = null;
+      recordingCleanupRef.current?.();
+      recordingCleanupRef.current = null;
+      recognitionRef.current = null;
+      setIsListening(false);
+      setIsTranscribing(false);
+      window.speechSynthesis?.cancel();
+      onVoiceModeChange?.(false);
+      return;
+    }
+
+    speechCleanupRef.current?.();
+    spokenMessageIdRef.current = activeConversation.messages.at(-1)?.id || null;
+    voiceModeRef.current = true;
+    onVoiceModeChange?.(true);
+
+    if (startServerRecording()) return;
+    if (startBrowserRecognition()) return;
+
+    voiceModeRef.current = false;
+    onVoiceModeChange?.(false);
+    window.alert(voiceUnsupportedLabel);
   };
 
   useEffect(() => () => {
+    previewStopRef.current?.();
     recordingCleanupRef.current?.();
     speechCleanupRef.current?.();
     window.speechSynthesis?.cancel();
@@ -816,15 +977,19 @@ export const ChatConversationPanel = ({
         <button
           type="button"
           onClick={toggleVoiceMode}
-          aria-label={isListening ? stopVoiceModeLabel : voiceModeLabel}
-          aria-pressed={isListening}
-          title={isListening ? voiceListeningLabel : voiceModeLabel}
+          aria-label={isListening || isTranscribing ? stopVoiceModeLabel : voiceModeLabel}
+          aria-pressed={isListening || isTranscribing}
+          title={isTranscribing ? transcribingLabel : isListening ? voiceListeningLabel : voiceModeLabel}
           className={cn(
             'relative h-9 w-9 rounded-lg flex items-center justify-center cursor-pointer transition-all',
-            isListening ? 'bg-primary text-white' : 'bg-primary/10 text-primary'
+            isListening || isTranscribing ? 'bg-primary text-white' : 'bg-primary/10 text-primary'
           )}
         >
-          <Mic className={cn('w-4 h-4', isListening && 'animate-pulse')} />
+          {/* Transcription is a real wait on the network, so it gets a spinner rather than the
+              pulsing mic - a listening indicator during the upload would be a lie. */}
+          {isTranscribing
+            ? <Loader2 className="w-4 h-4 animate-spin" />
+            : <Mic className={cn('w-4 h-4', isListening && 'animate-pulse')} />}
           {isListening && <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-rose-500" />}
         </button>
         <button type="button" onClick={() => onSend()} disabled={sendBusy || inputLocked} className={cn(primaryActionButtonClass, 'w-9 shrink-0 disabled:cursor-not-allowed disabled:opacity-60')}>

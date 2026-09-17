@@ -491,6 +491,28 @@ const fetchAuthenticatedBlob = async (path: string, init?: RequestInit): Promise
   return response.blob();
 };
 
+// The transcription endpoint takes base64 in JSON rather than multipart, because the recording is
+// small and JSON keeps it on the same authenticated request path as every other call here.
+const blobToBase64 = (blob: Blob): Promise<string> => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onerror = () => reject(new Error('The recording could not be read.'));
+  // readAsDataURL gives "data:audio/webm;codecs=opus;base64,AAAA..." - the API wants only the tail.
+  reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '');
+  reader.readAsDataURL(blob);
+});
+
+/** Maps a MediaRecorder MIME type onto the container names the transcription endpoint accepts. */
+const audioBlobFormat = (blob: Blob): string => {
+  const mime = blob.type.split(';')[0].trim().toLowerCase();
+  const known: Record<string, string> = {
+    'audio/webm': 'webm', 'audio/ogg': 'ogg', 'audio/mp4': 'm4a', 'audio/x-m4a': 'm4a',
+    'audio/mpeg': 'mp3', 'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/flac': 'flac', 'audio/aac': 'aac',
+  };
+  // Chrome and Firefox both record webm/opus; Safari records mp4. Anything unrecognised is sent as
+  // webm rather than rejected here, so a new browser default fails loudly at the API, not silently.
+  return known[mime] ?? 'webm';
+};
+
 const downloadAuthenticatedFile = async (path: string, name: string, init?: RequestInit): Promise<void> => {
   const objectUrl = URL.createObjectURL(await fetchAuthenticatedBlob(path, init));
   const link = document.createElement('a');
@@ -837,6 +859,22 @@ export const api = {
     speech: (text: string, lang: string, conversationId: number, signal?: AbortSignal) => fetchAuthenticatedBlob('/dispatch-chat/speech', {
       method: 'POST', body: JSON.stringify({ text, lang: lang.split(/[-_]/)[0], conversation_id: conversationId }), signal,
     }),
+    /**
+     * Server-side speech recognition - the primary of the two the chat panel uses. Whisper on Groq
+     * hears accented Bosnian, German and freight vocabulary far better than the browser's built-in
+     * engine, and works in browsers that have no built-in engine at all. `conversationId` is
+     * omitted for the first turn of a thread that does not exist yet.
+     */
+    transcribe: async (audio: Blob, lang: string, conversationId?: number, signal?: AbortSignal) => (await request<{ text: string }>('/dispatch-chat/transcribe', {
+      method: 'POST',
+      body: JSON.stringify({
+        audio: await blobToBase64(audio),
+        format: audioBlobFormat(audio),
+        lang: lang.split(/[-_]/)[0],
+        conversation_id: conversationId,
+      }),
+      signal,
+    })).data.text,
     /** The skills the next reply uses, named in the interface language, for LenaAI's thinking indicator. */
     skills: async (conversationId: number, lang?: string) => (await request<{ id: string; name: string }[]>('/dispatch-chat/skills', {
       method: 'POST',
@@ -851,6 +889,25 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ conversation_id: conversationId, step, value, display_text: displayText, skip, lang, input_mode: source }),
       })).data,
+  },
+  /**
+   * Lena's live call. Unlike everything else here this one feature reaches OpenAI directly, because
+   * a realtime session is a persistent WebRTC connection and OpenRouter serves only request/response
+   * endpoints. Our own key never leaves the server: `session` returns a short-lived client secret
+   * that the browser spends immediately on its own SDP exchange.
+   */
+  lenaRealtime: {
+    /** Whether this deployment has been given an OpenAI key, so the call button can be hidden. */
+    status: async () => (await request<{ configured: boolean }>('/lena-realtime/status')).data.configured,
+    session: async (lang: string, conversationId?: number) => (await request<{
+      client_secret: string;
+      expires_at: number | null;
+      model: string;
+      calls_url: string;
+    }>('/lena-realtime/session', {
+      method: 'POST',
+      body: JSON.stringify({ lang: lang.split(/[-_]/)[0], conversation_id: conversationId }),
+    })).data,
   },
   notes: resourceApi<Record<string, unknown>>('load-notes'),
   documents: {

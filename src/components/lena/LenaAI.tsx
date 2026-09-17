@@ -1,11 +1,11 @@
 import { lenaText, lenaLoadWelcome } from '../../lib/lenaCatalog';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Bot, ChevronDown, ChevronUp, LayoutGrid, MessageCircle, Pin, Plus, Sparkles, X } from 'lucide-react';
+import { Bot, ChevronDown, ChevronUp, LayoutGrid, MessageCircle, Phone, Pin, Plus, Sparkles, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Language } from '../../types';
 import { ui } from '../../i18n';
-import { confirmAction } from '../../lib/swal';
+import { confirmAction, showError } from '../../lib/swal';
 import { ChatConversationPanel } from '../chat/ChatConversationPanel';
 import { ChatSidebar } from '../chat/ChatSidebar';
 import type { Conversation } from '../chat/types';
@@ -13,6 +13,7 @@ import { useLenaAiChat } from '../../lib/useLenaAiChat';
 import { useLenaEmbeddedMessages } from './useLenaEmbeddedMessages';
 import { lenaStepInputMask } from '../../lib/lenaStepInputMask';
 import { LenaLoadCanvas } from './LenaLoadCanvas';
+import { LenaCallOverlay } from './LenaCallOverlay';
 import { LENA_LOAD_FILE_ACCEPT, LenaCanvasMode, latestLoadScan } from '../../lib/lenaLoadCanvas';
 import { buildScanFieldRows, ScanFieldPatch } from '../modals/scanFieldRows';
 import { api, BulkLoadRow, type PublicTrackingSummary } from '../../services/api';
@@ -254,6 +255,19 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
   const [canvasPanelOpen, setCanvasPanelOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
+  const [callOpen, setCallOpen] = useState(false);
+  // A live call needs an OpenAI key, which a deployment may not have been given. Rather than let
+  // the button fail when pressed, it is not rendered at all until the server says it would work.
+  const [callAvailable, setCallAvailable] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    void api.lenaRealtime.status()
+      .then((configured) => { if (active) setCallAvailable(configured); })
+      // An unreachable status check is not worth an error to the user; it just leaves calling off.
+      .catch(() => { if (active) setCallAvailable(false); });
+    return () => { active = false; };
+  }, [open]);
   useEffect(() => {
     if (open && !conversationLoading) onConversationReady?.();
   }, [conversationLoading, onConversationReady, open]);
@@ -337,6 +351,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
   };
 
   return createPortal(
+    <>
     <AnimatePresence>
       {open && (
         <motion.div
@@ -439,6 +454,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
                 voiceModeLabel={u('Voice mode', 'Voice mode')}
                 stopVoiceModeLabel={u('Stop voice mode', 'Stop voice mode')}
                 voiceListeningLabel={u('Listening', 'Listening')}
+                transcribingLabel={u('Transcribing', 'Transcribing')}
                 voiceUnsupportedLabel={u('Voice input is not supported in this browser.', 'Voice input is not supported in this browser.')}
                 onAttachFile={(files) => { setVoiceMode(false); void attachFile(files); }}
                 attachmentLimitLabel={u('Select up to 5 files at once.', 'Select up to 5 files at once.')}
@@ -455,6 +471,16 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
                 attachmentOpenFailedLabel={u('The file could not be opened', '')}
                 headerActions={(
                   <div className="flex shrink-0 items-center gap-2">
+                  {callAvailable && <button
+                    type="button"
+                    onClick={() => { setVoiceMode(false); setCallOpen(true); }}
+                    aria-label={u('Call Lena', 'Call Lena')}
+                    title={showCanvas || sideBarMode ? u('Call Lena', 'Call Lena') : undefined}
+                    className={`flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-slate-100 text-xs font-bold text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 cursor-pointer ${showCanvas || sideBarMode ? 'w-10 justify-center px-0' : 'px-3'}`}
+                  >
+                    <Phone className="h-4 w-4" />
+                    {!showCanvas && !sideBarMode && u('Call Lena', 'Call Lena')}
+                  </button>}
                   <button
                     type="button"
                     onClick={() => void handleNewChat()}
@@ -509,7 +535,28 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
           </motion.div>}
         </motion.div>
       )}
-    </AnimatePresence>,
+    </AnimatePresence>
+    {/* Outside the AnimatePresence above so that hanging up does not depend on the chat panel's
+        own exit animation, and so the call survives the draft panel opening underneath it. */}
+    <LenaCallOverlay
+      open={callOpen}
+      onClose={() => setCallOpen(false)}
+      lang={lang}
+      userId={Number(userId)}
+      companyId={companyIds?.[0]}
+      conversationId={Number.isFinite(Number(conversation.id)) ? Number(conversation.id) : undefined}
+      onConversationCreated={(id) => selectConversation(String(id))}
+      onError={(error) => void showError(u('The call could not be completed.', 'The call could not be completed.'), error instanceof Error ? error.message : undefined)}
+      titleLabel={u('Call with Lena', 'Call with Lena')}
+      connectingLabel={u('Connecting', 'Connecting')}
+      listeningLabel={u('Listening', 'Listening')}
+      speakingLabel={u('Lena is speaking', 'Lena is speaking')}
+      consultingLabel={u('Checking with Lena', 'Checking with Lena')}
+      hangUpLabel={u('Hang up', 'Hang up')}
+      emptyTranscriptLabel={u('Say something to start.', 'Say something to start.')}
+      callerLabel={u('You', 'You')}
+    />
+    </>,
     portalRoot
   );
 }
