@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../services/api';
 import { startCallRingback } from './callRingback';
 
-/** How long the caller hears it ring before Lena picks up. One full European ring, then hello. */
-const RINGBACK_MS = 2000;
+/** How long the caller hears it ring before Lena picks up - the length of the ring recording. */
+const RINGBACK_MS = 2500;
 
 /**
  * A live voice call with Lena, over WebRTC, straight to OpenAI's realtime model.

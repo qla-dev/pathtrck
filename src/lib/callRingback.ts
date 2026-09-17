@@ -1,66 +1,62 @@
 /**
  * The ringing a caller hears between pressing call and Lena picking up.
  *
- * Synthesised rather than played from a file: it is two sine waves and a gate, so it costs no
- * asset, no request and no cache entry, and it cannot be the thing that is still downloading when
- * the call is already up.
- *
- * The tone is the European ringback - a single 425 Hz tone, one second on, one second off - rather
- * than the American dual-tone pair, because the drivers on the other end of these calls dial
- * Bosnian, Croatian, Serbian, German and Austrian numbers all day and this is the sound they know.
+ * A real recording rather than a synthesised tone, because a generated sine reads as an error
+ * beep on phone speakers while an actual ringtone reads as a call being placed - which is the one
+ * thing this sound has to say. It is served from public/ and already trimmed to the ring itself,
+ * so nothing here has to seek, fade in, or decide where the ring starts.
  */
 
-/** 425 Hz, the ITU-T ringing tone used across Europe. */
-const RINGBACK_HZ = 425;
+/** Trimmed to a single ring, which is what the call waits for before Lena answers. */
+const RINGBACK_SRC = '/sounds/ring.mp3';
+
+/** Quiet enough to sit under a voice, loud enough to hear in a cab. */
+const RINGBACK_VOLUME = 0.5;
+
+/** Long enough not to click, short enough that hanging up still feels instant. */
+const FADE_MS = 120;
 
 /**
- * Starts ringing. Returns a stop function that fades out rather than cutting, because an abrupt
- * gain change on a live audio context is an audible click on most hardware.
+ * Starts ringing. Returns a stop function that fades out rather than cutting, because pausing an
+ * element mid-waveform is an audible click on most hardware.
+ *
+ * Playback can be refused outright - a browser that has not seen a user gesture yet will reject
+ * it - and that must never be the reason a call fails to connect, so every failure here is
+ * swallowed and the call simply rings silently.
  */
 export const startCallRingback = (): (() => void) => {
-  let context: AudioContext | undefined;
   let stopped = false;
+  let audio: HTMLAudioElement | undefined;
 
   try {
-    context = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    audio = new Audio(RINGBACK_SRC);
+    audio.volume = RINGBACK_VOLUME;
+    // One ring is the whole file; looping would keep ringing after she has already answered.
+    audio.loop = false;
+    void audio.play().catch(() => undefined);
   } catch {
-    // No Web Audio: the call still connects, it just does so silently.
     return () => undefined;
   }
 
-  const gain = context.createGain();
-  gain.gain.value = 0;
-  gain.connect(context.destination);
-
-  const oscillator = context.createOscillator();
-  oscillator.type = 'sine';
-  oscillator.frequency.value = RINGBACK_HZ;
-  oscillator.connect(gain);
-  oscillator.start();
-
-  // The ring pattern is written onto the gain ahead of time, so it keeps its rhythm even while the
-  // main thread is busy with the connection handshake this is covering for.
-  const now = context.currentTime;
-  for (let ring = 0; ring < 6; ring += 1) {
-    const at = now + ring * 2;
-    gain.gain.setValueAtTime(0, at);
-    gain.gain.linearRampToValueAtTime(0.08, at + 0.05);
-    gain.gain.setValueAtTime(0.08, at + 0.95);
-    gain.gain.linearRampToValueAtTime(0, at + 1);
-  }
-
   return () => {
-    if (stopped || !context) return;
+    if (stopped || !audio) return;
     stopped = true;
-    try {
-      gain.gain.cancelScheduledValues(context.currentTime);
-      gain.gain.setValueAtTime(gain.gain.value, context.currentTime);
-      gain.gain.linearRampToValueAtTime(0, context.currentTime + 0.08);
-      oscillator.stop(context.currentTime + 0.1);
-    } catch {
-      // Already stopped by a context that closed under us; nothing left to silence.
-    }
-    // Closed a beat after the fade, so the ramp is actually heard.
-    window.setTimeout(() => { void context?.close().catch(() => undefined); }, 200);
+
+    const element = audio;
+    const step = element.volume / Math.max(1, Math.round(FADE_MS / 20));
+    const fade = window.setInterval(() => {
+      const next = element.volume - step;
+      if (next > 0) {
+        element.volume = next;
+        return;
+      }
+      window.clearInterval(fade);
+      try {
+        element.pause();
+        element.currentTime = 0;
+      } catch {
+        // Already torn down by a navigation; there is nothing left to silence.
+      }
+    }, 20);
   };
 };
