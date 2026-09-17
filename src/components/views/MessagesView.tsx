@@ -57,6 +57,13 @@ type OptimisticMessage = {
   rawText: string;
   displayText: string;
   status: 'sending' | 'failed' | 'uploading';
+  /**
+   * A spoken call turn waits for its own words to come back rather than for "any newer message from
+   * this side": a call thread is created with a mode marker already in it, and the history has not
+   * been fetched yet, so the id-set rule retires the bubble against that marker the instant it is
+   * made. Matching the text is the only thing that identifies one spoken turn from another.
+   */
+  matchText?: string;
   /** Who said it. Spoken call turns come from both sides; everything else is the user's own. */
   speaker?: 'me' | 'other';
   time: string;
@@ -87,6 +94,10 @@ const optimisticMessageConfirmed = (message: OptimisticMessage, saved: Conversat
   const before = new Set(message.sentIdsBefore);
   // A spoken turn is retired by a saved message from its own side, not by the user's next one.
   const side = message.speaker ?? 'me';
+  if (message.matchText !== undefined) {
+    const spoken = message.matchText.trim();
+    return saved.some((candidate) => candidate.sender === side && candidate.text.trim() === spoken);
+  }
   return saved.some((candidate) => candidate.sender === side && !before.has(candidate.id));
 };
 
@@ -242,9 +253,10 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     // roam nothing else would put them on screen at all: the delegate never runs, so there is no
     // reply to wait for and nothing to trigger a reload - the call would look like it was talking
     // to itself. The server copy still lands underneath and retires the bubble.
-    onTranscriptTurn: (speaker, text) => {
-      const conversationId = String(lenaCall?.activeConversationId ?? activeConversation.id);
-      if (!conversationId || conversationId === EMPTY_LENA_CONVERSATION_ID) return;
+    onTranscriptTurn: (speaker, text, callConversationId) => {
+      // The id is handed in by the call rather than read from this closure: a call placed from a
+      // blank chat froze its request before the thread existed, so anything captured here is empty.
+      const conversationId = String(callConversationId);
       setOptimisticMessages((messages) => [...messages, {
         id: `call-${speaker}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         conversationId,
@@ -252,9 +264,14 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
         displayText: text,
         status: 'sending',
         speaker: speaker === 'lena' ? 'other' : 'me',
+        matchText: text,
+        sentIdsBefore: savedMessageIdsForSide(conversationId, speaker === 'lena' ? 'other' : 'me'),
         time: formatClockTime(new Date()),
-        sentIdsBefore: savedSentMessageIds(conversationId),
       }]);
+      // The live preview put these words in the message box as they were heard; now they are a
+      // message, so the box goes back to being empty. Only when it still holds exactly what was
+      // spoken - anything the caller has typed themselves since is theirs to keep.
+      if (speaker === 'caller') setDraft((current) => (current.trim() === text.trim() ? '' : current));
     },
     onOpenDraftPanel: () => setCanvasPanelOpen(true),
     onError: (error) => void showError(u('The call could not be completed.', 'The call could not be completed.'), error instanceof Error ? error.message : undefined),
@@ -480,6 +497,15 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
   const savedSentMessageIds = useCallback((conversationId: string): string[] =>
     (messageHistory[conversationId]?.messages ?? [])
       .filter((message) => message.sender === 'me')
+      .map((message) => message.id),
+  [messageHistory]);
+
+  // The same idea as savedSentMessageIds, but for either side: a spoken call turn from Lena has to
+  // be retired by a saved message of HERS arriving, not by one of the caller's - and comparing it
+  // against the caller's ids would retire it against any message she had already sent.
+  const savedMessageIdsForSide = useCallback((conversationId: string, side: 'me' | 'other'): string[] =>
+    (messageHistory[conversationId]?.messages ?? [])
+      .filter((message) => message.sender === side)
       .map((message) => message.id),
   [messageHistory]);
 

@@ -74,7 +74,7 @@ type UseLenaRealtimeCallOptions = {
   /** Each finished caller turn, so the chat input can show what was heard while only the bar is up. */
   onCallerTranscript?: (text: string) => void;
   /** Every finished turn, both sides, the moment it is transcribed - for optimistic rendering. */
-  onTranscriptTurn?: (speaker: 'caller' | 'lena', text: string) => void;
+  onTranscriptTurn?: (speaker: 'caller' | 'lena', text: string, conversationId: number) => void;
   onError: (error: unknown) => void;
 };
 
@@ -230,7 +230,9 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
   const saveTurn = useCallback((speaker: 'caller' | 'lena', text: string) => {
     const id = scopedIdRef.current;
     if (!id || !text) return;
-    onTranscriptTurn?.(speaker, text);
+    // The id comes from here, not from the caller's closure: a call placed from a blank chat froze
+    // its request before this thread existed, so anything captured back then is empty.
+    onTranscriptTurn?.(speaker, text, id);
     void api.lenaRealtime.saveTranscript(id, speaker, text).catch(() => undefined);
   }, [onTranscriptTurn]);
 

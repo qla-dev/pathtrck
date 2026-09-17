@@ -35,7 +35,7 @@ type LenaCallOverlayProps = {
   /** Lets the thread behind the call refresh itself after each turn. */
   onTurnComplete?: () => void;
   /** Every finished turn, both sides, for optimistic rendering behind the bar. */
-  onTranscriptTurn?: (speaker: 'caller' | 'lena', text: string) => void;
+  onTranscriptTurn?: (speaker: 'caller' | 'lena', text: string, conversationId: number) => void;
   /** Each finished caller turn, so the screen behind the bar can show what was heard. */
   onCallerTranscript?: (text: string) => void;
   /** Offered only when the caller is somewhere the panel can actually open. */
