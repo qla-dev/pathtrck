@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../services/api';
+import { startCallRingback } from './callRingback';
+
+/** How long the caller hears it ring before Lena picks up. One full European ring, then hello. */
+const RINGBACK_MS = 2000;
 
 /**
  * A live voice call with Lena, over WebRTC, straight to OpenAI's realtime model.
@@ -70,6 +74,7 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
    */
   const usageRef = useRef({ audio_input: 0, audio_output: 0, cached_audio_input: 0, text_input: 0, text_output: 0 });
   const scopedIdRef = useRef<number | undefined>(undefined);
+  const ringbackRef = useRef<(() => void) | null>(null);
   const startedAtRef = useRef(0);
   const [muted, setMuted] = useState(false);
   /** 0..1 microphone level, for the equaliser around the mic button. */
@@ -98,6 +103,9 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
     usageRef.current = { audio_input: 0, audio_output: 0, cached_audio_input: 0, text_input: 0, text_output: 0 };
     startedAtRef.current = 0;
     endedRef.current = true;
+    // Hanging up during the ring must silence it, or the tone outlives the call it belonged to.
+    ringbackRef.current?.();
+    ringbackRef.current = null;
     channelRef.current?.close();
     channelRef.current = null;
     connectionRef.current?.getSenders().forEach((sender) => sender.track?.stop());
@@ -224,6 +232,10 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
     endedRef.current = false;
     setTurns([]);
     setStatus('connecting');
+    // Ringing starts the instant the button is pressed, not when the handshake finishes, so the
+    // wait the caller hears is the wait the call actually has.
+    ringbackRef.current = startCallRingback();
+    const ringingSince = Date.now();
 
     try {
       scopedIdRef.current = scopedConversationId ?? conversationId;
@@ -289,6 +301,18 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
       await connection.setRemoteDescription({ type: 'answer', sdp: await answer.text() });
       if (endedRef.current) return;
       setStatus('live');
+      // She picks up only after the caller has heard it ring. The connection handshake usually
+      // takes less than this, so without the floor she answers before the first ring finishes,
+      // which reads as nobody having called at all.
+      const remaining = RINGBACK_MS - (Date.now() - ringingSince);
+      if (remaining > 0) await new Promise((resolve) => window.setTimeout(resolve, remaining));
+      ringbackRef.current?.();
+      ringbackRef.current = null;
+      if (endedRef.current) return;
+
+      // Nothing has been said yet, so the first turn has to be asked for: left alone the model
+      // waits for the caller, and both sides sit in silence listening to each other.
+      send(channel, { type: 'response.create' });
     } catch (error) {
       stop();
       onError(error);
