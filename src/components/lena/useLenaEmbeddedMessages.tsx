@@ -294,7 +294,11 @@ export const useLenaEmbeddedMessages = ({
       // The welcome carries the training button for everyone; only superadmins get to see it.
       const actions = (message.text.match(LENA_OPTIONS_PATTERN)?.[1].split(',') as LenaQuickAction[] | undefined)
         ?.filter((action) => canUseTraining || !action.startsWith('training'));
-      const hasUserAnswerAfter = messages.slice(index + 1).some((laterMessage) => laterMessage.sender === 'me');
+      // A spoken turn is a record of what was said, not an answer to these buttons - and it is
+      // appended after the reply even when it was said before it, because pending bubbles always
+      // sort last. Counting one would hide the buttons the caller is being told to tap.
+      const hasUserAnswerAfter = messages.slice(index + 1)
+        .some((laterMessage) => laterMessage.sender === 'me' && !laterMessage.id.startsWith('call-'));
       return actions?.length && !hasUserAnswerAfter ? [[message.id, actions] as const] : [];
     })),
     [messages, canUseTraining]

@@ -1,4 +1,4 @@
-import { api } from '../services/api';
+import { api, type LoadScanResult } from '../services/api';
 import { localTimestampForApi } from './dates';
 import { LENA_AI_GENERAL_SUBJECT } from './useLenaAiChat';
 import { MASKABLE_GUIDED_STEPS } from './lenaStepInputMask';
@@ -99,6 +99,14 @@ export const createLenaCallDelegate = ({
    */
   let pendingStep: string | null = null;
 
+  /**
+   * Everything extracted from this call so far. It is carried into the next scan as the starting
+   * point, which is what makes each answer a patch: without it every turn re-reads one sentence
+   * from a blank slate, and the result overwrites the draft with only the fields that sentence
+   * happened to mention - emptying every field the caller had already given.
+   */
+  let scanSoFar: LoadScanResult | undefined;
+
   /** True when this call had no thread to join, which is what makes it a free-chat call. */
 
   /**
@@ -148,7 +156,8 @@ export const createLenaCallDelegate = ({
     let attachments: Array<Record<string, unknown>> | undefined;
     if (!action && pendingStep) {
       try {
-        const scan = await api.loads.scanText(question, undefined, id, pendingStep);
+        const scan = await api.loads.scanText(question, scanSoFar, id, pendingStep);
+        scanSoFar = scan.data;
         attachments = [{ name: 'LenaAI call', type: 'text/plain', size: new Blob([question]).size, loadScan: scan.data }];
       } catch {
         // The turn must still be sent if structured extraction is unavailable.

@@ -35,6 +35,12 @@ const whenChannelOpen = (channel: RTCDataChannel, timeoutMs = 5000): Promise<boo
 const RINGBACK_MS = 2500;
 
 /**
+ * How long the caller has to stay quiet before what they said becomes one message. Longer than the
+ * pause the realtime API ends a turn on, so hesitation inside a sentence does not split it.
+ */
+const CALLER_PAUSE_MS = 1800;
+
+/**
  * A live voice call with Lena, over WebRTC, straight to OpenAI's realtime model.
  *
  * The division of labour matters here. The realtime model is only the voice: it listens, speaks,
@@ -107,6 +113,17 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
   const scopedIdRef = useRef<number | undefined>(undefined);
   /** Spoken turns from the caller so far. Zero means nobody has asked for anything yet. */
   const callerTurnsRef = useRef(0);
+  /**
+   * Fragments of the caller's turn, waiting to become one message.
+   *
+   * The realtime API ends a turn on a short pause, so someone thinking out loud - "pa... dvadeset
+   * paleta... kafe" - arrives as three separate transcripts. Saving each one turns a single
+   * sentence into three messages and makes a hesitant speaker look incoherent in their own thread.
+   * They are joined instead, and written once the caller has actually finished.
+   */
+  const callerPartsRef = useRef<string[]>([]);
+  const callerFlushRef = useRef<number | undefined>(undefined);
+
   const ringbackRef = useRef<(() => void) | null>(null);
   const ambienceRef = useRef<ReturnType<typeof createCallAmbience> | null>(null);
   const startedAtRef = useRef(0);
@@ -136,6 +153,8 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
     }
     usageRef.current = { audio_input: 0, audio_output: 0, cached_audio_input: 0, text_input: 0, text_output: 0 };
     callerTurnsRef.current = 0;
+    // Anything still held when the call ends is written rather than lost.
+    flushCallerTurn();
     startedAtRef.current = 0;
     endedRef.current = true;
     // Hanging up during the ring must silence it, or the tone outlives the call it belonged to.
@@ -266,6 +285,15 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
     void api.lenaRealtime.saveTranscript(id, speaker, text).catch(() => undefined);
   }, [onTranscriptTurn]);
 
+  /** Joins whatever the caller has said into one message. Safe to call when nothing is pending. */
+  const flushCallerTurn = useCallback(() => {
+    if (callerFlushRef.current !== undefined) window.clearTimeout(callerFlushRef.current);
+    callerFlushRef.current = undefined;
+    const spoken = callerPartsRef.current.join(' ').replace(/\s+/g, ' ').trim();
+    callerPartsRef.current = [];
+    if (spoken) saveTurn('caller', spoken);
+  }, [saveTurn]);
+
   const handleEvent = useCallback((channel: RTCDataChannel, raw: string) => {
     let event: RealtimeEvent;
     try { event = JSON.parse(raw) as RealtimeEvent; } catch { return; }
@@ -292,9 +320,14 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
         const text = (event.transcript || '').trim();
         if (text) {
           setTurns((current) => [...current, { id: randomId(), speaker: 'caller', text }]);
-          onCallerTranscript?.(text);
           callerTurnsRef.current += 1;
-          saveTurn('caller', text);
+
+          // Held, not saved: a pause is not necessarily the end of a sentence. The draft shows the
+          // whole utterance as it builds, and the message is written once the caller really stops.
+          callerPartsRef.current.push(text);
+          onCallerTranscript?.(callerPartsRef.current.join(' ').replace(/\s+/g, ' ').trim());
+          if (callerFlushRef.current !== undefined) window.clearTimeout(callerFlushRef.current);
+          callerFlushRef.current = window.setTimeout(flushCallerTurn, CALLER_PAUSE_MS);
         }
         break;
       }
@@ -323,7 +356,7 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
       default:
         break;
     }
-  }, [handleToolCall, onCallerTranscript, onError, saveTurn]);
+  }, [flushCallerTurn, handleToolCall, onCallerTranscript, onError]);
 
   /**  is the thread the call actually ensured, which for a call placed from
    *  a blank chat did not exist when this hook was given its props. Minting against the stale prop
