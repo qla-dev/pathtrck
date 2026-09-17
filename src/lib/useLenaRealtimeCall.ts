@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../services/api';
 import { startCallRingback } from './callRingback';
+import { createCallAmbience } from './callAmbience';
 
 /** How long the caller hears it ring before Lena picks up - the length of the ring recording. */
 /**
@@ -107,6 +108,7 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
   /** Spoken turns from the caller so far. Zero means nobody has asked for anything yet. */
   const callerTurnsRef = useRef(0);
   const ringbackRef = useRef<(() => void) | null>(null);
+  const ambienceRef = useRef<ReturnType<typeof createCallAmbience> | null>(null);
   const startedAtRef = useRef(0);
   const [muted, setMuted] = useState(false);
   /** 0..1 microphone level, for the equaliser around the mic button. */
@@ -139,6 +141,8 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
     // Hanging up during the ring must silence it, or the tone outlives the call it belonged to.
     ringbackRef.current?.();
     ringbackRef.current = null;
+    ambienceRef.current?.stop();
+    ambienceRef.current = null;
     channelRef.current?.close();
     channelRef.current = null;
     connectionRef.current?.getSenders().forEach((sender) => sender.track?.stop());
@@ -306,6 +310,10 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
     // Ringing starts the instant the button is pressed, not when the handshake finishes, so the
     // wait the caller hears is the wait the call actually has.
     ringbackRef.current = startCallRingback();
+    // Fetched and decoded while the phone is still ringing, so the office is ready to fade in the
+    // moment she picks up rather than arriving late into a conversation already under way.
+    ambienceRef.current = createCallAmbience();
+    void ambienceRef.current.buffer();
     const ringingSince = Date.now();
 
     try {
@@ -380,6 +388,10 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
       ringbackRef.current?.();
       ringbackRef.current = null;
       if (endedRef.current) return;
+
+      // The office fades up as the ringing stops - the moment she is on the line. Not awaited: a
+      // loop that is still decoding must not hold up her greeting.
+      void ambienceRef.current?.play();
 
       // Nothing has been said yet, so the first turn has to be asked for: left alone the model
       // waits for the caller, and both sides sit in silence listening to each other. Waiting for
