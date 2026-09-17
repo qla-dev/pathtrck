@@ -123,6 +123,7 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
    */
   const callerPartsRef = useRef<string[]>([]);
   const callerFlushRef = useRef<number | undefined>(undefined);
+  const appliedSkillsRef = useRef('');
 
   const ringbackRef = useRef<(() => void) | null>(null);
   const ambienceRef = useRef<ReturnType<typeof createCallAmbience> | null>(null);
@@ -285,6 +286,28 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
     void api.lenaRealtime.saveTranscript(id, speaker, text).catch(() => undefined);
   }, [onTranscriptTurn]);
 
+  /**
+   * Gives the live session a task's skills without restarting the call.
+   *
+   * Sent as a system message rather than a session.update: updating instructions would mean
+   * replacing the whole prompt, and the browser has never been told what the base prompt is - it
+   * lives on the server and stays there. A system message adds to the conversation instead, which
+   * is what OpenAI recommends for additions and cannot strip away who she is mid-sentence.
+   */
+  const applyModeSkills = useCallback((instructions: string) => {
+    const channel = channelRef.current;
+    if (!channel || !instructions.trim() || instructions === appliedSkillsRef.current) return;
+    appliedSkillsRef.current = instructions;
+    send(channel, {
+      type: 'conversation.item.create',
+      item: {
+        type: 'message',
+        role: 'system',
+        content: [{ type: 'input_text', text: instructions }],
+      },
+    });
+    // No response.create: this is knowledge for the next turn, not something to announce.
+  }, []);
   /** Joins whatever the caller has said into one message. Safe to call when nothing is pending. */
   const flushCallerTurn = useCallback(() => {
     if (callerFlushRef.current !== undefined) window.clearTimeout(callerFlushRef.current);
@@ -483,5 +506,5 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
       return next;
     });
   }, []);
-  return { status, turns, consultingLena, lenaSpeaking, muted, inputLevel, toggleMute, notifyUserAction, start, stop };
+  return { status, turns, consultingLena, lenaSpeaking, muted, inputLevel, toggleMute, notifyUserAction, applyModeSkills, start, stop };
 };

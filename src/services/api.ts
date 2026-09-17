@@ -899,6 +899,11 @@ export const api = {
   lenaRealtime: {
     /** Whether this deployment has been given an OpenAI key, so the call button can be hidden. */
     status: async () => (await request<{ configured: boolean }>('/lena-realtime/status')).data.configured,
+    /** The skills behind a mode, so a live call can be given them the moment it enters one. */
+    modeSkills: async (mode: string) => (await request<{ mode: string; skills: string[]; instructions: string }>('/lena-realtime/mode-skills', {
+      method: 'POST',
+      body: JSON.stringify({ mode }),
+    })).data,
     /** One spoken turn, saved into the thread as it was actually said. Fire-and-forget by design. */
     saveTranscript: (conversationId: number, speaker: 'caller' | 'lena', text: string) =>
       request<{ saved: boolean }>('/lena-realtime/transcript', {

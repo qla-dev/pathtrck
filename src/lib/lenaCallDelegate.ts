@@ -43,6 +43,8 @@ export type LenaCallDelegateOptions = {
   onSkills?: (skills: string[]) => void;
   /** After a turn is saved and answered, so a thread open on screen can refresh itself. */
   onTurnComplete?: () => void;
+  /** Prompt text for a task's skills, to be pushed into the live realtime session. */
+  onModeSkills?: (instructions: string) => void;
   /** Called with the conversation id the first time a call creates one, so the caller can adopt it. */
   onConversationCreated?: (id: number) => void;
 };
@@ -55,6 +57,7 @@ export const createLenaCallDelegate = ({
   onConversationCreated,
   onSkills,
   onTurnComplete,
+  onModeSkills,
 }: LenaCallDelegateOptions) => {
   // Held across turns so a call creates at most one thread, no matter how much is asked.
   let activeConversationId = conversationId;
@@ -135,6 +138,17 @@ export const createLenaCallDelegate = ({
         + 'words, without looking anything up. Use this tool only when they ask for one of your '
         + 'tasks - posting a load, storage, tracking, booking, HS codes, or a legal question.';
     }
+
+      // Entering a task hands the voice that task's skills, live. A realtime session cannot pick
+      // skills per turn the way the text chat does - it gets one prompt when it is minted - but it
+      // can be reconfigured at any time, so the skills are pushed in the moment the mode opens.
+      // Without this she keeps answering out of her own head while the skill that does the job
+      // sits behind a button she has just pressed.
+      if (action) {
+        void api.lenaRealtime.modeSkills(action)
+          .then((loaded) => { if (loaded.instructions) onModeSkills?.(loaded.instructions); })
+          .catch(() => undefined);
+      }
 
     // Entering a task leaves free roam; picking free roam again returns to it.
     if (action) inFreeRoam = FREE_ROAM_ACTIONS.includes(action);

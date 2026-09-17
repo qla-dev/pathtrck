@@ -80,6 +80,8 @@ export const LenaCallOverlay = ({
   draftPanelLabel = 'Draft panel',
   usingSkillLabel = 'is using skill',
 }: LenaCallOverlayProps) => {
+  /** Set once the call hook exists, so the delegate can reach it without a forward reference. */
+  const modeSkillsRef = useRef<((instructions: string) => void) | null>(null);
   /** The skills the pending reply uses, named by the server; empty between turns. */
   const [skills, setSkills] = useState<string[]>([]);
 
@@ -88,12 +90,15 @@ export const LenaCallOverlay = ({
     () => createLenaCallDelegate({
       userId, companyId, lang, conversationId, onConversationCreated,
       onSkills: setSkills,
+      // Via a ref: the hook that owns this is created below, and the delegate is built during the
+      // same render, so naming it directly would read it before it exists.
+      onModeSkills: (instructions) => modeSkillsRef.current?.(instructions),
       onTurnComplete,
     }),
     [companyId, conversationId, lang, onConversationCreated, onTurnComplete, userId],
   );
 
-  const { status, consultingLena, lenaSpeaking, muted, inputLevel, toggleMute, notifyUserAction, start, stop } = useLenaRealtimeCall({
+  const { status, consultingLena, lenaSpeaking, muted, inputLevel, toggleMute, notifyUserAction, applyModeSkills, start, stop } = useLenaRealtimeCall({
     lang,
     conversationId,
     askLena: delegate.ask,
@@ -123,6 +128,8 @@ export const LenaCallOverlay = ({
       stop();
     }
   }, [delegate, open, start, stop]);
+
+  useEffect(() => { modeSkillsRef.current = applyModeSkills; }, [applyModeSkills]);
 
   // Published upward so a view can tell the call what the caller just did on screen.
   useEffect(() => { registerNotify?.(notifyUserAction); }, [notifyUserAction, registerNotify]);
