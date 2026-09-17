@@ -167,6 +167,22 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
     try { event = JSON.parse(raw) as RealtimeEvent; } catch { return; }
 
     switch (event.type) {
+      // Every finished response declares what it cost in tokens. Accumulated rather than sent per
+      // turn, so one call is one line on the AI stats screen.
+      case 'response.done': {
+        const usage = (event as { response?: { usage?: Record<string, unknown> } }).response?.usage;
+        if (usage) {
+          const input = (usage.input_token_details || {}) as Record<string, number>;
+          const output = (usage.output_token_details || {}) as Record<string, number>;
+          const current = usageRef.current;
+          current.audio_input += Number(input.audio_tokens || 0);
+          current.text_input += Number(input.text_tokens || 0);
+          current.cached_audio_input += Number(input.cached_tokens || 0);
+          current.audio_output += Number(output.audio_tokens || 0);
+          current.text_output += Number(output.text_tokens || 0);
+        }
+        break;
+      }
       // What the caller said, once the model has finished transcribing their turn.
       case 'conversation.item.input_audio_transcription.completed': {
         const text = (event.transcript || '').trim();
@@ -210,6 +226,8 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
     setStatus('connecting');
 
     try {
+      scopedIdRef.current = scopedConversationId ?? conversationId;
+      startedAtRef.current = Date.now();
       const session = await api.lenaRealtime.session(lang, scopedConversationId ?? conversationId);
       if (endedRef.current) return;
 

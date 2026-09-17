@@ -876,7 +876,7 @@ export const api = {
       signal,
     })).data.text,
     /** The skills the next reply uses, named in the interface language, for LenaAI's thinking indicator. */
-    /** Completes the call's log row once it ends; the realtime API only reports usage per response. */
+    skills: async (conversationId: number, lang?: string) => (await request<{ id: string; name: string }[]>('/dispatch-chat/skills', {
       method: 'POST',
       body: JSON.stringify({ conversation_id: conversationId, lang }),
     })).data ?? [],
