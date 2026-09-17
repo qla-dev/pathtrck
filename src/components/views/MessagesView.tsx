@@ -1,6 +1,6 @@
 import { lenaText, getLenaCatalog } from '../../lib/lenaCatalog';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Bot, LayoutGrid, MessageCircle, Pin, Plus, Sparkles, X } from 'lucide-react';
+import { Bot, LayoutGrid, MessageCircle, Phone, Pin, Plus, Sparkles, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Language } from '../../types';
 import { ui } from '../../i18n';
@@ -14,6 +14,7 @@ import { mapLoadStatus } from '../../lib/loadDetails';
 import { trPackageStatus } from '../../i18n';
 import { useLenaEmbeddedMessages } from '../lena/useLenaEmbeddedMessages';
 import { LenaLoadCanvas } from '../lena/LenaLoadCanvas';
+import { useLenaCall } from '../../lib/useLenaCall';
 import { buildScanFieldRows, ScanFieldPatch } from '../modals/scanFieldRows';
 import { analyzeLenaAttachments, archiveLenaAttachment, latestLoadScan, LENA_LOAD_FILE_ACCEPT, LenaAttachment, loadDraftRecordToScan, uploadLenaAttachments } from '../../lib/lenaLoadCanvas';
 import { LENA_AI_GENERAL_SUBJECT, LenaQuickAction, lenaConversationSubjectTitle, lenaQuickActionFromMessage, lenaQuickActionMarker, lenaTrainingActive } from '../../lib/useLenaAiChat';
@@ -209,6 +210,46 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
   // True while an approved training image is being drawn (the chat shows an image placeholder).
   const [generatingImage, setGeneratingImage] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
+  // A live call needs an OpenAI key, which a deployment may not have been given. Rather than let
+  // the button fail when pressed, it is not rendered at all until the server says it would work.
+  const [callAvailable, setCallAvailable] = useState(false);
+  // The call itself is hosted above the router (LenaCallProvider) so it survives navigating away;
+  // this view only asks for one and hands it the pieces that belong to this screen.
+  const lenaCall = useLenaCall();
+  const startLenaCall = () => lenaCall?.startCall({
+    lang,
+    userId: Number(user?.id),
+    companyId: Number.isFinite(Number(user?.companies?.[0]?.id)) ? Number(user?.companies?.[0]?.id) : undefined,
+    conversationId: Number.isFinite(Number(activeConversation.id)) ? Number(activeConversation.id) : undefined,
+    onConversationCreated: (id) => setActiveId(String(id)),
+    // Each spoken turn is saved as an ordinary message, so refreshing is what puts it on screen
+    // behind the call - and what lets the draft panel notice the load and open itself.
+    onTurnComplete: () => { void result.refresh(); },
+    onOpenDraftPanel: () => setCanvasPanelOpen(true),
+    onError: (error) => void showError(u('The call could not be completed.', 'The call could not be completed.'), error instanceof Error ? error.message : undefined),
+    titleLabel: u('Call with Lena', 'Call with Lena'),
+    connectingLabel: u('Connecting', 'Connecting'),
+    listeningLabel: u('Listening', 'Listening'),
+    speakingLabel: u('Lena is speaking', 'Lena is speaking'),
+    consultingLabel: u('Checking with Lena', 'Checking with Lena'),
+    hangUpLabel: u('Hang up', 'Hang up'),
+    emptyTranscriptLabel: u('Say something to start.', 'Say something to start.'),
+    callerLabel: u('You', 'You'),
+    muteLabel: u('Mute microphone', 'Mute microphone'),
+    unmuteLabel: u('Unmute microphone', 'Unmute microphone'),
+    minimiseLabel: u('Minimise call', 'Minimise call'),
+    restoreLabel: u('Back to call', 'Back to call'),
+    draftPanelLabel: u('Draft panel', 'Draft panel'),
+    usingSkillLabel: u('lena.usingSkillPhrase', 'is using skill'),
+  });
+  useEffect(() => {
+    let active = true;
+    void api.lenaRealtime.status()
+      .then((configured) => { if (active) setCallAvailable(configured); })
+      // An unreachable status check is not worth an error to the user; it just leaves calling off.
+      .catch(() => { if (active) setCallAvailable(false); });
+    return () => { active = false; };
+  }, []);
   // The reply in flight, for the thinking indicator (see lenaThinkingTimeline.ts).
   const [thinkingTimeline, setThinkingTimeline] = useState<LenaThinkingTimeline | null>(null);
   const [messageSending, setMessageSending] = useState(false);
@@ -465,6 +506,8 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     quickActionLabels,
     canUseTraining,
     onQuickAction: (action) => { setVoiceMode(false); void sendQuickMessage(lenaQuickActionMarker(action), quickActionLabels[action]); },
+    onCallLena: callAvailable ? () => { setVoiceMode(false); startLenaCall(); } : undefined,
+    callLenaLabel: u('Call Lena', 'Call Lena'),
     onSuggestedReply: (value, displayText) => { setVoiceMode(false); void sendQuickMessage(value, displayText); },
     onStepAnswer: (step, value, displayText) => { setVoiceMode(false); void sendGuidedAnswerValue(step, value, displayText); },
     onSuggestedDraftChange: setDraft,
@@ -940,6 +983,16 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
             }}
             headerActionsLeading={(
               <>
+                {callAvailable && <button
+                  type="button"
+                  onClick={() => { setVoiceMode(false); startLenaCall(); }}
+                  aria-label={u('Call Lena', 'Call Lena')}
+                  title={showCanvas ? u('Call Lena', 'Call Lena') : undefined}
+                  className={`flex h-9 cursor-pointer items-center gap-2 rounded-full border border-slate-200 bg-slate-100 text-xs font-bold text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 ${showCanvas ? 'w-9 justify-center px-0' : 'px-3'}`}
+                >
+                  <Phone className="h-4 w-4" />
+                  {!showCanvas && u('Call Lena', 'Call Lena')}
+                </button>}
                 <button
                   type="button"
                   onClick={() => void handleNewConversation()}

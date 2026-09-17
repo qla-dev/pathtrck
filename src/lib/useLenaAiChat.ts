@@ -565,5 +565,5 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
 
   const loadDraftId = row?.load_draft_id ? String(row.load_draft_id) : null;
 
-  return { generatingImage, trainingActive, outOfTokens, tokenResetAt, tokenPackageIcon, tokenPackageColor, conversation, conversationEntryKey: entryAnimationKey, conversationLoading: result.loading, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, hasActiveConversation: Boolean(row), canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId, documentsVersion, thinkingTimeline };
+  return { generatingImage, trainingActive, outOfTokens, tokenResetAt, tokenPackageIcon, tokenPackageColor, conversation, conversationEntryKey: entryAnimationKey, conversationLoading: result.loading, refresh: result.refresh, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, hasActiveConversation: Boolean(row), canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId, documentsVersion, thinkingTimeline };
 };

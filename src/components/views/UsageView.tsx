@@ -8,6 +8,8 @@ import {
   Gauge,
   MessageSquare,
   Mic,
+  AudioLines,
+  Phone,
   ScanSearch,
   FileText,
   Layers,
@@ -45,6 +47,10 @@ const SERVICE_ICONS: Record<string, typeof MessageSquare> = {
   load_scan_text: FileText,
   bulk_scan: Layers,
   bulk_scan_text: Layers,
+  // Whisper (via OpenRouter) and the OpenAI realtime call are separate services with separate
+  // bills; they must never collapse into one "voice" row on this screen.
+  transcription: AudioLines,
+  realtime_session: Phone,
 };
 
 // guided_answer replies are free/deterministic and always log 0 real tokens - superadmin sees a

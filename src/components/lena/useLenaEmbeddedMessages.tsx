@@ -3,7 +3,7 @@ import { lenaIcon } from '../../lib/lenaIcons';
 import { latestLoadScan } from '../../lib/lenaLoadCanvas';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { CheckCircle2, Clock3, ExternalLink, FileSearch, FileText, FileUp, GraduationCap, ImagePlus, MapPinned, MessageCircle, Package, ReceiptText, Scale, Search, Warehouse, type LucideIcon } from 'lucide-react';
+import { CheckCircle2, Clock3, ExternalLink, FileSearch, FileText, FileUp, GraduationCap, ImagePlus, MapPinned, MessageCircle, Package, Phone, ReceiptText, Scale, Search, Warehouse, type LucideIcon } from 'lucide-react';
 
 import { API_BASE_URL, api } from '../../services/api';
 import { Language } from '../../types';
@@ -169,6 +169,9 @@ type UseLenaEmbeddedMessagesOptions = {
   onBookLoad?: (loadId?: string) => void | Promise<void>;
   quickActionLabels?: Record<LenaQuickAction, string>;
   onQuickAction?: (action: LenaQuickAction) => void;
+  /** Offers a live call as the first welcome option. Omitted where calling is not configured. */
+  onCallLena?: () => void;
+  callLenaLabel?: string;
   onSuggestedReply?: (value: string, displayText?: string) => void;
   onSuggestedDraftChange?: (value: string) => void;
   onLoadReady?: () => void;
@@ -197,6 +200,8 @@ export const useLenaEmbeddedMessages = ({
   onBookLoad,
   quickActionLabels,
   onQuickAction,
+  onCallLena,
+  callLenaLabel,
   onSuggestedReply,
   onSuggestedDraftChange,
   onLoadReady,
@@ -299,6 +304,8 @@ export const useLenaEmbeddedMessages = ({
     })),
     [messages, canUseTraining]
   );
+  // The call chip belongs to the welcome only, not to every later prompt that offers options.
+  const welcomeMessageId = messages[0]?.id;
   // The conversation picker: shown under LenaAI's latest message when it asks the admin to choose
   // another conversation to reference. The list is theirs, newest first, and searches by subject.
   const conversationPickMessageId = useMemo(() => {
@@ -499,6 +506,11 @@ export const useLenaEmbeddedMessages = ({
         )}
         {quickActions.length > 0 && quickActionLabels && onQuickAction && (
           <div className="flex flex-wrap gap-2">
+            {onCallLena && welcomeMessageId === message.id && (
+              <button type="button" onClick={onCallLena} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-primary/20 bg-white px-3 py-1.5 text-xs font-bold text-primary shadow-sm transition-colors hover:border-primary hover:bg-primary hover:text-white dark:bg-slate-900">
+                <Phone className="h-3.5 w-3.5" />{callLenaLabel}
+              </button>
+            )}
             {quickActions.map((action) => {
               const Icon = action === 'add' || action === 'legal_upload_load' ? FileUp : action === 'storage' ? Warehouse : action === 'tracking' ? MapPinned : action === 'booking' ? ReceiptText : action === 'free' ? MessageCircle : action === 'legal' ? Scale : action === 'training' ? GraduationCap : action === 'training_image_yes' ? ImagePlus : FileSearch;
               return <button key={action} type="button" onClick={() => onQuickAction(action)} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-primary/20 bg-white px-3 py-1.5 text-xs font-bold text-primary shadow-sm transition-colors hover:border-primary hover:bg-primary hover:text-white dark:bg-slate-900">
@@ -534,7 +546,7 @@ export const useLenaEmbeddedMessages = ({
         )}
       </div>
     );
-  }, [legalChoiceIds, bookingOffers, resolvedEmbeddedLoads, fallbackLoadId, lang, loadDetailCards, loadLocationCards, loadMapCards, loadReadyMessageIds, loadStatusCards, locationChoiceByMessage, onBookLoad, onLoadReady, onOpenLoad, onQuickAction, onStepAnswer, onSuggestedDraftChange, onSuggestedReply, onTopUp, onUpgrade, outOfTokensMessageIds, outOfTokensPackageColor, outOfTokensPackageIcon, outOfTokensResetAt, questionnaireSuggestionsByMessage, quickActionLabels, quickActionsByMessage, conversationPickMessageId, conversationPickGroup]);
+  }, [legalChoiceIds, bookingOffers, resolvedEmbeddedLoads, fallbackLoadId, lang, loadDetailCards, loadLocationCards, loadMapCards, loadReadyMessageIds, loadStatusCards, locationChoiceByMessage, onBookLoad, onLoadReady, onOpenLoad, onCallLena, callLenaLabel, welcomeMessageId, onQuickAction, onStepAnswer, onSuggestedDraftChange, onSuggestedReply, onTopUp, onUpgrade, outOfTokensMessageIds, outOfTokensPackageColor, outOfTokensPackageIcon, outOfTokensResetAt, questionnaireSuggestionsByMessage, quickActionLabels, quickActionsByMessage, conversationPickMessageId, conversationPickGroup]);
 
   // The cited laws are part of the answer, not a card attached under it, so this renders inside the
   // message bubble above the hover timestamp rather than in renderMessageExtra below it.

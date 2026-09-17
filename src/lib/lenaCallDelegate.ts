@@ -29,6 +29,10 @@ export type LenaCallDelegateOptions = {
   lang: string;
   /** The thread the call belongs to, when one already exists. */
   conversationId?: number;
+  /** Names the skills the pending reply will use, so the call can say what it is waiting on. */
+  onSkills?: (skills: string[]) => void;
+  /** After a turn is saved and answered, so a thread open on screen can refresh itself. */
+  onTurnComplete?: () => void;
   /** Called with the conversation id the first time a call creates one, so the caller can adopt it. */
   onConversationCreated?: (id: number) => void;
 };
@@ -39,6 +43,8 @@ export const createLenaCallDelegate = ({
   lang,
   conversationId,
   onConversationCreated,
+  onSkills,
+  onTurnComplete,
 }: LenaCallDelegateOptions) => {
   // Held across turns so a call creates at most one thread, no matter how much is asked.
   let activeConversationId = conversationId;
@@ -58,22 +64,33 @@ export const createLenaCallDelegate = ({
     return activeConversationId;
   };
 
-  return async (question: string): Promise<string> => {
+  const ask = async (question: string, action?: string): Promise<string> => {
     const id = await ensureConversation();
 
     await api.messages.create({
       conversation_id: id,
       sender_user_id: userId,
-      body: question,
+      // A button press goes in as the marker the text chat uses, so the backend switches mode and
+      // creates the draft exactly as a tap does - a narrated description would only talk about it.
+      body: action ? `[[LENA_ACTION:${action}]]` : question,
       sent_at: localTimestampForApi(),
     });
 
     // 'voice' is what the existing billing and usage reporting already use to price a spoken turn
     // at two units instead of one - a call is charged exactly like any other voice reply.
+    // Fetched alongside the reply rather than before it: naming the skill is worth doing, but not
+    // worth making the caller wait through a second round trip before Lena answers.
+    if (onSkills) void api.dispatchChat.skills(id, lang).then((rows) => onSkills(rows.map((row) => row.name))).catch(() => undefined);
+
     const reply = await api.dispatchChat.reply(id, lang, 'voice');
+    onSkills?.([]);
+    onTurnComplete?.();
     const spoken = stripChatMarkers(String((reply as { body?: unknown })?.body ?? ''));
 
     // An empty reply would leave the model with nothing to say and the caller with silence.
     return spoken || 'Lena had no answer for that. Ask the caller to put it a different way.';
   };
+  // Exposed so a call can create its thread the moment it is placed, rather than only when the
+  // model first delegates a question - otherwise a call that is pure conversation leaves nothing behind.
+  return { ask, ensureConversation };
 };

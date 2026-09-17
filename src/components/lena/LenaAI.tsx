@@ -13,7 +13,7 @@ import { useLenaAiChat } from '../../lib/useLenaAiChat';
 import { useLenaEmbeddedMessages } from './useLenaEmbeddedMessages';
 import { lenaStepInputMask } from '../../lib/lenaStepInputMask';
 import { LenaLoadCanvas } from './LenaLoadCanvas';
-import { LenaCallOverlay } from './LenaCallOverlay';
+import { useLenaCall } from '../../lib/useLenaCall';
 import { LENA_LOAD_FILE_ACCEPT, LenaCanvasMode, latestLoadScan } from '../../lib/lenaLoadCanvas';
 import { buildScanFieldRows, ScanFieldPatch } from '../modals/scanFieldRows';
 import { api, BulkLoadRow, type PublicTrackingSummary } from '../../services/api';
@@ -235,7 +235,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [open, onClose]);
 
-  const { tokenResetAt, tokenPackageIcon, tokenPackageColor, conversation, conversationEntryKey, conversationLoading, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId, documentsVersion, thinkingTimeline, generatingImage } = useLenaAiChat({
+  const { refresh: refreshConversation, tokenResetAt, tokenPackageIcon, tokenPackageColor, conversation, conversationEntryKey, conversationLoading, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId, documentsVersion, thinkingTimeline, generatingImage } = useLenaAiChat({
     userId,
     companyIds,
     loadId,
@@ -255,10 +255,36 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
   const [canvasPanelOpen, setCanvasPanelOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
-  const [callOpen, setCallOpen] = useState(false);
   // A live call needs an OpenAI key, which a deployment may not have been given. Rather than let
   // the button fail when pressed, it is not rendered at all until the server says it would work.
   const [callAvailable, setCallAvailable] = useState(false);
+  // Hosted above the router by LenaCallProvider, so minimising the call and walking to another
+  // screen does not hang it up. This view only asks for one.
+  const lenaCall = useLenaCall();
+  const startLenaCall = () => lenaCall?.startCall({
+    lang,
+    userId: Number(userId),
+    companyId: companyIds?.[0],
+    conversationId: Number.isFinite(Number(conversation.id)) ? Number(conversation.id) : undefined,
+    onConversationCreated: (id) => selectConversation(String(id)),
+    onTurnComplete: () => { void refreshConversation(); },
+    onOpenDraftPanel: () => setCanvasPanelOpen(true),
+    onError: (error) => void showError(u('The call could not be completed.', 'The call could not be completed.'), error instanceof Error ? error.message : undefined),
+    titleLabel: u('Call with Lena', 'Call with Lena'),
+    connectingLabel: u('Connecting', 'Connecting'),
+    listeningLabel: u('Listening', 'Listening'),
+    speakingLabel: u('Lena is speaking', 'Lena is speaking'),
+    consultingLabel: u('Checking with Lena', 'Checking with Lena'),
+    hangUpLabel: u('Hang up', 'Hang up'),
+    emptyTranscriptLabel: u('Say something to start.', 'Say something to start.'),
+    callerLabel: u('You', 'You'),
+    muteLabel: u('Mute microphone', 'Mute microphone'),
+    unmuteLabel: u('Unmute microphone', 'Unmute microphone'),
+    minimiseLabel: u('Minimise call', 'Minimise call'),
+    restoreLabel: u('Back to call', 'Back to call'),
+    draftPanelLabel: u('Draft panel', 'Draft panel'),
+    usingSkillLabel: u('lena.usingSkillPhrase', 'is using skill'),
+  });
   useEffect(() => {
     if (!open) return;
     let active = true;
@@ -305,6 +331,8 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
     quickActionLabels,
     canUseTraining,
     onQuickAction: (action) => { setVoiceMode(false); void sendQuickAction(action); },
+    onCallLena: callAvailable ? () => { setVoiceMode(false); startLenaCall(); } : undefined,
+    callLenaLabel: u('Call Lena', 'Call Lena'),
     onSuggestedReply: (value, displayText) => { setVoiceMode(false); void sendSuggestedReply(value, displayText); },
     onStepAnswer: (step, value, displayText) => { setVoiceMode(false); void sendGuidedAnswer(step, value, displayText); },
     onSuggestedDraftChange: setDraft,
@@ -473,7 +501,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
                   <div className="flex shrink-0 items-center gap-2">
                   {callAvailable && <button
                     type="button"
-                    onClick={() => { setVoiceMode(false); setCallOpen(true); }}
+                    onClick={() => { setVoiceMode(false); startLenaCall(); }}
                     aria-label={u('Call Lena', 'Call Lena')}
                     title={showCanvas || sideBarMode ? u('Call Lena', 'Call Lena') : undefined}
                     className={`flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-slate-100 text-xs font-bold text-slate-600 transition-all hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 cursor-pointer ${showCanvas || sideBarMode ? 'w-10 justify-center px-0' : 'px-3'}`}
@@ -538,24 +566,6 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
     </AnimatePresence>
     {/* Outside the AnimatePresence above so that hanging up does not depend on the chat panel's
         own exit animation, and so the call survives the draft panel opening underneath it. */}
-    <LenaCallOverlay
-      open={callOpen}
-      onClose={() => setCallOpen(false)}
-      lang={lang}
-      userId={Number(userId)}
-      companyId={companyIds?.[0]}
-      conversationId={Number.isFinite(Number(conversation.id)) ? Number(conversation.id) : undefined}
-      onConversationCreated={(id) => selectConversation(String(id))}
-      onError={(error) => void showError(u('The call could not be completed.', 'The call could not be completed.'), error instanceof Error ? error.message : undefined)}
-      titleLabel={u('Call with Lena', 'Call with Lena')}
-      connectingLabel={u('Connecting', 'Connecting')}
-      listeningLabel={u('Listening', 'Listening')}
-      speakingLabel={u('Lena is speaking', 'Lena is speaking')}
-      consultingLabel={u('Checking with Lena', 'Checking with Lena')}
-      hangUpLabel={u('Hang up', 'Hang up')}
-      emptyTranscriptLabel={u('Say something to start.', 'Say something to start.')}
-      callerLabel={u('You', 'You')}
-    />
     </>,
     portalRoot
   );

@@ -1,5 +1,6 @@
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
+import { LenaCallProvider } from './lib/useLenaCall';
 import 'flatpickr/dist/flatpickr.min.css';
 import { api } from './services/api';
 import { installLenaCatalog } from './lib/lenaCatalog';
@@ -65,7 +66,8 @@ if (window.location.protocol === 'file:') {
       }
       // Option imports are evaluated only after the server-owned catalog is installed.
       const { default: App } = await import('./App.tsx');
-      root.render(<StrictMode><App /></StrictMode>);
+      // Above App, so a live call survives every navigation App can perform.
+      root.render(<StrictMode><LenaCallProvider><App /></LenaCallProvider></StrictMode>);
     } catch {
       root.render(<BootScreen onRetry={() => void start()} />);
     }

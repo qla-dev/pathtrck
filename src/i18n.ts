@@ -739,6 +739,8 @@ const UI_EN: Record<string, string> = {
   'usage.service.load_scan_text': 'Text-to-Load Parsing',
   'usage.service.bulk_scan': 'Bulk Import Scanning',
   'usage.service.bulk_scan_text': 'Bulk Text Import',
+  'usage.service.transcription': 'Voice Transcription (Whisper)',
+  'usage.service.realtime_session': 'Live Call (OpenAI Realtime)',
 
   'payments.quickTopup': 'Quick Top-up',
   'payments.paymentHistory': 'Payment History',
@@ -989,6 +991,8 @@ const UI: Record<Locale, Record<string, string>> = {
     'usage.service.load_scan_text': 'Prepoznavanje tereta iz teksta',
     'usage.service.bulk_scan': 'Skeniranje grupnog uvoza',
     'usage.service.bulk_scan_text': 'Grupni uvoz iz teksta',
+    'usage.service.transcription': 'Prepoznavanje govora (Whisper)',
+    'usage.service.realtime_session': 'Živi poziv (OpenAI Realtime)',
 
     'payments.quickTopup': 'Brza dopuna',
     'payments.paymentHistory': 'Historija plaćanja',
@@ -1767,6 +1771,8 @@ const UI: Record<Locale, Record<string, string>> = {
     'usage.service.load_scan_text': 'Text-zu-Ladung-Erkennung',
     'usage.service.bulk_scan': 'Massenimport-Scan',
     'usage.service.bulk_scan_text': 'Massenimport aus Text',
+    'usage.service.transcription': 'Spracherkennung (Whisper)',
+    'usage.service.realtime_session': 'Live-Anruf (OpenAI Realtime)',
 
     'payments.quickTopup': 'Schnelle Aufladung',
     'payments.paymentHistory': 'Zahlungsverlauf',

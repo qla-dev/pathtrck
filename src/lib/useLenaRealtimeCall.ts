@@ -38,7 +38,7 @@ type UseLenaRealtimeCallOptions = {
    * Runs one delegated question through the real Lena and resolves with her reply. Supplied by
    * whoever owns the chat, so a call and the visible thread stay the same conversation.
    */
-  askLena: (question: string) => Promise<string>;
+  askLena: (question: string, action?: string) => Promise<string>;
   onError: (error: unknown) => void;
 };
 
@@ -61,6 +61,12 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onError }: 
   const [consultingLena, setConsultingLena] = useState(false);
   /** True while Lena is speaking, for the on-screen indicator. */
   const [lenaSpeaking, setLenaSpeaking] = useState(false);
+  /** Mic muted by the caller. The track stays in the connection; only its audio stops flowing. */
+  const [muted, setMuted] = useState(false);
+  /** 0..1 microphone level, for the equaliser around the mic button. */
+  const [inputLevel, setInputLevel] = useState(0);
+  const levelContextRef = useRef<AudioContext | null>(null);
+  const levelFrameRef = useRef<number | undefined>(undefined);
 
   const connectionRef = useRef<RTCPeerConnection | null>(null);
   const channelRef = useRef<RTCDataChannel | null>(null);
@@ -83,6 +89,13 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onError }: 
       audioRef.current.srcObject = null;
       audioRef.current = null;
     }
+    if (levelFrameRef.current !== undefined) cancelAnimationFrame(levelFrameRef.current);
+    levelFrameRef.current = undefined;
+    // Safari throws when a context is closed twice; a failed close must not break hanging up.
+    void levelContextRef.current?.close().catch(() => undefined);
+    levelContextRef.current = null;
+    setInputLevel(0);
+    setMuted(false);
     setConsultingLena(false);
     setLenaSpeaking(false);
     setStatus('idle');
@@ -102,11 +115,15 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onError }: 
     let output: string;
     setConsultingLena(true);
     try {
-      const parsed = JSON.parse(event.arguments || '{}') as { question?: string };
+      const parsed = JSON.parse(event.arguments || '{}') as { question?: string; action?: string };
       const question = String(parsed.question || '').trim();
+      const action = String(parsed.action || '').trim() || undefined;
       // The model is told to always fill this in; an empty one means it called the tool by mistake,
       // and saying so is better than sending Lena an empty message that starts a pointless turn.
-      output = question ? await askLena(question) : 'No question was provided. Ask the caller what they need.';
+      // An action is a button press and carries no question of its own, so either one is enough.
+      output = question || action
+        ? await askLena(question, action)
+        : 'No question was provided. Ask the caller what they need.';
     } catch (error) {
       onError(error);
       // The result must still go back, or the model waits for a tool answer that never arrives and
@@ -176,6 +193,28 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onError }: 
       if (endedRef.current) { stream.getTracks().forEach((track) => track.stop()); return; }
       streamRef.current = stream;
 
+      // Metering runs on its own branch of the same stream, so nothing here can disturb what is
+      // actually sent to OpenAI. Muting stops the level too, because the track stops producing.
+      try {
+        const levelContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+        levelContextRef.current = levelContext;
+        const analyser = levelContext.createAnalyser();
+        analyser.fftSize = 1024;
+        levelContext.createMediaStreamSource(stream).connect(analyser);
+        const samples = new Float32Array(analyser.fftSize);
+        const tick = () => {
+          if (endedRef.current) return;
+          analyser.getFloatTimeDomainData(samples);
+          let sum = 0;
+          for (let index = 0; index < samples.length; index += 1) sum += samples[index] * samples[index];
+          setInputLevel(Math.min(1, Math.sqrt(sum / samples.length) * 8));
+          levelFrameRef.current = requestAnimationFrame(tick);
+        };
+        levelFrameRef.current = requestAnimationFrame(tick);
+      } catch {
+        // A browser without Web Audio still gets a working call, just a static mic button.
+      }
+
       const connection = new RTCPeerConnection();
       connectionRef.current = connection;
 
@@ -211,5 +250,14 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onError }: 
     }
   }, [conversationId, handleEvent, lang, onError, status, stop]);
 
-  return { status, turns, consultingLena, lenaSpeaking, start, stop };
+
+  /** Flipping `enabled` keeps the sender in place, so unmuting resumes without renegotiating. */
+  const toggleMute = useCallback(() => {
+    setMuted((current) => {
+      const next = !current;
+      streamRef.current?.getAudioTracks().forEach((track) => { track.enabled = !next; });
+      return next;
+    });
+  }, []);
+  return { status, turns, consultingLena, lenaSpeaking, muted, inputLevel, toggleMute, start, stop };
 };
