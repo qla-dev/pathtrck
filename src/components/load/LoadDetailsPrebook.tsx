@@ -10,7 +10,6 @@ import {
   ClipboardCheck,
   ChevronRight,
   Coins,
-  FileText,
   Handshake,
   Hash,
   Map as MapIcon,
@@ -63,7 +62,7 @@ import { CounterOfferReviewModal } from './CounterOfferReviewModal';
 import { LoadAssignmentModal } from './LoadAssignmentModal';
 import { LoadBidModal } from './LoadBidModal';
 import { WarehouseBidModal, seedWarehouseDraft } from './WarehouseBidModal';
-import { LoadOffersPanel } from './LoadOffersPanel';
+import { LoadOffersModal } from './LoadOffersModal';
 import type { OfferStatus } from './OfferStatusPicker';
 import { CustomsDocumentList } from './CustomsDocumentList';
 import { WarehouseReceiveButton } from '../views/WarehouseReceiveButton';
@@ -530,6 +529,8 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
     ? u(`booking.status.${load.bookingStatus}`, load.bookingStatus.replaceAll('_', ' ').replace(/^./, (letter) => letter.toUpperCase()))
     : null;
 
+  // Only the load's own customer and an admin decide on offers, so only they get the offers button.
+  const canViewOffers = role === 'superadmin' || (userId != null && load.customerUserId === userId);
   const offerCurrency = load.price.split(' ')[0] || 'EUR';
   const bidState = getBidState(offers, userId, load.budget);
   const myOffer = bidState.myOffer;
@@ -658,26 +659,30 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
               </h2>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              {role === 'superadmin' && (
+              {canViewOffers && (
                 <>
                   <button
                     type="button"
-                    onClick={() => setBodyView((current) => current === 'details' ? 'offers' : 'details')}
+                    onClick={() => setOffersOpen(true)}
                     className="relative hidden h-10 w-40 cursor-pointer items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 text-xs font-bold text-primary transition-all hover:bg-primary/10 sm:inline-flex"
                   >
-                    {bodyView === 'offers' ? <FileText className="h-4 w-4 shrink-0" /> : <UsersRound className="h-4 w-4 shrink-0" />}
-                    <span>{bodyView === 'offers' ? u('View details', 'View details') : u('View offers', 'View offers')}</span>
-                    {bodyView === 'details' && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-black text-white">{offers.length}</span>}
+                    <UsersRound className="h-4 w-4 shrink-0" />
+                    <span>{u('View offers', 'View offers')}</span>
+                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-black text-white">{offers.length}</span>
                   </button>
                   <button
                     type="button"
-                    onClick={() => setBodyView((current) => current === 'details' ? 'offers' : 'details')}
-                    aria-label={bodyView === 'offers' ? u('View details', 'View details') : u('View offers', 'View offers')}
+                    onClick={() => setOffersOpen(true)}
+                    aria-label={u('View offers', 'View offers')}
                     className="relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-primary/30 bg-primary/5 text-primary transition-all hover:bg-primary/10 sm:hidden"
                   >
-                    {bodyView === 'offers' ? <FileText className="h-5 w-5" /> : <UsersRound className="h-5 w-5" />}
-                    {bodyView === 'details' && <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-black text-white">{offers.length}</span>}
+                    <UsersRound className="h-5 w-5" />
+                    <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-black text-white">{offers.length}</span>
                   </button>
+                </>
+              )}
+              {role === 'superadmin' && (
+                <>
                   <button
                     type="button"
                     onClick={() => onEdit?.(load)}
@@ -744,23 +749,6 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
           </div>
 
           <div className="flex-1 overflow-y-auto p-3 md:p-5">
-            {(role === 'superadmin' || (userId != null && load.customerUserId === userId)) && bodyView === 'offers' ? (
-              <LoadOffersPanel
-                lang={lang}
-                load={load}
-                offers={offers}
-                loading={offersLoading}
-                actionMessage={actionMessage}
-                userId={userId}
-                role={role}
-                onApprove={(offer) => void approveOffer(offer)}
-                onReject={(offer) => void rejectOffer(offer)}
-                onChangeStatus={(offer, status) => void changeOfferStatus(offer, status)}
-                changingStatusOfferId={changingStatusOfferId}
-                onSendCounter={sendCounterOffer}
-                onBack={() => setBodyView('details')}
-              />
-            ) : (
             <div className="mx-auto max-w-[1440px] space-y-3">
               <div className="grid xl:grid-cols-12 gap-4">
                 <div className="xl:col-span-8">
@@ -871,7 +859,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                       </Button>
                       <Button
                         className="h-11 w-full rounded-xl shadow-lg shadow-primary/20"
-                        onClick={() => setBodyView('offers')}
+                        onClick={() => setOffersOpen(true)}
                       >
                         <UsersRound className="mr-2 h-4 w-4" />
                         {u('offers.view', 'View offers')}
@@ -1135,10 +1123,28 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                 </div>
               </div>
             </div>
-            )}
           </div>
         </motion.div>
       </div>
+
+      {canViewOffers && (
+        <LoadOffersModal
+          open={offersOpen}
+          lang={lang}
+          load={load}
+          offers={offers}
+          loading={offersLoading}
+          actionMessage={actionMessage}
+          userId={userId}
+          role={role}
+          onApprove={(offer) => void approveOffer(offer)}
+          onReject={(offer) => void rejectOffer(offer)}
+          onChangeStatus={(offer, status) => void changeOfferStatus(offer, status)}
+          changingStatusOfferId={changingStatusOfferId}
+          onSendCounter={sendCounterOffer}
+          onClose={() => setOffersOpen(false)}
+        />
+      )}
 
       {(isCompanyOperationsRole(role) || role === 'superadmin') && (
         <LoadAssignmentModal
