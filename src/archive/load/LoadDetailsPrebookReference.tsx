@@ -1,3 +1,6 @@
+// Archived: the compact prebook detail layout HomeFeed used for a while. HomeFeed is back on
+// LoadDetailsPrebook (components/load/LoadDetailsPrebook.tsx); this file is kept for reference
+// only and is not imported anywhere.
 import { useMemo, useState } from 'react';
 import { Hash, MapPin, Package, Phone, Truck, X } from 'lucide-react';
 import { MapContainer, Marker, Polyline, TileLayer } from 'react-leaflet';
@@ -6,8 +9,8 @@ import { ui } from '../../i18n';
 import { api } from '../../services/api';
 import { confirmAction, showError, showSuccess } from '../../lib/swal';
 import { estimateLoadDistanceKm, getPlaceCoord } from '../../lib/loadGeo';
-import { CustomsDocumentList } from './CustomsDocumentList';
-import { RouteMapModal } from '../maps/RouteMapModal';
+import { CustomsDocumentList } from '../../components/load/CustomsDocumentList';
+import { RouteMapModal } from '../../components/maps/RouteMapModal';
 
 type Props = { open: boolean; load: Load | null; onClose: () => void; lang: Language; role?: Role; userId?: number; companyIds?: number[]; onEdit?: (load: Load) => void; onChanged?: () => void; onOperationsOpen?: (workspaceId: number, loadId: string) => void; warehouseMovementId?: string | null; onWarehouseMovementChanged?: () => void };
 const text = (item: unknown, fallback = '-') => item == null || item === '' ? fallback : String(item);
