@@ -250,7 +250,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
   const [bookingDriverId, setBookingDriverId] = useState('');
   const [bookingCompanyId, setBookingCompanyId] = useState('');
   const [assignmentOpen, setAssignmentOpen] = useState(false);
-  const [bodyView, setBodyView] = useState<'details' | 'offers'>('details');
+  const [offersOpen, setOffersOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   // A storage request is bid on with capacity rather than with a truck, so it gets its own form
   // and its own payload - everything below that touches offers branches on this.
@@ -283,7 +283,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
     setBookingDriverId('');
     setBookingCompanyId('');
     setAssignmentOpen(false);
-    setBodyView('details');
+    setOffersOpen(false);
     setOffers(load?.offers ?? []);
   }, [open, load?.id]);
 
@@ -597,7 +597,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
     </div>
   );
   const openBidModal = () => {
-    if (userId != null && load.customerUserId === userId) { setBodyView('offers'); return; }
+    if (userId != null && load.customerUserId === userId) { setOffersOpen(true); return; }
     if (myOffer) {
       setOfferDraft(offerDraftFromRecord(myOffer, { loadId: String(load.id), currency: offerCurrency }));
     } else {
