@@ -1,4 +1,3 @@
-import { LenaGuestConversations } from './LenaGuestConversations';
 import { useEffect, useMemo, useState } from 'react';
 import { Activity, AlertTriangle, Box, Building2, Check, Crown, FileClock, Gauge, MapPin, PackageCheck, ReceiptText, ShieldCheck, Truck, Users, Warehouse } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -166,7 +165,6 @@ export const AdminOverviewView = ({ lang }: { lang: Language }) => {
   }, [invoices.items, pendingWarehouses, vehicles.items, warehouseRows]);
 
   return <div className="mx-auto max-w-[1920px] space-y-3 text-slate-800 dark:text-slate-100">
-    <LenaGuestConversations lang={lang} />
     <section className="flex items-center justify-between gap-3 rounded-2xl border border-sky-100 bg-gradient-to-r from-white to-sky-50 px-4 py-3 dark:border-slate-800 dark:from-slate-900 dark:to-sky-950"><div className="flex min-w-0 items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-white"><Crown className="h-4 w-4" /></span><div className="min-w-0"><h1 className="truncate text-base font-black">{t.title}</h1><p className="truncate text-[10px] text-slate-500">{t.subtitle}</p></div></div><span className="flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-[9px] font-black text-emerald-600 dark:bg-slate-900"><ShieldCheck className="h-3 w-3" />{t.connected}</span></section>
     <section className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-8">{metrics.map(([label, value, icon, tone]) => <Metric key={label} label={label} value={value} icon={icon} tone={tone} />)}</section>
     <section className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">{operations.map(([label, value, icon, tone]) => <Metric key={label} label={label} value={value} icon={icon} tone={tone} />)}</section>

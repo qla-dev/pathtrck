@@ -149,7 +149,8 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     const action = isAiDispatch ? lenaQuickActionFromMessage(body) : undefined;
     return {
       id: isDraftCreatedMessageBody(body) ? `welcome-draft-${message.id}` : String(message.id),
-      sender: Number(message.sender_user_id) === user?.id ? 'me' : 'other',
+      sender: Number(message.sender_user_id) === user?.id
+        || (isAiDispatch && String((message.sender as Record<string, unknown> | undefined)?.username || '').startsWith('lena_guest_')) ? 'me' : 'other',
       text: action ? quickActionLabels[action] : body,
       time: formatClockTime(message.sent_at || message.created_at),
       attachments: Array.isArray(message.attachments) ? message.attachments as LenaAttachment[] : undefined,
