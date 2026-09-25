@@ -1,3 +1,4 @@
+import type { ApiClient } from '../../services/api';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Loader2, Mic, MicOff, PhoneOff, Sparkles } from 'lucide-react';
@@ -23,6 +24,7 @@ import { useLenaRealtimeCall } from '../../lib/useLenaRealtimeCall';
  */
 
 type LenaCallOverlayProps = {
+  client?: ApiClient;
   open: boolean;
   onClose: () => void;
   lang: string;
@@ -56,6 +58,7 @@ type LenaCallOverlayProps = {
 };
 
 export const LenaCallOverlay = ({
+  client,
   open,
   onClose,
   lang,
@@ -88,17 +91,18 @@ export const LenaCallOverlay = ({
   // Rebuilt only when the call's identity changes, so one call keeps one thread across its turns.
   const delegate = useMemo(
     () => createLenaCallDelegate({
-      userId, companyId, lang, conversationId, onConversationCreated,
+      client, userId, companyId, lang, conversationId, onConversationCreated,
       onSkills: setSkills,
       // Via a ref: the hook that owns this is created below, and the delegate is built during the
       // same render, so naming it directly would read it before it exists.
       onModeSkills: (instructions) => modeSkillsRef.current?.(instructions),
       onTurnComplete,
     }),
-    [companyId, conversationId, lang, onConversationCreated, onTurnComplete, userId],
+    [client, companyId, conversationId, lang, onConversationCreated, onTurnComplete, userId],
   );
 
   const { status, consultingLena, lenaSpeaking, muted, inputLevel, toggleMute, notifyUserAction, applyModeSkills, start, stop } = useLenaRealtimeCall({
+    client,
     lang,
     conversationId,
     askLena: delegate.ask,

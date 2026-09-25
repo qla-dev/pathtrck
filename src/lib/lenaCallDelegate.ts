@@ -1,4 +1,4 @@
-import { api, type LoadScanResult } from '../services/api';
+import { api as defaultApi, type ApiClient, type LoadScanResult } from '../services/api';
 import { localTimestampForApi } from './dates';
 import { LENA_AI_GENERAL_SUBJECT } from './useLenaAiChat';
 import { MASKABLE_GUIDED_STEPS } from './lenaStepInputMask';
@@ -34,6 +34,7 @@ const stripChatMarkers = (text: string): string => text
   .trim();
 
 export type LenaCallDelegateOptions = {
+  client?: ApiClient;
   userId: number;
   companyId?: number;
   lang: string;
@@ -50,6 +51,7 @@ export type LenaCallDelegateOptions = {
 };
 
 export const createLenaCallDelegate = ({
+  client: api = defaultApi,
   userId,
   companyId,
   lang,
@@ -168,7 +170,15 @@ export const createLenaCallDelegate = ({
     // kafe, Beč to Sarajevo" into fields, and it is attached to the message exactly as the typed
     // path attaches it.
     let attachments: Array<Record<string, unknown>> | undefined;
-    if (!action && pendingStep) {
+    if (action === 'add' && api !== defaultApi) {
+      // Carry the spoken CBM calculation into the ordinary load scanner before opening its questionnaire.
+      const current = await api.lenaGuest.current();
+      const messages = (current.data.messages ?? []) as Array<{ body: string; sender?: { username?: string } }>;
+      const description = messages.map(message => `${message.sender?.username === 'ai_dispatcher' ? 'Lena' : 'Caller'}: ${stripChatMarkers(message.body)}`).join('\n');
+      const scan = await api.loads.scanText(description, scanSoFar, id);
+      scanSoFar = scan.data;
+      attachments = [{ name: 'LenaAI call', type: 'text/plain', size: description.length, loadScan: scan.data }];
+    } else if (!action && pendingStep) {
       try {
         const scan = await api.loads.scanText(question, scanSoFar, id, pendingStep);
         scanSoFar = scan.data;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api } from '../services/api';
+import { api as defaultApi, type ApiClient } from '../services/api';
 import { startCallRingback } from './callRingback';
 import { createCallAmbience } from './callAmbience';
 
@@ -69,6 +69,7 @@ export type LenaCallTurn = {
 };
 
 type UseLenaRealtimeCallOptions = {
+  client?: ApiClient;
   /** Interface language: decides which language Lena speaks and how she is transcribed. */
   lang: string;
   /** Scopes the call to an existing thread when there is one. */
@@ -97,7 +98,7 @@ type RealtimeEvent = {
 
 const randomId = () => Math.random().toString(36).slice(2);
 
-export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTranscript, onTranscriptTurn, onError }: UseLenaRealtimeCallOptions) => {
+export const useLenaRealtimeCall = ({ client: api = defaultApi, lang, conversationId, askLena, onCallerTranscript, onTranscriptTurn, onError }: UseLenaRealtimeCallOptions) => {
   const [status, setStatus] = useState<LenaCallStatus>('idle');
   const [turns, setTurns] = useState<LenaCallTurn[]>([]);
   /** True from the moment a tool call starts until its answer is handed back. */
@@ -486,7 +487,7 @@ export const useLenaRealtimeCall = ({ lang, conversationId, askLena, onCallerTra
         response: {
           // Given per response rather than left to the session prompt, so the way she answers the
           // phone is the same every single time.
-          instructions: `Greet the caller by saying exactly this and nothing else: "${greetingFor(lang)}" `
+          instructions: session.opening_prompt || `Greet the caller by saying exactly this and nothing else: "${greetingFor(lang)}" `
             + 'Then stop and listen. Do not introduce yourself further, do not list what you can do, '
             + 'and do not ask any questions yet.',
         },

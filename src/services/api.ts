@@ -419,9 +419,9 @@ const setToken = (token: string | null) => {
   else window.localStorage.removeItem(TOKEN_STORAGE_KEY);
 };
 
-const request = async <T>(path: string, options: RequestInit = {}): Promise<ApiEnvelope<T>> => {
+const makeRequest = (sessionToken?: string) => async <T>(path: string, options: RequestInit = {}): Promise<ApiEnvelope<T>> => {
   const headers = new Headers(options.headers);
-  const token = getToken();
+  const token = sessionToken ?? getToken();
   if (options.body && !(options.body instanceof FormData)) headers.set('Content-Type', 'application/json');
   headers.set('Accept', 'application/json');
   if (token) headers.set('Authorization', `Bearer ${token}`);
@@ -431,11 +431,13 @@ const request = async <T>(path: string, options: RequestInit = {}): Promise<ApiE
   });
   const payload = await response.json().catch(() => null) as ApiEnvelope<T> | null;
   if (!response.ok || !payload) {
-    if (response.status === 401) setToken(null);
+    if (response.status === 401 && sessionToken === undefined) setToken(null);
     throw new ApiError(payload?.message || `API request failed (${response.status}).`, response.status, payload?.errors || {});
   }
   return payload;
 };
+
+const request = makeRequest();
 
 const openDocument = async (path: string): Promise<void> => {
   const popup = window.open('', '_blank');
@@ -597,7 +599,7 @@ const queryString = (params: ListParams = {}) => {
   return query.toString();
 };
 
-export const resourceApi = <T extends Record<string, unknown>>(resource: string) => ({
+const makeResourceApi = <T extends Record<string, unknown>>(resource: string, request: ReturnType<typeof makeRequest>) => ({
   list: async (params: ListParams = {}) => {
     const query = queryString(params);
     return request<T[]>(query ? `/${resource}?${query}` : `/${resource}`);
@@ -608,7 +610,19 @@ export const resourceApi = <T extends Record<string, unknown>>(resource: string)
   remove: async (id: number | string) => request<null>(`/${resource}/${id}`, { method: 'DELETE' }),
 });
 
-export const api = {
+export const resourceApi = <T extends Record<string, unknown>>(resource: string) => makeResourceApi<T>(resource, request);
+
+export const createApiClient = (sessionToken?: string) => {
+  const request = makeRequest(sessionToken);
+  const resourceApi = <T extends Record<string, unknown>>(resource: string) => makeResourceApi<T>(resource, request);
+  return {
+  lenaGuest: {
+    start: (code: string, lang: string, mode: 'cbm' | 'free') => request<{ token: string; user_id: number; conversation_id: number }>('/lena-guest/session', { method: 'POST', body: JSON.stringify({ code, lang, mode }) }),
+    current: () => request<Record<string, unknown>>('/lena-guest/current'),
+    publish: (updatedAt: string) => request<Record<string, unknown>>('/lena-guest/publish', { method: 'POST', body: JSON.stringify({ confirmed: true, draft_updated_at: updatedAt }) }),
+    conversations: (page = 1) => request<Array<Record<string, unknown>>>(`/lena-guest/conversations?page=${page}`),
+    conversation: (id: number) => request<Record<string, unknown>>(`/lena-guest/conversations/${id}`),
+  },
   lenaCatalog: () => request<import('../lib/lenaCatalog').LenaCatalogData>('/lena/catalog'),
   health: () => request<{ status: string; timestamp: string }>('/health'),
   aircraft: {
@@ -917,6 +931,7 @@ export const api = {
         body: JSON.stringify({ usage, conversation_id: conversationId, duration_ms: durationMs }),
       }),
     session: async (lang: string, conversationId?: number) => (await request<{
+      opening_prompt?: string;
       client_secret: string;
       expires_at: number | null;
       model: string;
@@ -972,3 +987,7 @@ export const api = {
       request<Record<string, unknown>>('/payments', { method: 'POST', body: JSON.stringify(payload) }),
   },
 };
+};
+
+export const api = createApiClient();
+export type ApiClient = ReturnType<typeof createApiClient>;

@@ -177,6 +177,7 @@ const HERO_DEMO_LOAD: Record<string, unknown> = {
     { type: "delivery", city: "Sarajevo", country_code: "BA", window_starts_at: "2026-03-03T14:20" },
   ],
 };
+import { LenaLiveCallSection } from './components/landing/LenaLiveCallSection';
 import { LenaScenarioSections } from "./components/landing/LenaScenarioSections";
 
 const LANGUAGE_STORAGE_KEY = "pathtrck.language";
@@ -3034,6 +3035,7 @@ const LandingPage = ({
             <div className="mt-20 border-t border-slate-200 sm:mt-24 dark:border-slate-700" />
           </LenaDataFlowReveal>
 
+          <LenaLiveCallSection lang={activeLang} />
           <LenaScenarioSections lang={activeLang} />
 
           <motion.div
