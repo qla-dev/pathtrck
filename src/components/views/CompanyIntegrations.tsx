@@ -10,6 +10,7 @@ import { Notice } from '../ui/Notice';
 import { StatusBadge } from '../ui/StatusBadge';
 import { Label, TextField } from '../modals/AddWarehouseModal/fields';
 import { type Row, useAccounting } from './accounting/shared';
+import { CatalogSyncSettings } from './CatalogSyncSettings';
 import { CrmPushSettings } from './CrmPushSettings';
 import { PantheonPanel } from './PantheonPanel';
 
@@ -31,6 +32,7 @@ export function CompanyIntegrations({ lang }: { lang: Language }) {
     </Card>
     {error && <Notice tone="bad">{error}</Notice>}
     <PantheonPanel acc={acc} canSync={can('setup')} canWrite={can('post')} />
+    <CatalogSyncSettings company={company} t={t} fail={acc.fail} />
     <CrmPushSettings company={company} t={t} fail={acc.fail} />
     <OpsPantheonSettings company={company} t={t} fail={acc.fail} />
   </div>;
