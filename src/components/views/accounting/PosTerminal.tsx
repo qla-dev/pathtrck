@@ -41,19 +41,27 @@ export function PosTerminal({ acc, onClose }: { acc: Accounting; onClose: () => 
 
   // Defaults come from the company's own latest outgoing line: the same income account and approved VAT rule.
   const recentLines = useMemo(() => data.invoices.filter(i => i.direction === 'outgoing').flatMap(i => i.items || []), [data.invoices]);
+  // Same check as the server (AccountingInvoices::validateReady): approved, own jurisdiction, VAT, valid on today's tax date.
+  // A rule approved for a later date is never picked, so a receipt cannot fail with "rule valid on the tax date".
+  const validRules = useMemo(() => {
+    const day = today();
+    return data.rules.filter(r => r.verification_status === 'approved' && r.approved_by && r.rate !== null && (r.tax_type ?? 'vat') === 'vat'
+      && [data.settings?.jurisdiction, 'BA'].includes(r.jurisdiction) && String(r.effective_from) <= day && String(r.applies_from) <= day
+      && (!r.effective_until || String(r.effective_until) >= day));
+  }, [data.rules, data.settings]);
+  const validRule = (id: unknown) => validRules.some(r => String(r.id) === String(id));
   const defaults = useMemo(() => {
-    const approved = data.rules.filter(r => r.verification_status === 'approved');
-    const last = recentLines.find(l => l.account_id && approved.some(r => r.id === l.tax_rule_id));
-    return { account_id: String(last?.account_id ?? data.accounts.find(a => a.kind === 'income' && a.active)?.id ?? ''), tax_rule_id: String(last?.tax_rule_id ?? approved[0]?.id ?? '') };
-  }, [data.accounts, data.rules, recentLines]);
+    const last = recentLines.find(l => l.account_id && validRule(l.tax_rule_id));
+    return { account_id: String(last?.account_id ?? data.accounts.find(a => a.kind === 'income' && a.active)?.id ?? ''), tax_rule_id: String(last?.tax_rule_id ?? validRules[0]?.id ?? '') };
+  }, [data.accounts, validRules, recentLines]); // eslint-disable-line react-hooks/exhaustive-deps
   const tiles = useMemo<Tile[]>(() => {
     const jobs = data.jobs.map(j => ({ id: `job-${j.id}`, group: 'jobs' as const, title: `${t('pos_job')} ${j.reference || j.id}`, subtitle: j.currency || '', price: String(j.agreed_amount ?? '0'),
       line: { description: `${t('pos_job')} ${j.reference || j.id}`, unit_price: String(j.agreed_amount ?? '0'), workspace_id: String(j.id), ...defaults } }));
     const seen = new Set<string>();
     const recent = recentLines.filter(l => l.description && !seen.has(l.description) && seen.add(l.description)).slice(0, 24).map((l, n) => ({ id: `recent-${n}`, group: 'recent' as const, title: l.description, subtitle: `${l.tax_rate ?? '?'}%`, price: String(l.unit_price),
-      line: { description: l.description, unit_price: String(l.unit_price), account_id: String(l.account_id ?? defaults.account_id), tax_rule_id: String(l.tax_rule_id ?? defaults.tax_rule_id), workspace_id: '' } }));
+      line: { description: l.description, unit_price: String(l.unit_price), account_id: String(l.account_id ?? defaults.account_id), tax_rule_id: validRule(l.tax_rule_id) ? String(l.tax_rule_id) : defaults.tax_rule_id, workspace_id: '' } }));
     return [...jobs, ...recent];
-  }, [data.jobs, recentLines, defaults, t]);
+  }, [data.jobs, recentLines, defaults, t, validRules]); // eslint-disable-line react-hooks/exhaustive-deps
   const visible = tiles.filter(tile => (group === 'all' || tile.group === group) && tile.title.toLowerCase().includes(query.toLowerCase()));
 
   const rate = (l: Line) => data.rules.find(r => String(r.id) === l.tax_rule_id)?.rate;
