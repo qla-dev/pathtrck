@@ -146,7 +146,7 @@ export function CrmView({ lang, onSendToTracking }: { lang: Language; onSendToTr
         ]} /></Card>}
       </>}
 
-    {detail && <CrmDetail t={t} detail={detail} members={members} busy={busy} onClose={() => setDetail(null)}
+    {detail && <CrmDetail t={t} company={company} detail={detail} members={members} busy={busy} onClose={() => setDetail(null)}
       onSendToTracking={onSendToTracking ? () => { onSendToTracking(detail.document); setDetail(null); } : undefined}
       onUpdate={payload => void run(async () => { await send(`crm/documents/${detail.document.id}`, payload, 'PATCH'); setDetail((await api.accounting.get<Row>(company, `crm/documents/${detail.document.id}`)).data); })}
       onFollowUp={payload => void run(async () => { await send('crm/follow-ups', { ...payload, crm_document_id: detail.document.id, partner_id: detail.document.partner_id }); setDetail((await api.accounting.get<Row>(company, `crm/documents/${detail.document.id}`)).data); })} />}
@@ -168,12 +168,12 @@ export function CrmView({ lang, onSendToTracking }: { lang: Language; onSendToTr
         <label className="block"><Label>{t('crm_owner')}</Label><IconSelect value={String(lead.owner_user_id ?? '')} onChange={v => setLead({ ...lead, owner_user_id: v })} icon={UserRound} ariaLabel={t('crm_owner')} placeholder="—"
           options={[{ value: '', label: '—', icon: UserRound }, ...members.map(m => ({ value: String(m.id), label: m.name, icon: UserRound }))]} /></label>
       </div>
-      <div className="mt-4"><CrmLinesEditor t={t} lines={lead.items ?? []} currency={lead.currency} onChange={items => setLead({ ...lead, items })} /></div>
+      <div className="mt-4"><CrmLinesEditor t={t} company={company} lines={lead.items ?? []} currency={lead.currency} onChange={items => setLead({ ...lead, items })} /></div>
     </Dialog>}
   </div>;
 }
 
-function CrmDetail({ t, detail, members, busy, onClose, onUpdate, onFollowUp, onSendToTracking }: { t: (k: string) => string; detail: Row; members: Row[]; busy: boolean; onClose: () => void; onUpdate: (payload: Row) => void; onFollowUp: (payload: Row) => void; onSendToTracking?: () => void }) {
+function CrmDetail({ t, company, detail, members, busy, onClose, onUpdate, onFollowUp, onSendToTracking }: { t: (k: string) => string; company: number; detail: Row; members: Row[]; busy: boolean; onClose: () => void; onUpdate: (payload: Row) => void; onFollowUp: (payload: Row) => void; onSendToTracking?: () => void }) {
   const d = detail.document;
   const [section, setSection] = useState<string>('items');
   const [lost, setLost] = useState(d.lost_reason ?? ''); const [followUp, setFollowUp] = useState<Row>({ due_on: today(), note: '' });
@@ -203,7 +203,7 @@ function CrmDetail({ t, detail, members, busy, onClose, onUpdate, onFollowUp, on
       <Tabs label={t('crm')} value={section} onChange={setSection} items={[{ value: 'items', label: t('crm_items'), count: detail.items.length }, { value: 'linked', label: t('crm_linked'), count: d.linked_documents.length },
         { value: 'contacts', label: t('crm_contacts'), count: detail.contacts.length }, { value: 'follow_ups', label: t('crm_follow_ups'), count: detail.follow_ups.length }]} />
       {section === 'items' && linesEditable && (lines
-        ? <div className="space-y-2"><CrmLinesEditor t={t} lines={lines} currency={d.currency} onChange={setLines} />
+        ? <div className="space-y-2"><CrmLinesEditor t={t} company={company} lines={lines} currency={d.currency} onChange={setLines} />
           <div className="flex gap-2"><Button size="sm" disabled={busy} onClick={() => { onUpdate({ items: crmLinesPayload(lines) }); setLines(null); }}>{t('save')}</Button><Button size="sm" variant="ghost" onClick={() => setLines(null)}>{t('close')}</Button></div></div>
         : <Button size="sm" variant="outline" onClick={() => setLines(detail.items.map((i: Row) => ({ ...i, quantity: String(Number(i.quantity)), unit_price: String(Number(i.unit_price)), discount_percent: String(Number(i.discount_percent ?? 0)), vat_percent: i.vat_percent === null ? '' : String(Number(i.vat_percent)), vat_code: i.vat_code ?? '' })))}>{t('crm_edit_lines')}</Button>)}
       {section === 'items' && !lines && <RecordTable dense empty={t('empty')} rows={detail.items} columns={[{ key: 'line_no', header: '#' }, { key: 'item_code', header: t('code') }, { key: 'name', header: t('name') },

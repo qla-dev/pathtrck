@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Banknote, CheckCircle2, ChevronDown, Clock3, CreditCard, Delete, FileCheck2, History, Landmark, Minus, PackagePlus, Plus, Printer, ReceiptText, Search, Ticket, Trash2, Truck, UserRound, X } from 'lucide-react';
+import { Banknote, CheckCircle2, ChevronDown, Clock3, CreditCard, Delete, FileCheck2, History, Landmark, Layers, Minus, Package, PackagePlus, Plus, Printer, ReceiptText, Search, Ticket, Trash2, Truck, UserRound, X } from 'lucide-react';
 
 import { cn } from '../../../lib/cn';
 import { api } from '../../../services/api';
@@ -9,7 +9,9 @@ import { StatusBadge } from '../../ui/StatusBadge';
 import { type Accounting, KeyField, money, type Row, today } from './shared';
 
 type Line = { key: string; description: string; quantity: string; unit_price: string; account_id: string; tax_rule_id: string; workspace_id: string };
-type Tile = { id: string; group: 'jobs' | 'recent'; title: string; subtitle: string; price: string; line: Omit<Line, 'key' | 'quantity'> };
+type TileGroup = 'jobs' | 'recent' | 'products' | 'templates';
+// A template tile adds several lines (its revenue lines); every other tile adds one.
+type Tile = { id: string; group: TileGroup; title: string; subtitle: string; price: string; line: Omit<Line, 'key' | 'quantity'>; lines?: Array<Omit<Line, 'key' | 'quantity'> & { quantity: string }> };
 type KeypadTarget = 'quantity' | 'unit_price' | 'received';
 const METHODS = [{ id: 'cash', icon: Banknote }, { id: 'card', icon: CreditCard }, { id: 'cheque', icon: FileCheck2 }, { id: 'transfer', icon: Landmark }, { id: 'voucher', icon: Ticket }] as const;
 const num = (v: string) => Number(String(v || '0').replace(',', '.')) || 0;
@@ -22,7 +24,16 @@ const num = (v: string) => Number(String(v || '0').replace(',', '.')) || 0;
 export function PosTerminal({ acc, onClose }: { acc: Accounting; onClose: () => void }) {
   const { t, data, can, company, context, send, run, busy, error, setError } = acc;
   const [query, setQuery] = useState('');
-  const [group, setGroup] = useState<'all' | 'jobs' | 'recent'>('all');
+  const [group, setGroup] = useState<'all' | TileGroup>('all');
+  // Catalogue (company products/services, synced with PANTHEON) and service templates; searched on the server.
+  const [catalog, setCatalog] = useState<{ products: Row[]; templates: Row[] }>({ products: [], templates: [] });
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      api.accounting.get<Row>(company, `catalog?limit=60&with_templates=1${query ? `&search=${encodeURIComponent(query)}` : ''}`)
+        .then(r => setCatalog({ products: r.data.products ?? [], templates: r.data.templates ?? [] })).catch(() => setCatalog({ products: [], templates: [] }));
+    }, 250);
+    return () => window.clearTimeout(handle);
+  }, [company, query]);
   const [lines, setLines] = useState<Line[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [target, setTarget] = useState<KeypadTarget>('quantity');
@@ -60,9 +71,23 @@ export function PosTerminal({ acc, onClose }: { acc: Accounting; onClose: () => 
     const seen = new Set<string>();
     const recent = recentLines.filter(l => l.description && !seen.has(l.description) && seen.add(l.description)).slice(0, 24).map((l, n) => ({ id: `recent-${n}`, group: 'recent' as const, title: l.description, subtitle: `${l.tax_rate ?? '?'}%`, price: String(l.unit_price),
       line: { description: l.description, unit_price: String(l.unit_price), account_id: String(l.account_id ?? defaults.account_id), tax_rule_id: validRule(l.tax_rule_id) ? String(l.tax_rule_id) : defaults.tax_rule_id, workspace_id: '' } }));
-    return [...jobs, ...recent];
-  }, [data.jobs, recentLines, defaults, t, validRules]); // eslint-disable-line react-hooks/exhaustive-deps
-  const visible = tiles.filter(tile => (group === 'all' || tile.group === group) && tile.title.toLowerCase().includes(query.toLowerCase()));
+    // A product keeps its own VAT: the valid rule with the same rate, otherwise the default rule.
+    const ruleFor = (vat: unknown) => String(validRules.find(r => vat !== null && vat !== undefined && Number(r.rate) === Number(vat))?.id ?? defaults.tax_rule_id);
+    const products = catalog.products.map(p => ({ id: `product-${p.id}`, group: 'products' as const, title: p.name, subtitle: `${p.code}${p.stock !== null && p.stock !== undefined ? ` · ${Number(p.stock)} ${p.unit}` : ''}`,
+      price: String(p.sale_price ?? '0'), line: { description: p.name, unit_price: String(Number(p.sale_price ?? 0)), workspace_id: '', account_id: defaults.account_id, tax_rule_id: ruleFor(p.vat_percent) } }));
+    const templates = catalog.templates.map(tp => {
+      const revenue = (tp.items as Row[]).filter(i => i.item_type === 'revenue');
+      const planned = (tp.items as Row[]).reduce((sum, i) => sum + Number(i.planned_price ?? 0) * Number(i.planned_qty ?? 0), 0);
+      const lines = revenue.length
+        ? revenue.map(i => ({ description: i.description, unit_price: String(Number(i.planned_price ?? 0)), quantity: String(Number(i.planned_qty ?? 1)), workspace_id: '', account_id: defaults.account_id, tax_rule_id: ruleFor(i.vat_percent) }))
+        : [{ description: tp.name, unit_price: planned.toFixed(2), quantity: '1', workspace_id: '', account_id: defaults.account_id, tax_rule_id: defaults.tax_rule_id }];
+      const price = lines.reduce((sum, l) => sum + Number(l.unit_price) * Number(l.quantity), 0);
+      return { id: `template-${tp.id}`, group: 'templates' as const, title: tp.name, subtitle: tp.code, price: price.toFixed(2), line: lines[0], lines };
+    });
+    return [...jobs, ...products, ...templates, ...recent];
+  }, [data.jobs, recentLines, defaults, t, validRules, catalog]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Products are already filtered by the server search; the rest filter locally.
+  const visible = tiles.filter(tile => (group === 'all' || tile.group === group) && (tile.group === 'products' || `${tile.title} ${tile.subtitle}`.toLowerCase().includes(query.toLowerCase())));
 
   const rate = (l: Line) => data.rules.find(r => String(r.id) === l.tax_rule_id)?.rate;
   const net = lines.reduce((s, l) => s + num(l.quantity) * num(l.unit_price), 0);
@@ -77,6 +102,11 @@ export function PosTerminal({ acc, onClose }: { acc: Accounting; onClose: () => 
     if (existing) { setLines(lines.map(l => l === existing ? { ...l, quantity: String(num(l.quantity) + 1) } : l)); setSelected(existing.key); }
     else { const key = crypto.randomUUID(); setLines([...lines, { ...line, key, quantity: '1' }]); setSelected(key); }
     setTarget('quantity'); setBuffer('');
+  };
+  const addTile = (tile: Tile) => {
+    if (!tile.lines) { addLine(tile.line); return; }
+    const added = tile.lines.map(l => ({ ...l, key: crypto.randomUUID() }));
+    setLines(list => [...list, ...added]); setSelected(added[added.length - 1]?.key ?? null); setTarget('quantity'); setBuffer('');
   };
   const updateLine = (key: string, patch: Partial<Line>) => setLines(list => list.map(l => l.key === key ? { ...l, ...patch } : l));
   const press = (k: string) => {
@@ -121,11 +151,11 @@ export function PosTerminal({ acc, onClose }: { acc: Accounting; onClose: () => 
       <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_440px]">
         <section className="flex min-h-0 flex-col gap-3 p-4">
           <label className="relative block"><Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" /><input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder={t('pos_search')} className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-12 pr-4 text-base outline-none focus:border-primary dark:border-slate-800 dark:bg-slate-900" /></label>
-          <div className="flex flex-wrap gap-2">{([['all', 'all', PackagePlus], ['jobs', 'pos_jobs', Truck], ['recent', 'pos_recent', History]] as const).map(([id, label, Icon]) => <button key={id} type="button" onClick={() => setGroup(id)} className={cn('inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-bold', group === id ? 'bg-primary text-white' : 'bg-white text-slate-600 dark:bg-slate-900 dark:text-slate-300')}><Icon className="h-4 w-4" />{t(label)}</button>)}</div>
+          <div className="flex flex-wrap gap-2">{([['all', 'all', PackagePlus], ['products', 'pos_products', Package], ['templates', 'pos_templates', Layers], ['jobs', 'pos_jobs', Truck], ['recent', 'pos_recent', History]] as const).map(([id, label, Icon]) => <button key={id} type="button" onClick={() => setGroup(id)} className={cn('inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-bold', group === id ? 'bg-primary text-white' : 'bg-white text-slate-600 dark:bg-slate-900 dark:text-slate-300')}><Icon className="h-4 w-4" />{t(label)}</button>)}</div>
           <div className="grid min-h-0 flex-1 auto-rows-[112px] grid-cols-2 gap-3 overflow-y-auto pb-2 md:grid-cols-3 xl:grid-cols-4">
             <button type="button" onClick={() => addLine({ description: t('pos_manual'), unit_price: '0', workspace_id: '', ...defaults })} className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 text-sm font-bold text-slate-500 transition hover:border-primary hover:text-primary active:scale-[0.98] dark:border-slate-700"><Plus className="h-6 w-6" />{t('pos_manual')}</button>
-            {visible.map(tile => <button key={tile.id} type="button" onClick={() => addLine(tile.line)} className="flex cursor-pointer flex-col justify-between rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-primary hover:shadow-md active:scale-[0.98] dark:border-slate-800 dark:bg-slate-900">
-              <span className="flex items-start justify-between gap-2"><span className="line-clamp-2 text-sm font-bold">{tile.title}</span>{tile.group === 'jobs' ? <Truck className="h-4 w-4 shrink-0 text-sky-500" /> : <History className="h-4 w-4 shrink-0 text-violet-500" />}</span>
+            {visible.map(tile => <button key={tile.id} type="button" onClick={() => addTile(tile)} className="flex cursor-pointer flex-col justify-between rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-primary hover:shadow-md active:scale-[0.98] dark:border-slate-800 dark:bg-slate-900">
+              <span className="flex items-start justify-between gap-2"><span className="line-clamp-2 text-sm font-bold">{tile.title}</span>{tile.group === 'jobs' ? <Truck className="h-4 w-4 shrink-0 text-sky-500" /> : tile.group === 'products' ? <Package className="h-4 w-4 shrink-0 text-emerald-500" /> : tile.group === 'templates' ? <Layers className="h-4 w-4 shrink-0 text-amber-500" /> : <History className="h-4 w-4 shrink-0 text-violet-500" />}</span>
               <span className="flex items-end justify-between"><span className="text-[11px] text-slate-400">{tile.subtitle}</span><span className="text-base font-black text-primary">{money(tile.price)}</span></span>
             </button>)}
           </div>
