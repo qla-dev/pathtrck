@@ -15,7 +15,6 @@ import { InvoiceList } from './accounting/InvoiceList';
 import { AccountsPanel, AdvancesPanel, BankPanel, JournalPanel, MarginsPanel, NotConfigured, PartnersPanel, PeriodsPanel, PermissionsPanel, ReportsPanel, RulesPanel, SettingsPanel, VatPanel } from './accounting/LedgerPanels';
 import { PosTerminal } from './accounting/PosTerminal';
 import { money, type Row, today, useAccounting } from './accounting/shared';
-import { PantheonPanel } from './PantheonPanel';
 import { SmartPosReports } from './SmartPosReports';
 
 const sumBy = (rows: Row[], pick: (r: Row) => unknown) => Object.entries(rows.reduce<Record<string, number>>((acc, r) => { acc[r.currency] = (acc[r.currency] || 0) + Number(pick(r) || 0); return acc; }, {})).map(([c, v]) => money(v, c)).join(' · ') || money(0);
@@ -43,7 +42,7 @@ export function AccountingView({ lang, mode = 'accounting' }: { lang: Language; 
 
   const tabs = pos
     ? [...(can('view') ? ['outgoing'] : []), ...(can('pos') ? ['fiscalReports'] : [])]
-    : [...(can('view') ? ['incoming', 'journal', 'bank', 'advances', 'vat', 'accounts', 'periods', 'rules', 'margins', 'partners', 'reports'] : []), ...(can('setup') ? ['settings'] : []), ...(can('integrations') ? ['pantheon'] : [])];
+    : [...(can('view') ? ['incoming', 'journal', 'bank', 'advances', 'vat', 'accounts', 'periods', 'rules', 'margins', 'partners', 'reports'] : []), ...(can('setup') ? ['settings'] : [])];
   if (context?.can_manage_permissions) tabs.push('permissions');
   const activeTab = tabs.includes(tab) ? tab : tabs[0];
 
@@ -91,7 +90,7 @@ export function AccountingView({ lang, mode = 'accounting' }: { lang: Language; 
         {can('view') && !context?.configured && <NotConfigured {...panelProps} />}
         {activeTab === 'permissions' && context?.can_manage_permissions && <PermissionsPanel acc={acc} />}
         {activeTab === 'fiscalReports' && pos && can('pos') && <SmartPosReports acc={acc} />}
-        {activeTab === 'pantheon' && !pos && can('integrations') && <PantheonPanel acc={acc} canSync={can('setup')} canWrite={can('post')} />}
+        {/* The PANTHEON connection moved to company details -> Integracije (CompanyIntegrations). */}
         {activeTab === 'settings' && can('setup') && <SettingsPanel {...panelProps} />}
         {can('view') && invoiceTab && (selected
           ? <InvoiceDetail key={selected.id} acc={acc} invoice={selected} onBack={() => setSelectedId(null)} onEdit={editInvoice} openForm={openForm} />

@@ -8,3 +8,7 @@ Frontend work does not authorize modifying, resetting, or reseeding the backend 
 - If backend verification is required, run tests only with explicitly configured SQLite `:memory:`, unless the user explicitly authorizes another isolated test database.
 - Before any database write command, follow the backend safety rules and verify the effective driver, host, port, and database name using read-only checks.
 - If a connection is remote or cannot be proven disposable, stop. Do not modify it.
+
+# SmartFreight and PANTHEON
+
+The PANTHEON connection lives in Company details → Integracije (`CompanyIntegrations.tsx`), not in Accounting. UI actions only change SmartFreight data; PANTHEON is reached through the backend sync. See `backend/docs/agents/pantheon-integration.md`.

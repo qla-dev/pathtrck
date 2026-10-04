@@ -22,6 +22,7 @@ import {
   UserRound,
   Warehouse,
   X,
+  PlugZap,
 } from "lucide-react";
 
 import type { Language, Role } from "../../types";
@@ -33,6 +34,7 @@ import { Toggle } from "../ui/Toggle";
 import { cn } from "../../lib/cn";
 import { isCompanyOperationsRole } from "../../lib/roles";
 import { DriverVerificationModal } from "../modals/DriverVerificationModal";
+import { CompanyIntegrations } from "./CompanyIntegrations";
 import { flatpickrI18n } from "../../i18n";
 
 type CompanyProfile = {
@@ -142,6 +144,7 @@ const COPY = {
     tabOrganization: "Organization",
     tabNetwork: "Network",
     tabReviews: "Reviews",
+    tabIntegrations: "Integrations",
     noReviews: "No reviews yet",
     noReviewsHint: "Verified partner reviews will appear here.",
     editHint: "Changes are saved to your real account and company records.",
@@ -211,6 +214,7 @@ const COPY = {
     tabOrganization: "Organizacija",
     tabNetwork: "Mreža",
     tabReviews: "Recenzije",
+    tabIntegrations: "Integracije",
     noReviews: "Još nema recenzija",
     noReviewsHint: "Ovdje će se prikazati potvrđene recenzije partnera.",
     editHint: "Izmjene se čuvaju u stvarnim podacima vašeg računa i kompanije.",
@@ -281,6 +285,7 @@ const COPY = {
     tabOrganization: "Organisation",
     tabNetwork: "Netzwerk",
     tabReviews: "Bewertungen",
+    tabIntegrations: "Integrationen",
     noReviews: "Noch keine Bewertungen",
     noReviewsHint: "Verifizierte Partnerbewertungen werden hier angezeigt.",
     editHint:
@@ -321,7 +326,7 @@ const initials = (name: string) =>
     .join("") || "FB";
 
 export type ProfileRecordKind = "customer" | "company" | "warehouse" | "driver";
-type ProfileTab = "general" | "organization" | "network" | "reviews";
+type ProfileTab = "general" | "organization" | "network" | "reviews" | "integrations";
 
 const userFromRecord = (
   record: Record<string, unknown>,
@@ -822,6 +827,8 @@ export const ProfileView = ({
             { id: "organization" as const, label: text.tabOrganization, icon: Building2 },
             { id: "network" as const, label: text.tabNetwork, icon: Globe2 },
             { id: "reviews" as const, label: text.tabReviews, icon: Star },
+            // Own company only: the PANTHEON connection and other integrations live in company details.
+            ...(companyMode && !profileRecord ? [{ id: "integrations" as const, label: text.tabIntegrations, icon: PlugZap }] : []),
           ]).map((tab) => (
             <button
               key={tab.id}
@@ -1139,6 +1146,8 @@ export const ProfileView = ({
           </section>
         </div>
         )}
+
+        {activeTab === "integrations" && companyMode && !profileRecord && <CompanyIntegrations lang={lang} />}
 
         {activeTab === "organization" && detailKind && detailRecord && (
           <ProfileRecordDetails section="organization" kind={detailKind} record={detailRecord} labels={detailText} empty={text.noValue} formatDate={formatFullDate} />

@@ -55,6 +55,8 @@ import {
   Smartphone,
   Navigation2,
   ReceiptText,
+  Handshake,
+  ClipboardList,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useScrollDownReveal } from "./hooks/useScrollDownReveal";
@@ -138,6 +140,8 @@ import { AdminWarehouseCompaniesView } from "./components/views/AdminWarehouseCo
 import { CompanyTeamView } from "./components/views/CompanyTeamView";
 import { FinanceView } from "./components/views/FinanceView";
 import { AccountingView } from "./components/views/AccountingView";
+import { CrmView } from "./components/views/CrmView";
+import { OpsView } from "./components/views/OpsView";
 import { accountingText } from "./components/views/accountingCopy";
 import { AdminOverviewView } from "./components/views/AdminOverviewView";
 import { AdminCompaniesView } from "./components/views/AdminCompaniesView";
@@ -5551,6 +5555,9 @@ export default function App() {
     getInitialSidebarState(),
   );
   const [isPostLoadOpen, setIsPostLoadOpen] = useState(false);
+  // CRM offer that opened the Post load form; the created load keeps the link (crm_document_id).
+  const [crmLoadDocumentId, setCrmLoadDocumentId] = useState<number | null>(null);
+  useEffect(() => { if (!isPostLoadOpen) setCrmLoadDocumentId(null); }, [isPostLoadOpen]);
   // Set when the form is opened for one kind of request only - a warehouse receiving goods can
   // only be filing a storage request, so it never sees the transport-type picker.
   const [postLoadTransportType, setPostLoadTransportType] = useState<"warehouse" | null>(null);
@@ -6878,6 +6885,8 @@ export default function App() {
     ...roleNavItems,
     { id: "accounting", label: accountingText(lang, "title"), icon: Banknote },
     { id: "smart-pos", label: accountingText(lang, "smartPos"), icon: ReceiptText },
+    { id: "crm", label: accountingText(lang, "crm"), icon: Handshake },
+    { id: "ops", label: accountingText(lang, "ops"), icon: ClipboardList },
     ...(roleNavItems.some((item) => item.id === "admin-customers")
       ? []
       : [
@@ -7577,6 +7586,15 @@ export default function App() {
               {view === "finance" && canViewFinance && <FinanceView lang={lang} onOpenAccounting={() => setView("accounting")} />}
               {view === "accounting" && <AccountingView lang={lang} />}
               {view === "smart-pos" && <AccountingView lang={lang} mode="pos" />}
+              {view === "crm" && <CrmView lang={lang} onSendToTracking={(doc) => {
+                setLenaLoadPrefill({ loadTitle: String(doc.title || doc.customer_name || ""), bookingReference: String(doc.number || "") });
+                setLenaSourceConversationId(null);
+                setLenaSourceDraftId(null);
+                setEditLoadId(null);
+                setCrmLoadDocumentId(Number(doc.id));
+                setIsPostLoadOpen(true);
+              }} />}
+              {view === "ops" && <OpsView lang={lang} />}
               {view === "automations" && <AutomationsView lang={lang} />}
               {view === "fleet" && (
                 <FleetView
@@ -7775,6 +7793,7 @@ export default function App() {
           lockedTransportType={postLoadTransportType}
           editLoadId={editLoadId}
           initialPrefill={lenaLoadPrefill}
+          crmDocumentId={crmLoadDocumentId}
           sourceConversationId={lenaSourceConversationId}
           initialDraftId={lenaSourceDraftId}
           onDraftConversationCreated={(conversationId) => {

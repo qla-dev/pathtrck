@@ -202,7 +202,9 @@ const STEP_AI_FIELDS: Record<StepId, Array<keyof ScanFieldPatch & keyof LoadDraf
 };
 
 
-export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSaved, initialPrefill = null, lockedTransportType = null, onOpenLenaAI, sourceConversationId = null, initialDraftId = null, onDraftConversationCreated }: PostLoadModalProps) => {
+export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSaved, initialPrefill = null, lockedTransportType = null, onOpenLenaAI, sourceConversationId = null, initialDraftId = null, onDraftConversationCreated, crmDocumentId = null }: PostLoadModalProps) => {
+  // A load opened from a CRM offer keeps that link, so the CRM stage can follow the shipment and its work order.
+  const crmLink = crmDocumentId && !editLoadId ? { crm_document_id: crmDocumentId } : {};
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const transportOptions = [
     {
@@ -1028,7 +1030,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       // Keep chapterCode/chapterName (and heading) alongside code/description/confidence so the
       // category icon shown on a pill stays correct after the load is saved and reloaded for
       // editing, instead of falling back to the generic icon once that context is stripped.
-      const payload = buildLoadPayload(draft);
+      const payload = { ...buildLoadPayload(draft), ...crmLink };
       const response = editLoadId
         ? await api.loads.update(editLoadId, payload)
         : await api.loads.create({ ...payload, status: tracking ? 'pending' : 'posted', published_at: tracking ? null : new Date().toISOString(), ...(tracking ? { vehicle_id: Number(publishVehicleId), must_be_trackable: true } : {}) });
@@ -1068,7 +1070,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     setSubmitError('');
     setRejected(null);
     try {
-      const payload = buildWarehouseLoadPayload(draft);
+      const payload = { ...buildWarehouseLoadPayload(draft), ...crmLink };
       const response = await api.loads.create(payload);
       onSaved?.(response.data);
       onClose();
@@ -1100,6 +1102,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
       // scheduled inbound movement that appears under My docks.
       const response = receiptLoad.current ? { data: receiptLoad.current } : await api.loads.create({
         ...(draft.transportType === 'warehouse' ? buildWarehouseLoadPayload(draft) : buildLoadPayload(draft)),
+        ...crmLink,
         status: 'pending',
         published_at: null,
       });
