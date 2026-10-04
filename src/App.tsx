@@ -54,6 +54,7 @@ import {
   ContactRound,
   Smartphone,
   Navigation2,
+  ReceiptText,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useScrollDownReveal } from "./hooks/useScrollDownReveal";
@@ -6876,6 +6877,7 @@ export default function App() {
   const navItems = [
     ...roleNavItems,
     { id: "accounting", label: accountingText(lang, "title"), icon: Banknote },
+    { id: "smart-pos", label: accountingText(lang, "smartPos"), icon: ReceiptText },
     ...(roleNavItems.some((item) => item.id === "admin-customers")
       ? []
       : [
@@ -7574,6 +7576,7 @@ export default function App() {
               {view === "company-team" && canManageTeam && <CompanyTeamView lang={lang} />}
               {view === "finance" && canViewFinance && <FinanceView lang={lang} onOpenAccounting={() => setView("accounting")} />}
               {view === "accounting" && <AccountingView lang={lang} />}
+              {view === "smart-pos" && <AccountingView lang={lang} mode="pos" />}
               {view === "automations" && <AutomationsView lang={lang} />}
               {view === "fleet" && (
                 <FleetView
