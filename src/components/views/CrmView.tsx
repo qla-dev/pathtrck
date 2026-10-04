@@ -15,6 +15,7 @@ import { StatusBadge, type StatusTone } from '../ui/StatusBadge';
 import { Tabs } from '../ui/Tabs';
 import { Label, TextField } from '../modals/AddWarehouseModal/fields';
 import { money, type Row, shortDate, today, useAccounting } from './accounting/shared';
+import { CrmLinesEditor, crmLinesPayload } from './CrmLinesEditor';
 
 // CRM = offers and orders. PANTHEON documents are read-only (pulled through the PANTHEON connector);
 // leads, follow-ups, owners and lost reasons live only in SmartFreight.
@@ -150,8 +151,9 @@ export function CrmView({ lang, onSendToTracking }: { lang: Language; onSendToTr
       onUpdate={payload => void run(async () => { await send(`crm/documents/${detail.document.id}`, payload, 'PATCH'); setDetail((await api.accounting.get<Row>(company, `crm/documents/${detail.document.id}`)).data); })}
       onFollowUp={payload => void run(async () => { await send('crm/follow-ups', { ...payload, crm_document_id: detail.document.id, partner_id: detail.document.partner_id }); setDetail((await api.accounting.get<Row>(company, `crm/documents/${detail.document.id}`)).data); })} />}
 
-    {lead && <Dialog title={t('crm_new_lead')} icon={Plus} onClose={() => setLead(null)} closeLabel={t('close')} closeDisabled={busy}
-      footer={<Button disabled={busy || !lead.title || !(lead.partner_id || lead.customer_name)} onClick={() => void run(async () => { await send('crm/documents', { ...lead, partner_id: lead.partner_id ? Number(lead.partner_id) : null, owner_user_id: lead.owner_user_id ? Number(lead.owner_user_id) : null, total_amount: lead.total_amount || 0 }); setLead(null); })}>{t('save')}</Button>}>
+    {lead && <Dialog size="xl" title={t('crm_new_lead')} icon={Plus} onClose={() => setLead(null)} closeLabel={t('close')} closeDisabled={busy}
+      footer={<Button disabled={busy || !lead.title || !(lead.partner_id || lead.customer_name)} onClick={() => void run(async () => { await send('crm/documents', { ...lead, partner_id: lead.partner_id ? Number(lead.partner_id) : null, owner_user_id: lead.owner_user_id ? Number(lead.owner_user_id) : null, total_amount: lead.total_amount || 0,
+        items: lead.items?.length ? crmLinesPayload(lead.items) : undefined }); setLead(null); })}>{t('save')}</Button>}>
       {error && <Notice tone="bad" className="mb-3">{error}</Notice>}
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block sm:col-span-2"><Label>{t('crm_existing_client')}</Label><IconSelect value={String(lead.partner_id ?? '')} onChange={v => setLead({ ...lead, partner_id: v })} icon={UserRound} ariaLabel={t('crm_existing_client')} placeholder="—" searchable searchPlaceholder={t('search')} noResults={t('empty')}
@@ -160,12 +162,13 @@ export function CrmView({ lang, onSendToTracking }: { lang: Language; onSendToTr
         <label className="block sm:col-span-2"><Label required>{t('crm_title')}</Label><TextField value={lead.title ?? ''} onChange={e => setLead({ ...lead, title: e.target.value })} /></label>
         <label className="block"><Label>{t('status')}</Label><IconSelect value={lead.stage} onChange={v => setLead({ ...lead, stage: v })} icon={Target} ariaLabel={t('status')} placeholder="—" options={['lead', 'offer'].map(s => ({ value: s, label: t(`stage_${s}`), icon: Target }))} /></label>
         <label className="block"><Label>{t('crm_contact')}</Label><TextField value={lead.contact_name ?? ''} onChange={e => setLead({ ...lead, contact_name: e.target.value })} /></label>
-        <label className="block"><Label>{t('crm_value')}</Label><TextField type="number" min="0" step="0.01" value={lead.total_amount ?? ''} onChange={e => setLead({ ...lead, total_amount: e.target.value })} /></label>
+        {!lead.items?.length && <label className="block"><Label>{t('crm_value')}</Label><TextField type="number" min="0" step="0.01" value={lead.total_amount ?? ''} onChange={e => setLead({ ...lead, total_amount: e.target.value })} /></label>}
         <label className="block"><Label>{t('currency')}</Label><TextField value={lead.currency} maxLength={3} onChange={e => setLead({ ...lead, currency: e.target.value.toUpperCase() })} /></label>
         <label className="block"><Label>{t('crm_next_follow_up')}</Label><TextField type="date" value={lead.next_follow_up_on ?? ''} onChange={e => setLead({ ...lead, next_follow_up_on: e.target.value })} /></label>
         <label className="block"><Label>{t('crm_owner')}</Label><IconSelect value={String(lead.owner_user_id ?? '')} onChange={v => setLead({ ...lead, owner_user_id: v })} icon={UserRound} ariaLabel={t('crm_owner')} placeholder="—"
           options={[{ value: '', label: '—', icon: UserRound }, ...members.map(m => ({ value: String(m.id), label: m.name, icon: UserRound }))]} /></label>
       </div>
+      <div className="mt-4"><CrmLinesEditor t={t} lines={lead.items ?? []} currency={lead.currency} onChange={items => setLead({ ...lead, items })} /></div>
     </Dialog>}
   </div>;
 }
@@ -175,9 +178,14 @@ function CrmDetail({ t, detail, members, busy, onClose, onUpdate, onFollowUp, on
   const [section, setSection] = useState<string>('items');
   const [lost, setLost] = useState(d.lost_reason ?? ''); const [followUp, setFollowUp] = useState<Row>({ due_on: today(), note: '' });
   const pantheon = d.source === 'pantheon';
+  const [lines, setLines] = useState<Row[] | null>(null);
+  const linesEditable = !pantheon && ['lead', 'offer', 'order'].includes(d.stage);
   return <Dialog size="xl" title={`${d.number || t('crm_source_smartfreight')} · ${d.customer_name}`} subtitle={`${t(pantheon ? 'crm_source_pantheon' : 'crm_source_smartfreight')} · ${shortDate(d.issued_on)}`} icon={Handshake} onClose={onClose} closeLabel={t('close')} closeDisabled={busy}>
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2"><StatusBadge tone={stageTone(d.stage)}>{t(`stage_${d.stage}`)}</StatusBadge>{d.pantheon_status && <StatusBadge tone="muted">PANTHEON: {d.pantheon_status}</StatusBadge>}{(d.partner_id || d.customer_id) && <StatusBadge tone="ok" icon={Link2}>{t('crm_linked_client')}</StatusBadge>}
+        {d.source === 'smartfreight' && ['offer', 'order', 'lost', 'closed'].includes(d.stage) && (d.pantheon_key
+          ? <StatusBadge tone={Number(d.pantheon_revision ?? 0) >= Number(d.revision ?? 1) ? 'ok' : 'warn'}>PANTHEON {d.pantheon_key}</StatusBadge>
+          : <StatusBadge tone="muted">{t('crm_pantheon_pending')}</StatusBadge>)}
         {d.load_id ? <StatusBadge tone="info" icon={Truck}>{t('crm_in_tracking')}</StatusBadge>
           : onSendToTracking && ['lead', 'offer', 'order'].includes(d.stage) && <Button size="sm" className="ml-auto gap-1.5" disabled={busy} onClick={onSendToTracking}><Truck className="h-4 w-4" />{t('crm_send_to_tracking')}</Button>}</div>
       <div className="grid gap-3 text-sm sm:grid-cols-4">
@@ -194,7 +202,11 @@ function CrmDetail({ t, detail, members, busy, onClose, onUpdate, onFollowUp, on
       </Card>
       <Tabs label={t('crm')} value={section} onChange={setSection} items={[{ value: 'items', label: t('crm_items'), count: detail.items.length }, { value: 'linked', label: t('crm_linked'), count: d.linked_documents.length },
         { value: 'contacts', label: t('crm_contacts'), count: detail.contacts.length }, { value: 'follow_ups', label: t('crm_follow_ups'), count: detail.follow_ups.length }]} />
-      {section === 'items' && <RecordTable dense empty={t('empty')} rows={detail.items} columns={[{ key: 'line_no', header: '#' }, { key: 'item_code', header: t('code') }, { key: 'name', header: t('name') },
+      {section === 'items' && linesEditable && (lines
+        ? <div className="space-y-2"><CrmLinesEditor t={t} lines={lines} currency={d.currency} onChange={setLines} />
+          <div className="flex gap-2"><Button size="sm" disabled={busy} onClick={() => { onUpdate({ items: crmLinesPayload(lines) }); setLines(null); }}>{t('save')}</Button><Button size="sm" variant="ghost" onClick={() => setLines(null)}>{t('close')}</Button></div></div>
+        : <Button size="sm" variant="outline" onClick={() => setLines(detail.items.map((i: Row) => ({ ...i, quantity: String(Number(i.quantity)), unit_price: String(Number(i.unit_price)), discount_percent: String(Number(i.discount_percent ?? 0)), vat_percent: i.vat_percent === null ? '' : String(Number(i.vat_percent)), vat_code: i.vat_code ?? '' })))}>{t('crm_edit_lines')}</Button>)}
+      {section === 'items' && !lines && <RecordTable dense empty={t('empty')} rows={detail.items} columns={[{ key: 'line_no', header: '#' }, { key: 'item_code', header: t('code') }, { key: 'name', header: t('name') },
         { key: 'quantity', header: t('quantity'), align: 'right', render: i => `${Number(i.quantity)} ${i.unit ?? ''}` }, { key: 'delivered_quantity', header: t('crm_delivered_qty'), align: 'right', render: i => Number(i.delivered_quantity) },
         { key: 'unit_price', header: t('unit_price'), align: 'right', render: i => money(i.unit_price) }, { key: 'discount_percent', header: '%', align: 'right', render: i => Number(i.discount_percent) || '—' }]} />}
       {section === 'linked' && <RecordTable dense empty={t('empty')} rows={d.linked_documents} rowKey={(l: Row) => l.key} columns={[{ key: 'number', header: t('number') }, { key: 'doc_type', header: t('pantheon_doc_type') },

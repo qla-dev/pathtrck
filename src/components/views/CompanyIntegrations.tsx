@@ -10,6 +10,7 @@ import { Notice } from '../ui/Notice';
 import { StatusBadge } from '../ui/StatusBadge';
 import { Label, TextField } from '../modals/AddWarehouseModal/fields';
 import { type Row, useAccounting } from './accounting/shared';
+import { CrmPushSettings } from './CrmPushSettings';
 import { PantheonPanel } from './PantheonPanel';
 
 /*
@@ -30,15 +31,16 @@ export function CompanyIntegrations({ lang }: { lang: Language }) {
     </Card>
     {error && <Notice tone="bad">{error}</Notice>}
     <PantheonPanel acc={acc} canSync={can('setup')} canWrite={can('post')} />
+    <CrmPushSettings company={company} t={t} fail={acc.fail} />
     <OpsPantheonSettings company={company} t={t} fail={acc.fail} />
   </div>;
 }
 
 /** Work orders (FreightBook Ops) -> PANTHEON tHF_WOEx. Dry run first; writing needs the connector write switch too. */
 function OpsPantheonSettings({ company, t, fail }: { company: number; t: (k: string) => string; fail: (e: unknown) => void }) {
-  const [form, setForm] = useState<Row>({ sync_enabled: false, order_doc_type: '', push_orders_from: '' });
+  const [form, setForm] = useState<Row>({ sync_enabled: false, order_doc_type: '', push_orders_from: '', default_worker: '', worker_map: {} as Record<string, string> });
   const [state, setState] = useState<Row | null>(null); const [result, setResult] = useState<Row | null>(null); const [busy, setBusy] = useState(false);
-  useEffect(() => { api.accounting.get<Row | null>(company, 'ops/pantheon').then(r => { const s = r.data; setState(s); if (s) setForm({ sync_enabled: !!s.sync_enabled, order_doc_type: s.order_doc_type ?? '', push_orders_from: s.push_orders_from ?? '' }); }).catch(() => undefined); }, [company]);
+  useEffect(() => { api.accounting.get<Row | null>(company, 'ops/pantheon').then(r => { const s = r.data; setState(s); if (s) setForm({ sync_enabled: !!s.sync_enabled, order_doc_type: s.order_doc_type ?? '', push_orders_from: s.push_orders_from ?? '', default_worker: s.default_worker ?? '', worker_map: s.worker_map ?? {} }); }).catch(() => undefined); }, [company]);
   const run = async (fn: () => Promise<void>) => { if (busy) return; setBusy(true); try { await fn(); } catch (e) { fail(e); } finally { setBusy(false); } };
   const summary = (result ?? state?.last_sync_summary) as Row | null;
   return <Card className="shadow-none" contentClassName="space-y-3 p-4">
@@ -50,8 +52,17 @@ function OpsPantheonSettings({ company, t, fail }: { company: number; t: (k: str
       <label className="block"><Label>{t('ops_push_from')}</Label><TextField type="date" value={form.push_orders_from} onChange={e => setForm({ ...form, push_orders_from: e.target.value })} /></label>
       <label className="flex items-end gap-2 pb-2 text-sm font-semibold"><input type="checkbox" checked={form.sync_enabled} onChange={e => setForm({ ...form, sync_enabled: e.target.checked })} />{t('ops_sync_enabled')}</label>
     </div>
+    <div className="space-y-2 rounded-xl border border-slate-200 p-3 dark:border-slate-700">
+      <p className="text-sm font-semibold">{t('ops_workers')}</p><p className="text-xs text-slate-500">{t('ops_workers_note')}</p>
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <label className="block"><Label>{t('ops_default_worker')}</Label><TextField value={form.default_worker} maxLength={30} onChange={e => setForm({ ...form, default_worker: e.target.value })} /></label>
+        {(state?.members ?? []).map((m: Row) => <label key={m.id} className="block"><Label>{m.name}</Label><TextField value={(form.worker_map as Record<string, string>)[String(m.id)] ?? ''} maxLength={30}
+          onChange={e => setForm({ ...form, worker_map: { ...(form.worker_map as Record<string, string>), [String(m.id)]: e.target.value } })} /></label>)}
+      </div>
+    </div>
     <div className="flex flex-wrap gap-2">
-      <Button size="sm" disabled={busy} onClick={() => void run(async () => setState((await api.accounting.send<Row>(company, 'ops/pantheon', { ...form, order_doc_type: form.order_doc_type || null, push_orders_from: form.push_orders_from || null })).data))}>{t('save')}</Button>
+      <Button size="sm" disabled={busy} onClick={() => void run(async () => setState((await api.accounting.send<Row>(company, 'ops/pantheon', { ...form, order_doc_type: form.order_doc_type || null, push_orders_from: form.push_orders_from || null, default_worker: form.default_worker || null,
+        worker_map: Object.fromEntries(Object.entries(form.worker_map as Record<string, string>).filter(([, v]) => v)) })).data))}>{t('save')}</Button>
       <Button size="sm" variant="outline" disabled={busy || !state} onClick={() => void run(async () => setResult((await api.accounting.send<Row>(company, 'ops/pantheon/sync', { write: false })).data))}>{t('preview')}</Button>
       <Button size="sm" variant="outline" className="gap-1.5" disabled={busy || !state?.sync_enabled} onClick={() => void run(async () => setResult((await api.accounting.send<Row>(company, 'ops/pantheon/sync', { write: true })).data))}><RefreshCw className="h-3.5 w-3.5" />{t('ops_sync_now')}</Button>
     </div>
