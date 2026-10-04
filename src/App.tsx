@@ -136,6 +136,8 @@ import { WarehousesView } from "./components/views/WarehousesView";
 import { AdminWarehouseCompaniesView } from "./components/views/AdminWarehouseCompaniesView";
 import { CompanyTeamView } from "./components/views/CompanyTeamView";
 import { FinanceView } from "./components/views/FinanceView";
+import { AccountingView } from "./components/views/AccountingView";
+import { accountingText } from "./components/views/accountingCopy";
 import { AdminOverviewView } from "./components/views/AdminOverviewView";
 import { AdminCompaniesView } from "./components/views/AdminCompaniesView";
 import { AdminCustomersView } from "./components/views/AdminCustomersView";
@@ -6873,6 +6875,7 @@ export default function App() {
             ];
   const navItems = [
     ...roleNavItems,
+    { id: "accounting", label: accountingText(lang, "title"), icon: Banknote },
     ...(roleNavItems.some((item) => item.id === "admin-customers")
       ? []
       : [
@@ -7569,7 +7572,8 @@ export default function App() {
                   <WarehousesView lang={lang} role={role} />
                 ))}
               {view === "company-team" && canManageTeam && <CompanyTeamView lang={lang} />}
-              {view === "finance" && canViewFinance && <FinanceView lang={lang} />}
+              {view === "finance" && canViewFinance && <FinanceView lang={lang} onOpenAccounting={() => setView("accounting")} />}
+              {view === "accounting" && <AccountingView lang={lang} />}
               {view === "automations" && <AutomationsView lang={lang} />}
               {view === "fleet" && (
                 <FleetView

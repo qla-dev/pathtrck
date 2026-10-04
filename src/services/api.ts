@@ -962,6 +962,13 @@ export const createApiClient = (sessionToken?: string) => {
     open: (id: string | number, name: string, inline: boolean) => openLoadDocument(id, name, inline),
   },
   invoices: resourceApi<Record<string, unknown>>('invoices'),
+  accounting: {
+    print: (company: number, invoice: number) => openDocument(`/accounting/${company}/invoices/${invoice}/print`),
+    companies: () => request<Array<{ id: number; name: string; owner_user_id: number }>>('/accounting/companies'),
+    get: <T = Record<string, unknown>>(company: number, path: string) => request<T>(`/accounting/${company}/${path}`),
+    send: <T = Record<string, unknown>>(company: number, path: string, data: unknown, method = 'POST') =>
+      request<T>(`/accounting/${company}/${path}`, { method, body: JSON.stringify(data) }),
+  },
   invoiceItems: resourceApi<Record<string, unknown>>('invoice-items'),
   emailTemplates: resourceApi<Record<string, unknown>>('email-templates'),
   emailCampaigns: resourceApi<Record<string, unknown>>('email-campaigns'),
