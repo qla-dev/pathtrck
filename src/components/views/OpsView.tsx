@@ -15,6 +15,8 @@ import { StatusBadge, type StatusTone } from '../ui/StatusBadge';
 import { Tabs } from '../ui/Tabs';
 import { Label, TextField } from '../modals/AddWarehouseModal/fields';
 import { money, type Row, shortDate, today, useAccounting } from './accounting/shared';
+import { CatalogPanel } from './CatalogPanel';
+import { ProductPicker } from './ProductPicker';
 
 /*
  * FreightBook Ops: a booked shipment is a work order (špediterski nalog). Spec:
@@ -67,7 +69,7 @@ export function OpsView({ lang }: { lang: Language }) {
 
   return <div className="space-y-3">
     <PageHeader icon={ClipboardList} tone="amber" title={t('ops')} subtitle={context?.company?.name ? `${context.company.name} · ${t('ops_subtitle')}` : t('ops_subtitle')}
-      actions={actions} filters={['ops_orders', 'ops_templates'].map(k => ({ id: k, label: t(k) }))} activeFilter={tab} onFilterChange={id => setTab(String(id))} stats={allowed && data && tab === 'ops_orders' ? stats : undefined} />
+      actions={actions} filters={['ops_orders', 'ops_templates', 'ops_products'].map(k => ({ id: k, label: t(k) }))} activeFilter={tab} onFilterChange={id => setTab(String(id))} stats={allowed && data && tab === 'ops_orders' ? stats : undefined} />
     {(error || acc.error) && <Notice tone="bad">{error || acc.error}</Notice>}
     {loading ? <Card className="shadow-none" contentClassName="p-0"><InlineDataState loading empty="" /></Card>
       : !company ? <Notice tone="warn">{t('noCompany')}</Notice>
@@ -89,12 +91,14 @@ export function OpsView({ lang }: { lang: Language }) {
             { key: 'pantheon', header: 'PANTHEON', render: o => data?.pantheon?.sync_enabled ? (o.pantheon_pending ? <StatusBadge tone="warn">{t('ops_sync_pending')}</StatusBadge> : <span className="font-mono text-xs">{o.pantheon_key}</span>) : '—' },
           ]} /></Card>
         </>}
+        {tab === 'ops_products' && <CatalogPanel company={company} t={t} canEdit={can('prepare') || can('setup') || can('ops')} />}
         {tab === 'ops_templates' && <div className="grid gap-3 lg:grid-cols-2">
           {templates.map(tp => <Card key={tp.id} className="shadow-none" contentClassName="space-y-2 p-4">
             <div className="flex items-start justify-between gap-2"><div><p className="font-black">{tp.name}</p><p className="font-mono text-xs text-slate-500">{tp.code} · {tp.transport_type || t('ops_any_transport')}</p></div>
               <div className="flex items-center gap-2">{!tp.active && <StatusBadge tone="muted">{t('ops_inactive')}</StatusBadge>}{can('setup') && <Button size="sm" variant="outline" onClick={() => setTemplate({ ...tp, items: tp.items.map((i: Row) => ({ ...i })) })}>{t('save')}</Button>}</div></div>
             <RecordTable dense empty={t('empty')} rows={tp.items} columns={[{ key: 'item_type', header: t('ops_line_type'), render: i => t(`ops_item_${i.item_type}`) }, { key: 'description', header: t('description') },
-              { key: 'planned_qty', header: t('quantity'), align: 'right', render: i => `${Number(i.planned_qty)} ${i.unit}` }, { key: 'planned_price', header: t('unit_price'), align: 'right', render: i => i.planned_price === null ? '—' : money(i.planned_price) }]} />
+              { key: 'planned_qty', header: t('quantity'), align: 'right', render: i => `${Number(i.planned_qty)} ${i.unit}` }, { key: 'planned_price', header: t('unit_price'), align: 'right', render: i => i.planned_price === null ? '—' : money(i.planned_price) },
+              { key: 'vat', header: t('crm_vat'), render: i => `${i.vat_percent === null || i.vat_percent === undefined ? '—' : `${Number(i.vat_percent)}%`}${i.vat_code ? ` · ${i.vat_code}` : ''}` }]} />
           </Card>)}
           {!templates.length && <Notice tone="info">{t('ops_no_templates')}</Notice>}
         </div>}
@@ -122,7 +126,9 @@ export function OpsView({ lang }: { lang: Language }) {
 
     {template && <Dialog size="xl" title={t(template.id ? 'ops_templates' : 'ops_new_template')} icon={Layers} onClose={() => setTemplate(null)} closeLabel={t('close')} closeDisabled={busy}
       footer={<Button disabled={busy || !template.code || !template.name} onClick={() => void run(async () => { await send('ops/templates', { ...template, transport_type: template.transport_type || null,
-        items: template.items.map((i: Row) => ({ ...i, planned_qty: Number(i.planned_qty || 0), planned_price: i.planned_price === '' || i.planned_price === null || i.planned_price === undefined ? null : Number(i.planned_price) })) }); setTemplate(null); })}>{t('save')}</Button>}>
+        items: template.items.map((i: Row) => ({ item_type: i.item_type, item_code: i.item_code, description: i.description, unit: i.unit, product_id: i.product_id ?? null, planned_qty: Number(i.planned_qty || 0),
+        planned_price: i.planned_price === '' || i.planned_price === null || i.planned_price === undefined ? null : Number(i.planned_price),
+        vat_percent: i.vat_percent === '' || i.vat_percent === null || i.vat_percent === undefined ? null : Number(i.vat_percent), vat_code: i.vat_code || null })) }); setTemplate(null); })}>{t('save')}</Button>}>
       {error && <Notice tone="bad" className="mb-3">{error}</Notice>}
       <p className="mb-3 text-sm text-slate-500">{t('ops_template_note')}</p>
       <div className="grid gap-3 sm:grid-cols-3">
@@ -133,14 +139,18 @@ export function OpsView({ lang }: { lang: Language }) {
       </div>
       <label className="mt-3 flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={!!template.active} onChange={e => setTemplate({ ...template, active: e.target.checked })} />{t('ops_active')}</label>
       <div className="mt-4 space-y-2">
-        {template.items.map((item: Row, n: number) => <div key={n} className="grid items-end gap-2 rounded-xl border border-slate-200 p-2 sm:grid-cols-[130px_120px_minmax(0,1fr)_80px_90px_110px_auto] dark:border-slate-700">
+        {template.items.map((item: Row, n: number) => <div key={n} className="grid items-end gap-2 rounded-xl border border-slate-200 p-2 sm:grid-cols-[130px_110px_minmax(0,1fr)_70px_80px_100px_70px_70px_auto] dark:border-slate-700">
           <label className="block"><Label>{t('ops_line_type')}</Label><IconSelect value={item.item_type ?? 'cost'} onChange={v => setTemplate({ ...template, items: template.items.map((x: Row, i: number) => i === n ? { ...x, item_type: v } : x) })} icon={Layers} ariaLabel={t('kind')} placeholder="—"
             options={ITEM_TYPES.map(k => ({ value: k, label: t(`ops_item_${k}`), icon: Layers }))} /></label>
-          {(['item_code', 'description', 'unit', 'planned_qty', 'planned_price'] as const).map(k => <label key={k} className="block min-w-0"><Label>{t(k === 'item_code' ? 'code' : k === 'planned_qty' ? 'quantity' : k === 'planned_price' ? 'unit_price' : k === 'unit' ? 'ops_unit' : 'description')}</Label>
-            <TextField value={item[k] ?? ''} type={k.startsWith('planned') ? 'number' : 'text'} onChange={e => setTemplate({ ...template, items: template.items.map((x: Row, i: number) => i === n ? { ...x, [k]: k === 'item_code' ? e.target.value.toUpperCase() : e.target.value } : x) })} /></label>)}
+          {(['item_code', 'description', 'unit', 'planned_qty', 'planned_price', 'vat_percent', 'vat_code'] as const).map(k => <label key={k} className="block min-w-0"><Label>{t(k === 'item_code' ? 'code' : k === 'planned_qty' ? 'quantity' : k === 'planned_price' ? 'unit_price' : k === 'unit' ? 'ops_unit' : k === 'vat_percent' ? 'tax_rate' : k === 'vat_code' ? 'crm_vat_code' : 'description')}</Label>
+            <TextField value={item[k] ?? ''} type={k.startsWith('planned') || k === 'vat_percent' ? 'number' : 'text'} maxLength={k === 'vat_code' ? 2 : undefined} onChange={e => setTemplate({ ...template, items: template.items.map((x: Row, i: number) => i === n ? { ...x, [k]: k === 'item_code' || k === 'vat_code' ? e.target.value.toUpperCase() : e.target.value } : x) })} /></label>)}
           <Button size="sm" variant="ghost" onClick={() => setTemplate({ ...template, items: template.items.filter((_: Row, i: number) => i !== n) })}>{t('remove')}</Button>
         </div>)}
-        <Button size="sm" variant="outline" onClick={() => setTemplate({ ...template, items: [...template.items, { item_type: 'operation', item_code: '', description: '', unit: 'H', planned_qty: '1', planned_price: '' }] })}>{t('addLine')}</Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => setTemplate({ ...template, items: [...template.items, { item_type: 'operation', item_code: '', description: '', unit: 'H', planned_qty: '1', planned_price: '', vat_percent: '17', vat_code: '' }] })}>{t('addLine')}</Button>
+          <div className="w-80"><ProductPicker company={company} t={t} onPick={pr => setTemplate({ ...template, items: [...template.items, { item_type: 'revenue', product_id: pr.id, item_code: pr.code, description: pr.name, unit: pr.unit ?? 'KOM', planned_qty: '1',
+            planned_price: pr.sale_price === null || pr.sale_price === undefined ? '' : String(Number(pr.sale_price)), vat_percent: pr.vat_percent === null || pr.vat_percent === undefined ? '' : String(Number(pr.vat_percent)), vat_code: pr.vat_code ?? '' }] })} /></div>
+        </div>
       </div>
     </Dialog>}
   </div>;
