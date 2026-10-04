@@ -1,161 +1,115 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { BookOpen, Plus, ReceiptText, RefreshCw, X } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { BookCheck, BookOpen, Building2, Clock3, FilePlus2, HandCoins, Plus, ReceiptText, RefreshCw, ShieldCheck, Truck, WalletCards } from 'lucide-react';
+
 import type { Language } from '../../types';
-import { api, ApiError } from '../../services/api';
 import { Button } from '../ui/Button';
-import { accountingText } from './accountingCopy';
+import { Card } from '../ui/Card';
+import { IconSelect } from '../ui/IconSelect';
+import { InlineDataState } from '../ui/InlineDataState';
+import { Notice } from '../ui/Notice';
+import { PageHeader, type PageHeaderStat } from '../ui/PageHeader';
+import { AccountingForm } from './accounting/AccountingForm';
+import { InvoiceDetail } from './accounting/InvoiceDetail';
+import { InvoiceEditor } from './accounting/InvoiceEditor';
+import { InvoiceList } from './accounting/InvoiceList';
+import { AccountsPanel, AdvancesPanel, BankPanel, JournalPanel, MarginsPanel, NotConfigured, PartnersPanel, PeriodsPanel, PermissionsPanel, ReportsPanel, RulesPanel, SettingsPanel, VatPanel } from './accounting/LedgerPanels';
+import { PosTerminal } from './accounting/PosTerminal';
+import { money, type Row, today, useAccounting } from './accounting/shared';
 import { PantheonPanel } from './PantheonPanel';
 import { SmartPosReports } from './SmartPosReports';
 
-type Row = Record<string, any>;
-type Context = { abilities: string[]; available_abilities: string[]; can_manage_permissions: boolean; configured: boolean; company: Row; user_id: number };
-type Data = { settings: Row | null; accounts: Row[]; periods: Row[]; rules: Row[]; jobs: Row[]; entries: Row[]; bank: Row[]; invoices: Row[]; allocations: Row[]; advances: Row[]; estimates: Row[]; audit: Row[]; balances: Row[]; deliveries: Row[]; job_margins: Row[]; partners: Row[] };
-const empty: Data = { settings: null, accounts: [], periods: [], rules: [], jobs: [], entries: [], bank: [], invoices: [], allocations: [], advances: [], estimates: [], audit: [], balances: [], deliveries: [], job_margins: [], partners: [] };
-const inputClass = 'w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900 disabled:opacity-60';
-const panel = 'rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900';
-const today = () => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Sarajevo' }).format(new Date());
-const newLine = () => ({ description: '', quantity: '1', unit_price: '0', account_id: '', tax_rule_id: '', workspace_id: '', allocations: [] as Row[] });
+const sumBy = (rows: Row[], pick: (r: Row) => unknown) => Object.entries(rows.reduce<Record<string, number>>((acc, r) => { acc[r.currency] = (acc[r.currency] || 0) + Number(pick(r) || 0); return acc; }, {})).map(([c, v]) => money(v, c)).join(' · ') || money(0);
 
 // Smart POS (mode="pos") owns outgoing invoices and fiscalisation; Accounting keeps incoming invoices and the books.
 export function AccountingView({ lang, mode = 'accounting' }: { lang: Language; mode?: 'accounting' | 'pos' }) {
   const pos = mode === 'pos';
-  const t = (key: string) => accountingText(lang, key);
-  const [companies, setCompanies] = useState<Row[]>([]); const [company, setCompany] = useState(0);
-  const companyRef = useRef(company); companyRef.current = company;
-  const [context, setContext] = useState<Context | null>(null); const [data, setData] = useState<Data>(empty);
-  const [tab, setTab] = useState(pos ? 'outgoing' : 'incoming'); const [detailTab, setDetailTab] = useState('details');
-  const [selectedId, setSelectedId] = useState<number | null>(null); const [search, setSearch] = useState('');
-  const [error, setError] = useState(''); const [busy, setBusy] = useState(false); const [loading, setLoading] = useState(true);
-  const [modal, setModal] = useState(''); const [form, setForm] = useState<Row>({}); const [draft, setDraft] = useState<Row | null>(null);
-  const [preview, setPreview] = useState<Row[]>([]); const [posting, setPosting] = useState<Row>({}); const [vatRows, setVatRows] = useState<Row[]>([]);
-  const [report, setReport] = useState<Row | null>(null);
-  const can = (ability: string) => context?.abilities.includes(ability) ?? false;
+  const acc = useAccounting(lang);
+  const { t, companies, company, setCompany, context, data, loading, busy, error, can, run, refresh, send } = acc;
+  const [tab, setTab] = useState(pos ? 'outgoing' : 'incoming');
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [formName, setFormName] = useState(''); const [form, setForm] = useState<Row>({});
+  const [draft, setDraft] = useState<Row | null>(null);
+  const [terminal, setTerminal] = useState(false);
   const selected = data.invoices.find(i => i.id === selectedId);
-  const fail = (e: unknown) => setError(e instanceof ApiError ? [e.message, ...Object.values(e.errors).flat()].join(' · ') : e instanceof Error ? e.message : String(e));
-  const refresh = useCallback(async () => {
-    if (!company) return;
-    const ctx = (await api.accounting.get<Context>(company, 'context')).data; if (companyRef.current !== company) return; setContext(ctx);
-    if (!ctx.abilities.includes('view') && ctx.can_manage_permissions) { setTab('permissions'); setForm(current => ({ ...current, user_id: current.user_id || ctx.user_id })); }
-    const overview = ctx.abilities.includes('view') ? (await api.accounting.get<Data>(company, 'overview')).data : empty;
-    if (companyRef.current === company) setData(overview);
-  }, [company]);
-  useEffect(() => { let live = true; api.accounting.companies().then(r => { if (live) { setCompanies(r.data); setCompany(r.data[0]?.id ?? 0); setLoading(false); } }).catch(e => { if (live) { fail(e); setLoading(false); } }); return () => { live = false; }; }, []);
-  useEffect(() => { let live = true; setContext(null); setData(empty); setSelectedId(null); setDraft(null); setPreview([]); setReport(null); setVatRows([]); setError(''); setLoading(true);
-    if (company) refresh().catch(e => { if (live) fail(e); }).finally(() => { if (live) setLoading(false); }); else setLoading(false);
-    return () => { live = false; };
-  }, [company, refresh]);
-  const run = async (fn: () => Promise<unknown>, close = false) => { if (busy) return; setBusy(true); setError(''); try { await fn(); await refresh(); if (close) { setModal(''); setDraft(null); } } catch (e) { fail(e); } finally { setBusy(false); } };
-  const send = (path: string, payload: unknown, method = 'POST') => api.accounting.send(company, path, payload, method);
-  const open = (name: string, defaults: Row = {}) => { setForm(defaults); setModal(name); setError(''); };
-  const accountOptions = data.accounts.map(a => [String(a.id), `${a.code} — ${a.name}`]);
-  const jobOptions = data.jobs.map(j => [String(j.id), `${j.reference || j.id} · ${j.agreed_amount} ${j.currency || ''}`]);
-  const options = (key: string): string[][] | undefined => {
-    if (key.endsWith('account_id')) return accountOptions;
-    if (key === 'tax_rule_id') return data.rules.filter(r => r.verification_status === 'approved').map(r => [String(r.id), `${r.name} · ${r.version} · ${r.rate ?? '?'}%`]);
-    if (key === 'workspace_id') return jobOptions;
-    if (key === 'partner_id') return data.partners.map(p => [String(p.id), `${p.name} · ${p.tax_number || ''}`]);
-    if (key === 'payment_method') return ['cash', 'card', 'cheque', 'transfer', 'voucher'].map(k => [k, t(`pay_${k}`)]);
-    if (key === 'direction') return ['incoming', 'outgoing'].map(k => [k, t(k)]);
-    if (key === 'kind') return ['asset', 'liability', 'equity', 'income', 'expense'].map(k => [k, t(k)]);
-    if (key === 'jurisdiction') return ['FBiH', 'RS', 'BD', ...(modal === 'rules' ? ['BA'] : [])].map(k => [k, k]);
-    if (key === 'bank_transaction_id') return data.bank.map(b => [String(b.id), `${b.reference} · ${b.partner_name} · ${b.amount} ${b.currency}`]);
-    if (key === 'invoice_id') return data.invoices.filter(i => i.posting_status === 'posted' && !i.corrects_invoice_id).map(i => [String(i.id), `${i.supplier_number || i.number} · ${i.partner_name} · ${i.remaining_amount} ${i.currency}`]);
-    return undefined;
-  };
-  const field = (key: string, value: unknown, change: (value: string) => void, disabled = false, required = false, customOptions?: string[][]) => {
-    const opts = customOptions || options(key);
-    const type = /(_at|_date|_on|_from|_until)$/.test(key) || ['from', 'to'].includes(key) ? 'date' : key === 'source_url' ? 'url' : 'text';
-    return <label key={key} className="block text-xs font-medium text-slate-500">{t(key)}
-      {opts ? <select className={`${inputClass} mt-1`} value={String(value ?? '')} onChange={e => change(e.target.value)} disabled={disabled} required={required}><option value="">—</option>{opts.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select>
-        : <input className={`${inputClass} mt-1`} type={type} value={String(value ?? '')} onChange={e => change(e.target.value)} disabled={disabled} required={required} />}</label>;
-  };
-  const fields = (keys: string[], object: Row, setter: (next: Row) => void, required = false) => <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{keys.map(k => field(k, object[k], v => setter({ ...object, [k]: v }), false, required && !(modal === 'partners' && ['tax_number', 'vat_number', 'address', 'email'].includes(k))))}</div>;
-  const table = (keys: string[], rows: Row[], action?: (row: Row) => React.ReactNode) => <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr>{keys.map(k => <th className="p-3 text-xs text-slate-500" key={k}>{t(k)}</th>)}{action && <th />}</tr></thead><tbody>{rows.map((row, i) => <tr key={row.id ?? i} className="border-t border-slate-100 dark:border-slate-800">{keys.map(k => <td className="p-3" key={k}>{String(row[k] ?? '—')}</td>)}{action && <td className="p-3">{action(row)}</td>}</tr>)}</tbody></table>{!rows.length && <p className="p-6 text-center text-slate-500">{t('empty')}</p>}</div>;
-  const downloadCsv = (rows: Row[]) => { if (!rows.length) return; const keys = Object.keys(rows[0]).filter(k => typeof rows[0][k] !== 'object'); const escaped = (v: unknown) => `"${String(v ?? '').replace(/^[=+@-]/, "'$&").replaceAll('"', '""')}"`; const blob = new Blob(['\ufeff' + [keys, ...rows.map(r => keys.map(k => r[k]))].map(r => r.map(escaped).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `accounting-${tab}.csv`; a.click(); URL.revokeObjectURL(url); };
-  const editInvoice = (invoice?: Row) => { setDraft(invoice ? { ...invoice, document_ids: invoice.documents.map((d: Row) => d.id), items: invoice.items.map((i: Row) => ({ ...i, allocations: invoice.allocations.filter((a: Row) => a.invoice_item_id === i.id) })) } : { direction: tab, currency: data.settings?.base_currency || 'BAM', document_ids: [], items: [] }); setModal('invoice'); };
-  const saveInvoice = () => run(async () => {
-    if (!draft) return; const payload = { ...draft, items: draft.items.map((i: Row) => ({ ...i, account_id: i.account_id || null, tax_rule_id: i.tax_rule_id || null, workspace_id: i.workspace_id || null,
+  const openForm = (name: string, defaults: Row = {}) => { acc.setError(''); setForm(defaults); setFormName(name); };
+  const editInvoice = (invoice?: Row) => { acc.setError(''); setDraft(invoice
+    ? { ...invoice, document_ids: invoice.documents.map((d: Row) => d.id), items: invoice.items.map((i: Row) => ({ ...i, allocations: invoice.allocations.filter((a: Row) => a.invoice_item_id === i.id) })) }
+    : { direction: tab, currency: data.settings?.base_currency || 'BAM', document_ids: [], items: [], issued_at: today(), event_date: today(), tax_date: today(), posting_date: today() }); };
+  const saveInvoice = () => draft && void run(async () => {
+    const payload = { ...draft, items: draft.items.map((i: Row) => ({ ...i, account_id: i.account_id || null, tax_rule_id: i.tax_rule_id || null, workspace_id: i.workspace_id || null,
       ...(i.allocations?.length ? { allocations: i.allocations.map((a: Row) => ({ ...a, workspace_id: a.workspace_id || null, estimate_id: a.estimate_id || null })) } : { allocations: undefined }) })) };
-    const r = await send(draft.id ? `invoices/${draft.id}` : 'invoices', payload, draft.id ? 'PUT' : 'POST'); setSelectedId(Number(r.data.id));
-  }, true);
-  const invoiceAction = (action: string) => selected && run(() => send(`invoices/${selected.id}/${action}`, posting));
-  const balances = data.accounts.map(a => { const b = data.balances.find(b => b.account_id === a.id); return { ...a, debit: b?.debit || '0.00', credit: b?.credit || '0.00', balance: (Number(b?.debit || 0) - Number(b?.credit || 0)).toFixed(2) }; });
-  const modalKeys: Record<string, string[]> = {
-    settings: ['jurisdiction', 'base_currency', 'invoice_prefix'], accounts: ['code', 'name', 'kind'], periods: ['name', 'starts_on', 'ends_on'],
-    partners: ['name', 'country_code', 'tax_number', 'vat_number', 'address', 'email'],
-    fromJob: ['workspace_id'],
-    rules: ['name', 'jurisdiction', 'treatment', 'conditions', 'rate', 'deductible_percent', 'effective_from', 'applies_from', 'source_url', 'article', 'version'],
-    bank: ['reference', 'bank_account', 'partner_id', 'direction', 'transaction_date', 'amount', 'currency', 'exchange_rate', 'exchange_source'],
-    allocations: ['bank_transaction_id', 'invoice_id', 'amount', 'posting_date', 'bank_account_id', 'fx_gain_account_id', 'fx_loss_account_id'],
-    advances: ['bank_transaction_id', 'bank_account_id', 'control_account_id'], periodStatus: ['reason'], approveRule: ['review_note'], reverse: ['posting_date', 'reason'], corrective: ['posting_date', 'reason'], deliver: ['recipient'], fiscalise: ['payment_method'], refund: ['reason'], confirmFiscal: ['fiscal_number'], importAccounts: ['review_note'], estimates: ['workspace_id', 'description', 'amount', 'currency'],
-  };
-  const submitModal = (e: React.FormEvent) => { e.preventDefault(); const payload = { ...form }; if (modal === 'allocations') payload.request_key ||= crypto.randomUUID();
-    if (modal === 'importAccounts') {
-      payload.accounts = String(form.csv || '').trim().split(/\r?\n/).filter(Boolean).filter((row, index) => index !== 0 || !/^code[,;]/i.test(row)).map(row => { const [code, name, kind] = row.split(/[,;]/).map(v => v.trim()); return { code, name, kind }; });
+    const r = await send(draft.id ? `invoices/${draft.id}` : 'invoices', payload, draft.id ? 'PUT' : 'POST'); setSelectedId(Number(r.data.id)); setDraft(null);
+  });
+
+  const tabs = pos
+    ? [...(can('view') ? ['outgoing'] : []), ...(can('pos') ? ['fiscalReports'] : [])]
+    : [...(can('view') ? ['incoming', 'journal', 'bank', 'advances', 'vat', 'accounts', 'periods', 'rules', 'margins', 'partners', 'reports'] : []), ...(can('setup') ? ['settings'] : []), ...(can('integrations') ? ['pantheon'] : [])];
+  if (context?.can_manage_permissions) tabs.push('permissions');
+  const activeTab = tabs.includes(tab) ? tab : tabs[0];
+
+  const stats = useMemo<PageHeaderStat[]>(() => {
+    const own = data.invoices.filter(i => i.direction === (pos ? 'outgoing' : 'incoming') && !i.corrects_invoice_id);
+    if (pos) {
+      const todays = own.filter(i => i.fiscal_status === 'fiscalised' && String(i.fiscalised_at ?? '').slice(0, 10) === today());
+      return [
+        { label: t('kpi_today'), value: sumBy(todays, i => i.total), icon: HandCoins, tone: 'bg-emerald-500/10 text-emerald-500' },
+        { label: t('kpi_receipts'), value: todays.length, icon: ReceiptText, tone: 'bg-violet-500/10 text-violet-500' },
+        { label: t('kpi_unfiscalised'), value: own.filter(i => i.issuance_status === 'issued' && ['none', 'failed', null, undefined].includes(i.fiscal_status)).length, icon: Clock3, tone: 'bg-amber-500/10 text-amber-500' },
+        { label: t('kpi_receivable'), value: sumBy(own.filter(i => i.posting_status === 'posted'), i => i.remaining_amount), icon: WalletCards, tone: 'bg-sky-500/10 text-sky-500' },
+      ];
     }
-    if (modal === 'deliver') { payload.request_key ||= crypto.randomUUID(); payload.document_ids ||= []; }
-    if (['fiscalise', 'refund', 'confirmFiscal'].includes(modal)) { payload.request_key ||= crypto.randomUUID(); void run(() => send(`pos/invoices/${form.id}/${modal === 'confirmFiscal' ? 'confirm' : modal}`, payload), true); return; }
-    const path = modal === 'periodStatus' ? `periods/${form.id}/status` : modal === 'approveRule' ? `rules/${form.id}/approve` : modal === 'reverse' ? `entries/${form.id}/reverse` : modal === 'corrective' || modal === 'deliver' ? `invoices/${form.id}/${modal}` : modal === 'importAccounts' ? 'accounts/import' : modal === 'fromJob' ? 'jobs/invoice' : modal;
-    void run(() => send(path, payload), true);
-  };
-  return <div className="space-y-5 p-4 text-slate-900 dark:text-slate-100 md:p-6">
-    <header className="flex flex-wrap items-center justify-between gap-4"><div><h1 className="flex items-center gap-2 text-2xl font-bold">{pos ? <ReceiptText /> : <BookOpen />}{t(pos ? 'smartPos' : 'title')}</h1><p className="mt-1 text-sm text-slate-500">{t(pos ? 'smartPosSubtitle' : 'subtitle')}</p></div><div className="flex gap-2"><select aria-label={t('company')} disabled={busy} className={inputClass} value={company} onChange={e => setCompany(Number(e.target.value))}>{companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select><Button variant="outline" disabled={busy || !company} onClick={() => void run(refresh)} aria-label={t('refresh')}><RefreshCw size={16} /></Button></div></header>
-    {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
-    {loading ? <p className="animate-pulse">…</p> : !company ? <p>{t('noCompany')}</p> : <>
-      {!can('view') && !(pos && can('pos')) && <div className={panel}>{t('noAccess')}</div>}
-      <nav className="flex flex-wrap gap-2">{[...(pos ? [...(can('view') ? ['outgoing'] : []), ...(can('pos') ? ['fiscalReports'] : [])] : [...(can('view') ? ['incoming', 'journal', 'bank', 'advances', 'vat', 'accounts', 'periods', 'rules', 'margins', 'partners', 'reports'] : []), ...(can('setup') ? ['settings'] : []), ...(can('integrations') ? ['pantheon'] : [])]), ...(context?.can_manage_permissions ? ['permissions'] : [])].map(k => <Button key={k} size="sm" variant={tab === k ? 'primary' : 'outline'} onClick={() => { setTab(k); setSelectedId(null); setPreview([]); }}>{t(k)}</Button>)}</nav>
-      {can('view') && !context?.configured && <div className={panel}>{t('settings')}{can('setup') && <Button className="ml-3" onClick={() => open('settings', { jurisdiction: 'FBiH', base_currency: 'BAM', invoice_prefix: 'INV' })}>{t('create')}</Button>}</div>}
-      {tab === 'permissions' && context?.can_manage_permissions && <form className={`${panel} space-y-4`} onSubmit={e => { e.preventDefault(); void run(() => send('permissions', { user_id: form.user_id, abilities: form.abilities || [] })); }}><h2 className="font-bold">{t('permissions')}</h2>{field('user_id', form.user_id, v => setForm({ ...form, user_id: v }), false, true)}<div className="grid gap-3 sm:grid-cols-3">{context.available_abilities.map(a => <label className="flex items-center gap-2 text-sm" key={a}><input type="checkbox" checked={(form.abilities || []).includes(a)} onChange={e => setForm({ ...form, abilities: e.target.checked ? [...(form.abilities || []), a] : (form.abilities || []).filter((v: string) => v !== a) })} />{t(a)}</label>)}</div><Button disabled={busy}>{t('grant')}</Button></form>}
-      {tab === 'fiscalReports' && pos && can('pos') && <SmartPosReports company={company} t={t} fail={fail} inputClass={inputClass} panel={panel} />}
-      {tab === 'pantheon' && !pos && can('integrations') && <PantheonPanel company={company} t={t} fail={fail} canSync={can('setup')} canWrite={can('post')} inputClass={inputClass} panel={panel} onSynced={refresh} />}
-      {tab === 'settings' && can('setup') && <div className={panel}>{table(['jurisdiction', 'base_currency', 'invoice_prefix'], data.settings ? [data.settings] : [])}<Button onClick={() => open('settings', data.settings || { jurisdiction: 'FBiH', base_currency: 'BAM', invoice_prefix: 'INV' })}>{t('save')}</Button></div>}
-      {can('view') && ['incoming', 'outgoing'].includes(tab) && <>
-        <div className="flex gap-3"><input className={inputClass} placeholder={t('search')} value={search} onChange={e => setSearch(e.target.value)} />{can('prepare') && context?.configured && <Button onClick={() => editInvoice()}><Plus size={16} className="mr-1" />{t('create')}</Button>}{tab === 'outgoing' && can('prepare') && context?.configured && <Button variant="outline" onClick={() => open('fromJob')}>{t('fromJob')}</Button>}</div>
-        <div className={panel}>{table(['number', 'partner_name', 'total', 'currency', 'approval_status', ...(tab === 'outgoing' ? ['fiscal_status'] : []), 'posting_status', 'payment_status', 'remaining_amount'], data.invoices.filter(i => i.direction === tab && `${i.number} ${i.supplier_number} ${i.partner_name}`.toLowerCase().includes(search.toLowerCase())).map(i => ({ ...i, total: i.tax_unknown ? '?' : i.total, number: i.supplier_number || i.number, approval_status: t(i.approval_status), posting_status: t(i.posting_status), payment_status: t(i.payment_status), fiscal_status: `${t(`fiscal_${i.fiscal_status || 'none'}`)}${i.fiscal_number ? ` #${i.fiscal_number}` : ''}` })), row => <Button size="sm" variant="outline" onClick={() => { setSelectedId(row.id); setDetailTab('details'); setPreview([]); }}>{t('details')}</Button>)}</div>
-        {selected && <section className={`${panel} space-y-4`}><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold">{selected.supplier_number || selected.number} · {selected.partner_name || '—'}</h2><div className="flex flex-wrap gap-2">
-          {can('prepare') && ['draft', 'rejected'].includes(selected.approval_status) && selected.issuance_status === 'draft' && <>{!selected.corrects_invoice_id && <Button size="sm" onClick={() => editInvoice(selected)}>{t('save')}</Button>}<Button size="sm" disabled={busy} onClick={() => void invoiceAction('submit')}>{t('submit')}</Button></>}
-          {can('approve') && selected.approval_status === 'pending' && <><Button size="sm" disabled={busy} onClick={() => void invoiceAction('approve')}>{t('approve')}</Button><Button size="sm" variant="outline" disabled={busy} onClick={() => void invoiceAction('reject')}>{t('reject')}</Button></>}
-          {can('prepare') && selected.direction === 'outgoing' && selected.approval_status === 'approved' && selected.issuance_status === 'draft' && <Button size="sm" disabled={busy} onClick={() => void invoiceAction('issue')}>{t('issue')}</Button>}
-          {selected.issuance_status === 'issued' && <><Button size="sm" variant="outline" disabled={busy} onClick={() => void run(() => api.accounting.print(company, selected.id))}>{t('print')}</Button>{can('prepare') && <Button size="sm" variant="outline" onClick={() => open('deliver', { id: selected.id, request_key: crypto.randomUUID(), document_ids: [] })}>{t('deliver')}</Button>}</>}
-          {can('pos') && selected.direction === 'outgoing' && selected.issuance_status === 'issued' && !selected.corrects_invoice_id && ['none', 'failed', undefined, null].includes(selected.fiscal_status) && <Button size="sm" disabled={busy} onClick={() => open('fiscalise', { id: selected.id, payment_method: 'cash', request_key: crypto.randomUUID() })}><ReceiptText size={14} className="mr-1" />{t('fiscalise')}</Button>}
-          {can('pos') && selected.fiscal_status === 'fiscalised' && <><Button size="sm" variant="outline" disabled={busy} onClick={() => void run(() => send('pos/reports/duplicate', { invoice_id: selected.id, request_key: crypto.randomUUID() }))}>{t('pos_duplicate')}</Button><Button size="sm" variant="outline" disabled={busy} onClick={() => open('refund', { id: selected.id, request_key: crypto.randomUUID() })}>{t('refund')}</Button></>}
-          {can('pos') && ['unconfirmed', 'refund_unconfirmed'].includes(selected.fiscal_status) && <Button size="sm" variant="outline" disabled={busy} onClick={() => open('confirmFiscal', { id: selected.id })}>{t('confirmFiscal')}</Button>}
-          {can('correct') && selected.posting_status === 'posted' && !selected.corrects_invoice_id && !data.invoices.some(i => i.corrects_invoice_id === selected.id) && <Button size="sm" variant="outline" onClick={() => open('corrective', { id: selected.id, posting_date: today() })}>{t('correction')}</Button>}
-        </div></div>
-        <nav className="flex flex-wrap gap-2">{['details', ...(selected.direction === 'incoming' ? ['costs'] : []), 'posting', 'history'].map(k => <Button size="sm" key={k} variant={detailTab === k ? 'primary' : 'outline'} onClick={() => setDetailTab(k)}>{t(k)}</Button>)}</nav>
-        <div className="flex flex-wrap gap-2 text-xs">{[selected.approval_status, ...(selected.direction === 'outgoing' ? [selected.issuance_status, `fiscal_${selected.fiscal_status || 'none'}`] : []), selected.posting_status, selected.payment_status].map((s, i) => <span key={i} className="rounded-lg bg-slate-100 px-3 py-2 dark:bg-slate-800">{t(s)}</span>)}</div>
-        {['unconfirmed', 'refund_unconfirmed'].includes(selected.fiscal_status) && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800">{t('fiscalUnconfirmed')}</p>}
-        {selected.fiscal_number && <p className="text-sm">{t('fiscal_number')}: <strong>{selected.fiscal_number}</strong> · {String(selected.fiscalised_at ?? '').slice(0, 16).replace('T', ' ')} · {t(`pay_${selected.fiscal_payment_method}`)}{selected.fiscal_refund_number ? ` · ${t('refund')} #${selected.fiscal_refund_number}` : ''}</p>}
-        {selected.tax_unknown && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800">{t('unknown')}</p>}
-        {selected.duplicate_warning && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800">{t('duplicate')}</p>}
-        {detailTab === 'details' && <><div className="grid gap-3 sm:grid-cols-3">{['partner_name', 'partner_tax_number', 'supplier_number', 'issued_at', 'due_at', 'event_date', 'tax_date', 'posting_date', 'currency', 'exchange_rate', 'exchange_date', 'exchange_source', 'exchange_reason'].map(k => <div key={k}><p className="text-xs text-slate-500">{t(k)}</p><p className="text-sm">{selected[k]?.toString().slice(0, /(_at|_date)$/.test(k) ? 10 : undefined) || '—'}</p></div>)}</div>{table(['description', 'quantity', 'unit_price', 'total', 'tax_rate', 'tax_amount', 'tax_treatment', 'deductible_percent', 'tax_rule_id'], selected.items.map((i: Row) => ({ ...i, tax_rule_id: data.rules.find(r => r.id === i.tax_rule_id)?.name || i.tax_rule_id })))}<div className="flex flex-wrap gap-4"><strong>{t('total')}: {selected.tax_unknown ? '—' : `${selected.total} ${selected.currency}`}</strong>{selected.documents.map((d: Row) => <Button key={d.id} size="sm" variant="outline" onClick={() => void run(() => api.documents.open(d.id, d.name, true))}>{d.name}</Button>)}</div></>}
-        {detailTab === 'costs' && <><p className="text-sm text-slate-500">{t('replacement')}</p>{table(['description', 'workspace_id', 'amount', 'estimate_id'], selected.allocations.map((a: Row) => ({ ...a, description: selected.items.find((i: Row) => i.id === a.invoice_item_id)?.description, workspace_id: a.workspace_id || t('overhead') })))}</>}
-        {detailTab === 'posting' && <><div className="rounded-xl bg-slate-50 p-3 text-sm dark:bg-slate-800">{t(selected.approval_status)} · {t(selected.posting_status === 'unposted' ? 'event_unposted' : 'event_posted')} · {t('noTaxAssumption')}</div>{fields(['control_account_id', 'vat_account_id'], posting, setPosting)}<div className="flex gap-2"><Button variant="outline" disabled={busy} onClick={() => void run(async () => { setPreview((await send(`invoices/${selected.id}/preview`, { ...posting, vat_account_id: posting.vat_account_id || null })).data as unknown as Row[]); })}>{t('preview')}</Button>{can('post') && selected.approval_status === 'approved' && selected.posting_status === 'unposted' && (selected.direction === 'incoming' || selected.issuance_status === 'issued') && <Button disabled={busy || !preview.length} onClick={() => void invoiceAction('post')}>{t('post')}</Button>}</div>{table(['account_id', 'debit', 'credit'], preview.length ? preview : data.entries.find(e => e.invoice_id === selected.id)?.lines || [])}</>}
-        {detailTab === 'history' && <><div className="flex gap-4 text-sm"><strong>{t('paid')}: {selected.paid_amount} {selected.currency}</strong><strong>{t('remaining')}: {selected.remaining_amount} {selected.currency}</strong></div>{can('payments') && can('post') && selected.posting_status === 'posted' && <Button onClick={() => open('allocations', { invoice_id: selected.id, posting_date: today(), request_key: crypto.randomUUID() })}>{t('allocate')}</Button>}{table(['bank_transaction_id', 'amount', 'confirmed_by', 'created_at'], data.allocations.filter(a => a.invoice_id === selected.id))}{table(['action', 'user_name', 'created_at'], data.audit.filter(a => a.entity_type === 'invoice' && a.entity_id === selected.id).map(a => ({ ...a, action: t(a.action) })))}</>}
-        </section>}
+    return [
+      { label: t('kpi_pending'), value: own.filter(i => i.approval_status === 'pending').length, icon: Clock3, tone: 'bg-amber-500/10 text-amber-500' },
+      { label: t('kpi_unposted'), value: own.filter(i => i.approval_status === 'approved' && i.posting_status === 'unposted').length, icon: BookCheck, tone: 'bg-sky-500/10 text-sky-500' },
+      { label: t('kpi_payable'), value: sumBy(own.filter(i => i.posting_status === 'posted'), i => i.remaining_amount), icon: WalletCards, tone: 'bg-rose-500/10 text-rose-500' },
+      { label: t('kpi_receivable'), value: sumBy(data.invoices.filter(i => i.direction === 'outgoing' && i.posting_status === 'posted'), i => i.remaining_amount), icon: HandCoins, tone: 'bg-emerald-500/10 text-emerald-500' },
+    ];
+  }, [data.invoices, pos, t]);
+
+  const invoiceTab = ['incoming', 'outgoing'].includes(activeTab);
+  const canCreate = invoiceTab && can('prepare') && context?.configured;
+  const actions = <>
+    {companies.length > 1 && <div className="w-56"><IconSelect value={String(company)} onChange={v => { setCompany(Number(v)); setSelectedId(null); }} icon={Building2} ariaLabel={t('company')} placeholder={t('company')} disabled={busy}
+      options={companies.map(c => ({ value: String(c.id), label: c.name, icon: Building2 }))} /></div>}
+    <Button size="sm" variant="outline" disabled={busy || !company} onClick={() => void run(refresh)} aria-label={t('refresh')}><RefreshCw className="h-4 w-4" /></Button>
+    {canCreate && activeTab === 'outgoing' && <Button size="sm" variant="outline" onClick={() => openForm('fromJob')} className="gap-1.5"><Truck className="h-4 w-4" />{t('fromJob')}</Button>}
+    {canCreate && <Button size="sm" onClick={() => pos ? setTerminal(true) : editInvoice()} className="gap-1.5">{pos ? <Plus className="h-4 w-4" /> : <FilePlus2 className="h-4 w-4" />}{t(pos ? 'newReceipt' : 'newIncoming')}</Button>}
+  </>;
+
+  const panelProps = { acc, openForm };
+  return <div className="space-y-3">
+    <PageHeader icon={pos ? ReceiptText : BookOpen} tone={pos ? 'violet' : 'emerald'} title={t(pos ? 'smartPos' : 'title')} subtitle={context?.company?.name ? `${context.company.name} · ${t(pos ? 'smartPosSubtitle' : 'subtitle')}` : t(pos ? 'smartPosSubtitle' : 'subtitle')}
+      badge={context ? <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400"><ShieldCheck className="h-3.5 w-3.5" />{context.abilities.length} {t('permissions')}</span> : undefined}
+      actions={actions} filters={tabs.map(k => ({ id: k, label: t(k) }))} activeFilter={activeTab} onFilterChange={id => { setTab(String(id)); setSelectedId(null); }}
+      stats={can('view') && invoiceTab && !selected ? stats : undefined} />
+
+    {error && !formName && !draft && !terminal && <Notice tone="bad">{error}</Notice>}
+    {loading ? <Card className="shadow-none" contentClassName="p-0"><InlineDataState loading empty="" /></Card>
+      : !company ? <Notice tone="warn">{t('noCompany')}</Notice>
+      : <>
+        {!can('view') && !(pos && can('pos')) && <Notice tone="warn">{t('noAccess')}</Notice>}
+        {can('view') && !context?.configured && <NotConfigured {...panelProps} />}
+        {activeTab === 'permissions' && context?.can_manage_permissions && <PermissionsPanel acc={acc} />}
+        {activeTab === 'fiscalReports' && pos && can('pos') && <SmartPosReports acc={acc} />}
+        {activeTab === 'pantheon' && !pos && can('integrations') && <PantheonPanel acc={acc} canSync={can('setup')} canWrite={can('post')} />}
+        {activeTab === 'settings' && can('setup') && <SettingsPanel {...panelProps} />}
+        {can('view') && invoiceTab && (selected
+          ? <InvoiceDetail key={selected.id} acc={acc} invoice={selected} onBack={() => setSelectedId(null)} onEdit={editInvoice} openForm={openForm} />
+          : <InvoiceList acc={acc} direction={activeTab as 'incoming' | 'outgoing'} onSelect={i => setSelectedId(i.id)} />)}
+        {can('view') && activeTab === 'accounts' && <AccountsPanel {...panelProps} />}
+        {can('view') && activeTab === 'journal' && <JournalPanel {...panelProps} />}
+        {can('view') && activeTab === 'bank' && <BankPanel {...panelProps} />}
+        {can('view') && activeTab === 'advances' && <AdvancesPanel {...panelProps} />}
+        {can('view') && activeTab === 'vat' && <VatPanel acc={acc} />}
+        {can('view') && activeTab === 'periods' && <PeriodsPanel {...panelProps} />}
+        {can('view') && activeTab === 'rules' && <RulesPanel {...panelProps} />}
+        {can('view') && activeTab === 'margins' && <MarginsPanel {...panelProps} />}
+        {can('view') && activeTab === 'partners' && <PartnersPanel {...panelProps} />}
+        {can('view') && activeTab === 'reports' && <ReportsPanel acc={acc} />}
       </>}
-      {can('view') && tab === 'accounts' && <section className={`${panel} space-y-4`}><div className="flex gap-2">{can('setup') && <><Button onClick={() => open('accounts')}>{t('create')}</Button><Button variant="outline" onClick={() => open('importAccounts')}>{t('importAccounts')}</Button></>}<Button variant="outline" onClick={() => downloadCsv(balances)}>{t('export')}</Button></div>{table(['code', 'name', 'kind', 'debit', 'credit', 'balance'], balances)}</section>}
-      {can('view') && tab === 'margins' && <section className={`${panel} space-y-4`}><p className="text-sm text-slate-500">{t('marginNote')}</p>{can('prepare') && <Button onClick={() => open('estimates', { currency: data.settings?.base_currency })}>{t('estimates')}</Button>}{table(['workspace_id', 'currency', 'revenue', 'cost', 'margin'], data.job_margins)}{table(['workspace_id', 'description', 'amount', 'currency'], data.estimates)}</section>}
-      {can('view') && tab === 'partners' && <section className={`${panel} space-y-4`}>{can('prepare') && <Button onClick={() => open('partners', { country_code: 'BA' })}>{t('create')}</Button>}{table(['name', 'tax_number', 'vat_number', 'country_code', 'email'], data.partners, p => <Button size="sm" variant="outline" onClick={() => setSearch(p.name)}>{t('view')}</Button>)}{table(['partner_name', 'direction', 'currency', 'remaining_amount'], data.invoices.filter(i => i.posting_status === 'posted' && !i.corrects_invoice_id))}</section>}
-      {can('view') && tab === 'reports' && <section className={`${panel} space-y-4`}><form className="flex flex-wrap items-end gap-3" onSubmit={e => { e.preventDefault(); void run(async () => setReport((await api.accounting.get(company, `reports?from=${form.from}&to=${form.to}`)).data)); }}>{['from', 'to'].map(k => field(k, form[k], v => setForm({ ...form, [k]: v }), false, true))}<Button disabled={busy}>{t('preview')}</Button></form>{report && <><div className="grid gap-3 sm:grid-cols-3">{Object.entries(report.categories).map(([k, v]) => <div key={k} className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800"><p className="text-xs text-slate-500">{t(k)}</p><strong>{String(v)} {report.currency}</strong></div>)}<div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800"><p className="text-xs text-slate-500">{t('result')}</p><strong>{report.result} {report.currency}</strong></div></div>{table(['code', 'name', 'opening_balance', 'debit', 'credit', 'closing_balance'], report.trial_balance)}<Button variant="outline" onClick={() => downloadCsv(report.trial_balance)}>{t('export')}</Button></>}</section>}
-      {can('view') && tab === 'periods' && <section className={`${panel} space-y-4`}>{can('periods') && <Button onClick={() => open('periods')}>{t('create')}</Button>}{table(['name', 'starts_on', 'ends_on', 'status'], data.periods, p => can('periods') && <Button size="sm" variant="outline" onClick={() => open('periodStatus', { id: p.id, status: p.status === 'open' ? 'locked' : 'open' })}>{t(p.status === 'open' ? 'lock' : 'reopen')}</Button>)}</section>}
-      {can('view') && tab === 'rules' && <section className={`${panel} space-y-4`}><p className="text-sm text-slate-500">{t('noTaxAssumption')}</p>{can('rules') && <Button onClick={() => open('rules', { tax_type: 'vat', jurisdiction: data.settings?.jurisdiction })}>{t('create')}</Button>}{table(['name', 'jurisdiction', 'treatment', 'rate', 'deductible_percent', 'version', 'article', 'verification_status'], data.rules, r => <div className="flex gap-2"><a className="text-primary underline" href={/^https?:\/\//.test(r.source_url) ? r.source_url : undefined} target="_blank" rel="noreferrer">{t('source_url')}</a>{can('rules') && !r.approved_by && <Button size="sm" onClick={() => open('approveRule', { id: r.id })}>{t('approve')}</Button>}</div>)}</section>}
-      {can('view') && tab === 'bank' && <section className={`${panel} space-y-4`}><div className="flex gap-2">{can('payments') && <Button onClick={() => open('bank', { direction: 'incoming', transaction_date: today(), currency: data.settings?.base_currency, exchange_rate: '1', exchange_source: 'base_currency' })}>{t('create')}</Button>}{can('payments') && can('post') && <Button variant="outline" onClick={() => open('allocations', { posting_date: today(), request_key: crypto.randomUUID() })}>{t('allocate')}</Button>}</div>{table(['reference', 'partner_name', 'direction', 'transaction_date', 'amount', 'currency', 'allocated_amount'], data.bank)}</section>}
-      {can('view') && tab === 'advances' && <section className={`${panel} space-y-4`}>{can('payments') && can('post') && <Button onClick={() => open('advances')}>{t('create')}</Button>}{table(['partner_name', 'bank_transaction_id', 'amount', 'settled_amount'], data.advances)}</section>}
-      {can('view') && tab === 'journal' && <section className={`${panel} space-y-4`}><div className="flex flex-wrap gap-2">{can('post') && <><Button onClick={() => open('journal', { event_key: `manual:${crypto.randomUUID()}`, posting_date: today(), lines: [{ account_id: '', debit: '0', credit: '0' }, { account_id: '', debit: '0', credit: '0' }] })}>{t('manual')}</Button><Button variant="outline" onClick={() => open('journal', { event_key: `opening:${crypto.randomUUID()}`, posting_date: today(), lines: [{ account_id: '', debit: '0', credit: '0' }, { account_id: '', debit: '0', credit: '0' }] })}>{t('opening')}</Button></>}<Button variant="outline" onClick={() => downloadCsv(data.entries.flatMap(e => e.lines.map((l: Row) => ({ ...l, posting_date: e.posting_date, description: e.description, event_key: e.event_key }))))}>{t('export')}</Button></div>{data.entries.map(entry => <div className="rounded-xl border p-3 dark:border-slate-700" key={entry.id}><div className="flex justify-between gap-3"><p className="font-medium">{entry.posting_date} · {entry.description}</p>{can('correct') && /^(manual|opening):/.test(entry.event_key) && !data.entries.some(e => e.reverses_entry_id === entry.id) && <Button size="sm" variant="outline" onClick={() => open('reverse', { id: entry.id, posting_date: today() })}>{t('reversal')}</Button>}</div>{table(['account_id', 'debit', 'credit'], entry.lines.map((l: Row) => ({ ...l, account_id: data.accounts.find(a => a.id === l.account_id)?.code || l.account_id })))}</div>)}{!data.entries.length && <p>{t('empty')}</p>}</section>}
-      {can('view') && tab === 'vat' && <section className={`${panel} space-y-4`}><form onSubmit={e => { e.preventDefault(); void run(async () => setVatRows((await api.accounting.get<Row[]>(company, `vat?from=${form.from}&to=${form.to}`)).data)); }} className="flex flex-wrap items-end gap-3">{['from', 'to'].map(k => field(k, form[k], v => setForm({ ...form, [k]: v }), false, true))}<Button disabled={busy}>{t('preview')}</Button><Button type="button" variant="outline" onClick={() => downloadCsv(vatRows)}>{t('export')}</Button></form>{table(['number', 'supplier_number', 'direction', 'tax_date', 'net_base', 'vat_base', 'deductible_base', 'version', 'article'], vatRows)}</section>}
-    </>}
-    {modal && <div className="fixed inset-0 z-[230] flex items-start justify-center overflow-y-auto bg-slate-950/70 p-4"><section role="dialog" aria-modal="true" aria-label={t(modal === 'invoice' ? 'details' : modal)} className="my-6 w-full max-w-5xl rounded-2xl bg-white p-5 dark:bg-slate-950"><header className="mb-5 flex justify-between"><h2 className="text-lg font-bold">{t(modal === 'invoice' ? 'details' : modal)}</h2><Button variant="ghost" disabled={busy} aria-label={t('close')} onClick={() => { setModal(''); setDraft(null); }}><X size={20} /></Button></header>{error && <p role="alert" className="mb-4 text-sm text-red-600">{error}</p>}
-      {modal === 'invoice' && draft ? <div className="space-y-5">{fields(['partner_id', 'partner_name', 'partner_tax_number', ...(draft.direction === 'incoming' ? ['supplier_number'] : []), 'issued_at', 'due_at', 'event_date', 'tax_date', 'posting_date', 'currency', 'exchange_rate', 'exchange_date', 'exchange_source', 'exchange_reason'], draft, setDraft)}
-        <div className="space-y-3">{draft.items.map((line: Row, index: number) => <div className="rounded-xl border p-4 dark:border-slate-700" key={index}>{fields(['description', 'quantity', 'unit_price', 'account_id', 'tax_rule_id', ...(draft.direction === 'outgoing' ? ['workspace_id'] : [])], line, next => setDraft({ ...draft, items: draft.items.map((l: Row, n: number) => n === index ? next : l) }))}
-          {draft.direction === 'incoming' && <div className="mt-4 space-y-3"><p className="text-xs text-slate-500">{t('replacement')}</p>{(line.allocations || []).map((allocation: Row, n: number) => <div key={n} className="grid gap-3 sm:grid-cols-3">{field('workspace_id', allocation.workspace_id, v => { const next = [...line.allocations]; next[n] = { ...allocation, workspace_id: v, estimate_id: '' }; setDraft({ ...draft, items: draft.items.map((l: Row, i: number) => i === index ? { ...line, allocations: next } : l) }); })}{field('amount', allocation.amount, v => { const next = [...line.allocations]; next[n] = { ...allocation, amount: v }; setDraft({ ...draft, items: draft.items.map((l: Row, i: number) => i === index ? { ...line, allocations: next } : l) }); })}{field('estimate_id', allocation.estimate_id, v => { const next = [...line.allocations]; next[n] = { ...allocation, estimate_id: v }; setDraft({ ...draft, items: draft.items.map((l: Row, i: number) => i === index ? { ...line, allocations: next } : l) }); }, false, false, data.estimates.filter(a => String(a.workspace_id) === String(allocation.workspace_id)).map(a => [String(a.id), `${a.description} · ${a.amount} ${a.currency}`]))}</div>)}<Button size="sm" variant="outline" onClick={() => setDraft({ ...draft, items: draft.items.map((l: Row, i: number) => i === index ? { ...line, allocations: [...(line.allocations || []), { workspace_id: '', amount: '0', estimate_id: '' }] } : l) })}>{t('costs')}</Button><span className="ml-2 text-xs text-slate-500">{t('overhead')}</span></div>}
-          <Button className="mt-3" size="sm" variant="ghost" onClick={() => setDraft({ ...draft, items: draft.items.filter((_: Row, n: number) => n !== index) })}>{t('remove')}</Button></div>)}<Button variant="outline" onClick={() => setDraft({ ...draft, items: [...draft.items, newLine()] })}>{t('addLine')}</Button></div>
-        <div><label className="text-sm">{t('upload')}<input className={`${inputClass} mt-2`} type="file" accept=".pdf,.png,.jpg,.jpeg" disabled={busy} onChange={e => { const file = e.target.files?.[0]; if (file) void run(async () => { const doc = await api.documents.upload({ file, type: 'INVOICE' }); setDraft(current => current ? { ...current, document_ids: [...current.document_ids, doc.id] } : current); }); }} /></label><p className="mt-2 text-xs">{draft.document_ids.length} · {t('document')}</p></div><Button disabled={busy} onClick={() => void saveInvoice()}>{t('save')} · {t('draft')}</Button></div>
-      : <form className="space-y-5" onSubmit={submitModal}>{fields(modalKeys[modal] || ['posting_date', 'description'], form, setForm, !['allocations'].includes(modal))}
-        {modal === 'importAccounts' && <label className="block text-sm">{t('chartCsv')}<textarea className={`${inputClass} mt-2 min-h-48`} value={form.csv || ''} onChange={e => setForm({ ...form, csv: e.target.value })} required /></label>}
-        {modal === 'deliver' && <div className="space-y-2"><label className="block text-sm">{t('upload')}<input className={inputClass} type="file" disabled={busy} onChange={e => { const file = e.target.files?.[0]; if (file) void run(async () => { const doc = await api.documents.upload({ file, type: 'OTHER' }); await send(`invoices/${form.id}/documents`, { document_ids: [doc.id] }); setForm(current => ({ ...current, document_ids: [...(current.document_ids || []), doc.id] })); }); }} /></label>{data.invoices.find(i => i.id === form.id)?.documents.map((d: Row) => <label className="flex items-center gap-2 text-sm" key={d.id}><input type="checkbox" checked={(form.document_ids || []).includes(d.id)} onChange={e => setForm({ ...form, document_ids: e.target.checked ? [...form.document_ids, d.id] : form.document_ids.filter((id: number) => id !== d.id) })} />{d.name}</label>)}</div>}
-        {modal === 'journal' && <><div className="space-y-3">{(form.lines || []).map((line: Row, n: number) => <div key={n}>{fields(['account_id', 'debit', 'credit'], line, next => setForm({ ...form, lines: form.lines.map((l: Row, i: number) => i === n ? next : l) }), true)}</div>)}</div><Button type="button" variant="outline" onClick={() => setForm({ ...form, lines: [...form.lines, { account_id: '', debit: '0', credit: '0' }] })}>{t('addLine')}</Button></>}
-        <Button disabled={busy}>{t(modal === 'approveRule' ? 'approve' : 'save')}</Button></form>}
-    </section></div>}
+
+    {formName && <AccountingForm acc={acc} name={formName} form={form} setForm={setForm} onClose={() => setFormName('')} />}
+    {draft && <InvoiceEditor acc={acc} draft={draft} setDraft={next => setDraft(current => current && (typeof next === 'function' ? next(current) : next))} onSave={saveInvoice} onClose={() => setDraft(null)} />}
+    {terminal && <PosTerminal acc={acc} onClose={() => setTerminal(false)} />}
   </div>;
 }
