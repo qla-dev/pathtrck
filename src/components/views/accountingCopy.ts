@@ -280,6 +280,8 @@ const rows: Record<string, [string, string, string, string, string]> = {
   catalog_pulled: ['Read from PANTHEON', 'Aus PANTHEON gelesen', 'Pročitano iz PANTHEON-a', 'Pročitano iz PANTHEON-a', 'Pročitano iz PANTHEON-a'],
   pos_products: ['Products', 'Produkte', 'Proizvodi', 'Proizvodi', 'Proizvodi'],
   pos_templates: ['Templates', 'Vorlagen', 'Šabloni', 'Predlošci', 'Šabloni'],
+  received: ['Received', 'Erhalten', 'Primljeno', 'Primljeno', 'Primljeno'],
+  catalog_search: ['Search products and services', 'Produkte und Leistungen suchen', 'Pretraži proizvode i usluge', 'Pretraži proizvode i usluge', 'Pretraži proizvode i usluge'],
   noTaxAssumption: ['Unknown tax is never assumed to be zero. Rules require professional approval.', 'Unbekannte Steuer wird niemals als null angenommen. Regeln erfordern fachliche Freigabe.', 'Nepoznat porez nije nula. Pravila zahtijevaju odobrenje stručne osobe.', 'Nepoznat porez nije nula. Pravila zahtijevaju odobrenje stručne osobe.', 'Nepoznat porez nije nula. Pravila zahtevaju odobrenje stručne osobe.'],
 };
 export const accountingText = (lang: Language, key: string): string => rows[key]?.[lang === 'de' ? 1 : lang === 'bs' ? 2 : lang === 'hr' ? 3 : lang === 'sr' ? 4 : 0] ?? key;

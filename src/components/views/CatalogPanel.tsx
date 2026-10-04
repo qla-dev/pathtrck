@@ -30,7 +30,7 @@ export function CatalogPanel({ company, t, canEdit }: { company: number; t: (k: 
   const fromPantheon = edit?.source === 'pantheon';
   return <div className="space-y-3">
     <Card className="shadow-none" contentClassName="flex flex-wrap items-end justify-between gap-3 p-3">
-      <label className="block w-72"><Label>{t('search')}</Label><TextField value={search} onChange={e => setSearch(e.target.value)} /></label>
+      <label className="block w-72"><Label>{t('catalog_search')}</Label><TextField value={search} onChange={e => setSearch(e.target.value)} /></label>
       {canEdit && <Button size="sm" className="gap-1.5" onClick={() => setEdit({ kind: 'service', unit: 'KOM', currency: 'BAM', vat_percent: '17', vat_code: '', active: true })}><Plus className="h-4 w-4" />{t('catalog_new')}</Button>}
     </Card>
     <p className="text-xs text-slate-500">{t('catalog_note')}</p>
