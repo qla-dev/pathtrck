@@ -397,7 +397,7 @@ export type VesselDetails = {
 };
 
 const API_BACKENDS = {
-  local: 'https://freightbook.ai/endpoints/api',
+  local: 'http://127.0.0.1:8000/api',
   production: 'https://freightbook.ai/endpoints/api',
 } as const;
 
