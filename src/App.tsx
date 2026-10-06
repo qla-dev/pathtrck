@@ -2546,7 +2546,7 @@ const LandingPage = ({
             </h1>
             <div className="mb-8 sm:mb-10 max-w-xl">
               <p className="text-base sm:text-xl font-bold text-slate-900 dark:text-white mb-3 sm:mb-4 leading-relaxed">
-                {u("landing.downloadApp", "Download the app")}
+                {u("landing.downloadApp", "Download now")}
               </p>
               <div className="grid min-w-0 grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3">
                 <button className="h-11 min-w-0 w-full px-1.5 sm:h-12 sm:w-auto sm:px-5 rounded-2xl bg-black text-white inline-flex items-center justify-center gap-1.5 sm:gap-3 font-semibold text-[9px] min-[400px]:text-[10px] sm:text-sm whitespace-nowrap shadow-lg shadow-black/25 cursor-pointer hover:bg-slate-900 transition-colors">

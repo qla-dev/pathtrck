@@ -163,7 +163,7 @@ const UI_EN: Record<string, string> = {
 
   'tracking.liveTracking': 'Live Tracking',
   'tracking.routeHistory': 'Route History',
-  'landing.downloadApp': 'Download the app',
+  'landing.downloadApp': 'Download now',
   'landing.downloadAppstore': 'Download on App Store',
   'landing.downloadPlaystore': 'Download on Google Play',
   'landing.digitalStandard': 'Digital Logistics Standard',
