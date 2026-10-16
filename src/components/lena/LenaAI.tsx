@@ -235,7 +235,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [open, onClose]);
 
-  const { refresh: refreshConversation, tokenResetAt, tokenPackageIcon, tokenPackageColor, conversation, conversationEntryKey, conversationLoading, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId, documentsVersion, thinkingTimeline, generatingImage } = useLenaAiChat({
+  const { refresh: refreshConversation, tokenResetAt, tokenPackageIcon, tokenPackageColor, conversation, conversationEntryKey, conversationLoading, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId, documentsVersion, thinkingTimeline, generatingImage, learningActive } = useLenaAiChat({
     userId,
     companyIds,
     loadId,
@@ -333,7 +333,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
     onBookLoad,
     quickActionLabels,
     canUseTraining,
-    onQuickAction: (action) => { setVoiceMode(false); void sendQuickAction(action); },
+    onQuickAction: (action) => { setVoiceMode(false); if (action === 'learn') lenaCall?.endCall(); void sendQuickAction(action); },
     onSuggestedReply: (value, displayText) => { setVoiceMode(false); void sendSuggestedReply(value, displayText); },
     onStepAnswer: (step, value, displayText) => { setVoiceMode(false); void sendGuidedAnswer(step, value, displayText); },
     onSuggestedDraftChange: setDraft,
@@ -500,7 +500,7 @@ function LenaAIConversation({ open, onClose, lang, userId, companyIds, loadId, l
                 attachmentOpenFailedLabel={u('The file could not be opened', '')}
                 headerActions={(
                   <div className="flex shrink-0 items-center gap-2">
-                  {callAvailable && <button
+                  {callAvailable && !learningActive && <button
                     type="button"
                     onClick={() => { setVoiceMode(false); startLenaCall(); }}
                     aria-label={u('Call Lena', 'Call Lena')}

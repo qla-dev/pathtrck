@@ -293,7 +293,7 @@ export const useLenaEmbeddedMessages = ({
     () => new Map(messages.flatMap((message, index) => {
       // The welcome carries the training button for everyone; only superadmins get to see it.
       const actions = (message.text.match(LENA_OPTIONS_PATTERN)?.[1].split(',') as LenaQuickAction[] | undefined)
-        ?.filter((action) => canUseTraining || !action.startsWith('training'));
+        ?.filter((action) => (canUseTraining || !action.startsWith('training')) && (action !== 'learn' || !fallbackLoadId));
       // A spoken turn is a record of what was said, not an answer to these buttons - and it is
       // appended after the reply even when it was said before it, because pending bubbles always
       // sort last. Counting one would hide the buttons the caller is being told to tap.
@@ -301,7 +301,7 @@ export const useLenaEmbeddedMessages = ({
         .some((laterMessage) => laterMessage.sender === 'me' && !laterMessage.id.startsWith('call-'));
       return actions?.length && !hasUserAnswerAfter ? [[message.id, actions] as const] : [];
     })),
-    [messages, canUseTraining]
+    [messages, canUseTraining, fallbackLoadId]
   );
   // The call chip belongs to the welcome only, not to every later prompt that offers options.
   const welcomeMessageId = messages[0]?.id;
@@ -312,7 +312,7 @@ export const useLenaEmbeddedMessages = ({
     return canUseTraining && latestMessage?.sender === 'other' && LENA_PICK_CONVERSATION_PATTERN.test(latestMessage.text)
       ? latestMessage.id
       : null;
-  }, [messages, canUseTraining]);
+  }, [messages, canUseTraining, fallbackLoadId]);
   const [conversationSearch, setConversationSearch] = useState('');
   const [conversationChoices, setConversationChoices] = useState<SuggestedReply[]>([]);
   useEffect(() => {
@@ -427,6 +427,7 @@ export const useLenaEmbeddedMessages = ({
       .map((id) => id.trim())
       .filter((id) => legalSourceTitles[id]) || [];
     const markerFreeText = message.text
+      .replace(/\[\[LENA_LEARN_CARD:[a-z:]+\]\]/g, '')
       .replace(BOOKING_MARKER_GLOBAL_PATTERN, '')
       .replace(LOAD_DETAILS_MARKER_GLOBAL_PATTERN, '')
       .replace(LOAD_LOCATION_MARKER_GLOBAL_PATTERN, '')
@@ -468,12 +469,18 @@ export const useLenaEmbeddedMessages = ({
       : (offeredLoadId && onOpenLoad ? () => onOpenLoad(offeredLoadId) : undefined);
 
     const quickActions = quickActionsByMessage.get(message.id) || [];
+    const learningBody = messages.find((item) => item.id === message.id)?.text ?? '';
+    const learningMatch = message.sender === 'other' ? learningBody.match(/\[\[LENA_LEARN_CARD:(assessment|lesson|final):(route|documents|tracking)\]\]/) : null;
+    const learning = lenaText(lang).learning;
+    const learningChoices = learningMatch && learning ? learning.lessons[learningMatch[2]]?.choices : undefined;
+    const latestLearningMessage = [...messages].reverse().find((item) => item.sender === 'other');
+    const learningDisabled = latestLearningMessage?.id !== message.id || messages[messages.length - 1]?.sender === 'me';
     const legalChoices = legalChoiceIds.has(message.id) ? lenaText(lang).legal_choices ?? [] : [];
     const suggestedReplies = questionnaireSuggestionsByMessage.get(message.id);
     const locationChoice = locationChoiceByMessage.get(message.id);
     const loadReady = loadReadyMessageIds.has(message.id);
     const outOfTokens = outOfTokensMessageIds.has(message.id);
-    if (!embeddedLoad && !locationLoad && !mapLoad && !statusLoad && (!hasBooking || !handleBook) && quickActions.length === 0 && legalChoices.length === 0 && !suggestedReplies && !locationChoice && !loadReady && !outOfTokens && conversationPickMessageId !== message.id) return null;
+    if (!embeddedLoad && !locationLoad && !mapLoad && !statusLoad && (!hasBooking || !handleBook) && quickActions.length === 0 && legalChoices.length === 0 && !suggestedReplies && !locationChoice && !loadReady && !outOfTokens && !learningChoices && conversationPickMessageId !== message.id) return null;
 
     // Messages that show a timestamp get its (invisible-until-hover, but still laid out) line as
     // extra breathing room above this block for free; messages without one (e.g. the welcome
@@ -481,6 +488,14 @@ export const useLenaEmbeddedMessages = ({
     // visual distance from the text instead of looking cramped.
     return (
       <div className={`flex w-full max-w-xl flex-col gap-2 ${message.time ? 'mt-2' : 'mt-[27px]'}`}>
+        {learningChoices && learningMatch && onSuggestedReply && (
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(learningChoices).map(([key, label]) => (
+              <button key={key} type="button" disabled={learningDisabled} onClick={() => onSuggestedReply(`[[LENA_LEARN:${learningMatch[1]}:${learningMatch[2]}:${key}]]`, label)} className="cursor-pointer rounded-full border border-primary/20 px-3 py-1.5 text-xs font-bold text-primary disabled:cursor-default disabled:opacity-50">{label}</button>
+            ))}
+            <button type="button" disabled={learningDisabled} onClick={() => onSuggestedReply(`[[LENA_LEARN:${learningMatch[1]}:${learningMatch[2]}:hint]]`, learning!.hint_button)} className="cursor-pointer rounded-full border border-primary/20 px-3 py-1.5 text-xs font-bold text-primary disabled:cursor-default disabled:opacity-50">{learning!.hint_button}</button>
+          </div>
+        )}
         {outOfTokens && <LenaOutOfTokensCard lang={lang} resetAt={outOfTokensResetAt} packageIcon={outOfTokensPackageIcon} packageColor={outOfTokensPackageColor} onUpgrade={onUpgrade} onTopUp={onTopUp} />}
         {embeddedLoad && (
           <LenaLoadDetailsCard
@@ -506,7 +521,7 @@ export const useLenaEmbeddedMessages = ({
         {quickActions.length > 0 && quickActionLabels && onQuickAction && (
           <div className="flex flex-wrap gap-2">
             {quickActions.map((action) => {
-              const Icon = action === 'add' || action === 'legal_upload_load' ? FileUp : action === 'storage' ? Warehouse : action === 'tracking' ? MapPinned : action === 'booking' ? ReceiptText : action === 'freeroam' ? MessagesSquare : action === 'free' ? MessageCircle : action === 'legal' ? Scale : action === 'training' ? GraduationCap : action === 'training_image_yes' ? ImagePlus : FileSearch;
+              const Icon = action === 'add' || action === 'legal_upload_load' ? FileUp : action === 'storage' ? Warehouse : action === 'tracking' ? MapPinned : action === 'booking' ? ReceiptText : action === 'freeroam' ? MessagesSquare : action === 'free' ? MessageCircle : action === 'legal' ? Scale : action === 'training' || action === 'learn' ? GraduationCap : action === 'training_image_yes' ? ImagePlus : FileSearch;
               return <button key={action} type="button" onClick={() => onQuickAction(action)} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-primary/20 bg-white px-3 py-1.5 text-xs font-bold text-primary shadow-sm transition-colors hover:border-primary hover:bg-primary hover:text-white dark:bg-slate-900">
                 <Icon className="h-3.5 w-3.5" />{quickActionLabels[action]}
               </button>;
@@ -540,7 +555,7 @@ export const useLenaEmbeddedMessages = ({
         )}
       </div>
     );
-  }, [legalChoiceIds, bookingOffers, resolvedEmbeddedLoads, fallbackLoadId, lang, loadDetailCards, loadLocationCards, loadMapCards, loadReadyMessageIds, loadStatusCards, locationChoiceByMessage, onBookLoad, onLoadReady, onOpenLoad, welcomeMessageId, onQuickAction, onStepAnswer, onSuggestedDraftChange, onSuggestedReply, onTopUp, onUpgrade, outOfTokensMessageIds, outOfTokensPackageColor, outOfTokensPackageIcon, outOfTokensResetAt, questionnaireSuggestionsByMessage, quickActionLabels, quickActionsByMessage, conversationPickMessageId, conversationPickGroup]);
+  }, [messages, legalChoiceIds, bookingOffers, resolvedEmbeddedLoads, fallbackLoadId, lang, loadDetailCards, loadLocationCards, loadMapCards, loadReadyMessageIds, loadStatusCards, locationChoiceByMessage, onBookLoad, onLoadReady, onOpenLoad, welcomeMessageId, onQuickAction, onStepAnswer, onSuggestedDraftChange, onSuggestedReply, onTopUp, onUpgrade, outOfTokensMessageIds, outOfTokensPackageColor, outOfTokensPackageIcon, outOfTokensResetAt, questionnaireSuggestionsByMessage, quickActionLabels, quickActionsByMessage, conversationPickMessageId, conversationPickGroup]);
 
   // The cited laws are part of the answer, not a card attached under it, so this renders inside the
   // message bubble above the hover timestamp rather than in renderMessageExtra below it.

@@ -34,6 +34,7 @@ export type LenaCatalogField = {
   unit: string;
 };
 export type LenaCatalogText = {
+  learning?: { hint_button: string; lessons: Record<string, { choices: Record<string, string> }> };
   legal_welcome?: string;
   legal_choices?: LenaCatalogChoice[];
   ui: Record<string, string>;

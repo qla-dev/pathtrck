@@ -12,18 +12,19 @@ import { formatClockTime, localTimestampForApi } from './dates';
 import { ui } from '../i18n';
 import { buildScanFieldRows } from '../components/modals/scanFieldRows';
 import { useLenaTokenBalance } from './useLenaTokenBalance';
+import { lenaText } from './lenaCatalog';
 import { lenaConversationMessages } from './lenaConversationMessages';
 
 export const LENA_AI_GENERAL_SUBJECT = `${AI_DISPATCH_SUBJECT_PREFIX}General`;
 const LENA_STEP_MARKER_PATTERN = /\[\[LENA_STEP:([a-zA-Z]+)\]\]/;
 
-export type LenaQuickAction = 'add' | 'storage' | 'tracking' | 'booking' | 'hs' | 'free' | 'freeroam' | 'legal' | 'legal_upload_analyze' | 'legal_upload_load' | 'upload_yes' | 'upload_no' | 'start_add_yes' | 'start_add_no' | 'continue_add_yes' | 'continue_add_no' | 'training' | 'training_image_yes' | 'training_image_no';
+export type LenaQuickAction = 'add' | 'storage' | 'tracking' | 'booking' | 'hs' | 'free' | 'freeroam' | 'legal' | 'legal_upload_analyze' | 'legal_upload_load' | 'upload_yes' | 'upload_no' | 'start_add_yes' | 'start_add_no' | 'continue_add_yes' | 'continue_add_no' | 'learn' | 'training' | 'training_image_yes' | 'training_image_no';
 export const lenaQuickActionMarker = (action: LenaQuickAction) => `[[LENA_ACTION:${action}]]`;
-const LENA_QUICK_ACTION_PATTERN = /^\[\[LENA_ACTION:(add|storage|tracking|booking|hs|free|freeroam|legal|legal_upload_analyze|legal_upload_load|upload_yes|upload_no|start_add_yes|start_add_no|continue_add_yes|continue_add_no|training|training_image_yes|training_image_no)\]\]$/;
+const LENA_QUICK_ACTION_PATTERN = /^\[\[LENA_ACTION:(add|storage|tracking|booking|hs|free|freeroam|legal|legal_upload_analyze|legal_upload_load|upload_yes|upload_no|start_add_yes|start_add_no|continue_add_yes|continue_add_no|learn|training|training_image_yes|training_image_no)\]\]$/;
 export const lenaQuickActionFromMessage = (text: string): LenaQuickAction | undefined =>
   text.match(LENA_QUICK_ACTION_PATTERN)?.[1] as LenaQuickAction | undefined;
 /** The buttons that switch a conversation's mode, as DispatchChatController::activeGuidedMode reads them. */
-const LENA_MODE_ACTIONS: LenaQuickAction[] = ['add', 'storage', 'tracking', 'booking', 'hs', 'free', 'freeroam', 'legal', 'legal_upload_load', 'training', 'training_image_yes', 'training_image_no'];
+const LENA_MODE_ACTIONS: LenaQuickAction[] = ['add', 'storage', 'tracking', 'booking', 'hs', 'free', 'freeroam', 'legal', 'legal_upload_load', 'learn', 'training', 'training_image_yes', 'training_image_no'];
 /** Whether the latest mode button in these message bodies (oldest first) is AI training. */
 export const lenaTrainingActive = (bodies: string[]): boolean => {
   for (let index = bodies.length - 1; index >= 0; index -= 1) {
@@ -32,6 +33,19 @@ export const lenaTrainingActive = (bodies: string[]): boolean => {
   }
   return false;
 };
+export const lenaLearningActive = (bodies: string[]): boolean => {
+  for (const body of [...bodies].reverse()) {
+    const action = lenaQuickActionFromMessage(body);
+    if (action && LENA_MODE_ACTIONS.includes(action)) return action === 'learn';
+  }
+  return false;
+};
+export const lenaLearningAnswerLabel = (body: string, lang: Language): string => {
+  const match = body.match(/^\[\[LENA_LEARN:(?:assessment|lesson|final):(route|documents|tracking):([abc]|hint)\]\]$/);
+  const text = lenaText(lang).learning;
+  return match && text ? (match[2] === 'hint' ? text.hint_button : text.lessons[match[1]]?.choices[match[2]]) || body : body;
+};
+
 export const lenaConversationSubjectTitle = (subject: unknown): string => {
   const value = String(subject || '').trim();
   const title = value.startsWith(AI_DISPATCH_SUBJECT_PREFIX)
@@ -150,7 +164,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
       ? rowMessages.map((message) => ({
           id: String(message.id),
           sender: Number(message.sender_user_id) === userId ? 'me' : 'other',
-          text: quickActionLabels[lenaQuickActionFromMessage(String(message.body || '')) as LenaQuickAction] || String(message.body || ''),
+          text: quickActionLabels[lenaQuickActionFromMessage(String(message.body || '')) as LenaQuickAction] || lenaLearningAnswerLabel(String(message.body || ''), lang),
           time: formatClockTime(message.sent_at || message.created_at),
           attachments: Array.isArray(message.attachments) ? message.attachments as LenaAttachment[] : undefined,
         }))
@@ -338,6 +352,8 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
     [row],
   );
 
+  const learningActive = useMemo(() => lenaLearningActive((row && Array.isArray(row.messages) ? row.messages as Array<Record<string, unknown>> : []).map((message) => String(message.body || ''))), [row]);
+
   async function sendMessage(rawText: string, displayText = rawText, retryId?: string, retryConversationId?: number, source: 'text' | 'voice' = 'text') {
     const text = rawText.trim();
     if (!text || !userId || sending) return;
@@ -360,13 +376,13 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
       const guidedAction = lenaQuickActionFromMessage(text);
       setGeneratingImage(guidedAction === 'training_image_yes');
       const entersCanvas = guidedAction === 'add' || guidedAction === 'storage' || guidedAction === 'start_add_yes' || guidedAction === 'legal_upload_load';
-      const exitsCanvas = guidedAction === 'continue_add_no';
+      const exitsCanvas = guidedAction === 'continue_add_no' || guidedAction === 'learn';
       const desiredCanvas = !loadId && (entersCanvas || (!exitsCanvas && canvasEnabled));
       if (!loadId && (entersCanvas || exitsCanvas)) setCanvasOverride(entersCanvas);
       conversationId = retryConversationId || await ensureConversation(desiredCanvas);
       setOptimisticMessages((messages) => messages.map((message) => message.id === optimisticId ? { ...message, conversationId } : message));
       let attachments: LenaAttachment[] | undefined;
-      const builderInputActive = !latestGuidedAction || !['tracking', 'booking', 'hs', 'free'].includes(latestGuidedAction);
+      const builderInputActive = !latestGuidedAction || !['tracking', 'booking', 'hs', 'free', 'learn'].includes(latestGuidedAction);
       if (desiredCanvas && builderInputActive && !guidedAction && text.length >= 1) {
         try {
           const scan = await api.loads.scanText(text, latestLoadScan(canvasAttachments), conversationId, pendingStep);
@@ -511,7 +527,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
       // exists before reading/analyzing the file.
       conversationId = await ensureConversation(attachmentOpensCanvas);
       setOptimisticMessages((messages) => messages.map((message) => message.id === optimisticId ? { ...message, conversationId } : message));
-      attachmentScans = trainingActive
+      attachmentScans = (trainingActive || learningActive)
         ? await uploadLenaAttachments(files, conversationId)
         : await analyzeLenaAttachments(files, canvasMode, conversationId, latestLoadScan(canvasAttachments));
       await api.messages.create({
@@ -546,7 +562,7 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
       await result.refresh();
       setCanvasOverride(null);
       // Training screenshots are not paperwork, so they stay out of the Documents archive.
-      if (attachmentScans.length && !trainingActive) {
+      if (attachmentScans.length && !trainingActive && !learningActive) {
         // That reply is what creates the draft on a first attachment, so the draft id is read back
         // from the server here rather than from this closure's now-stale conversation row.
         const conversationRow = await api.conversations.get(conversationId).catch(() => null);
@@ -565,5 +581,5 @@ export const useLenaAiChat = ({ userId, companyIds = [], loadId, loadLabel, init
 
   const loadDraftId = row?.load_draft_id ? String(row.load_draft_id) : null;
 
-  return { generatingImage, trainingActive, outOfTokens, tokenResetAt, tokenPackageIcon, tokenPackageColor, conversation, conversationEntryKey: entryAnimationKey, conversationLoading: result.loading, refresh: result.refresh, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, hasActiveConversation: Boolean(row), canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId, documentsVersion, thinkingTimeline };
+  return { generatingImage, trainingActive, learningActive, outOfTokens, tokenResetAt, tokenPackageIcon, tokenPackageColor, conversation, conversationEntryKey: entryAnimationKey, conversationLoading: result.loading, refresh: result.refresh, draft, setDraft, send, sendQuickAction, sendSuggestedReply, sendGuidedAnswer, sending, startNewChat, selectConversation, sidebarConversations, hasActiveConversation: Boolean(row), canvasEnabled, canvasMode, setCanvasEnabled, canvasAttachments, attachFile, processingAttachment, loadDraftId, documentsVersion, thinkingTimeline };
 };

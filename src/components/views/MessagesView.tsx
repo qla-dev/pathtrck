@@ -17,7 +17,7 @@ import { LenaLoadCanvas } from '../lena/LenaLoadCanvas';
 import { useLenaCall } from '../../lib/useLenaCall';
 import { buildScanFieldRows, ScanFieldPatch } from '../modals/scanFieldRows';
 import { analyzeLenaAttachments, archiveLenaAttachment, latestLoadScan, LENA_LOAD_FILE_ACCEPT, LenaAttachment, loadDraftRecordToScan, uploadLenaAttachments } from '../../lib/lenaLoadCanvas';
-import { LENA_AI_GENERAL_SUBJECT, LenaQuickAction, lenaConversationSubjectTitle, lenaQuickActionFromMessage, lenaQuickActionMarker, lenaTrainingActive } from '../../lib/useLenaAiChat';
+import { LENA_AI_GENERAL_SUBJECT, LenaQuickAction, lenaConversationSubjectTitle, lenaQuickActionFromMessage, lenaQuickActionMarker, lenaTrainingActive, lenaLearningActive, lenaLearningAnswerLabel } from '../../lib/useLenaAiChat';
 import { lenaImageGeneratingLabel } from '../lena/LenaImageGeneratingPlaceholder';
 import { withMinDelay } from '../../lib/timing';
 import { replyShowingSkills, type LenaThinkingTimeline } from '../../lib/lenaThinkingTimeline';
@@ -151,11 +151,11 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
       id: isDraftCreatedMessageBody(body) ? `welcome-draft-${message.id}` : String(message.id),
       sender: Number(message.sender_user_id) === user?.id
         || (isAiDispatch && String((message.sender as Record<string, unknown> | undefined)?.username || '').startsWith('lena_guest_')) ? 'me' : 'other',
-      text: action ? quickActionLabels[action] : body,
+      text: action ? quickActionLabels[action] : (isAiDispatch ? lenaLearningAnswerLabel(body, lang) : body),
       time: formatClockTime(message.sent_at || message.created_at),
       attachments: Array.isArray(message.attachments) ? message.attachments as LenaAttachment[] : undefined,
     };
-  }, [quickActionLabels, user?.id]);
+  }, [quickActionLabels, user?.id, lang]);
   const conversations = useMemo<Conversation[]>(() => result.items.map((row) => {
     const participants = Array.isArray(row.participants) ? row.participants as Array<Record<string, unknown>> : [];
     const counterpart = participants.find((participant) => Number(participant.id) !== user?.id) || participants[0];
@@ -540,8 +540,13 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
   );
   // This view shows a pressed mode button by its label, so the labels are mapped back to their
   // markers to tell whether the conversation is in AI training mode.
+  const learningActive = useMemo(() => {
+    const markerByLabel = new Map(Object.entries(quickActionLabels).map(([action, label]) => [label, lenaQuickActionMarker(action as LenaQuickAction)]));
+    const markers = activeConversation.messages.filter((message) => message.sender === 'me').map((message) => markerByLabel.get(message.text) ?? message.text);
+    return lenaLearningActive(markers);
+  }, [activeConversation.messages, quickActionLabels]);
   const trainingActive = useMemo(() => {
-    const modeActions: LenaQuickAction[] = ['add', 'storage', 'tracking', 'booking', 'hs', 'free', 'legal', 'legal_upload_load', 'training', 'training_image_yes', 'training_image_no'];
+    const modeActions: LenaQuickAction[] = ['add', 'storage', 'tracking', 'booking', 'hs', 'free', 'legal', 'legal_upload_load', 'learn', 'training', 'training_image_yes', 'training_image_no'];
     const markerByLabel = new Map(modeActions.map((action) => [quickActionLabels[action], lenaQuickActionMarker(action)]));
     return lenaTrainingActive(activeConversation.messages.filter((message) => message.sender === 'me').map((message) => markerByLabel.get(message.text) ?? ''));
   }, [activeConversation.messages, quickActionLabels]);
@@ -563,7 +568,8 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
       setVoiceMode(false);
       // A tap during a call is part of the same conversation, so she is told about it and answers
       // it out loud rather than going quiet while the screen moves on without her.
-      if (lenaCall?.active) lenaCall.notifyUserAction('click', quickActionLabels[action]);
+      if (action === 'learn') lenaCall?.endCall();
+      else if (lenaCall?.active) lenaCall.notifyUserAction('click', quickActionLabels[action]);
       void sendQuickMessage(lenaQuickActionMarker(action), quickActionLabels[action]);
     },
     onSuggestedReply: (value, displayText) => { setVoiceMode(false); void sendQuickMessage(value, displayText); },
@@ -753,7 +759,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     let attachmentScans: LenaAttachment[] = [];
     try {
       // In AI training mode a screenshot is a design reference, stored without the load scan.
-      attachmentScans = trainingActive
+      attachmentScans = (trainingActive || learningActive)
         ? await uploadLenaAttachments(files, Number(conversationId))
         : await analyzeLenaAttachments(files, 'new_load', Number(conversationId), latestLoadScan(canvasAttachments));
       await api.messages.create({
@@ -782,7 +788,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
     try {
       await api.dispatchChat.reply(Number(conversationId), lang);
       await result.refresh();
-      if (attachmentScans.length && !trainingActive) {
+      if (attachmentScans.length && !trainingActive && !learningActive) {
         // That reply is what creates the draft on a first attachment, so the draft id is read back
         // from the server here rather than from the conversation row this closure captured.
         const conversationRow = await api.conversations.get(Number(conversationId)).catch(() => null);
@@ -1046,7 +1052,7 @@ export const MessagesView = ({ lang, onOpenLoad, onBookLoad, onApplyLoadPrefill,
             }}
             headerActionsLeading={(
               <>
-                {callAvailable && <button
+                {callAvailable && !learningActive && <button
                   type="button"
                   onClick={() => { setVoiceMode(false); startLenaCall(); }}
                   aria-label={u('Call Lena', 'Call Lena')}
