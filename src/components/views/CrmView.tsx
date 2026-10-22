@@ -26,7 +26,7 @@ const startOfYear = () => `${today().slice(0, 4)}-01-01`;
 
 // onSendToTracking opens the normal Post load form prefilled from the CRM document; the created load keeps
 // crm_document_id, the booked shipment becomes a work order, and the CRM stage then follows the shipment.
-export function CrmView({ lang, onSendToTracking }: { lang: Language; onSendToTracking?: (document: Row) => void }) {
+export function CrmView({ lang, onSendToTracking,initialDocumentId,initialCompanyId }: { lang: Language;initialDocumentId?:number;initialCompanyId?:number; onSendToTracking?: (document: Row) => void }) {
   const acc = useAccounting(lang);
   const { t, companies, company, setCompany, context, loading, can, fail } = acc;
   const [tab, setTab] = useState('pipeline');
@@ -46,6 +46,8 @@ export function CrmView({ lang, onSendToTracking }: { lang: Language; onSendToTr
   const run = async (fn: () => Promise<unknown>) => { if (busy) return false; setBusy(true); setError(''); try { await fn(); await load(); return true; } catch (e) { setError(e instanceof Error ? e.message : String(e)); return false; } finally { setBusy(false); } };
   const send = (path: string, payload: unknown, method = 'POST') => api.accounting.send<Row>(company, path, payload, method);
   const openDetail = (doc: Row) => void api.accounting.get<Row>(company, `crm/documents/${doc.id}`).then(r => setDetail(r.data)).catch(e => setError(e instanceof Error ? e.message : String(e)));
+  useEffect(()=>{if(initialCompanyId&&companies.some(c=>Number(c.id)===initialCompanyId)&&company!==initialCompanyId)setCompany(initialCompanyId);},[initialCompanyId,companies,company]);
+  useEffect(()=>{if(initialDocumentId&&company&&allowed&&(!initialCompanyId||company===initialCompanyId))void api.accounting.get<Row>(company,`crm/documents/${initialDocumentId}`).then(r=>setDetail(r.data)).catch(fail);},[initialDocumentId,initialCompanyId,company,allowed]);
   const documents: Row[] = data?.documents ?? [];
   const counts: Record<string, number> = data?.stage_counts ?? {};
   const members: Row[] = data?.members ?? [];

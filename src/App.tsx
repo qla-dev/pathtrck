@@ -5380,6 +5380,8 @@ export default function App() {
   const [verificationNonce, setVerificationNonce] = useState(0);
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [view, setView] = useState("tracking");
+  const [opsTarget,setOpsTarget]=useState<{workspace:number;nonce:number}|null>(null);
+  const [crmTarget,setCrmTarget]=useState<{company:number;id:number}|null>(null);
   const [openLoadDetailsTab, setOpenLoadDetailsTab] = useState<'tracker' | 'operations'>('tracker');
   const openShipmentOperations = (_workspaceId: number, loadId: string) => {
     setBookingLoad(null);
@@ -7586,7 +7588,7 @@ export default function App() {
               {view === "finance" && canViewFinance && <FinanceView lang={lang} onOpenAccounting={() => setView("accounting")} />}
               {view === "accounting" && <AccountingView lang={lang} />}
               {view === "smart-pos" && <AccountingView lang={lang} mode="pos" />}
-              {view === "crm" && <CrmView lang={lang} onSendToTracking={(doc) => {
+              {view === "crm" && <CrmView initialDocumentId={crmTarget?.id} initialCompanyId={crmTarget?.company} lang={lang} onSendToTracking={(doc) => {
                 setLenaLoadPrefill({ loadTitle: String(doc.title || doc.customer_name || ""), bookingReference: String(doc.number || "") });
                 setLenaSourceConversationId(null);
                 setLenaSourceDraftId(null);
@@ -7594,7 +7596,7 @@ export default function App() {
                 setCrmLoadDocumentId(Number(doc.id));
                 setIsPostLoadOpen(true);
               }} />}
-              {view === "ops" && <OpsView lang={lang} />}
+              {view === "ops" && <OpsView key={opsTarget?.nonce||0} lang={lang} initialWorkspaceId={opsTarget?.workspace} onOpenShipment={id=>{setOpenLoadDetailsId(id);setOpenLoadDetailsTab('operations');}} onOpenCrm={(company,id)=>{setCrmTarget({company,id});setView('crm');}} />}
               {view === "automations" && <AutomationsView lang={lang} />}
               {view === "fleet" && (
                 <FleetView
@@ -7662,6 +7664,7 @@ export default function App() {
             userId={currentUser?.id}
             companyIds={trackingCompanyIds}
             initialTab={openLoadDetailsTab}
+            onOpenTransportOrder={workspace=>{setOpsTarget({workspace,nonce:Date.now()});setView('ops');}}
             onEditLoad={(loadId) => {
               // Same handover as LoadDetailsPrebook's edit button below: close this modal and open
               // PostLoadModal on that load, rather than stacking a second modal over this one.

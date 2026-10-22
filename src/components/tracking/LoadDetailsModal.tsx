@@ -146,12 +146,13 @@ type LoadDetailsModalProps = {
    * PostLoadModal lives - the same handover LoadDetailsPrebook uses for its own edit button.
    */
   onEditLoad?: (loadId: string) => void;
+  onOpenTransportOrder?:(workspaceId:number)=>void;
   onPinLenaConversation?: (conversationId: string, loadId: string, loadLabel?: string) => void;
   onStartGenericLenaChat?: () => void;
   onOpenSupportChat?: (conversationId: string) => void;
 };
 
-export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], onClose, onChanged, initialTab = 'tracker', onEditLoad, onPinLenaConversation, onStartGenericLenaChat, onOpenSupportChat }: LoadDetailsModalProps) => {
+export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], onClose, onChanged, initialTab = 'tracker', onEditLoad, onOpenTransportOrder, onPinLenaConversation, onStartGenericLenaChat, onOpenSupportChat }: LoadDetailsModalProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [basePackage, setSelectedPackage] = useState<PackageData>(emptyPackage);
   const [detailsOpen, setDetailsOpen] = useState(true);
@@ -1180,7 +1181,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
           onSendReminder={sendShipmentReminder}
           initialSubTab={detailsSubTab}
           operationsSlot={shipmentWorkspace ? (
-            <ShipmentOperationsTab
+            <ShipmentOperationsTab summaryOnly onOpenTransportOrder={id=>{onOpenTransportOrder?.(id);onClose();}}
               workspace={shipmentWorkspace}
               readOnly={selectedPackage.status !== 'Booked'}
               loadStatus={selectedPackage.status}

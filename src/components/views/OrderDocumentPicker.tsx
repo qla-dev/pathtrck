@@ -5,15 +5,15 @@ import { useOpsCopy } from './opsCopy';
 import { Button } from '../ui/Button';
 
 type Document = {id:number;name:string};
-type Props = {company:number;order:number;documents:Array<Record<string,any>>;value:number[];onChange:(ids:number[])=>void;onDocuments:(docs:Array<Record<string,any>>)=>void;disabled?:boolean;onBusy?:(busy:boolean)=>void;selectable?:boolean};
+type Props = {company:number;order:number;portalOrder?:number;documentRole?:'ci'|'pl'|'cmr'|'pod'|'other';documents:Array<Record<string,any>>;value:number[];onChange:(ids:number[])=>void;onDocuments:(docs:Array<Record<string,any>>)=>void;disabled?:boolean;onBusy?:(busy:boolean)=>void;selectable?:boolean};
 
 /** Upload once, attach to this order, then select as evidence. Failed links can be retried. */
-export function OrderDocumentPicker({company,order,documents,value,onChange,onDocuments,disabled=false,onBusy,selectable=true}:Props) {
+export function OrderDocumentPicker({company,order,documents,value,onChange,onDocuments,disabled=false,onBusy,selectable=true,portalOrder,documentRole='other'}:Props) {
  const {t}=useOpsCopy(), id=useId(), input=useRef<HTMLInputElement>(null), locked=useRef(false);
  const [uploading,setUploading]=useState(false),[drag,setDrag]=useState(false),[message,setMessage]=useState('');
  const [failed,setFailed]=useState<Array<{doc:Document;error:string}>>([]);
  const update=(doc:Document,docs=documents,ids=value)=>{const next=docs.some(x=>Number(x.id)===doc.id)?docs:[...docs,doc];onDocuments(next);onChange([...new Set([...ids,doc.id])]);return next;};
- const attach=async(doc:Document)=>{if(!order)return;await api.accounting.send(company,`ops/orders/${order}/compliance-documents`,{document_id:doc.id});};
+ const attach=async(doc:Document)=>{if(portalOrder){await api.transportOrders.action(portalOrder,'documents',{document_id:doc.id,role:documentRole});return;}if(!order)return;await api.accounting.send(company,`ops/orders/${order}/compliance-documents`,{document_id:doc.id});};
  const select=async(doc:Record<string,any>,checked:boolean)=>{
   if(disabled||locked.current)return;
   if(!checked){onChange(value.filter(id=>id!==Number(doc.id)));return;}
@@ -32,13 +32,13 @@ export function OrderDocumentPicker({company,order,documents,value,onChange,onDo
    for(const file of unique){
     if(file.size>25*1024*1024){errors.push(`${file.name}: ${t('Datoteka je prevelika (najviše 25 MB).')}`);continue;}
     try {
-     const result=await api.documents.upload({file,type:'transport_document'});
+     const result=await api.documents.upload({file,type:documentRole==='ci'?'INVOICE':documentRole==='pl'?'PACKING_LIST':documentRole==='cmr'?'CMR':documentRole==='pod'?'PROOF_OF_DELIVERY':'transport_document'});
      const doc={id:Number(result.id),name:String(result.name||file.name)};
      try {await attach(doc);docs=update(doc,docs,ids);ids=[...new Set([...ids,doc.id])];}
      catch(error){const message=error instanceof Error?error.message:String(error);errors.push(`${file.name}: ${message}`);setFailed(old=>[...old,{doc,error:message}]);}
     }catch(error){errors.push(`${file.name}: ${error instanceof Error?error.message:String(error)}`);}
    }
-   setMessage(errors.join(' · ')||(order?t('Dokument je učitan i povezan s nalogom. Izbor dokaza potvrdite čuvanjem zadatka.'):t('Dokument je učitan. Pregledajte podatke prije kreiranja naloga.')));
+   setMessage(errors.join(' · ')||(portalOrder?t('Dokument je povezan s ovim nalogom.'):order?t('Dokument je učitan i povezan s nalogom. Izbor dokaza potvrdite čuvanjem zadatka.'):t('Dokument je učitan. Pregledajte podatke prije kreiranja naloga.')));
   }finally{locked.current=false;setUploading(false);onBusy?.(false);if(input.current)input.current.value='';}
  };
  return <section className="space-y-2 rounded-xl border border-slate-200 p-3 text-sm dark:border-slate-700" aria-label={t('Dokumenti naloga')}>
@@ -50,7 +50,7 @@ export function OrderDocumentPicker({company,order,documents,value,onChange,onDo
   </div>
   <p className="text-xs font-semibold text-slate-500">{t('Postojeći dokumenti naloga')}</p>
   {!documents.length&&<p className="text-xs text-slate-500">{t('Još nema dokumenata. Dodajte prvi dokument iznad.')}</p>}
-  <div className="max-h-40 space-y-1 overflow-y-auto">{documents.map(doc=><label key={doc.id} className="flex cursor-pointer items-center gap-2 rounded-lg p-2 hover:bg-slate-50 dark:hover:bg-slate-800">{selectable&&<input type="checkbox" disabled={disabled||uploading} checked={value.includes(Number(doc.id))} onChange={e=>void select(doc,e.target.checked)}/>}<FileText className="h-4 w-4 shrink-0 text-sky-600"/><span className="break-all">{doc.name}</span></label>)}</div>
+  <div className="max-h-40 space-y-1 overflow-y-auto">{documents.map(doc=><label key={doc.id} className="flex cursor-pointer items-center gap-2 rounded-lg p-2 hover:bg-slate-50 dark:hover:bg-slate-800">{selectable&&<input type="checkbox" disabled={disabled||uploading} checked={value.includes(Number(doc.id))} onChange={e=>void select(doc,e.target.checked)}/>}<FileText className="h-4 w-4 shrink-0 text-sky-600"/><span className="break-all">{portalOrder?<button type="button" className="text-sky-700 underline dark:text-sky-300" onClick={()=>void api.transportOrders.document(portalOrder,Number(doc.id),doc.name).catch(e=>setMessage(e.message))}>{doc.name}</button>:doc.name}</span></label>)}</div>
   {message&&<p role="status" className="text-xs text-slate-600 dark:text-slate-300">{message}</p>}
   {failed.map(({doc,error})=><div key={doc.id} role="alert" className="text-xs text-rose-600">{doc.name}: {error}<Button type="button" size="sm" variant="outline" disabled={disabled||uploading} onClick={async()=>{if(locked.current)return;locked.current=true;setUploading(true);onBusy?.(true);try{await attach(doc);update(doc);setFailed(items=>items.filter(x=>x.doc.id!==doc.id));}catch(e){setFailed(items=>items.map(x=>x.doc.id===doc.id?{doc,error:String(e)}:x));}finally{locked.current=false;setUploading(false);onBusy?.(false);}}}>{t('Pokušaj ponovo povezati')}</Button></div>)}
  </section>;

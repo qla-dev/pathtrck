@@ -393,7 +393,18 @@ const english: Record<string,string> = {
   "Odluka": "Decision",
   "Dokument": "Document",
   "Inspekcija": "Inspection",
-  "Učitavanje postavki…": "Loading settings\u2026"
+  "Učitavanje postavki…": "Loading settings\u2026",
+  "Izaberi odgovornu osobu": "Select the responsible operator",
+  "Dokument je povezan s ovim nalogom.": "The document is linked to this order.",
+  "Valuta ponude": "Quote currency",
+  "Prijem i provjera dokumentacije": "Receive and review documents",
+  "Dokumentacija provjerena": "Documents reviewed",
+  "Provjeriti podatke CI/PL i potvrditi uslove": "Review CI/PL cargo details and confirm terms",
+  "Kupac dostavlja CI i PL; odgovorna osoba potvrđuje prijem": "Customer supplies CI and PL; assigned operator confirms receipt",
+  "Dokumentacija": "Documentation",
+  "Otvori booking / pošiljku": "Open booking / shipment",
+  "Otvori izvornu CRM ponudu": "Open original CRM quote",
+  "Prihvaćena ponuda": "Accepted offer"
 };
 export function opsTaskLabel(lang:Language,item:Record<string,any>):string {
  const regional=['bs','hr','sr'].includes(lang);

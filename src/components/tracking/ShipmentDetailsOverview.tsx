@@ -149,7 +149,7 @@ export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userI
     { key: 'overview', label: u('shipmentDetails.overview', 'Overview'), icon: LayoutDashboard },
     {
       key: 'operations',
-      label: u('shipmentOperations.title', 'Operational checklist'),
+      label: 'OPS TODAY',
       icon: ClipboardCheck,
       hidden: !operationsSlot,
       badge: countPendingActions(checklist),

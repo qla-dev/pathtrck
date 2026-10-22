@@ -708,6 +708,15 @@ export const createApiClient = (sessionToken?: string) => {
     ...resourceApi<Record<string, unknown>>('companies'),
     onboard: (data: Record<string, unknown>) => request<Record<string, unknown>>('/companies/onboard', { method: 'POST', body: JSON.stringify(data) }),
   },
+  transportOrders: {
+    list:()=>request<Record<string,any>[]>('/transport-orders'),
+    sync:()=>request<Record<string,any>>('/transport-orders/sync-bookings',{method:'POST',body:'{}'}),
+    get:(id:number)=>request<Record<string,any>>(`/transport-orders/${id}`),
+    action:(id:number,action:string,body:Record<string,unknown>={})=>request<Record<string,any>>(`/transport-orders/${id}/${action}`,{method:'POST',body:JSON.stringify(body)}),
+    participants:(id:number)=>request<Record<string,any>[]>(`/transport-orders/${id}/participants`),
+    review:(id:number,body?:Record<string,unknown>)=>request<Record<string,any>>(`/transport-orders/${id}/cargo-review`,body?{method:'POST',body:JSON.stringify(body)}:undefined),
+    document:(id:number,document:number,name:string)=>downloadAuthenticatedFile(`/transport-orders/${id}/documents/${document}`,name),
+  },
   companyMemberships: resourceApi<Record<string, unknown>>('company-memberships'),
   companyInvitations: {
     ...resourceApi<Record<string, unknown>>('company-invitations'),
@@ -797,6 +806,7 @@ export const createApiClient = (sessionToken?: string) => {
   },
   shipments: resourceApi<Record<string, unknown>>('shipments'),
   shipmentWorkspaces: {
+    opsToday:(id:number)=>request<Record<string,any>>(`/shipment-workspaces/${id}/ops-today`),
     cargoReview: (id:number, body?:Record<string,unknown>) => request<Record<string,any>>(`/shipment-workspaces/${id}/cargo-review`, body?{method:'POST',body:JSON.stringify(body)}:undefined),
     ...resourceApi<Record<string, unknown>>('shipment-workspaces'),
     update: (id: number | string, data: Record<string, unknown>) => request<Record<string, unknown>>(`/shipment-workspaces/${id}`, {
