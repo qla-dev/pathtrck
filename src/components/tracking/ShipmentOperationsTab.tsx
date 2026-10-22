@@ -10,6 +10,8 @@ import { flatpickrI18n } from '../../i18n';
 import { datePlaceholder, formatDate } from '../../lib/dates';
 import { api } from '../../services/api';
 import { showError } from '../../lib/swal';
+import { checklistOwner } from '../../lib/shipmentChecklist';
+import { CargoReviewPanel } from '../views/CargoReviewPanel';
 import { ShipmentChecklistTable } from './ShipmentChecklistTable';
 import { ChecklistAgentModal } from './ChecklistAgentModal';
 import { ChecklistShippingInstructionsModal } from './ChecklistShippingInstructionsModal';
@@ -122,9 +124,16 @@ export const ShipmentOperationsTab = ({ workspace, lang, role, readOnly = false,
   const text = COPY[lang === 'bs' || lang === 'de' ? lang : lang === 'hr' || lang === 'sr' ? 'bs' : 'en'];
   const checklist = array(workspace.operational_checklist);
   const freightLoad = record(workspace.freight_load);
+  const [viewerId,setViewerId]=useState(0);
+  useEffect(()=>{void api.auth.me().then(user=>setViewerId(Number(user.id))).catch(()=>setViewerId(0));},[]);
+  const customerView=viewerId>0&&Number(workspace.customer_user_id)===viewerId;
+  const managerView=role==='superadmin'||role==='master'||(viewerId>0&&Number(record(workspace.provider_company).owner_user_id)===viewerId);
+  const ownsTask=(item:Record<string,unknown>)=>role==='superadmin'||role==='master'||(viewerId>0&&(checklistOwner(item.key)==='customer'?customerView:!customerView&&(Number(item.responsible_user_id||workspace.provider_user_id)===viewerId||(['proof_of_delivery','vehicle_return'].includes(String(item.key))&&Number(freightLoad.assigned_driver_user_id)===viewerId))));
+  const customerMilestones=['booking_confirmation','final_bill_of_lading','arrival_and_release_documents','proof_of_delivery'];
+  const visibleChecklist=checklist.filter(item=>item.applicable!==false&&( ownsTask(item)||(customerView&&customerMilestones.includes(String(item.key)))));
   const currentStatus = String(loadStatus || freightLoad.status || '').toLowerCase().replaceAll(' ', '_');
   const canSubmitPod = ['in_delivery', 'received'].includes(currentStatus) && (!readOnly || allowPodDuringDelivery);
-  const taskReadOnly = (key: string) => key === 'proof_of_delivery' ? !canSubmitPod : readOnlyRef.current;
+  const taskReadOnly = (key: string) => !ownsTask(checklist.find(item=>String(item.key)===key)||{key}) || (key === 'proof_of_delivery' ? !canSubmitPod : (readOnlyRef.current && !(customerView&&checklistOwner(key)==='customer'&&!['completed','cancelled'].includes(String(workspace.status)))));
   const loadId = String(workspace.load_id || freightLoad.id || '');
   const dueDate = formatDate(freightLoad.etd_at || workspace.booked_at, lang);
   const [busyKey, setBusyKey] = useState<string | null>(null);
@@ -169,7 +178,7 @@ export const ShipmentOperationsTab = ({ workspace, lang, role, readOnly = false,
   const patchTask = async (taskKey: string, changes: Record<string, unknown>) => {
     if (taskReadOnly(taskKey)) throw new Error(text.saveFailed);
     const response = await api.shipmentWorkspaces.update(Number(workspace.id), {
-      operational_checklist: checklist.map((item) => {
+      operational_checklist: checklist.filter(item=>String(item.key)===taskKey).map((item) => {
         const base = {
           key: String(item.key),
           status: String(item.status || 'pending'),
@@ -207,7 +216,7 @@ export const ShipmentOperationsTab = ({ workspace, lang, role, readOnly = false,
   };
 
   const saveLoadField = async (taskKey: string, field: string, value: string | number | null) => {
-    if (!loadId || readOnlyRef.current) return;
+    if (!loadId || taskReadOnly(taskKey)) return;
     setBusyKey(taskKey);
     try {
       await api.loads.update(loadId, { [field]: value });
@@ -390,7 +399,11 @@ export const ShipmentOperationsTab = ({ workspace, lang, role, readOnly = false,
   // Each task is completed where it lives: a driver is picked, a date is set, a document is filed.
   const renderAction = (item: Record<string, unknown>) => {
     const taskKey = String(item.key);
+    if(taskReadOnly(taskKey)) return <span className="text-xs text-slate-500">{String(item.action_value||'—')}</span>;
     switch (taskKey) {
+      case 'cargo_documents':
+      case 'cargo_reconciliation':
+        return <span className="text-xs text-amber-600">{lang==='bs'?'Provjera i potvrda u CI + PL panelu':'Review and approval in the CI + PL panel'}</span>;
       case 'vehicle_return':
         return onVehicleReturn && item.status !== 'completed' ? <button type="button" onClick={onVehicleReturn} className="font-bold text-primary">{lang === 'bs' ? 'Povratak vozila' : lang === 'de' ? 'Fahrzeugrückgabe' : 'Vehicle return'}</button> : null;
       case 'confirm_storage_arrival':
@@ -479,16 +492,18 @@ export const ShipmentOperationsTab = ({ workspace, lang, role, readOnly = false,
 
   return (
     <>
+    {role!=='driver'&&workspace.provider_company_id&&<CargoReviewPanel workspace={Number(workspace.id)} lang={lang} onChange={()=>{void onLoadChanged?.();}}/>}
     <ShipmentChecklistTable
       freightLoad={freightLoad}
       loadStatus={currentStatus}
       disableUnavailableActions
       role={role}
       onRetryAircraft={!readOnly && busyKey === null ? () => setAircraftRetry((count) => count + 1) : undefined}
-      checklist={checklist}
+      checklist={visibleChecklist}
       lang={lang}
       dueDate={dueDate}
       renderAction={readOnly ? (item) => {
+        if(customerView&&ownsTask(item)&&!taskReadOnly(String(item.key)))return renderAction(item);
         if (item.key === 'proof_of_delivery' && canSubmitPod) return renderAction(item);
         if (item.key === 'vehicle_return') return renderAction(item);
         const value = String(item.action_value || '');
@@ -547,7 +562,7 @@ export const ShipmentOperationsTab = ({ workspace, lang, role, readOnly = false,
         } finally { setBusyKey(null); }
       }}
     />}
-    {!readOnly && instructionsOpen && <ChecklistShippingInstructionsModal
+    {!taskReadOnly('shipping_instructions') && instructionsOpen && <ChecklistShippingInstructionsModal
       lang={lang}
       value={checklist.find((item) => item.key === 'shipping_instructions')?.action_value}
       onClose={() => setInstructionsOpen(false)}

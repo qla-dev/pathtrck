@@ -6,6 +6,7 @@ import { Check, ClipboardCheck } from 'lucide-react';
 import type { Language, Role } from '../../types';
 import { cn } from '../../lib/cn';
 import { ui } from '../../i18n';
+import { opsTaskLabel } from '../views/opsCopy';
 import { CHECKLIST_ORDER, checklistCategory, checklistCategoryLabel, checklistHint, checklistLabel, checklistOwner, checklistStatusLabel, type ChecklistCategory } from '../../lib/shipmentChecklist';
 import { TransportDetails } from './TransportDetails';
 import { ProfileModal } from '../views/ProfileModal';
@@ -125,7 +126,7 @@ export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolb
                       )}>
                         {done ? <Check className="h-3.5 w-3.5" /> : index + 1}
                       </span>
-                      {checklistLabel(lang, item.key)}
+                      {opsTaskLabel(lang,item)}
                     </td>
                     {showInstruction && (
                       <td className="max-w-[260px] px-4 py-4 text-xs font-medium text-slate-500">

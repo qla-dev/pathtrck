@@ -104,7 +104,7 @@ export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userI
   const freightLoad = record(workspace?.freight_load);
   const documents = array(freightLoad.documents);
   const customsDocuments = shipment.customsDocuments || [];
-  const nextTask = checklist.find((item) => !['completed', 'approved', 'done'].includes(String(item.status || '').toLowerCase())) || checklist[0];
+  const nextTask = checklist.find((item) => (Number(workspace?.customer_user_id)!==Number(userId)||checklistOwner(item.key)==='customer') && !['completed', 'approved', 'done'].includes(String(item.status || '').toLowerCase())) || (Number(workspace?.customer_user_id)===Number(userId)?undefined:checklist[0]);
   const activity = Object.entries(shipment.statusChange || {}).reverse();
   const canEdit = role === 'user' || role === 'superadmin';
   const price = shipment.totalAmount || details.get('price_insurance') || '—';
@@ -270,7 +270,7 @@ export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userI
             <ShipmentChecklistTable
               freightLoad={freightLoad}
               role={role}
-              checklist={checklist}
+              checklist={viewerIsCustomer?checklist.filter(item=>checklistOwner(item.key)==='customer'||['booking_confirmation','final_bill_of_lading','arrival_and_release_documents','proof_of_delivery'].includes(String(item.key))):checklist}
               lang={lang}
               dueDate={dueDate}
               renderAction={operationsSlot

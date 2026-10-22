@@ -1,3 +1,4 @@
+import { OpsLanguage } from './opsCopy';
 import { CountryVerificationPanel } from "./CountryVerificationPanel";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
@@ -491,7 +492,7 @@ export const ProfileView = ({
           ? { label: text.customerProfile, icon: UserRound, tone: "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300" }
           : { label: user?.role?.label || text.personalProfile, icon: UserRound, tone: "bg-slate-50 text-slate-600 dark:bg-slate-700 dark:text-slate-200" };
   const ProfileTypeIcon = profileType.icon;
-  const company = (user?.companies?.[0] || undefined) as
+  const company = (user?.companies?.find(c => Number(c.owner_user_id) === Number(user.id)) || user?.companies?.[0] || undefined) as
     CompanyProfile | undefined;
   const companyMode = Boolean(
     company &&
@@ -1149,7 +1150,7 @@ export const ProfileView = ({
         </div>
         )}
 
-        {activeTab === "country_verification" && company && !profileRecord && <CountryVerificationPanel key={company.id} company={Number(company.id)} canSetup={canEditCompany} members={[{ id: user.id, name: user.name }]} />}
+        {activeTab === "country_verification" && company && !profileRecord && <OpsLanguage.Provider value={lang}><CountryVerificationPanel key={company.id} company={Number(company.id)} canSetup={canEditCompany} members={[{ id: user.id, name: user.name }]} /></OpsLanguage.Provider>}
         {activeTab === "integrations" && companyMode && !profileRecord && <CompanyIntegrations lang={lang} />}
 
         {activeTab === "organization" && detailKind && detailRecord && (

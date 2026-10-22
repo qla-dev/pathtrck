@@ -44,9 +44,15 @@ type Phrase = {
   action: string;
 };
 
-const CUSTOMER_TASKS = new Set(['shipping_instructions', 'approve_draft', 'approve_awb']);
+const CUSTOMER_TASKS = new Set(['shipping_instructions', 'approve_draft', 'approve_awb', 'cargo_reconciliation']);
 
 const TASKS: Record<string, Record<Locale, Phrase>> = {
+"cargo_documents": {"en": {"label": "Receive and verify commercial invoice + packing list", "action": "receive and verify commercial invoice + packing list"}, "bs": {"label": "Prijem i provjera CI + PL", "action": "prijem i provjera ci + pl"}, "de": {"label": "Receive and verify commercial invoice + packing list", "action": "receive and verify commercial invoice + packing list"}},
+"cargo_reconciliation": {"en": {"label": "URGENT: approve cargo data and revised price", "action": "urgent: approve cargo data and revised price"}, "bs": {"label": "HITNO: potvrda robe i korigovane cijene", "action": "hitno: potvrda robe i korigovane cijene"}, "de": {"label": "URGENT: approve cargo data and revised price", "action": "urgent: approve cargo data and revised price"}},
+"dangerous_goods_check": {"en": {"label": "Dangerous goods documentation and handling", "action": "dangerous goods documentation and handling"}, "bs": {"label": "Dokumentacija i rukovanje opasnom robom", "action": "dokumentacija i rukovanje opasnom robom"}, "de": {"label": "Dangerous goods documentation and handling", "action": "dangerous goods documentation and handling"}},
+"temperature_check": {"en": {"label": "Temperature-control requirements", "action": "temperature-control requirements"}, "bs": {"label": "Provjera temperaturnog režima", "action": "provjera temperaturnog režima"}, "de": {"label": "Temperature-control requirements", "action": "temperature-control requirements"}},
+"inspection_check": {"en": {"label": "Cargo inspection and certificates", "action": "cargo inspection and certificates"}, "bs": {"label": "Inspekcija robe i certifikati", "action": "inspekcija robe i certifikati"}, "de": {"label": "Cargo inspection and certificates", "action": "cargo inspection and certificates"}},
+
   vehicle_return: {
     en: { label: 'Vehicle return', action: 'record the vehicle return' },
     bs: { label: 'Povratak vozila', action: 'evidentirati povratak vozila' },
@@ -483,7 +489,7 @@ export const checklistStatusLabel = (lang: Language, status: unknown) =>
   STATUSES[String(status || '').toLowerCase()]?.[localeOf(lang)] ?? humanize(String(status || '—'));
 
 export const checklistLabel = (lang: Language, key: unknown) =>
-  TASKS[String(key)]?.[localeOf(lang)].label ?? humanize(String(key || ''));
+  TASKS[String(key)]?.[localeOf(lang)].label ?? (/^(leg|service)_[0-9a-f]{8}-/i.test(String(key)) ? (localeOf(lang)==='bs'?'Transportna operacija':'Transport operation') : humanize(String(key || '')));
 
 /** "Provider must assign a driver and vehicle" — who owes the task, stated as a sentence. */
 export const checklistSentence = (lang: Language, key: unknown, ownerLabel: string) => {

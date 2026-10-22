@@ -797,6 +797,7 @@ export const createApiClient = (sessionToken?: string) => {
   },
   shipments: resourceApi<Record<string, unknown>>('shipments'),
   shipmentWorkspaces: {
+    cargoReview: (id:number, body?:Record<string,unknown>) => request<Record<string,any>>(`/shipment-workspaces/${id}/cargo-review`, body?{method:'POST',body:JSON.stringify(body)}:undefined),
     ...resourceApi<Record<string, unknown>>('shipment-workspaces'),
     update: (id: number | string, data: Record<string, unknown>) => request<Record<string, unknown>>(`/shipment-workspaces/${id}`, {
       method: 'PATCH',
