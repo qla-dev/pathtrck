@@ -14,13 +14,13 @@ const KEYS: Record<string, string[]> = {
   bank: ['reference', 'bank_account', 'partner_id', 'direction', 'transaction_date', 'amount', 'currency', 'exchange_rate', 'exchange_source'],
   allocations: ['bank_transaction_id', 'invoice_id', 'amount', 'posting_date', 'bank_account_id', 'fx_gain_account_id', 'fx_loss_account_id'],
   advances: ['bank_transaction_id', 'bank_account_id', 'control_account_id'], periodStatus: ['reason'], approveRule: ['review_note'], reverse: ['posting_date', 'reason'],
-  corrective: ['posting_date', 'reason'], deliver: ['recipient'], fiscalise: ['payment_method'], refund: ['reason'], confirmFiscal: ['fiscal_number'],
+  reverseAllocation: ['posting_date', 'reason'], corrective: ['posting_date', 'reason'], deliver: ['recipient'], fiscalise: ['payment_method'], refund: ['reason'], confirmFiscal: ['fiscal_number'],
   importAccounts: ['review_note'], estimates: ['workspace_id', 'description', 'amount', 'currency'], journal: ['posting_date', 'description'],
 };
 const OPTIONAL: Record<string, string[]> = { partners: ['tax_number', 'vat_number', 'address', 'email'], allocations: KEYS.allocations };
 const PATHS: Record<string, (form: Row) => string> = {
   periodStatus: f => `periods/${f.id}/status`, approveRule: f => `rules/${f.id}/approve`, reverse: f => `entries/${f.id}/reverse`,
-  corrective: f => `invoices/${f.id}/corrective`, deliver: f => `invoices/${f.id}/deliver`, importAccounts: () => 'accounts/import', fromJob: () => 'jobs/invoice',
+  reverseAllocation: f => `allocations/${f.id}/reverse`, corrective: f => `invoices/${f.id}/corrective`, deliver: f => `invoices/${f.id}/deliver`, importAccounts: () => 'accounts/import', fromJob: () => 'jobs/invoice',
   fiscalise: f => `pos/invoices/${f.id}/fiscalise`, refund: f => `pos/invoices/${f.id}/refund`, confirmFiscal: f => `pos/invoices/${f.id}/confirm`,
 };
 

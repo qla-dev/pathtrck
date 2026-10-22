@@ -397,12 +397,12 @@ export type VesselDetails = {
 };
 
 const API_BACKENDS = {
-  local: 'https://freightbook.ai/endpoints/api',
+  local: 'http://127.0.0.1:8000/api',
   production: 'https://freightbook.ai/endpoints/api',
 } as const;
 
-const configuredBackend = String(import.meta.env.VITE_API_BACKEND || 'production').toLowerCase();
-export const API_BASE_URL = (API_BACKENDS[configuredBackend as keyof typeof API_BACKENDS] || API_BACKENDS.local)
+const configuredBackend = String(import.meta.env.VITE_API_BACKEND || (import.meta.env.DEV ? 'local' : 'production')).toLowerCase();
+export const API_BASE_URL = String(import.meta.env.VITE_API_URL || API_BACKENDS[configuredBackend as keyof typeof API_BACKENDS] || API_BACKENDS.local)
   .replace(/\/+$/, '');
 const TOKEN_STORAGE_KEY = 'freightbook_api_token';
 
@@ -963,6 +963,7 @@ export const createApiClient = (sessionToken?: string) => {
   },
   invoices: resourceApi<Record<string, unknown>>('invoices'),
   accounting: {
+    verificationEvidence: (company: number, document: number) => downloadAuthenticatedFile(`/accounting/${company}/verification-documents/${document}`, `dokaz-${document}`),
     print: (company: number, invoice: number) => openDocument(`/accounting/${company}/invoices/${invoice}/print`),
     companies: () => request<Array<{ id: number; name: string; owner_user_id: number }>>('/accounting/companies'),
     get: <T = Record<string, unknown>>(company: number, path: string) => request<T>(`/accounting/${company}/${path}`),

@@ -42,7 +42,7 @@ export function CompanyIntegrations({ lang }: { lang: Language }) {
 function OpsPantheonSettings({ company, t, fail }: { company: number; t: (k: string) => string; fail: (e: unknown) => void }) {
   const [form, setForm] = useState<Row>({ sync_enabled: false, order_doc_type: '', push_orders_from: '', default_worker: '', worker_map: {} as Record<string, string> });
   const [state, setState] = useState<Row | null>(null); const [result, setResult] = useState<Row | null>(null); const [busy, setBusy] = useState(false);
-  useEffect(() => { api.accounting.get<Row | null>(company, 'ops/pantheon').then(r => { const s = r.data; setState(s); if (s) setForm({ sync_enabled: !!s.sync_enabled, order_doc_type: s.order_doc_type ?? '', push_orders_from: s.push_orders_from ?? '', default_worker: s.default_worker ?? '', worker_map: s.worker_map ?? {} }); }).catch(() => undefined); }, [company]);
+  useEffect(() => { api.accounting.get<Row | null>(company, 'integrations/ops-pantheon').then(r => { const s = r.data; setState(s); if (s) setForm({ sync_enabled: !!s.sync_enabled, order_doc_type: s.order_doc_type ?? '', push_orders_from: s.push_orders_from ?? '', default_worker: s.default_worker ?? '', worker_map: s.worker_map ?? {} }); }).catch(() => undefined); }, [company]);
   const run = async (fn: () => Promise<void>) => { if (busy) return; setBusy(true); try { await fn(); } catch (e) { fail(e); } finally { setBusy(false); } };
   const summary = (result ?? state?.last_sync_summary) as Row | null;
   return <Card className="shadow-none" contentClassName="space-y-3 p-4">
@@ -63,10 +63,10 @@ function OpsPantheonSettings({ company, t, fail }: { company: number; t: (k: str
       </div>
     </div>
     <div className="flex flex-wrap gap-2">
-      <Button size="sm" disabled={busy} onClick={() => void run(async () => setState((await api.accounting.send<Row>(company, 'ops/pantheon', { ...form, order_doc_type: form.order_doc_type || null, push_orders_from: form.push_orders_from || null, default_worker: form.default_worker || null,
+      <Button size="sm" disabled={busy} onClick={() => void run(async () => setState((await api.accounting.send<Row>(company, 'integrations/ops-pantheon', { ...form, order_doc_type: form.order_doc_type || null, push_orders_from: form.push_orders_from || null, default_worker: form.default_worker || null,
         worker_map: Object.fromEntries(Object.entries(form.worker_map as Record<string, string>).filter(([, v]) => v)) })).data))}>{t('save')}</Button>
-      <Button size="sm" variant="outline" disabled={busy || !state} onClick={() => void run(async () => setResult((await api.accounting.send<Row>(company, 'ops/pantheon/sync', { write: false })).data))}>{t('preview')}</Button>
-      <Button size="sm" variant="outline" className="gap-1.5" disabled={busy || !state?.sync_enabled} onClick={() => void run(async () => setResult((await api.accounting.send<Row>(company, 'ops/pantheon/sync', { write: true })).data))}><RefreshCw className="h-3.5 w-3.5" />{t('ops_sync_now')}</Button>
+      <Button size="sm" variant="outline" disabled={busy || !state} onClick={() => void run(async () => setResult((await api.accounting.send<Row>(company, 'integrations/ops-pantheon/sync', { write: false })).data))}>{t('preview')}</Button>
+      <Button size="sm" variant="outline" className="gap-1.5" disabled={busy || !state?.sync_enabled} onClick={() => void run(async () => setResult((await api.accounting.send<Row>(company, 'integrations/ops-pantheon/sync', { write: true })).data))}><RefreshCw className="h-3.5 w-3.5" />{t('ops_sync_now')}</Button>
     </div>
     {summary && <div className="space-y-1 text-sm">
       <p>{t('ops_pushed')}: {(summary.pushed ?? []).length} · {t('pantheon_updated')}: {(summary.updated ?? []).length} · {t('ops_pulled_closed')}: {(summary.pulled_closed ?? []).length}</p>

@@ -1,3 +1,4 @@
+import { linkedLastMileDraft, roadCargo } from './linkedRoadDraft';
 import { lenaText, lenaField, lenaFieldChoices, lenaOptionDescription, lenaOptionIcon } from '../../../lib/lenaCatalog';
 import { lenaIcon } from '../../../lib/lenaIcons';
 import { calculateVolume } from './volume';
@@ -204,6 +205,7 @@ const STEP_AI_FIELDS: Record<StepId, Array<keyof ScanFieldPatch & keyof LoadDraf
 
 export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSaved, initialPrefill = null, lockedTransportType = null, onOpenLenaAI, sourceConversationId = null, initialDraftId = null, onDraftConversationCreated, crmDocumentId = null }: PostLoadModalProps) => {
   // A load opened from a CRM offer keeps that link, so the CRM stage can follow the shipment and its work order.
+  const publishedLoadId = useRef<string | number | null>(null);
   const crmLink = crmDocumentId && !editLoadId ? { crm_document_id: crmDocumentId } : {};
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const transportOptions = [
@@ -1045,6 +1047,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
           // The load is already published; a failed link-back must not surface as a publish error.
         }
       }
+      publishedLoadId.current = typeof response.data.id === 'string' || typeof response.data.id === 'number' ? response.data.id : null;
       onSaved?.(response.data);
       onClose();
       void showSuccess(
@@ -1219,11 +1222,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         deliveryTimeTo: draft.deliveryTimeTo,
         // The cargo was just described on the storage request, so it carries over rather than
         // being asked for a second time in the chat.
-        pallets: draft.pallets,
-        volumeM3: draft.volumeM3,
-        weightKg: draft.weightKg,
-        goodsType: draft.goodsType,
-        cargoType: draft.cargoType,
+        ...roadCargo(draft),
+        cargoType: 'FTL',
       };
       const draftResponse = await api.loadDrafts.create(buildDraftPayload(transportDraft));
       const newDraftId = draftResponse.data.id as string | number;
@@ -1276,22 +1276,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
     if (!published || !currentUser) return;
 
     try {
-      const lastMileDraft: LoadDraft = {
-        ...INITIAL_DRAFT,
-        transportType: 'road',
-        loadTitle: `${draft.loadTitle || u('postLoadModal.draftFallbackTitle', '')} - Last Mile Delivery`,
-        pickupPlaceType: 'Terminal',
-        pickupCity: draft.deliveryCity,
-        pickupCountry: draft.deliveryCountry,
-        // deliveryPlaceType stays at INITIAL_DRAFT's 'Warehouse' default - road only offers
-        // Warehouse/Terminal as place types, and the address field itself is collected either way.
-        deliveryAddress: draft.deliveryAddress,
-        deliveryCity: draft.deliveryCity,
-        deliveryPostalCode: draft.deliveryPostalCode,
-        deliveryCountry: draft.deliveryCountry,
-        deliveryLatitude: draft.deliveryLatitude,
-        deliveryLongitude: draft.deliveryLongitude,
-      };
+      const lastMileDraft = linkedLastMileDraft(draft, `${draft.loadTitle || u('postLoadModal.draftFallbackTitle', '')} - Last Mile Delivery`, publishedLoadId.current ?? undefined);
       const draftResponse = await api.loadDrafts.create(buildDraftPayload(lastMileDraft));
       const newDraftId = draftResponse.data.id as string | number;
 

@@ -112,6 +112,7 @@ export function InvoiceDetail({ acc, invoice, onBack, onEdit, openForm }: { acc:
             <RecordTable dense empty={t('empty')} rows={data.allocations.filter(a => a.invoice_id === invoice.id)} columns={[
               { key: 'bank_transaction_id', header: t('bank_transaction_id'), render: a => data.bank.find(b => b.id === a.bank_transaction_id)?.reference ?? a.bank_transaction_id },
               { key: 'amount', header: t('amount'), align: 'right', render: a => money(a.amount, invoice.currency) },
+              {key:'correction',header:'Ispravka',render:a=>a.reversed?<span>Poništena uplata</span>:can('payments')&&can('post')?<Button size="sm" variant="outline" disabled={busy} onClick={()=>openForm('reverseAllocation',{id:a.id,posting_date:today(),reason:''})}>Poništi alokaciju</Button>:null},
               { key: 'confirmed_by', header: t('confirmed_by') },
               { key: 'created_at', header: t('created_at'), render: a => shortDate(a.created_at) },
             ]} />

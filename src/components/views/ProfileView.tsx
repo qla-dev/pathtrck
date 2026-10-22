@@ -1,3 +1,4 @@
+import { CountryVerificationPanel } from "./CountryVerificationPanel";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -326,7 +327,7 @@ const initials = (name: string) =>
     .join("") || "FB";
 
 export type ProfileRecordKind = "customer" | "company" | "warehouse" | "driver";
-type ProfileTab = "general" | "organization" | "network" | "reviews" | "integrations";
+type ProfileTab = "general" | "organization" | "network" | "reviews" | "integrations" | "country_verification";
 
 const userFromRecord = (
   record: Record<string, unknown>,
@@ -827,6 +828,7 @@ export const ProfileView = ({
             { id: "organization" as const, label: text.tabOrganization, icon: Building2 },
             { id: "network" as const, label: text.tabNetwork, icon: Globe2 },
             { id: "reviews" as const, label: text.tabReviews, icon: Star },
+            ...(company && !profileRecord ? [{ id: "country_verification" as const, label: lang === "de" ? "Firmenverifizierung" : lang === "en" ? "Company verification" : "Verifikacija firme", icon: ShieldCheck }] : []),
             // Own company only: the PANTHEON connection and other integrations live in company details.
             ...(companyMode && !profileRecord ? [{ id: "integrations" as const, label: text.tabIntegrations, icon: PlugZap }] : []),
           ]).map((tab) => (
@@ -1147,6 +1149,7 @@ export const ProfileView = ({
         </div>
         )}
 
+        {activeTab === "country_verification" && company && !profileRecord && <CountryVerificationPanel key={company.id} company={Number(company.id)} canSetup={canEditCompany} members={[{ id: user.id, name: user.name }]} />}
         {activeTab === "integrations" && companyMode && !profileRecord && <CompanyIntegrations lang={lang} />}
 
         {activeTab === "organization" && detailKind && detailRecord && (
