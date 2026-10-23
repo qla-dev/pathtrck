@@ -293,7 +293,18 @@ export const LoadOffersPanel = ({
 
                   {/* The decision is the offer's own status. Accepting runs the booking flow that
                       creates the shipment; every other status is just recorded on the offer. */}
-                  <div className="mt-auto">
+                  <div className="mt-auto space-y-3">
+                    {!decided && (
+                      <Button
+                        type="button"
+                        className="w-full gap-2"
+                        disabled={Boolean(changingStatusOfferId)}
+                        onClick={() => onApprove(offer)}
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                        {['bs', 'hr', 'sr'].includes(lang) ? 'Prihvati ponudu' : lang === 'de' ? 'Angebot annehmen' : 'Accept offer'}
+                      </Button>
+                    )}
                     <OfferStatusPicker
                       lang={lang}
                       status={status}

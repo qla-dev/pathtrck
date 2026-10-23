@@ -320,6 +320,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
   }, [open, load, role]);
 
   const approveOffer = async (offer: Record<string, unknown>) => {
+    if (changingStatusOfferId) return;
     const offerDriverId = Number(offer.driver_user_id || 0);
     const company = offer.company as { name?: string } | undefined;
     const creator = offer.creator as { name?: string; email?: string } | undefined;
@@ -337,6 +338,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
     });
 
     if (!confirmed) return;
+    setChangingStatusOfferId(String(offer.id));
     setActionMessage('Approving offer...');
     try {
       const result = await api.offers.approve(String(offer.id), offerDriverId || undefined);
@@ -351,6 +353,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
       onChanged?.();
       if (workspace?.id && load) onOperationsOpen?.(Number(workspace.id), load.id);
     } catch (error) { setActionMessage(error instanceof Error ? error.message : 'Offer could not be approved.'); }
+    finally { setChangingStatusOfferId(null); }
   };
 
   // Every decision other than accepting (which books the shipment) and rejecting (which warns

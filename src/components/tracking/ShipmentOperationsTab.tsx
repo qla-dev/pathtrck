@@ -405,7 +405,7 @@ const ShipmentOperationsEditor = ({ workspace, lang, role, readOnly = false, onU
     switch (taskKey) {
       case 'cargo_documents':
       case 'cargo_reconciliation':
-        return <span className="text-xs text-amber-600">{lang==='bs'?'Provjera i potvrda u CI + PL panelu':'Review and approval in the CI + PL panel'}</span>;
+        return <span className="text-xs text-amber-600">{lang==='bs'?'Provjera komercijalne fakture i pakirne liste u transportnom nalogu':'Review commercial invoice and packing list in Transport orders'}</span>;
       case 'vehicle_return':
         return onVehicleReturn && item.status !== 'completed' ? <button type="button" onClick={onVehicleReturn} className="font-bold text-primary">{lang === 'bs' ? 'Povratak vozila' : lang === 'de' ? 'Fahrzeugrückgabe' : 'Vehicle return'}</button> : null;
       case 'confirm_storage_arrival':
