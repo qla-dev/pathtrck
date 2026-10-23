@@ -709,6 +709,7 @@ export const createApiClient = (sessionToken?: string) => {
     onboard: (data: Record<string, unknown>) => request<Record<string, unknown>>('/companies/onboard', { method: 'POST', body: JSON.stringify(data) }),
   },
   transportOrders: {
+    supplyChain:(id:number)=>request<Record<string,any>>(`/transport-orders/${id}/supply-chain`),
     list:()=>request<Record<string,any>[]>('/transport-orders'),
     sync:()=>request<Record<string,any>>('/transport-orders/sync-bookings',{method:'POST',body:'{}'}),
     get:(id:number)=>request<Record<string,any>>(`/transport-orders/${id}`),

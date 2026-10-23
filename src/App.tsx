@@ -5379,7 +5379,7 @@ export default function App() {
   const [driverVerificationOpen, setDriverVerificationOpen] = useState(false);
   const [verificationNonce, setVerificationNonce] = useState(0);
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
-  const [view, setView] = useState("tracking");
+  const [view, setView] = useState(()=>new URLSearchParams(window.location.search).has("supply_order")?"ops":"tracking");
   const [opsTarget,setOpsTarget]=useState<{workspace:number;nonce:number}|null>(null);
   const [crmTarget,setCrmTarget]=useState<{company:number;id:number}|null>(null);
   const [openLoadDetailsTab, setOpenLoadDetailsTab] = useState<'tracker' | 'operations'>('tracker');
@@ -5774,7 +5774,7 @@ export default function App() {
         const restoredRole = user.role.name;
         setCurrentUser(user);
         setRole(restoredRole);
-        setView(getDefaultViewForRole(restoredRole, user));
+        setView(new URLSearchParams(window.location.search).has("supply_order")?"ops":getDefaultViewForRole(restoredRole, user));
         if (!window.localStorage.getItem(LANGUAGE_STORAGE_KEY) && isSupportedLanguage(user.language)) setLang(user.language);
         setIsLanding(false);
       })
@@ -6116,11 +6116,11 @@ export default function App() {
               const resolvedRole = user.role?.name || r;
               setCurrentUser(user);
               setRole(resolvedRole);
-              setView(getDefaultViewForRole(resolvedRole, user));
+              setView(new URLSearchParams(window.location.search).has("supply_order")?"ops":getDefaultViewForRole(resolvedRole, user));
             })
             .catch(() => {
               setRole(r);
-              setView(getDefaultViewForRole(r));
+              setView(new URLSearchParams(window.location.search).has("supply_order")?"ops":getDefaultViewForRole(r));
             })
             .finally(() => setIsAuthRestoring(false));
         }}

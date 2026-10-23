@@ -23,7 +23,7 @@ export function OperationalCompliancePanel({ company, order, members = [], readO
   const [item, setItem] = useState<Row | null>(null), [inspection, setInspection] = useState<Row | null>(null), [context, setContext] = useState<Row>({});
   const load = useCallback(async () => {
     const r = await api.accounting.get<Row>(company, `ops/orders/${order}/compliance`);
-    setData(r.data);setScope(previous=>r.data.checklist.can_manage?previous:'mine'); setContext(Object.fromEntries(Object.entries(r.data.checklist.context||{}).filter(([key])=>!['cargo_review','intake','document_intake'].includes(key))));
+    setData(r.data);setScope(previous=>r.data.checklist.can_manage?previous:'mine'); setContext(Object.fromEntries(Object.entries(r.data.checklist.context||{}).filter(([key])=>!['cargo_review','intake','document_intake','supply_chain'].includes(key))));
   }, [company, order]);
   useEffect(() => { setData(null); setError(''); void load().catch(e => setError(String(e.message || e))); }, [load]);
   const run = async (fn: () => Promise<unknown>) => { setBusy(true); setError(''); try { await fn(); await load(); onChange?.(); setItem(null); setInspection(null); } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally { setBusy(false); } };

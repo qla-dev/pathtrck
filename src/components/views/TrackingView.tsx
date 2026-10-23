@@ -306,6 +306,7 @@ export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutMode
   // The tracking list only carries the workspace once the API ships that relation, so the checklists
   // are fetched on their own and matched by load — the badge works either way.
   const workspacesResult = useApiList(api.shipmentWorkspaces.list, { per_page: 200 });
+  useEffect(()=>{let active=true;void api.transportOrders.sync().then(()=>{if(active){void loadsResult.refresh();void statusCountsResult.refresh();void workspacesResult.refresh();}}).catch(()=>{});return()=>{active=false;};},[]);
   const packages = useMemo<PackageData[]>(
     () => loadsResult.items.map((load) => {
       const pkg = mapLoadToPackage(load, lang);
