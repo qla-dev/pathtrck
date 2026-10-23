@@ -1181,7 +1181,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
           onSendReminder={sendShipmentReminder}
           initialSubTab={detailsSubTab}
           operationsSlot={shipmentWorkspace ? (
-            <ShipmentOperationsTab summaryOnly onOpenTransportOrder={id=>{onOpenTransportOrder?.(id);onClose();}}
+            <ShipmentOperationsTab summaryOnly onOpenTransportOrder={onOpenTransportOrder ? id=>{onOpenTransportOrder(id);onClose();} : undefined}
               workspace={shipmentWorkspace}
               readOnly={selectedPackage.status !== 'Booked'}
               loadStatus={selectedPackage.status}

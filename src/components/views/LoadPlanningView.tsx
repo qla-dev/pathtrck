@@ -161,7 +161,7 @@ const SceneSkeleton = ({ label }: { label: string }) => (
   </div>
 );
 
-export default function LoadPlanningView({ lang, userId, role }: { lang: Language; userId?: number; role?: Role }) {
+export default function LoadPlanningView({ lang, userId, role, onOpenTransportOrder }: { lang: Language; userId?: number; role?: Role; onOpenTransportOrder?: (workspaceId: number) => void }) {
   const t = planningLabels(lang);
   const [plan, setPlan] = useState<Plan>({ version: 1, name: '', equipment: { ...EQUIPMENT[0] }, cargo: [] });
   const [view, setView] = useState<SceneView>('overview');
@@ -783,7 +783,7 @@ export default function LoadPlanningView({ lang, userId, role }: { lang: Languag
 
       {openLoadId && (
         <React.Suspense fallback={null}>
-          <LoadDetailsModal loadId={openLoadId} lang={lang} role={role ?? null} userId={userId} onClose={() => setOpenLoadId(null)} />
+          <LoadDetailsModal loadId={openLoadId} lang={lang} role={role ?? null} userId={userId} onOpenTransportOrder={onOpenTransportOrder} onClose={() => setOpenLoadId(null)} />
         </React.Suspense>
       )}
     </motion.div>

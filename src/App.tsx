@@ -5383,12 +5383,16 @@ export default function App() {
   const [opsTarget,setOpsTarget]=useState<{workspace:number;nonce:number}|null>(null);
   const [crmTarget,setCrmTarget]=useState<{company:number;id:number}|null>(null);
   const [openLoadDetailsTab, setOpenLoadDetailsTab] = useState<'tracker' | 'operations'>('tracker');
-  const openShipmentOperations = (_workspaceId: number, loadId: string) => {
+  const openTransportOrder = (workspaceId: number) => {
+    setOpenLoadDetailsId(null);
+    setOpenLoadDetailsTab('tracker');
+    setOpsTarget({workspace:workspaceId,nonce:Date.now()});
+    setView('ops');
+  };
+  const openShipmentOperations = (workspaceId: number, _loadId: string) => {
     setBookingLoad(null);
     setBookingWarehouseMovementId(null);
-    setOpenLoadDetailsTab('operations');
-    setOpenLoadDetailsId(loadId);
-    setView("tracking");
+    openTransportOrder(workspaceId);
   };
   const [trackingMapActive, setTrackingMapActive] = useState(false);
   const isTrackingMapActive =
@@ -7359,6 +7363,7 @@ export default function App() {
               {(view === "tracking" || view === "history") && (
                 <TrackingView
                   lang={lang}
+                  onOpenTransportOrder={openTransportOrder}
                   role={role}
                   userId={currentUser?.id}
                   companyIds={trackingCompanyIds}
@@ -7608,7 +7613,7 @@ export default function App() {
               )}
               {view === "load-planning" && (
                 <React.Suspense fallback={null}>
-                  <LoadPlanningView lang={lang} userId={currentUser?.id} role={role} />
+                  <LoadPlanningView lang={lang} userId={currentUser?.id} role={role} onOpenTransportOrder={openTransportOrder} />
                 </React.Suspense>
               )}
               {view === "pricing" && (
@@ -7664,7 +7669,7 @@ export default function App() {
             userId={currentUser?.id}
             companyIds={trackingCompanyIds}
             initialTab={openLoadDetailsTab}
-            onOpenTransportOrder={workspace=>{setOpsTarget({workspace,nonce:Date.now()});setView('ops');}}
+            onOpenTransportOrder={openTransportOrder}
             onEditLoad={(loadId) => {
               // Same handover as LoadDetailsPrebook's edit button below: close this modal and open
               // PostLoadModal on that load, rather than stacking a second modal over this one.
