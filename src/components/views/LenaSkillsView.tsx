@@ -1,3 +1,4 @@
+import { DataTable } from '../ui/DataTable';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { BookOpen, Braces, BrainCircuit, ArrowRight, ChevronDown, CornerDownRight, Database, ExternalLink, FileJson, FileText, Globe, Layers3, Network, RefreshCw, Search, Sparkles } from 'lucide-react';
 import { API_BASE_URL, api, type LenaSkillRow } from '../../services/api';
@@ -130,7 +131,7 @@ export const LenaSkillsView = ({ lang, onOpenView }: { lang: Language; onOpenVie
     {error && <p role="alert" className="rounded-xl bg-rose-50 p-4 text-sm text-rose-600 dark:bg-rose-950">{t.error}</p>}
     <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(300px,1fr)]">
       <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-        <div className="overflow-x-auto"><table className="w-full text-left text-xs"><thead className="border-b border-slate-100 bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-800/50"><tr><th className="p-4">{t.name}</th><th className="p-4">{t.scope}</th><th className="p-4">{t.file}</th></tr></thead>
+        <div className="overflow-x-auto"><DataTable className="w-full text-left text-xs"><thead className="border-b border-slate-100 bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-800/50"><tr><th className="p-4">{t.name}</th><th className="p-4">{t.scope}</th><th className="p-4">{t.file}</th></tr></thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">{!loading && (filter === 'all'
             ? tree.map(group => {
               const open = group.defaultOpen !== toggled.has(group.folder);
@@ -139,7 +140,7 @@ export const LenaSkillsView = ({ lang, onOpenView }: { lang: Language; onOpenVie
                 {open && group.subskills.map(row => renderRow(row, { nested: true }))}
               </Fragment>;
             })
-            : flat.map(row => renderRow(row)))}</tbody></table></div>
+            : flat.map(row => renderRow(row)))}</tbody></DataTable></div>
         {loading && <p role="status" className="p-8 text-center text-sm text-slate-500">{t.loading}</p>}
         {!loading && !listed.length && !error && <div className="p-8 text-center text-sm text-slate-500">{t.empty}<button type="button" onClick={() => { setSearch(''); setFilter('all'); }} className="mx-auto mt-3 block cursor-pointer text-primary underline">{t.clear}</button></div>}
       </section>

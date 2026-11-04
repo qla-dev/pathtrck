@@ -201,7 +201,7 @@ export const ServerDataTable = <T extends Record<string, unknown>>({
       )
       .join("");
     popup.document.write(
-      `<!doctype html><html><head><meta charset="utf-8"><title>${htmlCell(title)}</title><style>@page{size:auto;margin:14mm}body{font-family:Arial,sans-serif;padding:24px;color:#0f172a}table{width:100%;border-collapse:collapse;font-size:11px}th,td{padding:8px;border:1px solid #cbd5e1;text-align:left;vertical-align:top}th{background:#e2e8f0}</style></head><body><h1>${htmlCell(title)}</h1>${pdf ? '<p>Choose "Save as PDF" as the printer destination.</p>' : ""}<table><thead><tr>${exportColumns.map((column) => `<th>${htmlCell(column.header)}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></body></html>`,
+      `<!doctype html><html><head><meta charset="utf-8"><title>${htmlCell(title)}</title><style>@page{size:auto;margin:14mm}body{font-family:Arial,sans-serif;padding:24px;color:#0f172a}table{width:100%;border-collapse:collapse;font-size:11px}th,td{padding:8px;border:0;border-bottom:1px solid #f1f5f9;text-align:left;vertical-align:top}th{background:#f8fafc;color:#64748b;border-bottom-color:#e2e8f0}tbody tr:last-child td{border-bottom:0}</style></head><body><h1>${htmlCell(title)}</h1>${pdf ? '<p>Choose "Save as PDF" as the printer destination.</p>' : ""}<table><thead><tr>${exportColumns.map((column) => `<th>${htmlCell(column.header)}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></body></html>`,
     );
     popup.document.close();
     popup.focus();

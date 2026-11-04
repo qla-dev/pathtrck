@@ -1,5 +1,9 @@
 # Shared agent coordination
 
+## FreightBook table design
+
+Use the existing `src/components/ui/DataTable.tsx` for application data tables (including nested/detail tables). Preserve the original FreightBook style: subtle slate separators, no black outlines or vertical cell grids, existing density and responsive horizontal scrolling. Table/card wrappers must specify `border-slate-200 dark:border-slate-800` instead of a bare `border`; keep semantic warning/error colours where needed. Reuse this design for previews and proposals. Email layout tables and spreadsheet exports are not application data tables.
+
 This workspace can be edited simultaneously by Codex, Claude and Copilot.
 Before modifying files, read the shared board:
 

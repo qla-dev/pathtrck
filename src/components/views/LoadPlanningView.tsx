@@ -1,3 +1,4 @@
+import { DataTable } from '../ui/DataTable';
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
@@ -555,7 +556,7 @@ export default function LoadPlanningView({ lang, userId, role, onOpenTransportOr
             </div>
           ) : (
             <div className="mt-3 max-h-80 overflow-auto rounded-xl border border-slate-100 dark:border-slate-800">
-              <table className="w-full text-left text-xs">
+              <DataTable className="w-full text-left text-xs">
                 <thead className="sticky top-0 bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800">
                   <tr><th className="px-2.5 py-2">{t.name}</th><th className="px-2.5 py-2">{t.cargoDimensions}</th><th className="px-2.5 py-2 text-right">kg</th><th className="px-2.5 py-2">{t.placed}</th></tr>
                 </thead>
@@ -572,7 +573,7 @@ export default function LoadPlanningView({ lang, userId, role, onOpenTransportOr
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </DataTable>
             </div>
           )}
           {current && (

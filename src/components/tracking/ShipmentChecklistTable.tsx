@@ -1,3 +1,4 @@
+import { DataTable } from '../ui/DataTable';
 import { nextInput } from '../../lib/enterNavigation';
 import { useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
@@ -76,7 +77,7 @@ export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolb
       {toolbar && <div className="border-b border-slate-100 px-5 py-4 dark:border-slate-800">{toolbar}</div>}
       {checklist.length ? (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[540px] text-left text-sm">
+          <DataTable className="w-full min-w-[540px] text-left text-sm">
             <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-wider text-slate-400 dark:bg-slate-950">
               <tr>
                 <th className="px-5 py-3">{u('shipmentDetails.task', 'Task')}</th>
@@ -192,7 +193,7 @@ export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolb
                 );
               })}
             </tbody>
-          </table>
+          </DataTable>
         </div>
       ) : <p className="p-6 text-sm text-slate-500">{u('shipmentDetails.noTasks', 'No operational tasks yet.')}</p>}
       {trackedDetails && <TransportDetails kind={trackedDetails.kind} id={trackedDetails.id} lang={lang} variant="modal" onClose={() => setTrackedDetails(null)} />}
