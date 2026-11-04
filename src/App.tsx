@@ -5380,13 +5380,13 @@ export default function App() {
   const [verificationNonce, setVerificationNonce] = useState(0);
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [view, setView] = useState(()=>new URLSearchParams(window.location.search).has("supply_order")?"ops":"tracking");
-  const [opsTarget,setOpsTarget]=useState<{workspace:number;nonce:number}|null>(null);
+  const [opsTarget,setOpsTarget]=useState<{workspace:number;section:"overview"|"documents"|"operations";nonce:number}|null>(null);
   const [crmTarget,setCrmTarget]=useState<{company:number;id:number}|null>(null);
   const [openLoadDetailsTab, setOpenLoadDetailsTab] = useState<'tracker' | 'operations'>('tracker');
-  const openTransportOrder = (workspaceId: number) => {
+  const openTransportOrder = (workspaceId: number, section: "overview" | "documents" | "operations" = "overview") => {
     setOpenLoadDetailsId(null);
     setOpenLoadDetailsTab('tracker');
-    setOpsTarget({workspace:workspaceId,nonce:Date.now()});
+    setOpsTarget({workspace:workspaceId,section,nonce:Date.now()});
     setView('ops');
   };
   const openShipmentOperations = (workspaceId: number, _loadId: string) => {
@@ -7601,7 +7601,7 @@ export default function App() {
                 setCrmLoadDocumentId(Number(doc.id));
                 setIsPostLoadOpen(true);
               }} />}
-              {view === "ops" && <OpsView key={opsTarget?.nonce||0} lang={lang} initialWorkspaceId={opsTarget?.workspace} onOpenShipment={id=>{setOpenLoadDetailsId(id);setOpenLoadDetailsTab('operations');}} onOpenCrm={(company,id)=>{setCrmTarget({company,id});setView('crm');}} />}
+              {view === "ops" && <OpsView key={opsTarget?.nonce||0} lang={lang} initialWorkspaceId={opsTarget?.workspace} initialSection={opsTarget?.section} onOpenShipment={id=>{setOpenLoadDetailsId(id);setOpenLoadDetailsTab('tracker');}} onOpenCrm={(company,id)=>{setCrmTarget({company,id});setView('crm');}} />}
               {view === "automations" && <AutomationsView lang={lang} />}
               {view === "fleet" && (
                 <FleetView

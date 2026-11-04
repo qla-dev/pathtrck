@@ -71,7 +71,7 @@ export const ShipmentChecklistTable = ({ checklist, lang, dueDate = '—', toolb
       <div className="border-b border-slate-100 px-5 py-4 dark:border-slate-800">
         <h2 className="flex items-center gap-2 font-black text-slate-900 dark:text-white">
           <ClipboardCheck className="h-5 w-5 text-primary" />
-          {u('shipmentOperations.title', 'Operational checklist')}
+          {u('shipmentOperations.title', 'Transport responsibilities and operations')}
         </h2>
       </div>
       {toolbar && <div className="border-b border-slate-100 px-5 py-4 dark:border-slate-800">{toolbar}</div>}

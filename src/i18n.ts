@@ -8,8 +8,8 @@ type Locale = Exclude<Language, null>;
 const UI_EN: Record<string, string> = {
   'common.filter': 'Filter',
   'common.sort': 'Sort',
-  'shipmentOperations.title': 'Operational checklist',
-  'shipmentOperations.open': 'Open operational checklist',
+  'shipmentOperations.title': 'Transport responsibilities and operations',
+  'shipmentOperations.open': 'Open transport responsibilities and operations',
   'shipmentDetails.overview': 'Overview',
   'shipmentDetails.messages': 'Messages',
   'shipmentDetails.sendReminder': 'Send reminder',
@@ -788,8 +788,8 @@ const makeLocale = (overrides: Record<string, string>): Record<string, string> =
 const UI: Record<Locale, Record<string, string>> = {
   en: UI_EN,
   bs: makeLocale({
-    'shipmentOperations.title': 'Operativna checklist',
-    'shipmentOperations.open': 'Otvori operativnu checklistu',
+    'shipmentOperations.title': 'Transportne obaveze i operacije',
+    'shipmentOperations.open': 'Otvori transportne obaveze i operacije',
     'shipmentDetails.overview': 'Pregled',
     'shipmentDetails.messages': 'Poruke',
     'shipmentDetails.sendReminder': 'Pošalji podsjetnik',
@@ -1575,8 +1575,8 @@ const UI: Record<Locale, Record<string, string>> = {
 
   }),
   de: makeLocale({
-    'shipmentOperations.title': 'Operative Checkliste',
-    'shipmentOperations.open': 'Operative Checkliste öffnen',
+    'shipmentOperations.title': 'Transportaufgaben und Abläufe',
+    'shipmentOperations.open': 'Transportaufgaben und Abläufe öffnen',
     'shipmentDetails.overview': 'Übersicht',
     'shipmentDetails.messages': 'Nachrichten',
     'shipmentDetails.sendReminder': 'Erinnerung senden',

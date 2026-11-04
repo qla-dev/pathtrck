@@ -149,7 +149,7 @@ export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userI
     { key: 'overview', label: u('shipmentDetails.overview', 'Overview'), icon: LayoutDashboard },
     {
       key: 'operations',
-      label: 'OPS TODAY',
+      label: ['bs','hr','sr'].includes(lang) ? 'Status pošiljke' : lang === 'de' ? 'Sendungsstatus' : 'Shipment status',
       icon: ClipboardCheck,
       hidden: !operationsSlot,
       badge: countPendingActions(checklist),

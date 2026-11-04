@@ -162,7 +162,7 @@ const SceneSkeleton = ({ label }: { label: string }) => (
   </div>
 );
 
-export default function LoadPlanningView({ lang, userId, role, onOpenTransportOrder }: { lang: Language; userId?: number; role?: Role; onOpenTransportOrder?: (workspaceId: number) => void }) {
+export default function LoadPlanningView({ lang, userId, role, onOpenTransportOrder }: { lang: Language; userId?: number; role?: Role; onOpenTransportOrder?: (workspaceId: number, section?: "overview" | "documents" | "operations") => void }) {
   const t = planningLabels(lang);
   const [plan, setPlan] = useState<Plan>({ version: 1, name: '', equipment: { ...EQUIPMENT[0] }, cargo: [] });
   const [view, setView] = useState<SceneView>('overview');

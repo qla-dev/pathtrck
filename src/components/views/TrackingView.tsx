@@ -154,7 +154,7 @@ type TrackingViewProps = {
   onLayoutModeChange?: (mode: TrackingLayoutMode) => void;
   /** Opens PostLoadModal in edit mode for a load. Owned by the app shell, which is where it lives. */
   onEditLoad?: (loadId: string) => void;
-  onOpenTransportOrder?: (workspaceId: number) => void;
+  onOpenTransportOrder?: (workspaceId: number, section?: "overview" | "documents" | "operations") => void;
   // Sidebar entries (Global Tracking / Map) drop the user straight into a layout. The nonce lets
   // the same mode be re-requested - clicking "Map" again after switching to grid must still work.
   requestedLayout?: TrackingLayoutMode;

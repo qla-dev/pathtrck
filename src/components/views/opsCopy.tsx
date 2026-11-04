@@ -3,6 +3,10 @@ import type { Language } from '../../types';
 import { checklistLabel } from '../../lib/shipmentChecklist';
 export const OpsLanguage = createContext<Language>('bs');
 const english: Record<string,string> = {
+  'Status pošiljke':'Shipment status',
+  'Dokumenti i radnje':'Documents and actions',
+  'Transportne obaveze i operacije':'Transport responsibilities and operations',
+  'Učesnici':'Participants',
   "Operacije i dokumenti":"Operations and documents",
   "Dionice i posebne usluge":"Legs and special services",
   "Historija i raspored":"History and schedule",

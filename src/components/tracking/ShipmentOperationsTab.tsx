@@ -22,7 +22,9 @@ import { ChecklistPodModal, podCopy, podFailureReason } from './ChecklistPodModa
 
 type Props = {
   workspace: Record<string, unknown>;
-  summaryOnly?:boolean;timeline?:Record<string,any>;onOpenTransportOrder?:(workspaceId:number)=>void;
+  onOpenDocuments?:()=>void;
+  onRefresh?:()=>Promise<void>;
+  summaryOnly?:boolean;timeline?:Record<string,any>;onOpenTransportOrder?:(workspaceId:number, section?: "overview" | "documents" | "operations")=>void;
   lang: Language;
   role?: Role;
   readOnly?: boolean;
@@ -36,21 +38,21 @@ type Props = {
 
 const COPY = {
   en: {
-    title: 'Operational checklist', offerStatus: 'Offer status', empty: 'No operational tasks yet.', saving: 'Saving...',
+    title: 'Transport responsibilities and operations', offerStatus: 'Offer status', empty: 'No operational tasks yet.', saving: 'Saving...',
     selectDriver: 'Select driver', selectVehicle: 'Select vehicle', upload: 'Upload', uploaded: 'Uploaded',
     saveFailed: 'The change could not be saved', complete: 'Complete', reopen: 'Reopen', enterValue: 'Enter value',
     pending: 'Pending', inProgress: 'In progress', completed: 'Completed', blocked: 'Blocked',
     terminalCutoff: 'Terminal / cut-off', flightDetails: 'Flight / schedule', cargoAcceptance: 'Acceptance date and time', arrival: 'Arrival date and time',
   },
   bs: {
-    title: 'Operativna checklist', offerStatus: 'Status ponude', empty: 'Još nema operativnih zadataka.', saving: 'Spremanje...',
+    title: 'Transportne obaveze i operacije', offerStatus: 'Status ponude', empty: 'Još nema operativnih zadataka.', saving: 'Spremanje...',
     selectDriver: 'Izaberi vozača', selectVehicle: 'Izaberi vozilo', upload: 'Priloži', uploaded: 'Priloženo',
     saveFailed: 'Izmjena nije spremljena', complete: 'Završi', reopen: 'Ponovo otvori', enterValue: 'Unesi podatak',
     pending: 'Na čekanju', inProgress: 'U toku', completed: 'Završeno', blocked: 'Blokirano',
     terminalCutoff: 'Terminal / cut-off', flightDetails: 'Let / raspored', cargoAcceptance: 'Datum i vrijeme prijema', arrival: 'Datum i vrijeme dolaska',
   },
   de: {
-    title: 'Operative Checkliste', offerStatus: 'Angebotsstatus', empty: 'Noch keine operativen Aufgaben.', saving: 'Speichern...',
+    title: 'Transportaufgaben und Abläufe', offerStatus: 'Angebotsstatus', empty: 'Noch keine operativen Aufgaben.', saving: 'Speichern...',
     selectDriver: 'Fahrer wählen', selectVehicle: 'Fahrzeug wählen', upload: 'Hochladen', uploaded: 'Hochgeladen',
     saveFailed: 'Die Änderung konnte nicht gespeichert werden', complete: 'Abschließen', reopen: 'Wieder öffnen', enterValue: 'Wert eingeben',
     pending: 'Ausstehend', inProgress: 'In Bearbeitung', completed: 'Abgeschlossen', blocked: 'Blockiert',
@@ -122,7 +124,7 @@ const ChecklistDatePicker = memo(({ fieldKey, value, disabled, lang, onChange, e
   );
 });
 
-const ShipmentOperationsEditor = ({ workspace, lang, role, readOnly = false, onUpdated, onLoadChanged, onVehicleReturn, loadStatus, allowPodDuringDelivery = false }: Props) => {
+const ShipmentOperationsEditor = ({ workspace, lang, role, onOpenDocuments, readOnly = false, onUpdated, onLoadChanged, onVehicleReturn, loadStatus, allowPodDuringDelivery = false }: Props) => {
   const text = COPY[lang === 'bs' || lang === 'de' ? lang : lang === 'hr' || lang === 'sr' ? 'bs' : 'en'];
   const checklist = array(workspace.operational_checklist);
   const freightLoad = record(workspace.freight_load);
@@ -405,7 +407,7 @@ const ShipmentOperationsEditor = ({ workspace, lang, role, readOnly = false, onU
     switch (taskKey) {
       case 'cargo_documents':
       case 'cargo_reconciliation':
-        return <span className="text-xs text-amber-600">{lang==='bs'?'Provjera komercijalne fakture i pakirne liste u transportnom nalogu':'Review commercial invoice and packing list in Transport orders'}</span>;
+        return onOpenDocuments ? <Button size="sm" variant="outline" onClick={onOpenDocuments}>{['bs','hr','sr'].includes(lang)?'Dokumenti i radnje':'Documents and actions'}</Button> : <span className="text-xs text-amber-600">{lang==='bs'?'Provjera komercijalne fakture i pakirne liste u transportnom nalogu':'Review commercial invoice and packing list in Transport orders'}</span>;
       case 'vehicle_return':
         return onVehicleReturn && item.status !== 'completed' ? <button type="button" onClick={onVehicleReturn} className="font-bold text-primary">{lang === 'bs' ? 'Povratak vozila' : lang === 'de' ? 'Fahrzeugrückgabe' : 'Vehicle return'}</button> : null;
       case 'confirm_storage_arrival':
@@ -582,13 +584,13 @@ const ShipmentOperationsEditor = ({ workspace, lang, role, readOnly = false, onU
 
 /** Tracking is a read-only notification feed. Operations and CI/PL receipt live in Transport orders. */
 export function ShipmentOperationsTab(props:Props){return props.summaryOnly?<ShipmentOpsToday {...props}/>:<ShipmentOperationsEditor {...props}/>;}
-function ShipmentOpsToday({workspace,lang,onOpenTransportOrder,timeline}:Props){
+function ShipmentOpsToday({workspace,lang,onOpenTransportOrder,timeline,onRefresh}:Props){
  const [data,setData]=useState<Record<string,any>|null>(null),[error,setError]=useState('');const bs=['bs','hr','sr'].includes(lang);
  const copy:Record<string,string>={'Customs cleared':'Carinski pušteno','Order confirmed':'Nalog potvrđen','Booking confirmed':'Booking potvrđen','Documents received and reviewed':'Dokumentacija zaprimljena i provjerena','Pickup confirmed':'Preuzimanje potvrđeno','In transit':'U transportu','Received at warehouse':'Roba zaprimljena u skladište','Dispatched from warehouse':'Roba otpremljena iz skladišta','Delivered':'Isporučeno','Proof of delivery available':'Dostupna potvrda isporuke','Action required':'Potrebna radnja','All operational milestones completed':'Sve operativne faze su završene','Required documents must be supplied, received and reviewed.':'Potrebno je dostaviti, zaprimiti i provjeriti dokumentaciju.','Customer confirmation of cargo data and price is required.':'Čeka se kupčeva potvrda podataka robe i cijene.'};
  const t=(x:string)=>bs?copy[x]||x:x;
- const load=()=>{setError('');void api.shipmentWorkspaces.opsToday(Number(workspace.id)).then(r=>setData(r.data)).catch(e=>setError(e.message));};
+ const load=()=>{setError('');if(timeline){if(onRefresh)void onRefresh().catch(e=>setError(e.message));return;}void api.shipmentWorkspaces.opsToday(Number(workspace.id)).then(r=>setData(r.data)).catch(e=>setError(e.message));};
  useEffect(()=>{if(timeline){setData(timeline);return;}load();const timer=window.setInterval(load,30000);return()=>window.clearInterval(timer);},[workspace.id,timeline]);
- return <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"><div className="flex flex-wrap items-center justify-between gap-2"><div><h3 className="font-bold">OPS TODAY</h3><p className="text-xs text-slate-500">{bs?'Status iz izvršenih operacija — završeno, naredna radnja i blokade.':'Updates from completed operations — what is done, what is next, and holds.'}</p></div><Button size="sm" variant="outline" onClick={()=>timeline?setData(timeline):load()}>{bs?'Osvježi':'Refresh'}</Button></div>{error&&<Notice tone="bad">{error}</Notice>}
+ return <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"><div className="flex flex-wrap items-center justify-between gap-2"><div><h3 className="font-bold">{bs?'Status pošiljke':lang==='de'?'Sendungsstatus':'Shipment status'}</h3><p className="text-xs text-slate-500">{bs?'Status iz izvršenih operacija — završeno, naredna radnja i blokade.':'Updates from completed operations — what is done, what is next, and holds.'}</p></div><Button size="sm" variant="outline" onClick={load}>{bs?'Osvježi':'Refresh'}</Button></div>{error&&<Notice tone="bad">{error}</Notice>}
  {data&&<><div className="grid gap-3 sm:grid-cols-2"><div className="rounded-xl bg-sky-50 p-3 dark:bg-sky-950"><small>{bs?'Trenutno':'Current'}</small><p className="font-semibold">{t(data.current)}</p></div><div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800"><small>{bs?'Sljedeće':'Next'}</small><p className="font-semibold">{t(data.next)}</p></div></div>{data.hold&&<Notice tone="warn">{t(data.hold)}</Notice>}<ol className="space-y-3">{data.stages.map((stage:Record<string,any>,index:number)=><li key={stage.key} className="flex items-start gap-3 rounded-xl border border-slate-100 p-3 dark:border-slate-800"><span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${stage.complete?'bg-emerald-100 text-emerald-700':'bg-slate-100 text-slate-500'}`}>{stage.complete?'✓':index+1}</span><div><p className="text-sm font-semibold">{t(stage.label)}</p><small className="text-slate-500">{stage.complete?(bs?'Potvrđeno':'Confirmed'):(bs?'Slijedi / čeka radnju':'Upcoming / awaiting action')}{stage.at?` · ${formatDate(stage.at,lang)}`:''}</small></div></li>)}</ol></>}
- {onOpenTransportOrder&&<Button size="sm" onClick={()=>onOpenTransportOrder(Number(workspace.id))}>{bs?'Otvori transportni nalog / dostavi dokumente':'Open transport order / provide documents'}</Button>}</section>;
+ {onOpenTransportOrder&&<div className="flex flex-wrap gap-2"><Button size="sm" onClick={()=>onOpenTransportOrder(Number(workspace.id), 'documents')}>{bs?'Dokumenti i radnje':'Documents and actions'}</Button><Button size="sm" variant="outline" onClick={()=>onOpenTransportOrder(Number(workspace.id), 'overview')}>{bs?'Otvori transportni nalog':'Open transport order'}</Button></div>}</section>;
 }

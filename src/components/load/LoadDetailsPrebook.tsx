@@ -800,7 +800,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
                         }}
                       >
                         <ClipboardCheck className="mr-2 h-4 w-4" />
-                        {u('shipmentOperations.open', 'Open operational checklist')}
+                        {u('shipmentOperations.open', 'Open transport responsibilities and operations')}
                       </Button>
                       {load.shipmentReference && (
                         <p className="mt-2 text-center text-[10px] font-black uppercase tracking-wider text-slate-400">

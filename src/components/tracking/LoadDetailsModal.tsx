@@ -146,7 +146,7 @@ type LoadDetailsModalProps = {
    * PostLoadModal lives - the same handover LoadDetailsPrebook uses for its own edit button.
    */
   onEditLoad?: (loadId: string) => void;
-  onOpenTransportOrder?:(workspaceId:number)=>void;
+  onOpenTransportOrder?:(workspaceId:number, section?: "overview" | "documents" | "operations")=>void;
   onPinLenaConversation?: (conversationId: string, loadId: string, loadLabel?: string) => void;
   onStartGenericLenaChat?: () => void;
   onOpenSupportChat?: (conversationId: string) => void;
@@ -1181,7 +1181,7 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
           onSendReminder={sendShipmentReminder}
           initialSubTab={detailsSubTab}
           operationsSlot={shipmentWorkspace ? (
-            <ShipmentOperationsTab summaryOnly onOpenTransportOrder={onOpenTransportOrder ? id=>{onOpenTransportOrder(id);onClose();} : undefined}
+            <ShipmentOperationsTab summaryOnly onOpenTransportOrder={onOpenTransportOrder ? (id,section)=>{onOpenTransportOrder(id,section);onClose();} : undefined}
               workspace={shipmentWorkspace}
               readOnly={selectedPackage.status !== 'Booked'}
               loadStatus={selectedPackage.status}
@@ -1200,7 +1200,12 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
               onUpdated={setShipmentWorkspace}
             />
           ) : undefined}
-          documentsSlot={(
+          documentsSlot={shipmentWorkspace ? (
+            <div className="space-y-3">
+              <p className="text-sm text-slate-500">{['bs','hr','sr'].includes(lang) ? 'Dokumentaciju dostavljate i pratite u transportnom nalogu, zajedničkom prostoru učesnika pošiljke.' : 'Supply and review documents in the transport order, the shared shipment workspace.'}</p>
+              {onOpenTransportOrder && <Button onClick={()=>{onOpenTransportOrder(Number(shipmentWorkspace.id), 'documents');onClose();}}>{['bs','hr','sr'].includes(lang) ? 'Otvori dokumente i radnje' : 'Open documents and actions'}</Button>}
+            </div>
+          ) : (
             <DocumentUploadCard
               lang={lang}
               attachTo={selectedPackage.id}
