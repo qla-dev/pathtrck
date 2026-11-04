@@ -3,6 +3,19 @@ import type { Language } from '../../types';
 import { checklistLabel } from '../../lib/shipmentChecklist';
 export const OpsLanguage = createContext<Language>('bs');
 const english: Record<string,string> = {
+  "Operacije i dokumenti":"Operations and documents",
+  "Dionice i posebne usluge":"Legs and special services",
+  "Historija i raspored":"History and schedule",
+  "Podaci o provjeri":"Review details",
+  "Sve operacije":"All operations",
+  "Inspekcije i posebne kontrole":"Inspections and special controls",
+  "Ostali dokumenti naloga":"Other order documents",
+  "Operativne provjere su završene. Provjerite isporuku i naplatu prije zatvaranja naloga.":"Operational checks are complete. Check delivery and payment before closing the order.",
+  "Izaberite državu provjere":"Select the verification country",
+  "Za ovu državu pravila još nisu dostupna.":"Verification rules are not yet available for this country.",
+  "Država provjere":"Verification country",
+  "Provjera se odnosi na navedenu državu, ulogu i aktivnost. Potvrđena firma ne znači automatski odobrenje za sve transportne ili carinske usluge.":"Verification applies to the specified country, role and activity. A verified company is not automatically authorised for every transport or customs service.",
+
   'Tranzit / T1':'Transit / T1',
   'Potvrditi termin i naredni korak':'Confirm the appointment and next action',
   'Zatražiti prateću dokumentaciju':'Request the supporting documents',

@@ -15,6 +15,7 @@ type Row = Record<string, any>;
 
 const field = 'rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white';
 
+const transitions: Record<string,string[]> = {submitted:['in_review','supplement_requested','rejected'],in_review:['supplement_requested','verified','rejected'],supplement_requested:['in_review','rejected'],verified:['suspended'],suspended:['in_review']};
 const labels: Record<string, string> = { customer: 'Kupac / naručilac', carrier: 'Prevoznik', forwarder: 'Špediter', warehouse: 'Skladišni partner', customs_representative: 'Carinski zastupnik', overseas_agent: 'Overseas agent', driver: 'Vozač', domestic: 'Domaća aktivnost', international: 'Međunarodna aktivnost', own_account: 'Za vlastite potrebe', submitted: 'Podneseno', in_review: 'U provjeri', supplement_requested: 'Tražena dopuna', verified: 'Provjereno', rejected: 'Odbijeno', suspended: 'Suspendovano', expired: 'Isteklo' };
 
 
@@ -32,19 +33,23 @@ export function CountryVerificationPanel({ company, canSetup, showTemplates = fa
 
   const load = useCallback(async () => {
 
-    const r = await api.accounting.get<Row>(company, 'country-profile'); setData(r.data); setCountry(current => current || r.data.default_country_code || r.data.profile?.country_code || 'BA');
+    const r = await api.accounting.get<Row>(company, 'country-profile'); setData(r.data); setCountry(current => current || r.data.profile?.country_code || r.data.default_country_code || '');
 
     if (showTemplates) { const v = await api.accounting.get<Row[]>(company, 'ops/checklist-versions'); setTemplates(v.data); }
 
   }, [company, showTemplates]);
 
-  useEffect(() => { setData(null); setCountry(''); setError(''); void load().catch(e => setError(e.message)); void api.auth.me().then(u => setAdmin(['superadmin','master'].includes(String(u.role?.name)))).catch(() => setAdmin(false)); }, [load]);
+  useEffect(() => { setData(null); setCountry(''); setError(''); setAdmin(false); setReview(null); setDraft({capability:'customer',activity:'domestic',registry_reference:'',expires_at:'',document_ids:[]}); void load().catch(e => setError(e.message)); void api.auth.me().then(u => setAdmin(['superadmin','master'].includes(String(u.role?.name)))).catch(() => setAdmin(false)); }, [load]);
 
   const run = async (fn: () => Promise<unknown>) => { setBusy(true); setError(''); try { await fn(); await load(); setReview(null); } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally { setBusy(false); } };
 
   if (!data) return <Notice tone={error ? 'bad' : 'info'}>{error || t('Učitavanje postavki…')}</Notice>;
 
   const canManage = Boolean(data.can_manage ?? canSetup);
+  const countryRules = data.rules.countries[country];
+  const companyVerifications = data.verifications.filter((v:Row)=>v.capability!=='driver');
+  const reviewChoices = review ? transitions[review.original_status] || [] : [];
+
 
   return <section className="space-y-4" aria-label={t("Verifikacija firme")}>
 
@@ -56,19 +61,20 @@ export function CountryVerificationPanel({ company, canSetup, showTemplates = fa
 
     <p className="text-sm text-slate-500">{t("Verifikacija firme i verifikacija vozača imaju odvojene statuse i dokumente. Vozačke dozvole, identifikacija i primjenjivi certifikati uređuju se kroz postojeću verifikaciju u profilu vozača.")}</p>
 
-    <div className="flex flex-wrap items-end gap-3"><label className="grid gap-1">{t("Sjedište kompanije")}<select className={field} disabled={!canManage || busy} value={country} onChange={e => setCountry(e.target.value)}>{Object.entries(data.rules.countries).map(([code, pack]) => <option value={code} key={code}>{t((pack as Row).name)}</option>)}</select></label>
+    <div className="flex flex-wrap items-end gap-3"><label className="grid gap-1">{t("Država provjere")}<select className={field} disabled={!canManage || busy} value={country} onChange={e => setCountry(e.target.value)}><option value="">{t('Izaberite državu provjere')}</option>{Object.entries(data.rules.countries).map(([code, pack]) => <option value={code} key={code}>{t((pack as Row).name)}</option>)}</select></label>
 
-      <p className="text-sm">{data.rules.countries[country].currency}{t("·")}{data.rules.countries[country].timezone}{t("·")}{data.rules.countries[country].language}</p>
+      <p className="text-sm">{countryRules ? `${countryRules.currency} · ${countryRules.timezone} · ${countryRules.language}` : t('Za ovu državu pravila još nisu dostupna.')}</p>
 
-      {canManage && <Button type="button" size="sm" disabled={busy} onClick={() => void run(() => api.accounting.send(company, 'country-profile', { country_code: country, revision: data.profile?.revision || 0 }, 'PUT'))}>{t("Sačuvaj postavke")}</Button>}</div>
+      {canManage && <Button type="button" size="sm" disabled={busy||!countryRules} onClick={() => void run(() => api.accounting.send(company, 'country-profile', { country_code: country, revision: data.profile?.revision || 0 }, 'PUT'))}>{t("Sačuvaj postavke")}</Button>}</div>
 
     <details className="rounded-xl border p-3 dark:border-slate-700"><summary className="cursor-pointer text-sm font-semibold">{t("Službeni izvori i pravila provjere")}</summary>
     <div className="overflow-x-auto"><DataTable className="w-full text-left text-sm"><thead><tr><th className="p-2">{t("Država")}</th><th className="p-2">{t("Službeni izvor za provjeru")}</th><th className="p-2">{t("Obavezan upload")}</th></tr></thead><tbody>{Object.entries(data.rules.sources).map(([code, link]) => <tr className="border-t dark:border-slate-700" key={code}><td className="p-2">{code}</td><td className="p-2"><a className="text-primary underline" href={String(link)} target="_blank" rel="noreferrer">{t("Nadležni organ / propis")}</a></td><td className="p-2">{t("Nije aktiviran bez potvrde primjenjivosti")}</td></tr>)}</tbody></DataTable></div>
 
     <p className="mt-2 text-xs text-slate-500">{t("Pravna matrica je nacrt. Potrebni dokazi zavise od potvrđene primjenjivosti; upload sam po sebi ne potvrđuje verifikaciju.")}</p></details>
+    <Notice tone="info">{t('Provjera se odnosi na navedenu državu, ulogu i aktivnost. Potvrđena firma ne znači automatski odobrenje za sve transportne ili carinske usluge.')}</Notice>
     <h4 className="font-semibold">{t("Verifikacija poslovne sposobnosti")}</h4>
 
-    <div className="overflow-x-auto"><DataTable className="w-full text-left text-sm"><thead><tr>{['Država / aktivnost','Sposobnost','Status','Važenje','Razlog / odluka',''].map((x, i) => <th className="p-2" key={i}>{t(x)}</th>)}</tr></thead><tbody>{data.verifications.map((v: Row) => <tr className="border-t dark:border-slate-700" key={v.id}><td className="p-2">{v.country_code}{t("·")}{t(labels[v.activity])}</td><td className="p-2">{t(labels[v.capability])}{v.subject_user_id && ` · korisnik #${v.subject_user_id}`}{v.document_ids.map((id: number) => <button className="block text-xs text-primary underline" key={id} onClick={() => void run(() => api.accounting.verificationEvidence(company, id))}>{t("Preuzmi dokaz #")}{id}</button>)}</td><td className="p-2">{t(labels[v.effective_status])}<small className="block">{t("Zahtjev #")}{v.id}{t(", rev.")}{v.revision}</small></td><td className="p-2">{v.expires_at || t('Nije naveden')}</td><td className="p-2">{v.reason || t('Čeka pregled')}</td><td className="p-2">{admin && <Button type="button" size="sm" variant="outline" onClick={() => setReview({ id: v.id, revision: v.revision, status: v.status === 'submitted' || v.status === 'suspended' ? 'in_review' : v.status === 'verified' ? 'suspended' : 'verified', reason: '', verification_method: 'registry' })}>{t("Pregled")}</Button>}</td></tr>)}</tbody></DataTable></div>
+    <div className="overflow-x-auto"><DataTable className="w-full text-left text-sm"><thead><tr>{['Država / aktivnost','Sposobnost','Status','Važenje','Razlog / odluka',''].map((x, i) => <th className="p-2" key={i}>{t(x)}</th>)}</tr></thead><tbody>{companyVerifications.map((v: Row) => <tr className="border-t dark:border-slate-700" key={v.id}><td className="p-2">{v.country_code}{t("·")}{t(labels[v.activity])}</td><td className="p-2">{t(labels[v.capability])}{v.subject_user_id && ` · korisnik #${v.subject_user_id}`}{v.document_ids.map((id: number) => <button className="block text-xs text-primary underline" key={id} onClick={() => void run(() => api.accounting.verificationEvidence(company, id))}>{t("Preuzmi dokaz #")}{id}</button>)}</td><td className="p-2">{t(labels[v.effective_status])}<small className="block">{t("Zahtjev #")}{v.id}{t(", rev.")}{v.revision}</small></td><td className="p-2">{v.expires_at || t('Nije naveden')}</td><td className="p-2">{v.reason || t('Čeka pregled')}</td><td className="p-2">{admin && (transitions[v.status]||[]).length>0 && <Button type="button" size="sm" variant="outline" onClick={() => setReview({ id: v.id, revision: v.revision, original_status: v.status, status: transitions[v.status][0], reason: '', verification_method: 'registry' })}>{t("Pregled")}</Button>}</td></tr>)}</tbody></DataTable></div>
 
     {canManage && <form className="grid gap-3 rounded-xl border p-3 sm:grid-cols-2" onSubmit={e => { e.preventDefault(); void run(async () => { await api.accounting.send(company, 'verifications', { ...draft, subject_user_id: draft.capability === 'driver' ? draft.subject_user_id || null : null, country_code: country, registry_reference: draft.registry_reference || null, expires_at: draft.expires_at || null }); setDraft({ ...draft, document_ids: [] }); }); }}>
 
@@ -86,13 +92,13 @@ export function CountryVerificationPanel({ company, canSetup, showTemplates = fa
 
       <label className="grid gap-1 sm:col-span-2">{t("Priloži dokaz (samo potreban dokument; PDF/slika)")}<input type="file" accept=".pdf,.png,.jpg,.jpeg" disabled={busy} onChange={e => { const file = e.target.files?.[0]; if (file) void run(async () => { const doc = await api.documents.upload({ file, type: 'capability_evidence' }); setDraft(d => ({ ...d, document_ids: [...d.document_ids, Number(doc.id)] })); }); }} /><small>{draft.document_ids.length}{t("prilog(a). Upload nije verifikacija. Za dopunu podnesite novu verziju zahtjeva; raniji ostaje u historiji.")}</small></label>
 
-      <Button type="submit" size="sm" disabled={busy}>{t("Podnesi na provjeru")}</Button>
+      <Button type="submit" size="sm" disabled={busy||!countryRules}>{t("Podnesi na provjeru")}</Button>
 
     </form>}
 
-    {review && <form className="grid gap-3 rounded-xl border p-3 sm:grid-cols-2" onSubmit={e => { e.preventDefault(); void run(() => api.accounting.send(company, `verifications/${review.id}/review`, review, 'PATCH')); }}>
+    {review && <form className="grid gap-3 rounded-xl border p-3 sm:grid-cols-2" onSubmit={e => { e.preventDefault(); void run(() => api.accounting.send(company, `verifications/${review.id}/review`, {revision:review.revision,status:review.status,reason:review.reason,verification_method:review.verification_method}, 'PATCH')); }}>
 
-      <label className="grid gap-1">{t("Odluka")}<select className={field} value={review.status} onChange={e => setReview({ ...review, status: e.target.value })}>{['in_review','supplement_requested','verified','rejected','suspended'].map(s => <option value={s} key={s}>{t(labels[s])}</option>)}</select></label>
+      <label className="grid gap-1">{t("Odluka")}<select className={field} value={review.status} onChange={e => setReview({ ...review, status: e.target.value })}>{reviewChoices.map(s => <option value={s} key={s}>{t(labels[s])}</option>)}</select></label>
 
       <label className="grid gap-1">{t("Metoda provjere")}<select className={field} value={review.verification_method} onChange={e => setReview({ ...review, verification_method: e.target.value })}><option value="registry">{t("Registar")}</option><option value="manual_document">{t("Dokument")}</option><option value="combined">{t("Kombinovano")}</option></select></label>
 
