@@ -6154,7 +6154,7 @@ export default function App() {
       : activePlan.icon
         ? PACKAGE_ICONS[activePlan.icon] || Rocket
         : CircleAlert;
-  const canManageTeam = authenticatedRole === "company" || authenticatedRole === "manager" || isElevatedAdmin;
+  const canManageTeam = isElevatedAdmin || (currentUser ? Boolean(currentUser.can_manage_company_team) : authenticatedRole === "company" || authenticatedRole === "manager");
   const canViewFinance = authenticatedRole === "company" || authenticatedRole === "manager" || authenticatedRole === "finance" || isElevatedAdmin;
   const warehouseFirst = Boolean(
     currentUser?.companies?.some((company) =>
@@ -6889,6 +6889,7 @@ export default function App() {
             ];
   const navItems = [
     ...roleNavItems,
+    ...(canManageTeam ? [{ id: "company-team", label: u("nav.teamPermissions", "Team & Permissions"), icon: Users }] : []),
     { id: "accounting", label: accountingText(lang, "title"), icon: Banknote },
     { id: "smart-pos", label: accountingText(lang, "smartPos"), icon: ReceiptText },
     { id: "crm", label: accountingText(lang, "crm"), icon: Handshake },
@@ -7589,7 +7590,7 @@ export default function App() {
                 ) : (
                   <WarehousesView lang={lang} role={role} />
                 ))}
-              {view === "company-team" && canManageTeam && <CompanyTeamView lang={lang} />}
+              {view === "company-team" && canManageTeam && <CompanyTeamView lang={lang} onUserUpdated={setCurrentUser} />}
               {view === "finance" && canViewFinance && <FinanceView lang={lang} onOpenAccounting={() => setView("accounting")} />}
               {view === "accounting" && <AccountingView lang={lang} />}
               {view === "smart-pos" && <AccountingView lang={lang} mode="pos" />}

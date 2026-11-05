@@ -50,6 +50,7 @@ export type LegalSourceRow = {
 export type ApiUser = {
   id: number;
   role_id: number;
+  can_manage_company_team?: boolean;
   name: string;
   email: string;
   username: string;
@@ -977,7 +978,7 @@ export const createApiClient = (sessionToken?: string) => {
   accounting: {
     verificationEvidence: (company: number, document: number) => downloadAuthenticatedFile(`/accounting/${company}/verification-documents/${document}`, `dokaz-${document}`),
     print: (company: number, invoice: number) => openDocument(`/accounting/${company}/invoices/${invoice}/print`),
-    companies: () => request<Array<{ id: number; name: string; owner_user_id: number }>>('/accounting/companies'),
+    companies: () => request<Array<{ id: number; name: string; owner_user_id: number; membership_role?: string; can_manage_team?: boolean }>>('/accounting/companies'),
     get: <T = Record<string, unknown>>(company: number, path: string) => request<T>(`/accounting/${company}/${path}`),
     send: <T = Record<string, unknown>>(company: number, path: string, data: unknown, method = 'POST') =>
       request<T>(`/accounting/${company}/${path}`, { method, body: JSON.stringify(data) }),
