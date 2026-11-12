@@ -1,0 +1,9 @@
+import { DataTable } from '../ui/DataTable';
+import { useOpsCopy } from './opsCopy';
+
+/** Shared intake fields stay visible after the internal order is saved. */
+export function IntakeShipmentSummary({value}:{value:Record<string,any>}){
+ const {t}=useOpsCopy();
+ const rows=[['Težina',value.weight_kg==null?null:`${value.weight_kg} kg`],['Dimenzije',[value.length_m,value.width_m,value.height_m].filter(x=>x!=null).join(' × ')],['Zapremina',value.volume_m3==null?null:`${value.volume_m3} m³`],['Broj komada / jedinica',value.pallets],['Pakovanje',value.quantity_measure],['Incoterm',value.incoterms],['Cijena',value.budget==null?null:`${value.budget} ${value.currency||''}`],['Kontakt',[value.contact?.name,value.contact?.phone,value.contact?.mobile,value.contact?.email].filter(Boolean).join(' · ')],['Dobavljač',[value.contact?.supplier?.name,value.contact?.supplier?.phone,value.contact?.supplier?.email].filter(Boolean).join(' · ')],['Napomena',value.notes],['Interni komentar',value.internal_comments],['Eksterni komentar',value.external_comments]].filter(([,v])=>v!==null&&v!==undefined&&v!=='');
+ return <details className="mt-3"><summary className="cursor-pointer font-bold">{t('Detalji pošiljke')}</summary><dl className="mt-3 grid gap-3 sm:grid-cols-2">{rows.map(([label,v])=><div key={String(label)}><dt className="text-xs text-slate-500">{t(String(label))}</dt><dd className="whitespace-pre-wrap break-words">{String(v)}</dd></div>)}</dl>{value.stops?.length>0&&<div className="mt-3 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800"><DataTable><thead><tr>{['Vrsta','Lokacija','Adresa','Termin'].map(x=><th key={x}>{t(x)}</th>)}</tr></thead><tbody>{value.stops.map((s:Record<string,any>,i:number)=><tr key={i}><td>{t(s.type==='pickup'?'Preuzimanje':'Dostava')}</td><td>{s.city} {s.country_code}</td><td>{s.address||'—'}</td><td>{s.window_starts_at||'—'}</td></tr>)}</tbody></DataTable></div>}</details>;
+}

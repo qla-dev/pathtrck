@@ -14,6 +14,7 @@ import { Button } from '../ui/Button';
 import { AddressAutocompleteField } from '../modals/PostLoadModal/AddressAutocompleteField';
 import { AddressMapModal } from '../maps/AddressMapModal';
 import { reverseLocation, type LocationSearchResult } from '../../services/locationSearch';
+import { fleetCopy, fleetField } from '../fleet/fleetCopy';
 
 const COPY = {
   en: {
@@ -59,7 +60,7 @@ const ProtectedPhoto = ({ photo, className }: { photo: VehicleReturnPhoto; class
   useEffect(() => {
     let active = true;
     let objectUrl = '';
-    api.vehicleReturns.photo(photo.id).then((blob) => {
+    (photo.fleet_company_id ? api.fleetOperations.file(photo.fleet_company_id,photo.id) : api.vehicleReturns.photo(photo.id)).then((blob) => {
       if (!active) return;
       objectUrl = URL.createObjectURL(blob);
       setUrl(objectUrl);
@@ -68,7 +69,7 @@ const ProtectedPhoto = ({ photo, className }: { photo: VehicleReturnPhoto; class
       active = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [photo.id]);
+  }, [photo.id,photo.fleet_company_id]);
 
   return url
     ? <img src={url} alt={photo.name} className={cn('h-full w-full object-cover', className)} />
@@ -77,7 +78,9 @@ const ProtectedPhoto = ({ photo, className }: { photo: VehicleReturnPhoto; class
 
 type VehicleReturnModalProps = {
   open: boolean;
-  loadId: string;
+  loadId?: string;
+  companyId?: number;
+  drivers?: Array<{id:number;name:string}>;
   vehicleId?: number;
   vehicleName?: string;
   lang: Language;
@@ -85,8 +88,13 @@ type VehicleReturnModalProps = {
   onCompleted: () => void | Promise<void>;
 };
 
-export const VehicleReturnModal = ({ open, loadId, vehicleId, vehicleName, lang, onClose, onCompleted }: VehicleReturnModalProps) => {
-  const text = COPY[locale(lang)];
+export const VehicleReturnModal = ({ open, loadId, companyId, drivers = [], vehicleId, vehicleName, lang, onClose, onCompleted }: VehicleReturnModalProps) => {
+  const t = fleetCopy(lang);
+  const text = companyId ? { ...COPY[locale(lang)], title:t('Primopredaja vozila'), subtitle:t('Primopredaja ne završava turu.'), readyText:t('Primopredaja ne završava turu.'), submit:t('Sačuvaj'),close:t('Zatvori') } : COPY[locale(lang)];
+  const [destination,setDestination]=useState('driver');
+  const [toDriver,setToDriver]=useState('');
+  const [depot,setDepot]=useState('');
+  const [fleetMileage,setFleetMileage]=useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const photosRef = useRef<Array<{ file: File; url: string }>>([]);
   const [step, setStep] = useState(0);
@@ -125,22 +133,27 @@ export const VehicleReturnModal = ({ open, loadId, vehicleId, vehicleName, lang,
     setStep(0);
     setError('');
     if (!vehicleId) return;
+    setFleetMileage(0);
     setHistoryLoading(true);
-    api.vehicleReturns.history(vehicleId)
+    let active=true;
+    const historyRequest=companyId?api.fleetOperations.get(companyId,`handovers?vehicle_id=${vehicleId}&with_photos=1`).then(r=>({data:r.data.data.map((h:Record<string,any>)=>({...h,inspected_at:h.effective_at,damage_notes:h.notes,parking_location:h.depot_name,recorded_by:{id:h.recorded_by,name:h.author},photos:h.photos||[]})) as VehicleReturnInspection[]})):api.vehicleReturns.history(vehicleId);
+    historyRequest
       .then((response) => {
+        if(!active)return;
         setHistory(response.data);
         const latest = response.data[0];
         if (latest) setMileage(String(latest.mileage_km));
       })
-      .catch(() => setHistory([]))
-      .finally(() => setHistoryLoading(false));
-  }, [open, vehicleId]);
+      .catch(() => {if(active)setHistory([]);})
+      .finally(() => {if(active)setHistoryLoading(false);});
+    return ()=>{active=false;};
+  }, [open, vehicleId, companyId]);
 
   useEffect(() => { photosRef.current = photos; }, [photos]);
   useEffect(() => () => photosRef.current.forEach((photo) => URL.revokeObjectURL(photo.url)), []);
 
-  const lastMileage = history[0]?.mileage_km || 0;
-  const conditionValid = Number.isInteger(Number(mileage)) && Number(mileage) >= lastMileage && (!hasDamage || damageNotes.trim().length > 0);
+  const lastMileage = Math.max(history[0]?.mileage_km || 0,fleetMileage);
+  const conditionValid = mileage.trim() !== '' && Number.isInteger(Number(mileage)) && Number(mileage) >= lastMileage && (!hasDamage || damageNotes.trim().length > 0) && (!companyId || (destination !== 'driver' || !!toDriver) && (destination !== 'depot' || !!depot.trim()));
   const photosValid = photos.length >= 3;
   const steps = [text.condition, text.photos, text.review];
   const fuelColor = fuelLevel < 25 ? 'bg-rose-500' : fuelLevel < 55 ? 'bg-amber-500' : 'bg-emerald-500';
@@ -189,7 +202,12 @@ export const VehicleReturnModal = ({ open, loadId, vehicleId, vehicleName, lang,
     setSubmitting(true);
     setError('');
     try {
-      await api.vehicleReturns.create(loadId, {
+      if(companyId){
+        const form=new FormData();
+        Object.entries({vehicle_id:String(vehicleId),destination,to_driver_id:destination==='driver'?toDriver:'',depot_name:depot,mileage_km:mileage,fuel_level_percent:String(fuelLevel),has_damage:hasDamage?'1':'0',notes:damageNotes.trim()}).forEach(([k,v])=>form.append(k,v));
+        photos.forEach(p=>form.append('photos[]',p.file));
+        await api.fleetOperations.send(companyId,'handovers',form);
+      } else if(loadId) await api.vehicleReturns.create(loadId, {
         mileageKm: Number(mileage), fuelLevelPercent: fuelLevel, hasDamage,
         damageNotes: damageNotes.trim(), parkingLocation: parkingLocation.trim(),
         parkingLatitude: parkingPoint?.[0] ?? null, parkingLongitude: parkingPoint?.[1] ?? null,
@@ -274,6 +292,7 @@ export const VehicleReturnModal = ({ open, loadId, vehicleId, vehicleName, lang,
                       <motion.div key={step} initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.2 }}>
                         {step === 0 && (
                           <div className="space-y-3">
+                            {companyId&&<div className="grid gap-3 md:grid-cols-3"><label className="grid gap-1 text-sm">{t('Primopredaja vozila')}<select className={fleetField} value={destination} onChange={e=>setDestination(e.target.value)}>{[['driver','Vozač'],['depot','Na depou / parkingu'],['workshop','U radionici'],['returned','Vraćen najmodavcu']].map(([key,label])=><option key={key} value={key}>{t(label)}</option>)}</select></label>{destination==='driver'&&<label className="grid gap-1 text-sm">{t('Preuzeo')}<select className={fleetField} value={toDriver} onChange={e=>setToDriver(e.target.value)}><option value="">{t('Izaberi vozača')}</option>{drivers.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</select></label>}<label className="grid gap-1 text-sm">{t('Depo / grad')}<input className={fleetField} value={depot} onChange={e=>setDepot(e.target.value)}/></label></div>}
                             <div>
                               <p className="text-[11px] font-black uppercase tracking-[0.16em] text-primary">01 · {text.condition}</p>
                               <h3 className="mt-1 text-lg font-black tracking-tight text-slate-950 dark:text-white">{text.subtitle}</h3>

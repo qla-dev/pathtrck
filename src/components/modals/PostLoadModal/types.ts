@@ -32,6 +32,8 @@ export type PostLoadModalProps = {
   isOpen: boolean;
   onClose: () => void;
   lang: Language;
+  /** Shared form used by OPS; saving here creates an internal order, never a public load. */
+  opsCompanyId?: number;
   editLoadId?: number | string | null;
   onSaved?: (load: Record<string, unknown>) => void;
   initialPrefill?: ScanFieldPatch | null;

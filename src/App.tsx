@@ -1,3 +1,4 @@
+import { FleetNotificationBell } from './components/fleet/FleetNotificationBell';
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { GoogleGenAI } from "@google/genai";
 import {
@@ -5380,6 +5381,7 @@ export default function App() {
   const [verificationNonce, setVerificationNonce] = useState(0);
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [view, setView] = useState(()=>new URLSearchParams(window.location.search).has("supply_order")?"ops":"tracking");
+  const [fleetTarget,setFleetTarget]=useState<{company:number;damage:number;nonce:number}|null>(null);
   const [opsTarget,setOpsTarget]=useState<{workspace:number;section:"overview"|"documents"|"operations";nonce:number}|null>(null);
   const [crmTarget,setCrmTarget]=useState<{company:number;id:number}|null>(null);
   const [openLoadDetailsTab, setOpenLoadDetailsTab] = useState<'tracker' | 'operations'>('tracker');
@@ -7244,10 +7246,7 @@ export default function App() {
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900" />
             </button>
 
-            <button className="relative h-10 w-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary hover:scale-105 transition-all cursor-pointer flex items-center justify-center">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-900" />
-            </button>
+            <FleetNotificationBell lang={lang} onOpen={(company,damage)=>{setFleetTarget({company,damage,nonce:Date.now()});setView("fleet");}}/>
 
             {/* User Avatar Dropdown */}
             <ClickDropdown
@@ -7606,6 +7605,8 @@ export default function App() {
               {view === "automations" && <AutomationsView lang={lang} />}
               {view === "fleet" && (
                 <FleetView
+                  key={fleetTarget?.nonce||0}
+                  initialOperations={fleetTarget||undefined}
                   lang={lang}
                   role={role}
                   userId={currentUser?.id}

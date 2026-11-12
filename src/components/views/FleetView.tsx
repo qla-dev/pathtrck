@@ -37,6 +37,8 @@ import { AddressMapModal } from '../maps/AddressMapModal';
 import { ARCHIVE, DocumentUploadCard, formatDocumentSize } from './LoadDocumentsPanel';
 import { documentTypeLabel, documentTypeTone } from './documentTypes';
 import { IconSelect } from '../ui/IconSelect';
+import { FleetOperationsPanel } from '../fleet/FleetOperationsPanel';
+import { fleetCopy, statusKey } from '../fleet/fleetCopy';
 
 type TransportType = 'truck' | 'aircraft' | 'ship';
 
@@ -140,7 +142,7 @@ const INITIAL_VEHICLES: FleetVehicle[] = [
   },
 ];
 
-export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Language; role?: Role; userId?: number; companyIds?: number[] }) => {
+export const FleetView = ({ lang, role, userId, companyIds = [], initialOperations }: { initialOperations?:{company:number;damage:number}; lang: Language; role?: Role; userId?: number; companyIds?: number[] }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [allVehicles, setVehicles] = useState<FleetVehicle[]>([]);
   const isPlatformAdmin = role === 'superadmin' || role === 'master';
@@ -186,7 +188,10 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
     if (!confirmed) return;
     setSharedAccess((current) => ({ ...current, [vehicle.id]: !shared }));
   };
-  const [fleetSection, setFleetSection] = useState<'vehicles' | 'documents' | 'statistics'>('vehicles');
+  const [fleetSection, setFleetSection] = useState<'vehicles' | 'documents' | 'statistics' | 'operations'>(initialOperations?'operations':'vehicles');
+  const [handoverSignal,setHandoverSignal]=useState(0);
+  const [operationsVehicle,setOperationsVehicle]=useState<number|undefined>();
+  const [operationsCompany,setOperationsCompany]=useState<number|undefined>(initialOperations?.company);
   const [editingVehicle, setEditingVehicle] = useState<Record<string, unknown> | null>(null);
   const [mapVehicle, setMapVehicle] = useState<FleetVehicle | null>(null);
   const [archiveVehicleId, setArchiveVehicleId] = useState('');
@@ -253,7 +258,7 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
         id: String(row.id), transportType: row.transport_type === 'air' ? 'aircraft' : row.transport_type === 'sea' ? 'ship' : 'truck',
         systemName: String(features.system_name || row.registration_number || `Vehicle ${row.id}`),
         model: [row.make, row.model].filter(Boolean).join(' ') || String(row.vehicle_type || ''), plate: String(row.registration_number || ''),
-        status: status === 'active' || status === 'available' ? 'Active' : status === 'maintenance' ? 'Maintenance' : 'Idle',
+        status: status === 'active' || status === 'available' || status === 'in_use' ? 'Active' : status === 'maintenance' ? 'Maintenance' : 'Idle',
         fuel: '—', fuelType: String(features.fuel_type || '—'), trailer: String(features.trailer || '—'), tailLift: features.tail_lift ? 'Yes' : 'No',
         nextService: String(features.next_service || '—'),
         location: [Number(lastLocation?.latitude || 43.8563), Number(lastLocation?.longitude || 18.4131)] as [number, number],
@@ -437,6 +442,8 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
             <Button className="rounded-full" onClick={openAddVehicle}>
               <Plus className="mr-2 h-4 w-4" /> {u('fleet.addVehicle', 'Add Vehicle')}
             </Button>
+            <Button variant="outline" className="rounded-full" onClick={()=>{setOperationsVehicle(undefined);setOperationsCompany(companyIds[0]);setFleetSection('operations');setHandoverSignal(s=>s+1);}}><Handshake className="mr-2 h-4 w-4"/>{fleetCopy(lang)('Primopredaja vozila')}</Button>
+            <Button variant="outline" className="rounded-full" onClick={()=>{setOperationsVehicle(undefined);setOperationsCompany(companyIds[0]);setFleetSection('operations');}}>{fleetCopy(lang)('Primopredaje')} / {fleetCopy(lang)('Štete')}</Button>
           </div>
         )}
         stats={fleetStats}
@@ -451,6 +458,7 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
         transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
         className="space-y-3"
       >
+      {fleetSection === 'operations' && <FleetOperationsPanel lang={lang} preferredCompany={operationsCompany} initialVehicle={operationsVehicle} initialDamage={initialOperations?.damage} createSignal={handoverSignal} onChanged={()=>void loadVehicles()}/>}
       {fleetSection === 'statistics' && <section className="grid gap-3 xl:grid-cols-12">
         <Card className="shadow-none xl:col-span-3" contentClassName="p-4">
           <div className="flex items-center gap-2"><Gauge className="h-4 w-4 text-emerald-500" /><div><p className="text-sm font-black dark:text-white">{u('fleet.statusMix', 'Fleet readiness')}</p><p className="text-[11px] text-slate-500">{u('fleet.statusMixSub', 'Vehicles grouped by live status')}</p></div></div>
@@ -619,7 +627,7 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
                               : 'bg-slate-100 text-slate-600'
                         )}
                       >
-                        {trVehicleStatus(lang, v.status)}
+                        {fleetCopy(lang)(statusKey[String(v.source?.status||'')]||'')||trVehicleStatus(lang, v.status)}
                       </span>
                     </td>
                     <td className="p-3 text-sm text-slate-500">
@@ -673,6 +681,7 @@ export const FleetView = ({ lang, role, userId, companyIds = [] }: { lang: Langu
                         >
                           <MapIcon className="w-4 h-4" />
                         </button>
+                        {!v.external&&<button type="button" title={fleetCopy(lang)('Primopredaje')} aria-label={fleetCopy(lang)('Primopredaje')} onClick={()=>{setOperationsVehicle(Number(v.id));setOperationsCompany(Number(v.companyId)||undefined);setFleetSection('operations');}} className="cursor-pointer rounded-lg bg-slate-100 p-2 hover:text-primary dark:bg-slate-800"><Handshake className="h-4 w-4"/></button>}
                         {/* A partner's truck can be followed here, not edited. */}
                         {!v.external && (
                           <button

@@ -408,7 +408,7 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
       const payload = {
         registration_number: draft.plate,
         transport_type: draft.transportType === 'aircraft' ? 'air' : draft.transportType === 'ship' ? 'sea' : 'road',
-        vehicle_type: draft.category, make: draft.make, model: displayModel, status: draft.status.toLowerCase(),
+        vehicle_type: draft.category, make: draft.make, model: displayModel, status: isEditing ? String(initialVehicle?.status || 'available') : draft.status.toLowerCase(),
         capacity_kg: Number.parseFloat(draft.capacity.replace(/[^0-9.]/g, '')) * 1000 || null,
         capacity_m3: Number.parseFloat(draft.volume.replace(/[^0-9.]/g, '')) || null,
         ownership_type: draft.ownershipType,
@@ -723,6 +723,7 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
                           <div className="space-y-1">
                             <FieldLabel>{u('fleet.status', 'Status')}</FieldLabel>
                             <IconSelect
+                              disabled={isEditing}
                               value={draft.status}
                               onChange={(value) => setDraftField('status', value as AddVehicleDraft['status'])}
                               options={[

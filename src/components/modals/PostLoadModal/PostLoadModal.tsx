@@ -203,7 +203,9 @@ const STEP_AI_FIELDS: Record<StepId, Array<keyof ScanFieldPatch & keyof LoadDraf
 };
 
 
-export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSaved, initialPrefill = null, lockedTransportType = null, onOpenLenaAI, sourceConversationId = null, initialDraftId = null, onDraftConversationCreated, crmDocumentId = null }: PostLoadModalProps) => {
+export const PostLoadModal = ({ isOpen, onClose, lang, opsCompanyId, editLoadId = null, onSaved, initialPrefill = null, lockedTransportType = null, onOpenLenaAI, sourceConversationId = null, initialDraftId = null, onDraftConversationCreated, crmDocumentId = null }: PostLoadModalProps) => {
+  const [opsKind,setOpsKind]=useState('order');
+  const opsLabel=opsKind==='inquiry' ? (lang==='de'?'Anfrage speichern':['bs','hr','sr'].includes(lang)?'Sačuvaj upit':'Save inquiry') : (lang==='de'?'Auftrag erstellen':['bs','hr','sr'].includes(lang)?'Kreiraj nalog':'Create order');
   // A load opened from a CRM offer keeps that link, so the CRM stage can follow the shipment and its work order.
   const publishedLoadId = useRef<string | number | null>(null);
   const crmLink = crmDocumentId && !editLoadId ? { crm_document_id: crmDocumentId } : {};
@@ -340,6 +342,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         || companyIds.has(Number(row.company_id))
         || Number(row.assigned_driver_user_id) === currentUser.id
         || (Array.isArray(row.permitted_users) && row.permitted_users.some(user => Number(user.id) === currentUser.id)))
+        .filter(row=>!row.dispatch_blocked&&['active','available','idle','in_use','depot'].includes(String(row.status||'available')))
         .map(row => ({ id: Number(row.id), name: String(row.registration_number || row.name || row.id) })));
     }).catch(() => { if (!cancelled) setPublishResourcesError(true); })
       .finally(() => { if (!cancelled) setPublishResourcesLoading(false); });
@@ -1170,6 +1173,25 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
   };
 
   const submit = async () => {
+    if(opsCompanyId){
+      if(isSubmitting)return;
+      if(!draft.loadTitle.trim()){setSubmitError(lang==='de'?'Titel eingeben.':['bs','hr','sr'].includes(lang)?'Unesi naziv naloga / upita.':'Enter an order / inquiry title.');return;}
+      if(opsKind==='order'){const issues=validateDraft(u,draft);if(issues){rejectSubmit(issues);return;}}
+      setIsSubmitting(true);setSubmitError('');
+      try{
+        const payload=buildLoadPayload(draft);
+        const response=await api.accounting.send<Record<string,unknown>>(opsCompanyId,'ops/orders',{
+          title:draft.loadTitle,kind:opsKind,source:'manual',department:draft.transportType==='warehouse'?'warehouse':draft.transportType,
+          customer_name:draft.consignee?.name||undefined,intake_currency:draft.freightCurrency||'EUR',external_reference:draft.bookingReference||null,
+          planned_start_at:draft.pickupDate||null,planned_end_at:draft.deliveryDate||null,
+          operations:['booking','goods_documents','pickup','transport','delivery'],
+          cargo:{goods_type:payload.goods_type,weight_kg:payload.weight_kg,volume_m3:payload.volume_m3,pallets:payload.pallets},
+          route:{from:draft.pickupCity||null,to:draft.deliveryCity||null},form_data:payload,
+        });
+        onSaved?.(response.data);onClose();
+      }catch(error){rejectFromApi(error,u('postLoadModal.apiError',''));}finally{setIsSubmitting(false);}
+      return;
+    }
     if (!editLoadId) { openPublication(); return; }
     if (isSubmitting) return;
     const confirmed = await confirmAction({ title: u('postLoadModal.saveChangesTitle', ''), text: u('postLoadModal.saveChangesText', ''), confirmText: u('common.save', '') });
@@ -1425,13 +1447,11 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                   )}
                 />
                 <p className="hidden sm:block text-xs text-slate-500 mt-0.5 max-w-2xl truncate">
-                  {u(
-                    'postLoadModal.subtitle',
-                    ''
-                  )}
+                  {opsCompanyId ? (['bs','hr','sr'].includes(lang)?'Interni nalog / upit · podaci ostaju u operativi':lang==='de'?'Interner Auftrag / Anfrage':'Internal order / inquiry') : u('postLoadModal.subtitle','')}
                 </p>
               </div>
             </div>
+            {opsCompanyId&&<select aria-label={['bs','hr','sr'].includes(lang)?'Vrsta zapisa':'Record type'} value={opsKind} onChange={e=>setOpsKind(e.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-900"><option value="order">{lang==='de'?'Auftrag':['bs','hr','sr'].includes(lang)?'Potvrđeni nalog':'Confirmed order'}</option><option value="inquiry">{lang==='de'?'Anfrage':['bs','hr','sr'].includes(lang)?'Upit':'Inquiry'}</option></select>}
             <div className="hidden xl:flex shrink-0 items-center gap-3 text-slate-500">
               <div className="inline-flex items-center gap-2 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs font-bold">
                 {step === 'route' && <MapPin className="w-4 h-4 text-primary" />}
@@ -3000,7 +3020,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                 variant="secondary"
                 className="w-full h-11 gap-2 border border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 dark:bg-primary/15 dark:hover:bg-primary/20"
                 onClick={() => void saveDraft()}
-                disabled={isSubmitting || savingDraft}
+                disabled={!!opsCompanyId || isSubmitting || savingDraft}
               >
                 <Save className="w-4 h-4 shrink-0" />
                 <span className="truncate">
@@ -3011,7 +3031,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                       : u('postLoadModal.saveDraft', '')}
                 </span>
               </Button>
-              {isLastMileEligible && !editLoadId ? (
+              {isLastMileEligible && !editLoadId && !opsCompanyId ? (
                 <div className="grid grid-cols-2 gap-2">
                   <Button className="w-full h-11 gap-2" onClick={() => void submit()} disabled={isSubmitting}>
                     {isSubmitting ? <Loader2 className="w-4 h-4 shrink-0 animate-spin" /> : <Send className="w-4 h-4 shrink-0" />}
@@ -3026,7 +3046,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
                 <Button className="w-full h-11 gap-2" onClick={submit} disabled={isSubmitting}>
                   {isSubmitting ? <Loader2 className="w-4 h-4 shrink-0 animate-spin" /> : <Send className="w-4 h-4 shrink-0" />}
                   <span className="truncate">
-                    {isSubmitting
+                    {opsCompanyId ? opsLabel : isSubmitting
                       ? u('postLoadModal.publishing', '')
                       : editLoadId
                         ? u('common.save', '')
@@ -3040,7 +3060,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, editLoadId = null, onSave
         </div>
       </motion.div>
       <PublishPropery
-        open={publishOpen && !addWarehouseOpen && !addVehicleOpen}
+        open={!opsCompanyId && publishOpen && !addWarehouseOpen && !addVehicleOpen}
         lang={lang} storage={draft.transportType === 'warehouse'}
         transportLabel={transportOptions.find(option => option.id === draft.transportType)?.label || ''}
         destination={publishDestination} onDestination={selectPublishDestination}

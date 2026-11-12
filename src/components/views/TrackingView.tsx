@@ -21,6 +21,9 @@ import { trackingMarkerIcon } from '../tracking/trackingMapMarker';
 import { INCOTERM_OPTIONS, ROAD_CHARACTERISTIC_OPTIONS, VEHICLE_OPTIONS } from '../modals/loadFormOptions';
 import { IconSelect, type IconSelectOption } from '../ui/IconSelect';
 import { ScrollableRow } from '../modals/PostLoadModal/ScrollableRow';
+import { Button } from '../ui/Button';
+import { FleetToursBoard } from '../fleet/FleetToursBoard';
+import { fleetCopy } from '../fleet/fleetCopy';
 
 type TrackingStatusFilter = PackageData['status'] | 'all';
 export type TrackingLayoutMode = 'list' | 'grid' | 'map';
@@ -161,7 +164,13 @@ type TrackingViewProps = {
   requestedLayoutNonce?: number;
 };
 
-export const TrackingView = ({ lang, role, userId, companyIds = [], onLayoutModeChange, requestedLayout, requestedLayoutNonce, onEditLoad, onOpenTransportOrder }: TrackingViewProps) => {
+export const TrackingView = (props:TrackingViewProps) => {
+  const [section,setSection]=useState<'loads'|'tours'>('loads');
+  const t=fleetCopy(props.lang);
+  useEffect(()=>{if(props.requestedLayout)setSection('loads');},[props.requestedLayoutNonce]);
+  return <div className="space-y-3"><nav className="flex gap-2"><Button variant={section==='loads'?'primary':'outline'} onClick={()=>setSection('loads')}>{t('Tereti')}</Button><Button variant={section==='tours'?'primary':'outline'} onClick={()=>{setSection('tours');props.onLayoutModeChange?.('list');}}>{t('Dnevne ture')}</Button></nav>{section==='tours'?<FleetToursBoard lang={props.lang} preferredCompany={props.companyIds?.[0]}/>:<TrackingLoadsView {...props}/>}</div>;
+};
+const TrackingLoadsView = ({ lang, role, userId, companyIds = [], onLayoutModeChange, requestedLayout, requestedLayoutNonce, onEditLoad, onOpenTransportOrder }: TrackingViewProps) => {
   const hideFinishedStatus = role === 'user' || (role === 'driver' && companyIds.length === 0);
   const TRUCK_CAPACITY_KG = 48000;
   const u = (key: string, fallback: string) => ui(lang, key, fallback);

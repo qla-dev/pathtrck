@@ -93,6 +93,7 @@ export type FuelStation = {
 };
 
 export type VehicleReturnPhoto = {
+  fleet_company_id?: number;
   id: number;
   name: string;
   mime_type: string;
@@ -617,6 +618,13 @@ export const createApiClient = (sessionToken?: string) => {
   const request = makeRequest(sessionToken);
   const resourceApi = <T extends Record<string, unknown>>(resource: string) => makeResourceApi<T>(resource, request);
   return {
+  fleetOperations: {
+    notifications: () => request<Array<Record<string,any>>>('/fleet-operations/notifications'),
+    companies: () => request<Array<{id:number;name:string}>>('/fleet-operations/companies'),
+    get: <T = Record<string, any>>(company:number, path:string) => request<T>(`/fleet-operations/${company}/${path}`),
+    send: <T = Record<string, any>>(company:number, path:string, body:unknown, method='POST') => request<T>(`/fleet-operations/${company}/${path}`, {method,body:body instanceof FormData?body:JSON.stringify(body)}),
+    file: (company:number,id:number) => fetchAuthenticatedBlob(`/fleet-operations/${company}/files/${id}`),
+  },
   lenaGuest: {
     start: (code: string, lang: string, mode: 'cbm' | 'free') => request<{ token: string; user_id: number; conversation_id: number }>('/lena-guest/session', { method: 'POST', body: JSON.stringify({ code, lang, mode }) }),
     current: () => request<Record<string, unknown>>('/lena-guest/current'),
