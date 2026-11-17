@@ -280,11 +280,15 @@ type RegisterVehicleModalProps = {
   ownerUserId?: number;
   assignedDriverUserId?: number;
   companyId?: number;
+  depotId?: number;
   initialVehicle?: Record<string, unknown> | null;
 };
 
-export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUserId, assignedDriverUserId, companyId, initialVehicle }: RegisterVehicleModalProps) => {
+export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUserId, assignedDriverUserId, companyId, depotId, initialVehicle }: RegisterVehicleModalProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  const [selectedDepot,setSelectedDepot]=useState(depotId?String(depotId):'');
+  const [allowedDepots,setAllowedDepots]=useState<Array<{id:number;name:string;code:string;active:boolean}>>([]);
+  useEffect(()=>{if(!open||!companyId)return;let live=true;setSelectedDepot(depotId?String(depotId):'');api.fleetOperations.get(companyId,'context').then(r=>{if(live)setAllowedDepots(r.data.depot_records||[]);}).catch(()=>{});return()=>{live=false;};},[open,companyId,depotId]);
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState<AddVehicleDraft>(() => buildDraft('truck'));
   const [saving, setSaving] = useState(false);
@@ -416,6 +420,7 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
         owner_user_id: ownerUserId,
         assigned_driver_user_id: assignedDriverUserId,
         company_id: companyId,
+        ...(!isEditing?{depot_id:Number(selectedDepot)||null,home_depot_id:Number(selectedDepot)||null}:{}),
       };
       const response = isEditing
         ? await api.vehicles.update(String(initialVehicle?.id), payload)
@@ -746,6 +751,7 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
                             />
                           </div>
                           <div className="space-y-1 sm:col-span-2">
+                            {!isEditing&&companyId&&<label className="mb-3 grid gap-1 text-sm">{u('fleet.depot', 'Depot')}<select className="rounded-xl border border-slate-200 bg-white p-2 dark:border-slate-800 dark:bg-slate-900" value={selectedDepot} onChange={e=>setSelectedDepot(e.target.value)}><option value="">—</option>{allowedDepots.filter(d=>d.active).map(d=><option key={d.id} value={d.id}>{d.code} · {d.name}</option>)}</select></label>}
                             <FieldLabel>{u('fleet.ownership.label', 'Ownership')}</FieldLabel>
                             <IconSelect
                               value={draft.ownershipType}

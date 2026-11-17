@@ -110,6 +110,7 @@ const OWNERSHIP_GATED_ROLES: PermissionRole[] = ['company', 'manager', 'dispatch
 const SELF_DECLARED_ROLES: PermissionRole[] = ['driver'];
 
 export type AccessContext = {
+  fleetGrant?: boolean;
   /** The profile switch: this account operates warehouses of its own. */
   hasWarehouse?: boolean;
   /** The profile switch: this account runs vehicles of its own. */
@@ -157,6 +158,7 @@ export const accessLevel = (
   feature: Feature,
   context: AccessContext = {},
 ): AccessLevel => {
+  if(feature==='fleet'&&context.fleetGrant)return 'full';
   const permissionRole = resolvePermissionRole(role, context);
   if (!permissionRole) return 'none';
   const index = ORDER.indexOf(permissionRole);

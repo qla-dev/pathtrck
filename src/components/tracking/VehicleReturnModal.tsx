@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import {
   AlertTriangle, ArrowLeft, ArrowRight, Camera, CarFront, Check, CheckCircle2,
   Fuel, Gauge, History, ImagePlus, LoaderCircle, LocateFixed, Map, MapPin,
-  ShieldCheck, Trash2, TriangleAlert, X,
+  ShieldCheck, Trash2, TriangleAlert, X, UserRound, Building2, Wrench, RotateCcw,
 } from 'lucide-react';
 
 import { ApiError, api, type VehicleReturnInspection, type VehicleReturnPhoto } from '../../services/api';
@@ -81,6 +81,7 @@ type VehicleReturnModalProps = {
   loadId?: string;
   companyId?: number;
   drivers?: Array<{id:number;name:string}>;
+  depots?: Array<{id:number;name:string;code:string;active?:boolean}>;
   vehicleId?: number;
   vehicleName?: string;
   lang: Language;
@@ -88,12 +89,16 @@ type VehicleReturnModalProps = {
   onCompleted: () => void | Promise<void>;
 };
 
-export const VehicleReturnModal = ({ open, loadId, companyId, drivers = [], vehicleId, vehicleName, lang, onClose, onCompleted }: VehicleReturnModalProps) => {
+export const VehicleReturnModal = ({ open, loadId, companyId, drivers = [], depots = [], vehicleId, vehicleName, lang, onClose, onCompleted }: VehicleReturnModalProps) => {
   const t = fleetCopy(lang);
   const text = companyId ? { ...COPY[locale(lang)], title:t('Primopredaja vozila'), subtitle:t('Primopredaja ne završava turu.'), readyText:t('Primopredaja ne završava turu.'), submit:t('Sačuvaj'),close:t('Zatvori') } : COPY[locale(lang)];
   const [destination,setDestination]=useState('driver');
   const [toDriver,setToDriver]=useState('');
   const [depot,setDepot]=useState('');
+  const [depotChoices,setDepotChoices]=useState(depots);
+  const [rental,setRental]=useState(false);
+  const [allowReturn,setAllowReturn]=useState(false);
+  useEffect(()=>{if(!open||!companyId)return;let live=true;api.fleetOperations.get(companyId,'context').then(r=>{if(live){setDepotChoices(r.data.depot_records||[]);const v=r.data.vehicles?.find((v:Record<string,any>)=>Number(v.id)===vehicleId);setDepot(v?.depot_id?String(v.depot_id):'');setRental(v?.ownership_type==='rented');setAllowReturn(r.data.role!=='driver');}}).catch(()=>setDepotChoices(depots));return()=>{live=false;};},[open,companyId,vehicleId]);
   const [fleetMileage,setFleetMileage]=useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const photosRef = useRef<Array<{ file: File; url: string }>>([]);
@@ -155,7 +160,9 @@ export const VehicleReturnModal = ({ open, loadId, companyId, drivers = [], vehi
   const lastMileage = Math.max(history[0]?.mileage_km || 0,fleetMileage);
   const conditionValid = mileage.trim() !== '' && Number.isInteger(Number(mileage)) && Number(mileage) >= lastMileage && (!hasDamage || damageNotes.trim().length > 0) && (!companyId || (destination !== 'driver' || !!toDriver) && (destination !== 'depot' || !!depot.trim()));
   const photosValid = photos.length >= 3;
-  const steps = [text.condition, text.photos, text.review];
+  const steps = companyId?[t('Vrsta primopredaje'),text.condition,text.photos,text.review]:[text.condition,text.photos,text.review];
+  const conditionStep=companyId?1:0,photosStep=companyId?2:1,reviewStep=steps.length-1;
+  const destinationValid=(!companyId||(destination!=='driver'||!!toDriver)&&(destination!=='depot'||!!depot));
   const fuelColor = fuelLevel < 25 ? 'bg-rose-500' : fuelLevel < 55 ? 'bg-amber-500' : 'bg-emerald-500';
 
   const selectLocation = (location: LocationSearchResult) => {
@@ -204,7 +211,7 @@ export const VehicleReturnModal = ({ open, loadId, companyId, drivers = [], vehi
     try {
       if(companyId){
         const form=new FormData();
-        Object.entries({vehicle_id:String(vehicleId),destination,to_driver_id:destination==='driver'?toDriver:'',depot_name:depot,mileage_km:mileage,fuel_level_percent:String(fuelLevel),has_damage:hasDamage?'1':'0',notes:damageNotes.trim()}).forEach(([k,v])=>form.append(k,v));
+        Object.entries({vehicle_id:String(vehicleId),destination,to_driver_id:destination==='driver'?toDriver:'',depot_id:depot,depot_name:depotChoices.find(d=>String(d.id)===depot)?.name||'',mileage_km:mileage,fuel_level_percent:String(fuelLevel),has_damage:hasDamage?'1':'0',notes:damageNotes.trim()}).forEach(([k,v])=>form.append(k,v));
         photos.forEach(p=>form.append('photos[]',p.file));
         await api.fleetOperations.send(companyId,'handovers',form);
       } else if(loadId) await api.vehicleReturns.create(loadId, {
@@ -290,11 +297,12 @@ export const VehicleReturnModal = ({ open, loadId, companyId, drivers = [], vehi
                   ) : (
                     <AnimatePresence mode="wait">
                       <motion.div key={step} initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.2 }}>
-                        {step === 0 && (
+                        {companyId&&step===0&&<div className="space-y-5"><div><p className="text-[11px] font-black uppercase tracking-widest text-primary">01 · {t('Vrsta primopredaje')}</p><h3 className="mt-1 text-lg font-black dark:text-white">{vehicleName}</h3><p className="mt-1 text-sm text-slate-500">{t('Primopredaja ne završava turu.')}</p></div><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{[['driver','Vozač',UserRound],['depot','Na depou / parkingu',Building2],['workshop','U radionici',Wrench],['returned','Vraćen najmodavcu',RotateCcw]].filter(([key])=>key!=='returned'||rental&&allowReturn).map(([key,label,Icon]:any)=><button key={key} type="button" onClick={()=>setDestination(key)} className={cn('flex flex-col items-center gap-3 rounded-xl border p-5 text-center text-sm font-bold',destination===key?'border-primary bg-primary/5 text-primary':'border-slate-200 bg-white text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300')}><Icon className="h-6 w-6"/>{t(label)}{destination===key&&<CheckCircle2 className="h-4 w-4"/>}</button>)}</div><div className="grid gap-3 md:grid-cols-2">{destination==='driver'&&<label className="grid gap-1 text-sm">{t('Preuzeo')}<select className={fleetField} value={toDriver} onChange={e=>setToDriver(e.target.value)}><option value="">{t('Izaberi vozača')}</option>{drivers.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</select></label>}<label className="grid gap-1 text-sm">{t('Depo / grad')}<select className={fleetField} value={depot} onChange={e=>setDepot(e.target.value)}><option value="">{t('Izaberi depo')}</option>{depotChoices.filter(d=>d.active!==false).map(d=><option key={d.id} value={d.id}>{d.code} · {d.name}</option>)}</select></label></div></div>}
+                        {step === conditionStep && (
                           <div className="space-y-3">
-                            {companyId&&<div className="grid gap-3 md:grid-cols-3"><label className="grid gap-1 text-sm">{t('Primopredaja vozila')}<select className={fleetField} value={destination} onChange={e=>setDestination(e.target.value)}>{[['driver','Vozač'],['depot','Na depou / parkingu'],['workshop','U radionici'],['returned','Vraćen najmodavcu']].map(([key,label])=><option key={key} value={key}>{t(label)}</option>)}</select></label>{destination==='driver'&&<label className="grid gap-1 text-sm">{t('Preuzeo')}<select className={fleetField} value={toDriver} onChange={e=>setToDriver(e.target.value)}><option value="">{t('Izaberi vozača')}</option>{drivers.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</select></label>}<label className="grid gap-1 text-sm">{t('Depo / grad')}<input className={fleetField} value={depot} onChange={e=>setDepot(e.target.value)}/></label></div>}
+
                             <div>
-                              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-primary">01 · {text.condition}</p>
+                              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-primary">{companyId?'02':'01'} · {text.condition}</p>
                               <h3 className="mt-1 text-lg font-black tracking-tight text-slate-950 dark:text-white">{text.subtitle}</h3>
                             </div>
                             <div className="grid gap-3 md:grid-cols-2">
@@ -352,10 +360,10 @@ export const VehicleReturnModal = ({ open, loadId, companyId, drivers = [], vehi
                           </div>
                         )}
 
-                        {step === 1 && (
+                        {step === photosStep && (
                           <div className="space-y-3">
                             <div>
-                              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-primary">02 · {text.photos}</p>
+                              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-primary">{companyId?'03':'02'} · {text.photos}</p>
                               <h3 className="mt-1 text-lg font-black tracking-tight text-slate-950 dark:text-white">{text.photoTitle}</h3>
                               <p className="mt-1 text-xs text-slate-500">{text.photoHelp}</p>
                             </div>
@@ -376,10 +384,10 @@ export const VehicleReturnModal = ({ open, loadId, companyId, drivers = [], vehi
                           </div>
                         )}
 
-                        {step === 2 && (
+                        {step === reviewStep && (
                           <div className="space-y-3">
                             <div>
-                              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-primary">03 · {text.review}</p>
+                              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-primary">{companyId?'04':'03'} · {text.review}</p>
                               <h3 className="mt-1 text-lg font-black tracking-tight text-slate-950 dark:text-white">{text.ready}</h3>
                               <p className="mt-1 text-xs text-slate-500">{text.readyText}</p>
                             </div>
@@ -411,9 +419,9 @@ export const VehicleReturnModal = ({ open, loadId, companyId, drivers = [], vehi
 
             <footer className="flex h-14 shrink-0 items-center justify-between border-t border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-900 md:px-6">
               <Button type="button" variant="outline" disabled={step === 0 || submitting} onClick={() => setStep((current) => Math.max(0, current - 1))}><ArrowLeft className="mr-2 h-4 w-4" />{text.previous}</Button>
-              <div className="text-xs font-bold text-slate-400">{step + 1} / 3</div>
-              {step < 2
-                ? <Button type="button" disabled={!vehicleId || (step === 0 ? !conditionValid : !photosValid)} onClick={() => setStep((current) => Math.min(2, current + 1))}>{text.next}<ArrowRight className="ml-2 h-4 w-4" /></Button>
+              <div className="text-xs font-bold text-slate-400">{step + 1} / {steps.length}</div>
+              {step < reviewStep
+                ? <Button type="button" disabled={!vehicleId || (step === conditionStep ? !conditionValid : step === photosStep ? !photosValid : !destinationValid)} onClick={() => setStep((current) => Math.min(reviewStep, current + 1))}>{text.next}<ArrowRight className="ml-2 h-4 w-4" /></Button>
                 : <Button type="button" disabled={submitting || !conditionValid || !photosValid} onClick={() => void submit()}>{submitting ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}{submitting ? text.submitting : text.submit}</Button>}
             </footer>
 

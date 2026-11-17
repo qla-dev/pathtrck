@@ -5487,9 +5487,10 @@ export default function App() {
   const accessContext = useMemo(() => ({
     hasWarehouse: Boolean(currentUser?.have_warehouse),
     hasFleet: Boolean(currentUser?.have_fleet),
+    fleetGrant: Boolean(currentUser?.can_access_fleet),
     verified: Boolean(currentUser?.companies?.some((company) => company.verified_at)),
     warehouseCompany: Boolean(currentUser?.companies?.some((company) => company.warehouse_first)),
-  }), [currentUser?.have_warehouse, currentUser?.have_fleet, currentUser?.companies]);
+  }), [currentUser?.have_warehouse, currentUser?.have_fleet, currentUser?.can_access_fleet, currentUser?.companies]);
 
   /**
    * Nothing stays open that the role may not open.
@@ -6163,7 +6164,7 @@ export default function App() {
       Boolean(company.warehouse_first),
     ),
   );
-  const hasFleet = Boolean(currentUser?.have_fleet);
+  const hasFleet = Boolean(currentUser?.have_fleet||currentUser?.can_access_fleet);
   const hasWarehouse = Boolean(currentUser?.have_warehouse);
   const warehouseNavigationFirst = warehouseFirst && hasWarehouse;
   const isWarehouseCompany = warehouseExchangeOnly;
@@ -6891,6 +6892,7 @@ export default function App() {
             ];
   const navItems = [
     ...roleNavItems,
+    ...(currentUser?.can_access_fleet&&!roleNavItems.some(item=>item.id==='fleet')?[{id:'fleet',label:t.myFleet,icon:Truck}]:[]),
     ...(canManageTeam ? [{ id: "company-team", label: u("nav.teamPermissions", "Team & Permissions"), icon: Users }] : []),
     { id: "accounting", label: accountingText(lang, "title"), icon: Banknote },
     { id: "smart-pos", label: accountingText(lang, "smartPos"), icon: ReceiptText },

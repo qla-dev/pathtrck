@@ -51,6 +51,7 @@ export type ApiUser = {
   id: number;
   role_id: number;
   can_manage_company_team?: boolean;
+  can_access_fleet?: boolean;
   name: string;
   email: string;
   username: string;

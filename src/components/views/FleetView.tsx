@@ -37,6 +37,7 @@ import { AddressMapModal } from '../maps/AddressMapModal';
 import { ARCHIVE, DocumentUploadCard, formatDocumentSize } from './LoadDocumentsPanel';
 import { documentTypeLabel, documentTypeTone } from './documentTypes';
 import { IconSelect } from '../ui/IconSelect';
+import { FleetWorkspace } from '../fleet/FleetWorkspace';
 import { FleetOperationsPanel } from '../fleet/FleetOperationsPanel';
 import { fleetCopy, statusKey } from '../fleet/fleetCopy';
 
@@ -144,6 +145,7 @@ const INITIAL_VEHICLES: FleetVehicle[] = [
 
 export const FleetView = ({ lang, role, userId, companyIds = [], initialOperations }: { initialOperations?:{company:number;damage:number}; lang: Language; role?: Role; userId?: number; companyIds?: number[] }) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  const [modern,setModern]=useState(!initialOperations);
   const [allVehicles, setVehicles] = useState<FleetVehicle[]>([]);
   const isPlatformAdmin = role === 'superadmin' || role === 'master';
   const [companyFilter, setCompanyFilter] = useState('all');
@@ -365,6 +367,8 @@ export const FleetView = ({ lang, role, userId, companyIds = [], initialOperatio
     setEditingVehicle(null);
   };
 
+  if(modern && (companyIds.length>0||isPlatformAdmin)) return <FleetWorkspace lang={lang} preferredCompany={companyIds[0]} global={isPlatformAdmin} onLegacy={()=>setModern(false)}/>;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -376,7 +380,7 @@ export const FleetView = ({ lang, role, userId, companyIds = [], initialOperatio
         title={u('fleet.title', 'My Fleet')}
         subtitle={u('fleet.subtitle', 'Manage and monitor your vehicle assets')}
         actions={(
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2"><Button variant="outline" onClick={()=>setModern(true)}>{fleetCopy(lang)('Pregled flote')}</Button>
             {isPlatformAdmin && (
               <IconSelect
                 value={companyFilter}
