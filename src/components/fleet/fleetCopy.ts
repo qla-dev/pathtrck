@@ -1,5 +1,6 @@
 import type { Language } from '../../types';
 import { registryEn } from './vehicleRegistryCopy';
+import { handoverEn, handoverDe } from './handoverCopy';
 
 const en: Record<string,string> = {
  'Odustani':'Cancel',
@@ -62,6 +63,7 @@ Object.assign(de, {
  'Odaberite vozilo za pregled podataka.':'Fahrzeug auswählen, um Details anzuzeigen.','Vozilo više nije dostupno za primopredaju. Osvježite flotu.':'Dieses Fahrzeug ist nicht mehr für die Übergabe verfügbar. Flotte aktualisieren.',
 });
 Object.assign(de, {'3D pregled vozila':'3D-Fahrzeugansicht','Povuci za rotaciju':'Zum Drehen ziehen','Bočno':'Seite','Sprijeda':'Vorne','Straga':'Hinten','osovine':'Achsen','Dužina':'Länge','Širina':'Breite','Visina':'Höhe','Dužina, širina i visina':'Länge, Breite und Höhe','Prikaz prema unesenim dimenzijama':'Ansicht nach eingetragenen Maßen','Približan prikaz prema klasi vozila':'Ungefähre Proportionen nach Fahrzeugklasse','Vanjske dimenzije vozila su opcionalne i određuju proporcije 3D prikaza.':'Außenmaße sind optional und bestimmen die 3D-Proportionen.'});
+Object.assign(en, handoverEn); Object.assign(de, handoverDe);
 export const fleetCopy = (lang:Language) => (value:string) => {const s=({fleet_manager:'Upravitelj flote',depot_manager:'Upravitelj depoa',dispatcher:'Disponent',workshop:'Radionica',driver:'Vozač'} as Record<string,string>)[value]||value;return ['bs','hr','sr'].includes(lang)?s:lang==='de'?(de[s]||registryEn[s]||en[s]||s):(registryEn[s]||en[s]||s);};
 export const fleetField='w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white';
 export const statusKey:Record<string,string>={active:'Naslijeđeni status: aktivno',available:'Raspoloživo',in_use:'U upotrebi',idle:'Naslijeđeni status: parking',depot:'Na depou ili parkingu',maintenance:'U radionici',for_sale:'Čeka prodaju',sold:'Prodat',returned:'Vraćen najmodavcu',stolen:'Ukraden'};
