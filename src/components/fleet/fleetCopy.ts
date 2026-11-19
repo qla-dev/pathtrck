@@ -2,6 +2,17 @@ import type { Language } from '../../types';
 import { registryEn } from './vehicleRegistryCopy';
 
 const en: Record<string,string> = {
+ 'Odustani':'Cancel',
+ 'Odaberite vozilo i provjerite podatke prije primopredaje.':'Choose a vehicle and review its details before handover.',
+ 'Nije odabrano vozilo':'No vehicle selected','Nastavi na primopredaju':'Continue to handover','Koraci primopredaje':'Handover steps',
+ 'Prikazano vozila':'Vehicles shown','Ukupno u obuhvatu':'Total in scope','Nema vozila za odabrane filtere.':'No vehicles match these filters.',
+ 'Prikazuju se vozila u vašem dozvoljenom obuhvatu.':'Only vehicles within your permitted scope are shown.','Očisti filtere':'Clear filters',
+ 'Prije primopredaje':'Before handover','Kontrole koje čekaju pregled':'Pending handover reviews',
+ 'Priložen dokument nije automatski odobren dokument.':'An uploaded document is not automatically approved.',
+ 'Podaci o klasifikaciji ili kapacitetu zahtijevaju provjeru.':'Classification or capacity data requires review.',
+ 'Stanje vozila, gorivo i fotografije potvrdite u sljedećem koraku. Primopredaja nije odobrenje za vožnju.':'Confirm vehicle condition, fuel and photos in the next step. A handover does not approve dispatch.',
+ 'Odaberite vozilo za pregled podataka.':'Select a vehicle to view its details.',
+ 'Vozilo više nije dostupno za primopredaju. Osvježite flotu.':'This vehicle is no longer available for handover. Refresh the fleet.',
  '3D pregled vozila':'3D vehicle view','Povuci za rotaciju':'Drag to rotate','Bočno':'Side','Sprijeda':'Front','Straga':'Rear','osovine':'axles',
  'Dužina':'Length','Širina':'Width','Visina':'Height','Dužina, širina i visina':'Length, width and height','Prikaz prema unesenim dimenzijama':'View based on recorded dimensions','Približan prikaz prema klasi vozila':'Approximate proportions based on vehicle class',
  'Vanjske dimenzije vozila su opcionalne i određuju proporcije 3D prikaza.':'Overall vehicle dimensions are optional and determine the 3D proportions.',
@@ -40,6 +51,16 @@ const en: Record<string,string> = {
  'Nema pristupa floti.':'No fleet access.','Nazad na listu':'Back to list','Primopredaja ne završava turu.':'Handover does not complete the tour.',
 };
 const de: Record<string,string> = {'Primopredaje':'Übergaben','Štete':'Schäden','Vozila i statusi':'Fahrzeuge und Status','Obavijesti':'Benachrichtigungen','Primopredaja vozila':'Fahrzeugübergabe','Dnevne ture':'Tagestouren','Tereti':'Ladungen','Vozilo':'Fahrzeug','Vozač':'Fahrer','Tablice':'Kennzeichen','Depo i grad':'Depot und Stadt','Partner':'Partner','ID ture':'Tour-ID','Status':'Status','Datum':'Datum','Zatvori':'Schließen','Sačuvaj':'Speichern','Osvježi':'Aktualisieren','Čeka pregled':'Prüfung ausstehend','Završena':'Abgeschlossen','Zaključaj':'Sperren','Dodaj ili uvezi ture':'Touren hinzufügen oder importieren','Nema zapisa.':'Keine Einträge.'};
+Object.assign(de, {
+ 'Odustani':'Abbrechen','Izaberi vozilo':'Fahrzeug auswählen','Odaberite vozilo i provjerite podatke prije primopredaje.':'Fahrzeug auswählen und Daten vor der Übergabe prüfen.',
+ 'Nije odabrano vozilo':'Kein Fahrzeug ausgewählt','Nastavi na primopredaju':'Weiter zur Übergabe','Koraci primopredaje':'Übergabeschritte',
+ 'Svi statusi':'Alle Status','Prikazano vozila':'Angezeigte Fahrzeuge','Ukupno u obuhvatu':'Gesamt im Zugriffsbereich','Nema vozila za odabrane filtere.':'Keine Fahrzeuge für diese Filter.',
+ 'Prikazuju se vozila u vašem dozvoljenom obuhvatu.':'Es werden nur Fahrzeuge in Ihrem Zugriffsbereich angezeigt.','Očisti filtere':'Filter zurücksetzen',
+ 'Prije primopredaje':'Vor der Übergabe','Kontrole koje čekaju pregled':'Ausstehende Übergabeprüfungen','Priložen dokument nije automatski odobren dokument.':'Ein hochgeladenes Dokument ist nicht automatisch genehmigt.',
+ 'Podaci o klasifikaciji ili kapacitetu zahtijevaju provjeru.':'Klassifizierungs- oder Kapazitätsdaten müssen geprüft werden.',
+ 'Stanje vozila, gorivo i fotografije potvrdite u sljedećem koraku. Primopredaja nije odobrenje za vožnju.':'Fahrzeugzustand, Kraftstoff und Fotos im nächsten Schritt bestätigen. Eine Übergabe erteilt keine Einsatzfreigabe.',
+ 'Odaberite vozilo za pregled podataka.':'Fahrzeug auswählen, um Details anzuzeigen.','Vozilo više nije dostupno za primopredaju. Osvježite flotu.':'Dieses Fahrzeug ist nicht mehr für die Übergabe verfügbar. Flotte aktualisieren.',
+});
 Object.assign(de, {'3D pregled vozila':'3D-Fahrzeugansicht','Povuci za rotaciju':'Zum Drehen ziehen','Bočno':'Seite','Sprijeda':'Vorne','Straga':'Hinten','osovine':'Achsen','Dužina':'Länge','Širina':'Breite','Visina':'Höhe','Dužina, širina i visina':'Länge, Breite und Höhe','Prikaz prema unesenim dimenzijama':'Ansicht nach eingetragenen Maßen','Približan prikaz prema klasi vozila':'Ungefähre Proportionen nach Fahrzeugklasse','Vanjske dimenzije vozila su opcionalne i određuju proporcije 3D prikaza.':'Außenmaße sind optional und bestimmen die 3D-Proportionen.'});
 export const fleetCopy = (lang:Language) => (value:string) => {const s=({fleet_manager:'Upravitelj flote',depot_manager:'Upravitelj depoa',dispatcher:'Disponent',workshop:'Radionica',driver:'Vozač'} as Record<string,string>)[value]||value;return ['bs','hr','sr'].includes(lang)?s:lang==='de'?(de[s]||registryEn[s]||en[s]||s):(registryEn[s]||en[s]||s);};
 export const fleetField='w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white';
