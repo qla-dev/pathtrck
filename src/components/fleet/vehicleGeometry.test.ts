@@ -10,6 +10,8 @@ test('series geometries stay finite across road suggestions and every supported 
  Object.assign(globalThis,{document:{createElement:()=>({width:0,height:0,getContext:()=>({fillRect(){},save(){},translate(){},scale(){},restore(){},fill(){},fillText(){},measureText:()=>({width:700}),createLinearGradient:()=>({addColorStop(){}})})})},Path2D:class{}});
  const dispose=(group:THREE.Group)=>group.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();for(const m of Array.isArray(o.material)?o.material:[o.material]){(m as THREE.MeshStandardMaterial).map?.dispose();m.dispose();}}});
  try {
+  const legacy=buildVehicleModel({make:null,model:null,vehicle_type:'Truck',features:null});
+  assert.equal(legacy.spec.series.cab.id,'generic');assert.ok(!new THREE.Box3().setFromObject(legacy.group).isEmpty());dispose(legacy.group);
   for(const [make,models] of Object.entries(vehicleIdentityCatalog('road','')))for(const model of models){
    const van=vehicleIdentityCatalog('road','cargo_van')[make]?.includes(model);
    const {group}=buildVehicleModel({make,model,features:{resource_type:van?'cargo_van':'rigid_truck',body_type_code:van?'panel_van':'box'}});

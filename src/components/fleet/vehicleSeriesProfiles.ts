@@ -37,11 +37,12 @@ const groups:[string,string[],string][]=[
  ['Renault',['Master'],'master'],['Renault',['Trafic'],'mediumVan'],['Renault',['Kangoo'],'compact'],
  ['Fiat',['Ducato','E-Ducato'],'ducato'],['Fiat',['Scudo','E-Scudo'],'mediumVan'],['Fiat',['Doblo','E-Doblo'],'compact'],['Iveco',['Daily','eDaily'],'daily'],
 ];
-const normalize=(s:string)=>s.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[‐‑–]/g,'-').trim().replace(/\s+/g,' ');
+// API fields are nullable on legacy vehicles; defaults only cover undefined, not null.
+const normalize=(value:unknown)=>(typeof value==='string'?value:'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[‐‑–]/g,'-').trim().replace(/\s+/g,' ');
 const sources:Record<string,string>={
  'mercedes-benz':'https://www.mercedes-benz-trucks.com/int/en/trucks.html',volvo:'https://www.volvotrucks.com/en-en/trucks/models.html',scania:'https://www.scania.com/group/en/home/products-and-services/trucks.html',man:'https://www.man.eu/mea/en/trucks/all-models/model-overview/model-overview.html',daf:'https://www.daf.global/en/products-and-services/daf-model-range',iveco:'https://broschueren.iveco.de/',renault:'https://www.renault.co.uk/van-range.html',volkswagen:'https://www.volkswagen-vans.co.uk/en.html',ford:'https://www.ford.co.uk/vans-and-pickups',fiat:'https://www.fiat.it/professional/modello',
 };
-export function vehicleSeriesProfile(make='',model='',simplified=false) {
+export function vehicleSeriesProfile(make:unknown='',model:unknown='',simplified=false) {
  const manufacturer=normalize(make),name=normalize(model).replace(new RegExp('^'+manufacturer.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s+'),'');
  const matches=groups.filter(([brand])=>normalize(brand)===manufacturer).flatMap(([,models,id])=>models.map(series=>({series,id}))).sort((a,b)=>b.series.length-a.series.length);
  const match=matches.find(({series})=>{const n=normalize(series);return name===n||name.startsWith(n+' ')||name.startsWith(n+'-')||(/^[a-z]$/.test(n)&&new RegExp('^'+n+'\\d').test(name));});

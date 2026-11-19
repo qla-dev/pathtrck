@@ -1,8 +1,8 @@
 import { vehicleSeriesProfile } from './vehicleSeriesProfiles';
 export type VehicleModelData = {
-  vehicle_type?: string; make?: string; model?: string; transport_type?: string;
+  vehicle_type?: string; make?: string|null; model?: string|null; transport_type?: string;
   length_m?: number; width_m?: number; height_m?: number;
-  features?: Record<string, any>;
+  features?: Record<string, any>|null;
   linked_trailers?: VehicleModelData[];
 };
 export type VehicleBody = 'box'|'curtain'|'reefer'|'tanker'|'flatbed'|'container'|'dump'|'carrier'|'van'|'car'|'bus'|'aircraft'|'ship'|'tractor'|'silo';

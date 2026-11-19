@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react';
+import { Suspense, useState } from 'react';
 import { Box, Gauge, Rotate3D, Truck, UserRound } from 'lucide-react';
 import type { Language } from '../../types';
 import type { FleetRow } from './FleetOperationsPanel';
@@ -6,7 +6,7 @@ import { BrandWordmark } from '../ui/BrandWordmark';
 import { fleetCopy, statusKey } from './fleetCopy';
 import { registryLabel } from './vehicleRegistry';
 import { vehicleModelSpec } from './vehicleModelSpec';
-const Model=lazy(()=>import('./VehicleModel3D'));
+import Model from './VehiclePreview';
 
 export function VehicleShowcase({vehicle,lang,onOpen}:{vehicle:FleetRow;lang:Language;onOpen:()=>void}) {
   const t=fleetCopy(lang),[angle,setAngle]=useState('perspective'),[simplified,setSimplified]=useState(false),s=vehicleModelSpec(vehicle,simplified);

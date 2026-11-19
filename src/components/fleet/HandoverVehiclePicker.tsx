@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { ArrowRight, Building2, Check, ClipboardCheck, Fuel, Gauge, Handshake, Info, Rotate3D, Route, Search, ShieldAlert, Truck, UserRound, Wrench } from 'lucide-react';
 import type { Language } from '../../types';
 import { api } from '../../services/api';
@@ -10,7 +10,7 @@ import { VehicleIllustration } from './VehicleIllustration';
 import { fleetCopy, fleetField as field, statusKey } from './fleetCopy';
 import { bodyRequirementLabel, registryLabel } from './vehicleRegistry';
 import { filterHandoverVehicles, handoverCandidates } from './handoverSelection';
-const Model = lazy(() => import('./VehicleModel3D'));
+import Model from './VehiclePreview';
 
 export function HandoverVehiclePicker({ company, context, vehicles, lang, onClose, onSelect }: {
   company: number; context: FleetRow; vehicles: FleetRow[]; lang: Language;

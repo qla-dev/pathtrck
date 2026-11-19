@@ -3,6 +3,12 @@ import {strict as assert} from 'node:assert';
 import {vehicleSeriesProfile as profile} from './vehicleSeriesProfiles';
 import {vehicleModelSpec} from './vehicleModelSpec';
 import {vehicleIdentityCatalog} from './vehicleIdentityCatalog';
+test('nullable and malformed API identities use the generic profile',()=>{
+ for(const value of [null,undefined,0,false,{},[]]){
+  const result=profile(value,value);assert.equal(result.recognized,false);assert.equal(result.cab.id,'generic');
+ }
+ assert.equal(profile('Volvo',null).cab.id,'generic');assert.equal(profile(null,'FH Aero').cab.id,'generic');
+});
 test('all road suggestions have a simplified series profile',()=>{
  for(const [make,models] of Object.entries(vehicleIdentityCatalog('road','')))for(const model of models)assert.ok(profile(make,model).recognized,`${make} ${model}`);
 });

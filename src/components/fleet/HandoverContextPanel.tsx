@@ -1,11 +1,11 @@
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
 import { Building2, Fuel, Gauge, Info, Route, ShieldAlert, UserRound, Wrench } from 'lucide-react';
 import type { Language } from '../../types';
 import type { FleetRow } from './FleetOperationsPanel';
 import { VehicleIllustration } from './VehicleIllustration';
 import { fleetCopy, statusKey } from './fleetCopy';
 import { bodyRequirementLabel, registryLabel } from './vehicleRegistry';
-const Model = lazy(() => import('./VehicleModel3D'));
+import Model from './VehiclePreview';
 
 export function HandoverContextPanel({ vehicle, detail, lang, driverName, depotName, draft }: {
   vehicle: FleetRow | null; detail: FleetRow | null; lang: Language; driverName: string; depotName: string;
