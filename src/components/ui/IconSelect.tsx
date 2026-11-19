@@ -120,6 +120,7 @@ export const IconSelect = ({ value, onChange, options, placeholder, icon: FieldI
 
   const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (event.key === 'Escape') {
+      if(open){event.preventDefault();event.stopPropagation();}
       setOpen(false);
       return;
     }
@@ -156,7 +157,7 @@ export const IconSelect = ({ value, onChange, options, placeholder, icon: FieldI
         <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform', open && 'rotate-180')} />
       </button>
       {open && panelPosition && createPortal(
-        <div ref={panelRef} popover="manual" role="listbox" style={panelPosition} className="fixed inset-auto m-0 z-[320] overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+        <div ref={panelRef} popover="manual" role="listbox" onKeyDown={event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();setOpen(false);}}} style={panelPosition} className="fixed inset-auto m-0 z-[320] overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-900">
           {searchable && <div className="sticky top-0 z-10 mb-1 flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 dark:border-slate-700 dark:bg-slate-950"><Search className="h-3.5 w-3.5 text-slate-400" /><input autoFocus value={query} onChange={(event) => { setQuery(event.target.value); setHighlightedIndex(0) }} placeholder={searchPlaceholder} className="h-9 min-w-0 flex-1 bg-transparent text-xs outline-none dark:text-white" /></div>}
           {filteredOptions.map((option, index) => (
             <button

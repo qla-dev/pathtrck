@@ -7,6 +7,8 @@ import { Button } from '../ui/Button';
 import { Notice } from '../ui/Notice';
 import { fleetCopy, fleetField } from '../fleet/fleetCopy';
 import { BODIES, RESOURCES, bodyOptions, categoryForMass, guidanceDocuments, numericFeatures, parseRegistryNumber, registryFeatures, registryLabel } from '../fleet/vehicleRegistry';
+import {vehicleIdentityCatalog,vehicleModels} from '../fleet/vehicleIdentityCatalog';
+import {VehicleIdentityChoice} from '../fleet/VehicleIdentityChoice';
 
 type Props={open:boolean;lang:Language;onClose:()=>void;onCreated:(vehicle:Record<string,unknown>)=>void;ownerUserId?:number;assignedDriverUserId?:number;companyId?:number;depotId?:number;initialVehicle?:Record<string,any>|null};
 const DOCS=[['VEHICLE_REGISTRATION','Saobraćajna dozvola'],['TECHNICAL_INSPECTION','Tehnički pregled'],['OWNERSHIP_CERTIFICATE','Dokaz vlasništva'],['RENTAL_AGREEMENT','Ugovor o najmu'],['LEASING_AGREEMENT','Ugovor o leasingu'],['FINANCING_AGREEMENT','Ugovor o finansiranju'],['COMMUNITY_LICENCE','Licenca prijevoznika ili ovjerena kopija'],['ATP_CERTIFICATE','ATP dokaz'],['ADR_CERTIFICATE','ADR dokaz'],['OTHER_PERMIT','Druga dozvola ili dokaz']] as const;
@@ -34,6 +36,8 @@ function VehicleRegistration({lang,onClose,onCreated,ownerUserId,assignedDriverU
   const select=(key:string,label:string,options:readonly (readonly string[])[],empty=true)=>field(label,<select className={fleetField} value={f[key]||''} disabled={busy||!!saved} onChange={e=>change(key,e.target.value)}>{empty&&<option value="">{t('Nije potvrđeno')}</option>}{options.map(([value,text])=><option key={value} value={value}>{t(text)}</option>)}</select>);
   const section=(title:string,children:ReactNode)=> <section className="space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-800"><h3 className="text-xs font-bold uppercase tracking-wide text-primary">{t(title)}</h3>{children}</section>;
   const choices=bodyOptions(f.resource_type);
+  const identityCatalog=vehicleIdentityCatalog(mode,f.resource_type);
+  const manufacturer=(make:string)=>setIdentity(previous=>({...previous,make,model:previous.make.trim().toLocaleLowerCase()===make.trim().toLocaleLowerCase()?previous.model:''}));
   let suggested='';try{const mass=parseRegistryNumber(f.resource_type==='semi_trailer'?f.category_mass_kg:f.gross_weight_kg);if(mass)suggested=categoryForMass(mass,trailer);}catch{}
 
   function buildPayload(){
@@ -80,7 +84,7 @@ function VehicleRegistration({lang,onClose,onCreated,ownerUserId,assignedDriverU
       {step===0?<fieldset disabled={busy||!!saved} className="space-y-4">
         <div className="grid grid-cols-3 gap-2">{[['road','Cestovna vozila',Truck],['air','Zrakoplovi',Plane],['sea','Plovila',Ship]].map(([value,label,Icon]:any)=><button type="button" key={value} onClick={()=>setMode(value)} className={`flex items-center justify-center gap-2 rounded-xl border p-3 text-xs font-bold ${mode===value?'border-primary bg-primary/5 text-primary':'border-slate-200 dark:border-slate-800'}`}><Icon className="h-4 w-4"/>{t(label)}</button>)}</div>
         <div className="grid gap-4 md:grid-cols-2">
-          {section('Identitet vozila',<div className="grid gap-3 sm:grid-cols-2">{input('registration_number','Registracija ili kod',true)}{input('vin','VIN')}{input('make','Proizvođač')}{input('model','Model i izvedba')}{input('year','Godina proizvodnje')}{input('system_name','Naziv u sistemu')}</div>)}
+          {section('Identitet vozila',<div className="grid gap-3 sm:grid-cols-2">{input('registration_number','Registracija ili kod',true)}{input('vin','VIN')}{field('Proizvođač',<VehicleIdentityChoice key={`${mode}-${f.resource_type||'all'}`} value={identity.make} onChange={manufacturer} options={Object.keys(identityCatalog)} label={t('Proizvođač')} lang={lang} disabled={busy||!!saved}/>)}{field('Model i izvedba',<VehicleIdentityChoice key={`${mode}-${f.resource_type||'all'}-${identity.make}`} value={identity.model} onChange={value=>id('model',value)} options={vehicleModels(identityCatalog,identity.make)} label={t('Model i izvedba')} lang={lang} disabled={busy||!!saved}/>)}{input('year','Godina proizvodnje')}{input('system_name','Naziv u sistemu')}</div>)}
           {section('Vrsta i klasifikacija',<div className="space-y-3">{road?<>
             {field('Vrsta sredstva',<select className={fleetField} value={f.resource_type} onChange={e=>{const type=e.target.value;setF(previous=>({...previous,resource_type:type,body_type_code:type==='tractor_unit'?'none':'',legal_category:'',axle_configuration:''}));}}><option value="">{t('Izaberite vrstu')}</option>{RESOURCES.map(([value])=><option key={value} value={value}>{registryLabel(lang,value)}</option>)}</select>)}
             {select('legal_category','Homologacijska kategorija',(trailer?['O1','O2','O3','O4']:['N1','N2','N3']).map(value=>[value,({N1:'N1 · do 3.500 kg',N2:'N2 · preko 3.500 do 12.000 kg',N3:'N3 · preko 12.000 kg',O1:'O1 · do 750 kg',O2:'O2 · preko 750 do 3.500 kg',O3:'O3 · preko 3.500 do 10.000 kg',O4:'O4 · preko 10.000 kg'} as Record<string,string>)[value]]))}
