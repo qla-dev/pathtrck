@@ -10,14 +10,14 @@ type Row=Record<string,any>;
 const field='w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900';
 const fields:Record<string,[string,string]>={goods_type:['Vrsta robe','Goods description'],cargo_type:['Tip tereta','Cargo type'],weight_kg:['Težina (kg)','Weight (kg)'],volume_m3:['Zapremina (m³)','Volume (m³)'],pallets:['Broj paleta','Pallet count'],quantity_measure:['Količina / pakovanje','Quantity / packaging'],length_m:['Dužina (m)','Length (m)'],width_m:['Širina (m)','Width (m)'],height_m:['Visina (m)','Height (m)']};
 
-export function CargoReviewPanel(props:{company?:number;order?:number;workspace?:number;portalOrder?:number;documentIntake?:boolean;lang?:Language;onChange?:()=>void}) {
+export function CargoReviewPanel(props:{company?:number;order?:number;workspace?:number;portalOrder?:number;documentIntake?:boolean;lang?:Language;initialDocumentRole?:'ci'|'pl';onChange?:()=>void}) {
  const {lang}=useOpsCopy();
  return <OpsLanguage.Provider value={props.lang||lang}><CargoReviewContent {...props}/></OpsLanguage.Provider>;
 }
-function CargoReviewContent({company,order,workspace,portalOrder,documentIntake=false,onChange}:{company?:number;order?:number;workspace?:number;portalOrder?:number;documentIntake?:boolean;onChange?:()=>void}) {
+function CargoReviewContent({company,order,workspace,portalOrder,documentIntake=false,initialDocumentRole='ci',onChange}:{company?:number;order?:number;workspace?:number;portalOrder?:number;documentIntake?:boolean;initialDocumentRole?:'ci'|'pl';onChange?:()=>void}) {
  const {lang}=useOpsCopy(),regional=['bs','hr','sr'].includes(lang),c=(bs:string,en:string)=>regional?bs:en;
  const [data,setData]=useState<Row|null>(null),[actual,setActual]=useState<Row>({}),[total,setTotal]=useState(''),[basis,setBasis]=useState(''),[reason,setReason]=useState('');
- const [documentRole,setDocumentRole]=useState<'ci'|'pl'|'cmr'|'pod'|'other'>('ci');
+ const [documentRole,setDocumentRole]=useState<'ci'|'pl'|'cmr'|'pod'|'other'>(initialDocumentRole);
  const [ci,setCi]=useState(''),[pl,setPl]=useState(''),[received,setReceived]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[expanded,setExpanded]=useState(false);
  const request=useCallback(async(body?:Row)=>{
   if(portalOrder||(documentIntake&&order))return api.transportOrders.review(Number(portalOrder||order),body);

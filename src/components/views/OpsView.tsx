@@ -158,6 +158,7 @@ function CustomerTransportOrders({visible,initialWorkspaceId,initialSection,onOp
  if(!visible)return null;
  const scopes=[
    {id:'all',label:c('Sve pošiljke','All shipments'),match:(_:Row)=>true},
+   {id:'action',label:c('Čeka vas','Waiting on you'),match:(row:Row)=>row.missing_customer_documents?.length>0},
    {id:'invited',label:c('Pozivi za pristup','Access invitations'),match:(row:Row)=>row.access==='invited'},
    {id:'active',label:c('Aktivne','Active'),match:(row:Row)=>row.access!=='invited'&&!['closed','delivered','cancelled'].includes(row.status)},
    {id:'delivered',label:c('Isporučene i završene','Delivered and closed'),match:(row:Row)=>row.access!=='invited'&&['closed','delivered'].includes(row.status)},
@@ -170,7 +171,7 @@ function CustomerTransportOrders({visible,initialWorkspaceId,initialSection,onOp
      <Button size="sm" variant="outline" disabled={portalLoading} onClick={refresh}>{t('Osvježi')}</Button>
    </div>
    {error&&<Notice tone="bad">{error}</Notice>}
-   <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{scopes.map(scope=>
+   <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">{scopes.map(scope=>
      <button type="button" key={scope.id} aria-pressed={portalScope===scope.id} onClick={()=>setPortalScope(scope.id)}
        className={'rounded-xl border border-slate-200 bg-white p-4 text-left hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 '+(portalScope===scope.id?'ring-2 ring-inset ring-sky-500':'')}>
        <span className="block text-2xl font-bold">{portalLoading&&!rows.length?'—':rows.filter(scope.match).length}</span><span className="text-sm text-slate-600 dark:text-slate-300">{scope.label}</span>
@@ -185,7 +186,10 @@ function CustomerTransportOrders({visible,initialWorkspaceId,initialSection,onOp
          <td><div className="flex flex-wrap gap-2">{row.access==='invited'?
            <Button size="sm" disabled={busy} onClick={async()=>{setBusy(true);setError('');try{await api.transportOrders.action(row.id,'accept',{revision:row.invitation.revision});await load();}catch(e){setError(e instanceof Error?e.message:String(e));}finally{setBusy(false);}}}>{c('Prihvati pristup','Accept access')}</Button>:
            <><Button size="sm" variant="outline" onClick={()=>void open(row,'overview').catch(e=>setError(e.message))}>{c('Otvori pošiljku','Open shipment')}</Button>
-           {row.access!=='supplier'&&<Button size="sm" variant="outline" onClick={()=>void open(row,'documents').catch(e=>setError(e.message))}>{c('Dokumenti i radnje','Documents and actions')}</Button>}</>}</div></td>
+           {row.access!=='supplier'&&<Button size="sm" variant={row.missing_customer_documents?.length?'primary':'outline'} onClick={()=>void open(row,'documents').catch(e=>setError(e.message))}>{row.missing_customer_documents?.length
+             ? row.missing_customer_documents.length>1 ? c('Dostavi fakturu i pakirnu listu','Upload invoice and packing list')
+               : row.missing_customer_documents[0]==='ci' ? c('Dostavi komercijalnu fakturu','Upload commercial invoice') : c('Dostavi pakirnu listu','Upload packing list')
+             : c('Dokumenti i radnje','Documents and actions')}</Button>}</>}</div></td>
        </tr>)}</tbody>
      </DataTable></div>
      {!shown.length&&<p className="p-4 text-sm text-slate-500" role="status">{portalLoading?t('Učitavanje operative…'):c('Nema pošiljki za ovaj pregled.','No shipments match this view.')}</p>}
@@ -200,7 +204,7 @@ function CustomerTransportOrders({visible,initialWorkspaceId,initialSection,onOp
  ...(selected.id?[['participants',c('Učesnici','Participants')]]:[])
  ].map(([key,label])=><Button key={key} size="sm" variant={section===key?'primary':'outline'} onClick={()=>setSection(key)}>{label}</Button>)}</nav>
  {section==='overview'&&<>{detail.timeline&&<ShipmentOperationsTab workspace={{id:selected.workspace_id||0}} timeline={detail.timeline} onRefresh={async()=>{const next=selected.id?(await api.transportOrders.get(selected.id)).data:{timeline:(await api.shipmentWorkspaces.opsToday(Number(selected.workspace_id))).data};setDetail(current=>current?{...current,...next}:current);}} summaryOnly lang={lang} onUpdated={()=>{}}/>}<Button size="sm" onClick={()=>setSection('documents')}>{c('Otvori dokumente i radnje','Open documents and actions')}</Button></>}
- {section==='documents'&&(selected.id?<CargoReviewPanel portalOrder={Number(selected.id)} documentIntake lang={lang} onChange={()=>void open(selected).catch(e=>setError(e.message))}/>:<DocumentUploadCard lang={lang} attachTo={String(selected.load_id)} onUploaded={async()=>{}}/>)}
+ {section==='documents'&&(selected.id?<CargoReviewPanel portalOrder={Number(selected.id)} documentIntake lang={lang} initialDocumentRole={selected.missing_customer_documents?.[0]} onChange={()=>void load().catch(e=>setError(e.message))}/>:<DocumentUploadCard lang={lang} attachTo={String(selected.load_id)} onUploaded={async()=>{}}/>)}
  {section==='operations'&&detail.workspace&&<ShipmentOperationsTab workspace={detail.workspace} lang={lang} readOnly={selected.access!=='assigned'} onOpenDocuments={()=>setSection('documents')} onUpdated={workspace=>setDetail({...detail,workspace})}/>}
  {section==='participants'&&selected.id&&<SupplyChainAccess order={Number(selected.id)}/>}
  {section==='messages'&&detail.workspace?.conversation_id&&<div className="h-[60vh]"><ShipmentMessagesTab workspace={detail.workspace} lang={lang} userId={viewerId}/></div>}
