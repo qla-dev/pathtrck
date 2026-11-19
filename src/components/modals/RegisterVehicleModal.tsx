@@ -12,6 +12,7 @@ import { IconSelect } from '../ui/IconSelect';
 import { ChoiceCard } from './PostLoadModal/ChoiceCard';
 import { FieldLabel } from './PostLoadModal/FieldLabel';
 import { Input } from './PostLoadModal/FormFields';
+import { fleetCopy } from '../fleet/fleetCopy';
 
 type TransportType = 'truck' | 'van' | 'aircraft' | 'ship';
 type VehicleOwnership = 'owned' | 'financed' | 'leasing' | 'rented' | 'other';
@@ -44,6 +45,9 @@ type AddVehicleDraft = {
   make: string;
   model: string;
   customModel: string;
+  length: string;
+  width: string;
+  height: string;
   capacity: string;
   volume: string;
   configuration: string;
@@ -194,6 +198,7 @@ const buildDraft = (transportType: TransportType): AddVehicleDraft => {
     make,
     model,
     customModel: '',
+    length: '', width: '', height: '',
     capacity: registry.specs.capacity,
     volume: registry.specs.volume,
     configuration: registry.specs.configurations[0],
@@ -250,6 +255,7 @@ const buildDraftFromVehicle = (vehicle: Record<string, unknown>): AddVehicleDraf
     make,
     model,
     customModel: model === 'Other' ? rawModel : '',
+    length: String(features.length_m ?? ''), width: String(features.width_m ?? ''), height: String(features.height_m ?? ''),
     capacity: vehicle.capacity_kg ? `${Number(vehicle.capacity_kg) / 1000} t` : base.capacity,
     volume: vehicle.capacity_m3 ? `${vehicle.capacity_m3} m3` : base.volume,
     configuration: String(features.configuration || base.configuration),
@@ -286,6 +292,7 @@ type RegisterVehicleModalProps = {
 
 export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUserId, assignedDriverUserId, companyId, depotId, initialVehicle }: RegisterVehicleModalProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
+  const t = fleetCopy(lang);
   const [selectedDepot,setSelectedDepot]=useState(depotId?String(depotId):'');
   const [allowedDepots,setAllowedDepots]=useState<Array<{id:number;name:string;code:string;active:boolean}>>([]);
   useEffect(()=>{if(!open||!companyId)return;let live=true;setSelectedDepot(depotId?String(depotId):'');api.fleetOperations.get(companyId,'context').then(r=>{if(live)setAllowedDepots(r.data.depot_records||[]);}).catch(()=>{});return()=>{live=false;};},[open,companyId,depotId]);
@@ -382,16 +389,17 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
 
   // Both former spec/naming screens now live on one "Details" step, so its gate is the union of
   // what those screens each used to require.
+  const dimensionsValid = [draft.length,draft.width,draft.height].every(v=>!v||(Number.isFinite(Number(v))&&Number(v)>0&&Number(v)<=1000));
   const canContinue =
     (step === 0 &&
       Boolean(draft.transportType && draft.category && draft.bodyType) &&
       Boolean(draft.make && (draft.model || draft.customModel) && draft.capacity && draft.fuelType) &&
-      Boolean(draft.systemName && draft.plate) &&
+      Boolean(draft.systemName && draft.plate) && dimensionsValid &&
       trailerSlots.every((slot) => draft[slot.nameKey] && draft[slot.plateKey] && draft[slot.bodyTypeKey])) ||
     (step === 1 && requiredDocumentTypes.every(hasDocument));
 
   const submitVehicle = async () => {
-    if (saving) return;
+    if (saving || !dimensionsValid) return;
     const displayModel = draft.model === 'Other' ? draft.customModel : `${draft.make} ${draft.model}`.trim();
     const confirmed = await confirmAction({
       title: isEditing ? u('fleet.confirmEditTitle', 'Save vehicle changes?') : u('fleet.confirmAddTitle', 'Add this vehicle?'),
@@ -416,7 +424,7 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
         capacity_kg: Number.parseFloat(draft.capacity.replace(/[^0-9.]/g, '')) * 1000 || null,
         capacity_m3: Number.parseFloat(draft.volume.replace(/[^0-9.]/g, '')) || null,
         ownership_type: draft.ownershipType,
-        features: { vehicle_class: draft.transportType, system_name: draft.systemName, body_type: draft.bodyType, configuration: draft.configuration, fuel_type: draft.fuelType, trailer: trailerLabel, trailer_system_name: draft.trailerSystemName || null, trailer2_system_name: trailerCount > 1 ? draft.trailer2SystemName : null, trailer2_plate: trailerCount > 1 ? draft.trailer2Plate : null, trailer2_body_type: trailerCount > 1 ? draft.trailer2BodyType : null, tail_lift: draft.tailLift === 'Yes', next_service: draft.nextService || null, adr_applicable: adrApplicable },
+        features: { length_m: draft.length ? Number(draft.length) : null, width_m: draft.width ? Number(draft.width) : null, height_m: draft.height ? Number(draft.height) : null, vehicle_class: draft.transportType, system_name: draft.systemName, body_type: draft.bodyType, configuration: draft.configuration, fuel_type: draft.fuelType, trailer: trailerLabel, trailer_system_name: draft.trailerSystemName || null, trailer2_system_name: trailerCount > 1 ? draft.trailer2SystemName : null, trailer2_plate: trailerCount > 1 ? draft.trailer2Plate : null, trailer2_body_type: trailerCount > 1 ? draft.trailer2BodyType : null, tail_lift: draft.tailLift === 'Yes', next_service: draft.nextService || null, adr_applicable: adrApplicable },
         owner_user_id: ownerUserId,
         assigned_driver_user_id: assignedDriverUserId,
         company_id: companyId,
@@ -660,6 +668,7 @@ export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUser
                           <Gauge className="h-4 w-4" />
                           <p className="text-xs font-black uppercase tracking-wider">{u('fleet.specsBlock', 'Specifications')}</p>
                         </div>
+                        <div className="grid grid-cols-3 gap-3">{([['length','Dužina'],['width','Širina'],['height','Visina']] as const).map(([key,label])=><label className="space-y-1" key={key}><FieldLabel>{`${t(label)} (m)`}</FieldLabel><Input type="number" min="0.1" max="1000" step="0.01" value={draft[key]} onChange={e=>setDraftField(key,e.target.value)} placeholder="—"/></label>)}</div><p className="text-[10px] text-slate-400">{t('Vanjske dimenzije vozila su opcionalne i određuju proporcije 3D prikaza.')}</p>
                         <div className="grid gap-3 sm:grid-cols-2">
                           <div className="space-y-1">
                             <FieldLabel>{u('fleet.capacity', 'Capacity')}</FieldLabel>
