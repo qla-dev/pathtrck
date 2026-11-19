@@ -204,12 +204,12 @@ const STEP_AI_FIELDS: Record<StepId, Array<keyof ScanFieldPatch & keyof LoadDraf
 };
 
 
-export const PostLoadModal = ({ isOpen, onClose, lang, opsCompanyId, editLoadId = null, onSaved, initialPrefill = null, lockedTransportType = null, onOpenLenaAI, sourceConversationId = null, initialDraftId = null, onDraftConversationCreated, crmDocumentId = null }: PostLoadModalProps) => {
+export const PostLoadModal = ({ isOpen, onClose, lang, opsCompanyId, editLoadId = null, onSaved, initialPrefill = null, lockedTransportType = null, onOpenLenaAI, sourceConversationId = null, initialDraftId = null, onDraftConversationCreated, crmDocumentId = null, crmQuoteVersionId = null, crmCompanyId = null }: PostLoadModalProps) => {
   const [opsKind,setOpsKind]=useState('order');
   const opsLabel=opsKind==='inquiry' ? (lang==='de'?'Anfrage speichern':['bs','hr','sr'].includes(lang)?'Sačuvaj upit':'Save inquiry') : (lang==='de'?'Auftrag erstellen':['bs','hr','sr'].includes(lang)?'Kreiraj nalog':'Create order');
   // A load opened from a CRM offer keeps that link, so the CRM stage can follow the shipment and its work order.
   const publishedLoadId = useRef<string | number | null>(null);
-  const crmLink = crmDocumentId && !editLoadId ? { crm_document_id: crmDocumentId } : {};
+  const crmLink = crmDocumentId && !editLoadId ? { crm_document_id: crmDocumentId, crm_quote_version_id: crmQuoteVersionId, ...(crmCompanyId?{company_id:crmCompanyId}:{}) } : {};
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const transportOptions = [
     {
@@ -1452,7 +1452,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, opsCompanyId, editLoadId 
                 </p>
               </div>
             </div>
-            {opsCompanyId&&<select aria-label={['bs','hr','sr'].includes(lang)?'Vrsta zapisa':'Record type'} value={opsKind} onChange={e=>setOpsKind(e.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-900"><option value="order">{lang==='de'?'Auftrag':['bs','hr','sr'].includes(lang)?'Potvrđeni nalog':'Confirmed order'}</option><option value="inquiry">{lang==='de'?'Anfrage':['bs','hr','sr'].includes(lang)?'Upit':'Inquiry'}</option></select>}
+            {crmDocumentId&&<span className="rounded-xl bg-primary/10 px-3 py-2 text-xs text-primary">CRM #{crmDocumentId} · Company #{crmCompanyId}{crmQuoteVersionId?` · Quote #${crmQuoteVersionId}`:null}</span>}{opsCompanyId&&<select aria-label={['bs','hr','sr'].includes(lang)?'Vrsta zapisa':'Record type'} value={opsKind} onChange={e=>setOpsKind(e.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-900"><option value="order">{lang==='de'?'Auftrag':['bs','hr','sr'].includes(lang)?'Potvrđeni nalog':'Confirmed order'}</option><option value="inquiry">{lang==='de'?'Anfrage':['bs','hr','sr'].includes(lang)?'Upit':'Inquiry'}</option></select>}
             <div className="hidden xl:flex shrink-0 items-center gap-3 text-slate-500">
               <div className="inline-flex items-center gap-2 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs font-bold">
                 {step === 'route' && <MapPin className="w-4 h-4 text-primary" />}

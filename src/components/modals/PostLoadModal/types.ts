@@ -39,6 +39,8 @@ export type PostLoadModalProps = {
   initialPrefill?: ScanFieldPatch | null;
   /** CRM offer/order this load is created from (crm_documents.id); sent only on create. */
   crmDocumentId?: number | null;
+  crmQuoteVersionId?: number | null;
+  crmCompanyId?: number | null;
   /**
    * Opens the form already set to one transport type and hides the picker for it.
    *

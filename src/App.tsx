@@ -5566,6 +5566,8 @@ export default function App() {
   const [isPostLoadOpen, setIsPostLoadOpen] = useState(false);
   // CRM offer that opened the Post load form; the created load keeps the link (crm_document_id).
   const [crmLoadDocumentId, setCrmLoadDocumentId] = useState<number | null>(null);
+  const [crmQuoteVersionId,setCrmQuoteVersionId]=useState<number|null>(null);
+  const [crmCompanyId,setCrmCompanyId]=useState<number|null>(null);
   useEffect(() => { if (!isPostLoadOpen) setCrmLoadDocumentId(null); }, [isPostLoadOpen]);
   // Set when the form is opened for one kind of request only - a warehouse receiving goods can
   // only be filing a storage request, so it never sees the transport-type picker.
@@ -7601,6 +7603,8 @@ export default function App() {
                 setLenaSourceDraftId(null);
                 setEditLoadId(null);
                 setCrmLoadDocumentId(Number(doc.id));
+                setCrmQuoteVersionId(doc.crm_quote_version_id?Number(doc.crm_quote_version_id):null);
+                setCrmCompanyId(Number(doc.company_id));
                 setIsPostLoadOpen(true);
               }} />}
               {view === "ops" && <OpsView key={opsTarget?.nonce||0} lang={lang} initialWorkspaceId={opsTarget?.workspace} initialSection={opsTarget?.section} onOpenShipment={id=>{setOpenLoadDetailsId(id);setOpenLoadDetailsTab('tracker');}} onOpenCrm={(company,id)=>{setCrmTarget({company,id});setView('crm');}} />}
@@ -7806,6 +7810,8 @@ export default function App() {
           editLoadId={editLoadId}
           initialPrefill={lenaLoadPrefill}
           crmDocumentId={crmLoadDocumentId}
+          crmQuoteVersionId={crmQuoteVersionId}
+          crmCompanyId={crmCompanyId}
           sourceConversationId={lenaSourceConversationId}
           initialDraftId={lenaSourceDraftId}
           onDraftConversationCreated={(conversationId) => {

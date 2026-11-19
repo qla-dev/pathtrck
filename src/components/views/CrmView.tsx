@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BellRing, Building2, CalendarClock, CheckCheck, Handshake, Link2, Plus, RefreshCw, Target, TrendingUp, Trophy, Truck, UserRound } from 'lucide-react';
 
 import type { Language } from '../../types';
@@ -16,6 +16,7 @@ import { Tabs } from '../ui/Tabs';
 import { Label, TextField } from '../modals/AddWarehouseModal/fields';
 import { money, type Row, shortDate, today, useAccounting } from './accounting/shared';
 import { CrmLinesEditor, crmLinesPayload } from './CrmLinesEditor';
+import {CrmLogisticsPanel} from './CrmLogisticsPanel';
 
 // CRM = offers and orders. PANTHEON documents are read-only (pulled through the PANTHEON connector);
 // leads, follow-ups, owners and lost reasons live only in SmartFreight.
@@ -36,6 +37,8 @@ export function CrmView({ lang, onSendToTracking,initialDocumentId,initialCompan
   const [detail, setDetail] = useState<Row | null>(null); const [lead, setLead] = useState<Row | null>(null);
   const [syncResult, setSyncResult] = useState<Row | null>(null);
   const allowed = can('crm');
+  const currentCompany=useRef(company);currentCompany.current=company;
+  useEffect(()=>{setDetail(null);setLead(null);setReport(null);},[company]);
   const query = useMemo(() => new URLSearchParams(Object.entries(filters).filter(([, v]) => v).map(([k, v]) => [k, String(v)])).toString(), [filters]);
   const load = useCallback(async () => {
     if (!company || !allowed) return;
@@ -45,7 +48,7 @@ export function CrmView({ lang, onSendToTracking,initialDocumentId,initialCompan
   useEffect(() => { if (tab === 'crm_report' && company && allowed) api.accounting.get<Row>(company, `crm/report?from=${filters.from}&to=${filters.to}`).then(r => setReport(r.data)).catch(fail); }, [tab, company, allowed, filters.from, filters.to, fail]);
   const run = async (fn: () => Promise<unknown>) => { if (busy) return false; setBusy(true); setError(''); try { await fn(); await load(); return true; } catch (e) { setError(e instanceof Error ? e.message : String(e)); return false; } finally { setBusy(false); } };
   const send = (path: string, payload: unknown, method = 'POST') => api.accounting.send<Row>(company, path, payload, method);
-  const openDetail = (doc: Row) => void api.accounting.get<Row>(company, `crm/documents/${doc.id}`).then(r => setDetail(r.data)).catch(e => setError(e instanceof Error ? e.message : String(e)));
+  const openDetail = (doc: Row) => void api.accounting.get<Row>(company, `crm/documents/${doc.id}`).then(r => {if(currentCompany.current===company)setDetail(r.data);}).catch(e => {if(currentCompany.current===company)setError(e instanceof Error ? e.message : String(e));});
   useEffect(()=>{if(initialCompanyId&&companies.some(c=>Number(c.id)===initialCompanyId)&&company!==initialCompanyId)setCompany(initialCompanyId);},[initialCompanyId,companies,company]);
   useEffect(()=>{if(initialDocumentId&&company&&allowed&&(!initialCompanyId||company===initialCompanyId))void api.accounting.get<Row>(company,`crm/documents/${initialDocumentId}`).then(r=>setDetail(r.data)).catch(fail);},[initialDocumentId,initialCompanyId,company,allowed]);
   const documents: Row[] = data?.documents ?? [];
@@ -101,7 +104,7 @@ export function CrmView({ lang, onSendToTracking,initialDocumentId,initialCompan
             {documents.filter(d => d.stage === stage).slice(0, 25).map(d => <button key={d.id} type="button" onClick={() => openDetail(d)} className="block w-full cursor-pointer rounded-xl border border-slate-200 p-2.5 text-left transition hover:border-primary dark:border-slate-700">
               <p className="truncate text-sm font-semibold">{d.customer_name}</p>
               <p className="truncate text-xs text-slate-500">{d.number || d.title || '—'} · {shortDate(d.issued_on)}</p>
-              <p className="mt-1 text-xs font-bold">{money(d.total_amount, d.currency)}</p>
+              <p className="mt-1 text-xs font-bold">{money(d.total_amount, d.currency)}</p>{d.accepted_customer_quote&&<p className="mt-1 text-xs font-semibold text-primary">{['bs','hr','sr'].includes(lang)?'Prihvaćena ponuda bez PDV-a':'Accepted quote excluding VAT'} V{d.accepted_customer_quote.version}: {money(d.accepted_customer_quote.sales_total,d.accepted_customer_quote.currency)}</p>}
               {d.next_follow_up_on && <p className={`mt-1 inline-flex items-center gap-1 text-[11px] ${String(d.next_follow_up_on) <= today() ? 'font-bold text-rose-600' : 'text-slate-500'}`}><CalendarClock className="h-3 w-3" />{shortDate(d.next_follow_up_on)}</p>}
             </button>)}
             {!documents.some(d => d.stage === stage) && <p className="py-4 text-center text-xs text-slate-400">{t('empty')}</p>}
@@ -148,8 +151,8 @@ export function CrmView({ lang, onSendToTracking,initialDocumentId,initialCompan
         ]} /></Card>}
       </>}
 
-    {detail && <CrmDetail t={t} company={company} detail={detail} members={members} busy={busy} onClose={() => setDetail(null)}
-      onSendToTracking={onSendToTracking ? () => { onSendToTracking(detail.document); setDetail(null); } : undefined}
+    {detail && <CrmDetail lang={lang} t={t} company={company} detail={detail} members={members} busy={busy} onClose={() => setDetail(null)} onRefresh={()=>openDetail(detail.document)}
+      onSendToTracking={onSendToTracking ? (payload?:Row) => { onSendToTracking(payload||detail.document); setDetail(null); } : undefined}
       onUpdate={payload => void run(async () => { await send(`crm/documents/${detail.document.id}`, payload, 'PATCH'); setDetail((await api.accounting.get<Row>(company, `crm/documents/${detail.document.id}`)).data); })}
       onFollowUp={payload => void run(async () => { await send('crm/follow-ups', { ...payload, crm_document_id: detail.document.id, partner_id: detail.document.partner_id }); setDetail((await api.accounting.get<Row>(company, `crm/documents/${detail.document.id}`)).data); })} />}
 
@@ -175,9 +178,9 @@ export function CrmView({ lang, onSendToTracking,initialDocumentId,initialCompan
   </div>;
 }
 
-function CrmDetail({ t, company, detail, members, busy, onClose, onUpdate, onFollowUp, onSendToTracking }: { t: (k: string) => string; company: number; detail: Row; members: Row[]; busy: boolean; onClose: () => void; onUpdate: (payload: Row) => void; onFollowUp: (payload: Row) => void; onSendToTracking?: () => void }) {
+function CrmDetail({ lang,t, company, detail, members, busy, onClose,onRefresh, onUpdate, onFollowUp, onSendToTracking }: {lang:Language;onRefresh:()=>void; t: (k: string) => string; company: number; detail: Row; members: Row[]; busy: boolean; onClose: () => void; onUpdate: (payload: Row) => void; onFollowUp: (payload: Row) => void; onSendToTracking?: (payload?:Row) => void }) {
   const d = detail.document;
-  const [section, setSection] = useState<string>('items');
+  const [section, setSection] = useState<string>(d.source==='smartfreight'?'logistics':'items');
   const [lost, setLost] = useState(d.lost_reason ?? ''); const [followUp, setFollowUp] = useState<Row>({ due_on: today(), note: '' });
   const pantheon = d.source === 'pantheon';
   const [lines, setLines] = useState<Row[] | null>(null);
@@ -189,7 +192,7 @@ function CrmDetail({ t, company, detail, members, busy, onClose, onUpdate, onFol
           ? <StatusBadge tone={Number(d.pantheon_revision ?? 0) >= Number(d.revision ?? 1) ? 'ok' : 'warn'}>PANTHEON {d.pantheon_key}</StatusBadge>
           : <StatusBadge tone="muted">{t('crm_pantheon_pending')}</StatusBadge>)}
         {d.load_id ? <StatusBadge tone="info" icon={Truck}>{t('crm_in_tracking')}</StatusBadge>
-          : onSendToTracking && ['lead', 'offer', 'order'].includes(d.stage) && <Button size="sm" className="ml-auto gap-1.5" disabled={busy} onClick={onSendToTracking}><Truck className="h-4 w-4" />{t('crm_send_to_tracking')}</Button>}</div>
+          : onSendToTracking && !d.logistics_case_id && ['lead', 'offer', 'order'].includes(d.stage) && <Button size="sm" className="ml-auto gap-1.5" disabled={busy} onClick={()=>onSendToTracking()}><Truck className="h-4 w-4" />{t('crm_send_to_tracking')}</Button>}</div>
       <div className="grid gap-3 text-sm sm:grid-cols-4">
         {[['crm_title', d.title], ['crm_contact', d.contact_name], ['crm_valid_until', shortDate(d.valid_until)], ['crm_delivery_deadline', shortDate(d.delivery_deadline)], ['crm_net', money(d.net_amount, d.currency)], ['crm_vat', money(d.vat_amount, d.currency)], ['total', money(d.total_amount, d.currency)],
           ['crm_delivered_qty', Number(d.ordered_quantity) > 0 ? `${Number(d.delivered_quantity)} / ${Number(d.ordered_quantity)}` : '—']].map(([k, v]) => <div key={k}><p className="text-xs text-slate-500">{t(String(k))}</p><p className="font-medium">{v || '—'}</p></div>)}
@@ -202,8 +205,9 @@ function CrmDetail({ t, company, detail, members, busy, onClose, onUpdate, onFol
         {d.stage === 'lost' && <div className="sm:col-span-2"><p className="text-xs text-slate-500">{t('crm_lost_reason')}</p><p className="text-sm">{d.lost_reason}</p><Button size="sm" variant="outline" className="mt-2" disabled={busy} onClick={() => onUpdate({ stage: pantheon ? 'offer' : 'lead' })}>{t('crm_reopen')}</Button></div>}
         {!pantheon && !['lost'].includes(d.stage) && <div className="flex flex-wrap gap-2 sm:col-span-3">{['lead', 'offer', 'order', 'closed'].filter(s => s !== d.stage).map(s => <Button key={s} size="sm" variant="outline" disabled={busy} onClick={() => onUpdate({ stage: s })}>{t(`stage_${s}`)}</Button>)}</div>}
       </Card>
-      <Tabs label={t('crm')} value={section} onChange={setSection} items={[{ value: 'items', label: t('crm_items'), count: detail.items.length }, { value: 'linked', label: t('crm_linked'), count: d.linked_documents.length },
+      <Tabs label={t('crm')} value={section} onChange={setSection} items={[...(!pantheon?[{value:'logistics',label:['bs','hr','sr'].includes(lang)?'Logistički upit i ponude':'Logistics inquiry and quotes'}]:[]),{ value: 'items', label: t('crm_items'), count: detail.items.length }, { value: 'linked', label: t('crm_linked'), count: d.linked_documents.length },
         { value: 'contacts', label: t('crm_contacts'), count: detail.contacts.length }, { value: 'follow_ups', label: t('crm_follow_ups'), count: detail.follow_ups.length }]} />
+      {section==='logistics'&&!pantheon&&<CrmLogisticsPanel key={d.id} company={company} document={d} lang={lang} onChanged={onRefresh} onConvert={onSendToTracking}/>}
       {section === 'items' && linesEditable && (lines
         ? <div className="space-y-2"><CrmLinesEditor t={t} company={company} lines={lines} currency={d.currency} onChange={setLines} />
           <div className="flex gap-2"><Button size="sm" disabled={busy} onClick={() => { onUpdate({ items: crmLinesPayload(lines) }); setLines(null); }}>{t('save')}</Button><Button size="sm" variant="ghost" onClick={() => setLines(null)}>{t('close')}</Button></div></div>

@@ -99,6 +99,7 @@ export const VehicleReturnModal = ({ open, loadId, companyId, drivers = [], depo
   const t = fleetCopy(lang);
   const text = companyId ? { ...COPY[locale(lang)], title:t('Primopredaja vozila'), subtitle:t('Evidentirajte trenutno stanje vozila.'), photos:t('Fotografije vozila'), photoTitle:t('Fotografišite vozilo pri primopredaji'), photoHelp:t('Najmanje tri nove fotografije: prednja, zadnja i bočna strana. Do 10 fotografija, po 12 MB.'), ready:t('Provjerite i sačuvajte zapisnik'), readyText:t('Zapisnik se šalje na kontrolu. Primopredaja ne završava turu.'), noHistory:t('Nema prethodnih primopredaja.'), submit:t('Sačuvaj primopredaju'),close:t('Zatvori') } : COPY[locale(lang)];
   const dialogId = useId(), dialogRef = useRef<HTMLDivElement>(null), submittingRef = useRef(false), mileageTouched = useRef(false);
+  const requestKey=useRef(crypto.randomUUID());
   const [destination,setDestination]=useState('driver');
   const [toDriver,setToDriver]=useState('');
   const [depot,setDepot]=useState('');
@@ -140,6 +141,7 @@ export const VehicleReturnModal = ({ open, loadId, companyId, drivers = [], depo
 
   useEffect(()=>{
     if(!open)return;
+    requestKey.current=crypto.randomUUID();
     photosRef.current.forEach(photo=>URL.revokeObjectURL(photo.url));photosRef.current=[];setPhotos([]);
     setMileage('');mileageTouched.current=false;setFuelLevel(50);setFuelConfirmed(false);setHasDamage(false);setDamageConfirmed(false);setDamageNotes('');setParkingLocation('');setParkingPoint(null);setMapOpen(false);
     setDestination('driver');setToDriver('');setDepot(initialVehicle?.depot_id?String(initialVehicle.depot_id):'');setVehiclePreview(initialVehicle||null);setSaved(false);setHistory([]);setHistoryError(false);submittingRef.current=false;
@@ -260,6 +262,7 @@ export const VehicleReturnModal = ({ open, loadId, companyId, drivers = [], depo
     try {
       if(companyId){
         const form=new FormData();
+        form.append('request_key',requestKey.current);
         Object.entries({vehicle_id:String(vehicleId),destination,to_driver_id:destination==='driver'?toDriver:'',depot_id:depot,depot_name:depotChoices.find(d=>String(d.id)===depot)?.name||'',mileage_km:mileage,fuel_level_percent:String(fuelLevel),has_damage:hasDamage?'1':'0',notes:hasDamage?damageNotes.trim():''}).forEach(([k,v])=>form.append(k,v));
         photos.forEach(p=>form.append('photos[]',p.file));
         await api.fleetOperations.send(companyId,'handovers',form);

@@ -1,4 +1,5 @@
 export const handoverEn: Record<string,string> = {
+ 'Rokovi i provjere':'Deadlines and reviews',
  'Opcionalno':'Optional',
  'Izaberi drugo vozilo':'Choose another vehicle','Vozača zadužite na vučno vozilo, ne na prikolicu.':'Assign the driver to the towing vehicle, not the trailer.',
  'Odaberite Nastavi za unos stanja vozila.':'Continue to record the vehicle condition.',
@@ -31,6 +32,7 @@ export const handoverEn: Record<string,string> = {
  'Osvježi pregled':'Refresh overview',
 };
 export const handoverDe: Record<string,string> = {
+ 'Rokovi i provjere':'Fristen und Prüfungen',
  'Opcionalno':'Optional',
  'Izaberi drugo vozilo':'Anderes Fahrzeug wählen','Vozača zadužite na vučno vozilo, ne na prikolicu.':'Fahrer dem Zugfahrzeug zuweisen, nicht dem Anhänger.',
  'Odaberite Nastavi za unos stanja vozila.':'Weiter zur Erfassung des Fahrzeugzustands.',
