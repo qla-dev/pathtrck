@@ -84,10 +84,3 @@ export function OperationalCompliancePanel({ company, order, members = [], readO
     <details className="text-xs text-slate-500"><summary>{t("Historija aktivnosti")}</summary>{data.audit.map((x: Row) => <p key={x.id}>{x.created_at} · {x.entity} #{x.entity_id} · {x.action} {t("· korisnik #")}{x.actor_id}</p>)}</details>
   </section>;
 }
-
-export function OperationsToday({ company, onOpen }: { company: number; onOpen: (id: number) => void }) {
-  const {t,taskLabel}=useOpsCopy();
-  const [rows, setRows] = useState<Row[]>([]), [error, setError] = useState('');
-  useEffect(() => { setRows([]); setError(''); void api.accounting.get<Row[]>(company, 'ops/today').then(r => setRows(r.data)).catch(e => setError(e.message)); }, [company]);
-  return <section className="space-y-3"><h3 className="font-bold">{t("Danas — rokovi i blokade")}</h3>{error && <Notice tone="bad">{error}</Notice>}{!error && !rows.length && <p>{t("Nema današnjih rokova ili blokada.")}</p>}{rows.map((r, i) => <button className="block w-full rounded-xl border border-slate-200 p-3 text-left dark:border-slate-700" key={`${r.kind}-${r.order_id}-${i}`} onClick={() => onOpen(r.order_id)}><strong>{r.reference}</strong><p>{taskLabel(r.item) || t(controls[r.item.control_type])} · {r.item.next_action || r.item.exception_reason || t("Provjeriti stavku")}</p><small>{t("Rok:")}{r.item.due_date || r.item.due_at || '—'} {t("· Odgovoran #")}{r.item.responsible_user_id || t("nije dodijeljen")}</small></button>)}</section>;
-}
