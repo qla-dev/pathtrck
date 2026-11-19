@@ -410,7 +410,7 @@ export const API_BASE_URL = String(import.meta.env.VITE_API_URL || API_BACKENDS[
 const TOKEN_STORAGE_KEY = 'freightbook_api_token';
 
 export class ApiError extends Error {
-  constructor(message: string, public readonly status: number, public readonly errors: Record<string, string[]> = {}) {
+  constructor(message: string, public readonly status: number, public readonly errors: Record<string, string[]> = {}, public readonly code?: string) {
     super(message);
   }
 }
@@ -435,7 +435,11 @@ const makeRequest = (sessionToken?: string) => async <T>(path: string, options: 
   const payload = await response.json().catch(() => null) as ApiEnvelope<T> | null;
   if (!response.ok || !payload) {
     if (response.status === 401 && sessionToken === undefined) setToken(null);
-    throw new ApiError(payload?.message || `API request failed (${response.status}).`, response.status, payload?.errors || {});
+    const code = (payload as (ApiEnvelope<T> & {code?: string}) | null)?.code;
+    const message = response.status >= 500
+      ? code === 'DATABASE_BUSY' ? 'The database is busy. Please try again shortly.' : 'The service is temporarily unavailable. Please try again.'
+      : payload?.message || `API request failed (${response.status}).`;
+    throw new ApiError(message, response.status, payload?.errors || {}, code);
   }
   return payload;
 };
@@ -622,7 +626,7 @@ export const createApiClient = (sessionToken?: string) => {
   fleetOperations: {
     notifications: () => request<Array<Record<string,any>>>('/fleet-operations/notifications'),
     companies: () => request<Array<{id:number;name:string}>>('/fleet-operations/companies'),
-    get: <T = Record<string, any>>(company:number, path:string) => request<T>(`/fleet-operations/${company}/${path}`),
+    get: <T = Record<string, any>>(company:number, path:string, options:RequestInit = {}) => request<T>(`/fleet-operations/${company}/${path}`, options),
     send: <T = Record<string, any>>(company:number, path:string, body:unknown, method='POST') => request<T>(`/fleet-operations/${company}/${path}`, {method,body:body instanceof FormData?body:JSON.stringify(body)}),
     file: (company:number,id:number) => fetchAuthenticatedBlob(`/fleet-operations/${company}/files/${id}`),
   },

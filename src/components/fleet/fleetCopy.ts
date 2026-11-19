@@ -1,6 +1,10 @@
 import type { Language } from '../../types';
 
 const en: Record<string,string> = {
+ 'Komandni centar vozila':'Vehicle command centre','Pregled vozila':'Vehicle overview','Generički prikaz':'Generic illustration','Generički prikaz vozila':'Generic vehicle illustration','Karoserija nije navedena':'Body type not specified',
+ 'Trenutni status':'Current status','Kontrola primopredaje':'Handover review','Nema otvorenih kontrola':'No pending reviews','Vozilo je blokirano za vožnju.':'Vehicle dispatch is blocked.','Arhivirano vozilo':'Archived vehicle',
+ 'Zaduženi vozač':'Assigned driver','Bez dodijeljenog vozača':'No driver assigned','Današnje ture':'Today’s tours','Nema aktivnih tura danas.':'No active tours today.','Gorivo pri primopredaji':'Fuel at handover','Posljednja primopredaja':'Last handover','Otvoreni predmeti štete':'Open damage cases','Nije evidentirano':'Not recorded','Nosivost / zapremina':'Payload / volume',
+ 'Baza je trenutno zauzeta. Pokušajte ponovo za nekoliko trenutaka.':'The database is busy. Please try again shortly.','Usluga je trenutno nedostupna. Pokušajte ponovo.':'The service is temporarily unavailable. Please try again.','Prikazani su prethodno učitani podaci.':'Previously loaded data is shown.',
  'Uredi servis':'Edit service','Upravitelj flote':'Fleet manager','Upravitelj depoa':'Depot manager','Disponent':'Dispatcher','Radionica':'Workshop',
  'Globalna flota':'Global fleet','Moja flota':'My fleet','Vozila, depoi, zaduženja i stanje flote':'Vehicles, depots, assignments and fleet status',
  'Dokumenti i statistika':'Documents and statistics','Pregled flote':'Fleet overview','Dodaj vozilo':'Add vehicle','Aktivni depoi':'Active depots','Svi dozvoljeni depoi':'All permitted depots',

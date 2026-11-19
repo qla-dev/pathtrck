@@ -15,6 +15,7 @@ import { AddressAutocompleteField } from '../modals/PostLoadModal/AddressAutocom
 import { AddressMapModal } from '../maps/AddressMapModal';
 import { reverseLocation, type LocationSearchResult } from '../../services/locationSearch';
 import { fleetCopy, fleetField } from '../fleet/fleetCopy';
+import { VehicleIllustration } from '../fleet/VehicleIllustration';
 
 const COPY = {
   en: {
@@ -98,7 +99,8 @@ export const VehicleReturnModal = ({ open, loadId, companyId, drivers = [], depo
   const [depotChoices,setDepotChoices]=useState(depots);
   const [rental,setRental]=useState(false);
   const [allowReturn,setAllowReturn]=useState(false);
-  useEffect(()=>{if(!open||!companyId)return;let live=true;api.fleetOperations.get(companyId,'context').then(r=>{if(live){setDepotChoices(r.data.depot_records||[]);const v=r.data.vehicles?.find((v:Record<string,any>)=>Number(v.id)===vehicleId);setDepot(v?.depot_id?String(v.depot_id):'');setRental(v?.ownership_type==='rented');setAllowReturn(r.data.role!=='driver');}}).catch(()=>setDepotChoices(depots));return()=>{live=false;};},[open,companyId,vehicleId]);
+  const [vehiclePreview,setVehiclePreview]=useState<Record<string,any>|null>(null);
+  useEffect(()=>{if(!open||!companyId)return;let live=true;api.fleetOperations.get(companyId,'context').then(r=>{if(live){setDepotChoices(r.data.depot_records||[]);const v=r.data.vehicles?.find((v:Record<string,any>)=>Number(v.id)===vehicleId);setDepot(v?.depot_id?String(v.depot_id):'');setVehiclePreview(v||null);setRental(v?.ownership_type==='rented');setAllowReturn(r.data.role!=='driver');}}).catch(()=>setDepotChoices(depots));return()=>{live=false;};},[open,companyId,vehicleId]);
   const [fleetMileage,setFleetMileage]=useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const photosRef = useRef<Array<{ file: File; url: string }>>([]);
@@ -266,7 +268,7 @@ export const VehicleReturnModal = ({ open, loadId, companyId, drivers = [], depo
 
             <div className="grid min-h-0 flex-1 lg:grid-cols-[280px_minmax(0,1fr)]">
               <aside className="hidden min-h-0 overflow-y-auto border-r border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 lg:block">
-                <h3 className={CARD_TITLE}><History className="h-4 w-4 text-primary" />{text.history}</h3>
+                {companyId&&<div className="mb-5 space-y-4">{vehiclePreview&&<div className="rounded-xl border border-slate-200 bg-sky-50/50 px-3 dark:border-slate-800 dark:bg-sky-950/20"><VehicleIllustration vehicle={vehiclePreview} label={t('Generički prikaz vozila')}/><p className="pb-3 text-center text-xs font-bold">{vehicleName}</p></div>}<ol className="space-y-2" aria-label={t('Primopredaja vozila')}>{steps.map((label,index)=><li key={label} aria-current={index===step?'step':undefined} className={cn('flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-semibold',index===step?'bg-primary/10 text-primary':'text-slate-500')}><span className={cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-full',index===step?'bg-primary text-white':index<step?'bg-emerald-100 text-emerald-700':'bg-slate-100 dark:bg-slate-800')}>{index<step?<Check className="h-3 w-3"/>:index+1}</span>{label}</li>)}</ol></div>}<h3 className={CARD_TITLE}><History className="h-4 w-4 text-primary" />{text.history}</h3>
                 <div className="mt-3 space-y-2">
                   {historyLoading && [0, 1, 2].map((item) => <div key={item} className="h-20 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" />)}
                   {!historyLoading && history.length === 0 && <p className="rounded-xl border border-dashed border-slate-200 p-4 text-center text-xs text-slate-400 dark:border-slate-700">{text.noHistory}</p>}
