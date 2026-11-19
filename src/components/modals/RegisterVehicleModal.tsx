@@ -1,979 +1,107 @@
-import { Fragment, useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { AnimatePresence, motion } from 'motion/react';
-import { ArrowUpFromLine, BadgeDollarSign, Boxes, Building2, Bus, CalendarClock, Caravan, CarFront, CheckCircle2, CircleEllipsis, CirclePause, ClipboardList, FileText, Fuel, Gauge, KeyRound, Landmark, Layers, Network, PackageOpen, Plane, Ship, Truck, Upload, Wrench, X } from 'lucide-react';
-import { Language } from '../../types';
-import { trFuelType, trVehicleStatus, ui } from '../../i18n';
-import { cn } from '../../lib/cn';
-import { confirmAction, showError, showSuccess } from '../../lib/swal';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { ClipboardList, FileText, Plane, Ship, Truck } from 'lucide-react';
+import type { Language } from '../../types';
 import { api, ApiError } from '../../services/api';
+import { Dialog } from '../ui/Dialog';
 import { Button } from '../ui/Button';
-import { IconSelect } from '../ui/IconSelect';
-import { ChoiceCard } from './PostLoadModal/ChoiceCard';
-import { FieldLabel } from './PostLoadModal/FieldLabel';
-import { Input } from './PostLoadModal/FormFields';
-import { fleetCopy } from '../fleet/fleetCopy';
+import { Notice } from '../ui/Notice';
+import { fleetCopy, fleetField } from '../fleet/fleetCopy';
+import { BODIES, RESOURCES, bodyOptions, categoryForMass, guidanceDocuments, numericFeatures, parseRegistryNumber, registryFeatures, registryLabel } from '../fleet/vehicleRegistry';
 
-type TransportType = 'truck' | 'van' | 'aircraft' | 'ship';
-type VehicleOwnership = 'owned' | 'financed' | 'leasing' | 'rented' | 'other';
+type Props={open:boolean;lang:Language;onClose:()=>void;onCreated:(vehicle:Record<string,unknown>)=>void;ownerUserId?:number;assignedDriverUserId?:number;companyId?:number;depotId?:number;initialVehicle?:Record<string,any>|null};
+const DOCS=[['VEHICLE_REGISTRATION','Saobraćajna dozvola'],['TECHNICAL_INSPECTION','Tehnički pregled'],['OWNERSHIP_CERTIFICATE','Dokaz vlasništva'],['RENTAL_AGREEMENT','Ugovor o najmu'],['LEASING_AGREEMENT','Ugovor o leasingu'],['FINANCING_AGREEMENT','Ugovor o finansiranju'],['COMMUNITY_LICENCE','Licenca prijevoznika ili ovjerena kopija'],['ATP_CERTIFICATE','ATP dokaz'],['ADR_CERTIFICATE','ADR dokaz'],['OTHER_PERMIT','Druga dozvola ili dokaz']] as const;
+const VARIANTS=[['standard','Standardna izvedba'],['mega','Mega'],['high_cube','High-cube'],['double_deck','Dvije utovarne etaže'],['coil_well','Korito za kolutove']];
 
-// Trucks and vans are both road vehicles, so they share the tail lift, the ATP rule and the whole
-// road document set — only trailers stay truck-only.
-const isRoadVehicle = (type: TransportType) => type === 'truck' || type === 'van';
+export function RegisterVehicleModal(props:Props) { return props.open?<VehicleRegistration key={`${props.initialVehicle?.id||'new'}-${props.companyId||0}`} {...props}/>:null; }
 
-type VehicleDocumentType =
-  | 'VEHICLE_REGISTRATION'
-  | 'TRAILER_REGISTRATION'
-  | 'INSURANCE_POLICY'
-  | 'COMMUNITY_LICENCE'
-  | 'TECHNICAL_INSPECTION'
-  | 'ATP_CERTIFICATE'
-  | 'ADR_CERTIFICATE'
-  | 'OWNERSHIP_CERTIFICATE'
-  | 'FINANCING_AGREEMENT'
-  | 'LEASING_AGREEMENT'
-  | 'RENTAL_AGREEMENT'
-  | 'OTHER_OWNERSHIP_DOCUMENT'
-  | 'OTHER_PERMIT';
+function VehicleRegistration({lang,onClose,onCreated,ownerUserId,assignedDriverUserId,companyId,depotId,initialVehicle}:Props){
+  const t=fleetCopy(lang),v=initialVehicle||{},editing=!!initialVehicle;
+  const [mode,setMode]=useState(v.transport_type==='air'?'air':v.transport_type==='sea'?'sea':'road');
+  const [f,setF]=useState<Record<string,any>>(()=>registryFeatures(v));
+  const [identity,setIdentity]=useState({registration_number:String(v.registration_number||''),vin:String(v.vin||''),make:String(v.make||''),model:String(v.model||''),year:String(v.year||''),system_name:String(v.features?.system_name||''),ownership_type:String(v.ownership_type||'owned'),status:String(v.status||'available'),next_service:String(v.features?.next_service||''),fuel_type:String(v.features?.fuel_type||''),asset_type:String(v.vehicle_type||''),asset_body:String(v.features?.body_type||'')});
+  const [payload,setPayload]=useState(v.capacity_kg==null?'':String(v.capacity_kg)),[volume,setVolume]=useState(v.capacity_m3==null?'':String(v.capacity_m3));
+  const [depot,setDepot]=useState(String(depotId||v.depot_id||'')),[depots,setDepots]=useState<Record<string,any>[]>([]),[step,setStep]=useState(0),[busy,setBusy]=useState(false),[error,setError]=useState('');
+  const [pending,setPending]=useState<{type:string;file:File}[]>([]),[existing,setExisting]=useState<Record<string,any>[]>([]),[saved,setSaved]=useState<Record<string,any>|null>(null);
+  const savedRef=useRef<Record<string,any>|null>(null);
+  const close=()=>{if(savedRef.current)onCreated(savedRef.current);else onClose();};
+  useEffect(()=>{let live=true;if(companyId)api.fleetOperations.get(companyId,'context').then(r=>{if(live)setDepots(r.data.depot_records||[]);}).catch(()=>{});if(v.id)api.documents.list({vehicle_id:v.id}).then(r=>{if(live)setExisting(r.data);}).catch(()=>{});return()=>{live=false;};},[companyId,v.id]);
+  const road=mode==='road',trailer=road&&['semi_trailer','trailer'].includes(f.resource_type),tractor=road&&f.resource_type==='tractor_unit',tank=road&&['tanker','silo'].includes(f.body_type_code),cargo=road&&!tractor;
+  const change=(key:string,value:any)=>setF(previous=>({...previous,[key]:value}));
+  const id=(key:keyof typeof identity,value:string)=>setIdentity(previous=>({...previous,[key]:value}));
+  const field=(label:string,children:ReactNode)=> <label className="grid min-w-0 gap-1.5 text-xs font-semibold text-slate-500">{t(label)}{children}</label>;
+  const input=(key:keyof typeof identity,label:string,required=false)=>field(label,<input className={fleetField} value={identity[key]} required={required} disabled={busy||!!saved} onChange={e=>id(key,e.target.value)}/>);
+  const number=(key:string,label:string,unit:string)=>field(`${t(label)}${unit?` (${unit})`:''}`,<input className={fleetField} inputMode="decimal" placeholder="—" value={f[key]??''} disabled={busy||!!saved} onChange={e=>change(key,e.target.value)}/>);
+  const select=(key:string,label:string,options:readonly (readonly string[])[],empty=true)=>field(label,<select className={fleetField} value={f[key]||''} disabled={busy||!!saved} onChange={e=>change(key,e.target.value)}>{empty&&<option value="">{t('Nije potvrđeno')}</option>}{options.map(([value,text])=><option key={value} value={value}>{t(text)}</option>)}</select>);
+  const section=(title:string,children:ReactNode)=> <section className="space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-800"><h3 className="text-xs font-bold uppercase tracking-wide text-primary">{t(title)}</h3>{children}</section>;
+  const choices=bodyOptions(f.resource_type);
+  let suggested='';try{const mass=parseRegistryNumber(f.resource_type==='semi_trailer'?f.category_mass_kg:f.gross_weight_kg);if(mass)suggested=categoryForMass(mass,trailer);}catch{}
 
-type PendingVehicleDocuments = Partial<Record<VehicleDocumentType, File[]>>;
-
-type AddVehicleDraft = {
-  transportType: TransportType;
-  category: string;
-  bodyType: string;
-  make: string;
-  model: string;
-  customModel: string;
-  length: string;
-  width: string;
-  height: string;
-  capacity: string;
-  volume: string;
-  configuration: string;
-  fuelType: string;
-  systemName: string;
-  plate: string;
-  status: 'Active' | 'Maintenance' | 'Idle';
-  trailer: string;
-  trailerSystemName: string;
-  trailerPlate: string;
-  trailerBodyType: string;
-  trailer2SystemName: string;
-  trailer2Plate: string;
-  trailer2BodyType: string;
-  tailLift: string;
-  nextService: string;
-  ownershipType: VehicleOwnership;
-};
-
-const OWNERSHIP_DOCUMENT_TYPES: Record<VehicleOwnership, VehicleDocumentType> = {
-  owned: 'OWNERSHIP_CERTIFICATE',
-  financed: 'FINANCING_AGREEMENT',
-  leasing: 'LEASING_AGREEMENT',
-  rented: 'RENTAL_AGREEMENT',
-  other: 'OTHER_OWNERSHIP_DOCUMENT',
-};
-
-const BRAND_LOGO_SLUGS: Record<string, string> = {
-  Volvo: 'volvo',
-  Scania: 'scania',
-  MAN: 'man',
-  DAF: 'daf',
-  Iveco: 'iveco',
-  Volkswagen: 'volkswagen',
-  Ford: 'ford',
-  Renault: 'renault',
-  Fiat: 'fiat',
-  Boeing: 'boeing',
-  Airbus: 'airbus',
-  Hyundai: 'hyundai',
-  Samsung: 'samsung',
-};
-
-const BRAND_LOGO_OVERRIDES: Record<string, string> = {
-  'Mercedes-Benz': 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Mercedes-Benz_free_logo.svg',
-  Maersk: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/A.P.-M%C3%B8ller-M%C3%A6rsk-Logo.svg',
-};
-
-const brandLogoUrl = (brand: string): string | undefined => {
-  if (BRAND_LOGO_OVERRIDES[brand]) return BRAND_LOGO_OVERRIDES[brand];
-  const slug = BRAND_LOGO_SLUGS[brand];
-  return slug ? `https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/${slug}.svg` : undefined;
-};
-
-const FLEET_REGISTRY = {
-  truck: {
-    label: 'Truck',
-    icon: Truck,
-    categories: ['Light trucks (up to 3.5t)', 'Medium trucks (3.5-12t)', 'Heavy trucks (12t+)', 'Special trucks'],
-    bodyTypes: ['Box truck', 'Curtain sider', 'Refrigerated truck', 'Tanker', 'Flatbed', 'Container truck', 'Dump truck', 'Car carrier'],
-    makes: {
-      'Mercedes-Benz': ['Actros'],
-      Volvo: ['FH', 'FH16'],
-      Scania: ['R', 'S'],
-      MAN: ['TGX', 'TGS'],
-      DAF: ['XF', 'CF'],
-      Iveco: ['S-Way'],
-    },
-    specs: {
-      capacity: '3 - 40 t',
-      volume: '20 - 100 m3',
-      configurations: ['4x2', '6x2', '6x4'],
-      fuelTypes: ['Diesel', 'Electric'],
-    },
-  },
-  van: {
-    label: 'Van',
-    icon: Bus,
-    categories: ['Car-derived van (up to 1t)', 'Panel van (1 - 2t)', 'Luton / box van (2 - 3.5t)', 'Crew van'],
-    bodyTypes: ['Panel van', 'Box van', 'Refrigerated van', 'Curtain-side van', 'Dropside van', 'Tipper van'],
-    makes: {
-      'Mercedes-Benz': ['Sprinter', 'Vito'],
-      Volkswagen: ['Crafter', 'Transporter'],
-      Ford: ['Transit', 'Transit Custom'],
-      Renault: ['Master', 'Trafic'],
-      Fiat: ['Ducato'],
-      Iveco: ['Daily'],
-    },
-    specs: {
-      capacity: '0.5 - 3.5 t',
-      volume: '3 - 20 m3',
-      configurations: ['L1H1', 'L2H2', 'L3H2', 'L4H3'],
-      fuelTypes: ['Diesel', 'Petrol', 'Electric'],
-    },
-  },
-  aircraft: {
-    label: 'Cargo aircraft',
-    icon: Plane,
-    categories: ['Narrow-body cargo', 'Wide-body cargo', 'Freighter (dedicated)', 'Passenger to Freighter (P2F)'],
-    bodyTypes: ['ULD cargo deck', 'Main deck freighter', 'Temperature-controlled hold', 'Oversize cargo hold'],
-    makes: {
-      Boeing: ['747-8F', '777F', '767F'],
-      Airbus: ['A330-200F'],
-      Antonov: ['AN-124', 'AN-225'],
-    },
-    specs: {
-      capacity: '20 - 150 t',
-      volume: '100 - 800 m3',
-      configurations: ['3,000 - 8,000 km', '800 - 900 km/h'],
-      fuelTypes: ['Jet Fuel', 'Hybrid'],
-    },
-  },
-  ship: {
-    label: 'Cargo ship',
-    icon: Ship,
-    categories: ['Container ship', 'Bulk carrier', 'Tanker (oil, LNG)', 'Ro-Ro (vehicles)', 'General cargo ship'],
-    bodyTypes: ['Container deck', 'Bulk hold', 'Liquid tank', 'Ro-Ro ramp', 'Mixed cargo deck'],
-    makes: {
-      Hyundai: ['Container class'],
-      Maersk: ['Ro-Ro class'],
-      Damen: ['General cargo class'],
-      Samsung: ['Tanker class'],
-    },
-    specs: {
-      capacity: 'TEU / tonnage',
-      volume: '100 - 400 m length',
-      configurations: ['15 - 25 knots', 'Ocean-going', 'Short sea'],
-      fuelTypes: ['Marine Diesel', 'LNG', 'Hybrid'],
-    },
-  },
-} as const;
-
-// The four wizard steps, shaped like PostLoadModal's STEPS so the shared stepper markup below can
-// stay identical between the two wizards.
-const STEP_ITEMS = [
-  { labelKey: 'fleet.stepDetails', label: 'Details', icon: ClipboardList },
-  { labelKey: 'fleet.stepDocuments', label: 'Documents', icon: FileText },
-] as const;
-
-const buildDraft = (transportType: TransportType): AddVehicleDraft => {
-  const registry = FLEET_REGISTRY[transportType];
-  const make = Object.keys(registry.makes)[0];
-  const model = registry.makes[make as keyof typeof registry.makes][0];
-  return {
-    transportType,
-    category: registry.categories[0],
-    bodyType: registry.bodyTypes[0],
-    make,
-    model,
-    customModel: '',
-    length: '', width: '', height: '',
-    capacity: registry.specs.capacity,
-    volume: registry.specs.volume,
-    configuration: registry.specs.configurations[0],
-    fuelType: registry.specs.fuelTypes[0],
-    systemName: '',
-    plate: '',
-    status: 'Active',
-    trailer: transportType === 'truck' ? 'No' : 'N/A',
-    trailerSystemName: '',
-    trailerPlate: '',
-    trailerBodyType: 'Box trailer',
-    trailer2SystemName: '',
-    trailer2Plate: '',
-    trailer2BodyType: 'Box trailer',
-    tailLift: isRoadVehicle(transportType) ? 'No' : 'N/A',
-    nextService: '',
-    ownershipType: 'owned',
-  };
-};
-
-const buildDraftFromVehicle = (vehicle: Record<string, unknown>): AddVehicleDraft => {
-  const features = vehicle.features && typeof vehicle.features === 'object'
-    ? vehicle.features as Record<string, unknown>
-    : {};
-  // Vans and trucks both save as transport_type 'road', so the exact class comes from features.
-  const transportType: TransportType = vehicle.transport_type === 'air'
-    ? 'aircraft'
-    : vehicle.transport_type === 'sea'
-      ? 'ship'
-      : features.vehicle_class === 'van'
-        ? 'van'
-        : 'truck';
-  const base = buildDraft(transportType);
-  const registry = FLEET_REGISTRY[transportType];
-  const make = String(vehicle.make || base.make);
-  const rawModel = String(vehicle.model || base.model);
-  const modelWithoutMake = rawModel.toLowerCase().startsWith(`${make.toLowerCase()} `)
-    ? rawModel.slice(make.length + 1)
-    : rawModel;
-  const knownModels = (registry.makes as Record<string, readonly string[]>)[make] || [];
-  const model = knownModels.includes(modelWithoutMake) ? modelWithoutMake : 'Other';
-  const trailerDetails = String(features.trailer || base.trailer).split(/\s*•\s*/);
-  const trailer = trailerDetails[0] === 'Yes (2)'
-    ? 'Yes (2)'
-    : trailerDetails[0] === 'Yes (1)'
-      ? 'Yes (1)'
-      : base.trailer;
-  const status = String(vehicle.status || 'active').toLowerCase();
-
-  return {
-    ...base,
-    category: String(vehicle.vehicle_type || base.category),
-    bodyType: String(features.body_type || base.bodyType),
-    make,
-    model,
-    customModel: model === 'Other' ? rawModel : '',
-    length: String(features.length_m ?? ''), width: String(features.width_m ?? ''), height: String(features.height_m ?? ''),
-    capacity: vehicle.capacity_kg ? `${Number(vehicle.capacity_kg) / 1000} t` : base.capacity,
-    volume: vehicle.capacity_m3 ? `${vehicle.capacity_m3} m3` : base.volume,
-    configuration: String(features.configuration || base.configuration),
-    fuelType: String(features.fuel_type || base.fuelType),
-    systemName: String(features.system_name || vehicle.registration_number || ''),
-    plate: String(vehicle.registration_number || ''),
-    status: status === 'maintenance' ? 'Maintenance' : status === 'idle' ? 'Idle' : 'Active',
-    trailer,
-    trailerSystemName: String(features.trailer_system_name || (trailer.startsWith('Yes') ? 'Trailer' : '')),
-    trailerBodyType: trailerDetails[1] || base.trailerBodyType,
-    trailerPlate: trailerDetails[2] || '',
-    trailer2SystemName: String(features.trailer2_system_name || ''),
-    trailer2Plate: String(features.trailer2_plate || ''),
-    trailer2BodyType: String(features.trailer2_body_type || base.trailer2BodyType),
-    tailLift: features.tail_lift ? 'Yes' : 'No',
-    nextService: String(features.next_service || ''),
-    ownershipType: (['owned', 'financed', 'leasing', 'rented', 'other'].includes(String(vehicle.ownership_type))
-      ? String(vehicle.ownership_type)
-      : 'owned') as VehicleOwnership,
-  };
-};
-
-type RegisterVehicleModalProps = {
-  open: boolean;
-  lang: Language;
-  onClose: () => void;
-  onCreated: (vehicle: Record<string, unknown>) => void;
-  ownerUserId?: number;
-  assignedDriverUserId?: number;
-  companyId?: number;
-  depotId?: number;
-  initialVehicle?: Record<string, unknown> | null;
-};
-
-export const RegisterVehicleModal = ({ open, lang, onClose, onCreated, ownerUserId, assignedDriverUserId, companyId, depotId, initialVehicle }: RegisterVehicleModalProps) => {
-  const u = (key: string, fallback: string) => ui(lang, key, fallback);
-  const t = fleetCopy(lang);
-  const [selectedDepot,setSelectedDepot]=useState(depotId?String(depotId):'');
-  const [allowedDepots,setAllowedDepots]=useState<Array<{id:number;name:string;code:string;active:boolean}>>([]);
-  useEffect(()=>{if(!open||!companyId)return;let live=true;setSelectedDepot(depotId?String(depotId):'');api.fleetOperations.get(companyId,'context').then(r=>{if(live)setAllowedDepots(r.data.depot_records||[]);}).catch(()=>{});return()=>{live=false;};},[open,companyId,depotId]);
-  const [step, setStep] = useState(0);
-  const [draft, setDraft] = useState<AddVehicleDraft>(() => buildDraft('truck'));
-  const [saving, setSaving] = useState(false);
-  const [pendingDocuments, setPendingDocuments] = useState<PendingVehicleDocuments>({});
-  const [existingDocumentTypes, setExistingDocumentTypes] = useState<Set<string>>(new Set());
-  const [adrApplicable, setAdrApplicable] = useState(false);
-  const isEditing = Boolean(initialVehicle?.id);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    setDraft(initialVehicle ? buildDraftFromVehicle(initialVehicle) : buildDraft('truck'));
-    setStep(0);
-    setPendingDocuments({});
-    setExistingDocumentTypes(new Set());
-    setAdrApplicable(Boolean((initialVehicle?.features as Record<string, unknown> | undefined)?.adr_applicable));
-    if (initialVehicle?.id) {
-      void api.documents.list({ vehicle_id: Number(initialVehicle.id) }).then((response) => {
-        setExistingDocumentTypes(new Set(response.data.map((document) => String(document.type || ''))));
-      }).catch(() => setExistingDocumentTypes(new Set()));
-    }
-    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape' && !saving) onClose(); };
-    window.addEventListener('keydown', closeOnEscape);
-    return () => window.removeEventListener('keydown', closeOnEscape);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, initialVehicle]);
-
-  if (!open) return null;
-
-  const registry = FLEET_REGISTRY[draft.transportType];
-  const makeOptions = Object.keys(registry.makes);
-  const modelOptions = (registry.makes as Record<string, readonly string[]>)[draft.make] || [];
-
-  const setDraftField = <K extends keyof AddVehicleDraft>(key: K, value: AddVehicleDraft[K]) => {
-    setDraft((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const ownershipOptions = [
-    { value: 'owned', label: u('fleet.ownership.owned', 'Owned vehicle'), icon: KeyRound },
-    { value: 'financed', label: u('fleet.ownership.financed', 'Financed / credit'), icon: BadgeDollarSign },
-    { value: 'leasing', label: u('fleet.ownership.leasing', 'Leasing'), icon: Landmark },
-    { value: 'rented', label: u('fleet.ownership.rented', 'Rent / hire'), icon: CalendarClock },
-    { value: 'other', label: u('fleet.ownership.other', 'Other'), icon: CircleEllipsis },
-  ];
-  const ownershipDocumentType = OWNERSHIP_DOCUMENT_TYPES[draft.ownershipType];
-  const ownershipDocumentLabel = {
-    owned: u('fleet.document.ownershipCertificate', 'Proof of ownership'),
-    financed: u('fleet.document.financingAgreement', 'Financing agreement'),
-    leasing: u('fleet.document.leasingAgreement', 'Leasing agreement'),
-    rented: u('fleet.document.rentalAgreement', 'Rental agreement'),
-    other: u('fleet.document.otherOwnership', 'Other ownership document'),
-  }[draft.ownershipType];
-
-  const handleOwnershipChange = (value: string) => {
-    const ownershipType = value as VehicleOwnership;
-    setDraftField('ownershipType', ownershipType);
-    setPendingDocuments((current) => {
-      const next = { ...current };
-      Object.values(OWNERSHIP_DOCUMENT_TYPES).forEach((type) => delete next[type]);
-      return next;
+  function buildPayload(){
+    if(!identity.registration_number.trim())throw new Error(t('Unesite registraciju ili identifikacijski kod.'));
+    if(road&&(!RESOURCES.some(row=>row[0]===f.resource_type)||!choices.some(row=>row[0]===f.body_type_code)))throw new Error(t('Izaberite vrstu vozila i odgovarajuću nadgradnju.'));
+    const features:Record<string,any>={...(v.features||{}),...f,system_name:identity.system_name.trim()||identity.registration_number.trim(),next_service:identity.next_service||null,fuel_type:identity.fuel_type||null};
+    numericFeatures.forEach(key=>{
+      const n=parseRegistryNumber(f[key],key.startsWith('temperature_'));if(n!==null&&(!key.startsWith('temperature_')&&n<=0||n>1000000))throw new Error(t('Provjerite unesene mase i dimenzije.'));
+      if(['pallet_positions','compartments'].includes(key)&&n!==null&&!Number.isInteger(n))throw new Error(t('Unesite cijeli broj paletnih mjesta i komora.'));
+      features[key]=n;
     });
-  };
+    let capacity=parseRegistryNumber(payload),capacityVolume=parseRegistryNumber(volume);
+    if(capacity!==null&&capacity<=0||capacityVolume!==null&&capacityVolume<=0)throw new Error(t('Kapacitet mora biti veći od nule.'));
+    if(road){
+      features.legal_category=f.legal_category||null;
+      features.body_type=BODIES.find(row=>row[0]===f.body_type_code)?.[2]||'';
+      features.vehicle_class=f.resource_type==='cargo_van'?'van':trailer?'trailer':'truck';features.configuration=f.axle_configuration||'';
+      if(tractor){capacity=null;capacityVolume=null;features.body_type_code='none';features.body_type='No cargo body';['cargo_length_m','cargo_width_m','cargo_height_m','door_width_m','door_height_m','tank_capacity_l','loading_metres','pallet_positions'].forEach(k=>features[k]=null);}
+      if(tank)['cargo_length_m','cargo_width_m','cargo_height_m','door_width_m','door_height_m','loading_metres','pallet_positions'].forEach(k=>features[k]=null);
+      if(features.gross_weight_kg&&capacity!==null&&capacity>features.gross_weight_kg-(features.unladen_weight_kg||0))throw new Error(t('Nosivost prelazi dopuštenu razliku masa.'));
+      if(suggested&&features.legal_category&&suggested!==features.legal_category)throw new Error(t('Masa i homologacijska kategorija nisu usklađene.'));
+    } else {features.resource_type=null;features.legal_category=null;features.body_type_code=null;features.vehicle_class=mode==='air'?'aircraft':'ship';features.body_type=identity.asset_body;}
+    const result:Record<string,any>={registration_number:identity.registration_number.trim(),vin:identity.vin||null,make:identity.make||null,model:identity.model||null,year:identity.year?parseRegistryNumber(identity.year):null,vehicle_type:road?f.resource_type:identity.asset_type|| (mode==='air'?'Cargo aircraft':'Cargo ship'),transport_type:mode,capacity_kg:capacity,capacity_m3:capacityVolume,ownership_type:identity.ownership_type,status:identity.status,features};
+    if(!editing){if(ownerUserId)result.owner_user_id=ownerUserId;if(!trailer&&assignedDriverUserId)result.assigned_driver_user_id=assignedDriverUserId;if(companyId)result.company_id=companyId;result.depot_id=Number(depot)||null;result.home_depot_id=Number(depot)||null;}
+    return result;
+  }
+  function continueForm(){try{buildPayload();setError('');setStep(1);}catch(e){setError(t((e as Error).message));}}
+  async function save(){
+    if(busy)return;setBusy(true);setError('');
+    try{
+      let record=savedRef.current;
+      if(!record){const data=buildPayload();const response=editing?await api.vehicles.update(String(v.id),data):await api.vehicles.create(data);record=response.data;savedRef.current=record;setSaved(record);}
+      const failed:typeof pending=[];
+      for(const item of pending){try{await api.documents.upload({vehicleId:record.id,type:item.type,file:item.file,name:item.file.name});}catch{failed.push(item);}}
+      setPending(failed);
+      if(failed.length){setError(t('Vozilo je sačuvano. Ponovite slanje preostalih dokumenata.'));return;}
+      onCreated(record);
+    }catch(e){setError(e instanceof ApiError?`${e.message}${Object.values(e.errors||{}).flat().map(x=>` · ${x}`).join('')}`:(e as Error).message);}finally{setBusy(false);}
+  }
 
-  const handleTransportTypeChange = (transportType: TransportType) => {
-    setDraft(buildDraft(transportType));
-  };
-
-  // Selecting 1 or 2 trailers adds that many field sets inline to the Operating details and
-  // Classification cards, rather than moving the user into a second mini step.
-  const trailerCount = draft.transportType !== 'truck' ? 0 : draft.trailer === 'Yes (2)' ? 2 : draft.trailer === 'Yes (1)' ? 1 : 0;
-  const trailerSlots = ([
-    { nameKey: 'trailerSystemName', plateKey: 'trailerPlate', bodyTypeKey: 'trailerBodyType' },
-    { nameKey: 'trailer2SystemName', plateKey: 'trailer2Plate', bodyTypeKey: 'trailer2BodyType' },
-  ] as const)
-    .slice(0, trailerCount)
-    // Labels only carry a number once there are two trailers to tell apart.
-    .map((slot, index) => ({ ...slot, prefix: trailerCount > 1 ? `${index + 1}. ` : '' }));
-  const hasTrailer = trailerCount > 0;
-  const atpApplicable = isRoadVehicle(draft.transportType) && /refrigerated|reefer/i.test(`${draft.bodyType} ${trailerSlots.map((slot) => draft[slot.bodyTypeKey]).join(' ')}`);
-  const hasDocument = (type: VehicleDocumentType) => Boolean(pendingDocuments[type]?.length || existingDocumentTypes.has(type));
-  const requiredDocumentTypes: VehicleDocumentType[] = isRoadVehicle(draft.transportType)
-    ? [
-        'VEHICLE_REGISTRATION',
-        ...(hasTrailer ? ['TRAILER_REGISTRATION' as VehicleDocumentType] : []),
-        // A Community Licence covers hire-and-reward haulage above 3.5t, so vans are not asked for one.
-        ...(draft.transportType === 'truck' ? ['COMMUNITY_LICENCE' as VehicleDocumentType] : []),
-        'TECHNICAL_INSPECTION',
-        ...(atpApplicable ? ['ATP_CERTIFICATE' as VehicleDocumentType] : []),
-        ...(adrApplicable ? ['ADR_CERTIFICATE' as VehicleDocumentType] : []),
-      ]
-    : [];
-
-  // Both former spec/naming screens now live on one "Details" step, so its gate is the union of
-  // what those screens each used to require.
-  const dimensionsValid = [draft.length,draft.width,draft.height].every(v=>!v||(Number.isFinite(Number(v))&&Number(v)>0&&Number(v)<=1000));
-  const canContinue =
-    (step === 0 &&
-      Boolean(draft.transportType && draft.category && draft.bodyType) &&
-      Boolean(draft.make && (draft.model || draft.customModel) && draft.capacity && draft.fuelType) &&
-      Boolean(draft.systemName && draft.plate) && dimensionsValid &&
-      trailerSlots.every((slot) => draft[slot.nameKey] && draft[slot.plateKey] && draft[slot.bodyTypeKey])) ||
-    (step === 1 && requiredDocumentTypes.every(hasDocument));
-
-  const submitVehicle = async () => {
-    if (saving || !dimensionsValid) return;
-    const displayModel = draft.model === 'Other' ? draft.customModel : `${draft.make} ${draft.model}`.trim();
-    const confirmed = await confirmAction({
-      title: isEditing ? u('fleet.confirmEditTitle', 'Save vehicle changes?') : u('fleet.confirmAddTitle', 'Add this vehicle?'),
-      text: isEditing
-        ? `${displayModel || draft.category} (${draft.plate})`
-        : `${displayModel || draft.category} (${draft.plate}) ${u('fleet.confirmAddText', 'will be added to your fleet.')}`,
-      confirmText: isEditing ? u('fleet.saveChanges', 'Save changes') : u('fleet.addVehicle', 'Add vehicle'),
-    });
-    if (!confirmed) return;
-    const trailerLabel = draft.transportType !== 'truck'
-      ? 'N/A'
-      : trailerCount === 0
-        ? 'No'
-        : `${draft.trailer} • ${draft.trailerBodyType} • ${draft.trailerPlate}`;
-
-    setSaving(true);
-    try {
-      const payload = {
-        registration_number: draft.plate,
-        transport_type: draft.transportType === 'aircraft' ? 'air' : draft.transportType === 'ship' ? 'sea' : 'road',
-        vehicle_type: draft.category, make: draft.make, model: displayModel, status: isEditing ? String(initialVehicle?.status || 'available') : draft.status.toLowerCase(),
-        capacity_kg: Number.parseFloat(draft.capacity.replace(/[^0-9.]/g, '')) * 1000 || null,
-        capacity_m3: Number.parseFloat(draft.volume.replace(/[^0-9.]/g, '')) || null,
-        ownership_type: draft.ownershipType,
-        features: { length_m: draft.length ? Number(draft.length) : null, width_m: draft.width ? Number(draft.width) : null, height_m: draft.height ? Number(draft.height) : null, vehicle_class: draft.transportType, system_name: draft.systemName, body_type: draft.bodyType, configuration: draft.configuration, fuel_type: draft.fuelType, trailer: trailerLabel, trailer_system_name: draft.trailerSystemName || null, trailer2_system_name: trailerCount > 1 ? draft.trailer2SystemName : null, trailer2_plate: trailerCount > 1 ? draft.trailer2Plate : null, trailer2_body_type: trailerCount > 1 ? draft.trailer2BodyType : null, tail_lift: draft.tailLift === 'Yes', next_service: draft.nextService || null, adr_applicable: adrApplicable },
-        owner_user_id: ownerUserId,
-        assigned_driver_user_id: assignedDriverUserId,
-        company_id: companyId,
-        ...(!isEditing?{depot_id:Number(selectedDepot)||null,home_depot_id:Number(selectedDepot)||null}:{}),
-      };
-      const response = isEditing
-        ? await api.vehicles.update(String(initialVehicle?.id), payload)
-        : await api.vehicles.create(payload);
-      const vehicleId = Number(response.data.id);
-      await Promise.all(Object.entries(pendingDocuments).flatMap(([type, files]) => files.map((file) => api.documents.upload({
-          file,
-          vehicleId,
-          type,
-          name: file.name,
-        }))));
-      void showSuccess(
-        isEditing ? u('fleet.vehicleUpdatedTitle', 'Vehicle updated') : u('fleet.vehicleAddedTitle', 'Vehicle added'),
-        isEditing ? u('fleet.vehicleUpdatedText', 'The vehicle changes have been saved.') : u('fleet.vehicleAddedText', 'The vehicle is now available in your fleet.'),
-      );
-      onCreated(response.data);
-    } catch (error) {
-      void showError(
-        isEditing ? u('fleet.vehicleUpdateFailedTitle', 'Could not update vehicle') : u('fleet.vehicleAddFailedTitle', 'Could not add vehicle'),
-        error instanceof ApiError ? error.message : undefined
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return createPortal(
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          className="fixed inset-0 z-[220] flex items-stretch justify-center overflow-hidden bg-slate-950/70 backdrop-blur-sm"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.18 }}
-          onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) onClose(); }}
-        >
-          <motion.div
-            role="dialog"
-            aria-modal="true"
-            className="flex h-[100dvh] max-h-[100dvh] w-full flex-col overflow-hidden bg-white shadow-2xl dark:bg-slate-900"
-            initial={{ opacity: 0, y: 16, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 12, scale: 0.98 }}
-            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 dark:border-slate-800 sm:px-5 md:px-6">
-              <div className="min-w-0">
-                <h2 className="truncate text-base font-black dark:text-white">
-                  {isEditing ? u('fleet.editVehicleTitle', 'Edit vehicle') : u('fleet.registryTitle', 'Register a new vehicle')}
-                </h2>
-                <p className="hidden truncate text-[11px] text-slate-500 sm:block">
-                  {u('fleet.registrySubtitle', 'Add vehicle details and required operating documents.')}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={saving}
-                className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed dark:border-slate-700 dark:bg-slate-950 dark:hover:bg-slate-800"
-              >
-                <X className="h-5 w-5 text-slate-500" />
-              </button>
-            </div>
-
-            <div className="flex min-h-0 flex-1 flex-col">
-              {/* Same connector-line stepper as the Post a load modal, so both wizards read as one
-                  component: equal-width columns with a single line behind them, masked by each
-                  opaque circle. */}
-              <div className="shrink-0 overflow-x-auto border-b border-slate-100 bg-slate-50/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/60 sm:px-6">
-                <div className="relative flex w-full items-start">
-                  <span
-                    aria-hidden="true"
-                    className="pointer-events-none absolute top-3.5 z-0 h-px bg-slate-200 dark:bg-slate-700"
-                    style={{ left: `${50 / STEP_ITEMS.length}%`, right: `${50 / STEP_ITEMS.length}%` }}
-                  />
-                  {STEP_ITEMS.map((item, index) => {
-                    const Icon = item.icon;
-                    const isActive = step === index;
-                    const isDone = index < step;
-                    return (
-                      <button
-                        key={item.labelKey}
-                        type="button"
-                        onClick={() => { if (index <= step) setStep(index); }}
-                        disabled={index > step}
-                        className={cn(
-                          'relative z-10 flex min-w-[6.5rem] flex-1 basis-0 flex-col items-center gap-1.5 px-1',
-                          index <= step ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            'relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold',
-                            isDone ? 'bg-emerald-500 text-white' : isActive ? 'bg-primary text-white' : 'bg-slate-200 text-slate-500 dark:bg-slate-800'
-                          )}
-                        >
-                          {isDone ? <CheckCircle2 className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
-                        </span>
-                        <span className={cn('whitespace-nowrap text-[11px] font-bold', isActive ? 'text-primary' : isDone ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400')}>
-                          {u(item.labelKey, item.label)}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-                <div className="w-full space-y-3 p-3 pb-6 sm:p-4 sm:pb-6">
-                {step === 0 && (
-                  <div className="grid gap-3 lg:grid-cols-3">
-                    <div className="flex flex-col gap-3">
-                      {/* Without the truck-only trailer card below, this card takes the column's full height. */}
-                      <div className={cn('space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-800', draft.transportType !== 'truck' && 'flex-1')}>
-                        <div className="flex items-center gap-2 text-primary">
-                          <Truck className="h-4 w-4" />
-                          <p className="text-xs font-black uppercase tracking-wider">{u('fleet.vehicleTypeBlock', 'Vehicle type')}</p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          {(Object.keys(FLEET_REGISTRY) as TransportType[]).map((type) => {
-                            const item = FLEET_REGISTRY[type];
-                            return (
-                              <ChoiceCard
-                                key={type}
-                                compact
-                                truncate
-                                active={draft.transportType === type}
-                                title={item.label}
-                                description={`${item.categories.length} ${u('fleet.registryCategories', 'registry categories')}`}
-                                icon={item.icon}
-                                onClick={() => handleTransportTypeChange(type)}
-                              />
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {draft.transportType === 'truck' && (
-                        <div className="flex flex-1 flex-col gap-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
-                          <div className="flex min-w-0 items-center gap-2 text-emerald-500">
-                            <Caravan className="h-4 w-4 shrink-0" />
-                            <p className="truncate text-xs font-black uppercase tracking-wider">
-                              {u('fleet.trailerWizardLabel', 'Trailer registration')}
-                            </p>
-                          </div>
-                          <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
-                            {[
-                              { value: 'No', label: u('fleet.noTrailer', 'No trailer') },
-                              { value: 'Yes (1)', label: u('fleet.oneTrailer', '1 trailer') },
-                              { value: 'Yes (2)', label: u('fleet.twoTrailers', '2 trailers') },
-                            ].map((option) => (
-                              <ChoiceCard
-                                key={option.value}
-                                compact
-                                truncate
-                                active={draft.trailer === option.value}
-                                title={option.label}
-                                description={option.value === 'No'
-                                  ? u('fleet.noTrailerHelp', 'Register only the powered vehicle.')
-                                  : u('fleet.trailerInlineHelp', 'Trailer fields are added to the cards beside this one.')}
-                                icon={Caravan}
-                                onClick={() => {
-                                  setDraft((prev) => ({
-                                    ...prev,
-                                    trailer: option.value,
-                                    trailerSystemName: option.value === 'No' ? '' : prev.trailerSystemName,
-                                    trailerPlate: option.value === 'No' ? '' : prev.trailerPlate,
-                                    trailer2SystemName: option.value === 'Yes (2)' ? prev.trailer2SystemName : '',
-                                    trailer2Plate: option.value === 'Yes (2)' ? prev.trailer2Plate : '',
-                                  }));
-                                }}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-3">
-                      <div className="space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
-                        <div className="flex items-center gap-2 text-primary">
-                          <Boxes className="h-4 w-4" />
-                          <p className="text-xs font-black uppercase tracking-wider">{u('fleet.modelBlock', 'Make & model')}</p>
-                        </div>
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          <div className="space-y-1">
-                            <FieldLabel>{u('fleet.make', 'Brand / make')}</FieldLabel>
-                            <IconSelect
-                              value={draft.make}
-                              onChange={(nextMake) => {
-                                const nextModels = registry.makes[nextMake as keyof typeof registry.makes];
-                                setDraft((prev) => ({ ...prev, make: nextMake, model: nextModels[0], customModel: '' }));
-                              }}
-                              options={[
-                                ...(!makeOptions.includes(draft.make) ? [{ value: draft.make, label: draft.make, icon: Building2, logoUrl: brandLogoUrl(draft.make) }] : []),
-                                ...makeOptions.map((option) => ({ value: option, label: option, icon: Building2, logoUrl: brandLogoUrl(option) })),
-                              ]}
-                              placeholder={u('fleet.make', 'Brand / make')}
-                              ariaLabel={u('fleet.make', 'Brand / make')}
-                              icon={Building2}
-                              searchable
-                              searchPlaceholder={u('fleet.searchBrands', 'Search brands...')}
-                              noResults={u('fleet.noBrands', 'No brands found.')}
-                              className="w-full [&_button]:h-10 [&_button]:rounded-xl [&_button]:text-sm"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <FieldLabel>{u('fleet.model', 'Model')}</FieldLabel>
-                            <IconSelect
-                              value={draft.model}
-                              onChange={(value) => setDraftField('model', value)}
-                              options={[
-                                ...modelOptions.map((option) => ({ value: option, label: option, icon: CarFront, logoUrl: brandLogoUrl(draft.make) })),
-                                { value: 'Other', label: u('fleet.other', 'Other'), icon: CircleEllipsis },
-                              ]}
-                              placeholder={u('fleet.model', 'Model')}
-                              ariaLabel={u('fleet.model', 'Model')}
-                              icon={CarFront}
-                              className="w-full [&_button]:h-10 [&_button]:rounded-xl [&_button]:text-sm"
-                            />
-                          </div>
-                        </div>
-                        {draft.model === 'Other' && (
-                          <div className="space-y-1">
-                            <FieldLabel>{u('fleet.customModel', 'Custom model')}</FieldLabel>
-                            <Input
-                              value={draft.customModel}
-                              onChange={(e) => setDraftField('customModel', e.target.value)}
-                              placeholder={u('fleet.customModelPlaceholder', 'Enter custom model')}
-                            />
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex flex-1 flex-col gap-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
-                        <div className="flex items-center gap-2 text-emerald-500">
-                          <Gauge className="h-4 w-4" />
-                          <p className="text-xs font-black uppercase tracking-wider">{u('fleet.specsBlock', 'Specifications')}</p>
-                        </div>
-                        <div className="grid grid-cols-3 gap-3">{([['length','Dužina'],['width','Širina'],['height','Visina']] as const).map(([key,label])=><label className="space-y-1" key={key}><FieldLabel>{`${t(label)} (m)`}</FieldLabel><Input type="number" min="0.1" max="1000" step="0.01" value={draft[key]} onChange={e=>setDraftField(key,e.target.value)} placeholder="—"/></label>)}</div><p className="text-[10px] text-slate-400">{t('Vanjske dimenzije vozila su opcionalne i određuju proporcije 3D prikaza.')}</p>
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          <div className="space-y-1">
-                            <FieldLabel>{u('fleet.capacity', 'Capacity')}</FieldLabel>
-                            <Input value={draft.capacity} onChange={(e) => setDraftField('capacity', e.target.value)} />
-                          </div>
-                          <div className="space-y-1">
-                            <FieldLabel>{u('fleet.volume', 'Volume')}</FieldLabel>
-                            <Input value={draft.volume} onChange={(e) => setDraftField('volume', e.target.value)} />
-                          </div>
-                          <div className="space-y-1">
-                            <FieldLabel>{u('fleet.configuration', 'Configuration')}</FieldLabel>
-                            <IconSelect
-                              value={draft.configuration}
-                              onChange={(value) => setDraftField('configuration', value)}
-                              options={[
-                                ...(!(registry.specs.configurations as readonly string[]).includes(draft.configuration) ? [{ value: draft.configuration, label: draft.configuration, icon: Network }] : []),
-                                ...registry.specs.configurations.map((option) => ({ value: option, label: option, icon: Network })),
-                              ]}
-                              placeholder={u('fleet.configuration', 'Configuration')}
-                              ariaLabel={u('fleet.configuration', 'Configuration')}
-                              icon={Network}
-                              className="w-full [&_button]:h-10 [&_button]:rounded-xl [&_button]:text-sm"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <FieldLabel>{u('fleet.fuelType', 'Fuel type')}</FieldLabel>
-                            <IconSelect
-                              value={draft.fuelType}
-                              onChange={(value) => setDraftField('fuelType', value)}
-                              options={[
-                                ...(!(registry.specs.fuelTypes as readonly string[]).includes(draft.fuelType) ? [{ value: draft.fuelType, label: trFuelType(lang, draft.fuelType), icon: Fuel }] : []),
-                                ...registry.specs.fuelTypes.map((option) => ({ value: option, label: trFuelType(lang, option), icon: Fuel })),
-                              ]}
-                              placeholder={u('fleet.fuelType', 'Fuel type')}
-                              ariaLabel={u('fleet.fuelType', 'Fuel type')}
-                              icon={Fuel}
-                              className="w-full [&_button]:h-10 [&_button]:rounded-xl [&_button]:text-sm"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-3">
-                      <div className="space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
-                        <div className="flex items-center gap-2 text-primary">
-                          <ClipboardList className="h-4 w-4" />
-                          <p className="text-xs font-black uppercase tracking-wider">{u('fleet.operatingBlock', 'Operating details')}</p>
-                        </div>
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          <div className="space-y-1">
-                            <FieldLabel>{u('fleet.systemName', 'Vehicle name in system')}</FieldLabel>
-                            <Input
-                              value={draft.systemName}
-                              onChange={(e) => setDraftField('systemName', e.target.value)}
-                              placeholder={u('fleet.systemNamePlaceholder', 'Example: Frozen Line 01')}
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <FieldLabel>{u('fleet.plate', 'Registration / code')}</FieldLabel>
-                            <Input
-                              value={draft.plate}
-                              onChange={(e) => setDraftField('plate', e.target.value)}
-                              placeholder={u('fleet.platePlaceholder', 'BA-123-XY / IMO-001 / AIR-77F')}
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <FieldLabel>{u('fleet.status', 'Status')}</FieldLabel>
-                            <IconSelect
-                              disabled={isEditing}
-                              value={draft.status}
-                              onChange={(value) => setDraftField('status', value as AddVehicleDraft['status'])}
-                              options={[
-                                { value: 'Active', label: trVehicleStatus(lang, 'Active'), icon: CheckCircle2, toneClass: 'text-emerald-500' },
-                                { value: 'Maintenance', label: trVehicleStatus(lang, 'Maintenance'), icon: Wrench, toneClass: 'text-amber-500' },
-                                { value: 'Idle', label: trVehicleStatus(lang, 'Idle'), icon: CirclePause, toneClass: 'text-slate-400' },
-                              ]}
-                              placeholder={u('fleet.status', 'Status')}
-                              ariaLabel={u('fleet.status', 'Status')}
-                              icon={CheckCircle2}
-                              className="w-full [&_button]:h-10 [&_button]:rounded-xl [&_button]:text-sm"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <FieldLabel>{u('fleet.nextService', 'Next service')}</FieldLabel>
-                            <Input
-                              value={draft.nextService}
-                              onChange={(e) => setDraftField('nextService', e.target.value)}
-                              placeholder={u('fleet.nextServicePlaceholder', '12 May / Tomorrow / Dock inspection')}
-                            />
-                          </div>
-                          <div className="space-y-1 sm:col-span-2">
-                            {!isEditing&&companyId&&<label className="mb-3 grid gap-1 text-sm">{u('fleet.depot', 'Depot')}<select className="rounded-xl border border-slate-200 bg-white p-2 dark:border-slate-800 dark:bg-slate-900" value={selectedDepot} onChange={e=>setSelectedDepot(e.target.value)}><option value="">—</option>{allowedDepots.filter(d=>d.active).map(d=><option key={d.id} value={d.id}>{d.code} · {d.name}</option>)}</select></label>}
-                            <FieldLabel>{u('fleet.ownership.label', 'Ownership')}</FieldLabel>
-                            <IconSelect
-                              value={draft.ownershipType}
-                              onChange={handleOwnershipChange}
-                              options={ownershipOptions}
-                              placeholder={u('fleet.ownership.placeholder', 'Select ownership')}
-                              ariaLabel={u('fleet.ownership.label', 'Ownership')}
-                              icon={KeyRound}
-                              className="w-full [&_button]:h-10 [&_button]:rounded-xl [&_button]:text-sm"
-                            />
-                          </div>
-                          {trailerSlots.map((slot) => (
-                            <Fragment key={slot.nameKey}>
-                              <div className="space-y-1">
-                                <FieldLabel>{`${slot.prefix}${u('fleet.trailerSystemName', 'Trailer name in system')}`}</FieldLabel>
-                                <Input
-                                  value={draft[slot.nameKey]}
-                                  onChange={(e) => setDraftField(slot.nameKey, e.target.value)}
-                                  placeholder={u('fleet.trailerSystemNamePlaceholder', 'Example: Reefer Trailer 01')}
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <FieldLabel>{`${slot.prefix}${u('fleet.trailerPlate', 'Trailer registration')}`}</FieldLabel>
-                                <Input
-                                  value={draft[slot.plateKey]}
-                                  onChange={(e) => setDraftField(slot.plateKey, e.target.value)}
-                                  placeholder={u('fleet.trailerPlatePlaceholder', 'TR-908-KL')}
-                                />
-                              </div>
-                            </Fragment>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-1 flex-col gap-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
-                        <div className="flex items-center gap-2 text-emerald-500">
-                          <Layers className="h-4 w-4" />
-                          <p className="text-xs font-black uppercase tracking-wider">{u('fleet.classificationBlock', 'Classification')}</p>
-                        </div>
-                        <div className={cn('grid gap-3 sm:grid-cols-2', isRoadVehicle(draft.transportType) && 'sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.65fr)]')}>
-                          <div className="space-y-1">
-                            <FieldLabel>{u('fleet.category', 'Category')}</FieldLabel>
-                            <IconSelect
-                              value={draft.category}
-                              onChange={(value) => setDraftField('category', value)}
-                              options={[
-                                ...(!(registry.categories as readonly string[]).includes(draft.category) ? [{ value: draft.category, label: draft.category, icon: Truck }] : []),
-                                ...registry.categories.map((option) => ({ value: option, label: option, icon: registry.icon })),
-                              ]}
-                              placeholder={u('fleet.category', 'Category')}
-                              ariaLabel={u('fleet.category', 'Category')}
-                              icon={Truck}
-                              className="w-full [&_button]:h-10 [&_button]:rounded-xl [&_button]:text-sm"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <FieldLabel>{u('fleet.bodyType', 'Body type')}</FieldLabel>
-                            <IconSelect
-                              value={draft.bodyType}
-                              onChange={(value) => setDraftField('bodyType', value)}
-                              options={[
-                                ...(!(registry.bodyTypes as readonly string[]).includes(draft.bodyType) ? [{ value: draft.bodyType, label: draft.bodyType, icon: PackageOpen }] : []),
-                                ...registry.bodyTypes.map((option) => ({ value: option, label: option, icon: PackageOpen })),
-                              ]}
-                              placeholder={u('fleet.bodyType', 'Body type')}
-                              ariaLabel={u('fleet.bodyType', 'Body type')}
-                              icon={PackageOpen}
-                              className="w-full [&_button]:h-10 [&_button]:rounded-xl [&_button]:text-sm"
-                            />
-                          </div>
-                          {isRoadVehicle(draft.transportType) && (
-                            <div className="space-y-1">
-                              <FieldLabel>{u('fleet.tailLift', 'Tail lift')}</FieldLabel>
-                              <IconSelect
-                                value={draft.tailLift}
-                                onChange={(value) => setDraftField('tailLift', value)}
-                                options={[
-                                  { value: 'No', label: u('common.no', 'No'), icon: CirclePause },
-                                  { value: 'Yes', label: u('common.yes', 'Yes'), icon: ArrowUpFromLine },
-                                ]}
-                                placeholder={u('fleet.tailLift', 'Tail lift')}
-                                ariaLabel={u('fleet.tailLift', 'Tail lift')}
-                                icon={ArrowUpFromLine}
-                                className="w-full [&_button]:h-10 [&_button]:rounded-xl [&_button]:text-sm"
-                              />
-                            </div>
-                          )}
-                          {trailerSlots.map((slot) => (
-                            <div key={slot.bodyTypeKey} className="space-y-1">
-                              <FieldLabel>{`${slot.prefix}${u('fleet.trailerBodyType', 'Trailer body type')}`}</FieldLabel>
-                              <IconSelect
-                                value={draft[slot.bodyTypeKey]}
-                                onChange={(value) => setDraftField(slot.bodyTypeKey, value)}
-                                options={['Box trailer', 'Curtain trailer', 'Reefer trailer', 'Flatbed trailer', 'Container chassis'].map((option) => ({ value: option, label: option, icon: Caravan }))}
-                                placeholder={u('fleet.trailerBodyType', 'Trailer body type')}
-                                ariaLabel={`${slot.prefix}${u('fleet.trailerBodyType', 'Trailer body type')}`}
-                                icon={Caravan}
-                                className="w-full [&_button]:h-10 [&_button]:rounded-xl [&_button]:text-sm"
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {step === 1 && (
-                  <div className="space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex min-w-0 items-center gap-2 text-primary">
-                        <FileText className="h-4 w-4 shrink-0" />
-                        <p className="truncate text-xs font-black uppercase tracking-wider">{u('fleet.vehicleDocuments', 'Vehicle documents')}</p>
-                      </div>
-                      {isRoadVehicle(draft.transportType) && (
-                        <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[11px] font-bold dark:border-slate-800 dark:bg-slate-950">
-                          <input type="checkbox" checked={adrApplicable} onChange={(event) => setAdrApplicable(event.target.checked)} className="h-3.5 w-3.5 accent-primary" />
-                          {u('fleet.adrApplicable', 'ADR applies to this vehicle')}
-                        </label>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-slate-500">{u('fleet.vehicleDocumentsHelp', 'Upload the documents required for this vehicle. PDF and image files are supported.')}</p>
-
-                    {isRoadVehicle(draft.transportType) ? (
-                      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                        {([
-                          { type: 'VEHICLE_REGISTRATION', label: u('fleet.document.vehicleRegistration', 'Vehicle registration certificate'), required: true, visible: true },
-                          { type: 'TRAILER_REGISTRATION', label: u('fleet.document.trailerRegistration', 'Trailer/semi-trailer registration certificate'), required: true, visible: hasTrailer },
-                          { type: 'INSURANCE_POLICY', label: u('fleet.document.insurancePolicy', 'Insurance policy'), required: false, visible: true },
-                          { type: 'COMMUNITY_LICENCE', label: u('fleet.document.communityLicence', 'Community Licence copy'), required: true, visible: draft.transportType === 'truck' },
-                          { type: 'TECHNICAL_INSPECTION', label: u('fleet.document.technicalInspection', 'Technical inspection certificate'), required: true, visible: true },
-                          { type: 'ATP_CERTIFICATE', label: u('fleet.document.atpCertificate', 'ATP certificate'), required: true, visible: atpApplicable },
-                          { type: 'ADR_CERTIFICATE', label: u('fleet.document.adrCertificate', 'Vehicle ADR certificate'), required: true, visible: adrApplicable },
-                          { type: 'OTHER_PERMIT', label: u('fleet.document.otherPermit', 'Other permits'), required: false, visible: true },
-                          { type: ownershipDocumentType, label: ownershipDocumentLabel, required: false, visible: true },
-                        ] as { type: VehicleDocumentType; label: string; required: boolean; visible: boolean }[]).filter((item) => item.visible).map((item) => {
-                          const files = pendingDocuments[item.type] || [];
-                          const alreadyUploaded = existingDocumentTypes.has(item.type);
-                          return (
-                            <label key={item.type} className={cn('group flex cursor-pointer items-center gap-2.5 rounded-xl border border-dashed px-3 py-2.5 transition-colors hover:border-primary hover:bg-primary/5', hasDocument(item.type) ? 'border-emerald-300 bg-emerald-50/60 dark:bg-emerald-950/10' : 'border-slate-300 dark:border-slate-700')}>
-                              <input type="file" multiple={item.type === 'OTHER_PERMIT'} accept=".pdf,.jpg,.jpeg,.png,.webp" className="sr-only" onChange={(event) => {
-                                const selected = Array.from(event.target.files || []);
-                                if (selected.length) setPendingDocuments((current) => ({ ...current, [item.type]: selected }));
-                                event.target.value = '';
-                              }} />
-                              <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', hasDocument(item.type) ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30' : 'bg-primary/10 text-primary')}>
-                                {hasDocument(item.type) ? <CheckCircle2 className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
-                              </span>
-                              <span className="min-w-0 flex-1">
-                                <span className="block truncate text-xs font-bold text-slate-800 dark:text-white" title={item.label}>{item.label}{item.required ? ' *' : ''}</span>
-                                <span className="mt-0.5 block truncate text-[11px] leading-tight text-slate-500">{files.map((file) => file.name).join(', ') || (alreadyUploaded ? u('fleet.documentAlreadyUploaded', 'Already uploaded — choose a file to replace') : u('fleet.chooseDocument', 'Choose PDF or image'))}</span>
-                              </span>
-                              <FileText className="h-3.5 w-3.5 shrink-0 text-slate-300 group-hover:text-primary" />
-                            </label>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-950/40">
-                        {u('fleet.roadDocumentsOnly', 'These road-vehicle documents do not apply to aircraft or ships.')}
-                      </div>
-                    )}
-                    {!isRoadVehicle(draft.transportType) && <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                      <label className={cn('group flex cursor-pointer items-center gap-2.5 rounded-xl border border-dashed px-3 py-2.5 transition-colors hover:border-primary hover:bg-primary/5', hasDocument(ownershipDocumentType) ? 'border-emerald-300 bg-emerald-50/60 dark:bg-emerald-950/10' : 'border-slate-300 dark:border-slate-700')}>
-                        <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="sr-only" onChange={(event) => {
-                          const selected = Array.from(event.target.files || []);
-                          if (selected.length) setPendingDocuments((current) => ({ ...current, [ownershipDocumentType]: selected }));
-                          event.target.value = '';
-                        }} />
-                        <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', hasDocument(ownershipDocumentType) ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30' : 'bg-primary/10 text-primary')}>
-                          {hasDocument(ownershipDocumentType) ? <CheckCircle2 className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-xs font-bold text-slate-800 dark:text-white" title={ownershipDocumentLabel}>{ownershipDocumentLabel}</span>
-                          <span className="mt-0.5 block truncate text-[11px] leading-tight text-slate-500">{pendingDocuments[ownershipDocumentType]?.map((file) => file.name).join(', ') || (existingDocumentTypes.has(ownershipDocumentType) ? u('fleet.documentAlreadyUploaded', 'Already uploaded — choose a file to replace') : u('fleet.optionalDocument', 'Optional — choose PDF or image'))}</span>
-                        </span>
-                        <FileText className="h-3.5 w-3.5 shrink-0 text-slate-300 group-hover:text-primary" />
-                      </label>
-                    </div>}
-                    {requiredDocumentTypes.some((type) => !hasDocument(type)) && (
-                      <p className="text-[11px] font-bold text-amber-600">{u('fleet.requiredDocumentsHelp', 'Upload every document marked with * to save the vehicle.')}</p>
-                    )}
-                  </div>
-                )}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/40 sm:px-5 md:px-6">
-              <Button variant="outline" className="h-10" disabled={saving} onClick={step === 0 ? onClose : () => setStep((prev) => prev - 1)}>
-                {step === 0 ? u('common.cancel', 'Cancel') : u('common.back', 'Back')}
-              </Button>
-              <div className="flex items-center gap-3">
-                <div className="hidden text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400 sm:block">
-                  {u('fleet.step', 'Step')} {step + 1}/2
-                </div>
-                {step === 1 ? (
-                  <Button className="h-10" onClick={() => void submitVehicle()} disabled={!canContinue || saving}>
-                    {saving
-                      ? isEditing ? u('fleet.saving', 'Saving…') : u('fleet.adding', 'Adding…')
-                      : isEditing ? u('fleet.saveChanges', 'Save changes') : u('fleet.saveVehicle', 'Save vehicle')}
-                  </Button>
-                ) : (
-                  <Button className="h-10" onClick={() => setStep((prev) => prev + 1)} disabled={!canContinue}>
-                    {u('common.continue', 'Continue')}
-                  </Button>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>,
-    document.body
-  );
-};
+  return <Dialog size="xl" icon={Truck} title={t(editing?'Uredi vozilo':'Dodaj vozilo')} subtitle={t('Evidentirajte stvarno vozilo, njegove mase i teretni prostor.')} closeLabel={t('Zatvori')} onClose={close} closeDisabled={busy} footer={<><span className="mr-auto text-xs text-slate-400">{step+1} / 2 · {t(step?'Dokumenti':'Podaci o vozilu')}</span><Button variant="outline" disabled={busy||!!saved} onClick={()=>step?setStep(0):close()}>{t(step?'Prethodna':'Zatvori')}</Button>{!step?<Button onClick={continueForm}>{t('Nastavi')}</Button>:<Button disabled={busy} onClick={()=>void save()}>{t(busy?'Čuvanje…':saved?'Ponovi slanje dokumenata':'Sačuvaj vozilo')}</Button>}</>}>
+    <div className="space-y-4">{error&&<Notice tone="bad">{error}</Notice>}{v.registry_warnings?.includes('capacity_review')&&<Notice tone="warn">{t('Raniji kapacitet je označen za ručnu provjeru. Vrijednost nije automatski ispravljena.')}</Notice>}
+      <nav className="grid grid-cols-2 gap-2 text-xs font-semibold">{[[ClipboardList,'Podaci o vozilu'],[FileText,'Dokumenti']].map(([Icon,label]:any,i)=><div key={label} className={`flex items-center gap-2 rounded-xl px-3 py-2 ${i===step?'bg-primary/10 text-primary':'bg-slate-50 text-slate-400 dark:bg-slate-800'}`}><Icon className="h-4 w-4"/>{i+1}. {t(label)}</div>)}</nav>
+      {step===0?<fieldset disabled={busy||!!saved} className="space-y-4">
+        <div className="grid grid-cols-3 gap-2">{[['road','Cestovna vozila',Truck],['air','Zrakoplovi',Plane],['sea','Plovila',Ship]].map(([value,label,Icon]:any)=><button type="button" key={value} onClick={()=>setMode(value)} className={`flex items-center justify-center gap-2 rounded-xl border p-3 text-xs font-bold ${mode===value?'border-primary bg-primary/5 text-primary':'border-slate-200 dark:border-slate-800'}`}><Icon className="h-4 w-4"/>{t(label)}</button>)}</div>
+        <div className="grid gap-4 md:grid-cols-2">
+          {section('Identitet vozila',<div className="grid gap-3 sm:grid-cols-2">{input('registration_number','Registracija ili kod',true)}{input('vin','VIN')}{input('make','Proizvođač')}{input('model','Model i izvedba')}{input('year','Godina proizvodnje')}{input('system_name','Naziv u sistemu')}</div>)}
+          {section('Vrsta i klasifikacija',<div className="space-y-3">{road?<>
+            {field('Vrsta sredstva',<select className={fleetField} value={f.resource_type} onChange={e=>{const type=e.target.value;setF(previous=>({...previous,resource_type:type,body_type_code:type==='tractor_unit'?'none':'',legal_category:'',axle_configuration:''}));}}><option value="">{t('Izaberite vrstu')}</option>{RESOURCES.map(([value])=><option key={value} value={value}>{registryLabel(lang,value)}</option>)}</select>)}
+            {select('legal_category','Homologacijska kategorija',(trailer?['O1','O2','O3','O4']:['N1','N2','N3']).map(value=>[value,({N1:'N1 · do 3.500 kg',N2:'N2 · preko 3.500 do 12.000 kg',N3:'N3 · preko 12.000 kg',O1:'O1 · do 750 kg',O2:'O2 · preko 750 do 3.500 kg',O3:'O3 · preko 3.500 do 10.000 kg',O4:'O4 · preko 10.000 kg'} as Record<string,string>)[value]]))}
+            <p className="text-[11px] text-slate-400">{t('Kategorija se potvrđuje iz dokumentacije; ukupna masa nije nosivost.')}{suggested&&<> {t('Prema unesenoj masi')}: {suggested}.</>}</p>
+            {!tractor&&field('Nadgradnja',<select className={fleetField} value={f.body_type_code} onChange={e=>change('body_type_code',e.target.value)}><option value="">{t('Izaberite nadgradnju')}</option>{choices.map(([code])=><option key={code} value={code}>{registryLabel(lang,code)}</option>)}</select>)}
+            {!tractor&&select('body_variant','Dodatna izvedba',VARIANTS,false)}
+          </>:<>{input('asset_type','Vrsta sredstva')}{input('asset_body','Teretni prostor ili izvedba')}</>}</div>)}
+          {road&&section('Mase vozila',<div className="grid gap-3 sm:grid-cols-2">{number('gross_weight_kg','Najveća dopuštena masa','kg')}{number('unladen_weight_kg','Masa vozila iz dokumentacije','kg')}{f.resource_type==='semi_trailer'&&number('category_mass_kg','Masa za homologacijsku kategoriju','kg')}{!tractor&&field('Korisna nosivost (kg)',<input className={fleetField} inputMode="decimal" value={payload} placeholder="—" onChange={e=>setPayload(e.target.value)}/>)}{!trailer&&number('gross_combination_weight_kg','Najveća dopuštena masa skupa','kg')}{!trailer&&number('max_towed_weight_kg','Dopuštena vučena masa','kg')}{tractor&&number('fifth_wheel_load_kg','Dopušteno opterećenje sedla','kg')}<p className="col-span-full text-[11px] text-slate-400">{t('Nosivost unesite za konkretnu izvedbu. Marka i model nisu dokaz dopuštene mase.')}</p></div>)}
+          {section('Vanjske dimenzije i konfiguracija',<div className="grid gap-3 sm:grid-cols-3">{number('length_m','Dužina vozila','m')}{number('width_m','Širina vozila','m')}{number('height_m','Visina vozila','m')}{road&&select('axle_configuration','Osovine i pogon',(trailer?['2_axles','3_axles','4_axles','5_axles','6_axles']:['4x2','4x4','6x2','6x4','6x6','8x2','8x4','8x6','8x8']).map(value=>[value,value.replace('_axles',` ${t('osovine')}`)]))}{f.resource_type==='cargo_van'&&field('Oznaka međuosovinskog razmaka',<input className={fleetField} value={f.wheelbase_variant} placeholder="L1, L2…" onChange={e=>change('wheelbase_variant',e.target.value)}/>)}{f.resource_type==='cargo_van'&&field('Oznaka visine krova',<input className={fleetField} value={f.roof_variant} placeholder="H1, H2…" onChange={e=>change('roof_variant',e.target.value)}/>)}<p className="col-span-full text-[11px] text-slate-400">{t('Vanjske dimenzije služe 3D prikazu. L/H oznake zavise od proizvođača.')}</p></div>)}
+          {(cargo||!road)&&section('Teretni kapacitet',<div className="grid gap-3 sm:grid-cols-3">{!road&&field('Korisna nosivost (kg)',<input className={fleetField} inputMode="decimal" value={payload} onChange={e=>setPayload(e.target.value)}/>)}{cargo&&!tank&&<>{number('cargo_length_m','Utovarna dužina','m')}{number('cargo_width_m','Utovarna širina','m')}{number('cargo_height_m','Utovarna visina','m')}{number('pallet_positions','Paletna mjesta','')}{number('loading_metres','Utovarni metri','LDM')}</>}{tank&&number('tank_capacity_l','Zapremina spremnika','l')}{field('Korisna zapremina (m³)',<input className={fleetField} inputMode="decimal" value={volume} placeholder="—" onChange={e=>setVolume(e.target.value)}/>)}<p className="col-span-full text-[11px] text-slate-400">{t('Unutrašnje mjere i kapaciteti potvrđuju se za konkretno vozilo; ne preuzimaju se iz vanjskih dimenzija.')}</p></div>)}
+          {section('Vlasništvo i operativni podaci',<div className="grid gap-3 sm:grid-cols-2">{field('Vlasništvo',<select className={fleetField} value={identity.ownership_type} onChange={e=>id('ownership_type',e.target.value)}>{[['owned','Vlastito'],['rented','Rentano'],['leasing','Leasing'],['financed','Finansirano'],['other','Ostalo']].map(([value,label])=><option key={value} value={value}>{t(label)}</option>)}</select>)}{!editing&&field('Depo',<select className={fleetField} value={depot} onChange={e=>setDepot(e.target.value)}><option value="">{t('Nerazvrstano')}</option>{depots.filter(d=>d.active!==false).map(d=><option key={d.id} value={d.id}>{d.code} · {d.name}</option>)}</select>)}{input('next_service','Sljedeći servis')}{input('fuel_type','Gorivo ili pogon')}{!editing&&field('Status',<select className={fleetField} value={identity.status} onChange={e=>id('status',e.target.value)}>{[['available','Raspoloživo'],['maintenance','U radionici'],['depot','Na depou ili parkingu']].map(([value,label])=><option key={value} value={value}>{t(label)}</option>)}</select>)}</div>)}
+        </div>
+        {road&&<details className="rounded-2xl border border-slate-200 p-4 dark:border-slate-800"><summary className="cursor-pointer text-sm font-bold">{t('Dodatna oprema i uslovi rada')}</summary><div className="mt-4 grid gap-3 sm:grid-cols-3">{!tractor&&number('door_width_m','Širina otvora vrata','m')}{!tractor&&number('door_height_m','Visina otvora vrata','m')}{number('tail_lift_capacity_kg','Nosivost utovarne rampe','kg')}{f.body_type_code==='refrigerated'&&<>{number('temperature_min_c','Najniža temperatura','°C')}{number('temperature_max_c','Najviša temperatura','°C')}{number('compartments','Komore','')}</>}{select('container_module','Kontejnerski modul',[['none','Bez kontejnera'],['20ft','20 ft'],['40ft','40 ft'],['40hc','40 HC'],['45ft','45 ft'],['other','Ostalo']])}{field('Zemlja sjedišta prijevoznika (ISO)',<input className={fleetField} maxLength={2} placeholder="BA, HR, DE…" value={f.operation_country} onChange={e=>change('operation_country',e.target.value.toUpperCase())}/>)}{select('operation_scope','Područje rada',[['domestic','Domaći prijevoz'],['international','Međunarodni prijevoz']])}{select('operation_kind','Vrsta operacije',[['own_account','Za vlastite potrebe'],['hire_reward','Prijevoz uz naknadu']])}{select('adr_applicability','Primjenjivost ADR dokaza',[['unknown','Za provjeru'],['yes','Primjenjivo'],['no','Nije primjenjivo']],false)}{select('atp_applicability','Primjenjivost ATP dokaza',[['unknown','Za provjeru'],['yes','Primjenjivo'],['no','Nije primjenjivo']],false)}<label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={!!f.tail_lift} onChange={e=>change('tail_lift',e.target.checked)}/>{t('Utovarna rampa')}</label><div className="col-span-full flex flex-wrap gap-4">{[['rear','Utovar straga'],['side','Bočni utovar'],['top','Gornji utovar'],['crane','Utovar dizalicom'],['ground','Prilaz s tla']].map(([code,label])=><label key={code} className="flex items-center gap-2 text-xs"><input type="checkbox" checked={f.loading_methods.includes(code)} onChange={e=>change('loading_methods',e.target.checked?[...f.loading_methods,code]:f.loading_methods.filter((x:string)=>x!==code))}/>{t(label)}</label>)}</div></div></details>}
+        {tractor&&<Notice>{t('Poluprikolicu evidentirajte zasebno. Povezivanje i historija dostupni su u detalju vozila.')}</Notice>}
+      </fieldset>:<div className="space-y-4">
+        <Notice>{t('Vozilo možete evidentirati i dok dokumentacija čeka pregled. Upload nije potvrda usklađenosti niti dozvola za operaciju.')}</Notice>
+        {road&&<Notice tone="warn">{t('Licence i ADR/ATP dokazi zavise od zemlje, mase i vrste operacije. Provjerite primjenjivost; kombi nije automatski izuzet.')}<p className="mt-2 font-semibold">{t('Dokumenti za pregled')}: {guidanceDocuments(f).map(code=>t(DOCS.find(row=>row[0]===code)?.[1]||code)).join(', ')}</p>{(!f.operation_country||!f.operation_scope||!f.operation_kind)&&<p className="mt-1">{t('Dopunite zemlju i vrstu operacije za precizniji pregled potrebnih dozvola.')}</p>}</Notice>}
+        <div className="rounded-xl bg-slate-50 p-3 text-sm dark:bg-slate-800"><b>{identity.registration_number}</b> · {road?registryLabel(lang,f.resource_type):identity.asset_type} {f.legal_category&&`· ${f.legal_category}`}{road&&!tractor&&` · ${registryLabel(lang,f.body_type_code)}`}</div>
+        <div className="grid gap-3 md:grid-cols-2">{DOCS.map(([type,label])=><label key={type} className="space-y-2 rounded-xl border border-slate-200 p-3 text-xs dark:border-slate-800"><span className="block font-semibold">{t(label)}</span><input type="file" multiple disabled={busy} className="block w-full text-xs text-slate-500" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif" onChange={e=>{const files=Array.from(e.target.files||[]);setPending(previous=>[...previous,...files.map(file=>({file,type}))]);e.target.value='';}}/><span className="block text-slate-400">{existing.filter(d=>d.type===type).length} {t('već dodano')} · {pending.filter(d=>d.type===type).map(d=>d.file.name).join(', ')||'—'}</span></label>)}</div>
+        {pending.map((item,index)=><div key={`${item.type}-${index}`} className="flex items-center justify-between gap-2 text-xs"><span>{item.file.name}</span><Button size="sm" variant="ghost" disabled={busy} onClick={()=>setPending(previous=>previous.filter((_,i)=>i!==index))}>{t('Ukloni iz odabira')}</Button></div>)}
+      </div>}
+    </div>
+  </Dialog>;
+}

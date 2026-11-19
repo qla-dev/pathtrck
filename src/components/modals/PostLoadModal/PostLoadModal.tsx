@@ -1,3 +1,4 @@
+import { bodyRequirementLabel } from '../../fleet/vehicleRegistry';
 import { linkedLastMileDraft, roadCargo } from './linkedRoadDraft';
 import { lenaText, lenaField, lenaFieldChoices, lenaOptionDescription, lenaOptionIcon } from '../../../lib/lenaCatalog';
 import { lenaIcon } from '../../../lib/lenaIcons';
@@ -2237,7 +2238,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, opsCompanyId, editLoadId 
                             </div>
                           </div>
                         ) : (
-                          <div className={cn('space-y-1', invalidClass('bodyTypes'))}>{fieldLabel('bodyTypes')}<div className="flex min-h-10 items-center rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950"><div className="flex flex-wrap gap-2">{BODY_TYPE_OPTIONS.map((option) => { const BodyTypeIcon = optionIcon(option); return <button key={option} type="button" onClick={() => toggleBodyType(option)} className={cn('inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold leading-none transition-colors', draft.bodyTypes.includes(option) ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200')}><BodyTypeIcon className="h-3.5 w-3.5 shrink-0" /><span className="leading-none">{u(`postLoadModal.bodyType.${option}`, option)}</span></button>; })}</div></div></div>
+                          <div className={cn('space-y-1', invalidClass('bodyTypes'))}>{fieldLabel('bodyTypes')}<div className="flex min-h-10 items-center rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-950"><div className="flex flex-wrap gap-2">{BODY_TYPE_OPTIONS.map((option) => { const BodyTypeIcon = optionIcon(option); return <button key={option} type="button" onClick={() => toggleBodyType(option)} className={cn('inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold leading-none transition-colors', draft.bodyTypes.includes(option) ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200')}><BodyTypeIcon className="h-3.5 w-3.5 shrink-0" /><span className="leading-none">{bodyRequirementLabel(lang, option)}</span></button>; })}</div></div></div>
                         )}
 
                         {draft.transportType === 'air' && <div className="space-y-1"><FieldLabel>{u('postLoadModal.deliveryProof', '')}</FieldLabel><div className="grid grid-cols-2 gap-3"><ChoiceCard compact active={draft.deliveryProof === 'POD'} title="POD" description="Proof of Delivery" icon={FileText} onClick={() => setField('deliveryProof', 'POD')} /><ChoiceCard compact active={draft.deliveryProof === 'AOD'} title="AOD" description="Arrival on Delivery" icon={CheckCircle2} onClick={() => setField('deliveryProof', 'AOD')} /></div></div>}
@@ -2887,7 +2888,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, opsCompanyId, editLoadId 
                       {isContainerTransport(draft.transportType) ? (
                         <SummaryRow label={u('postLoadModal.containerTypesSummary', '')} value={draft.containerSelections.length ? draft.containerSelections.map((row) => `${row.quantity}x ${containerLabel(row.type, lang)}`).join(', ') : u('postLoadModal.none', '')} />
                       ) : (
-                        <SummaryRow label={u('postLoadModal.vehicleSummary', '')} value={`${draft.vehicleType} · ${draft.bodyTypes.join(', ') || u('postLoadModal.none', '')}`} />
+                        <SummaryRow label={u('postLoadModal.vehicleSummary', '')} value={`${draft.vehicleType} · ${draft.bodyTypes.map(value=>bodyRequirementLabel(lang,value)).join(', ') || u('postLoadModal.none', '')}`} />
                       )}
                       <SummaryRow
                         label={u('postLoadModal.paymentSummary', '')}

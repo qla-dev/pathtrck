@@ -6,6 +6,8 @@ type VehicleShape = 'van' | 'truck' | 'tractor' | 'trailer' | 'tanker' | 'car' |
 export function vehicleShape(vehicle: { vehicle_type?: string; features?: Record<string, unknown> }): VehicleShape {
   const category = `${vehicle.features?.vehicle_class || ''} ${vehicle.vehicle_type || ''}`.toLowerCase();
   const body = String(vehicle.features?.body_type || '').toLowerCase();
+  if(['trailer','semi_trailer'].includes(String(vehicle.features?.resource_type)))return 'trailer';
+  if(vehicle.features?.resource_type==='tractor_unit')return 'tractor';
   if (/tanker|cistern/.test(body)) return 'tanker';
   if (/trailer|prikolic/.test(category)) return 'trailer';
   if (/tractor|teglja/.test(category)) return 'tractor';

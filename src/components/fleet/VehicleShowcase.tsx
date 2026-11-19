@@ -4,6 +4,7 @@ import type { Language } from '../../types';
 import type { FleetRow } from './FleetOperationsPanel';
 import { BrandWordmark } from '../ui/BrandWordmark';
 import { fleetCopy, statusKey } from './fleetCopy';
+import { registryLabel } from './vehicleRegistry';
 import { vehicleModelSpec } from './vehicleModelSpec';
 const Model=lazy(()=>import('./VehicleModel3D'));
 
@@ -14,7 +15,7 @@ export function VehicleShowcase({vehicle,lang,onOpen}:{vehicle:FleetRow;lang:Lan
   return <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900" aria-label={t('3D pregled vozila')}>
     <div className="grid lg:grid-cols-[minmax(260px,.65fr)_minmax(0,1.65fr)]">
       <div className="relative z-10 flex flex-col justify-between gap-4 border-b border-slate-200 p-5 dark:border-slate-800 sm:p-6 lg:border-b-0 lg:border-r">
-        <div><p className="mb-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.16em] text-primary"><Truck className="h-4 w-4"/>{t('Komandni centar vozila')}</p><button type="button" onClick={onOpen} className="text-left text-xl font-bold tracking-tight text-slate-900 hover:text-primary dark:text-white sm:text-2xl">{vehicle.registration_number}</button><p className="mt-1 text-xs text-slate-500">{vehicle.vehicle_type} · {vehicle.features?.body_type||t('Karoserija nije navedena')}</p><span className="mt-3 inline-flex rounded-lg bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">{t(statusKey[vehicle.status]||vehicle.status)}</span></div>
+        <div><p className="mb-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.16em] text-primary"><Truck className="h-4 w-4"/>{t('Komandni centar vozila')}</p><button type="button" onClick={onOpen} className="text-left text-xl font-bold tracking-tight text-slate-900 hover:text-primary dark:text-white sm:text-2xl">{vehicle.registration_number}</button><p className="mt-1 text-xs text-slate-500">{registryLabel(lang,vehicle.features?.resource_type||vehicle.vehicle_type)}{vehicle.features?.legal_category?` · ${vehicle.features.legal_category}`:''} · {vehicle.features?.body_type||t('Karoserija nije navedena')}</p><span className="mt-3 inline-flex rounded-lg bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">{t(statusKey[vehicle.status]||vehicle.status)}</span></div>
         <dl className="grid grid-cols-2 gap-4 text-xs"><div><dt className="flex items-center gap-1.5 text-slate-500"><UserRound className="h-3.5 w-3.5"/>{t('Vozač')}</dt><dd className="mt-1 font-semibold">{vehicle.assigned_driver?.name||'—'}</dd></div><div><dt className="flex items-center gap-1.5 text-slate-500"><Gauge className="h-3.5 w-3.5"/>{t('Kilometraža')}</dt><dd className="mt-1 font-semibold">{vehicle.last_mileage!=null?`${Number(vehicle.last_mileage).toLocaleString(locale)} km`:'—'}</dd></div><div className="col-span-2"><dt className="flex items-center gap-1.5 text-slate-500"><Box className="h-3.5 w-3.5"/>{t('Dužina, širina i visina')}</dt><dd className="mt-1 font-semibold">{dimensions}</dd><p className="mt-1 text-[10px] text-slate-400">{t(s.recorded?'Prikaz prema unesenim dimenzijama':'Približan prikaz prema klasi vozila')}</p></div></dl>
         <BrandWordmark className="text-sm"/>
       </div>

@@ -25,9 +25,13 @@ export const EQUIPMENT: Equipment[] = [
  */
 export function vehicleEquipment(v: Record<string, unknown>): Equipment {
   const f = (v.features ?? {}) as Record<string, unknown>, base = EQUIPMENT.find(e => e.truck)!;
-  const width = Number(f.width_m) || base.width, height = Number(f.height_m) || base.height;
-  const fromVolume = Number(v.capacity_m3) / (width * height);
-  return { ...base, registration: String(v.registration_number), length: Number(f.length_m) || (fromVolume > 0 && fromVolume <= 30 ? Math.round(fromVolume * 100) / 100 : base.length), width, height, doorWidth: Math.min(base.doorWidth, width), doorHeight: Math.min(base.doorHeight, height), payload: Number(v.capacity_kg) || base.payload };
+  // Loading checks use confirmed INTERNAL dimensions only, never a 3D exterior or a guessed volume.
+  const positive=(value:unknown)=>{const n=Number(value);return Number.isFinite(n)&&n>0?n:0;};
+  const nonRectangular=['tanker','silo','car_transporter','none'].includes(String(f.body_type_code));
+  const width=positive(f.cargo_width_m),height=positive(f.cargo_height_m),length=nonRectangular?0:positive(f.cargo_length_m);
+  const payload=positive(v.capacity_kg);
+  const openTop=['flatbed','dropside','tipper','low_loader'].includes(String(f.body_type_code));
+  return {...base,registration:String(v.registration_number),length,width,height,doorWidth:openTop?width:positive(f.door_width_m),doorHeight:openTop?height:positive(f.door_height_m),payload:payload>100000?0:payload,openTop};
 }
 export const COLORS = ['#38bdf8', '#fbbf24', '#4ade80', '#fb7185', '#a78bfa', '#2dd4bf'];
 const EPS = 0.0001;

@@ -1,4 +1,5 @@
 import type { Language } from '../../types';
+import { registryEn } from './vehicleRegistryCopy';
 
 const en: Record<string,string> = {
  '3D pregled vozila':'3D vehicle view','Povuci za rotaciju':'Drag to rotate','Bočno':'Side','Sprijeda':'Front','Straga':'Rear','osovine':'axles',
@@ -40,7 +41,7 @@ const en: Record<string,string> = {
 };
 const de: Record<string,string> = {'Primopredaje':'Übergaben','Štete':'Schäden','Vozila i statusi':'Fahrzeuge und Status','Obavijesti':'Benachrichtigungen','Primopredaja vozila':'Fahrzeugübergabe','Dnevne ture':'Tagestouren','Tereti':'Ladungen','Vozilo':'Fahrzeug','Vozač':'Fahrer','Tablice':'Kennzeichen','Depo i grad':'Depot und Stadt','Partner':'Partner','ID ture':'Tour-ID','Status':'Status','Datum':'Datum','Zatvori':'Schließen','Sačuvaj':'Speichern','Osvježi':'Aktualisieren','Čeka pregled':'Prüfung ausstehend','Završena':'Abgeschlossen','Zaključaj':'Sperren','Dodaj ili uvezi ture':'Touren hinzufügen oder importieren','Nema zapisa.':'Keine Einträge.'};
 Object.assign(de, {'3D pregled vozila':'3D-Fahrzeugansicht','Povuci za rotaciju':'Zum Drehen ziehen','Bočno':'Seite','Sprijeda':'Vorne','Straga':'Hinten','osovine':'Achsen','Dužina':'Länge','Širina':'Breite','Visina':'Höhe','Dužina, širina i visina':'Länge, Breite und Höhe','Prikaz prema unesenim dimenzijama':'Ansicht nach eingetragenen Maßen','Približan prikaz prema klasi vozila':'Ungefähre Proportionen nach Fahrzeugklasse','Vanjske dimenzije vozila su opcionalne i određuju proporcije 3D prikaza.':'Außenmaße sind optional und bestimmen die 3D-Proportionen.'});
-export const fleetCopy = (lang:Language) => (value:string) => {const s=({fleet_manager:'Upravitelj flote',depot_manager:'Upravitelj depoa',dispatcher:'Disponent',workshop:'Radionica',driver:'Vozač'} as Record<string,string>)[value]||value;return ['bs','hr','sr'].includes(lang)?s:lang==='de'?(de[s]||en[s]||s):(en[s]||s);};
+export const fleetCopy = (lang:Language) => (value:string) => {const s=({fleet_manager:'Upravitelj flote',depot_manager:'Upravitelj depoa',dispatcher:'Disponent',workshop:'Radionica',driver:'Vozač'} as Record<string,string>)[value]||value;return ['bs','hr','sr'].includes(lang)?s:lang==='de'?(de[s]||registryEn[s]||en[s]||s):(registryEn[s]||en[s]||s);};
 export const fleetField='w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white';
 export const statusKey:Record<string,string>={active:'Naslijeđeni status: aktivno',available:'Raspoloživo',in_use:'U upotrebi',idle:'Naslijeđeni status: parking',depot:'Na depou ili parkingu',maintenance:'U radionici',for_sale:'Čeka prodaju',sold:'Prodat',returned:'Vraćen najmodavcu',stolen:'Ukraden'};
 export const eventLabel:Record<string,string>={reported:'Prijavljena šteta',updated:'Sačuvane izmjene',files_added:'Dodani dokumenti',assigned:'Dodijeljeno',locked:'Zaključana',reopened:'Ponovo otvorena',completed:'Završena tura'};

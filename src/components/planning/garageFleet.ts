@@ -1,7 +1,7 @@
 import * as T from 'three';
 
 import { brandLogo } from './brandLogo';
-import { vehicleEquipment, type Equipment } from './model';
+import { vehicleEquipment, validEquipment, type Equipment } from './model';
 
 /** One of the company's own vehicles, as the vehicles API returns it. */
 export type FleetVehicle = Record<string, unknown>;
@@ -78,7 +78,7 @@ const truck = (e: Equipment, registration: string, tone: string) => {
  */
 export function buildGarageFleet(vehicles: FleetVehicle[], tone: string) {
   const group = new T.Group(), parts: GaragePart[] = [];
-  vehicles.slice(0, FLEET_SLOTS).forEach((vehicle, i) => {
+  vehicles.filter(v=>validEquipment(vehicleEquipment(v))).slice(0, FLEET_SLOTS).forEach((vehicle, i) => {
     const equipment = vehicleEquipment(vehicle), bay = BAYS[i];
     const built = truck(equipment, String(vehicle.registration_number || '—'), tone);
     built.group.position.set(bay.x, 0, bay.z);

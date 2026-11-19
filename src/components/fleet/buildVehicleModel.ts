@@ -62,7 +62,7 @@ export function buildVehicleModel(vehicle: VehicleModelData) {
   }
   const r=s.light||s.van? .34:.48;
   const wheelR=s.body==='car'?.3:r;
-  const frameY=wheelR*1.5, bodyBase=frameY+.19;
+  const frameY=wheelR*1.5, bodyBase=frameY+(vehicle.features?.body_variant==='mega'?.03:.19);
   const cabL=Math.min(s.cabLength,L*.37), front=L/2, rear=-L/2;
   const bodyL=Math.max(1,L-cabL-.15), bodyX=rear+bodyL/2;
   box(0,frameY,0,L*.93,.22,W*.7,dark);
@@ -73,9 +73,10 @@ export function buildVehicleModel(vehicle: VehicleModelData) {
     for(let a=0;a<8;a++){const angle=a*Math.PI/4;cylinder(x+Math.cos(angle)*wheelR*.4,wheelR+Math.sin(angle)*wheelR*.4,z+(z>0?.17:-.17),.026,.04,dark);}
     const arch=new THREE.Mesh(new THREE.TorusGeometry(wheelR*1.13,.05,8,28,Math.PI),dark);arch.position.set(x,wheelR,z);arch.rotation.z=0;group.add(arch);
   };
-  const axleX=[front-cabL*.53,...Array.from({length:s.axles-1},(_,i)=>rear+L*.18+i*wheelR*2.45)];
+  const axleX=s.trailerAsset?Array.from({length:s.axles},(_,i)=>rear+L*.18+i*wheelR*2.45):[front-cabL*.53,...Array.from({length:s.axles-1},(_,i)=>rear+L*.18+i*wheelR*2.45)];
   axleX.forEach(x=>{cylinder(x,wheelR,0,.09,W*.85,dark);wheel(x,W*.46);wheel(x,-W*.46);});
   // Rounded cab with a sloping windscreen rather than an icon-like rectangle.
+  if(!s.trailerAsset){
   const cabTop=s.van?H:Math.min(H,bodyBase+(s.light?1.65:2.3));
   const cabShape=new THREE.Shape();cabShape.moveTo(front-cabL,bodyBase);cabShape.lineTo(front,bodyBase);cabShape.lineTo(front,cabTop*.63);cabShape.lineTo(front-cabL*.27,cabTop-.06);cabShape.lineTo(front-cabL,cabTop-.06);cabShape.closePath();
   const cabGeo=new THREE.ExtrudeGeometry(cabShape,{depth:W*.9,bevelEnabled:true,bevelSize:.055,bevelThickness:.045,bevelSegments:3,steps:1});cabGeo.translate(0,0,-W*.45);
@@ -90,6 +91,7 @@ export function buildVehicleModel(vehicle: VehicleModelData) {
   }
   box(front+.04,bodyBase+.04,0,.15,.21,W*.9,dark);
   for(let i=0;i<4;i++)box(front+.065,bodyBase+.36+i*.1,0,.025,.033,W*.54,dark);
+  }
   if(s.van) {
     const v=box(rear+bodyL/2,bodyBase+(H-bodyBase)/2,0,bodyL,H-bodyBase,W*.9,paint);
     if(s.body==='car'){v.scale.y=.6;v.position.y=bodyBase+(H-bodyBase)*.3;}
@@ -100,11 +102,15 @@ export function buildVehicleModel(vehicle: VehicleModelData) {
     }
   } else {
     const cargoH=Math.max(.5,H-bodyBase), top=bodyBase+cargoH;
-    if(s.body==='tanker') {
+    if(s.body==='tractor') {
+      cylinder(rear+L*.35,frameY+.2,0,.6,.1,steel,'y');
+      box(rear+L*.35,frameY+.24,0,1.1,.05,.7,dark);
+    } else if(s.body==='tanker'||s.body==='silo') {
       const tankR=Math.min(W*.46,cargoH*.48);cylinder(bodyX,bodyBase+tankR,0,tankR,bodyL-.12,steel,'x');
       for(const x of [rear+bodyL*.2,rear+bodyL*.75]){const band=new THREE.Mesh(new THREE.TorusGeometry(tankR+.02,.045,8,40),blue);band.rotation.y=Math.PI/2;band.position.set(x,bodyBase+tankR,0);group.add(band);}
       box(bodyX,bodyBase+tankR*2+.04,0,bodyL*.65,.07,.3,dark);
       for(const side of [-1,1])brand(bodyX,bodyBase+tankR,side*(tankR+.015),bodyL*.65,tankR*.9);
+      if(s.body==='silo')for(const x of [bodyX-bodyL*.25,bodyX+bodyL*.25]){const hopper=new THREE.Mesh(new THREE.ConeGeometry(tankR*.6,.6,20),steel);hopper.rotation.z=Math.PI;hopper.position.set(x,bodyBase,0);group.add(hopper);}
     } else if(s.body==='flatbed'||s.body==='carrier') {
       box(bodyX,bodyBase,0,bodyL,.18,W,steel);
       for(const side of [-1,1]) {
@@ -139,7 +145,7 @@ export function buildVehicleModel(vehicle: VehicleModelData) {
     }
     if(s.tailLift)box(rear-.12,bodyBase+.6,0,.12,1.2,W*.88,steel);
     // Trailer geometry is conditional on a registered trailer, never implied by a heavy category.
-    for(let i=0;i<s.trailers;i++) {
+    for(let i=0;i<(vehicle.linked_trailers?0:s.trailers);i++) {
       const len=L*.8,x=rear-.7-len/2-i*(len+.7);
       box(x,frameY,0,len,.18,W*.7,dark);
       const flat=/flat|platform/.test(s.trailerBody.toLowerCase());
@@ -148,6 +154,9 @@ export function buildVehicleModel(vehicle: VehicleModelData) {
       for(const ax of [x-len*.25,x+len*.25]){wheel(ax,W*.46);wheel(ax,-W*.46);}
       box(x+len/2+.3,frameY,0,.7,.12,.12,dark);
     }
+  }
+  if(vehicle.linked_trailers?.length){let back=rear;
+    for(const trailer of vehicle.linked_trailers){const linked=buildVehicleModel({...trailer,linked_trailers:[]}),bounds=new THREE.Box3().setFromObject(linked.group),size=bounds.getSize(new THREE.Vector3());linked.group.position.x=(s.body==='tractor'&&(trailer.features?.resource_type==='semi_trailer')?front-cabL-.2:back-.55)-size.x/2;group.add(linked.group);back-=size.x+.55;}
   }
   return {group,spec:s};
 }

@@ -1,3 +1,4 @@
+import { fleetCopy } from '../fleet/fleetCopy';
 import { DataTable } from '../ui/DataTable';
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
@@ -374,7 +375,7 @@ export default function LoadPlanningView({ lang, userId, role, onOpenTransportOr
   const importPlan = async (file?: File) => { if (!file) return; try { if (file.size > 2_000_000) throw Error(); const next = readPlan(JSON.parse(await file.text())); if (!next) throw Error(); setPlan(next); setSelected(''); setNotice(''); } catch { setNotice(t.failed); } if (importInput.current) importInput.current.value = ''; };
   const selectVehicle = (id: string) => {
     const v = vehicles.find(v => String(v.id) === id); if (!v) { changeEquipment({ ...EQUIPMENT[0] }); return; }
-    changeEquipment(vehicleEquipment(v));
+    const equipment=vehicleEquipment(v);if(!validEquipment(equipment)){setNotice(fleetCopy(lang)('Za planiranje potvrdite unutrašnje dimenzije i nosivost vozila.'));return;}changeEquipment(equipment);
   };
 
   return (

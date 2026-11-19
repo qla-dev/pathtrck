@@ -7,7 +7,7 @@ import type { VehicleModelData } from './vehicleModelSpec';
 
 export default function VehicleModel3D({ vehicle, label, angle = 'perspective' }: { vehicle: VehicleModelData; label: string; angle?: string }) {
   const host=useRef<HTMLDivElement>(null),[failed,setFailed]=useState(false);
-  const key=JSON.stringify([vehicle.vehicle_type,vehicle.model,vehicle.features,vehicle.length_m,vehicle.width_m,vehicle.height_m]);
+  const key=JSON.stringify([vehicle.vehicle_type,vehicle.model,vehicle.features,vehicle.length_m,vehicle.width_m,vehicle.height_m,vehicle.linked_trailers]);
   useEffect(()=>{
     const element=host.current;if(!element)return;let renderer:THREE.WebGLRenderer;
     try {renderer=new THREE.WebGLRenderer({alpha:true,antialias:true,powerPreference:'low-power'});}catch{setFailed(true);return;}

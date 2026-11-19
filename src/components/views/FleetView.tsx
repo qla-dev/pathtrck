@@ -1,3 +1,4 @@
+import { registryLabel } from '../fleet/vehicleRegistry';
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
@@ -264,7 +265,7 @@ export const FleetView = ({ lang, role, userId, companyIds = [], initialOperatio
         fuel: '—', fuelType: String(features.fuel_type || '—'), trailer: String(features.trailer || '—'), tailLift: features.tail_lift ? 'Yes' : 'No',
         nextService: String(features.next_service || '—'),
         location: [Number(lastLocation?.latitude || 43.8563), Number(lastLocation?.longitude || 18.4131)] as [number, number],
-        category: String(row.vehicle_type || '—'), bodyType: String(features.body_type || row.vehicle_type || '—'),
+        category: registryLabel(lang,String(features.resource_type||row.vehicle_type||'—')), bodyType: String(features.body_type || row.vehicle_type || '—'),
         capacity: row.capacity_kg ? `${Number(row.capacity_kg).toLocaleString()} kg` : '—', volume: row.capacity_m3 ? `${row.capacity_m3} m³` : '—',
         configuration: String(features.configuration || '—'), capacityKg: Number(row.capacity_kg || 0), volumeM3: Number(row.capacity_m3 || 0),
         ownershipType: String(row.ownership_type || 'owned'),
