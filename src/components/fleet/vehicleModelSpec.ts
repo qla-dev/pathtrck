@@ -1,5 +1,6 @@
+import { vehicleSeriesProfile } from './vehicleSeriesProfiles';
 export type VehicleModelData = {
-  vehicle_type?: string; model?: string; transport_type?: string;
+  vehicle_type?: string; make?: string; model?: string; transport_type?: string;
   length_m?: number; width_m?: number; height_m?: number;
   features?: Record<string, any>;
   linked_trailers?: VehicleModelData[];
@@ -8,7 +9,7 @@ export type VehicleBody = 'box'|'curtain'|'reefer'|'tanker'|'flatbed'|'container
 const positive = (value: unknown) => { const n = Number(String(value ?? '').replace(',', '.')); return Number.isFinite(n) && n > 0 ? n : null; };
 
 /** Recorded dimensions take precedence. Class presets are schematic, never manufacturer specifications. */
-export function vehicleModelSpec(vehicle: VehicleModelData) {
+export function vehicleModelSpec(vehicle: VehicleModelData, simplified=false) {
   const f = vehicle.features || {}, category = `${f.vehicle_class || ''} ${vehicle.vehicle_type || ''}`.toLowerCase();
   const bodyText = String(f.body_type || '').toLowerCase();
   const model = String(vehicle.model || '').toLowerCase();
@@ -40,6 +41,7 @@ export function vehicleModelSpec(vehicle: VehicleModelData) {
   const axles = Math.min(6, Math.max(2, /_axles/.test(config)?Number(config.split('_')[0]):Math.round(Number(config.match(/(\d+)\s*[x×]/i)?.[1] || (heavy ? 6 : 4)) / 2)));
   const trailerText = String(f.trailer || '');
   const trailers = Array.isArray(vehicle.linked_trailers)?vehicle.linked_trailers.length:f.resource_type?0:/^yes|^da|^ja/i.test(trailerText) ? (/\(2\)/.test(trailerText) ? 2 : 1) : 0;
-  return { body, length, width, height, axles, light, heavy, van, trailers, trailerBody: String(f.trailer_body_type || trailerText.split('•')[1] || 'Box trailer'), tailLift: !!f.tail_lift,
+  const series=vehicleSeriesProfile(vehicle.make,vehicle.model,simplified);
+  return { body, length, width, height, axles, light, heavy, van, trailers, series, trailerBody: String(f.trailer_body_type || trailerText.split('•')[1] || 'Box trailer'), tailLift: !!f.tail_lift,
     trailerAsset,recorded: values.every(Boolean), recordedDimensions: values, cabLength: trailerAsset?0:light || van ? 1.65 : /sleeper|high|actros|fh|tgx|s-way/.test(model) || heavy ? 2.4 : 2.05 };
 }

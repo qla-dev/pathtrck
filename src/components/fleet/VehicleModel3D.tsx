@@ -5,9 +5,9 @@ import { buildVehicleModel } from './buildVehicleModel';
 import { VehicleIllustration } from './VehicleIllustration';
 import type { VehicleModelData } from './vehicleModelSpec';
 
-export default function VehicleModel3D({ vehicle, label, angle = 'perspective' }: { vehicle: VehicleModelData; label: string; angle?: string }) {
+export default function VehicleModel3D({ vehicle, label, angle = 'perspective', simplified=false }: { vehicle: VehicleModelData; label: string; angle?: string; simplified?:boolean }) {
   const host=useRef<HTMLDivElement>(null),[failed,setFailed]=useState(false);
-  const key=JSON.stringify([vehicle.vehicle_type,vehicle.model,vehicle.features,vehicle.length_m,vehicle.width_m,vehicle.height_m,vehicle.linked_trailers]);
+  const key=JSON.stringify([vehicle.vehicle_type,vehicle.make,vehicle.model,vehicle.transport_type,vehicle.features,vehicle.length_m,vehicle.width_m,vehicle.height_m,vehicle.linked_trailers,simplified]);
   useEffect(()=>{
     const element=host.current;if(!element)return;let renderer:THREE.WebGLRenderer;
     try {renderer=new THREE.WebGLRenderer({alpha:true,antialias:true,powerPreference:'low-power'});}catch{setFailed(true);return;}
@@ -16,7 +16,7 @@ export default function VehicleModel3D({ vehicle, label, angle = 'perspective' }
     renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.35;
     renderer.domElement.setAttribute('aria-hidden','true');renderer.domElement.style.width='100%';renderer.domElement.style.height='100%';renderer.domElement.style.touchAction='pan-y';element.appendChild(renderer.domElement);
     const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(32,1,.1,1000);
-    const {group}=buildVehicleModel(vehicle);scene.add(group);
+    const {group}=buildVehicleModel(vehicle,simplified);scene.add(group);
     const bounds=new THREE.Box3().setFromObject(group),size=bounds.getSize(new THREE.Vector3()),center=bounds.getCenter(new THREE.Vector3());group.position.x-=center.x;group.position.z-=center.z;
     const target=new THREE.Vector3(0,size.y*.48,0),span=Math.max(size.x,size.z,size.y*1.8);
     const hemi=new THREE.HemisphereLight('#e7f5ff','#647989',2.1);scene.add(hemi);

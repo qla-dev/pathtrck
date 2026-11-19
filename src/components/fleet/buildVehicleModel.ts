@@ -20,8 +20,8 @@ function liveryTexture() {
 }
 
 /** Procedural geometry: no manufacturer badges, remote models or downloaded textures. */
-export function buildVehicleModel(vehicle: VehicleModelData) {
-  const s = vehicleModelSpec(vehicle), group = new THREE.Group();
+export function buildVehicleModel(vehicle: VehicleModelData, simplified=false) {
+  const s = vehicleModelSpec(vehicle,simplified), group = new THREE.Group();
   // Keep physically meaningful ratios while protecting the renderer from malformed imports.
   const L = THREE.MathUtils.clamp(s.length, 2.5, 80), W = THREE.MathUtils.clamp(s.width, 1.3, 25), H = THREE.MathUtils.clamp(s.height, 1.2, 25);
   const paint = new THREE.MeshStandardMaterial({ color: '#e6f2fa', roughness: .26, metalness: .35 });
@@ -50,6 +50,12 @@ export function buildVehicleModel(vehicle: VehicleModelData) {
     const wing=box(0,H*.35,0,L*.19,.12,W,white);wing.rotation.y=.15;
     box(-L*.38,H*.6,0,L*.16,H*.55,.12,blue);box(-L*.35,H*.4,0,L*.13,.1,W*.4,white);
     brand(0,H*.45,W*.076,L*.4,W*.12);
+    // Preserve the schematic fuselage; engine count and upper deck distinguish the known series.
+    const model=String(vehicle.model||'').toUpperCase(),make=String(vehicle.make||'').trim().toLowerCase(),known=!simplified&&((make==='boeing'&&/^(747-8F|777F|767F)$/.test(model))||(make==='airbus'&&model==='A330-200F')||(make==='antonov'&&/^AN-(124|225)$/.test(model)));
+    const engines=known?(/AN-225/.test(model)?6:/747|AN-124/.test(model)?4:2):0;
+    for(let i=0;i<engines/2;i++)for(const side of [-1,1]){const z=side*W*(.18+i*.12);box(L*.03,H*.31,z,L*.08,H*.1,.1,steel);cylinder(L*.07,H*.23,z,W*.035,L*.13,steel,'x');cylinder(L*.14,H*.23,z,W*.027,.02,dark,'x');}
+    if(known&&/747/.test(model))box(L*.24,H*.49,0,L*.2,H*.12,W*.1,white);
+    if(known&&/AN-225/.test(model)){box(-L*.38,H*.65,-W*.15,L*.12,H*.35,.12,blue);box(-L*.38,H*.65,W*.15,L*.12,H*.35,.12,blue);}
     return {group,spec:s};
   }
   if(s.body==='ship') {
@@ -57,7 +63,10 @@ export function buildVehicleModel(vehicle: VehicleModelData) {
     const shape=new THREE.Shape();shape.moveTo(-L/2,-W/2);shape.lineTo(L*.35,-W/2);shape.lineTo(L/2,0);shape.lineTo(L*.35,W/2);shape.lineTo(-L/2,W/2);shape.closePath();
     const geo=new THREE.ExtrudeGeometry(shape,{depth:H*.25,bevelEnabled:false});geo.rotateX(-Math.PI/2);hull.geometry=geo;
     box(-L*.3,H*.5,0,L*.16,H*.4,W*.6,white);
-    for(let x=-1;x<3;x++)for(let z=-1;z<=1;z++)box(x*L*.16,H*.34,z*W*.25,L*.14,H*.18,W*.22,x%2?blue:paint);
+    const shipModel=String(vehicle.model||'').toLowerCase(),tankShip=!simplified&&/tanker|oil|lng|lpg/.test(shipModel),general=!simplified&&/combi freighter|general cargo/.test(shipModel);
+    if(tankShip){for(let i=0;i<4;i++)cylinder((-1+i)*L*.16,H*.3,0,W*.22,L*.12,steel,'x');box(L*.05,H*.4,0,L*.6,.06,W*.05,blue);}
+    else if(general){for(let i=0;i<3;i++)box((-1+i)*L*.2,H*.29,0,L*.17,H*.05,W*.75,paint);for(const x of [-L*.12,L*.23]){box(x,H*.5,0,L*.02,H*.5,W*.02,steel);box(x+L*.08,H*.73,0,L*.18,H*.02,W*.02,blue);}}
+    else for(let x=-1;x<3;x++)for(let z=-1;z<=1;z++)box(x*L*.16,H*.34,z*W*.25,L*.14,H*.18,W*.22,x%2?blue:paint);
     brand(-L*.1,H*.12,W*.501,L*.4,H*.15);return {group,spec:s};
   }
   const r=s.light||s.van? .34:.48;
@@ -77,20 +86,21 @@ export function buildVehicleModel(vehicle: VehicleModelData) {
   axleX.forEach(x=>{cylinder(x,wheelR,0,.09,W*.85,dark);wheel(x,W*.46);wheel(x,-W*.46);});
   // Rounded cab with a sloping windscreen rather than an icon-like rectangle.
   if(!s.trailerAsset){
-  const cabTop=s.van?H:Math.min(H,bodyBase+(s.light?1.65:2.3));
-  const cabShape=new THREE.Shape();cabShape.moveTo(front-cabL,bodyBase);cabShape.lineTo(front,bodyBase);cabShape.lineTo(front,cabTop*.63);cabShape.lineTo(front-cabL*.27,cabTop-.06);cabShape.lineTo(front-cabL,cabTop-.06);cabShape.closePath();
+  const p=s.series.cab,cabTop=s.van?H:Math.min(H,bodyBase+(s.light?1.65:2.3)*p.roof);
+  const cabShape=new THREE.Shape();cabShape.moveTo(front-cabL,bodyBase);cabShape.lineTo(front,bodyBase);cabShape.lineTo(front,cabTop*.63);if(p.hood)cabShape.lineTo(front-cabL*p.hood,cabTop*.65);cabShape.lineTo(front-cabL*p.rake,cabTop-.06);cabShape.lineTo(front-cabL,cabTop-.06);cabShape.closePath();
   const cabGeo=new THREE.ExtrudeGeometry(cabShape,{depth:W*.9,bevelEnabled:true,bevelSize:.055,bevelThickness:.045,bevelSegments:3,steps:1});cabGeo.translate(0,0,-W*.45);
   const cab=new THREE.Mesh(cabGeo,paint);cab.castShadow=true;group.add(cab);
-  const windshield=box(front-cabL*.11,cabTop*.76,0,.06,cabTop*.24,W*.78,glass);windshield.rotation.z=.25;
+  const windshield=box(front-cabL*(p.rake+p.hood)*.48,cabTop*.78,0,.06,cabTop*.24,W*.78,glass);windshield.rotation.z=Math.atan2(cabL*Math.max(.05,p.rake-p.hood),cabTop*.35);
+  if(p.brow)box(front-cabL*p.rake-.015,cabTop-.04,0,.14,.07,W*.83,dark);
   for(const side of [-1,1]) {
     box(front-cabL*.58,cabTop*.78,side*W*.46,cabL*.48,cabTop*.23,.02,glass);
     box(front-cabL*.62,cabTop*.57,side*W*.465,.18,.035,.025,steel);
     box(front-cabL*.25,cabTop*.68,side*W*.55,.15,.33,.12,dark);
     box(front-cabL*.4,bodyBase+.06,side*W*.46,cabL*.55,.13,.08,blue);
-    box(front-.015,bodyBase+.16,side*W*.31,.04,.12,W*.18,light);
+    box(front-.015,bodyBase+.16,side*W*.31,.04,.12,W*p.lamp,light);
   }
   box(front+.04,bodyBase+.04,0,.15,.21,W*.9,dark);
-  for(let i=0;i<4;i++)box(front+.065,bodyBase+.36+i*.1,0,.025,.033,W*.54,dark);
+  for(let i=0;i<p.bars;i++)box(front+.065,bodyBase+.36+i*.4/p.bars,0,.025,.033,W*p.grille,dark);
   }
   if(s.van) {
     const v=box(rear+bodyL/2,bodyBase+(H-bodyBase)/2,0,bodyL,H-bodyBase,W*.9,paint);
@@ -156,7 +166,7 @@ export function buildVehicleModel(vehicle: VehicleModelData) {
     }
   }
   if(vehicle.linked_trailers?.length){let back=rear;
-    for(const trailer of vehicle.linked_trailers){const linked=buildVehicleModel({...trailer,linked_trailers:[]}),bounds=new THREE.Box3().setFromObject(linked.group),size=bounds.getSize(new THREE.Vector3());linked.group.position.x=(s.body==='tractor'&&(trailer.features?.resource_type==='semi_trailer')?front-cabL-.2:back-.55)-size.x/2;group.add(linked.group);back-=size.x+.55;}
+    for(const trailer of vehicle.linked_trailers){const linked=buildVehicleModel({...trailer,linked_trailers:[]},simplified),bounds=new THREE.Box3().setFromObject(linked.group),size=bounds.getSize(new THREE.Vector3());linked.group.position.x=(s.body==='tractor'&&(trailer.features?.resource_type==='semi_trailer')?front-cabL-.2:back-.55)-size.x/2;group.add(linked.group);back-=size.x+.55;}
   }
   return {group,spec:s};
 }
