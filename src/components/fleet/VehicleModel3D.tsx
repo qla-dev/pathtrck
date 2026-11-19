@@ -40,5 +40,5 @@ export default function VehicleModel3D({ vehicle, label, angle = 'perspective', 
       scene.traverse(object=>{if(object instanceof THREE.Mesh){geometries.add(object.geometry);(Array.isArray(object.material)?object.material:[object.material]).forEach(m=>{materials.add(m);const map=(m as THREE.MeshStandardMaterial).map;if(map)textures.add(map);});}});
       geometries.forEach(g=>g.dispose());textures.forEach(t=>t.dispose());materials.forEach(m=>m.dispose());renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();};
   },[key,angle]);
-  return <div className="relative h-full w-full" role="img" aria-label={label}><div ref={host} className={`absolute inset-0 ${failed?'invisible':''}`}/>{failed&&<div className="flex h-full flex-col items-center justify-center p-5"><VehicleIllustration vehicle={vehicle} label={label}/><span className="text-[10px] text-slate-500">WebGL · 2D</span></div>}</div>;
+  return <div className="relative h-full w-full" role="img" aria-label={label}><div ref={host} className={`absolute inset-0 ${failed?'invisible':''}`}/>{failed&&<div className="flex h-full flex-col items-center justify-center p-5"><VehicleIllustration vehicle={vehicle} label={label} simplified={simplified}/><span className="text-[10px] text-slate-500">WebGL · 2D</span></div>}</div>;
 }

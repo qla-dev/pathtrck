@@ -1,13 +1,20 @@
 import { useId } from 'react';
+import { vehicleModelSpec, type VehicleModelData } from './vehicleModelSpec';
 
 type VehicleShape = 'van' | 'truck' | 'tractor' | 'trailer' | 'tanker' | 'car' | 'bus' | 'unknown';
 
-/** Use body/category data only; a make or model must never select a branded image. */
-export function vehicleShape(vehicle: { vehicle_type?: string; features?: Record<string, unknown> }): VehicleShape {
+/** Share registered body data with 3D. The series only styles the cab. */
+export function vehicleShape(vehicle: VehicleModelData): VehicleShape {
+  const s=vehicleModelSpec(vehicle);
+  if(s.trailerAsset)return 'trailer';
+  if(vehicle.features?.resource_type){
+    if(s.body==='tractor')return 'tractor';
+    if(['tanker','silo'].includes(s.body))return 'tanker';
+    if(s.body==='van')return 'van';
+    return 'truck';
+  }
   const category = `${vehicle.features?.vehicle_class || ''} ${vehicle.vehicle_type || ''}`.toLowerCase();
   const body = String(vehicle.features?.body_type || '').toLowerCase();
-  if(['trailer','semi_trailer'].includes(String(vehicle.features?.resource_type)))return 'trailer';
-  if(vehicle.features?.resource_type==='tractor_unit')return 'tractor';
   if (/tanker|cistern/.test(body)) return 'tanker';
   if (/trailer|prikolic/.test(category)) return 'trailer';
   if (/tractor|teglja/.test(category)) return 'tractor';
@@ -18,23 +25,29 @@ export function vehicleShape(vehicle: { vehicle_type?: string; features?: Record
   return 'unknown';
 }
 
-export function VehicleIllustration({ vehicle, label, compact = false }: {
-  vehicle: { vehicle_type?: string; features?: Record<string, unknown> };
+export function VehicleIllustration({ vehicle, label, compact = false, simplified=false }: {
+  vehicle: VehicleModelData;
   label: string;
   compact?: boolean;
+  simplified?: boolean;
 }) {
   const id = useId().replace(/:/g, '');
   const shape = vehicleShape(vehicle);
+  const spec=vehicleModelSpec(vehicle,simplified),body=spec.body,p=spec.series.cab;
   const van = shape === 'van' || shape === 'bus' || shape === 'car';
   const trailer = shape === 'trailer';
   const tractor = shape === 'tractor';
-  const flatbed = /flatbed|platform|chassis/.test(String(vehicle.features?.body_type || '').toLowerCase());
+  const flatbed = body==='flatbed'||body==='carrier';
+  const bodyEnd=trailer?386:293,bodyWidth=bodyEnd-42;
+  const cabLeft=tractor?251:301,cabEnd=tractor?360:388,roof=59+(1-p.roof)*42,roofEnd=cabEnd-10-p.rake*75;
+  const cabPath=p.id==='generic'?(tractor?'M251 161V68q0-8 8-8h52l36 52 13 9v40z':'M301 161V67q0-8 8-8h28l37 53 14 9v40z'):`M${cabLeft} 161V${roof+8}q0-8 8-8h${roofEnd-cabLeft-8}l${p.rake*75-4} ${112-roof} 14 9v40z`;
+  const vanRoofEnd=p.id==='generic'?293:328-p.rake*80;
   const wheel = (x: number, y = 166) => <g key={x}>
     <circle cx={x} cy={y} r="19" fill="#172b46" />
     <circle cx={x} cy={y} r="11" fill="#94a9bd" stroke="#dbe7ee" strokeWidth="3" />
     <circle cx={x} cy={y} r="4" fill="#3e566e" />
   </g>;
-  return <svg viewBox="0 0 440 215" role="img" aria-label={label} className={compact ? 'h-12 w-24 shrink-0' : 'h-auto w-full'}>
+  return <svg viewBox="0 0 440 215" role="img" aria-label={label} data-body={body} data-cab-profile={p.id} className={compact ? 'h-12 w-24 shrink-0' : 'h-auto w-full'}>
     <defs>
       <linearGradient id={`${id}-body`} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#fff" /><stop offset="1" stopColor="#d7e8f0" /></linearGradient>
       <linearGradient id={`${id}-glass`} x1="0" y1="0" x2="1" y2="1"><stop stopColor="#24405e" /><stop offset="1" stopColor="#5b8ea9" /></linearGradient>
@@ -45,10 +58,10 @@ export function VehicleIllustration({ vehicle, label, compact = false }: {
       <path d="M74 150v-41l34-30h70l35 30h142v41z" /><path d="M116 85h51l25 28h-89z" fill={`url(#${id}-glass)`} />
       {wheel(125, 151)}{wheel(316, 151)}
     </g> : van ? <>
-      <path d={shape === 'car' ? 'M58 155v-29l45-12 39-34h113l53 37 62 11 12 27z' : 'M55 156V73q0-14 15-14h223l53 48 27 13q9 4 9 15v21z'} fill={`url(#${id}-body)`} stroke="#88a9bc" strokeWidth="1.5" />
-      <path d={shape === 'car' ? 'M122 113l28-25h47v25zm85 0V88h43l36 25z' : 'M266 68h23l48 44h-71zm-52 0h40v44h-40z'} fill={`url(#${id}-glass)`} />
+      <path d={shape === 'car' ? 'M58 155v-29l45-12 39-34h113l53 37 62 11 12 27z' : `M55 156V73q0-14 15-14h${vanRoofEnd-70}l${346-vanRoofEnd} 48 27 13q9 4 9 15v21z`} fill={`url(#${id}-body)`} stroke="#88a9bc" strokeWidth="1.5" />
+      <path d={shape === 'car' ? 'M122 113l28-25h47v25zm85 0V88h43l36 25z' : `M266 68h${Math.max(14,vanRoofEnd-270)}l${337-vanRoofEnd+4} 44H266zm-52 0h40v44h-40z`} fill={`url(#${id}-glass)`} />
       {shape === 'bus' && [78, 120, 162].map(x => <rect key={x} x={x} y="69" width="33" height="42" rx="3" fill={`url(#${id}-glass)`} />)}
-      {shape === 'van' && <><path d="M76 77h119v59H76zM204 66v86M263 116v35" fill="none" stroke="#b4cbd7" /><path d="M72 132h123" stroke="#00afe0" strokeWidth="3" /><text x="88" y="112" fill="#009fcf" fontSize="18" fontWeight="700" fontFamily="Arial, sans-serif">freightbook</text></>}
+      {shape === 'van' && <><path d="M76 77h119v59H76zM204 66v86M263 116v35" fill="none" stroke="#b4cbd7" /><path d="M72 132h123" stroke="#00afe0" strokeWidth="3" /><text x="82" y="112" fill="#009fcf" fontSize="16" fontWeight="700" fontFamily="Arial, sans-serif">freightbook.ai</text></>}
       <path d="M57 146h47m48 0h131m48 0h48" stroke={`url(#${id}-blue)`} strokeWidth="7" />
       <rect x="352" y="126" width="24" height="8" rx="3" fill="#fff" stroke="#b0c7d1" />
       <rect x="51" y="128" width="5" height="14" rx="2" fill="#f98173" />
@@ -56,22 +69,25 @@ export function VehicleIllustration({ vehicle, label, compact = false }: {
       {wheel(126, 155)}{wheel(307, 155)}
     </> : <>
       {!trailer && <>
-        <path d={tractor ? 'M251 161V68q0-8 8-8h52l36 52 13 9v40z' : 'M301 161V67q0-8 8-8h28l37 53 14 9v40z'} fill={`url(#${id}-body)`} stroke="#88a9bc" strokeWidth="1.5" />
-        <path d={tractor ? 'M263 70h42l27 41h-69z' : 'M313 70h19l27 41h-46z'} fill={`url(#${id}-glass)`} />
+        <path d={cabPath} fill={`url(#${id}-body)`} stroke="#88a9bc" strokeWidth="1.5" />
+        <path d={`M${cabLeft+12} ${roof+11}h${Math.max(10,roofEnd-cabLeft-18)}l${Math.max(8,p.rake*62)} ${100-roof}H${cabLeft+12}z`} fill={`url(#${id}-glass)`} />
         <path d={tractor ? 'M258 139h96' : 'M309 139h72'} stroke={`url(#${id}-blue)`} strokeWidth="8" />
         <path d={tractor ? 'M333 116h13v-16' : 'M362 116h13v-16'} fill="none" stroke="#46667c" strokeWidth="3" />
         <rect x={tractor ? 263 : 314} y="119" width="12" height="3" rx="1.5" fill="#7e9daf" />
         <rect x={tractor ? 343 : 371} y="147" width="14" height="6" rx="2" fill="#fff" />
       </>}
-      {shape === 'tanker' ? <><rect x="49" y="66" width="241" height="82" rx="37" fill={`url(#${id}-body)`} stroke="#88a9bc" strokeWidth="1.5" /><path d="M114 68v78m100-78v78" stroke="#acc4d1" strokeWidth="5" /><path d="M68 106h205" stroke="#00afe0" strokeWidth="4" /></> : !tractor && <>
+      {body==='tanker'||body==='silo' ? <><rect x="49" y="66" width={bodyWidth-10} height="82" rx="37" fill={`url(#${id}-body)`} stroke="#88a9bc" strokeWidth="1.5" /><path d="M114 68v78m100-78v78" stroke="#acc4d1" strokeWidth="5" /><path d={`M68 106h${bodyWidth-40}`} stroke="#00afe0" strokeWidth="4" />{body==='silo'&&[110,210].map(x=><path key={x} d={`M${x-20} 138l20 23 20-23`} fill="#a9c1cf" stroke="#88a9bc"/>)}</> : body==='dump'?<><path d={`M42 82h${bodyWidth}l-18 66H65z`} fill={`url(#${id}-body)`} stroke="#88a9bc" strokeWidth="2"/><path d={`M43 82h${bodyWidth}`} stroke="#00afe0" strokeWidth="6"/>{[82,135,188,241].map(x=><path key={x} d={`M${x} 88l8 55`} stroke="#89acbf" strokeWidth="4"/>)}</>:!tractor && <>
         {!flatbed && <><rect x="42" y="44" width={trailer ? 344 : 251} height="108" rx="5" fill={`url(#${id}-body)`} stroke="#88a9bc" strokeWidth="1.5" /><path d={trailer ? 'M48 131h332' : 'M48 131h239'} stroke={`url(#${id}-blue)`} strokeWidth="12" />
-          <text x={trailer ? 118 : 87} y="103" fill="#009fcf" fontSize="24" fontWeight="700" fontFamily="Arial, sans-serif">freightbook</text>
-          {/curtain|cerad/.test(String(vehicle.features?.body_type || '').toLowerCase()) && [65, 105, 145, 185, 225, 265].map(x => <path key={x} d={`M${x} 48v92`} stroke="#b0cbd9" opacity=".5" />)}
+          <text x={trailer ? 104 : 75} y="103" fill="#009fcf" fontSize="24" fontWeight="700" fontFamily="Arial, sans-serif">freightbook.ai</text>
+          {body==='curtain'&&[65,105,145,185,225,265].map(x=><path key={x} d={`M${x} 49v94m-3 0v7h6v-7`} stroke="#8aaabb" fill="none"/>)}
+          {body==='container'&&Array.from({length:Math.floor(bodyWidth/15)},(_,i)=><path key={i} d={`M${52+i*15} 50v94`} stroke="#94b3c3" strokeWidth="3"/>)}
+          {body==='reefer'&&<g><rect x={bodyEnd-14} y="52" width="22" height="48" rx="4" fill="#eaf4f9" stroke="#88a9bc"/>{[62,70,78,86].map(y=><path key={y} d={`M${bodyEnd-10} ${y}h14`} stroke="#46667c" strokeWidth="2"/>)}</g>}
         </>}
+        {body==='carrier'&&<g stroke="#789aac" strokeWidth="4"><path d={`M42 96h${bodyWidth}M60 96v57m100-57v57m100-57v57`}/>{[94,211].map(x=><g key={x}><path d={`M${x-34} 90v-13l15-4 13-12h30l17 15 7 3v11z`} fill="#d5e8f1" strokeWidth="2"/><circle cx={x-18} cy="89" r="6" fill="#172b46"/><circle cx={x+30} cy="89" r="6" fill="#172b46"/></g>)}</g>}
         <path d={trailer ? 'M44 153h341' : 'M44 153h250'} stroke="#46647a" strokeWidth="7" />
       </>}
       {tractor && <><rect x="83" y="150" width="170" height="12" rx="3" fill="#46647a" /><rect x="150" y="141" width="60" height="7" rx="3" fill="#253f57" /></>}
-      {trailer ? <>{wheel(104)}{wheel(145)}{wheel(186)}<path d="M330 159v20h19" stroke="#708fa5" strokeWidth="4" fill="none" /></> : <>{wheel(tractor ? 119 : 96)}{wheel(tractor ? 162 : 139)}{wheel(tractor ? 301 : 341)}</>}
+      {trailer ? <>{Array.from({length:spec.axles},(_,i)=>wheel(90+i*40))}<path d="M330 159v20h19" stroke="#708fa5" strokeWidth="4" fill="none" /></> : <>{Array.from({length:spec.axles-1},(_,i)=>wheel((tractor?115:85)+i*40))}{wheel(tractor ? 301 : 341)}</>}
     </>}
   </svg>;
 }

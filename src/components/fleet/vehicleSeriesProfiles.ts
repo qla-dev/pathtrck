@@ -48,5 +48,6 @@ export function vehicleSeriesProfile(make='',model='',simplified=false) {
  const base=profiles[simplified?'generic':match?.id||'generic'];
  // Small family-level distinctions, not a claim of a particular roof option or generation.
  const roof=!simplified&&match?({S:1.12,R:1.04,G:.96,'T High':1.12,'Actros L':1.1,'Actros F':.98,'XG+':1.14,XG:1.1} as Record<string,number>)[match.series]:undefined;
- return {cab:roof?{...base,roof}:base,recognized:!!match,series:match?.series||null,source:match?sources[manufacturer]:null};
+ const source=manufacturer==='mercedes-benz'&&match&&['sprinter','mediumVan','compact'].includes(match.id)?'https://group.mercedes-benz.com/company/divisions/mercedes-benz-vans/':manufacturer==='renault'&&match&&['renault','distribution'].includes(match.id)?'https://sacom.renault-trucks.com/pdf-sales-arguments/generate/option_sheets/4108':sources[manufacturer];
+ return {cab:roof?{...base,roof}:base,recognized:!!match,series:match?.series||null,source:match?source:null};
 }

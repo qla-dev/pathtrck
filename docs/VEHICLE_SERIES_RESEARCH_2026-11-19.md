@@ -37,8 +37,16 @@ Električni i dizelski modeli mogu dijeliti kabinsku porodicu; ne izmišljamo ra
 
 ## Deset novih demo vozila
 
-Planirana grupa `FB-DEMO-001` do `FB-DEMO-010`, tačno imenovana kompanija Freightbook Logistics Hub. Mercedes Actros L sanduk, Volvo FH Aero cerada, Scania S tegljač, MAN TGS kiper, DAF XF hladnjača, Iveco S-Way cisterna, VW Crafter sanduk, Ford Transit Custom kombi, Renault Master kombi, Fiat Ducato hladnjača.
+Kreirana produkcijska grupa `FB-DEMO-001` do `FB-DEMO-010`, tačno imenovana kompanija Freightbook Logistics Hub. Mercedes Actros L sanduk, Volvo FH Aero cerada, Scania S tegljač, MAN TGS kiper, DAF XF hladnjača, Iveco S-Way cisterna, VW Crafter sanduk, Ford Transit Custom kombi, Renault Master kombi, Fiat Ducato hladnjača. Produkcijski rezultat: deset kreiranih, naknadna provjera deset postojećih i nula preostalih za kreiranje. Nastavak istog zahtjeva ne duplira ovu grupu.
 
 Vozila imaju `demo_record=true`, identifikator grupe i `specification_source=synthetic_test_data`. Dimenzije su demonstracijske. Nisu predstavljene kao fabričke specifikacije. Nisu izmišljeni VIN, dokumenti, kategorija, legalne mase ili teretna nosivost. Postojeći vozači nisu automatski raspoređeni. Kreiranje koristi postojeći VehicleController, ograničenu transakciju i kontrolu kolizija; ponovni poziv ne duplira niti prepisuje vozila.
 
 Prije produkcijskog upisa provjeravaju se efektivni driver, host, port, baza i jedinstvena kompanija. Testovi rade samo nad provjerenom SQLite `:memory:` bazom. Privremeni potpisani endpoint uklanja se nakon upisa i provjere.
+
+## Završno usklađenje prikaza
+
+2D sličice i WebGL fallback sada koriste iste stabilne oznake karoserije kao 3D. Crafter sa sandukom razlikuje se od panel kombija i kada nema opisnog naziva karoserije. Kiper, cisterna/silos, hladnjača, cerada, kontejner, platforma i autotransporter imaju različite prikaze. Poznata serija stilizira kabinu bez vidljivih oznaka proizvođača; izbor pojednostavljenog prikaza prenosi se i na fallback. Prikazan je uneseni axle_configuration, a demo vozila imaju vidljivu oznaku demonstracijskih dimenzija.
+
+16 ciljanih frontend testova prošlo, kao i TypeScript provjera i Vite produkcijski build. Stvarna Three.js geometrija svih cestovnih prijedloga i nadogradnji provjerena je bez WebGL prozora; SVG komponente provjerene su kroz React server render. Posljednji pokušaj desktop snimka dva puta je završio Windows greškom `0x80070534 / No mapping between account names and security IDs was done` nakon preimenovanja Windows korisnika. Nova vizuelna provjera u otvorenom pregledniku zato nije potvrđena; potrebna je nova Windows prijava. To nije potvrda problema u Freightbook modelu.
+
+Dodatne reference za oblik kabine i zasebnu nadogradnju: [Actros L ProCabin](https://www.mercedes-benz-trucks.com/int/en/trucks/actros-l.html), [Volvo FH Aero produženi prednji dio](https://www.volvotrucks.com/en-en/news-stories/stories/2024/feb/designing-a-truck-for-the-future.html), [Crafter chassis cab](https://www.volkswagen-vans.co.uk/en/new-vehicles/crafter-chassis.html). Različite generacije i opcije krova unutar iste serije ostaju približna interpretacija; ovo nije potpuna CAD biblioteka svih tvorničkih varijanti.
