@@ -35,3 +35,5 @@ Draft revisions reject concurrent changes. Source record fingerprints protect in
 Deploy the backend with both 2026-11-20 draft migrations before activating this frontend. Main branch publication alone is not evidence of database migration or production deployment.
 
 Validation: 38 focused Node tests, TypeScript and Vite build; real browser recovery checks use a disposable SQLite in-memory backend with real controllers. Invoice refresh, carrier navigation/retry, load step recovery and vehicle PDF upload were exercised. The browser harness is local and is not shipped.
+
+Closed dialogs may be mounted without their record. Build draft contexts with optional record access and keep `scopeReady` false until the record exists; keep hooks unconditional. `node --test src/components/load/LoadDetails.closed.test.mjs` renders both real load-detail dialogs with a null selection to cover authenticated startup. Its jsdom dependency is for tests only.
