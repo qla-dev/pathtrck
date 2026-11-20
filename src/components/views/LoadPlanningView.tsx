@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { fleetCopy } from '../fleet/fleetCopy';
 import { DataTable } from '../ui/DataTable';
 import React, { useEffect, useRef, useState } from 'react';
@@ -205,6 +206,7 @@ export default function LoadPlanningView({ lang, userId, role, onOpenTransportOr
   const [position, setPosition] = useState({ x: 0, y: 0, z: 0 });
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT), [draftKey, setDraftKey] = useState(0);
   const [trackingQuery, setTrackingQuery] = useState(''), [trackingLoads, setTrackingLoads] = useState<Record<string, unknown>[]>([]), [trackingState, setTrackingState] = useState<'loading' | 'idle' | 'error'>('idle');
+  useFormRecovery({module:'loads',formKey:'load-planning',recordKey:'workspace'},{plan,draft,adding,view,settingsTab,equipmentTab},recovered=>{setPlan((previous:any)=>restoreFormValue(previous,recovered.plan));setDraft((previous:any)=>restoreFormValue(previous,recovered.draft));setAdding((previous:any)=>restoreFormValue(previous,recovered.adding));setView((previous:any)=>restoreFormValue(previous,recovered.view));setSettingsTab((previous:any)=>restoreFormValue(previous,recovered.settingsTab));setEquipmentTab((previous:any)=>restoreFormValue(previous,recovered.equipmentTab));},{active:true});
   const viewport = useRef<HTMLDivElement>(null), importInput = useRef<HTMLInputElement>(null);
   const key = `freightbook-loading-plan-v1-${userId ?? 'guest'}`;
 

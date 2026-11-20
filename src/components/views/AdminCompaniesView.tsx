@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { useMemo, useState } from "react";
 import { BadgeCheck, Ban, Building2, Clock3, Crown, Eye, Loader2, Mail, Star } from "lucide-react";
 import { ApiError, api } from "../../services/api";
@@ -55,6 +56,8 @@ export const AdminCompaniesView = ({
     null,
   );
   const [subscriptionTarget, setSubscriptionTarget] = useState<AdminSubscriptionTarget | null>(null);
+  const recovery2=useFormRecovery({module:"companies",formKey:"AdminCompaniesView",recordKey:'new',submitPaths:[`^/companies/onboard$`]},{open,form},recovered=>{setOpen((previous:any)=>restoreFormValue(previous,recovered.open));setForm((previous:any)=>restoreFormValue(previous,recovered.form));},{active:open,scopeReady:true});
+
   const companies = useApiList(api.companies.list, {
     per_page: 100,
     warehouse_first: false,

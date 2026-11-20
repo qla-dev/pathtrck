@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { useState, type ReactNode } from 'react';
 import { SmallModal } from '../ui/SmallModal';
 import type { Language } from '../../types';
@@ -78,7 +79,8 @@ const parseInstructions = (value: unknown): Instructions => {
   };
 };
 
-export const ChecklistShippingInstructionsModal = ({ lang, value, onSave, onClose }: {
+export const ChecklistShippingInstructionsModal = ({ lang, value, draftRecordKey, companyId, onSave, onClose }: {
+  draftRecordKey: string; companyId?: number;
   lang: Language;
   value: unknown;
   onSave: (value: string) => Promise<void>;
@@ -88,6 +90,8 @@ export const ChecklistShippingInstructionsModal = ({ lang, value, onSave, onClos
   const [data, setData] = useState(() => parseInstructions(value));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const recovery42=useFormRecovery({module:"orders",formKey:"ChecklistShippingInstructionsModal",recordKey:draftRecordKey,companyId},{data},recovered=>{setData((previous:any)=>restoreFormValue(previous,recovered.data));},{active:true,scopeReady:true});
+
 
   const setParty = (party: PartyKey, field: PartyField, fieldValue: string) =>
     setData((current) => ({ ...current, [party]: { ...current[party], [field]: fieldValue } }));
@@ -126,6 +130,7 @@ export const ChecklistShippingInstructionsModal = ({ lang, value, onSave, onClos
       try {
         // A notify party that mirrors the consignee is stored as the flag alone, so the two can
         // never drift apart once the consignee is edited later.
+        await recovery42.flush();
         await onSave(JSON.stringify({
           shipper: data.shipper,
           consignee: data.consignee,
@@ -133,6 +138,7 @@ export const ChecklistShippingInstructionsModal = ({ lang, value, onSave, onClos
           notify: data.notifySameAsConsignee ? emptyParty() : data.notify,
           ...Object.fromEntries(NOTES_FIELDS.map((field) => [field, data[field].trim()])),
         }));
+        await recovery42.complete();
         onClose();
       } catch {
         setError(text.failed);

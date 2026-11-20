@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import {useEffect,useState} from 'react';
 import type {Language} from '../../types';
 import {api} from '../../services/api';
@@ -9,6 +10,12 @@ type Row=Record<string,any>;
 export function VehicleWorkflowPanel({company,vehicle,lang,canReview,canService,onChanged}:{company:number;vehicle:Row;lang:Language;canReview:boolean;canService:boolean;onChanged:()=>void}) {
  const u=(bs:string,en:string)=>['bs','hr','sr'].includes(lang)?bs:en;
  const [data,setData]=useState<Row|null>(null),[docs,setDocs]=useState<Row[]>([]),[error,setError]=useState(''),[busy,setBusy]=useState(false),[revision,setRevision]=useState(0),[reference,setReference]=useState(''),[document,setDocument]=useState(''),[task,setTask]=useState<Row>({kind:'service',title:'',due_on:'',due_mileage:'',responsible_user_id:'',document_id:''}),[reasons,setReasons]=useState<Record<number,string>>({});
+  const recovery35=useFormRecovery({module:"vehicles",formKey:'document-review',recordKey:String(vehicle.id),companyId:company||undefined,submitPaths:[`^/fleet-operations/${company}/vehicle-workflow/${vehicle.id}/review$`]},{reference,document},recovered=>{setReference((previous:any)=>restoreFormValue(previous,recovered.reference));setDocument((previous:any)=>restoreFormValue(previous,recovered.document));},{active:true,scopeReady:!!(company)});
+
+  const recovery34=useFormRecovery({module:"maintenance",formKey:'task-resolution',recordKey:String(vehicle.id),companyId:company||undefined,submitPaths:[`^/fleet-operations/${company}/vehicle-workflow/${vehicle.id}/tasks/[^/]+$`]},{reasons},recovered=>{setReasons((previous:any)=>restoreFormValue(previous,recovered.reasons));},{active:true,scopeReady:!!(company)});
+
+  const recovery33=useFormRecovery({module:"maintenance",formKey:'service-document-task',recordKey:String(vehicle.id),companyId:company||undefined,submitPaths:[`^/fleet-operations/${company}/vehicle-workflow/${vehicle.id}/tasks$`]},{task},recovered=>{setTask((previous:any)=>restoreFormValue(previous,recovered.task));},{active:true,scopeReady:!!(company)});
+
  useEffect(()=>{let live=true;setData(null);setError('');Promise.all([api.fleetOperations.get(company,`vehicle-workflow/${vehicle.id}`),api.documents.list({vehicle_id:vehicle.id})]).then(([a,b])=>{if(live){setData(a.data);setDocs(b.data);}}).catch(e=>{if(live)setError(e.message);});return()=>{live=false;};},[company,vehicle.id,revision]);
  const run=async(fn:()=>Promise<unknown>)=>{if(busy)return;setBusy(true);setError('');try{await fn();setRevision(n=>n+1);onChanged();}catch(e){setError((e as Error).message);}finally{setBusy(false);}};
  const documentSelect=(value:string,change:(id:string)=>void)=><select aria-label={u('Priloženi dokument','Uploaded document')} className={field} value={value} onChange={e=>change(e.target.value)}><option value="">{u('Izaberite dokument','Select document')}</option>{docs.map(d=><option key={d.id} value={d.id}>{d.name||d.type} · #{d.id}</option>)}</select>;

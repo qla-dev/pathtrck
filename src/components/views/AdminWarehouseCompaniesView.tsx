@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { useMemo, useState } from "react";
 import {
   Boxes,
@@ -66,6 +67,8 @@ export const AdminWarehouseCompaniesView = ({
   );
   const [statusSavingId, setStatusSavingId] = useState<string | null>(null);
   const [subscriptionTarget, setSubscriptionTarget] = useState<AdminSubscriptionTarget | null>(null);
+  const recovery3=useFormRecovery({module:"companies",formKey:"AdminWarehouseCompaniesView",recordKey:'new',submitPaths:[`^/companies/onboard$`]},{open,form},recovered=>{setOpen((previous:any)=>restoreFormValue(previous,recovered.open));setForm((previous:any)=>restoreFormValue(previous,recovered.form));},{active:open,scopeReady:true});
+
   const warehouses = useApiList(api.companies.list, {
     per_page: 100,
     warehouse_first: true,

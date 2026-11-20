@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { useState } from 'react';
 import type { Language } from '../../types';
 import { api } from '../../services/api';
@@ -20,6 +21,7 @@ export function CompanyOrganizationEditor({ lang, member, refresh }: {
   const [sub, setSub] = useState(member.subdepartments);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  useFormRecovery({module:'companies',formKey:'organization',recordKey:String(member.databaseId),submitPaths:[`^/company-memberships/${member.databaseId}$`]},{business,sub},recovered=>{setBusiness((previous:any)=>restoreFormValue(previous,recovered.business));setSub((previous:any)=>restoreFormValue(previous,recovered.sub));},{active:member.canManage});
   const disabled = !member.canManage || member.status !== 'Active' || busy;
   const toggle = (values: string[], key: string, checked: boolean) => checked ? [...values, key] : values.filter(v => v !== key);
   const save = async () => {

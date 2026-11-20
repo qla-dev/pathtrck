@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { SegmentedControl } from "../ui/SegmentedControl";
 import { useMemo, useState } from "react";
 import {
@@ -54,6 +55,8 @@ export const AdminCustomersView = ({
     null,
   );
   const [subscriptionTarget, setSubscriptionTarget] = useState<AdminSubscriptionTarget | null>(null);
+  const recovery1=useFormRecovery({module:"customers",formKey:"AdminCustomersView",recordKey:'new',submitPaths:[`^/customers$`]},{open,form},recovered=>{setOpen((previous:any)=>restoreFormValue(previous,recovered.open));setForm((previous:any)=>restoreFormValue(previous,recovered.form));},{active:open,scopeReady:true});
+
   const customers = useApiList(customerRequest, { limit: 500, pageno: 1 });
   const columns = useMemo<ServerDataTableColumn<Record<string, unknown>>[]>(
     () => [

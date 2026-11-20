@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import {
@@ -130,6 +131,8 @@ export const LoadDetails = ({ open, load, onClose, lang, role, userId, onEdit, o
   const [showOfferForm, setShowOfferForm] = useState(false);
   const [offerDraft, setOfferDraft] = useState<Offer>(() => createEmptyOfferDraft());
   const [isSubmittingOffer, setIsSubmittingOffer] = useState(false);
+  const recovery46=useFormRecovery({module:"loads",formKey:"LoadDetails-bid",recordKey:String(load.id),submitPaths:[`^/offers(?:/[^/]+)?$`]},{showOfferForm,offerDraft},recovered=>{setShowOfferForm((previous:any)=>restoreFormValue(previous,recovered.showOfferForm));setOfferDraft((previous:any)=>restoreFormValue(previous,recovered.offerDraft));},{active:showOfferForm,scopeReady:true});
+
 
   useEffect(() => {
     setShowOfferForm(false);

@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { useOpsCopy } from './opsCopy';
 import { useEffect, useState } from 'react';
 import { api } from '../../services/api';
@@ -9,6 +10,8 @@ const field='rounded-lg border bg-white p-2 text-sm dark:border-slate-700 dark:b
 export function OperationalSettings({company,canSetup}:{company:number;canSetup:boolean}) {
   const {t}=useOpsCopy();
   const [versions,setVersions]=useState<Row[]>([]),[mode,setMode]=useState('road'),[variant,setVariant]=useState(''),[items,setItems]=useState<Row[]>([]),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false);
+  const recovery20=useFormRecovery({module:"orders",formKey:"OperationalSettings",recordKey:'new',companyId:company||undefined,submitPaths:[`^/accounting/${company}/ops/checklist-versions$`]},{mode,variant,items},recovered=>{setMode((previous:any)=>restoreFormValue(previous,recovered.mode));setVariant((previous:any)=>restoreFormValue(previous,recovered.variant));setItems((previous:any)=>restoreFormValue(previous,recovered.items));},{active:true,scopeReady:!!(company)});
+
   const load=()=>api.accounting.get<Row[]>(company,'ops/checklist-versions').then(r=>setVersions(r.data));
   useEffect(()=>{void load().catch(e=>setError(e.message));},[company]);
   useEffect(()=>{const current=versions.find(v=>v.transport_type===mode&&(v.variant||'')===variant);setItems(current?structuredClone(current.items):[{key:'booking',label:t("Potvrda bookinga"),phase:'booking',required_documents:[]},{key:'goods_documents',label:t("Roba i dokumentacija"),phase:'goods_documents',required_documents:[]}]);},[versions,mode,variant]);

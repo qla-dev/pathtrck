@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { ChangeEvent, DragEvent, useMemo, useRef, useState } from 'react';
 import { Archive, Camera, Download, FileText, Search, Trash2, Upload } from 'lucide-react';
 
@@ -74,6 +75,8 @@ export const DocumentUploadCard = ({
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const recovery27=useFormRecovery({module:"documents",formKey:`DocumentUploadCard-${defaultType||'general'}`,recordKey:String(vehicleId?`vehicle-${vehicleId}`:attachTo),submitFields:{load_id:attachTo===ARCHIVE?null:attachTo,vehicle_id:vehicleId||null,type:documentType||'OTHER'},submitPaths:[`^/documents/upload$`]},{documentType,comment,pending},recovered=>{setDocumentType((previous:any)=>restoreFormValue(previous,recovered.documentType));setComment((previous:any)=>restoreFormValue(previous,recovered.comment));setPending((previous:any)=>restoreFormValue(previous,recovered.pending));},{active:true,scopeReady:true});
+
 
   const acceptFile = (file: File | undefined) => {
     if (!file) return;

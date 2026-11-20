@@ -1,0 +1,4 @@
+.vehicle-service-date .flatpickr-wrapper { width: 100%; }
+.vehicle-service-date .flatpickr-calendar { max-width: calc(100vw - 5rem); }
+.vehicle-service-date .flatpickr-days,
+.vehicle-service-date .dayContainer { width: 100%; min-width: 0; max-width: 100%; }

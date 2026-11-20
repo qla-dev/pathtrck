@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { useState } from 'react';
 import {
   AlertTriangle,
@@ -101,6 +102,8 @@ export const LoadOffersPanel = ({
   const [counterDraft, setCounterDraft] = useState<Offer | null>(null);
   const [sendingCounter, setSendingCounter] = useState(false);
   const [providerOffer, setProviderOffer] = useState<Record<string, unknown> | null>(null);
+  const recovery48=useFormRecovery({module:"loads",formKey:'counter-offer',recordKey:'new',submitPaths:[`^/offers/[^/]+/.*counter.*$`]},{counterDraft,counterOffer},recovered=>{setCounterDraft((previous:any)=>restoreFormValue(previous,recovered.counterDraft));setCounterOffer((previous:any)=>restoreFormValue(previous,recovered.counterOffer));},{active:!!counterOffer,scopeReady:true});
+
 
   const sendQuickCounter = async (amount: number) => {
     if (!quickCounterOffer) return;

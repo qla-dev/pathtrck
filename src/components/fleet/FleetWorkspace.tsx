@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Building2, Handshake, Plus, Truck, X } from 'lucide-react';
 import type { Language } from '../../types';
@@ -20,6 +21,9 @@ import { RESOURCES,registryLabel } from './vehicleRegistry';
 import { HandoverVehiclePicker } from './HandoverVehiclePicker';
 import {VehicleWorkflowPanel,FleetWorkflowAlerts} from './VehicleWorkflowPanel';
 
+import {VehicleDocumentsPanel} from './VehicleDocumentsPanel';
+import {formatVehicleServiceDate} from './vehicleFormOptions';
+
 const states=['in_use','depot','maintenance','for_sale','sold','returned','stolen','active','available','idle'];
 
 export function FleetWorkspace({lang,preferredCompany,global=false,onLegacy}:{lang:Language;preferredCompany?:number;global?:boolean;onLegacy:()=>void}) {
@@ -31,24 +35,28 @@ export function FleetWorkspace({lang,preferredCompany,global=false,onLegacy}:{la
  const setStatus=(value:string)=>setFilters(f=>({...f,status:value,page:1}));
  const setArchive=(value:boolean)=>setFilters(f=>({...f,archive:value,page:1}));
  const setPage=(value:number|((page:number)=>number))=>setFilters(f=>({...f,page:typeof value==='function'?value(f.page):value}));
- const [data,setData]=useState<FleetRow|null>(null),[detail,setDetail]=useState<FleetRow|null>(null),[detailTab,setDetailTab]=useState('overview'),[busy,setBusy]=useState(false),[loading,setLoading]=useState(false),[add,setAdd]=useState(false),[handover,setHandover]=useState<FleetRow|null>(null),[selectVehicle,setSelectVehicle]=useState(false),[docs,setDocs]=useState<FleetRow[]>([]);
+ const [data,setData]=useState<FleetRow|null>(null),[detail,setDetail]=useState<FleetRow|null>(null),[detailTab,setDetailTab]=useState('overview'),[busy,setBusy]=useState(false),[loading,setLoading]=useState(false),[add,setAdd]=useState(false),[handover,setHandover]=useState<FleetRow|null>(null),[selectVehicle,setSelectVehicle]=useState(false);
  const [editVehicle,setEditVehicle]=useState<FleetRow|null>(null);
  const [statusDraft,setStatusDraft]=useState<FleetRow|null>(null),[depotDraft,setDepotDraft]=useState<FleetRow|null>(null),[serviceDraft,setServiceDraft]=useState<FleetRow|null>(null);
+  const recovery31=useFormRecovery({module:"vehicles",formKey:'status-depot',recordKey:'new',companyId:company||undefined,submitPaths:[`^/fleet-operations/${company}/(?:vehicle-status|vehicle-depot)/[^/]+$`]},{statusDraft,depotDraft},recovered=>{setStatusDraft((previous:any)=>restoreFormValue(previous,recovered.statusDraft));setDepotDraft((previous:any)=>restoreFormValue(previous,recovered.depotDraft));},{active:!!statusDraft||!!depotDraft,scopeReady:!!(company)&&(!!context)});
+
+  const recovery30=useFormRecovery({module:"maintenance",formKey:"FleetWorkspace",recordKey:String(serviceDraft?.id||'new'),companyId:company||undefined,submitPaths:[`^/fleet-operations/${company}/vehicle-service/[^/]+$`]},{serviceDraft},recovered=>{setServiceDraft((previous:any)=>restoreFormValue(previous,recovered.serviceDraft));},{active:!!serviceDraft,scopeReady:!!(company)&&(!!context)});
+
  const sequence=useRef(0),detailSequence=useRef(0),listRequest=useRef<AbortController|null>(null);
  const can=(ability:string)=>context?.abilities?.includes(ability);
  const load=useCallback(async()=>{if(!company||!context)return;listRequest.current?.abort();const controller=new AbortController();listRequest.current=controller;const n=++sequence.current;setLoading(true);try{const q=new URLSearchParams({depot_id:depot,search:filters.search,status,include_archived:archive?'1':'0',page:String(page),resource_type:resource,legal_category:legal});const r=await api.fleetOperations.get(company,`overview?${q}`,{signal:controller.signal});if(n===sequence.current){setData(r.data);setListError('');}}catch(e){if(n===sequence.current&&!controller.signal.aborted)setListError(e instanceof ApiError&&e.status>=500?(e.code==='DATABASE_BUSY'?'Baza je trenutno zauzeta. Pokušajte ponovo za nekoliko trenutaka.':'Usluga je trenutno nedostupna. Pokušajte ponovo.'):(e as Error).message);}finally{if(n===sequence.current)setLoading(false);}},[company,!!context,depot,filters.search,status,archive,page,resource,legal]);
  useEffect(()=>{const timer=setTimeout(()=>setFilters(f=>f.search===search?f:{...f,search,page:1}),300);return()=>clearTimeout(timer);},[search]);
- useEffect(()=>{setDepot('');setEditVehicle(null);setData(null);setDetail(null);setDocs([]);setListError('');setStatusDraft(null);setDepotDraft(null);setServiceDraft(null);setHandover(null);setSelectVehicle(false);setPage(1);setTab('vehicles');detailSequence.current++;return()=>{sequence.current++;detailSequence.current++;};},[company]);
- useEffect(()=>{setDetail(null);setDocs([]);detailSequence.current++;},[depot,filters.search,status,archive,resource,legal]);
+ useEffect(()=>{setDepot('');setEditVehicle(null);setData(null);setDetail(null);setListError('');setStatusDraft(null);setDepotDraft(null);setServiceDraft(null);setHandover(null);setSelectVehicle(false);setPage(1);setTab('vehicles');detailSequence.current++;return()=>{sequence.current++;detailSequence.current++;};},[company]);
+ useEffect(()=>{setDetail(null);detailSequence.current++;},[depot,filters.search,status,archive,resource,legal]);
  useEffect(()=>{void load();return()=>{sequence.current++;listRequest.current?.abort();};},[load]);
  const run=async(fn:()=>Promise<unknown>)=>{if(busy)return;setBusy(true);scope.setError('');try{await fn();await scope.refresh();await load();}catch(e){scope.setError((e as Error).message);}finally{setBusy(false);}};
- const open=async(id:number)=>{const n=++detailSequence.current;setDetail(null);setDocs([]);setDetailTab('overview');try{const r=await api.fleetOperations.get(company,`vehicle-details/${id}`);if(n===detailSequence.current)setDetail(r.data);}catch(e){if(n===detailSequence.current)scope.setError((e as Error).message);}};
+ const open=async(id:number)=>{const n=++detailSequence.current;setDetail(null);setDetailTab('overview');try{const r=await api.fleetOperations.get(company,`vehicle-details/${id}`);if(n===detailSequence.current)setDetail(r.data);}catch(e){if(n===detailSequence.current)scope.setError((e as Error).message);}};
  const contextVehicles=(context?.vehicles||[]).filter((v:FleetRow)=>!depot||(depot==='unassigned'?!v.depot_id:String(v.depot_id)===depot));
  const controlledScope={...scope,context:context?{...context,vehicles:contextVehicles}:null};
  const vehicle=detail?.vehicle;
  const detailTabs=['overview','workflow',...(vehicle?.transport_type==='road'||vehicle?.features?.resource_type?['couplings']:[]),'history',...(can('damage')?['damages']:[]),'documents','service','gps'];
- const closeDetail=()=>{detailSequence.current++;setDetail(null);setDocs([]);};
- const selectTab=async(value:string)=>{setDetailTab(value);if(value==='documents'&&vehicle){const n=detailSequence.current;try{const r=await api.documents.list({vehicle_id:vehicle.id});if(n===detailSequence.current)setDocs(r.data);}catch(e){if(n===detailSequence.current)scope.setError((e as Error).message);}}};
+ const closeDetail=()=>{detailSequence.current++;setDetail(null);};
+ const selectTab=(value:string)=>setDetailTab(value);
  return <div className="space-y-3">
   <PageHeader icon={Truck} title={t(global?'Globalna flota':'Moja flota')} subtitle={t('Vozila, depoi, zaduženja i stanje flote')} actions={<div className="flex flex-wrap gap-2">{context?.role!=='workshop'&&<Button variant="outline" onClick={onLegacy}>{t('Dokumenti i statistika')}</Button>}{can('handover')&&<Button variant="outline" disabled={!company} onClick={()=>setSelectVehicle(true)}><Handshake className="mr-2 h-4 w-4"/>{t('Primopredaja vozila')}</Button>}{can('create')&&<Button disabled={!company} onClick={()=>setAdd(true)}><Plus className="mr-2 h-4 w-4"/>{t('Dodaj vozilo')}</Button>}</div>}/>
   <div className="flex flex-wrap gap-2"><select aria-label={t('Kompanija')} className={`${field} sm:max-w-xs`} value={company} onChange={e=>scope.setCompany(Number(e.target.value))}><option value="0">{t('Kompanija')}</option>{scope.companies.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><select aria-label={t('Aktivni depoi')} className={`${field} sm:max-w-xs`} value={depot} onChange={e=>setDepot(e.target.value)}><option value="">{t('Svi dozvoljeni depoi')}</option>{context?.all_depots&&<option value="unassigned">{t('Nerazvrstano')}</option>}{context?.depot_records?.map((d:FleetRow)=><option key={d.id} value={d.id}>{d.code} · {d.name}{!d.active?` · ${t('Neaktivan')}`:''}</option>)}</select><Button variant="outline" disabled={loading} onClick={()=>void run(async()=>{})}>{t('Osvježi')}</Button></div>
@@ -71,8 +79,8 @@ export function FleetWorkspace({lang,preferredCompany,global=false,onLegacy}:{la
     {detailTab==='history'&&<div className="space-y-2">{detail.handovers.map((h:FleetRow)=><div key={h.id} className={`rounded-xl p-3 text-sm ${h.review_status==='pending'?'bg-red-50 text-red-900 dark:bg-red-950/30 dark:text-red-200':'bg-emerald-50 text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200'}`}><p>#{h.id} · {new Date(h.effective_at).toLocaleString()}</p><p>{t(h.review_status==='pending'?'Čeka pregled':'Završena')} · {h.mileage_km} km</p></div>)}<Button variant="outline" onClick={()=>setTab('handovers')}>{t('Otvori evidenciju')}</Button></div>}
     {detailTab==='damages'&&<div className="space-y-2">{detail.damages.map((d:FleetRow)=><p key={d.id} className="rounded-xl bg-slate-50 p-3 text-sm dark:bg-slate-800">#{d.id} · {d.description} · {t(({reported:'Prijavljeno',in_progress:'U obradi',closed:'Zatvoreno'} as FleetRow)[d.status]||d.status)}</p>)}{!detail.damages.length&&<p className="text-sm text-slate-500">{t('Nema zapisa.')}</p>}<Button variant="outline" onClick={()=>setTab('damages')}>{t('Otvori evidenciju')}</Button></div>}
     {detailTab==='couplings'&&<VehicleCouplingsPanel key={vehicle.id} lang={lang} company={company} vehicle={vehicle} candidates={context?.vehicles||[]} canManage={!!can('dispatch')} onChanged={async()=>{const n=detailSequence.current;await scope.refresh();const r=await api.fleetOperations.get(company,`vehicle-details/${vehicle.id}`);if(n===detailSequence.current)setDetail(r.data);}}/>}
-    {detailTab==='documents'&&<div className="space-y-2">{docs.map(d=><Button key={d.id} variant="outline" onClick={()=>void api.documents.open(String(d.id),d.name,false)}>{d.name}</Button>)}{!docs.length&&<p className="text-sm text-slate-500">{t('Nema zapisa.')}</p>}</div>}
-    {detailTab==='service'&&<div className="space-y-2 text-sm"><p>{t('Sljedeći servis')}: {vehicle.features?.next_service||'—'}</p><p className="text-xs text-slate-500">{t('Servisni podaci prikazuju se iz postojeće evidencije vozila.')}</p>{can('service')&&<Button variant="outline" onClick={()=>setServiceDraft({id:vehicle.id,next_service:vehicle.features?.next_service||'',reason:''})}>{t('Uredi servis')}</Button>}</div>}
+    {detailTab==='documents'&&<VehicleDocumentsPanel key={vehicle.id} vehicle={vehicle} lang={lang} canManage={!!can('service')}/>}
+    {detailTab==='service'&&<div className="space-y-2 text-sm"><p>{t('Sljedeći servis')}: {formatVehicleServiceDate(vehicle.features?.next_service,lang)}</p><p>{t('Posljednji servis')}: {formatVehicleServiceDate(vehicle.features?.last_service,lang)}</p><p className="text-xs text-slate-500">{t('Servisni podaci prikazuju se iz postojeće evidencije vozila.')}</p>{can('service')&&<Button variant="outline" onClick={()=>setServiceDraft({id:vehicle.id,next_service:vehicle.features?.next_service||'',reason:''})}>{t('Uredi servis')}</Button>}</div>}
     {detailTab==='workflow'&&<VehicleWorkflowPanel key={vehicle.id} company={company} vehicle={vehicle} lang={lang} canReview={!!can('create')} canService={!!can('service')} onChanged={()=>void load()}/>}
     {detailTab==='gps'&&<div className="space-y-2 text-sm">{vehicle.latest_location?<><p>{vehicle.latest_location.latitude}, {vehicle.latest_location.longitude}</p><p>{vehicle.latest_location.recorded_at}</p><a className="font-bold text-primary underline" target="_blank" rel="noreferrer" href={`https://www.openstreetmap.org/?mlat=${Number(vehicle.latest_location.latitude)}&mlon=${Number(vehicle.latest_location.longitude)}`}>{t('Otvori mapu')}</a></>:<p>{t('Nema GPS podataka.')}</p>}</div>}
     </aside>}
@@ -90,6 +98,8 @@ export function FleetWorkspace({lang,preferredCompany,global=false,onLegacy}:{la
 
 function DepotSettings({lang,company,context,onChanged}:{lang:Language;company:number;context:FleetRow;onChanged:()=>Promise<void>}) {
  const t=fleetCopy(lang),[draft,setDraft]=useState<FleetRow|null>(null),[permission,setPermission]=useState<FleetRow|null>(null),[members,setMembers]=useState<FleetRow[]>([]),[scopes,setScopes]=useState<FleetRow[]>([]),[error,setError]=useState(''),[busy,setBusy]=useState(false);
+  const recovery32=useFormRecovery({module:"vehicles",formKey:'depot-form',recordKey:'new',companyId:company||undefined,submitPaths:[`^/fleet-operations/${company}/depots(?:/[^/]+)?$`]},{draft},recovered=>{setDraft((previous:any)=>restoreFormValue(previous,recovered.draft));},{active:!!draft,scopeReady:!!(company)});
+
  useEffect(()=>{let live=true;api.fleetOperations.get(company,'permissions').then(r=>{if(live){setMembers(r.data.members);setScopes(r.data.scopes);}}).catch(e=>{if(live)setError(e.message);});return()=>{live=false;};},[company]);
  const run=async(fn:()=>Promise<unknown>)=>{setBusy(true);setError('');try{await fn();await onChanged();const r=await api.fleetOperations.get(company,'permissions');setScopes(r.data.scopes);}catch(e){setError((e as Error).message);}finally{setBusy(false);}};
  const ids=(v:unknown):number[]=>Array.isArray(v)?v:typeof v==='string'?JSON.parse(v):[];

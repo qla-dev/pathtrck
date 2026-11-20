@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { OpsLanguage } from './opsCopy';
 import { CountryVerificationPanel } from "./CountryVerificationPanel";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -455,6 +456,8 @@ export const ProfileView = ({
   const [notice, setNotice] = useState("");
   const [verificationOpen, setVerificationOpen] = useState(false);
   const [error, setError] = useState("");
+  const recovery24=useFormRecovery({module:"profile",formKey:"ProfileView",recordKey:String(profileRecord?.id||initialUser?.id||'self'),submitPaths:[`^/auth/profile$`,`^/(?:drivers|customers|companies)/[^/]+$`]},{form,editing,activeTab},recovered=>{setForm((previous:any)=>restoreFormValue(previous,recovered.form));setEditing((previous:any)=>restoreFormValue(previous,recovered.editing));setActiveTab((previous:any)=>restoreFormValue(previous,recovered.activeTab));},{active:editing,scopeReady:(!!form&&!loading)});
+
 
   useEffect(() => {
     if (profileRecord && profileKind) {

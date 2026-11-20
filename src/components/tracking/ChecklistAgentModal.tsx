@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { useState } from 'react';
 import { SmallModal } from '../ui/SmallModal';
 import type { Language } from '../../types';
@@ -31,7 +32,8 @@ const parseAgent = (value: unknown): AgentData => {
   return Object.fromEntries(ALL_FIELDS.map((key) => [key, String(saved[key] || '')])) as AgentData;
 };
 
-export const ChecklistAgentModal = ({ lang, value, onSave, onClose }: {
+export const ChecklistAgentModal = ({ lang, value, draftRecordKey, companyId, onSave, onClose }: {
+  draftRecordKey: string; companyId?: number;
   lang: Language;
   value: unknown;
   onSave: (value: string) => Promise<void>;
@@ -42,6 +44,8 @@ export const ChecklistAgentModal = ({ lang, value, onSave, onClose }: {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [mapOpen, setMapOpen] = useState(false);
+  const recovery41=useFormRecovery({module:"orders",formKey:"ChecklistAgentModal",recordKey:draftRecordKey,companyId},{data},recovered=>{setData((previous:any)=>restoreFormValue(previous,recovered.data));},{active:true,scopeReady:true});
+
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const addressLabel = lang === 'bs' ? 'Adresa agenta' : lang === 'de' ? 'Adresse des Agenten' : 'Agent address';
   const selectLocation = (location: LocationSearchResult) => setData((current) => ({
@@ -57,7 +61,9 @@ export const ChecklistAgentModal = ({ lang, value, onSave, onClose }: {
       setSaving(true);
       setError('');
       try {
+        await recovery41.flush();
         await onSave(JSON.stringify(Object.fromEntries(ALL_FIELDS.map((key) => [key, data[key].trim()]))));
+        await recovery41.complete();
         onClose();
       } catch {
         setError(text.failed);

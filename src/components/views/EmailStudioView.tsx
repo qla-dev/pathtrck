@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { useMemo, useState } from 'react';
 import {
   AlignCenter,
@@ -99,6 +100,8 @@ export const EmailStudioView = ({ lang: _lang }: { lang: Language }) => {
   const [audienceSelectionOpen, setAudienceSelectionOpen] = useState(false);
   const [preparing, setPreparing] = useState(false);
   const [editorSidebarOpen, setEditorSidebarOpen] = useState(true);
+  const recovery25=useFormRecovery({module:"email",formKey:"EmailStudioView",recordKey:'new',submitPaths:[`^/email/.*(?:campaign|template).*$`]},{campaignName,senderName,subject,preheader,heading,body,buttonText,buttonUrl,heroImage,primaryColor,backgroundColor,contentColor,textColor,fontFamily,fontSize,radius,alignment,audience,templateId,testEmail},recovered=>{setCampaignName((previous:any)=>restoreFormValue(previous,recovered.campaignName));setSenderName((previous:any)=>restoreFormValue(previous,recovered.senderName));setSubject((previous:any)=>restoreFormValue(previous,recovered.subject));setPreheader((previous:any)=>restoreFormValue(previous,recovered.preheader));setHeading((previous:any)=>restoreFormValue(previous,recovered.heading));setBody((previous:any)=>restoreFormValue(previous,recovered.body));setButtonText((previous:any)=>restoreFormValue(previous,recovered.buttonText));setButtonUrl((previous:any)=>restoreFormValue(previous,recovered.buttonUrl));setHeroImage((previous:any)=>restoreFormValue(previous,recovered.heroImage));setPrimaryColor((previous:any)=>restoreFormValue(previous,recovered.primaryColor));setBackgroundColor((previous:any)=>restoreFormValue(previous,recovered.backgroundColor));setContentColor((previous:any)=>restoreFormValue(previous,recovered.contentColor));setTextColor((previous:any)=>restoreFormValue(previous,recovered.textColor));setFontFamily((previous:any)=>restoreFormValue(previous,recovered.fontFamily));setFontSize((previous:any)=>restoreFormValue(previous,recovered.fontSize));setRadius((previous:any)=>restoreFormValue(previous,recovered.radius));setAlignment((previous:any)=>restoreFormValue(previous,recovered.alignment));setAudience((previous:any)=>restoreFormValue(previous,recovered.audience));setTemplateId((previous:any)=>restoreFormValue(previous,recovered.templateId));setTestEmail((previous:any)=>restoreFormValue(previous,recovered.testEmail));},{active:true,scopeReady:true});
+
 
   const audiences = useMemo(() => [
     { id: 'all', label: 'Logistics companies', count: companies.items.length },

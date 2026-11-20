@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { DataTable } from '../ui/DataTable';
 import { OrderDocumentPicker } from './OrderDocumentPicker';
 import { useOpsCopy } from './opsCopy';
@@ -29,6 +30,8 @@ export function TransportFlowPanel({ company, order, flow, settlement, members, 
   const {t}=useOpsCopy();
   const [permissions,setPermissions]=useState<Row>({can_manage:false,viewer_id:0});
   const [draft, setDraft] = useState<Row>(flow), [documents, setDocuments] = useState<Row[]>([]), [error, setError] = useState(''), [busy, setBusy] = useState(false);
+  const recovery17=useFormRecovery({module:"orders",formKey:"TransportFlowPanel",recordKey:String(order),companyId:company||undefined,submitPaths:[`^/accounting/${company}/ops/orders/${order}/(?:flow|transport-flow)$`]},{draft},recovered=>{setDraft((previous:any)=>restoreFormValue(previous,recovered.draft));},{active:!readOnly,scopeReady:!!(company)});
+
   useEffect(() => { setDraft(flow); }, [flow]);
   useEffect(() => { void api.accounting.get<Row>(company, `ops/orders/${order}/compliance`).then(r => {setDocuments(r.data.documents);setPermissions(r.data.checklist);}).catch(e => setError(e.message)); }, [company, order]);
   const run = async (fn:()=>Promise<unknown>) => { setBusy(true); setError(''); try { await fn(); onChange(); } catch(e) { setError(e instanceof Error ? e.message : String(e)); } finally { setBusy(false); } };

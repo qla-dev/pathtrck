@@ -1,4 +1,5 @@
 import { Language, Role } from '../types';
+import {prepareDraftSubmission,submittedDraft,draftSubmissionFailed,setDraftTransport,draftSession} from './formDrafts';
 
 export type ApiEnvelope<T> = {
   message: string;
@@ -404,8 +405,8 @@ const API_BACKENDS = {
   production: 'https://freightbook.ai/endpoints/api',
 } as const;
 
-const configuredBackend = String(import.meta.env.VITE_API_BACKEND || (import.meta.env.DEV ? 'local' : 'production')).toLowerCase();
-export const API_BASE_URL = String(import.meta.env.VITE_API_URL || API_BACKENDS[configuredBackend as keyof typeof API_BACKENDS] || API_BACKENDS.local)
+const configuredBackend = String(import.meta.env?.VITE_API_BACKEND || (import.meta.env?.DEV ? 'local' : 'production')).toLowerCase();
+export const API_BASE_URL = String(import.meta.env?.VITE_API_URL || API_BACKENDS[configuredBackend as keyof typeof API_BACKENDS] || API_BACKENDS.local)
   .replace(/\/+$/, '');
 const TOKEN_STORAGE_KEY = 'freightbook_api_token';
 
@@ -423,7 +424,10 @@ const setToken = (token: string | null) => {
 };
 
 const makeRequest = (sessionToken?: string) => async <T>(path: string, options: RequestInit = {}): Promise<ApiEnvelope<T>> => {
+  const formSubmission=sessionToken===undefined?await prepareDraftSubmission(path,(options.method||'GET').toUpperCase(),options.body):null;
+  if(formSubmission&&formSubmission.entry.owner!==draftSession())throw new Error('The account changed. Reopen the form before submitting.');
   const headers = new Headers(options.headers);
+  if(formSubmission){headers.set('X-Form-Draft',formSubmission.id);headers.set('X-Form-Draft-Revision',String(formSubmission.revision));}
   const token = sessionToken ?? getToken();
   if (options.body && !(options.body instanceof FormData)) headers.set('Content-Type', 'application/json');
   headers.set('Accept', 'application/json');
@@ -436,15 +440,18 @@ const makeRequest = (sessionToken?: string) => async <T>(path: string, options: 
   if (!response.ok || !payload) {
     if (response.status === 401 && sessionToken === undefined) setToken(null);
     const code = (payload as (ApiEnvelope<T> & {code?: string}) | null)?.code;
+    if(formSubmission)draftSubmissionFailed(formSubmission.entry,response.status,code);
     const message = response.status >= 500
       ? code === 'DATABASE_BUSY' ? 'The database is busy. Please try again shortly.' : 'The service is temporarily unavailable. Please try again.'
       : payload?.message || `API request failed (${response.status}).`;
     throw new ApiError(message, response.status, payload?.errors || {}, code);
   }
+  if(formSubmission)submittedDraft(formSubmission.entry,payload);
   return payload;
 };
 
 const request = makeRequest();
+setDraftTransport(request);
 
 const openDocument = async (path: string): Promise<void> => {
   const popup = window.open('', '_blank');
@@ -841,6 +848,15 @@ export const createApiClient = (sessionToken?: string) => {
   openSupportConversation: () => request<Record<string, unknown>>('/support-conversation', { method: 'POST' }),
   messages: resourceApi<Record<string, unknown>>('messages'),
   loadDrafts: resourceApi<Record<string, unknown>>('load-drafts'),
+  formDrafts: {
+    list:()=>request<any[]>('/form-drafts'),
+    remove:(id:string)=>request<null>(`/form-drafts/${id}`,{method:'DELETE'}),
+  },
+  vehicleDrafts: {
+    current: (company?: number,recoveryId?:string) => request<any>(`/vehicle-drafts/current?${new URLSearchParams({...company?{company_id:String(company)}:{},...recoveryId?{recovery_id:recoveryId}:{}})}`),
+    save: (id: string, form: unknown, revision: number, company?: number) => request<any>(`/vehicle-drafts/${id}`, {method:'PUT',body:JSON.stringify({form,revision,company_id:company||null})}),
+    remove: (id: string, company?: number) => request<any>(`/vehicle-drafts/${id}${company?`?company_id=${company}`:''}`, {method:'DELETE'}),
+  },
   warehouses: {
     ...resourceApi<Record<string, unknown>>('warehouses'),
     onboard: (data: Record<string, unknown>) => request<Record<string, unknown>>('/warehouses/onboard', { method: 'POST', body: JSON.stringify(data) }),
@@ -970,6 +986,7 @@ export const createApiClient = (sessionToken?: string) => {
   notes: resourceApi<Record<string, unknown>>('load-notes'),
   documents: {
     ...resourceApi<Record<string, unknown>>('documents'),
+    replace: (id: string | number, file: File) => { const form=new FormData();form.append('file',file);return request<Record<string,unknown>>(`/documents/${id}/replace`,{method:'POST',body:form}); },
     /** Uploads the file and creates its row in one call. Omitting `loadId` files it in the archive. */
     upload: async (input: { file: File; loadId?: string | null; loadDraftId?: string | number | null; vehicleId?: string | number | null; userId?: string | number | null; type?: string; name?: string; reference?: string | null; comment?: string | null; expiresAt?: string | null }) => {
       const form = new FormData();

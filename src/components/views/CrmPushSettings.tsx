@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { useEffect, useState } from 'react';
 import { Handshake, RefreshCw } from 'lucide-react';
 
@@ -11,6 +12,8 @@ import type { Row } from './accounting/shared';
 export function CrmPushSettings({ company, t, fail }: { company: number; t: (k: string) => string; fail: (e: unknown) => void }) {
   const [form, setForm] = useState<Row>({ crm_push_enabled: false, crm_push_doc_type: '', crm_push_from: '' });
   const [result, setResult] = useState<Row | null>(null); const [busy, setBusy] = useState(false); const [ready, setReady] = useState(false);
+  const recovery23=useFormRecovery({module:"crm",formKey:"CrmPushSettings",recordKey:'new',companyId:company||undefined,submitPaths:[`^/accounting/${company}/crm/.*settings.*$`]},{form},recovered=>{setForm((previous:any)=>restoreFormValue(previous,recovered.form));},{active:true,scopeReady:!!(company)&&(ready)});
+
   useEffect(() => {
     api.accounting.get<Row | null>(company, 'crm/pantheon/settings').then(r => { if (r.data) { setReady(true); setForm({ crm_push_enabled: !!r.data.crm_push_enabled, crm_push_doc_type: r.data.crm_push_doc_type ?? '', crm_push_from: r.data.crm_push_from ?? '' }); } }).catch(() => undefined);
   }, [company]);

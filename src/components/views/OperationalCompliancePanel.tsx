@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { DataTable } from '../ui/DataTable';
 import { CargoReviewPanel } from './CargoReviewPanel';
 import { Dialog } from '../ui/Dialog';
@@ -21,6 +22,8 @@ export function OperationalCompliancePanel({ company, order, members = [], readO
   const [extra,setExtra]=useState(''),[extraReason,setExtraReason]=useState('');
   const [scope,setScope]=useState('company'),[showInactive,setShowInactive]=useState(false);
   const [item, setItem] = useState<Row | null>(null), [inspection, setInspection] = useState<Row | null>(null), [context, setContext] = useState<Row>({});
+  const recovery19=useFormRecovery({module:"orders",formKey:"OperationalCompliancePanel",recordKey:String(order),companyId:company||undefined,submitPaths:[`^/accounting/${company}/ops/orders/${order}/(?:checklist|optional-tasks|inspections).*`]},{extra,extraReason,scope,item,inspection},recovered=>{setExtra((previous:any)=>restoreFormValue(previous,recovered.extra));setExtraReason((previous:any)=>restoreFormValue(previous,recovered.extraReason));setScope((previous:any)=>restoreFormValue(previous,recovered.scope));setItem((previous:any)=>restoreFormValue(previous,recovered.item));setInspection((previous:any)=>restoreFormValue(previous,recovered.inspection));},{active:true,scopeReady:!!(company)});
+
   const load = useCallback(async () => {
     const r = await api.accounting.get<Row>(company, `ops/orders/${order}/compliance`);
     setData(r.data);setScope(previous=>r.data.checklist.can_manage?previous:'mine'); setContext(Object.fromEntries(Object.entries(r.data.checklist.context||{}).filter(([key])=>!['cargo_review','intake','document_intake','supply_chain'].includes(key))));

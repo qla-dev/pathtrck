@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { useEffect, useMemo, useState } from "react";
 import {
   CircleCheckBig,
@@ -56,6 +57,8 @@ export const AdminDriversView = ({ lang, role }: { lang: Language; role: Role })
   const [statusSavingId, setStatusSavingId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
   const [subscriptionTarget, setSubscriptionTarget] = useState<AdminSubscriptionTarget | null>(null);
+  const recovery0=useFormRecovery({module:"drivers",formKey:"AdminDriversView",recordKey:'new',submitPaths:[`^/drivers$`]},{open,form},recovered=>{setOpen((previous:any)=>restoreFormValue(previous,recovered.open));setForm((previous:any)=>restoreFormValue(previous,recovered.form));},{active:open,scopeReady:true});
+
   const drivers = useApiList(api.drivers.list, { per_page: 100 });
   const field = (key: keyof typeof form, value: string) =>
     setForm((current) => ({ ...current, [key]: value }));

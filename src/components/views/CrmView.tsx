@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BellRing, Building2, CalendarClock, CheckCheck, Handshake, Link2, Plus, RefreshCw, Target, TrendingUp, Trophy, Truck, UserRound } from 'lucide-react';
 
@@ -36,6 +37,8 @@ export function CrmView({ lang, onSendToTracking,initialDocumentId,initialCompan
   const [report, setReport] = useState<Row | null>(null);
   const [detail, setDetail] = useState<Row | null>(null); const [lead, setLead] = useState<Row | null>(null);
   const [syncResult, setSyncResult] = useState<Row | null>(null);
+  const recovery7=useFormRecovery({module:"crm",formKey:"CrmView",recordKey:String(lead?.id||'new'),companyId:company||undefined,resource:"crm_documents",resourceId:Number(lead?.id)||undefined,submitPaths:[`^/accounting/${company}/crm/documents(?:/${lead?.id})?$`]},{lead},recovered=>{setLead((previous:any)=>restoreFormValue(previous,recovered.lead));},{active:!!lead,scopeReady:!!(company)});
+
   const allowed = can('crm');
   const currentCompany=useRef(company);currentCompany.current=company;
   useEffect(()=>{setDetail(null);setLead(null);setReport(null);},[company]);
@@ -184,6 +187,8 @@ function CrmDetail({ lang,t, company, detail, members, busy, onClose,onRefresh, 
   const [lost, setLost] = useState(d.lost_reason ?? ''); const [followUp, setFollowUp] = useState<Row>({ due_on: today(), note: '' });
   const pantheon = d.source === 'pantheon';
   const [lines, setLines] = useState<Row[] | null>(null);
+  const recovery8=useFormRecovery({module:"crm",formKey:'follow-up',recordKey:String(detail.document?.id||detail.id),companyId:company||undefined,submitPaths:[`^/accounting/${company}/crm/.*follow.*$`]},{followUp},recovered=>{setFollowUp((previous:any)=>restoreFormValue(previous,recovered.followUp));},{active:true,scopeReady:!!(company)});
+
   const linesEditable = !pantheon && ['lead', 'offer', 'order'].includes(d.stage);
   return <Dialog size="xl" title={`${d.number || t('crm_source_smartfreight')} · ${d.customer_name}`} subtitle={`${t(pantheon ? 'crm_source_pantheon' : 'crm_source_smartfreight')} · ${shortDate(d.issued_on)}`} icon={Handshake} onClose={onClose} closeLabel={t('close')} closeDisabled={busy}>
     <div className="space-y-4">

@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { useCallback, useEffect, useState } from 'react';
 import { Package, Plus } from 'lucide-react';
 
@@ -20,6 +21,8 @@ import { money, type Row } from './accounting/shared';
 export function CatalogPanel({ company, t, canEdit }: { company: number; t: (k: string) => string; canEdit: boolean }) {
   const [rows, setRows] = useState<Row[]>([]); const [search, setSearch] = useState(''); const [edit, setEdit] = useState<Row | null>(null);
   const [busy, setBusy] = useState(false); const [error, setError] = useState('');
+  const recovery21=useFormRecovery({module:"catalog",formKey:"CatalogPanel",recordKey:String(edit?.id||'new'),companyId:company||undefined,submitPaths:[`^/accounting/${company}/catalog$`]},{edit},recovered=>{setEdit((previous:any)=>restoreFormValue(previous,recovered.edit));},{active:!!edit,scopeReady:!!(company)});
+
   const load = useCallback(() => api.accounting.get<Row>(company, `catalog?limit=200&all=1${search ? `&search=${encodeURIComponent(search)}` : ''}`).then(r => setRows(r.data.products ?? [])).catch(e => setError(e instanceof Error ? e.message : String(e))), [company, search]);
   useEffect(() => { const h = window.setTimeout(() => void load(), 250); return () => window.clearTimeout(h); }, [load]);
   const save = async () => {

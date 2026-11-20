@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { CompanyOrganizationEditor } from './CompanyOrganizationEditor';
 import { useEffect, useMemo, useState } from 'react';
 import { Banknote, BarChart3, CheckCircle2, Clock3, Crown, Eye, FileCheck2, Loader2, MailPlus, MinusCircle, Radio, Search, Send, ShieldCheck, Truck, UserCheck, UserRoundCog, Users, type LucideIcon } from 'lucide-react';
@@ -81,6 +82,8 @@ export const CompanyTeamView = ({ lang, onUserUpdated }: { lang: Language; onUse
   const [userSearch, setUserSearch] = useState('');
   const [availableUsers, setAvailableUsers] = useState<Record<string, unknown>[]>([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
+  const recovery50=useFormRecovery({module:"companies",formKey:"CompanyTeamView",recordKey:'new',companyId:companyId||undefined,submitPaths:[`^/company-invitations$`]},{email,role,userSearch},recovered=>{setEmail((previous:any)=>restoreFormValue(previous,recovered.email));setRole((previous:any)=>restoreFormValue(previous,recovered.role));setUserSearch((previous:any)=>restoreFormValue(previous,recovered.userSearch));},{active:true,scopeReady:!!(companyId)});
+
   const roleData = useMemo(() => (Object.keys(ROLE_PERMISSIONS) as CompanyRole[]).map((name) => ({ name: displayRole(name), value: members.filter((member) => member.role === name).length })), [members, carrierLabel]);
   const statusData = [
     { name: 'Active', value: members.filter((member) => member.status === 'Active').length },

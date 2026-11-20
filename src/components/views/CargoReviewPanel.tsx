@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { useCallback, useEffect, useState } from 'react';
 import type { Language } from '../../types';
 import { api } from '../../services/api';
@@ -19,6 +20,8 @@ function CargoReviewContent({company,order,workspace,portalOrder,documentIntake=
  const [data,setData]=useState<Row|null>(null),[actual,setActual]=useState<Row>({}),[total,setTotal]=useState(''),[basis,setBasis]=useState(''),[reason,setReason]=useState('');
  const [documentRole,setDocumentRole]=useState<'ci'|'pl'|'cmr'|'pod'|'other'>(initialDocumentRole);
  const [ci,setCi]=useState(''),[pl,setPl]=useState(''),[received,setReceived]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[expanded,setExpanded]=useState(false);
+  const recovery18=useFormRecovery({module:"orders",formKey:"CargoReviewContent",recordKey:String(order||workspace||portalOrder),companyId:company||undefined,submitPaths:[`^/transport-orders/${portalOrder||order}/(?:cargo-review|receive)$`,`^/shipment-workspaces/${workspace}/cargo-review$`]},{actual,total,basis,reason,documentRole,ci,pl,received},recovered=>{setActual((previous:any)=>restoreFormValue(previous,recovered.actual));setTotal((previous:any)=>restoreFormValue(previous,recovered.total));setBasis((previous:any)=>restoreFormValue(previous,recovered.basis));setReason((previous:any)=>restoreFormValue(previous,recovered.reason));setDocumentRole((previous:any)=>restoreFormValue(previous,recovered.documentRole));setCi((previous:any)=>restoreFormValue(previous,recovered.ci));setPl((previous:any)=>restoreFormValue(previous,recovered.pl));setReceived((previous:any)=>restoreFormValue(previous,recovered.received));},{active:true,scopeReady:true});
+
  const request=useCallback(async(body?:Row)=>{
   if(portalOrder||(documentIntake&&order))return api.transportOrders.review(Number(portalOrder||order),body);
   if(workspace)return api.shipmentWorkspaces.cargoReview(workspace,body);

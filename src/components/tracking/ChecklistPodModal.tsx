@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { useState } from 'react';
 import { Upload } from 'lucide-react';
 import type { Language } from '../../types';
@@ -19,7 +20,8 @@ const COPY = {
 };
 export const podCopy = (lang: Language) => COPY[lang as keyof typeof COPY] || COPY.en;
 
-export const ChecklistPodModal = ({ lang, value, onUpload, onFailure, onClose }: {
+export const ChecklistPodModal = ({ lang, value, draftRecordKey, companyId, onUpload, onFailure, onClose }: {
+  draftRecordKey: string; companyId?: number;
   lang: Language; value: unknown; onUpload: (file: File) => Promise<void>;
   onFailure: (value: string) => Promise<void>; onClose: () => void;
 }) => {
@@ -28,10 +30,12 @@ export const ChecklistPodModal = ({ lang, value, onUpload, onFailure, onClose }:
   const [expanded, setExpanded] = useState(() => Boolean(podFailureReason(value)));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const recovery43=useFormRecovery({module:"orders",formKey:"ChecklistPodModal",recordKey:draftRecordKey,companyId},{reason,expanded},recovered=>{setReason((previous:any)=>restoreFormValue(previous,recovered.reason));setExpanded((previous:any)=>restoreFormValue(previous,recovered.expanded));},{active:true,scopeReady:true});
+
   const save = async (action: () => Promise<void>) => {
     if (busy) return;
     setBusy(true); setError('');
-    try { await action(); onClose(); }
+    try { await recovery43.flush(); await action(); await recovery43.complete(); onClose(); }
     catch { setError(text.error); setBusy(false); }
   };
   return <SmallModal labelledBy="pod-title" onClose={onClose} closeDisabled={busy} className="max-w-3xl">

@@ -1,4 +1,7 @@
 export const registryEn:Record<string,string>={
+ 'Vrati nespremljene podatke s ovog uređaja':'Restore unsaved changes from this device',
+ 'Uslovi mase iz dokumentacije':'Weight conditions in vehicle documents',
+ 'Nacrt vozila':'Vehicle draft','Obriši nacrt':'Delete draft','Obrisati nacrt vozila?':'Delete this vehicle draft?','Nacrt je obnovljen. Nastavite unos ili obrišite nacrt.':'Draft restored. Continue editing or delete this draft.','Ponovi':'Retry','Posljednji servis':'Last service','Ukloni':'Clear','Dodatne mase i nosivost (opcionalno)':'Additional weights and payload (optional)',
  'N1 · do 3.500 kg':'N1 · up to 3,500 kg','N2 · preko 3.500 do 12.000 kg':'N2 · over 3,500 up to 12,000 kg','N3 · preko 12.000 kg':'N3 · over 12,000 kg','O1 · do 750 kg':'O1 · up to 750 kg','O2 · preko 750 do 3.500 kg':'O2 · over 750 up to 3,500 kg','O3 · preko 3.500 do 10.000 kg':'O3 · over 3,500 up to 10,000 kg','O4 · preko 10.000 kg':'O4 · over 10,000 kg',
 
  'Ugovor o finansiranju':'Financing agreement',

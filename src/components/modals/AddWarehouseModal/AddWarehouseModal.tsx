@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../../hooks/useFormRecovery';
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
@@ -160,6 +161,8 @@ export const AddWarehouseModal = ({
   const [invalid, setInvalid] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const recovery29=useFormRecovery({module:"warehouses",formKey:"AddWarehouseModal",recordKey:String(warehouse?.id||'new'),resource:"warehouses",resourceId:Number(warehouse?.id)||undefined,baseVersion:String(warehouse?.draft_record_hash||'')||undefined,submitPaths:[`^/warehouses(?:/${warehouse?.id})?$`]},{step,draft,visited},recovered=>{setStep((previous:any)=>restoreFormValue(previous,recovered.step));setDraft((previous:any)=>restoreFormValue(previous,recovered.draft));setVisited((previous:any)=>restoreFormValue(previous,recovered.visited));},{active:open,scopeReady:true});
+
   const fileInputs = useRef<Partial<Record<RequiredDocumentId, HTMLInputElement | null>>>({});
 
   useEffect(() => {

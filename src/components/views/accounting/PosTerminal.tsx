@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../../hooks/useFormRecovery';
 import { useEffect, useMemo, useState } from 'react';
 import { Banknote, CheckCircle2, ChevronDown, Clock3, CreditCard, Delete, FileCheck2, History, Landmark, Layers, Minus, Package, PackagePlus, Plus, Printer, ReceiptText, Search, Ticket, Trash2, Truck, UserRound, X } from 'lucide-react';
 
@@ -46,6 +47,8 @@ export function PosTerminal({ acc, onClose }: { acc: Accounting; onClose: () => 
   const [device, setDevice] = useState<Row | null>(null);
   const [now, setNow] = useState(new Date());
   const [done, setDone] = useState<Row | null>(null);
+  const recovery6=useFormRecovery({module:"invoices",formKey:'pos-basket',recordKey:'new',companyId:acc.company||undefined},{lines,selected,target,buffer,partnerId,method,received,lineSettings},recovered=>{setLines((previous:any)=>restoreFormValue(previous,recovered.lines));setSelected((previous:any)=>restoreFormValue(previous,recovered.selected));setTarget((previous:any)=>restoreFormValue(previous,recovered.target));setBuffer((previous:any)=>restoreFormValue(previous,recovered.buffer));setPartnerId((previous:any)=>restoreFormValue(previous,recovered.partnerId));setMethod((previous:any)=>restoreFormValue(previous,recovered.method));setReceived((previous:any)=>restoreFormValue(previous,recovered.received));setLineSettings((previous:any)=>restoreFormValue(previous,recovered.lineSettings));},{active:lines.length>0,scopeReady:!!(acc.company)});
+
 
   useEffect(() => { const timer = window.setInterval(() => setNow(new Date()), 30_000); return () => window.clearInterval(timer); }, []);
   useEffect(() => { if (can('pos')) api.accounting.get<Row>(company, 'pos/status').then(r => setDevice(r.data)).catch(() => setDevice({ online: false })); }, [company]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -116,7 +119,7 @@ export function PosTerminal({ acc, onClose }: { acc: Accounting; onClose: () => 
     if (target === 'received') setReceived(value);
     else if (current) updateLine(current.key, { [target]: target === 'quantity' && value === '0' ? '1' : value });
   };
-  const reset = () => { setLines([]); setSelected(null); setReceived(''); setBuffer(''); setDone(null); setError(''); };
+  const reset = () => { void recovery6.complete(); setLines([]); setSelected(null); setReceived(''); setBuffer(''); setDone(null); setError(''); };
   const payload = () => {
     const d = today();
     return { direction: 'outgoing', partner_id: Number(partnerId), issued_at: d, due_at: d, event_date: d, tax_date: d, posting_date: d, currency: 'BAM', exchange_rate: '1', exchange_date: d, exchange_source: 'base_currency', document_ids: [],
@@ -126,11 +129,12 @@ export function PosTerminal({ acc, onClose }: { acc: Accounting; onClose: () => 
   const charge = () => void run(async () => {
     const id = (await send('invoices', payload())).data.id;
     await send(`invoices/${id}/submit`, {});
-    if (!can('approve')) { setDone({ stage: 'pending', total }); return; }
+    if (!can('approve')) { await recovery6.complete(); setDone({ stage: 'pending', total }); return; }
     await send(`invoices/${id}/approve`, {});
     await send(`invoices/${id}/issue`, {});
-    if (!can('pos')) { setDone({ stage: 'issued', total }); return; }
+    if (!can('pos')) { await recovery6.complete(); setDone({ stage: 'issued', total }); return; }
     const fiscal = (await send(`pos/invoices/${id}/fiscalise`, { payment_method: method, request_key: crypto.randomUUID() })).data;
+    await recovery6.complete();
     setDone({ stage: fiscal.fiscal_status, id, total, fiscal_number: fiscal.fiscal_number, change: method === 'cash' && received ? change : null });
   });
 

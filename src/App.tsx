@@ -1,4 +1,6 @@
 import { FleetNotificationBell } from './components/fleet/FleetNotificationBell';
+import {DraftDock} from './components/drafts/DraftDock';
+import {setDraftSession} from './services/formDrafts';
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { GoogleGenAI } from "@google/genai";
 import {
@@ -5362,6 +5364,7 @@ export default function App() {
   const [authMode, setAuthMode] = useState<"setup" | "login">("setup");
   const [role, setRole] = useState<Role>(null);
   const [currentUser, setCurrentUser] = useState<ApiUser | null>(null);
+  useEffect(()=>{setDraftSession(Number(currentUser?.id)||0);},[currentUser?.id]);
   const [databaseLoads, setDatabaseLoads] = useState<Load[]>([]);
   const [databaseLoadsLoaded, setDatabaseLoadsLoaded] = useState(false);
   const [lang, setLang] = useState<Language>(() => getInitialLanguage());
@@ -6893,11 +6896,12 @@ export default function App() {
                 : []),
             ];
   const navItems = [
-    ...roleNavItems,
+    ...roleNavItems.filter((item) => item.id !== "finance"),
     ...(currentUser?.can_access_fleet&&!roleNavItems.some(item=>item.id==='fleet')?[{id:'fleet',label:t.myFleet,icon:Truck}]:[]),
     ...(canManageTeam ? [{ id: "company-team", label: u("nav.teamPermissions", "Team & Permissions"), icon: Users }] : []),
-    { id: "accounting", label: accountingText(lang, "title"), icon: Banknote },
     { id: "smart-pos", label: accountingText(lang, "smartPos"), icon: ReceiptText },
+    ...roleNavItems.filter((item) => item.id === "finance"),
+    { id: "accounting", label: accountingText(lang, "title"), icon: Banknote },
     { id: "crm", label: accountingText(lang, "crm"), icon: Handshake },
     { id: "ops", label: accountingText(lang, "ops"), icon: ClipboardList },
     ...(roleNavItems.some((item) => item.id === "admin-customers")
@@ -7251,6 +7255,7 @@ export default function App() {
             </button>
 
             <FleetNotificationBell lang={lang} onOpen={(company,damage)=>{setFleetTarget({company,damage,nonce:Date.now()});setView("fleet");}}/>
+            <DraftDock lang={lang} onNavigate={module=>{const routes:Record<string,string>={vehicles:'fleet',maintenance:'fleet',fuel:'fleet',drivers:'admin-drivers',carriers:'admin-drivers',customers:'admin-customers',companies:'admin-companies',invoices:'accounting',accounting:'accounting',expenses:'accounting',contracts:'crm',crm:'crm',orders:'ops',documents:'notes',warehouses:'warehouses',profile:'profile',email:'email-studio',catalog:'accounting',loads:'feed'};setView(routes[module]||module);if(module==='loads')setIsPostLoadOpen(true);}}/>
 
             {/* User Avatar Dropdown */}
             <ClickDropdown

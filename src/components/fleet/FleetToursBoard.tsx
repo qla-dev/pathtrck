@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, FileUp, LockKeyhole } from 'lucide-react';
 import type { Language } from '../../types';
@@ -14,6 +15,8 @@ import { tourImportRows, todayLocal } from '../../lib/fleetTourImport';
 export function FleetToursBoard({lang,preferredCompany}:{lang:Language;preferredCompany?:number}){
  const t=fleetCopy(lang),scope=useFleetScope(preferredCompany),{company,context}=scope;
  const [from,setFrom]=useState(todayLocal()),[to,setTo]=useState(todayLocal()),[depot,setDepot]=useState(''),[partner,setPartner]=useState(''),[status,setStatus]=useState(''),[search,setSearch]=useState(''),[page,setPage]=useState(1),[lastPage,setLastPage]=useState(1),[total,setTotal]=useState(0),[rows,setRows]=useState<FleetRow[]>([]),[loading,setLoading]=useState(false),[busy,setBusy]=useState(false),[importing,setImporting]=useState(false),[editing,setEditing]=useState<FleetRow|null>(null),[detail,setDetail]=useState<FleetRow|null>(null),[reopening,setReopening]=useState<FleetRow|null>(null),[reason,setReason]=useState('');
+  const recovery38=useFormRecovery({module:"orders",formKey:"FleetToursBoard",recordKey:'new',companyId:company||undefined,submitPaths:[`^/fleet-operations/${company}/tours(?:/[^/]+(?:/reopen)?)?$`]},{editing,reopening,reason},recovered=>{setEditing((previous:any)=>restoreFormValue(previous,recovered.editing));setReopening((previous:any)=>restoreFormValue(previous,recovered.reopening));setReason((previous:any)=>restoreFormValue(previous,recovered.reason));},{active:!!editing||!!reopening,scopeReady:!!(company)&&(!!context)});
+
  const requestSequence=useRef(0);
  const load=useCallback(async()=>{if(!company)return;const sequence=++requestSequence.current;setLoading(true);try{const q=new URLSearchParams({from,to,page:String(page),depot_id:depot,partner,status,search});const r=await api.fleetOperations.get(company,`tours?${q}`);if(sequence!==requestSequence.current)return;setRows(r.data.data);setLastPage(r.data.last_page);setTotal(r.data.total);}finally{if(sequence===requestSequence.current)setLoading(false);}},[company,from,to,page,depot,partner,status,search]);
  useEffect(()=>{setRows([]);setPage(1);setDepot('');setEditing(null);setDetail(null);setImporting(false);setReopening(null);},[company]);

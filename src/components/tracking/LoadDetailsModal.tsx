@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { podCopy, podFailureReason } from './ChecklistPodModal';
 import { isBackwardLoadStatus, statusSupportCopy } from '../../lib/loadStatusProgression';
@@ -235,6 +236,8 @@ export const LoadDetailsModal = ({ loadId, lang, role, userId, companyIds = [], 
   const [liveTrackingUpdatedAt, setLiveTrackingUpdatedAt] = useState<string>('');
   const [fuelStations, setFuelStations] = useState<FuelStation[]>([]);
   const [fuelStationsLoading, setFuelStationsLoading] = useState(false);
+  const recovery44=useFormRecovery({module:"documents",formKey:'shipment-note',recordKey:'new',submitPaths:[`^/load-notes$`]},{noteTitle,noteText},recovered=>{setNoteTitle((previous:any)=>restoreFormValue(previous,recovered.noteTitle));setNoteText((previous:any)=>restoreFormValue(previous,recovered.noteText));},{active:true,scopeReady:true});
+
 
   useEffect(() => {
     setRightTab('tracker');

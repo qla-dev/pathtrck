@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../../hooks/useFormRecovery';
 import { bodyRequirementLabel } from '../../fleet/vehicleRegistry';
 import { linkedLastMileDraft, roadCargo } from './linkedRoadDraft';
 import { lenaText, lenaField, lenaFieldChoices, lenaOptionDescription, lenaOptionIcon } from '../../../lib/lenaCatalog';
@@ -208,6 +209,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, opsCompanyId, editLoadId 
   const [opsKind,setOpsKind]=useState('order');
   const opsLabel=opsKind==='inquiry' ? (lang==='de'?'Anfrage speichern':['bs','hr','sr'].includes(lang)?'Sačuvaj upit':'Save inquiry') : (lang==='de'?'Auftrag erstellen':['bs','hr','sr'].includes(lang)?'Kreiraj nalog':'Create order');
   // A load opened from a CRM offer keeps that link, so the CRM stage can follow the shipment and its work order.
+  const originalRecordHash = useRef<string|undefined>(undefined);
   const publishedLoadId = useRef<string | number | null>(null);
   const crmLink = crmDocumentId && !editLoadId ? { crm_document_id: crmDocumentId, crm_quote_version_id: crmQuoteVersionId, ...(crmCompanyId?{company_id:crmCompanyId}:{}) } : {};
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
@@ -459,7 +461,7 @@ export const PostLoadModal = ({ isOpen, onClose, lang, opsCompanyId, editLoadId 
     setIsLoadingExisting(true);
     setSubmitError('');
     api.loads.get(editLoadId).then(async (response) => {
-      const record = response.data;
+      const record = response.data; originalRecordHash.current=String(record.draft_record_hash||'')||undefined;
       const stops = Array.isArray(record.stops) ? record.stops as Array<Record<string, unknown>> : [];
       // A road load can carry several of each; stop 1 of a side fills the flat fields the whole
       // app reads as origin and destination, and the rest come back as the added stops they were.
@@ -536,6 +538,8 @@ export const PostLoadModal = ({ isOpen, onClose, lang, opsCompanyId, editLoadId 
   const addressMapStop = addressMap ? stopsOfSide(draft, addressMap.side)[addressMap.index] ?? null : null;
   // Set while a stop named only by city is being geocoded, which the distance stripe waits out.
   const [recalculatingRoute, setRecalculatingRoute] = useState(false);
+  const recovery28=useFormRecovery({module:"loads",formKey:"PostLoadModal",recordKey:String(editLoadId||initialDraftId||'new'),companyId:opsCompanyId||crmCompanyId||undefined,resource:"loads",resourceId:Number(editLoadId)||undefined,baseVersion:originalRecordHash.current,submitPaths:[`^/loads(?:/${editLoadId})?$`,`^/accounting/${opsCompanyId}/ops/orders$`]},{opsKind,step,draft,scannedDocuments,draftId,publishDestination,publishVehicleId,publishLastMile},recovered=>{setOpsKind((previous:any)=>restoreFormValue(previous,recovered.opsKind));setStep((previous:any)=>restoreFormValue(previous,recovered.step));setDraft((previous:any)=>restoreFormValue(previous,recovered.draft));setScannedDocuments((previous:any)=>restoreFormValue(previous,recovered.scannedDocuments));setDraftId((previous:any)=>restoreFormValue(previous,recovered.draftId));setPublishDestination((previous:any)=>restoreFormValue(previous,recovered.publishDestination));setPublishVehicleId((previous:any)=>restoreFormValue(previous,recovered.publishVehicleId));setPublishLastMile((previous:any)=>restoreFormValue(previous,recovered.publishLastMile));},{active:isOpen,scopeReady:!isLoadingExisting});
+
   // The whole trip as the crow flies, leg by leg, with a detour factor on top. It is arithmetic
   // over coordinates, so it is instant and always available - but it is not a road.
   const straightLineDistanceKm = pickupRoutePosition && deliveryRoutePosition && routeMapStops.length >= 2

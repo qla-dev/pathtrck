@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Archive, ArrowDownToLine, Clock3, Download, Ellipsis, FileText, Forklift, Landmark, MapPin, NotebookPen, PackageCheck, PackageOpen, Pin, Plus, Recycle, Route, Search, ShieldAlert, StickyNote, Trash2, Truck, UserRound, Warehouse, Wrench, type LucideIcon } from 'lucide-react';
 
@@ -132,6 +133,8 @@ export const LoadNotesView = ({ lang }: { lang: Language }) => {
   // Documents and notes share the page; the switch in the header decides which list is showing.
   const [mode, setMode] = useState<'all' | 'documents' | 'notes'>('all');
   const [composerMode, setComposerMode] = useState<'document' | 'note'>('document');
+  const recovery26=useFormRecovery({module:"documents",formKey:'note-composer',recordKey:'new',submitPaths:[`^/load-notes$`]},{draftLoadId,draftTitle,draftText,draftType,draftPriority,composerMode},recovered=>{setDraftLoadId((previous:any)=>restoreFormValue(previous,recovered.draftLoadId));setDraftTitle((previous:any)=>restoreFormValue(previous,recovered.draftTitle));setDraftText((previous:any)=>restoreFormValue(previous,recovered.draftText));setDraftType((previous:any)=>restoreFormValue(previous,recovered.draftType));setDraftPriority((previous:any)=>restoreFormValue(previous,recovered.draftPriority));setComposerMode((previous:any)=>restoreFormValue(previous,recovered.composerMode));},{active:composerMode==='note',scopeReady:true});
+
 
   useEffect(() => setRecordTypeFilter('all'), [mode]);
 

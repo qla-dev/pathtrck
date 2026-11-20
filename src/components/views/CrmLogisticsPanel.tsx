@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import {useEffect,useState} from 'react';
 import type {Language} from '../../types';
 import {api} from '../../services/api';
@@ -11,6 +12,16 @@ export function CrmLogisticsPanel({company,document,lang,onChanged,onConvert}:{c
  const u=(bs:string,en:string)=>['bs','hr','sr'].includes(lang)?bs:en;
  const [data,setData]=useState<Row|null>(null),[request,setRequest]=useState<Row>(blankRequest),[error,setError]=useState(''),[busy,setBusy]=useState(false),[nonce,setNonce]=useState(0);
  const [quote,setQuote]=useState<Row>({supplier_name:'',reference:'',status:'requested',currency:document.currency,cost_total:'',fx_rate:'',fx_on:'',valid_until:'',scope:'',exclusions:''}),[calc,setCalc]=useState<Row>({supplier_quote_id:'',additional_cost:'0',sales_total:'',valid_until:'',allow_negative_margin:false}),[acceptance,setAcceptance]=useState(''),[reason,setReason]=useState('');
+  const recovery13=useFormRecovery({module:"contracts",formKey:"logistics-reason",recordKey:String(document.id),companyId:company||undefined,submitPaths:[`^/accounting/${company}/crm/documents/${document.id}/logistics/reopen$`]},{reason},recovered=>{setReason((previous:any)=>restoreFormValue(previous,recovered.reason));},{active:true,scopeReady:!!(company)});
+
+  const recovery12=useFormRecovery({module:"contracts",formKey:"logistics-acceptance",recordKey:String(document.id),companyId:company||undefined,submitPaths:[`^/accounting/${company}/crm/documents/${document.id}/logistics/versions/[^/]+/accept$`]},{acceptance},recovered=>{setAcceptance((previous:any)=>restoreFormValue(previous,recovered.acceptance));},{active:true,scopeReady:!!(company)});
+
+  const recovery11=useFormRecovery({module:"contracts",formKey:"logistics-calc",recordKey:String(document.id),companyId:company||undefined,submitPaths:[`^/accounting/${company}/crm/documents/${document.id}/logistics/versions$`]},{calc},recovered=>{setCalc((previous:any)=>restoreFormValue(previous,recovered.calc));},{active:true,scopeReady:!!(company)});
+
+  const recovery10=useFormRecovery({module:"contracts",formKey:"logistics-quote",recordKey:String(document.id),companyId:company||undefined,submitPaths:[`^/accounting/${company}/crm/documents/${document.id}/logistics/suppliers$`]},{quote},recovered=>{setQuote((previous:any)=>restoreFormValue(previous,recovered.quote));},{active:true,scopeReady:!!(company)});
+
+  const recovery9=useFormRecovery({module:"contracts",formKey:'logistics-request',recordKey:String(document.id),companyId:company||undefined,submitPaths:[`^/accounting/${company}/crm/documents/${document.id}/logistics$`]},{request},recovered=>{setRequest((previous:any)=>restoreFormValue(previous,recovered.request));},{active:true,scopeReady:!!(company)});
+
  const path=`crm/documents/${document.id}/logistics`;
  useEffect(()=>{let live=true;setError('');api.accounting.get<Row>(company,path).then(r=>{if(live){setData(r.data);setRequest({...blankRequest,...r.data.case?.request});}}).catch(e=>{if(live)setError(e.message);});return()=>{live=false;};},[company,document.id,nonce]);
  const run=async(endpoint:string,payload:unknown)=>{if(busy)return;setBusy(true);setError('');try{await api.accounting.send(company,`${path}${endpoint}`,payload);setNonce(n=>n+1);onChanged();}catch(e){setError((e as Error).message);}finally{setBusy(false);}};

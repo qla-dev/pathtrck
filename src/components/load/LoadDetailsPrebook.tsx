@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
@@ -251,6 +252,8 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
   const [assignmentOpen, setAssignmentOpen] = useState(false);
   const [offersOpen, setOffersOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const recovery47=useFormRecovery({module:"loads",formKey:"LoadDetailsPrebook-bid",recordKey:String(load.id),submitPaths:[`^/offers(?:/[^/]+)?$`]},{showOfferForm,offerDraft},recovered=>{setShowOfferForm((previous:any)=>restoreFormValue(previous,recovered.showOfferForm));setOfferDraft((previous:any)=>restoreFormValue(previous,recovered.offerDraft));},{active:showOfferForm,scopeReady:true});
+
   // A storage request is bid on with capacity rather than with a truck, so it gets its own form
   // and its own payload - everything below that touches offers branches on this.
   const isStorage = Boolean(load?.forStorage || load?.transportType === 'warehouse');

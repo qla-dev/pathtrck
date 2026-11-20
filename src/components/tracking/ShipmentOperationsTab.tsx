@@ -537,7 +537,7 @@ const ShipmentOperationsEditor = ({ workspace, lang, role, onOpenDocuments, read
       showInstruction
     />
     <AnimatePresence>
-    {podOpen && canSubmitPod && <ChecklistPodModal lang={lang}
+    {podOpen && canSubmitPod && <ChecklistPodModal companyId={customerView?undefined:Number(workspace.provider_company_id)||undefined} draftRecordKey={`${workspace.id}:${'proof_of_delivery'}`} lang={lang}
       value={checklist.find((item) => item.key === 'proof_of_delivery')?.action_value}
       onClose={() => setPodOpen(false)}
       onUpload={async (file) => {
@@ -554,7 +554,7 @@ const ShipmentOperationsEditor = ({ workspace, lang, role, onOpenDocuments, read
         finally { setBusyKey(null); }
       }}
     />}
-    {!readOnly && agentModalOpen && <ChecklistAgentModal
+    {!readOnly && agentModalOpen && <ChecklistAgentModal companyId={customerView?undefined:Number(workspace.provider_company_id)||undefined} draftRecordKey={`${workspace.id}:${agentModalOpen}`}
       key={agentModalOpen}
       lang={lang}
       value={checklist.find((item) => item.key === agentModalOpen)?.action_value}
@@ -566,7 +566,7 @@ const ShipmentOperationsEditor = ({ workspace, lang, role, onOpenDocuments, read
         } finally { setBusyKey(null); }
       }}
     />}
-    {!taskReadOnly('shipping_instructions') && instructionsOpen && <ChecklistShippingInstructionsModal
+    {!taskReadOnly('shipping_instructions') && instructionsOpen && <ChecklistShippingInstructionsModal companyId={customerView?undefined:Number(workspace.provider_company_id)||undefined} draftRecordKey={`${workspace.id}:${'shipping_instructions'}`}
       lang={lang}
       value={checklist.find((item) => item.key === 'shipping_instructions')?.action_value}
       onClose={() => setInstructionsOpen(false)}

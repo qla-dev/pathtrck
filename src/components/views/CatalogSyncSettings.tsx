@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { useEffect, useState } from 'react';
 import { Package, RefreshCw } from 'lucide-react';
 
@@ -11,6 +12,8 @@ import type { Row } from './accounting/shared';
 export function CatalogSyncSettings({ company, t, fail }: { company: number; t: (k: string) => string; fail: (e: unknown) => void }) {
   const [form, setForm] = useState<Row>({ catalog_item_sets: 'USL,OPR', catalog_push_enabled: false, catalog_push_item_set: '' });
   const [ready, setReady] = useState(false); const [busy, setBusy] = useState(false); const [result, setResult] = useState<Row | null>(null); const [last, setLast] = useState('');
+  const recovery22=useFormRecovery({module:"catalog",formKey:"CatalogSyncSettings",recordKey:'new',companyId:company||undefined,submitPaths:[`^/accounting/${company}/catalog/.*settings.*$`]},{form},recovered=>{setForm((previous:any)=>restoreFormValue(previous,recovered.form));},{active:true,scopeReady:!!(company)&&(ready)});
+
   useEffect(() => {
     api.accounting.get<Row | null>(company, 'catalog/pantheon/settings').then(r => { if (!r.data) return; setReady(true); setLast(String(r.data.last_catalog_sync_at ?? ''));
       setForm({ catalog_item_sets: r.data.catalog_item_sets ?? '', catalog_push_enabled: !!r.data.catalog_push_enabled, catalog_push_item_set: r.data.catalog_push_item_set ?? '' }); }).catch(() => undefined);

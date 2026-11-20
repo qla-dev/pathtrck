@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { useEffect, useState } from 'react';
 import { ClipboardList, PlugZap, RefreshCw } from 'lucide-react';
 
@@ -44,6 +45,7 @@ function OpsPantheonSettings({ company, t, fail }: { company: number; t: (k: str
   const [state, setState] = useState<Row | null>(null); const [result, setResult] = useState<Row | null>(null); const [busy, setBusy] = useState(false);
   useEffect(() => { api.accounting.get<Row | null>(company, 'integrations/ops-pantheon').then(r => { const s = r.data; setState(s); if (s) setForm({ sync_enabled: !!s.sync_enabled, order_doc_type: s.order_doc_type ?? '', push_orders_from: s.push_orders_from ?? '', default_worker: s.default_worker ?? '', worker_map: s.worker_map ?? {} }); }).catch(() => undefined); }, [company]);
   const run = async (fn: () => Promise<void>) => { if (busy) return; setBusy(true); try { await fn(); } catch (e) { fail(e); } finally { setBusy(false); } };
+  useFormRecovery({module:'settings',formKey:'ops-connector',companyId:company,submitPaths:[`^/accounting/${company}/integrations/ops-pantheon$`]},{form},recovered=>{setForm((previous:any)=>restoreFormValue(previous,recovered.form));},{active:true});
   const summary = (result ?? state?.last_sync_summary) as Row | null;
   return <Card className="shadow-none" contentClassName="space-y-3 p-4">
     <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="flex items-center gap-2 font-black"><ClipboardList className="h-4 w-4" />{t('ops_sync_title')}</h3>

@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
@@ -138,6 +139,8 @@ export const VehicleReturnModal = ({ open, loadId, companyId, drivers = [], depo
   const [photos, setPhotos] = useState<Array<{ file: File; url: string }>>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const recovery39=useFormRecovery({module:"fuel",formKey:"VehicleReturnModal",recordKey:String(vehicleId||loadId||'new'),companyId:companyId||undefined,submitPaths:[`^/fleet-operations/${companyId}/handovers$`,`^/vehicle-return-inspections$`,`^/loads/[^/]+/vehicle-return$`]},{destination,toDriver,depot,rental,fuelConfirmed,damageConfirmed,step,mileage,fuelLevel,hasDamage,damageNotes,parkingLocation,parkingPoint,photos},recovered=>{setDestination((previous:any)=>restoreFormValue(previous,recovered.destination));setToDriver((previous:any)=>restoreFormValue(previous,recovered.toDriver));setDepot((previous:any)=>restoreFormValue(previous,recovered.depot));setRental((previous:any)=>restoreFormValue(previous,recovered.rental));setFuelConfirmed((previous:any)=>restoreFormValue(previous,recovered.fuelConfirmed));setDamageConfirmed((previous:any)=>restoreFormValue(previous,recovered.damageConfirmed));setStep((previous:any)=>restoreFormValue(previous,recovered.step));setMileage((previous:any)=>restoreFormValue(previous,recovered.mileage));setFuelLevel((previous:any)=>restoreFormValue(previous,recovered.fuelLevel));setHasDamage((previous:any)=>restoreFormValue(previous,recovered.hasDamage));setDamageNotes((previous:any)=>restoreFormValue(previous,recovered.damageNotes));setParkingLocation((previous:any)=>restoreFormValue(previous,recovered.parkingLocation));setParkingPoint((previous:any)=>restoreFormValue(previous,recovered.parkingPoint));setPhotos((previous:any)=>restoreFormValue(previous,recovered.photos));},{active:open,scopeReady:true});
+
 
   useEffect(()=>{
     if(!open)return;

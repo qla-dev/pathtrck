@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { useState, type ReactNode } from 'react';
 import {
   Activity as ActivityIcon, ArrowRight, Building2, CalendarDays, CheckCircle2, CircleDollarSign,
@@ -93,6 +94,8 @@ export const ShipmentDetailsOverview = ({ shipment, workspace, lang, role, userI
   const [sendingReminder, setSendingReminder] = useState(false);
   const [chargeDraft, setChargeDraft] = useState({ type: '', condition: '', rate: '', unit: '' });
   const [chargesSaving, setChargesSaving] = useState(false);
+  const recovery45=useFormRecovery({module:"expenses",formKey:"ShipmentDetailsOverview",recordKey:String(workspace?.id||'new'),submitFields:{additional_charges:'__present__'},submitPaths:[`^/shipment-workspaces/${workspace?.id}$`]},{chargeDraft},recovered=>{setChargeDraft((previous:any)=>restoreFormValue(previous,recovered.chargeDraft));},{active:true,scopeReady:true});
+
   const details = new Map((shipment.details || []).map((detail) => [detail.key, detail.value]));
   const parties = record(workspace?.parties_snapshot);
   const customer = record(parties.customer);

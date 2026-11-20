@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Flatpickr from 'react-flatpickr';
 import {
@@ -130,6 +131,8 @@ export const TrackingShipmentDetails = ({ details, focusKey, lang, role, consign
   const canEdit = role === 'superadmin' || role === 'user';
   const [driverOptions, setDriverOptions] = useState<FleetOption[]>([]);
   const [vehicleOptions, setVehicleOptions] = useState<FleetOption[]>([]);
+  const recovery40=useFormRecovery({module:"loads",formKey:"TrackingShipmentDetails",recordKey:String(details.find(d=>d.key==='load_id')?.value||'details'),submitPaths:[`^/loads/[^/]+$`]},{editingKey,draft,dateValues},recovered=>{setEditingKey((previous:any)=>restoreFormValue(previous,recovered.editingKey));setDraft((previous:any)=>restoreFormValue(previous,recovered.draft));setDateValues((previous:any)=>restoreFormValue(previous,recovered.dateValues));},{active:!!editingKey,scopeReady:true});
+
   const needsFleet = details.some((detail) => detail.input === 'driver' || detail.input === 'vehicle');
 
   // The driver and vehicle fields pick from the fleet, so their options come from the API once.

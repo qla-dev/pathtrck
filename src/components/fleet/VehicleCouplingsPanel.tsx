@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { useEffect, useRef, useState } from 'react';
 import type { Language } from '../../types';
 import { api } from '../../services/api';
@@ -8,6 +9,8 @@ import { isTrailer } from './vehicleRegistry';
 
 export function VehicleCouplingsPanel({lang,company,vehicle,candidates,canManage,onChanged}:{lang:Language;company:number;vehicle:Record<string,any>;candidates:Record<string,any>[];canManage:boolean;onChanged:()=>Promise<void>}) {
   const t=fleetCopy(lang),[rows,setRows]=useState<Record<string,any>[]>([]),[page,setPage]=useState(1),[last,setLast]=useState(1),[trailer,setTrailer]=useState(''),[position,setPosition]=useState(1),[reason,setReason]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),live=useRef(true);
+  const recovery36=useFormRecovery({module:"vehicles",formKey:"VehicleCouplingsPanel",recordKey:String(vehicle.id),companyId:company||undefined,submitPaths:[`^/fleet-operations/${company}/vehicle-couplings/${vehicle.id}(?:/[^/]+/detach)?$`]},{trailer,position,reason},recovered=>{setTrailer((previous:any)=>restoreFormValue(previous,recovered.trailer));setPosition((previous:any)=>restoreFormValue(previous,recovered.position));setReason((previous:any)=>restoreFormValue(previous,recovered.reason));},{active:true,scopeReady:!!(company)});
+
   const load=async()=>{const r=await api.fleetOperations.get(company,`vehicle-couplings/${vehicle.id}?page=${page}`);if(live.current){setRows(r.data.data);setLast(r.data.last_page);}};
   useEffect(()=>{live.current=true;void load().catch(e=>{if(live.current)setError(e.message);});return()=>{live.current=false;};},[company,vehicle.id,page]);
   const mutate=async(path:string,body:unknown)=>{if(busy)return;setBusy(true);setError('');try{await api.fleetOperations.send(company,path,body);if(!live.current)return;await load();await onChanged();setReason('');setTrailer('');}catch(e){if(live.current)setError((e as Error).message);}finally{if(live.current)setBusy(false);}};

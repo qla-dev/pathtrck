@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { IntakeShipmentSummary } from './IntakeShipmentSummary';
 import { PostLoadModal } from '../modals/PostLoadModal';
 import { ShipmentMessagesTab } from '../tracking/ShipmentMessagesTab';
@@ -38,6 +39,8 @@ function OpsContent({lang,initialWorkspaceId,initialSection,onOpenShipment,onOpe
  const [dailyRequested,setDailyRequested]=useState(false);
  const detailRequest=useRef(0);
  const [queueRefresh,setQueueRefresh]=useState(0);
+  const recovery14=useFormRecovery({module:"orders",formKey:'external-intake',recordKey:'new',companyId:company||undefined,submitPaths:[`^/accounting/${company}/ops/orders$`]},{creating},recovered=>{setCreating((previous:any)=>restoreFormValue(previous,recovered.creating));},{active:!!creating,scopeReady:!!(company)});
+
  const allowed=context?.abilities?.includes('ops');
  const fail=(e:unknown)=>setError(e instanceof Error?e.message:String(e));
  useEffect(()=>{let active=true;void api.accounting.companies().then(async r=>{if(active){setCompanies(r.data);let selected=r.data[0]?.id||0;if(initialWorkspaceId&&r.data.length){try{const w=(await api.shipmentWorkspaces.get(initialWorkspaceId)).data;const candidate=Number(w.provider_company_id);if(r.data.some(c=>Number(c.id)===candidate))selected=candidate;}catch{}}if(active){setCompany(selected);if(!r.data.length)setLoading(false);}}}).catch(e=>{if(active){fail(e);setLoading(false);}});return()=>{active=false;};},[]);
@@ -123,6 +126,8 @@ function OpsDetail({initialSection,company,detail,members,busy,error,onClose,rel
  const o=detail.order,inquiry=o.intake?.kind==='inquiry',editable=!['closed','cancelled'].includes(o.status);
  const [section,setSection]=useState(initialSection==='operations'||!initialSection?'compliance':initialSection),[event,setEvent]=useState<Row>({event_type:'note',note:''}),[reason,setReason]=useState(''),[documentError,setDocumentError]=useState('');
  const [schedule,setSchedule]=useState<Row>({planned_start_at:o.planned_start_at?.slice(0,10)||'',planned_end_at:o.planned_end_at?.slice(0,10)||''});
+  const recovery15=useFormRecovery({module:"orders",formKey:'order-actions',recordKey:String(detail.order.id),companyId:company||undefined,submitPaths:[`^/accounting/${company}/ops/orders/${detail.order.id}/(?:events|reopen)?$`]},{event,reason,schedule},recovered=>{setEvent((previous:any)=>restoreFormValue(previous,recovered.event));setReason((previous:any)=>restoreFormValue(previous,recovered.reason));setSchedule((previous:any)=>restoreFormValue(previous,recovered.schedule));},{active:true,scopeReady:!!(company)});
+
  return <Dialog size="xl" title={`${o.reference} · ${o.title}`} subtitle={`${o.customer_name||'—'}${detail.workspace?` · ${t('Pošiljka')} ${detail.workspace.reference}`:''}`} icon={ClipboardList} closeLabel={t("Zatvori")} onClose={onClose} closeDisabled={busy} footer={editable&&!inquiry?<><Button size="sm" variant="outline" disabled={busy} onClick={reload}>{t("Osvježi status")}</Button><Button disabled={busy||!detail.settlement.can_finish} onClick={()=>act('/close',{})}>{t("Završi nalog")}</Button></>:undefined}><div className="space-y-4">{error&&<Notice tone="bad">{error}</Notice>}
  {o.status==='closed'&&<div className="space-y-2 rounded-xl border border-amber-300 p-3"><p className="text-sm">{t("Za ispravku dokaza ili dodatnu uslugu ponovo otvorite nalog uz razlog. Ranije potvrde ostaju u historiji.")}</p><label className="grid gap-1 text-sm">{t("Razlog ponovnog otvaranja")}<input className={field} value={reason} onChange={e=>setReason(e.target.value)}/></label><Button variant="outline" disabled={busy||reason.trim().length<5} onClick={()=>act('/reopen',{revision:o.revision,reason})}>{t("Ponovo otvori za pregled")}</Button></div>}
  <div className="flex flex-wrap gap-2">{o.load_id&&onOpenShipment&&<Button size="sm" variant="outline" onClick={()=>{onClose();onOpenShipment(String(o.load_id));}}>{t('Otvori booking / pošiljku')}</Button>}{o.crm_document_id&&onOpenCrm&&<Button size="sm" variant="outline" onClick={()=>{onClose();onOpenCrm(company,Number(o.crm_document_id));}}>{t('Otvori izvornu CRM ponudu')}</Button>}{detail.source_links?.accepted_offer_id&&<span className="self-center text-xs text-slate-500">{t('Prihvaćena ponuda')} #{detail.source_links.accepted_offer_id}</span>}</div>
@@ -229,6 +234,8 @@ function CustomerOrderAccess({company,order,onChange}:{company:number;order:Row;
 function SupplyChainAccess({order}:{order:number}){
  const {lang}=useOpsCopy(),bs=['bs','hr','sr'].includes(lang),c=(a:string,b:string)=>bs?a:b;
  const [data,setData]=useState<Row|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[draft,setDraft]=useState<Row>({company:'',name:'',email:'',phone:'',role:'exporter',required_documents:['ci','pl'],due_date:'',request_note:''}),[updates,setUpdates]=useState<Record<string,Row>>({}),[roles,setRoles]=useState<Record<string,string>>({});
+  const recovery16=useFormRecovery({module:"orders",formKey:"SupplyChainAccess",recordKey:String(order),submitPaths:[`^/transport-orders/${order}/supply-chain$`]},{draft,updates},recovered=>{setDraft((previous:any)=>restoreFormValue(previous,recovered.draft));setUpdates((previous:any)=>restoreFormValue(previous,recovered.updates));},{active:true,scopeReady:true});
+
  const request=(body?:Row)=>body?api.transportOrders.action(order,'supply-chain',body):api.transportOrders.supplyChain(order);
  const load=async()=>{setData((await request()).data);};
  useEffect(()=>{void load().catch(e=>setError(e.message));},[order]);

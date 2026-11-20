@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { useMemo, useState } from 'react';
 import { BookCheck, BookOpen, Building2, Clock3, FilePlus2, HandCoins, Plus, ReceiptText, RefreshCw, ShieldCheck, Truck, WalletCards } from 'lucide-react';
 
@@ -29,6 +30,10 @@ export function AccountingView({ lang, mode = 'accounting' }: { lang: Language; 
   const [formName, setFormName] = useState(''); const [form, setForm] = useState<Row>({});
   const [draft, setDraft] = useState<Row | null>(null);
   const [terminal, setTerminal] = useState(false);
+  const recovery5=useFormRecovery({module:"accounting",formKey:'accounting-action',recordKey:String(formName||'new'),companyId:company||undefined,submitPaths:[`^/accounting/${company}/(?:settings|accounts|periods|partners|rules|bank|allocations|advances|estimates|journal|entries|jobs/invoice|invoices/[^/]+/(?:corrective|deliver)|pos/invoices/[^/]+/(?:fiscalise|refund|confirm))(?:/[^?]*)?$`]},{formName,form},recovered=>{setFormName((previous:any)=>restoreFormValue(previous,recovered.formName));setForm((previous:any)=>restoreFormValue(previous,recovered.form));},{active:!!formName,scopeReady:!!(company)});
+
+  const recovery4=useFormRecovery({module:"invoices",formKey:pos?'outgoing-invoice':'incoming-invoice',recordKey:String(draft?.id||'new'),companyId:company||undefined,resource:"invoices",resourceId:Number(draft?.id)||undefined,baseVersion:draft?.draft_record_hash,submitPaths:[`^/accounting/${company}/invoices(?:/${draft?.id})?$`]},{draft,tab},recovered=>{setDraft((previous:any)=>restoreFormValue(previous,recovered.draft));setTab((previous:any)=>restoreFormValue(previous,recovered.tab));},{active:!!draft,scopeReady:!!(company)});
+
   const selected = data.invoices.find(i => i.id === selectedId);
   const openForm = (name: string, defaults: Row = {}) => { acc.setError(''); setForm(defaults); setFormName(name); };
   const editInvoice = (invoice?: Row) => { acc.setError(''); setDraft(invoice

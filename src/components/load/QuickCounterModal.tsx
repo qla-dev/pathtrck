@@ -1,3 +1,4 @@
+import {useFormRecovery,restoreFormValue} from '../../hooks/useFormRecovery';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
@@ -20,6 +21,8 @@ type QuickCounterModalProps = {
 export const QuickCounterModal = ({ open, lang, currentAmount, currency, loading = false, onClose, onSend }: QuickCounterModalProps) => {
   const u = (key: string, fallback: string) => ui(lang, key, fallback);
   const [amount, setAmount] = useState(() => String(currentAmount || ''));
+  const recovery49=useFormRecovery({module:"loads",formKey:'quick-counter',recordKey:'new',submitPaths:[`^/offers/[^/]+/.*counter.*$`]},{amount},recovered=>{setAmount((previous:any)=>restoreFormValue(previous,recovered.amount));},{active:true,scopeReady:true});
+
 
   return createPortal(
     <AnimatePresence>
