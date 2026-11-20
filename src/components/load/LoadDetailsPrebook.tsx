@@ -252,7 +252,7 @@ export const LoadDetailsPrebook = ({ open, load, onClose, lang, role, userId, co
   const [assignmentOpen, setAssignmentOpen] = useState(false);
   const [offersOpen, setOffersOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
-  const recovery47=useFormRecovery({module:"loads",formKey:"LoadDetailsPrebook-bid",recordKey:String(load.id),submitPaths:[`^/offers(?:/[^/]+)?$`]},{showOfferForm,offerDraft},recovered=>{setShowOfferForm((previous:any)=>restoreFormValue(previous,recovered.showOfferForm));setOfferDraft((previous:any)=>restoreFormValue(previous,recovered.offerDraft));},{active:showOfferForm,scopeReady:true});
+  const recovery47=useFormRecovery({module:"loads",formKey:"LoadDetailsPrebook-bid",recordKey:String(load?.id||'new'),submitPaths:[`^/offers(?:/[^/]+)?$`]},{showOfferForm,offerDraft},recovered=>{setShowOfferForm((previous:any)=>restoreFormValue(previous,recovered.showOfferForm));setOfferDraft((previous:any)=>restoreFormValue(previous,recovered.offerDraft));},{active:showOfferForm&&!!load,scopeReady:!!load});
 
   // A storage request is bid on with capacity rather than with a truck, so it gets its own form
   // and its own payload - everything below that touches offers branches on this.
